@@ -30,8 +30,8 @@
 
 #include <expected>
 #include <nlohmann/json.hpp>
-#include "app/JsonUtilities.hpp"
-#include "app/Errors.hpp"
+#include "graph/app/JsonUtilities.hpp"
+#include "graph/app/Errors.hpp"
 
 namespace app::config {
 

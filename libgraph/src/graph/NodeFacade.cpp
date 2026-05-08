@@ -1,0 +1,611 @@
+// MIT License
+//
+// Copyright (c) 2025 graphlib contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#include "graph/NodeFacade.hpp"
+#include <log4cxx/logger.h>
+#include <log4cxx/basicconfigurator.h>
+#include <iostream>
+#include <chrono>
+#include <string>
+#include <cstring>
+#include <stdexcept>
+#include <utility>
+#include <iomanip>
+#include <cassert>
+
+namespace graph {
+
+log4cxx::LoggerPtr NodeFacadeAdapter::logger_ =
+    log4cxx::Logger::getLogger("graph.NodeFacadeAdapter");
+
+NodeFacadeAdapter::NodeFacadeAdapter(NodeHandle handle, const NodeFacade* facade)
+    : handle_(handle), facade_(facade), initialized_(false), started_(false),
+      data_injection_node_config_ptr_(nullptr) {
+    // Preconditions: handle and facade must be valid (non-null)
+    // If violated, it indicates a programming error in the caller
+    assert(handle != nullptr && "NodeFacadeAdapter constructor: handle must not be null");
+    assert(facade != nullptr && "NodeFacadeAdapter constructor: facade must not be null");
+    assert(facade->Init != nullptr && "NodeFacadeAdapter constructor: facade->Init must not be null");
+    assert(facade->Start != nullptr && "NodeFacadeAdapter constructor: facade->Start must not be null");
+    assert(facade->Stop != nullptr && "NodeFacadeAdapter constructor: facade->Stop must not be null");
+    assert(facade->Destroy != nullptr && "NodeFacadeAdapter constructor: facade->Destroy must not be null");
+    
+    LOG4CXX_TRACE(logger_, "Created NodeFacadeAdapter for handle: " << handle);
+    ExtractInterfaces();
+}
+
+NodeFacadeAdapter::~NodeFacadeAdapter() {
+    LOG4CXX_TRACE(logger_, "Destroying NodeFacadeAdapter");
+    
+    // NOTE: Do NOT call Cleanup() or facade_->Destroy() here!
+    // Cleanup() must be called explicitly BEFORE destruction via GraphManager
+    // to avoid vptr corruption during ConcreteNode destructor chains.
+    // See: Cleanup() method and GraphManager destructor for proper lifecycle.
+}
+
+void NodeFacadeAdapter::ExtractInterfaces() {
+    // Preconditions established by constructor asserts:
+    // - handle_ is valid (non-null)
+    // - facade_ is valid (non-null)
+    // Therefore, no need to check for null here
+    
+    // Try to extract DataInjectionNodeConfig interface from plugin callback
+    if (facade_->GetAsDataInjectionNodeConfig) {
+        void* data_injection_ptr = facade_->GetAsDataInjectionNodeConfig(handle_);
+        if (data_injection_ptr) {
+            // Store as shared_ptr with no-op deleter (we don't own the pointer)
+            // The pointer is owned by the plugin node and valid for node's lifetime
+            data_injection_node_config_ptr_ = std::shared_ptr<void>(data_injection_ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted DataInjectionNodeConfig interface from plugin");
+        }
+    }
+    
+
+
+
+    // Try to extract IMetricsCallbackProvider interface from plugin callback
+    if (facade_->GetAsIMetricsCallbackProvider) {
+        void* ptr = facade_->GetAsIMetricsCallbackProvider(handle_);
+        if (ptr) {
+            metrics_callback_provider_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted IMetricsCallbackProvider interface from plugin");
+        }
+    }
+    
+    // Try to extract ICompletionCallback interface from plugin callback
+    if (facade_->GetAsICompletionCallback) {
+        void* ptr = facade_->GetAsICompletionCallback(handle_);
+        if (ptr) {
+            completion_callback_provider_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted ICompletionCallback interface from plugin");
+        }
+    }
+}
+
+NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
+    : handle_(other.handle_), facade_(other.facade_), 
+      initialized_(other.initialized_), started_(other.started_),
+      data_injection_node_config_ptr_(std::move(other.data_injection_node_config_ptr_)),
+      configurable_ptr_(std::move(other.configurable_ptr_)),
+      diagnosable_ptr_(std::move(other.diagnosable_ptr_)),
+      parameterized_ptr_(std::move(other.parameterized_ptr_)),
+      metrics_callback_provider_ptr_(std::move(other.metrics_callback_provider_ptr_)),
+      completion_callback_provider_ptr_(std::move(other.completion_callback_provider_ptr_)) {
+    LOG4CXX_TRACE(logger_, "Move-constructing NodeFacadeAdapter");
+    // Invalidate the other object so it doesn't call Destroy() in its destructor
+    other.handle_ = nullptr;
+    other.facade_ = nullptr;
+}
+
+NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexcept {
+    LOG4CXX_TRACE(logger_, "Move-assigning NodeFacadeAdapter");
+    
+    // Clean up our current handle before taking ownership of other's
+    if (started_) {
+        Stop();
+    }
+    if (facade_ && facade_->Destroy && handle_) {
+        facade_->Destroy(handle_);
+    }
+    
+    // Take ownership
+    handle_ = other.handle_;
+    facade_ = other.facade_;
+    initialized_ = other.initialized_;
+    started_ = other.started_;
+    data_injection_node_config_ptr_ = std::move(other.data_injection_node_config_ptr_);
+    configurable_ptr_ = std::move(other.configurable_ptr_);
+    diagnosable_ptr_ = std::move(other.diagnosable_ptr_);
+    parameterized_ptr_ = std::move(other.parameterized_ptr_);
+    metrics_callback_provider_ptr_ = std::move(other.metrics_callback_provider_ptr_);
+    
+    // Invalidate the other object
+    other.handle_ = nullptr;
+    other.facade_ = nullptr;
+    
+    return *this;
+}
+
+int NodeFacadeAdapter::GetLifecycleState() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetLifecycleState()");
+    
+    if (!facade_ || !facade_->GetLifecycleState || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or GetLifecycleState function not set");
+        return -1;
+    }
+    
+    return facade_->GetLifecycleState(handle_);
+}
+
+bool NodeFacadeAdapter::Init() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Init()");
+    
+    if (!facade_ || !facade_->Init || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or Init function not set");
+        return false;
+    }
+    
+    initialized_ = facade_->Init(handle_);
+    
+    if (initialized_) {
+        LOG4CXX_TRACE(logger_, "Node initialized successfully");
+    } else {
+        LOG4CXX_WARN(logger_, "Node initialization failed");
+    }
+    
+    return initialized_;
+}
+
+bool NodeFacadeAdapter::Start() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Start()");
+    
+    if (!initialized_) {
+        LOG4CXX_WARN(logger_, "Node not initialized, cannot start");
+        return false;
+    }
+    
+    if (!facade_ || !facade_->Start || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or Start function not set");
+        return false;
+    }
+    
+    started_ = facade_->Start(handle_);
+    
+    if (started_) {
+        LOG4CXX_TRACE(logger_, "Node started successfully");
+    } else {
+        LOG4CXX_WARN(logger_, "Node start failed");
+    }
+    
+    return started_;
+}
+
+void NodeFacadeAdapter::Stop() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Stop()");
+    
+    if (!started_) {
+        LOG4CXX_TRACE(logger_, "Node not started, skipping Stop()");
+        return;
+    }
+    
+    if (!facade_ || !facade_->Stop || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or Stop function not set");
+        return;
+    }
+    
+    facade_->Stop(handle_);
+    started_ = false;
+    LOG4CXX_TRACE(logger_, "Node stopped");
+}
+
+void NodeFacadeAdapter::Cleanup() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Cleanup()");
+    
+    // Only call Destroy() once
+    if (!handle_) {
+        LOG4CXX_TRACE(logger_, "Node already cleaned up, skipping");
+        return;
+    }
+    
+    // Ensure node is stopped before destroying
+    if (started_) {
+        LOG4CXX_TRACE(logger_, "Node still started, stopping before cleanup...");
+        try {
+            Stop();
+        } catch (const std::exception& e) {
+            LOG4CXX_WARN(logger_, "Exception during Stop() in Cleanup: " << e.what());
+        } catch (...) {
+            LOG4CXX_WARN(logger_, "Unknown exception during Stop() in Cleanup");
+        }
+    }
+    
+    // IMPORTANT: Do NOT call Destroy() here!
+    // Calling facade_->Destroy(handle_) during cleanup causes the plugin to delete
+    // the NodePluginInstance, which releases shared_ptr<ConcreteNode>.
+    // This triggers ConcreteNode's destructor while it's still being referenced
+    // by the virtual function table, causing pure virtual errors.
+    //
+    // Instead, rely on the plugin to manage its own lifecycle. The handle will be
+    // leaked if the plugin doesn't clean up automatically, but this is safer than
+    // calling Destroy() during our destructor sequence.
+    //
+    // NOTE: This is a known limitation - plugins should implement RAII cleanup
+    // via their own module initialization/cleanup handlers if needed.
+    
+    // Just mark as cleaned up
+    handle_ = nullptr;
+    LOG4CXX_TRACE(logger_, "Node marked as cleaned up (Destroy callback NOT called)");
+}
+
+bool NodeFacadeAdapter::Join() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Join()");
+    
+    if (!started_) {
+        LOG4CXX_TRACE(logger_, "Node not started, skipping Join()");
+        return true;
+    }
+    
+    if (!facade_ || !facade_->Join || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or Join function not set");
+        return false;
+    }
+    
+    bool result = facade_->Join(handle_);
+    
+    if (result) {
+        LOG4CXX_TRACE(logger_, "Node joined successfully");
+    } else {
+        LOG4CXX_WARN(logger_, "Node join failed");
+    }
+    
+    return result;
+}
+
+bool NodeFacadeAdapter::JoinWithTimeout(std::chrono::milliseconds timeout) {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::JoinWithTimeout()");
+    
+    if (!started_) {
+        LOG4CXX_TRACE(logger_, "Node not started, skipping JoinWithTimeout()");
+        return true;
+    }
+    
+    if (!facade_ || !facade_->JoinWithTimeout || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or JoinWithTimeout function not set");
+        return false;
+    }
+    
+    bool result = facade_->JoinWithTimeout(handle_, timeout);
+    
+    if (result) {
+        LOG4CXX_TRACE(logger_, "Node joined successfully");
+    } else {
+        LOG4CXX_WARN(logger_, "Node join failed");
+    }
+    
+    return result;
+}
+
+void NodeFacadeAdapter::Execute() {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Execute()");
+    
+    if (!facade_ || !facade_->Execute || !handle_) {
+        LOG4CXX_WARN(logger_, "Facade or Execute function not set");
+        return;
+    }
+    
+    facade_->Execute(handle_);
+}
+
+const std::string NodeFacadeAdapter::GetName() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetName()");
+    
+    if (!facade_ || !facade_->GetName || !handle_) {
+        static const std::string empty;
+        return empty;
+    }
+    
+    const char* name = facade_->GetName(handle_);
+    return name ? std::string(name) : "";
+}
+
+const std::string NodeFacadeAdapter::GetType() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetType()");
+    
+    if (!facade_ || !facade_->GetType || !handle_) {
+        static const std::string empty;
+        return empty;
+    }
+    
+    const char* type = facade_->GetType(handle_);
+    return type ? std::string(type) : "";
+}
+
+size_t NodeFacadeAdapter::GetInputPortCount() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortCount()");
+    
+    if (!facade_ || !facade_->GetInputPortCount || !handle_) {
+        return 0;
+    }
+    
+    return facade_->GetInputPortCount(handle_);
+}
+
+size_t NodeFacadeAdapter::GetOutputPortCount() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortCount()");
+    
+    if (!facade_ || !facade_->GetOutputPortCount || !handle_) {
+        return 0;
+    }
+    
+    return facade_->GetOutputPortCount(handle_);
+}
+
+std::string NodeFacadeAdapter::GetInputPortName(size_t port) const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortName(" << port << ")");
+    
+    if (!facade_ || !facade_->GetInputPortName || !handle_) {
+        return "";
+    }
+    
+    const char* name = facade_->GetInputPortName(handle_, port);
+    return name ? std::string(name) : "";
+}
+
+std::string NodeFacadeAdapter::GetOutputPortName(size_t port) const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortName(" << port << ")");
+    
+    if (!facade_ || !facade_->GetOutputPortName || !handle_) {
+        return "";
+    }
+    
+    const char* name = facade_->GetOutputPortName(handle_, port);
+    return name ? std::string(name) : "";
+}
+
+std::vector<PortMetadataC> NodeFacadeAdapter::GetInputPortMetadata() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortMetadata()");
+    
+    std::vector<PortMetadataC> result;
+    
+    if (!facade_ || !facade_->GetInputPortMetadata || !handle_) {
+        LOG4CXX_TRACE(logger_, "GetInputPortMetadata not implemented in facade");
+        return result;
+    }
+    
+    size_t count = 0;
+    PortMetadataC* metadata = facade_->GetInputPortMetadata(handle_, &count);
+    
+    if (!metadata || count == 0) {
+        LOG4CXX_TRACE(logger_, "No input port metadata available");
+        if (metadata && facade_ && facade_->FreePortMetadata) {
+            facade_->FreePortMetadata(metadata);
+        }
+        return result;
+    }
+    
+    // Copy metadata from C array to C++ vector
+    try {
+        result.reserve(count);
+        for (size_t i = 0; i < count; ++i) {
+            result.push_back(metadata[i]);
+        }
+        LOG4CXX_TRACE(logger_, "Retrieved " << count << " input port metadata entries");
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Exception while copying input metadata: " << e.what());
+        result.clear();
+    }
+    
+    // Free the C array
+    if (facade_ && facade_->FreePortMetadata) {
+        facade_->FreePortMetadata(metadata);
+    }
+    
+    return result;
+}
+
+std::vector<PortMetadataC> NodeFacadeAdapter::GetOutputPortMetadata() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortMetadata()");
+    
+    std::vector<PortMetadataC> result;
+    
+    if (!facade_ || !facade_->GetOutputPortMetadata || !handle_) {
+        LOG4CXX_TRACE(logger_, "GetOutputPortMetadata not implemented in facade");
+        return result;
+    }
+    size_t count = 0;
+    PortMetadataC* metadata = facade_->GetOutputPortMetadata(handle_, &count);
+
+    if (!metadata || count == 0) {
+        LOG4CXX_TRACE(logger_, "No output port metadata available");
+        if (metadata && facade_ && facade_->FreePortMetadata) {
+            facade_->FreePortMetadata(metadata);
+        }
+        return result;
+    }
+
+    // Copy metadata from C array to C++ vector
+    try {
+        result.reserve(count);
+        for (size_t i = 0; i < count; ++i) {
+            result.push_back(metadata[i]);
+        }
+        LOG4CXX_TRACE(logger_, "Retrieved " << count << " output port metadata entries");
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Exception while copying output metadata: " << e.what());
+        result.clear();
+    }
+    
+    // Free the C array
+    if (facade_ && facade_->FreePortMetadata) {
+        facade_->FreePortMetadata(metadata);
+    }
+    
+    return result;
+}
+
+std::string NodeFacadeAdapter::GetStatusString() const {
+    // Not yet implemented
+    return "";
+}
+
+static void PrintPortMetadata(const std::vector<PortMetadataC>& metadata) {
+    if (metadata.empty()) {
+        std::cout << "  No port metadata available\n";
+        return;
+    }
+
+    // Print header
+    std::cout << "┌─────────┬──────────────────────────┬──────────────────────────┬───────────┐\n";
+    std::cout << "│ Index   │ Port Name                │ Payload Type             │ Direction │\n";
+    std::cout << "├─────────┼──────────────────────────┼──────────────────────────┼───────────┤\n";
+
+    // Print each metadata entry
+    for (const auto& port : metadata) {
+        std::cout << "│ " << std::setw(5) << port.index << "   │ "
+                  << std::setw(24) << port.port_name << " │ "
+                  << std::setw(24) << port.payload_type << " │ "
+                  << std::setw(9) << port.direction << " │\n";
+    }
+
+    std::cout << "└─────────┴──────────────────────────┴──────────────────────────┴───────────┘\n";
+}
+
+void DisplayNodeFacadeAdapter(std::shared_ptr<NodeFacadeAdapter> adapter) {
+    if (!adapter) {
+        std::cout << "NodeFacadeAdapter is null\n";
+        return;
+    }
+    std::cout << "Node Name: " << adapter->GetName() << "\n";
+    std::cout << "Node Type: " << adapter->GetType() << "\n";
+    std::cout << "Input Ports: " << adapter->GetInputPortCount() << "\n";
+    for (size_t i = 0; i < adapter->GetInputPortCount(); ++i) {
+        std::cout << "  Input Port " << i << ": " << adapter->GetInputPortName(i) << "\n";
+    }
+    std::cout << "Output Ports: " << adapter->GetOutputPortCount() << "\n";
+    for (size_t i = 0; i < adapter->GetOutputPortCount(); ++i) {
+        std::cout << "  Output Port " << i << ": " << adapter->GetOutputPortName(i) << "\n";
+    }
+    std::cout << "Input Port Metadata:\n";
+    PrintPortMetadata(adapter->GetInputPortMetadata());
+    std::cout << "Output Port Metadata:\n";
+    PrintPortMetadata(adapter->GetOutputPortMetadata());
+}
+
+// ============================================================================
+// Phase 2: Unified INodeFacade Implementation
+// ============================================================================
+
+// Get node description (not available in C interface, return empty string)
+std::string NodeFacadeAdapter::GetDescription() const {
+    return "";
+}
+
+INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
+    INodeFacade::NodeMetadata metadata;
+
+    // Get basic node information
+    metadata.name = GetName();
+    metadata.type = GetType();
+    metadata.description = GetDescription();
+
+    // Get port counts
+    metadata.input_port_count = GetInputPortCount();
+    metadata.output_port_count = GetOutputPortCount();
+
+    // Build input port list
+    metadata.input_ports.reserve(metadata.input_port_count);
+    for (size_t i = 0; i < metadata.input_port_count; ++i) {
+        INodeFacade::PortInfo port{
+            .name = GetInputPortName(i),
+            .type = "",  // Type info would come from port metadata
+            .direction = "input"
+        };
+        metadata.input_ports.push_back(port);
+    }
+
+    // Build output port list
+    metadata.output_ports.reserve(metadata.output_port_count);
+    for (size_t i = 0; i < metadata.output_port_count; ++i) {
+        INodeFacade::PortInfo port{
+            .name = GetOutputPortName(i),
+            .type = "",  // Type info would come from port metadata
+            .direction = "output"
+        };
+        metadata.output_ports.push_back(port);
+    }
+
+    return metadata;
+}
+
+std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) const {
+    if (name == "csv_injection") {
+        return GetDataInjectionNodeConfigPtr();
+    } else if (name == "metrics_callback") {
+        return GetMetricsCallbackProviderPtr();
+    } else if (name == "completion_callback") {
+        return GetCompletionCallbackProviderPtr();
+    } else if (name == "configurable") {
+        return GetConfigurablePtr();
+    } else if (name == "diagnosable") {
+        return GetDiagnosablePtr();
+    } else if (name == "parameterized") {
+        return GetParameterizedPtr();
+    }
+    return nullptr;
+}
+
+std::shared_ptr<void> NodeFacadeAdapter::GetCSVInterface() const {
+    // Return through generic interface system
+    return GetInterface("csv_injection");
+}
+
+// ============================================================================
+// Phase 3: Memory Management - Convenience Methods
+// ============================================================================
+
+std::vector<std::string> NodeFacadeAdapter::GetInputPortNames() const {
+    std::vector<std::string> names;
+    
+    size_t count = GetInputPortCount();
+    names.reserve(count);
+    
+    for (size_t i = 0; i < count; ++i) {
+        names.push_back(GetInputPortName(i));
+    }
+    
+    return names;
+}
+
+std::vector<std::string> NodeFacadeAdapter::GetOutputPortNames() const {
+    std::vector<std::string> names;
+    
+    size_t count = GetOutputPortCount();
+    names.reserve(count);
+    
+    for (size_t i = 0; i < count; ++i) {
+        names.push_back(GetOutputPortName(i));
+    }
+    
+    return names;
+}
+
+}  // namespace graph

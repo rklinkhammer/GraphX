@@ -36,7 +36,7 @@
 #include "GraphConfig.hpp"
 #include <string>
 #include <expected>
-#include "app/Errors.hpp"
+#include "graph/app/Errors.hpp"
 
 namespace graph::config {
 

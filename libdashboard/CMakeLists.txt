@@ -8,12 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Note: In Stage 3, we'll find all real dependencies
 find_package(Threads REQUIRED)
 
-# Create library as stub (will be populated in Stage 3)
-add_library(dashboard STATIC)
+# Collect source files
+file(GLOB SOURCES "src/*.cpp" "src/**/*.cpp")
 
-# Placeholder source
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp" "// Placeholder\n")
-target_sources(dashboard PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp")
+# Create library
+add_library(dashboard STATIC ${SOURCES})
 
 target_include_directories(dashboard PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

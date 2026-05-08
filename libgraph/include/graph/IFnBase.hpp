@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 #include "ThreadMetrics.hpp"
 #include <atomic>
 #include <log4cxx/logger.h>

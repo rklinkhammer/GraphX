@@ -47,8 +47,8 @@
 #include <chrono>
 #include <string_view>
 #include "graph/PortSpec.hpp"
-#include "core/ActiveQueue.hpp"
-#include "core/TypeInfo.hpp"
+#include "graph/core/ActiveQueue.hpp"
+#include "graph/core/TypeInfo.hpp"
 
 namespace graph {
 

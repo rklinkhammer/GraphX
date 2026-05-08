@@ -247,7 +247,7 @@
 #include <typeinfo>
 #include <cxxabi.h>
 #include <cstdlib>
-#include "core/ReflectionHelper.hpp"
+#include "graph/core/ReflectionHelper.hpp"
 #include "graph/Nodes.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/PooledMessage.hpp"

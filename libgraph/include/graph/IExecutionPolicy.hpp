@@ -25,9 +25,9 @@
 
 
 #include <memory>
-#include "core/ReflectionHelper.hpp"
-#include "core/VariantHelper.hpp"
-#include "app/capabilities/GraphCapability.hpp"
+#include "graph/core/ReflectionHelper.hpp"
+#include "graph/core/VariantHelper.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
 
 namespace graph {
 

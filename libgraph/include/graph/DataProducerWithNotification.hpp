@@ -39,7 +39,7 @@
 #include "graph/Message.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "sensor/SensorClassificationType.hpp"
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 #include "graph/NodeCallback.hpp"
 #include "graph/ICallbackProvider.hpp"
 #include <log4cxx/logger.h>

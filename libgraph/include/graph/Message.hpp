@@ -35,7 +35,7 @@
 #include <new>
 #include <cstdlib>
 #include <string_view>
-#include "core/TypeInfo.hpp"
+#include "graph/core/TypeInfo.hpp"
 #include "PooledMessage.hpp"
 
 namespace graph::message {

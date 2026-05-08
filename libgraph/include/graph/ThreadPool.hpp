@@ -31,9 +31,9 @@
 #include <condition_variable>
 #include <mutex>
 #include <log4cxx/logger.h>
-#include "core/ActiveQueue.hpp"
-#include "core/Expected.hpp"
-#include "core/CallbackUtilities.hpp"
+#include "graph/core/ActiveQueue.hpp"
+#include "graph/core/Expected.hpp"
+#include "graph/core/CallbackUtilities.hpp"
 
 /**
  * @file ThreadPool.hpp

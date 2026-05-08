@@ -9,12 +9,11 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
-# Create library as interface (stub - will be populated in Stage 3)
-add_library(graph STATIC)
+# Collect source files
+file(GLOB SOURCES "src/*.cpp" "src/**/*.cpp")
 
-# Placeholder source (will be replaced with actual sources in Stage 3)
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp" "// Placeholder\n")
-target_sources(graph PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/placeholder.cpp")
+# Create library
+add_library(graph STATIC ${SOURCES})
 
 target_include_directories(graph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

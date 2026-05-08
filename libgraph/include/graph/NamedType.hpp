@@ -30,7 +30,7 @@
 #pragma once
 
 #include <string>
-#include "core/TypeInfo.hpp"
+#include "graph/core/TypeInfo.hpp"
 
 namespace graph
 {

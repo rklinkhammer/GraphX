@@ -22,8 +22,8 @@
 
 #pragma once
 
-#include "app/metrics/MetricsEvent.hpp"
-#include "app/metrics/NodeMetricsSchema.hpp"
+#include "graph/app/metrics/MetricsEvent.hpp"
+#include "graph/app/metrics/NodeMetricsSchema.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <chrono>

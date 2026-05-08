@@ -20,7 +20,7 @@
 #include <memory>
 #include <functional>
 #include <mutex>
-#include "core/CallbackUtilities.hpp"
+#include "graph/core/CallbackUtilities.hpp"
 
 namespace graph {
 

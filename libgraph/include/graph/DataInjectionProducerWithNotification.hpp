@@ -46,7 +46,7 @@
 #include "sensor/SensorBasicTypes.hpp"
 #include "sensor/SensorDataTypes.hpp"
 #include "graph/DataInjectionGeneratorBase.hpp"
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 #include "graph/DataProducerWithNotification.hpp"
 #include "graph/IDataInjectionSource.hpp"
 #include "graph/IConfigurable.hpp"

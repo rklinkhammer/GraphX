@@ -28,7 +28,7 @@
 #include "graph/CapabilityBus.hpp"
 #include "graph/ExecutionResult.hpp"
 #include "graph/IExecutionPolicy.hpp"
-#include "app/capabilities/GraphCapability.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
 #include "graph/ExecutionState.hpp"
 #include <memory>
 #include <chrono>

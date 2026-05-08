@@ -27,7 +27,7 @@
 #include <functional>
 #include <vector>
 #include <log4cxx/logger.h>
-#include "core/ReflectionHelper.hpp"
+#include "graph/core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFactoryRegistry.hpp"
 
