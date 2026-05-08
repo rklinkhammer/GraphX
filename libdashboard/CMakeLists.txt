@@ -5,11 +5,7 @@ set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find dependencies
-find_package(graph REQUIRED)
-find_package(FTXUI REQUIRED)
-find_package(log4cxx REQUIRED)
-find_package(ncurses REQUIRED)
-find_package(nlohmann_json REQUIRED)
+# Note: In Stage 3, we'll find all real dependencies
 find_package(Threads REQUIRED)
 
 # Create library as stub (will be populated in Stage 3)
@@ -29,14 +25,13 @@ target_include_directories(dashboard PRIVATE
 )
 
 target_link_libraries(dashboard PUBLIC
-    graph::graph
-    FTXUI::screen
-    FTXUI::component
-    log4cxx::log4cxx
-    ncurses
-    nlohmann_json::nlohmann_json
     Threads::Threads
 )
+
+# Link to graph once it's built (in parent project)
+if(TARGET graph)
+    target_link_libraries(dashboard PUBLIC graph)
+endif()
 
 # Set compile options
 if(NOT MSVC)
