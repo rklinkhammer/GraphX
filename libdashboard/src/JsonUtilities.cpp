@@ -5,12 +5,12 @@
  * @date May 7, 2026
  */
 
-#include "app/JsonUtilities.hpp"
+#include "dashboard/JsonUtilities.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <log4cxx/logger.h>
-#include "core/FormatUtilities.hpp"
+#include "graph/core/FormatUtilities.hpp"
 
 namespace app::json_util {
 

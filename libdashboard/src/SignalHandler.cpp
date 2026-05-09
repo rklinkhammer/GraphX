@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "app/SignalHandler.hpp"
+#include "dashboard/SignalHandler.hpp"
 #include <iostream>
 #include <log4cxx/logger.h>
 #include <signal.h>

@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 #include "avionics/estimators/EKFCore.hpp"
-#include "core/VariantHelper.hpp"
+#include "graph/core/VariantHelper.hpp"
 #include <algorithm>
 #include <cmath>
 

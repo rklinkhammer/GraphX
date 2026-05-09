@@ -27,16 +27,16 @@
 
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphExecutor.hpp"
-#include "app/policies/CompletionPolicy.hpp"
-#include "app/policies/DataInjectionPolicy.hpp"
-#include "app/policies/MetricsPolicy.hpp"
-#include "app/policies/DashboardPolicy.hpp"
-#include "app/policies/CSVInjectionPolicy.hpp"
-#include "app/policies/CommandPolicy.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/FactoryManager.hpp"
-#include "app/GraphBuilder.hpp"
-#include "app/capabilities/GraphCapability.hpp"
+#include "graph/app/policies/CompletionPolicy.hpp"
+#include "graph/app/policies/DataInjectionPolicy.hpp"
+#include "graph/app/policies/MetricsPolicy.hpp"
+#include "graph/app/policies/DashboardPolicy.hpp"
+#include "graph/app/policies/CSVInjectionPolicy.hpp"
+#include "graph/app/policies/CommandPolicy.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
+#include "graph/app/FactoryManager.hpp"
+#include "graph/app/GraphBuilder.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
 #include <log4cxx/logger.h>
 #include <filesystem>
 #include <stdexcept>

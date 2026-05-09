@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "app/capabilities/CSVDataInjectionCapability.hpp"
+#include "dashboard/capabilities/CSVDataInjectionCapability.hpp"
 #include "ui/BuiltinCommands.hpp"
 #include "ui/Dashboard.hpp"
 #include "ui/MetricsPanel.hpp"

@@ -22,8 +22,8 @@
 
 #include "csv/CSVDataInjectionManager.hpp"
 #include "graph/IDataInjectionSource.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "core/ActiveQueue.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
+#include "graph/core/ActiveQueue.hpp"
 #include "sensor/SensorDataTypes.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"

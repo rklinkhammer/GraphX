@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <log4cxx/logger.h>
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 
 namespace graph
 {

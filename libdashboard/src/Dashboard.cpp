@@ -51,7 +51,7 @@
  * - Status bar updates and logging
  */
 
-#include "app/SignalHandler.hpp"
+#include "dashboard/SignalHandler.hpp"
 #include "ui/Dashboard.hpp"
 #include <signal.h>
 #include <locale.h>

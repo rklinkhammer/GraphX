@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "app/GraphBuilder.hpp"
+#include "dashboard/GraphBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphConfig.hpp"
 #include "graph/EdgeRegistry.hpp"
