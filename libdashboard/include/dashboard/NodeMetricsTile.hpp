@@ -24,8 +24,8 @@
 #define GDASHBOARD_NODE_METRICS_TILE_HPP
 
 #include "ui/Metric.hpp"
-#include "app/metrics/NodeMetricsSchema.hpp"
-#include "core/VariantHelper.hpp"
+#include "dashboard/metrics/NodeMetricsSchema.hpp"
+#include "graph/core/VariantHelper.hpp"
 #include <string>
 #include <vector>
 #include <map>

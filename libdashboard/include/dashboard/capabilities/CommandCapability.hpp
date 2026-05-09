@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <functional>
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 
 namespace app::capabilities {
 

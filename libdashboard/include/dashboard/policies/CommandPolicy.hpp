@@ -28,8 +28,8 @@
 #include <vector>
 #include <log4cxx/logger.h>
 #include "graph/IExecutionPolicy.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/DashboardCapability.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/DashboardCapability.hpp"
 #include "ui/CommandRegistry.hpp"
 
 

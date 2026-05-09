@@ -28,8 +28,8 @@
 #include <functional>
 #include <vector>
 #include <ranges>
-#include "app/capabilities/GraphCapability.hpp"
-#include "core/RangesUtilities.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "graph/core/RangesUtilities.hpp"
 
 // Forward declaration
 class CommandRegistry;

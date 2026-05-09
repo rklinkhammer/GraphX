@@ -24,8 +24,8 @@
 #include <chrono>
 #include <log4cxx/logger.h>
 #include "graph/IExecutionPolicy.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/DataInjectionCapability.hpp"
+#include "graph/app/capabilities/GraphCapability.hpp"
+#include "graph/app/capabilities/DataInjectionCapability.hpp"
 
 
 

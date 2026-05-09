@@ -25,9 +25,9 @@
 #include <log4cxx/logger.h>
 #include "graph/IExecutionPolicy.hpp"
 #include "csv/CSVDataInjectionManager.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/DataInjectionCapability.hpp"
-#include "app/capabilities/CSVDataInjectionCapability.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/DataInjectionCapability.hpp"
+#include "dashboard/capabilities/CSVDataInjectionCapability.hpp"
 
 
 

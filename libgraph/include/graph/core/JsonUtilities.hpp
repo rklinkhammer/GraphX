@@ -71,8 +71,8 @@
 #include <sstream>
 
 #include <nlohmann/json.hpp>
-#include "app/Errors.hpp"
-#include "core/FormatUtilities.hpp"
+#include "graph/app/Errors.hpp"
+#include "graph/core/FormatUtilities.hpp"
 
 namespace app::json_util {
 

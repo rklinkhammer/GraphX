@@ -31,14 +31,14 @@
 #include <nlohmann/json.hpp>
 #include <httplib.h>
 
-#include "app/interfaces/IUIAdapter.hpp"
-#include "app/interfaces/ICommandExecutor.hpp"
-#include "app/interfaces/IMetricsPublisher.hpp"
-#include "app/interfaces/DashboardCommand.hpp"
-#include "app/metrics/MetricsEvent.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/MetricsCapability.hpp"
-#include "app/capabilities/DashboardCapability.hpp"
+#include "dashboard/interfaces/IUIAdapter.hpp"
+#include "dashboard/interfaces/ICommandExecutor.hpp"
+#include "dashboard/interfaces/IMetricsPublisher.hpp"
+#include "dashboard/interfaces/DashboardCommand.hpp"
+#include "dashboard/metrics/MetricsEvent.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/MetricsCapability.hpp"
+#include "dashboard/capabilities/DashboardCapability.hpp"
 #include "graph/CapabilityBus.hpp"
 
 namespace app::adapters {

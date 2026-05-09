@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "app/metrics/MetricsEvent.hpp"
+#include "dashboard/metrics/MetricsEvent.hpp"
 
 /**
  * @file IMetricsSubscriber.hpp

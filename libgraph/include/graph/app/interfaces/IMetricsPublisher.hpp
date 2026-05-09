@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "app/metrics/MetricsEvent.hpp"
+#include "graph/app/metrics/MetricsEvent.hpp"
 
 namespace app::interfaces {
 

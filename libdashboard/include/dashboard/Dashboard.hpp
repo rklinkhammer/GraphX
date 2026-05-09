@@ -34,11 +34,11 @@
 #include "ui/CommandWindow.hpp"
 #include "ui/StatusBar.hpp"
 #include "ui/CommandRegistry.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/MetricsCapability.hpp"
-#include "app/capabilities/DashboardCapability.hpp"
-#include "app/metrics/MetricsEvent.hpp"
-#include "app/metrics/IMetricsSubscriber.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/MetricsCapability.hpp"
+#include "dashboard/capabilities/DashboardCapability.hpp"
+#include "dashboard/metrics/MetricsEvent.hpp"
+#include "dashboard/metrics/IMetricsSubscriber.hpp"
 
 // Using declarations for production types
 

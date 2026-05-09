@@ -1,6 +1,6 @@
 #pragma once
 
-#include "app/interfaces/DashboardCommand.hpp"
+#include "dashboard/interfaces/DashboardCommand.hpp"
 
 namespace app::interfaces {
 

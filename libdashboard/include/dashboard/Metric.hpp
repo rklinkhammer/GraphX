@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
-#include "core/VariantHelper.hpp"
+#include "graph/core/VariantHelper.hpp"
 
 // ============================================================================
 // Data Structures

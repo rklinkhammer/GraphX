@@ -72,7 +72,7 @@
 
 #include <nlohmann/json.hpp>
 #include "graph/app/Errors.hpp"
-#include "core/FormatUtilities.hpp"
+#include "graph/core/FormatUtilities.hpp"
 
 namespace app::json_util {
 

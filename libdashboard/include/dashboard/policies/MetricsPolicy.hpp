@@ -24,12 +24,12 @@
 #include <chrono>
 #include <thread>
 #include <log4cxx/logger.h>
-#include "core/ActiveQueue.hpp"
-#include "app/metrics/MetricsEvent.hpp"
+#include "graph/core/ActiveQueue.hpp"
+#include "dashboard/metrics/MetricsEvent.hpp"
 #include "graph/IMetricsCallback.hpp"
 #include "graph/IExecutionPolicy.hpp"
-#include "app/capabilities/GraphCapability.hpp"
-#include "app/capabilities/MetricsCapability.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/MetricsCapability.hpp"
 
 
 

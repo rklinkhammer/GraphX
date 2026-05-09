@@ -30,7 +30,7 @@
 #include <string_view>
 #include <cstdint>
 #include <typeinfo>
-#include "core/ReflectionHelper.hpp"
+#include "graph/core/ReflectionHelper.hpp"
 
 // ===================================================================================
 // Utilities: compile-time type-name helper with C++26 Reflection-Ready Pattern

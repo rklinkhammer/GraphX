@@ -23,7 +23,7 @@
 #pragma once
 
 #include "ui/CommandRegistry.hpp"
-#include "app/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
 #include <memory>
 #include <string>
 

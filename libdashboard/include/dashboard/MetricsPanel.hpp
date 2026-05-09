@@ -31,7 +31,7 @@
 #include <cstdlib>
 #include "Metric.hpp"
 #include "NodeMetricsTile.hpp"
-#include "core/RangesUtilities.hpp"
+#include "graph/core/RangesUtilities.hpp"
 
 // ============================================================================
 // Metrics Panel - Tabbed view with scrolling

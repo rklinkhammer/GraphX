@@ -22,9 +22,9 @@
 
 #pragma once
 
-#include "app/metrics/MetricsEvent.hpp"
-#include "app/metrics/NodeMetricsSchema.hpp"
-#include "app/metrics/IMetricsSubscriber.hpp"
+#include "dashboard/metrics/MetricsEvent.hpp"
+#include "dashboard/metrics/NodeMetricsSchema.hpp"
+#include "dashboard/metrics/IMetricsSubscriber.hpp"
 #include "graph/CapabilityBus.hpp"
 #include <vector>
 #include <memory>

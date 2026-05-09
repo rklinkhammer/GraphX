@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include "sensor/SensorClassificationType.hpp"
-#include "core/ActiveQueue.hpp"
+#include "graph/core/ActiveQueue.hpp"
 #include "sensor/SensorDataTypes.hpp"
 
 

@@ -32,7 +32,7 @@
 #include <concepts>
 #include <vector>
 #include <nlohmann/json.hpp>
-#include "core/Expected.hpp"
+#include "graph/core/Expected.hpp"
 
 // Feature detection for C++26 std::reflect
 #if __cplusplus >= 202600 && __has_include(<meta>)

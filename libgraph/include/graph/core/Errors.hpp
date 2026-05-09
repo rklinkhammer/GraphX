@@ -56,7 +56,7 @@
 
 #include <string>
 #include <string_view>
-#include "core/FormatUtilities.hpp"
+#include "graph/core/FormatUtilities.hpp"
 
 namespace app::error {
 

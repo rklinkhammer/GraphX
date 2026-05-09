@@ -28,7 +28,7 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/NodeFacade.hpp"  // Full definition needed for nodes_ vector
 #include "graph/ExecutionState.hpp"
-#include "app/capabilities/GraphCapability.hpp"
+#include "dashboard/capabilities/GraphCapability.hpp"
 #include <memory>
 #include <vector>
 #include <string>
