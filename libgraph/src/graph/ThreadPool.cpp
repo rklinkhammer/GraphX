@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <log4cxx/logger.h>
-#include "graph/core/ActiveQueue.hpp"
+#include "core/ActiveQueue.hpp"
 
 namespace graph
 {
@@ -67,6 +67,8 @@ namespace graph
         try
         {
             running_.store(true);
+            // Set queue capacity for this pool instance
+            task_queue_.SetCapacity(config_.max_queue_size);
             // Spawn worker threads
             for (size_t i = 0; i < num_threads_; ++i)
             {
@@ -234,9 +236,9 @@ namespace graph
         }
         else
         {
-            LOG4CXX_TRACE(logger_, "ThreadPool not accepting tasks");
+            LOG4CXX_TRACE(logger_, "ThreadPool queue is at capacity");
             stats_.tasks_rejected++;  // Phase 2: Track rejections
-            result = QueueResult::Stopped;
+            result = QueueResult::Full;
         }
 
         return result;
