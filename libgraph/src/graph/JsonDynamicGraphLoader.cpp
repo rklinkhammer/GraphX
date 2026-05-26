@@ -28,7 +28,7 @@
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/NodeFactory.hpp"
-#include "graph/app/Errors.hpp"
+#include "config/JsonUtilities.hpp"
 #include <stdexcept>
 #include <format>
 #include <log4cxx/logger.h>

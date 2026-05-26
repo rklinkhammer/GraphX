@@ -43,10 +43,8 @@
 #include "graph/Nodes.hpp"
 #include "graph/Message.hpp"
 #include "graph/CompletionSignal.hpp"
-#include "sensor/SensorBasicTypes.hpp"
-#include "sensor/SensorDataTypes.hpp"
 #include "graph/DataInjectionGeneratorBase.hpp"
-#include "graph/core/ActiveQueue.hpp"
+#include "core/ActiveQueue.hpp"
 #include "graph/DataProducerWithNotification.hpp"
 #include "graph/IDataInjectionSource.hpp"
 #include "graph/IConfigurable.hpp"
@@ -85,16 +83,16 @@ namespace graph {
      * @endcode
      */
     
-    template<typename SensorNodeType, typename DataType, typename PayloadType, 
-        sensors::SensorClassificationType Classification>
+    template<typename NodeType, typename DataType, typename PayloadType, 
+        typename Classification>
     class DataInjectionProducerWithNotification : public DataProducerWithNotification<
-        SensorNodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
+        NodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
         DataType, PayloadType, graph::message::CompletionSignal, Classification>,
         public graph::datasources::IDataInjectionSource,
         public graph::IConfigurable {
     public:
         using BaseType = DataProducerWithNotification<
-            SensorNodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
+            NodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
             DataType, PayloadType, graph::message::CompletionSignal, Classification>;
 
         /**
@@ -108,7 +106,7 @@ namespace graph {
          * All nodes must use default constructors (zero parameters).
          */
         DataInjectionProducerWithNotification()
-            : DataProducerWithNotification<SensorNodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
+            : DataProducerWithNotification<NodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
                     DataType, PayloadType, graph::message::CompletionSignal, Classification>(
                 std::make_unique<DataInjectionGeneratorBase<DataType, PayloadType>>(injection_queue_),
                 std::chrono::milliseconds(10),  // Default: 10ms interval (100 Hz)

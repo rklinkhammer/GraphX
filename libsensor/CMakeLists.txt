@@ -1,0 +1,48 @@
+cmake_minimum_required(VERSION 3.23)
+project(libsensor VERSION 1.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find dependencies
+find_package(nlohmann_json REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Threads REQUIRED)
+
+# Collect source files
+file(GLOB SOURCES "src/*.cpp" "src/**/*.cpp")
+
+# Create library
+add_library(sensor STATIC ${SOURCES})
+target_compile_definitions(sensor PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
+target_include_directories(sensor PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+target_include_directories(sensor PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Link with libgraph (required dependency)
+target_link_libraries(sensor PUBLIC
+    graph
+    nlohmann_json::nlohmann_json
+    Eigen3::Eigen
+    Threads::Threads
+)
+
+# Set compile options
+if(NOT MSVC)
+    target_compile_options(sensor PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Installation
+install(TARGETS sensor EXPORT sensorTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+install(DIRECTORY include/sensor DESTINATION include)
+
+# Export cmake config
+install(EXPORT sensorTargets FILE sensorConfig.cmake DESTINATION lib/cmake/sensor)

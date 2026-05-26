@@ -1,0 +1,624 @@
+/**
+ * @file AdvancedTestNodes.hpp
+ * @brief Simple test nodes for NodeFactory testing
+ *
+ * Provides various node types for comprehensive factory testing.
+ *
+ * @author Test Suite
+ */
+
+#pragma once
+
+#include <atomic>
+#include <iostream>
+#include <chrono>
+#include "config/DataTypes.hpp"
+#include "graph/Nodes.hpp"
+#include "graph/Message.hpp"
+#include "graph/ICompletionCallback.hpp"
+#include "graph/IConfigurable.hpp"
+#include "config/ConfigError.hpp"
+#include "config/JsonView.hpp"
+#include "metrics/IMetricsCallback.hpp"
+#include "metrics/MetricsEvent.hpp"
+#include "metrics/NodeMetricsSchema.hpp"
+#include <log4cxx/logger.h>
+
+namespace test {
+
+    // Logger for tracing test node behavior
+    static log4cxx::LoggerPtr test_logger = log4cxx::Logger::getLogger("test.nodes");
+
+    // =========================================================================================
+    // Module-level port name constants for template parameters
+    // =========================================================================================
+    inline constexpr char g_interior_input[] = "Input";
+    inline constexpr char g_interior_output[] = "Output";
+    inline constexpr char g_merge_input0[] = "In0";
+    inline constexpr char g_merge_input1[] = "In1";
+    inline constexpr char g_merge_output[] = "Out";
+    inline constexpr char g_split_input[] = "In";
+    inline constexpr char g_split_output0[] = "Out0";
+    inline constexpr char g_split_output1[] = "Out1";
+
+    // =========================================================================================
+    // SourceTestNode - Data Producer
+    // =========================================================================================
+    
+    /**
+     * @class SourceTestNode
+     * @brief Simple data source for testing with JSON configuration support
+     */
+    class SourceTestNode 
+        : public graph::NamedSourceNode<
+            SourceTestNode,
+            graph::message::Message>,
+          public graph::IConfigurable,
+          public graph::IParameterized {
+    public:
+        // Port definition - requires for template introspection
+        static constexpr char kDataPort[] = "Data";
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output, kDataPort,
+                graph::PayloadList<int>>
+            >;
+
+        explicit SourceTestNode() = default;
+
+        virtual ~SourceTestNode() = default;
+
+        std::optional<T> Produce(std::integral_constant<std::size_t, port_id>) override{
+            if (count_ < message_count_) {
+                graph::message::Message msg(count_);
+                count_++;
+                LOG4CXX_TRACE(test_logger, "SourceTestNode produced message: " << (count_ - 1) 
+                    << " (total: " << count_ << "/" << message_count_ << ")");
+                std::cout << "SourceTestNode produced message: " << std::endl;
+                return msg;
+            } else {
+                LOG4CXX_DEBUG(test_logger, "SourceTestNode completed - produced " << count_ 
+                    << " messages, limit was " << message_count_);
+                return std::nullopt; // Signal completion after N messages
+            }
+        }
+
+        /**
+         * @brief Configure the source node from JSON
+         * @param config_json JSON configuration containing optional "message_count" parameter
+         * @throws ConfigError if configuration is invalid
+         */
+        void Configure(const graph::JsonView& config_json) override {
+            try {
+                if (config_json.Contains("message_count")) {
+                    int count = config_json.GetInt("message_count", -1);
+                    if (count <= 0) {
+                        throw graph::ConfigError("message_count must be > 0 (got " + 
+                                               std::to_string(count) + ")");
+                    }
+                    SetMessageCount(static_cast<size_t>(count));
+                    LOG4CXX_INFO(test_logger, "SourceTestNode configured with message_count=" << count);
+                }
+            } catch (const std::exception& e) {
+                LOG4CXX_ERROR(test_logger, "SourceTestNode configuration error: " << e.what());
+                throw graph::ConfigError(std::string("SourceTestNode configuration error: ") + e.what());
+            }
+        }
+               
+        /**
+         * @brief Get the number of messages to produce
+         * @return Number of messages configured
+         */
+        size_t GetMessageCount() const { 
+            return message_count_; 
+        }
+        
+        /**
+         * @brief Get all configurable parameters and their current values
+         * @return JsonView with parameter names and values
+         */
+        graph::JsonView GetParameters() const override {
+            nlohmann::json params = nlohmann::json::object();
+            params["message_count"] = message_count_;
+            return graph::JsonView(params);
+        }
+        
+        /**
+         * @brief Get parameter metadata for a specific parameter
+         * @param param_name Name of parameter to describe
+         * @return JsonView with parameter metadata
+         */
+        graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+            nlohmann::json metadata = nlohmann::json::object();
+            
+            if (param_name == "message_count") {
+                metadata["type"] = "integer";
+                metadata["description"] = "Number of messages to produce before stopping";
+                metadata["minimum"] = 0;
+                metadata["default"] = 0;
+                metadata["current"] = message_count_;
+            }
+            
+            return graph::JsonView(metadata);
+        }
+        
+        /**
+         * @brief Get list of all available parameter names
+         * @return Vector of parameter names
+         */
+        std::vector<std::string> GetParameterNames() const override {
+            return {"message_count"};
+        }
+        
+    private:
+        /**
+         * @brief Set the message count for this source (internal use via Configure)
+         * @param count Number of messages to produce
+         */
+        void SetMessageCount(size_t count) {
+            message_count_ = count;
+        }
+        
+        size_t count_{0};
+        size_t message_count_{10};
+    };
+    // SinkTestNode - Alternative sink node
+    // =========================================================================================
+    
+    /**
+     * @class SinkTestNode
+     * @brief Sink node for factory testing with completion callback and JSON configuration support
+     * 
+     * Implements ICompletionCallback to signal graph completion when a threshold
+     * of messages has been consumed. This enables CompletionPolicy to automatically
+     * detect when graph processing is complete.
+     * 
+     * Implements IConfigurable to support dynamic configuration via JSON for use with
+     * NodeFacade and dynamic node loading.
+     */
+    class SinkTestNode : public graph::NamedSinkNode<SinkTestNode, ::graph::message::Message>,
+                        public graph::ICompletionCallback<::graph::message::CompletionSignal>,
+                        public graph::IConfigurable,
+                        public graph::IParameterized {
+    public: 
+        static constexpr char kStatePort[] = "State";
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort,
+                graph::PayloadList<int>>
+            >;
+            
+        /**
+         * @brief Construct sink node with optional expected message count
+         * @param expected_messages Number of messages expected before signaling completion (0 = no auto-completion)
+         */
+        explicit SinkTestNode() = default;
+
+        virtual ~SinkTestNode() = default;
+
+        /**
+         * @brief Consume message and track count for completion detection
+         * @param msg The message to consume
+         * @return true if message accepted, false if rejected
+         */
+        bool Consume(const ::graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
+            (void)msg;
+            message_count_++;
+            LOG4CXX_TRACE(test_logger, "SinkTestNode consumed message (total: " << message_count_ 
+                << "/" << expected_message_count_ << ")");
+            std::cout << "SinkTestNode consumed message: " <<  std::endl;
+      
+            // Signal completion when expected message count reached
+            if (expected_message_count_ > 0 && 
+                message_count_ >= expected_message_count_) {
+                LOG4CXX_INFO(test_logger, "SinkTestNode reached completion threshold: " 
+                    << message_count_ << " >= " << expected_message_count_);
+                SignalCompletion();
+            }
+            
+            return true;
+        }
+
+        /**
+         * @brief Configure the sink node from JSON
+         * @param config_json JSON configuration containing optional "expected_message_count" parameter
+         * @throws ConfigError if configuration is invalid
+         */
+        void Configure(const graph::JsonView& config_json) override {
+            try {
+                if (config_json.Contains("expected_message_count")) {
+                    int count = config_json.GetInt("expected_message_count", -1);
+                    if (count <= 0) {
+                        throw graph::ConfigError("expected_message_count must be > 0 (got " + 
+                                               std::to_string(count) + ")");
+                    }
+                    SetExpectedMessageCount(static_cast<size_t>(count));
+                    LOG4CXX_INFO(test_logger, "SinkTestNode configured with expected_message_count=" << count);
+                }
+            } catch (const std::exception& e) {
+                LOG4CXX_ERROR(test_logger, "SinkTestNode configuration error: " << e.what());
+                throw graph::ConfigError(std::string("SinkTestNode configuration error: ") + e.what());
+            }
+        }
+        
+        /**
+         * @brief Get the number of messages consumed
+         * @return Number of messages processed via Consume()
+         */
+        size_t GetMessageCount() const { 
+            return message_count_; 
+        }
+        
+        /**
+         * @brief Get all configurable parameters and their current values
+         * @return JsonView with parameter names and values
+         */
+        graph::JsonView GetParameters() const override {
+            nlohmann::json params = nlohmann::json::object();
+            params["expected_message_count"] = expected_message_count_;
+            return graph::JsonView(params);
+        }
+        
+        /**
+         * @brief Get parameter metadata for a specific parameter
+         * @param param_name Name of parameter to describe
+         * @return JsonView with parameter metadata
+         */
+        graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+            nlohmann::json metadata = nlohmann::json::object();
+            
+            if (param_name == "expected_message_count") {
+                metadata["type"] = "integer";
+                metadata["description"] = "Number of messages to consume before signaling completion";
+                metadata["minimum"] = 0;
+                metadata["default"] = 0;
+                metadata["current"] = expected_message_count_;
+            }
+            
+            return graph::JsonView(metadata);
+        }
+        
+        /**
+         * @brief Get list of all available parameter names
+         * @return Vector of parameter names
+         */
+        std::vector<std::string> GetParameterNames() const override {
+            return {"expected_message_count"};
+        }
+        
+    private:
+        /**
+         * @brief Set the expected message count for completion detection (internal use via Configure)
+         * @param count Number of messages to expect before completion signal
+         */
+        void SetExpectedMessageCount(size_t count) {
+            expected_message_count_ = count;
+        }
+        /**
+         * @brief Signal completion to the CompletionPolicy
+         * 
+         * Invokes the installed callback provider's OnComplete() method,
+         * which notifies the CompletionPolicy that this sink is finished processing.
+         */
+        void SignalCompletion() {
+            LOG4CXX_DEBUG(test_logger, "SinkTestNode::SignalCompletion() called - checking callback provider");
+            
+            if (this->HasCallbackProvider()) {
+                LOG4CXX_DEBUG(test_logger, "SinkTestNode has callback provider - calling OnComplete()");
+                auto provider = dynamic_cast<CompletionNodeCallback*>(this->GetCallbackProvider());
+                assert(provider != nullptr);   // conservative check 
+                provider->OnComplete();
+            } else {
+                LOG4CXX_WARN(test_logger, "SinkTestNode has NO callback provider - completion signal cannot be fired");
+            }
+        }
+        
+        std::atomic<size_t> message_count_{0};
+        size_t expected_message_count_{10};
+    };
+    
+    // =========================================================================================
+    // FailingTestNode - Tests error handling
+    // =========================================================================================
+    
+    /**
+     * @class FailingTestNode
+     * @brief Node that can be configured to report failures
+     */
+    class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message> {
+    public: 
+        static constexpr char kStatePort[] = "State";
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort,
+                graph::PayloadList<int>>
+            >;
+            
+        explicit FailingTestNode() = default;
+
+        virtual ~FailingTestNode() = default;
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
+            (void)msg;
+            return true;
+        }
+        
+        /// Control whether Init() should fail
+        void SetFailInit(bool fail) { should_fail_init_ = fail; }
+        
+        /// Returns false if SetFailInit(true) was called
+        bool Init() override {
+            if (should_fail_init_) {
+                return false;
+            }
+            return graph::NamedSinkNode<FailingTestNode, ::graph::message::Message>::Init();
+        }
+        
+    private:
+        std::atomic<bool> should_fail_init_{false};
+    };
+
+    class NSinkTestNode : public graph::NamedSinkNode<NSinkTestNode,
+                                graph::message::Message, 
+                                graph::message::Message, 
+                                graph::message::Message, 
+                                graph::message::Message, 
+                                graph::message::Message> {
+    public:
+         
+        static constexpr char kStatePort0[] = "State0";
+        static constexpr char kStatePort1[] = "State1";
+        static constexpr char kStatePort2[] = "State2";
+        static constexpr char kStatePort3[] = "State3";
+        static constexpr char kStatePort4[] = "State4";
+
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort0,
+                graph::PayloadList<int>>,
+            graph::PortSpec<1, ::graph::message::Message, graph::PortDirection::Input, kStatePort1,
+                graph::PayloadList<int>>,
+            graph::PortSpec<2, ::graph::message::Message, graph::PortDirection::Input, kStatePort2,
+                graph::PayloadList<int>>,
+            graph::PortSpec<3, ::graph::message::Message, graph::PortDirection::Input, kStatePort3,
+                graph::PayloadList<int>>,
+            graph::PortSpec<4, ::graph::message::Message, graph::PortDirection::Input, kStatePort4,
+                graph::PayloadList<int>>
+            >;
+
+        explicit NSinkTestNode() = default;
+
+        /**
+         * @brief Construct aggregator
+         */
+        virtual ~NSinkTestNode() = default;
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
+            (void)msg;
+            return true;
+        }
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 1>) override {
+            (void)msg;
+            return true;
+        }
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 2>) override {
+            (void)msg;
+            return true;
+        }
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 3>) override {
+            (void)msg;
+            return true;
+        }
+
+        bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 4>) override {
+            (void)msg;
+            return true;
+        }
+
+    };
+
+
+    // =========================================================================================
+    // InteriorTestNode - Message processor with metrics tracking
+    // =========================================================================================
+    // InteriorNodeBase requires PortSpec in template parameters with string literals,
+    // which C++ doesn't allow. A future refactor could use a different approach.
+    //
+    // This node implements IMetricsCallbackProvider to track message transfers and publish
+    // metrics events, enabling testing of the MetricsCapability framework.
+    
+    class InteriorTestNode
+        : public graph::NamedInteriorNode<
+              graph::TypeList<graph::message::Message>,
+              graph::TypeList<graph::message::Message>,
+              InteriorTestNode> {
+          // public graph::IMetricsCallbackProvider {
+    public:
+        
+        static constexpr char kInput[] = "Input";
+        static constexpr char kOutput[] = "Output";  
+
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput,
+                graph::PayloadList<int>>,
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output, kOutput,
+                graph::PayloadList<int>>
+        >;
+
+        InteriorTestNode() {
+            SetName("InteriorTestNode");
+        }
+        
+        virtual ~InteriorTestNode() = default;
+
+        /**
+         * @brief Process message and track metrics
+         * @param input The input message to transfer
+         * @return The transferred message, with metrics event published
+         */
+        std::optional<::graph::message::Message> Transfer(
+            const ::graph::message::Message& input,
+            std::integral_constant<std::size_t, 0>,
+            std::integral_constant<std::size_t, 0>) override {
+            
+            // Increment transfer counter
+            message_count_++;
+            
+            // // Publish metrics event if callback is installed
+            // if (HasMetricsCallback()) {
+            //     app::metrics::MetricsEvent event{
+            //         .timestamp = std::chrono::system_clock::now(),
+            //         .source = "InteriorTestNode",
+            //         .event_type = "message_transfer",
+            //         .data = nlohmann::json::object({
+            //             {"transferred_messages", static_cast<uint64_t>(message_count_)}
+            //         })
+            //     };
+            //     GetMetricsCallback()->PublishAsync(event);
+            // }
+            
+            return input;
+        }
+
+        std::optional<::graph::message::Message> Process(
+            const ::graph::message::Message& input,
+            std::integral_constant<std::size_t, 0> port) {
+            return Transfer(input, port, std::integral_constant<std::size_t, 0>{});
+        }
+
+        // /**
+        //  * @brief Set the metrics callback provider
+        //  * @param callback Pointer to the callback handler (may be nullptr)
+        //  * @return true if callback was successfully set
+        //  */
+        // virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+        //     metrics_callback_ = callback;
+        //     return callback != nullptr;
+        // }
+
+        // /**
+        //  * @brief Check if a metrics callback is installed
+        //  * @return true if a callback provider is currently set
+        //  */
+        // virtual bool HasMetricsCallback() const noexcept override {
+        //     return metrics_callback_ != nullptr;
+        // }
+
+        // /**
+        //  * @brief Get the currently installed callback provider
+        //  * @return Pointer to callback provider, or nullptr if none installed
+        //  */
+        // virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+        //     return metrics_callback_;
+        // }
+
+        // /**
+        //  * @brief Get the node's metrics schema for discovery
+        //  * @return Schema describing available metrics
+        //  */
+        // app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+        //     nlohmann::json metrics_json = nlohmann::json::object();
+        //     metrics_json["fields"] = nlohmann::json::array();
+        //     metrics_json["fields"].push_back(nlohmann::json::object({
+        //         {"name", "transferred_messages"},
+        //         {"type", "integer"},
+        //         {"description", "Number of messages transferred through this node"},
+        //         {"unit", "count"}
+        //     }));
+
+        //     return app::metrics::NodeMetricsSchema{
+        //         .node_name = "InteriorTestNode",
+        //         .node_type = "processor",
+        //         .metrics_schema = metrics_json,
+        //         .event_types = {"message_transfer"},
+        //         .display_hints = nlohmann::json::object()
+        //     };
+        // }
+
+        /**
+         * @brief Get the number of messages transferred
+         * @return Number of messages processed via Transfer()
+         */
+        size_t GetMessageCount() const {
+            return message_count_;
+        }
+
+    private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
+        std::atomic<size_t> message_count_{0};
+    };
+
+    // =========================================================================================
+    // MergeTestNode - Multi-Input Merge Node (2 inputs -> 1 output)
+    // =========================================================================================
+    
+    /**
+     * @class MergeTestNode
+     * @brief Merge node combining two input streams into one output
+     */
+    class MergeTestNode 
+        : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode> {
+    public:
+        static constexpr char kInput0[] = "In0";
+        static constexpr char kInput1[] = "In1";
+        static constexpr char kOutput[] = "Out";
+        
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput0,
+                graph::PayloadList<int>>,
+            graph::PortSpec<1, ::graph::message::Message, graph::PortDirection::Input, kInput1,
+                graph::PayloadList<int>>,
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output, kOutput,
+                graph::PayloadList<int>>
+        >;
+        
+        explicit MergeTestNode() = default;
+        
+        virtual ~MergeTestNode() = default;
+        
+        /// Process method: pass through merged messages
+        std::optional<::graph::message::Message> Process(
+            const ::graph::message::Message& input,
+            std::integral_constant<std::size_t, 0>) override {
+            return input;
+        }
+    };
+
+    // =========================================================================================
+    // SplitTestNode - Single Input to Multiple Outputs (1 input -> 2 outputs)
+    // =========================================================================================
+    
+    /**
+     * @class SplitTestNode
+     * @brief Split node that replicates input to multiple output streams
+     */
+    class SplitTestNode
+        : public graph::SplitNode2<::graph::message::Message> {
+    public:
+        static constexpr char kInput[] = "In";
+        static constexpr char kOutput0[] = "Out0";
+        static constexpr char kOutput1[] = "Out1";
+        
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput,
+                graph::PayloadList<int>>,
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output, kOutput0,
+                graph::PayloadList<int>>,
+            graph::PortSpec<1, ::graph::message::Message, graph::PortDirection::Output, kOutput1,
+                graph::PayloadList<int>>
+        >;
+        
+        explicit SplitTestNode() = default;
+        
+        virtual ~SplitTestNode() = default;
+        
+        /// Consume method: replicate input to both output queues
+        bool Consume(const ::graph::message::Message& msg, 
+                     std::integral_constant<std::size_t, 0>) override {
+            bool success = true;
+            success &= input_queue_[0].Enqueue(msg);
+            success &= input_queue_[1].Enqueue(msg);
+            return success;
+        }
+    };
+
+} // namespace test

@@ -28,7 +28,7 @@
 #include "graph/CapabilityBus.hpp"
 #include "graph/ExecutionResult.hpp"
 #include "graph/IExecutionPolicy.hpp"
-#include "graph/app/capabilities/GraphCapability.hpp"
+#include "capabilities/GraphCapability.hpp"
 #include "graph/ExecutionState.hpp"
 #include <memory>
 #include <chrono>
@@ -111,7 +111,7 @@ public:
      * @throws std::invalid_argument if policy_chain is nullptr
      */
     explicit GraphExecutor(std::unique_ptr<ExecutionPolicyChain> policy_chain,
-                           std::shared_ptr<app::capabilities::GraphCapability> graph_capability);
+                           std::shared_ptr<capabilities::GraphCapability> graph_capability);
 
     /**
      * @brief Virtual destructor for proper cleanup of derived classes
@@ -253,13 +253,20 @@ public:
         return current_state_;
     }   
 
+    /// @brief Check if completion has been signaled
+    /// @return true if completion signaled, false otherwise
+    bool IsCompletionSignaled() const
+    {        
+        return graph_capability_->IsCompletionSignaled();
+    }   
+
 private:
 
     int CountNodesinLifecycleState(graph::LifecycleState state) const;
 
     std::unique_ptr<ExecutionPolicyChain> policy_chain_;
     std::shared_ptr<graph::GraphManager> graph_manager_;
-    std::shared_ptr<app::capabilities::GraphCapability>  graph_capability_;
+    std::shared_ptr<capabilities::GraphCapability>  graph_capability_;
     ExecutionState current_state_ = graph::ExecutionState::STOPPED;
 
     mutable std::atomic<bool> is_stopped{false};

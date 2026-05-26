@@ -14,7 +14,7 @@ file(GLOB SOURCES "src/*.cpp" "src/**/*.cpp")
 
 # Create library
 add_library(graph STATIC ${SOURCES})
-
+target_compile_definitions(graph PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_include_directories(graph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

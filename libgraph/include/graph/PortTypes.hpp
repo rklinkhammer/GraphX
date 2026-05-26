@@ -38,7 +38,7 @@
 #include <string_view>
 #include <string>
 #include <array>
-#include "graph/core/TypeInfo.hpp"
+#include "core/TypeInfo.hpp"
 #include "graph/PortSpec.hpp"
 
 namespace graph

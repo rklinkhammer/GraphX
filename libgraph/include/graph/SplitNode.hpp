@@ -23,7 +23,7 @@
 #pragma once
 
 #include "graph/Nodes.hpp"
-#include "graph/core/ActiveQueue.hpp"
+#include "core/ActiveQueue.hpp"
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -79,7 +79,7 @@ struct ExpandSourceNode<TypeList<Ts...>> {
     using type = SourceNode<Ts...>;
 };
 
-template <typename T, std::size_t N>
+template <typename T, std::size_t N, typename Derived>
 class SplitNode : public SinkNode<T>, public ExpandSourceNode<RepeatType_t<T, N>>::type {
 public:
     virtual ~SplitNode() = default;
@@ -123,7 +123,64 @@ public:
         SourceBase::Join();
     }
 
-    int GetOutputCount() const { return N; }
+    int GetOutputPortCount() const { return N; }
+
+    int GetInputPortCount() const { return 1; }
+
+    LifecycleState GetLifecycleState() const override {
+        return SinkNode<T>::GetLifecycleState();
+    }
+
+    bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
+        return SinkNode<T>::JoinWithTimeout(timeout_ms);
+    }   
+
+    
+    /**
+     * @brief Get input port metadata for visualization
+     *
+     * Override in derived classes to provide runtime port information.
+     * Used by the NodeSerializer template to export port list to JSON.
+     *
+     * @return Vector of PortMetadata for all input ports
+     */
+    virtual std::vector<PortMetadata> GetInputPortMetadata() const override
+    {
+        std::vector<PortMetadata> out;
+        if constexpr (HasPorts<Derived>::value)
+        {
+            std::apply([&](auto... p)
+                       { ((p.direction == PortDirection::Input
+                               ? out.push_back(MakePortMetadata<decltype(p)>())
+                               : void()),
+                          ...); }, typename Derived::Ports{});
+        }
+
+        return out;
+    }
+
+    /**
+     * @brief Get output port metadata for visualization
+     *
+     * Override in derived classes to provide runtime port information.
+     * Used by the NodeSerializer template to export port list to JSON.
+     *
+     * @return Vector of PortMetadata for all output ports
+     */
+    virtual std::vector<PortMetadata> GetOutputPortMetadata() const override
+    {
+        std::vector<PortMetadata> out;
+        if constexpr (HasPorts<Derived>::value)
+        {
+            std::apply([&](auto... p)
+                       { ((p.direction == PortDirection::Output
+                               ? out.push_back(MakePortMetadata<decltype(p)>())
+                               : void()),
+                          ...); }, typename Derived::Ports{});
+        }
+
+        return out;
+    }
 
 protected:
     core::ActiveQueue<T> input_queue_[N];
@@ -132,7 +189,7 @@ protected:
 // Explicit specializations for SplitNode1-SplitNode8
 
 template<typename T>
-class SplitNode1 : public SplitNode<T, 1> {
+class SplitNode1 : public SplitNode<T, 1, SplitNode1<T>> {
 public:
      
     virtual ~SplitNode1() = default;
@@ -150,7 +207,7 @@ public:
 };
 
 template<typename T>
-class SplitNode2 : public SplitNode<T, 2> {
+class SplitNode2 : public SplitNode<T, 2, SplitNode2<T>> {
 public:
      
     virtual ~SplitNode2() = default;
@@ -177,7 +234,7 @@ public:
 };
 
 template<typename T>
-class SplitNode3 : public SplitNode<T, 3> {
+class SplitNode3 : public SplitNode<T, 3, SplitNode3<T>> {
 public:
       
     virtual ~SplitNode3() = default;
@@ -213,7 +270,7 @@ public:
 };
 
 template<typename T>
-class SplitNode4 : public SplitNode<T, 4> {
+class SplitNode4 : public SplitNode<T, 4, SplitNode4<T>> {
 public:
      
     virtual ~SplitNode4() = default;
@@ -258,7 +315,7 @@ public:
 };
 
 template<typename T>
-class SplitNode5 : public SplitNode<T, 5> {
+class SplitNode5 : public SplitNode<T, 5, SplitNode5<T>> {
 public:
      
     virtual ~SplitNode5() = default;
@@ -312,7 +369,7 @@ public:
 };
 
 template<typename T>
-class SplitNode6 : public SplitNode<T, 6> {
+class SplitNode6 : public SplitNode<T, 6, SplitNode6<T>> {
 public:
 
 virtual ~SplitNode6() = default;
@@ -372,7 +429,7 @@ virtual ~SplitNode6() = default;
 };
 
 template<typename T>
-class SplitNode7 : public SplitNode<T, 7> {
+class SplitNode7 : public SplitNode<T, 7, SplitNode7<T>> {
 public:
      
     virtual ~SplitNode7() = default;
@@ -444,7 +501,7 @@ public:
 };
 
 template<typename T>
-class SplitNode8 : public SplitNode<T, 8> {
+class SplitNode8 : public SplitNode<T, 8, SplitNode8<T>> {
 public:
      
     virtual ~SplitNode8() = default;

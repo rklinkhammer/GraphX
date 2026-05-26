@@ -18,9 +18,10 @@ option(BUILD_DOCS "Build Doxygen documentation" OFF)
 
 # Add projects
 add_subdirectory(libgraph)
-add_subdirectory(libnodes)
-add_subdirectory(libdashboard)
-add_subdirectory(gdashboard-app)
+add_subdirectory(libsensor)
+# add_subdirectory(libnodes)
+# add_subdirectory(libdashboard)
+# add_subdirectory(gdashboard-app)
 
 # Testing
 if(BUILD_TESTS)
@@ -28,8 +29,8 @@ if(BUILD_TESTS)
     
     # Add per-project tests
     add_subdirectory(libgraph/test)
-    add_subdirectory(libnodes/test)
-    add_subdirectory(libdashboard/test)
+    # add_subdirectory(libnodes/test)
+    # add_subdirectory(libdashboard/test)
     
     # Summary target
     add_custom_target(test-summary

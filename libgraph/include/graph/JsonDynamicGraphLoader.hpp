@@ -58,7 +58,7 @@
 
 #include "GraphConfig.hpp"
 #include "graph/NodeFacade.hpp"
-#include "graph/app/Errors.hpp"
+#include "config/Errors.hpp"
 #include <memory>
 #include <string>
 #include <vector>

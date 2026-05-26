@@ -162,6 +162,9 @@ namespace graph
         virtual std::optional<OutputType> Process(
             const CommonInput& event,
             std::integral_constant<std::size_t, 0> = {}) = 0;
+
+        core::ActiveQueue<CommonInput> unified_queue_;
+
     };
 
 }

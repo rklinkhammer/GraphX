@@ -29,6 +29,7 @@
 #include <vector>
 #include <log4cxx/logger.h>
 #include <chrono>
+#include "graph/IDataInjectionSource.hpp"
 
 // Forward declaration to avoid circular dependency
 namespace graph {
@@ -37,12 +38,6 @@ struct NodePluginInstance;
 }
 
 // Forward declaration of IDataInjectionSource in framework datasources namespace
-namespace graph {
-namespace datasources {
-class IDataInjectionSource;
-}  // namespace datasources
-}  // namespace graph
-
 namespace graph {
 
 // Opaque handle to a node instance

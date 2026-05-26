@@ -25,20 +25,20 @@
 
 
 #include <memory>
-#include "graph/core/ReflectionHelper.hpp"
-#include "graph/core/VariantHelper.hpp"
-#include "graph/app/capabilities/GraphCapability.hpp"
+#include "core/ReflectionHelper.hpp"
+#include "core/VariantHelper.hpp"
+#include "capabilities/GraphCapability.hpp"
 
 namespace graph {
 
 struct IExecutionPolicy {
     virtual ~IExecutionPolicy() = default;
 
-    virtual bool OnInit(app::capabilities::GraphCapability& context) { (void)context; return true; }
-    virtual bool OnStart(app::capabilities::GraphCapability& context) { (void)context; return true; }
-    virtual bool OnRun(app::capabilities::GraphCapability& context) { (void)context; return true; }
-    virtual void OnStop(app::capabilities::GraphCapability& context) { (void)context; }
-    virtual void OnJoin(app::capabilities::GraphCapability& context) { (void)context; }
+    virtual bool OnInit(capabilities::GraphCapability& context) { (void)context; return true; }
+    virtual bool OnStart(capabilities::GraphCapability& context) { (void)context; return true; }
+    virtual bool OnRun(capabilities::GraphCapability& context) { (void)context; return true; }
+    virtual void OnStop(capabilities::GraphCapability& context) { (void)context; }
+    virtual void OnJoin(capabilities::GraphCapability& context) { (void)context; }
 };
 
 class ExecutionPolicyChain : public IExecutionPolicy {
@@ -47,27 +47,27 @@ public:
                                   std::unique_ptr<ExecutionPolicyChain> next = nullptr)
         : policy_(std::move(policy)), next_(std::move(next)) {}
 
-    bool OnInit(app::capabilities::GraphCapability& ctx) override {
+    bool OnInit(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnInit(ctx)) return false;
         return next_ ? next_->OnInit(ctx) : true;
     }
 
-    bool OnStart(app::capabilities::GraphCapability& ctx) override {
+    bool OnStart(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnStart(ctx)) return false;
         return next_ ? next_->OnStart(ctx) : true;
     }
 
-    bool OnRun(app::capabilities::GraphCapability& ctx) override {
+    bool OnRun(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnRun(ctx)) return false;
         return next_ ? next_->OnRun(ctx) : true;
     }
 
-    void OnStop(app::capabilities::GraphCapability& ctx) override {
+    void OnStop(capabilities::GraphCapability& ctx) override {
         policy_->OnStop(ctx);
         if (next_) next_->OnStop(ctx);
     }
 
-    void OnJoin(app::capabilities::GraphCapability& ctx) override {
+    void OnJoin(capabilities::GraphCapability& ctx) override {
         policy_->OnJoin(ctx);
         if (next_) next_->OnJoin(ctx);
     }

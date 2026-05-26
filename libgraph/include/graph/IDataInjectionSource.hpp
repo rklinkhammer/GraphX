@@ -26,9 +26,8 @@
 #include <vector>
 #include <cstddef>
 #include <memory>
-
-#include "sensor/SensorClassificationType.hpp"
-#include "sensor/SensorDataTypes.hpp"
+#include "graph/Message.hpp"
+#include "core/ActiveQueue.hpp"
 
 // Forward declarations
 namespace core {
@@ -49,6 +48,7 @@ namespace graph::datasources {
  * Virtual methods provide type-erased access to the node's Data Injection queue.
  *
  */
+
 class IDataInjectionSource {
 public:
     /**
@@ -60,7 +60,7 @@ public:
     //IDataInjectionSource() = default;
 
     explicit IDataInjectionSource(
-        core::ActiveQueue<sensors::SensorPayload>& queue)
+        core::ActiveQueue<graph::message::Message>& queue)
         : queue_(queue) {
     }
 
@@ -76,13 +76,6 @@ public:
      */
     virtual ~IDataInjectionSource() = default;
 
-    // ========== Configuration Data Members ==========
-
-    /// Sensor classification type enum
-    /// Possible values: ACCELEROMETER, GYROSCOPE, MAGNETOMETER, BAROMETRIC, GPS_POSITION, UNKNOWN
-    /// Use SensorClassificationTypeToString() to convert to "accel", "gyro", etc.
-    sensors::SensorClassificationType sensor_classification_type = sensors::SensorClassificationType::UNKNOWN;
-
     
     // ========== Virtual Methods for Node Discovery ==========
 
@@ -91,10 +84,10 @@ public:
      *
      * Returns the queue passed in during construction.
      *
-     * @return Reference to ActiveQueue<SensorPayload>
+     * @return Reference to ActiveQueue<graph::message::Message> for data injection 
      */
     
-    virtual core::ActiveQueue<sensors::SensorPayload>& GetInjectionQueue() {
+    virtual core::ActiveQueue<graph::message::Message>& GetInjectionQueue() {
         return queue_;
     }
 
@@ -111,7 +104,7 @@ public:
 
 protected:
     /// Pointer to the Injection queue owned by DataInjectionProducerWithNotification
-    core::ActiveQueue<sensors::SensorPayload>& queue_;
+    core::ActiveQueue<graph::message::Message>& queue_;
 };
 
 }  // namespace graph::datasources

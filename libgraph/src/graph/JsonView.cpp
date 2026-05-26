@@ -156,4 +156,149 @@ std::string JsonView::FormatError(const std::string& key,
     );
 }
 
+// ============================================================================
+// C++26 ENHANCED METHODS - std::expected-based implementations
+// ============================================================================
+
+std::expected<std::string, ConfigError> JsonView::TryGetString(
+    const std::string& key,
+    const std::string& default_val) const {
+    try {
+        return GetString(key, default_val);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<float, ConfigError> JsonView::TryGetFloat(
+    const std::string& key,
+    float default_val) const {
+    try {
+        return GetFloat(key, default_val);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<int, ConfigError> JsonView::TryGetInt(
+    const std::string& key,
+    int default_val) const {
+    try {
+        return GetInt(key, default_val);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<bool, ConfigError> JsonView::TryGetBool(
+    const std::string& key,
+    bool default_val) const {
+    try {
+        return GetBool(key, default_val);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<JsonView, ConfigError> JsonView::TryGetObject(
+    const std::string& key) const {
+    try {
+        return GetObject(key);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<std::vector<std::string>, ConfigError> JsonView::TryGetStringArray(
+    const std::string& key) const {
+    try {
+        return GetStringArray(key);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+std::expected<std::vector<JsonView>, ConfigError> JsonView::TryGetArray(
+    const std::string& key) const {
+    try {
+        return GetArray(key);
+    } catch (const ConfigError& e) {
+        return std::unexpected(e);
+    }
+}
+
+// ============================================================================
+// C++26 ENHANCED METHODS - std::optional-based implementations
+// ============================================================================
+
+std::optional<std::string> JsonView::GetOptionalString(
+    const std::string& key) const {
+    if (!Contains(key)) {
+        return std::nullopt;
+    }
+    
+    const auto& value = json_[key];
+    if (!value.is_string()) {
+        throw ConfigError(FormatError(key, "string", value.type_name()));
+    }
+    
+    return value.get<std::string>();
+}
+
+std::optional<float> JsonView::GetOptionalFloat(
+    const std::string& key) const {
+    if (!Contains(key)) {
+        return std::nullopt;
+    }
+    
+    const auto& value = json_[key];
+    if (!value.is_number()) {
+        throw ConfigError(FormatError(key, "number", value.type_name()));
+    }
+    
+    return value.get<float>();
+}
+
+std::optional<int> JsonView::GetOptionalInt(
+    const std::string& key) const {
+    if (!Contains(key)) {
+        return std::nullopt;
+    }
+    
+    const auto& value = json_[key];
+    if (!value.is_number_integer()) {
+        throw ConfigError(FormatError(key, "integer", value.type_name()));
+    }
+    
+    return value.get<int>();
+}
+
+std::optional<bool> JsonView::GetOptionalBool(
+    const std::string& key) const {
+    if (!Contains(key)) {
+        return std::nullopt;
+    }
+    
+    const auto& value = json_[key];
+    if (!value.is_boolean()) {
+        throw ConfigError(FormatError(key, "boolean", value.type_name()));
+    }
+    
+    return value.get<bool>();
+}
+
+std::optional<JsonView> JsonView::GetOptionalObject(
+    const std::string& key) const {
+    if (!Contains(key)) {
+        return std::nullopt;
+    }
+    
+    const auto& value = json_[key];
+    if (!value.is_object()) {
+        throw ConfigError(FormatError(key, "object", value.type_name()));
+    }
+    
+    return JsonView(value);
+}
+
 }  // namespace graph

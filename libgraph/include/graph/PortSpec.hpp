@@ -48,7 +48,7 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include "graph/core/TypeInfo.hpp"
+#include "core/TypeInfo.hpp"
 
 namespace graph {
 

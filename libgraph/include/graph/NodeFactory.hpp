@@ -27,7 +27,7 @@
 #include <functional>
 #include <vector>
 #include <log4cxx/logger.h>
-#include "graph/core/ReflectionHelper.hpp"
+#include "core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFactoryRegistry.hpp"
 
@@ -41,6 +41,7 @@ namespace config {
     class NodeFactoryRegistry;
 }
 class PluginRegistry;
+class PluginLoader;
 struct NodeFacade;
 
 /**
@@ -63,6 +64,7 @@ class NodeFactory {
 private:
     static log4cxx::LoggerPtr logger_;
     std::shared_ptr<PluginRegistry> plugin_registry_;
+    std::shared_ptr<PluginLoader> plugin_loader_;
     std::shared_ptr<graph::config::NodeFactoryRegistry> unified_registry_;
     bool initialized_;
 
@@ -229,6 +231,20 @@ public:
         return plugin_registry_;
     }
 
+    /**
+     * Keep the plugin loader alive for as long as this factory can create
+     * plugin-backed nodes. PluginRegistry stores function pointers and facade
+     * pointers into dlopen'd libraries; destroying PluginLoader dlclose()s those
+     * libraries and invalidates the pointers.
+     */
+    void SetPluginLoader(std::shared_ptr<PluginLoader> loader) {
+        plugin_loader_ = std::move(loader);
+    }
+
+    std::shared_ptr<PluginLoader> GetPluginLoader() const {
+        return plugin_loader_;
+    }
+
 private:
     /**
      * Register all available plugin nodes in the unified registry
@@ -250,4 +266,3 @@ private:
 };
 
 }  // namespace graph
-

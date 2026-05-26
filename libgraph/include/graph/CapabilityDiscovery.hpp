@@ -72,7 +72,7 @@ namespace graph {
  * @code
  *   #include "graph/CapabilityDiscovery.hpp"
  *   #include "graph/NodeFacadeAdapterSpecializations.hpp"  // REQUIRED!
- *   #include "graph/IMetricsCallback.hpp"
+ *   #include "metrics/IMetricsCallback.hpp"
  *
  *   // Later in code:
  *   auto metrics = graph::DiscoverCapability<graph::IMetricsCallbackProvider>(node);
@@ -138,7 +138,7 @@ inline std::shared_ptr<CapabilityT> DiscoverCapability(
  * @code
  *   #include "graph/CapabilityDiscovery.hpp"
  *   #include "graph/NodeFacadeAdapterSpecializations.hpp"
- *   #include "graph/IMetricsCallback.hpp"
+ *   #include "metrics/IMetricsCallback.hpp"
  *
  *   // Wire metrics callback if available
  *   graph::DiscoverAndUseCapability<graph::IMetricsCallbackProvider>(

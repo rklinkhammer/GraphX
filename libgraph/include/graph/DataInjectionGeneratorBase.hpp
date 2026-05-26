@@ -33,8 +33,8 @@
 #include <optional>
 #include <chrono>
 #include "graph/DataGeneratorBase.hpp"
-#include "graph/core/ActiveQueue.hpp"
-#include "graph/core/VariantHelper.hpp"
+#include "core/ActiveQueue.hpp"
+#include "core/VariantHelper.hpp"
 
 namespace graph {
 

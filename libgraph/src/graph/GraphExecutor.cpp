@@ -43,7 +43,7 @@ static log4cxx::LoggerPtr logger_ =
 // ============================================================================
 
 GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain,
-                              std::shared_ptr<app::capabilities::GraphCapability> graph_capability) :
+                              std::shared_ptr<capabilities::GraphCapability> graph_capability) :
             policy_chain_(std::move(policy_chain)),
             graph_capability_(std::move(graph_capability)) {
     LOG4CXX_TRACE(logger_, "GraphExecutor constructed");
@@ -54,7 +54,7 @@ GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain
         throw std::invalid_argument("GraphCapability must have a valid GraphManager");
     }
     graph_manager_ = graph_capability_->GetGraphManager();
-    graph_capability_->GetCapabilityBus().Register<app::capabilities::GraphCapability>(graph_capability_);
+    graph_capability_->GetCapabilityBus().Register<capabilities::GraphCapability>(graph_capability_);
 }
 
 InitializationResult GraphExecutor::Init() {

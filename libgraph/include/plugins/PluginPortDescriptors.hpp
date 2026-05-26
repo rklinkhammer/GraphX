@@ -1,0 +1,48 @@
+// MIT License
+/// @file PluginPortDescriptors.hpp
+/// @brief Plugin system support for PluginPortDescriptors
+
+//
+// Copyright (c) 2025 graphlib contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#pragma once
+#include <string_view>
+
+namespace graph {
+
+// ============================================================================
+// Port Metadata Types
+// ============================================================================
+
+/// @brief Port direction enumeration
+enum class PortDirection { Input, Output };
+
+/// @brief Describes a single port on a plugin node
+/// @member direction Direction of data flow (input or output)
+/// @member name Port name/label
+/// @member type Port data type identifier
+struct PortDescriptor {
+    PortDirection direction;
+    std::string_view name;
+    std::string_view type;
+};
+
+}  // namespace graph

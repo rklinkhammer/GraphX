@@ -126,7 +126,7 @@
 #pragma once
 
 #include "graph/Nodes.hpp"
-#include "graph/core/ActiveQueue.hpp"
+#include "core/ActiveQueue.hpp"
 #include <iostream>
 #include <cassert>
 #include <vector>

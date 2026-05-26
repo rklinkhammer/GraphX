@@ -38,8 +38,7 @@
 #include "graph/DataGeneratorBase.hpp"
 #include "graph/Message.hpp"
 #include "graph/CompletionSignal.hpp"
-#include "sensor/SensorClassificationType.hpp"
-#include "graph/core/ActiveQueue.hpp"
+#include "core/ActiveQueue.hpp"
 #include "graph/NodeCallback.hpp"
 #include "graph/ICallbackProvider.hpp"
 #include <log4cxx/logger.h>
@@ -121,7 +120,7 @@ namespace graph {
  * - Port operations are thread-safe (managed by SourceNode base class)
  */
 template <typename NodeType, typename DataGenerator, typename DataType, typename PayloadType, typename NotificationType, 
-    sensors::SensorClassificationType Classification = sensors::SensorClassificationType::UNKNOWN>
+    typename ClassificationType, ClassificationType Classification = ClassificationType::Unclassified>
 class DataProducerWithNotification : 
     public NamedSourceNode<NodeType, graph::message::Message, NotificationType>,
     public graph::ISourceCallbackProvider<DataType> {
@@ -152,7 +151,7 @@ public:
      */
     DataProducerWithNotification(std::unique_ptr<DataGenerator> generator, 
         std::chrono::microseconds sample_interval, std::size_t sample_ignore) 
-        : sample_interval(sample_interval),
+        : sample_interval_(sample_interval),
           sample_ignore_(sample_ignore),
           generator_(std::move(generator)),
           start_time_(std::chrono::steady_clock::now()),
@@ -423,33 +422,28 @@ public:
     /**
      * @brief Get the sensor classification type (category)
      * 
-     * Returns the sensor classification/category identifier used for data
+     * Returns the classification/category identifier used for data
      * routing, discovery, and integration regardless of data source.
      * 
-     * Sensor classification is orthogonal to implementation:
+     * Classification is orthogonal to implementation:
      * - CSV sensor nodes (simulation) and real device sensor nodes both
      *   produce data of the same classification type
      * - This enables unified data routing and processing pipelines
      * 
-     * Must be implemented by each sensor producer subclass.
+     * Must be implemented by each producer subclass.
      * 
      * Examples:
-     *   - Accelerometer nodes (CSV or device) return ACCELEROMETER
-     *   - Gyroscope nodes (CSV or device) return GYROSCOPE
-     *   - Magnetometer nodes (CSV or device) return MAGNETOMETER
-     *   - Barometric nodes (CSV or device) return BAROMETRIC
-     *   - GPS nodes (CSV or device) return GPS_POSITION
+     *   - Accelerometer nodes return ACCELEROMETER
+     *   - Gyroscope nodes return GYROSCOPE
+     *   - Magnetometer nodes return MAGNETOMETER
+     *   - Barometric nodes return BAROMETRIC
+     *   - GPS nodes return GPS_POSITION
      * 
-     * @return Sensor classification type enum value
+     * @return Classification type enum value
      * 
-     * @see SensorClassificationTypeToString() to convert to string representation
-     * @see StringToSensorClassificationType() to convert from string
-     * @see SensorClassificationType.hpp for complete taxonomy
-     * 
-     * @note Used by CSVDataStreamManager for discovery and data dispatch
      * @note Used by any data processing pipeline for type-based routing
      */
-    virtual sensors::SensorClassificationType GetSensorClassificationType() const  {
+    virtual ClassificationType GetClassificationType() const  {
         return Classification;  
     }
 
@@ -485,7 +479,7 @@ public:
      * @see sample_interval member for the configured base interval
      */
     virtual std::chrono::microseconds GetNextSampleInterval() const {
-        return sample_interval;
+        return sample_interval_;
     }
 
     /**
@@ -567,7 +561,7 @@ public:
     protected:
         /// @brief Interval between samples (microseconds)
         /// Used by GetNextSampleInterval() to determine sleep duration
-        std::chrono::microseconds sample_interval;
+        std::chrono::microseconds sample_interval_;
         
         /// @brief Number of initial samples to skip (ignore count)
         /// First sample_ignore_ samples are produced but not returned (nullopt)

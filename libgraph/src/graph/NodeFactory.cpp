@@ -46,7 +46,7 @@ NodeFacadeAdapter NodeFactory::CreateDynamicNode(const std::string& node_type_na
         return NodeFacadeAdapter(handle, facade);
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create dynamic node: " << e.what());
-        throw;
+        throw std::runtime_error("Failed to create dynamic node");
     }
 }
 

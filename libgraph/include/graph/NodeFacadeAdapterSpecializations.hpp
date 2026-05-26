@@ -45,7 +45,7 @@
 #include "graph/NodeFacade.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"
-#include "graph/IMetricsCallback.hpp"
+#include "metrics/IMetricsCallback.hpp"
 #include "graph/IDataInjectionSource.hpp"
 
 namespace graph {

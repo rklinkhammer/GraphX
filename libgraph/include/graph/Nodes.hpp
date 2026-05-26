@@ -66,8 +66,8 @@
 #include <log4cxx/logger.h>
 #include <string_view>
 #include <type_traits>
-#include "graph/core/TypeInfo.hpp"
-#include "graph/core/ActiveQueue.hpp"
+#include "core/TypeInfo.hpp"
+#include "core/ActiveQueue.hpp"
 #include "graph/Message.hpp"
 #include "graph/PortSpec.hpp"
 #include "graph/PortTypes.hpp"

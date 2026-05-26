@@ -30,9 +30,8 @@
 #include <set>
 #include <nlohmann/json.hpp>
 #include <log4cxx/logger.h>
-#include "graph/app/JsonUtilities.hpp"
-#include "graph/app/Errors.hpp"
-#include "graph/core/FormatUtilities.hpp"
+#include "config/JsonUtilities.hpp"
+#include "core/FormatUtilities.hpp"
 
 namespace graph::config {
 
