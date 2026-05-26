@@ -131,7 +131,7 @@
  *   
  *   // Shutdown
  *   pool.Stop();
- *   pool.Join();  // Wait for completion
+ *   pool.Join();  // Wait for worker exit; pending queued work may be cancelled
  * @endcode
  *
  * ### With Configuration
@@ -168,9 +168,9 @@
  * Deterministic resource allocation and predictable behavior.
  * Dynamic resizing adds complexity and can cause cascading thread creation.
  *
- * **Why No Task Cancellation?**
- * Once started, tasks must complete. This simplifies correctness guarantees
- * and avoids resource cleanup issues.
+ * **Why Cancellation Only Before Start?**
+ * Once started, tasks must complete. Pending queued tasks are cancelled on
+ * Stop() so shutdown is deterministic and no new work begins after Stop().
  *
  * **Why ActiveQueue?**
  * Lock-free queuing minimizes contention and provides deterministic
@@ -219,10 +219,13 @@ namespace graph {
  * **tasks_rejected**: Tasks rejected without queuing (pool stopped or queue full).
  * Incremented when QueueTask() returns QueueResult::Stopped or QueueResult::Full.
  *
+ * **tasks_cancelled**: Tasks accepted into the queue but discarded during
+ * Stop() cancellation before a worker started them.
+ *
  * Relationship:
  * ```
  * tasks_queued + tasks_rejected = total enqueue attempts
- * tasks_completed + tasks_failed = tasks_queued
+ * tasks_completed + tasks_failed + tasks_cancelled = tasks_queued
  * ```
  *
  * ### Queue Metrics
@@ -306,6 +309,10 @@ struct ThreadPoolStats {
     /// Incremented when QueueTask() is rejected for shutdown or capacity reasons.
     /// Indicates task discard without queuing.
     std::atomic<size_t> tasks_rejected{0};
+
+    /// @brief Tasks discarded from the queue during Stop() cancellation
+    /// Does not include tasks already running when Stop() was requested.
+    std::atomic<size_t> tasks_cancelled{0};
     
     /// @brief QueueTaskWithTimeout() calls that timed out
     /// Incremented when timeout expires before queue capacity available.
@@ -919,7 +926,7 @@ public:
      *   pool.QueueTask([]{ std::cout << "Task 1" << std::endl; });
      *   pool.QueueTask([]{ std::cout << "Task 2" << std::endl; });
      *
-     *   pool.Stop();  // No more tasks accepted, existing finish
+     *   pool.Stop();  // No more tasks accepted; pending queued tasks cancel
      *
      *   // Attempt to queue task after Stop
      *   auto result = pool.QueueTask([]{ });
@@ -996,9 +1003,9 @@ public:
      *       pool.QueueTask([i]{ do_work(i); });
      *   }
      *
-     *   // Wait for completion
+     *   // Request cancellation and wait for worker exit
      *   pool.Stop();
-     *   pool.Join();  // Blocks here until all tasks done
+     *   pool.Join();  // Blocks here until workers exit
      *
      *   // Safe to destroy pool now
      * @endcode

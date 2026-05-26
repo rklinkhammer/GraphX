@@ -119,7 +119,7 @@ public:
      * Ensures Stop() and Join() are called before destruction.
      * Implementations should clean up policy resources.
      */
-    virtual ~GraphExecutor() = default;
+    virtual ~GraphExecutor() noexcept;
     
     /**
      * @brief Initialize the executor and all graph nodes
@@ -274,4 +274,3 @@ private:
 };
 
 }  // namespace graph
-

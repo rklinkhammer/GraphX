@@ -154,21 +154,20 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
 
     auto factory = PluginInfrastructure::GetFactory();
     auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto xxx = factory->CreateDynamicNode("InteriorTestNode");
-    //auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    //auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
 
 
-    // auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
-    // auto interiorx = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
-    // auto sinkx = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+    auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
+    auto interiorx = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
+    auto sinkx = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
     
-    // graph->AddNode(sourcex);
-    // graph->AddNode(interiorx);
-    // graph->AddNode(sinkx);
+    graph->AddNode(sourcex);
+    graph->AddNode(interiorx);
+    graph->AddNode(sinkx);
     
-    // PluginInfrastructure::AddEdge<SourceTestNode, 0, InteriorTestNode, 0>(graph, sourcex, interiorx);
-    // PluginInfrastructure::AddEdge<InteriorTestNode, 0, SinkTestNode, 0>(graph, interiorx, sinkx);
+    PluginInfrastructure::AddEdge<SourceTestNode, 0, InteriorTestNode, 0>(graph, sourcex, interiorx);
+    PluginInfrastructure::AddEdge<InteriorTestNode, 0, SinkTestNode, 0>(graph, interiorx, sinkx);
         
     return graph;
 }

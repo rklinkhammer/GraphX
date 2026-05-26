@@ -159,9 +159,13 @@ public:
     /// @return true if type was unregistered, false if not found
     bool UnregisterNodeType(const std::string& type_name);
 
+    /// @brief Unregister all node types loaded from a plugin handle
+    /// @param plugin_handle Handle returned by dlopen()
+    /// @return Number of node types removed
+    size_t UnregisterNodeTypesForHandle(void* plugin_handle);
+
     /// @brief Clear all registered types (used during shutdown)
     void Clear();
 };
 
 }  // namespace graph
-

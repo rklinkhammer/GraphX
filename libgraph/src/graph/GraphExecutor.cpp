@@ -57,6 +57,19 @@ GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain
     graph_capability_->GetCapabilityBus().Register<capabilities::GraphCapability>(graph_capability_);
 }
 
+GraphExecutor::~GraphExecutor() noexcept {
+    try {
+        if (graph_manager_) {
+            Stop();
+            Join();
+        }
+    } catch (const std::exception& e) {
+        LOG4CXX_WARN(logger_, "Exception during GraphExecutor cleanup: " << e.what());
+    } catch (...) {
+        LOG4CXX_WARN(logger_, "Unknown exception during GraphExecutor cleanup");
+    }
+}
+
 InitializationResult GraphExecutor::Init() {
     auto start_time = std::chrono::high_resolution_clock::now();
 

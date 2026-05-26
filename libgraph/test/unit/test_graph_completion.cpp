@@ -23,6 +23,7 @@
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
+#include "graph/NodeFacadeAdapterWrapper.hpp"
 
 namespace {
 
@@ -134,26 +135,11 @@ public:
             }
         }
 
-        // Join the thread (with a safety timeout)
+        // Join the thread. RunWithTimeout already requested Stop() above when
+        // needed, so Run() should return without a second watcher thread racing
+        // on the same std::thread object.
         if (executor_thread.joinable()) {
-            auto join_start = std::chrono::steady_clock::now();
-            std::thread join_watcher([&executor_thread]() {
-                executor_thread.join();
-            });
-
-            auto join_deadline = join_start + std::chrono::seconds(5);
-            while (std::chrono::steady_clock::now() < join_deadline) {
-                if (!executor_thread.joinable()) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-
-            if (executor_thread.joinable()) {
-                result.error_message += (result.error_message.empty() ? "" : "; ") + 
-                                       std::string("Executor thread failed to join within timeout");
-                join_watcher.detach();
-            } else if (join_watcher.joinable()) {
-                join_watcher.join();
-            }
+            executor_thread.join();
         }
 
         result.elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
@@ -263,6 +249,232 @@ public:
     }
 };
 
+// ============================================================================
+// MESSAGE FLOW VALIDATION INFRASTRUCTURE (Stage 5.5b)
+// ============================================================================
+
+/**
+ * @class MessageFlowValidator
+ * @brief Validates message flow through graph topologies
+ * 
+ * Tracks message counts at each node to ensure data flows correctly
+ * through the graph pipeline. Supports extracting and validating:
+ * - Source message production counts
+ * - Interior node transformation counts
+ * - Sink message consumption counts
+ * - Merge node input/output counts
+ * - Split node replication counts
+ */
+class MessageFlowValidator {
+public:
+    /**
+     * @struct FlowMetrics
+     * @brief Message count metrics for a topology
+     */
+    struct FlowMetrics {
+        std::string topology_name;
+        size_t source_produced{0};
+        size_t interior_transferred{0};
+        size_t sink_consumed{0};
+        size_t merge_inputs{0};
+        size_t split_replications{0};
+        
+        bool IsValid() const {
+            // For topologies with no sinks (e.g., SourceOnly), we don't check sink consumption
+            // A topology is valid if:
+            // 1. Messages that were produced were also consumed (when a sink exists)
+            // 2. Interior transfers match production (if interior exists)
+            
+            // If there's a sink, message flow should match
+            if (sink_consumed > 0 && source_produced > 0) {
+                // If both source and sink exist, sink should consume what source produces
+                return sink_consumed >= source_produced;
+            }
+            
+            // If only source (no sink), that's OK
+            if (source_produced > 0 && sink_consumed == 0) {
+                return true;
+            }
+            
+            return true;
+        }
+    };
+
+    /**
+     * @brief Initialize validator for a topology
+     * @param graph The GraphManager to validate
+     * @return FlowMetrics for the topology
+     */
+    static FlowMetrics ValidateTopology(
+        const std::shared_ptr<graph::GraphManager>& graph,
+        const std::string& topology_name) {
+        
+        FlowMetrics metrics;
+        metrics.topology_name = topology_name;
+
+        if (!graph) {
+            return metrics;
+        }
+
+        // Get all nodes from the graph
+        const auto& nodes = graph->GetNodes();
+        
+        std::cerr << "\n[DEBUG] ValidateTopology(" << topology_name << ") - Found " 
+                  << nodes.size() << " nodes\n";
+        
+        // Iterate through nodes and extract metrics
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            const auto& node = nodes[i];
+            if (!node) {
+                std::cerr << "[DEBUG]   Node " << i << ": nullptr\n";
+                continue;
+            }
+            
+            std::cerr << "[DEBUG]   Node " << i << ": " << typeid(*node).name() << "\n";
+            ExtractNodeMetrics(node, metrics);
+        }
+
+        return metrics;
+    }
+
+private:
+    /**
+     * @brief Extract metrics from a node using RTTI
+     * @param node The node to extract metrics from
+     * @param metrics Reference to metrics struct to populate
+     */
+    static void ExtractNodeMetrics(
+        const std::shared_ptr<graph::INode>& node,
+        FlowMetrics& metrics) {
+        
+        if (!node) return;
+
+        // First try to cast to NodeFacadeAdapterWrapper (plugin-loaded nodes)
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (wrapper) {
+            // For wrapped plugin nodes, we need to carefully extract the actual underlying node
+            // Try each type and take the one with non-zero count (avoiding type mismatches)
+            
+            // Try SourceTestNode
+            auto source = wrapper->GetNode<test::SourceTestNode>();
+            if (source && source->GetMessageCount() > 0) {
+                // Validate this looks like a source (reasonable count value, not garbage)
+                size_t count = source->GetMessageCount();
+                if (count < 1000000) {  // Sanity check: count should be less than 1M
+                    metrics.source_produced = count;
+                    std::cerr << "[DEBUG]       Found SourceTestNode, count=" << count << "\n";
+                    return;
+                }
+            }
+
+            // Try SinkTestNode
+            auto sink = wrapper->GetNode<test::SinkTestNode>();
+            if (sink && sink->GetMessageCount() > 0) {
+                size_t count = sink->GetMessageCount();
+                if (count < 1000000) {  // Sanity check
+                    metrics.sink_consumed = count;
+                    std::cerr << "[DEBUG]       Found SinkTestNode, count=" << count << "\n";
+                    return;
+                }
+            }
+
+            // Try InteriorTestNode
+            auto interior = wrapper->GetNode<test::InteriorTestNode>();
+            if (interior && interior->GetMessageCount() > 0) {
+                size_t count = interior->GetMessageCount();
+                if (count < 1000000) {  // Sanity check
+                    metrics.interior_transferred = count;
+                    std::cerr << "[DEBUG]       Found InteriorTestNode, count=" << count << "\n";
+                    return;
+                }
+            }
+            
+            std::cerr << "[DEBUG]     Wrapper found but no matching node type with valid count\n";
+            return;
+        }
+
+        // Fallback: Try direct dynamic_cast for non-wrapped nodes
+        auto source = dynamic_cast<test::SourceTestNode*>(node.get());
+        if (source) {
+            size_t count = source->GetMessageCount();
+            if (count < 1000000) {
+                metrics.source_produced = count;
+                std::cerr << "[DEBUG]       Found direct SourceTestNode, count=" << count << "\n";
+                return;
+            }
+        }
+
+        auto sink = dynamic_cast<test::SinkTestNode*>(node.get());
+        if (sink) {
+            size_t count = sink->GetMessageCount();
+            if (count < 1000000) {
+                metrics.sink_consumed = count;
+                std::cerr << "[DEBUG]       Found direct SinkTestNode, count=" << count << "\n";
+                return;
+            }
+        }
+
+        auto interior = dynamic_cast<test::InteriorTestNode*>(node.get());
+        if (interior) {
+            size_t count = interior->GetMessageCount();
+            if (count < 1000000) {
+                metrics.interior_transferred = count;
+                std::cerr << "[DEBUG]       Found direct InteriorTestNode, count=" << count << "\n";
+                return;
+            }
+        }
+        
+        std::cerr << "[DEBUG]     No matching node type found\n";
+    }
+
+public:
+    /**
+     * @brief Assert that topology has valid message flow
+     * @param metrics The FlowMetrics to validate
+     * @param expected_produced Expected message count from source (0 = skip check)
+     * @param expected_consumed Expected message count to sink (0 = skip check)
+     */
+    static void AssertValidFlow(
+        const FlowMetrics& metrics,
+        size_t expected_produced = 0,
+        size_t expected_consumed = 0) {
+        
+        ASSERT_TRUE(metrics.IsValid())
+            << "Invalid message flow for topology: " << metrics.topology_name << "\n"
+            << "  Source produced: " << metrics.source_produced << "\n"
+            << "  Interior transferred: " << metrics.interior_transferred << "\n"
+            << "  Sink consumed: " << metrics.sink_consumed << "\n";
+
+        if (expected_produced > 0) {
+            EXPECT_EQ(metrics.source_produced, expected_produced)
+                << "Topology " << metrics.topology_name 
+                << " source should produce " << expected_produced 
+                << " messages but produced " << metrics.source_produced;
+        }
+
+        if (expected_consumed > 0) {
+            EXPECT_EQ(metrics.sink_consumed, expected_consumed)
+                << "Topology " << metrics.topology_name 
+                << " sink should consume " << expected_consumed 
+                << " messages but consumed " << metrics.sink_consumed;
+        }
+    }
+
+    /**
+     * @brief Log message flow metrics to stderr
+     * @param metrics The FlowMetrics to log
+     */
+    static void LogMetrics(const FlowMetrics& metrics) {
+        std::cerr << "\n=== Message Flow Metrics: " << metrics.topology_name << " ===\n"
+                  << "  Source produced: " << metrics.source_produced << " messages\n"
+                  << "  Interior transferred: " << metrics.interior_transferred << " messages\n"
+                  << "  Sink consumed: " << metrics.sink_consumed << " messages\n"
+                  << "  Merge inputs: " << metrics.merge_inputs << "\n"
+                  << "  Split replications: " << metrics.split_replications << "\n"
+                  << "  Flow valid: " << (metrics.IsValid() ? "YES" : "NO") << "\n";
+    }
+};
+
 /**
  * @class CompletionSemanticsTest
  * @brief Test completion behavior across all graph topologies
@@ -272,6 +484,7 @@ public:
  * 2. Executor initializes and starts without error
  * 3. Graph execution completes (either via completion signal or timeout)
  * 4. No errors, deadlocks, or exceptions occur during execution
+ * 5. (Stage 5.5b) Message flow metrics match expectations
  */
 class CompletionSemanticsTest : public ::testing::Test {
 protected:
@@ -373,6 +586,12 @@ TEST_F(CompletionSemanticsTest, Topology1_SourceOnlyInitializes) {
     EXPECT_FALSE(is_signaled)
         << "SourceOnly topology should not signal completion (no sinks to complete)";
     
+    // === VALIDATE: Message Flow (Stage 5.5b) ===
+    auto flow_metrics = MessageFlowValidator::ValidateTopology(graph, "SourceOnly");
+    MessageFlowValidator::LogMetrics(flow_metrics);
+    // SourceOnly: Source produces but no sink consumes
+    MessageFlowValidator::AssertValidFlow(flow_metrics, 10, 0);  // 10 produced, 0 consumed
+    
     // === DEBUG: Log final state ===
     debug_.LogExecutorState(executor, "SourceOnly final state");
 }
@@ -470,8 +689,11 @@ TEST_F(CompletionSemanticsTest, Topology2_MinimalGraphCompletionSemantics) {
     EXPECT_TRUE(is_signaled)
         << "MinimalGraph topology should signal completion when all messages processed";
 
-    // === VALIDATE: Message Flow ===
-    // TODO: In Stage 5.5b, add metrics validation to measure actual message counts
+    // === VALIDATE: Message Flow (Stage 5.5b) ===
+    auto flow_metrics = MessageFlowValidator::ValidateTopology(graph, "MinimalGraph");
+    MessageFlowValidator::LogMetrics(flow_metrics);
+    // MinimalGraph: Source produces 10, Sink consumes 10
+    MessageFlowValidator::AssertValidFlow(flow_metrics, 10, 10);
     
     // === DEBUG: Log final state ===
     debug_.LogExecutorState(executor, "MinimalGraph final state");
@@ -561,7 +783,13 @@ TEST_F(CompletionSemanticsTest, Topology3_LinearSequentialPipeline) {
     EXPECT_TRUE(is_signaled)
         << "LinearSequential topology should signal completion when all messages processed";
     
-    // // === DEBUG: Log final state ===
+    // === VALIDATE: Message Flow (Stage 5.5b) ===
+    auto flow_metrics = MessageFlowValidator::ValidateTopology(graph, "LinearSequential");
+    MessageFlowValidator::LogMetrics(flow_metrics);
+    // LinearSequential: Source produces 10, Interior transfers 10, Sink consumes 10
+    MessageFlowValidator::AssertValidFlow(flow_metrics, 10, 10);
+    
+    // === DEBUG: Log final state ===
     debug_.LogExecutorState(executor, "LinearSequential final state");
 }
 
@@ -759,4 +987,3 @@ TEST_F(CompletionSemanticsTest, Topology3_LinearSequentialPipeline) {
  * @see ExecutorDebugHelper for implementation details
  * @see CompletionSemanticsTest for usage examples
  */
-

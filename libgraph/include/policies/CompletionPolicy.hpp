@@ -90,6 +90,11 @@ namespace policies
         bool OnInit(capabilities::GraphCapability &context) override
         {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnInit called");
+            {
+                std::lock_guard lock(completion_mutex_);
+                completion_signaled_ = false;
+                stop_requested_ = false;
+            }
             // Register callbacks with completion nodes
             InitCompletionCallbacks(context);
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnInit completed");            
@@ -117,18 +122,14 @@ namespace policies
             {
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - waiting for completion signal or timeout");
                 std::unique_lock lock(completion_mutex_);
-                if (!completion_signaled_)
-                {
-                    auto completed = completion_cv_.wait_for(lock, max_duration_);
-                    LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - wait completed, signaled=" 
-                        << (completed == std::cv_status::no_timeout));
-                    if (completed == std::cv_status::no_timeout) {
-                        context.SetCompletionSignaled();
-                    }
-                }
-                else
-                {
-                    LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - completion already signaled");
+                const bool woke_for_signal = completion_cv_.wait_for(lock, max_duration_, [this] {
+                    return completion_signaled_ || stop_requested_;
+                });
+                LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - wait completed, woke_for_signal="
+                    << woke_for_signal << ", completion=" << completion_signaled_
+                    << ", stop_requested=" << stop_requested_);
+                if (woke_for_signal && completion_signaled_) {
+                    context.SetCompletionSignaled();
                 }
                 context.SetStopped();
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - signaling shutdown");
@@ -140,7 +141,11 @@ namespace policies
         void OnStop(capabilities::GraphCapability &) override
         {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnStop called");
-            SetCompletionSignaled();
+            {
+                std::lock_guard lock(completion_mutex_);
+                stop_requested_ = true;
+            }
+            completion_cv_.notify_all();
             // Stop metrics collection and cleanup here if needed
         }
 
@@ -187,6 +192,7 @@ namespace policies
         std::condition_variable completion_cv_;
         std::mutex completion_mutex_;
         bool completion_signaled_ = false;
+        bool stop_requested_ = false;
         bool cli_mode_ = false;
         std::chrono::milliseconds max_duration_;
         std::vector<std::shared_ptr<void>> completion_callbacks_;

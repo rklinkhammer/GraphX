@@ -646,12 +646,13 @@ TEST_F(ThreadPoolTest, AtomicMemoryOrdering) {
     pool.Stop();
     pool.Join();
     
-    // All queued tasks should execute
+    // Stop() cancels work that has not started yet. Account for every accepted
+    // task as completed, failed, or cancelled.
     const auto& stats = pool.GetStats();
-    EXPECT_EQ(stats.tasks_completed.load() + stats.tasks_failed.load(), 
+    EXPECT_EQ(stats.tasks_completed.load() + stats.tasks_failed.load() + stats.tasks_cancelled.load(),
               stats.tasks_queued.load());
     
-    // Verify no lost increments (atomic operation correctness)
+    // Verify no lost increments for tasks that actually executed.
     EXPECT_EQ(queued_count.load(), stats.tasks_completed.load());
 }
 

@@ -327,6 +327,11 @@ namespace graph
                     LOG4CXX_TRACE(logger_, "Worker thread " << std::this_thread::get_id() << " dequeue returned false");
                     break;
                 }
+                if (GetStopRequested())
+                {
+                    stats_.tasks_cancelled++;
+                    break;
+                }
                 LOG4CXX_TRACE(logger_, "Worker thread " << std::this_thread::get_id() << " executing task");
                 ExecuteTask(task);
             }
@@ -371,8 +376,9 @@ namespace graph
             // FIFO ordering and single watchdog thread. This is safe by design.
             while(task_queue_.Size() > 0) {
                 Task task;  
-                // C++26: [[nodiscard]] return value intentionally unused (queue flush-only)
-                static_cast<void>(task_queue_.DequeueNonBlocking(task));
+                if (task_queue_.DequeueNonBlocking(task)) {
+                    stats_.tasks_cancelled++;
+                }
             }
         }
         catch (const std::exception &e)

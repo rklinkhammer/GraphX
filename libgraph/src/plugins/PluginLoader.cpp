@@ -282,6 +282,10 @@ bool PluginLoader::UnloadPlugin(const std::string& plugin_filename) {
     
     size_t index = std::distance(loaded_plugins_.begin(), it);
     void* handle = plugin_handles_[index];
+
+    if (registry_) {
+        registry_->UnregisterNodeTypesForHandle(handle);
+    }
     
     if (dlclose(handle) != 0) {
         LOG4CXX_WARN(logger_, "dlclose failed: " << dlerror());

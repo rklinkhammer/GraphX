@@ -330,6 +330,18 @@ TEST_F(PluginLoaderTest, CreateNodeFromLoadedPlugin) {
     EXPECT_NE(facade, nullptr);
 }
 
+TEST_F(PluginLoaderTest, UnloadPluginUnregistersNodeTypes) {
+    const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    graph::PluginLoader loader(plugin_dir, registry_);
+
+    loader.LoadPlugin("libtest_node.so");
+    ASSERT_TRUE(registry_->HasNodeType("TestNode"));
+
+    EXPECT_TRUE(loader.UnloadPlugin("libtest_node.so"));
+    EXPECT_FALSE(registry_->HasNodeType("TestNode"));
+    EXPECT_THROW(registry_->CreateNode("TestNode"), std::runtime_error);
+}
+
 TEST_F(PluginLoaderTest, NodeFacadeInterfaceCompliance) {
     // Verify that NodeFacade vtable is properly initialized
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;

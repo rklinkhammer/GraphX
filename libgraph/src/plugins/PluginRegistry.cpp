@@ -182,6 +182,25 @@ bool PluginRegistry::UnregisterNodeType(const std::string& type_name) {
     return true;
 }
 
+size_t PluginRegistry::UnregisterNodeTypesForHandle(void* plugin_handle) {
+    if (!plugin_handle) {
+        return 0;
+    }
+
+    std::lock_guard<std::mutex> lock(registry_mutex_);
+    size_t removed = 0;
+    for (auto it = registered_types_.begin(); it != registered_types_.end();) {
+        if (it->second.plugin_handle == plugin_handle) {
+            LOG4CXX_TRACE(logger_, "Unregistered node type for plugin handle: " << it->first);
+            it = registered_types_.erase(it);
+            ++removed;
+        } else {
+            ++it;
+        }
+    }
+    return removed;
+}
+
 void PluginRegistry::Clear() {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     LOG4CXX_TRACE(logger_, "Clearing registry (" << registered_types_.size() << " types)");
