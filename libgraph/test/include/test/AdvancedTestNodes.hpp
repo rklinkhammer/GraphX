@@ -54,7 +54,8 @@ namespace test {
             SourceTestNode,
             graph::message::Message>,
           public graph::IConfigurable,
-          public graph::IParameterized {
+          public graph::IParameterized,
+          public graph::IMetricsCallbackProvider {
     public:
         // Port definition - requires for template introspection
         static constexpr char kDataPort[] = "Data";
@@ -203,7 +204,49 @@ namespace test {
             if (count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / count_;
         }
+        
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "produced_messages"},
+                {"type", "integer"},
+                {"description", "Number of messages produced by this source"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "throughput_mps"},
+                {"type", "number"},
+                {"description", "Messages produced per second"},
+                {"unit", "mps"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "SourceTestNode",
+                .node_type = "source",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_produced"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
+        
+    private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
     };
+    
     // SinkTestNode - Alternative sink node
     // =========================================================================================
     
@@ -221,7 +264,8 @@ namespace test {
     class SinkTestNode : public graph::NamedSinkNode<SinkTestNode, ::graph::message::Message>,
                         public graph::ICompletionCallback<::graph::message::CompletionSignal>,
                         public graph::IConfigurable,
-                        public graph::IParameterized {
+                        public graph::IParameterized,
+                        public graph::IMetricsCallbackProvider {
     public: 
         static constexpr char kStatePort[] = "State";
         using Ports = std::tuple<
@@ -255,6 +299,21 @@ namespace test {
             LOG4CXX_TRACE(test_logger, "SinkTestNode consumed message (total: " << message_count_ 
                 << "/" << expected_message_count_ << ")");
             std::cout << "SinkTestNode consumed message: " <<  std::endl;
+            
+            // TODO: Publish metrics event if callback is installed
+            // if (HasMetricsCallback()) {
+            //     std::map<std::string, std::string> metrics_data;
+            //     metrics_data["consumed_messages"] = std::to_string(message_count_);
+            //     metrics_data["throughput_mps"] = std::to_string(GetThroughputMps());
+            //     
+            //     app::metrics::MetricsEvent event{
+            //         .timestamp = std::chrono::system_clock::now(),
+            //         .source = "SinkTestNode",
+            //         .event_type = "message_consumed",
+            //         .data = metrics_data
+            //     };
+            //     GetMetricsCallback()->PublishAsync(event);
+            // }
       
             // Signal completion when expected message count reached
             if (expected_message_count_ > 0 && 
@@ -366,7 +425,46 @@ namespace test {
             return {"expected_message_count"};
         }
         
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "consumed_messages"},
+                {"type", "integer"},
+                {"description", "Number of messages consumed by this sink"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "throughput_mps"},
+                {"type", "number"},
+                {"description", "Messages consumed per second"},
+                {"unit", "mps"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "SinkTestNode",
+                .node_type = "sink",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_consumed"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
+        
     private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
         /**
          * @brief Set the expected message count for completion detection (internal use via Configure)
          * @param count Number of messages to expect before completion signal
@@ -409,7 +507,8 @@ namespace test {
      * @class FailingTestNode
      * @brief Node that can be configured to report failures
      */
-    class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message> {
+    class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message>,
+                           public graph::IMetricsCallbackProvider {
     public: 
         static constexpr char kStatePort[] = "State";
         using Ports = std::tuple<
@@ -423,6 +522,21 @@ namespace test {
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
             (void)msg;
+            
+            // Publish metrics event if callback is installed
+            if (HasMetricsCallback()) {
+                // TODO: std::map<std::string, std::string> metrics_data;
+                // TODO: metrics_data["consumed"] = "true";
+                // TODO: 
+                // TODO: app::metrics::MetricsEvent event{
+                // TODO:     .timestamp = std::chrono::system_clock::now(),
+                // TODO:     .source = "FailingTestNode",
+                // TODO:     .event_type = "message_consumed",
+                // TODO:     .data = metrics_data
+                // TODO: };
+                // TODO: GetMetricsCallback()->PublishAsync(event);
+            }
+            
             return true;
         }
         
@@ -437,8 +551,40 @@ namespace test {
             return graph::NamedSinkNode<FailingTestNode, ::graph::message::Message>::Init();
         }
         
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "consumed"},
+                {"type", "boolean"},
+                {"description", "Whether a message was consumed"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "FailingTestNode",
+                .node_type = "sink",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_consumed"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
+        
     private:
         std::atomic<bool> should_fail_init_{false};
+        graph::IMetricsCallback* metrics_callback_{nullptr};
     };
 
     class NSinkTestNode : public graph::NamedSinkNode<NSinkTestNode,
@@ -446,7 +592,8 @@ namespace test {
                                 graph::message::Message, 
                                 graph::message::Message, 
                                 graph::message::Message, 
-                                graph::message::Message> {
+                                graph::message::Message>,
+                         public graph::IMetricsCallbackProvider {
     public:
          
         static constexpr char kStatePort0[] = "State0";
@@ -477,27 +624,85 @@ namespace test {
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
             (void)msg;
+            PublishMetrics();
             return true;
         }
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 1>) override {
             (void)msg;
+            PublishMetrics();
             return true;
         }
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 2>) override {
             (void)msg;
+            PublishMetrics();
             return true;
         }
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 3>) override {
             (void)msg;
+            PublishMetrics();
             return true;
         }
 
         bool Consume(const graph::message::Message& msg, std::integral_constant<std::size_t, 4>) override {
             (void)msg;
+            PublishMetrics();
             return true;
+        }
+        
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "consumed_count"},
+                {"type", "integer"},
+                {"description", "Number of messages consumed across all input ports"},
+                {"unit", "count"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "NSinkTestNode",
+                .node_type = "sink",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_consumed"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
+    
+    private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
+        std::atomic<size_t> consume_count_{0};
+        
+        void PublishMetrics() noexcept {
+            consume_count_++;
+            // TODO: Publish metrics event if callback is installed
+            // if (HasMetricsCallback()) {
+            //     std::map<std::string, std::string> metrics_data;
+            //     metrics_data["consumed_count"] = std::to_string(consume_count_);
+            //     
+            //     app::metrics::MetricsEvent event{
+            //         .timestamp = std::chrono::system_clock::now(),
+            //         .source = "NSinkTestNode",
+            //         .event_type = "message_consumed",
+            //         .data = metrics_data
+            //     };
+            //     GetMetricsCallback()->PublishAsync(event);
+            // }
         }
 
     };
@@ -516,7 +721,7 @@ namespace test {
         : public graph::NamedInteriorNode<
               graph::TypeList<graph::message::Message>,
               graph::TypeList<graph::message::Message>,
-              InteriorTestNode> {
+              InteriorTestNode>,
           public graph::IMetricsCallbackProvider {
     public:
         
@@ -558,15 +763,16 @@ namespace test {
             
             // // Publish metrics event if callback is installed
             if (HasMetricsCallback()) {
-                app::metrics::MetricsEvent event{
-                    .timestamp = std::chrono::system_clock::now(),
-                    .source = "InteriorTestNode",
-                    .event_type = "message_transfer",
-                    .data = nlohmann::json::object({
-                        {"transferred_messages", static_cast<uint64_t>(message_count_)}
-                    })
-                };
-                GetMetricsCallback()->PublishAsync(event);
+                // TODO: std::map<std::string, std::string> metrics_data;
+                // TODO: metrics_data["transferred_messages"] = std::to_string(message_count_);
+                // TODO: 
+                // TODO: app::metrics::MetricsEvent event{
+                // TODO:     .timestamp = std::chrono::system_clock::now(),
+                // TODO:     .source = "InteriorTestNode",
+                // TODO:     .event_type = "message_transfer",
+                // TODO:     .data = metrics_data
+                // TODO: };
+                // TODO: GetMetricsCallback()->PublishAsync(event);
             }
             
             return input;
@@ -687,7 +893,8 @@ namespace test {
      * Tracks message counts from each input port for advanced metrics validation.
      */
     class MergeTestNode 
-        : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode> {
+        : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode>,
+          public graph::IMetricsCallbackProvider {
     public:
         static constexpr char kInput0[] = "In0";
         static constexpr char kInput1[] = "In1";
@@ -721,6 +928,22 @@ namespace test {
             // This is a simplified counter - base class handles actual merging
             merged_message_count_++;
             LOG4CXX_TRACE(test_logger, "MergeTestNode processed message, count=" << merged_message_count_);
+            
+            // TODO: Publish metrics event if callback is installed
+            // if (HasMetricsCallback()) {
+            //     std::map<std::string, std::string> metrics_data;
+            //     metrics_data["merged_messages"] = std::to_string(merged_message_count_);
+            //     metrics_data["throughput_mps"] = std::to_string(GetThroughputMps());
+            //     
+            //     app::metrics::MetricsEvent event{
+            //         .timestamp = std::chrono::system_clock::now(),
+            //         .source = "MergeTestNode",
+            //         .event_type = "message_merged",
+            //         .data = metrics_data
+            //     };
+            //     GetMetricsCallback()->PublishAsync(event);
+            // }
+            
             return input;
         }
         
@@ -767,8 +990,47 @@ namespace test {
             if (merged_message_count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / merged_message_count_;
         }
+        
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "merged_messages"},
+                {"type", "integer"},
+                {"description", "Number of messages merged from both inputs"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "throughput_mps"},
+                {"type", "number"},
+                {"description", "Messages merged per second"},
+                {"unit", "mps"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "MergeTestNode",
+                .node_type = "merge",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_merged"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
     
     private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
         std::atomic<size_t> merged_message_count_{0};   // Total messages processed
         std::atomic<size_t> input0_count_{0};            // Messages from input 0
         std::atomic<size_t> input1_count_{0};            // Messages from input 1
@@ -787,7 +1049,8 @@ namespace test {
      * Tracks message counts through each output port for advanced metrics validation.
      */
     class SplitTestNode
-        : public graph::SplitNode2<::graph::message::Message> {
+        : public graph::SplitNode2<::graph::message::Message>,
+          public graph::IMetricsCallbackProvider {
     public:
         static constexpr char kInput[] = "In";
         static constexpr char kOutput0[] = "Out0";
@@ -825,6 +1088,24 @@ namespace test {
             LOG4CXX_TRACE(test_logger, "SplitTestNode replicated message, inputs=" 
                 << input_message_count_ << " out0=" << output0_count_ 
                 << " out1=" << output1_count_);
+            
+            // TODO: Publish metrics event if callback is installed
+            // if (HasMetricsCallback()) {
+            //     std::map<std::string, std::string> metrics_data;
+            //     metrics_data["input_count"] = std::to_string(input_message_count_);
+            //     metrics_data["output0_count"] = std::to_string(output0_count_);
+            //     metrics_data["output1_count"] = std::to_string(output1_count_);
+            //     metrics_data["throughput_mps"] = std::to_string(GetThroughputMps());
+            //     
+            //     app::metrics::MetricsEvent event{
+            //         .timestamp = std::chrono::system_clock::now(),
+            //         .source = "SplitTestNode",
+            //         .event_type = "message_split",
+            //         .data = metrics_data
+            //     };
+            //     GetMetricsCallback()->PublishAsync(event);
+            // }
+            
             return success;
         }
         
@@ -876,8 +1157,59 @@ namespace test {
             if (input_message_count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / input_message_count_;
         }
+        
+        // IMetricsCallbackProvider implementation
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
+        
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
+        
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
+        
+        virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "input_count"},
+                {"type", "integer"},
+                {"description", "Number of input messages received"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "output0_count"},
+                {"type", "integer"},
+                {"description", "Number of replications to output 0"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "output1_count"},
+                {"type", "integer"},
+                {"description", "Number of replications to output 1"},
+                {"unit", "count"}
+            }));
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "throughput_mps"},
+                {"type", "number"},
+                {"description", "Messages split per second"},
+                {"unit", "mps"}
+            }));
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "SplitTestNode",
+                .node_type = "split",
+                .metrics_schema = metrics_json,
+                .event_types = std::vector<std::string>{"message_split"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
     
     private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
         std::atomic<size_t> input_message_count_{0};     // Total input messages
         std::atomic<size_t> output0_count_{0};           // Replications to output 0
         std::atomic<size_t> output1_count_{0};           // Replications to output 1
