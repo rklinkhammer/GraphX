@@ -44,12 +44,12 @@ namespace test {
     // =========================================================================================
     // SourceTestNode - Data Producer
     // =========================================================================================
-
+    
     /**
      * @class SourceTestNode
      * @brief Simple data source for testing with JSON configuration support
      */
-    class SourceTestNode
+    class SourceTestNode 
         : public graph::NamedSourceNode<
             SourceTestNode,
             graph::message::Message>,
@@ -75,15 +75,15 @@ namespace test {
                     first_message_time_ = now;
                 }
                 last_message_time_ = now;
-
+                
                 graph::message::Message msg(count_);
                 count_++;
-                LOG4CXX_TRACE(test_logger, "SourceTestNode produced message: " << (count_ - 1)
+                LOG4CXX_TRACE(test_logger, "SourceTestNode produced message: " << (count_ - 1) 
                     << " (total: " << count_ << "/" << message_count_ << ")");
                 std::cout << "SourceTestNode produced message: " << std::endl;
                 return msg;
             } else {
-                LOG4CXX_DEBUG(test_logger, "SourceTestNode completed - produced " << count_
+                LOG4CXX_DEBUG(test_logger, "SourceTestNode completed - produced " << count_ 
                     << " messages, limit was " << message_count_);
                 return std::nullopt; // Signal completion after N messages
             }
@@ -99,7 +99,7 @@ namespace test {
                 if (config_json.Contains("message_count")) {
                     int count = config_json.GetInt("message_count", -1);
                     if (count <= 0) {
-                        throw graph::ConfigError("message_count must be > 0 (got " +
+                        throw graph::ConfigError("message_count must be > 0 (got " + 
                                                std::to_string(count) + ")");
                     }
                     SetMessageCount(static_cast<size_t>(count));
@@ -110,15 +110,15 @@ namespace test {
                 throw graph::ConfigError(std::string("SourceTestNode configuration error: ") + e.what());
             }
         }
-
+               
         /**
          * @brief Get the number of messages to produce
          * @return Number of messages configured
          */
-        size_t GetMessageCount() const {
-            return message_count_;
+        size_t GetMessageCount() const { 
+            return message_count_; 
         }
-
+        
         /**
          * @brief Get all configurable parameters and their current values
          * @return JsonView with parameter names and values
@@ -128,7 +128,7 @@ namespace test {
             params["message_count"] = message_count_;
             return graph::JsonView(params);
         }
-
+        
         /**
          * @brief Get parameter metadata for a specific parameter
          * @param param_name Name of parameter to describe
@@ -136,7 +136,7 @@ namespace test {
          */
         graph::JsonView GetParameterDescription(const std::string& param_name) const override {
             nlohmann::json metadata = nlohmann::json::object();
-
+            
             if (param_name == "message_count") {
                 metadata["type"] = "integer";
                 metadata["description"] = "Number of messages to produce before stopping";
@@ -144,10 +144,10 @@ namespace test {
                 metadata["default"] = 0;
                 metadata["current"] = message_count_;
             }
-
+            
             return graph::JsonView(metadata);
         }
-
+        
         /**
          * @brief Get list of all available parameter names
          * @return Vector of parameter names
@@ -155,7 +155,7 @@ namespace test {
         std::vector<std::string> GetParameterNames() const override {
             return {"message_count"};
         }
-
+        
     private:
         /**
          * @brief Set the message count for this source (internal use via Configure)
@@ -164,14 +164,14 @@ namespace test {
         void SetMessageCount(size_t count) {
             message_count_ = count;
         }
-
+        
         size_t count_{0};
         size_t message_count_{10};
-
+        
         // Phase 5.5g: Performance metrics
         std::chrono::steady_clock::time_point first_message_time_{};
         std::chrono::steady_clock::time_point last_message_time_{};
-
+    
     public:
         /**
          * @brief Get total elapsed time for message production (nanoseconds)
@@ -184,7 +184,7 @@ namespace test {
             auto duration = last_message_time_ - first_message_time_;
             return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         }
-
+        
         /**
          * @brief Get throughput in messages per second
          * @return Messages produced per second
@@ -194,7 +194,7 @@ namespace test {
             if (elapsed_ns == 0 || count_ == 0) return 0.0;
             return static_cast<double>(count_) / (static_cast<double>(elapsed_ns) / 1e9);
         }
-
+        
         /**
          * @brief Get average latency per message (nanoseconds)
          * @return Average nanoseconds per message
@@ -206,15 +206,15 @@ namespace test {
     };
     // SinkTestNode - Alternative sink node
     // =========================================================================================
-
+    
     /**
      * @class SinkTestNode
      * @brief Sink node for factory testing with completion callback and JSON configuration support
-     *
+     * 
      * Implements ICompletionCallback to signal graph completion when a threshold
      * of messages has been consumed. This enables CompletionPolicy to automatically
      * detect when graph processing is complete.
-     *
+     * 
      * Implements IConfigurable to support dynamic configuration via JSON for use with
      * NodeFacade and dynamic node loading.
      */
@@ -222,13 +222,13 @@ namespace test {
                         public graph::ICompletionCallback<::graph::message::CompletionSignal>,
                         public graph::IConfigurable,
                         public graph::IParameterized {
-    public:
+    public: 
         static constexpr char kStatePort[] = "State";
         using Ports = std::tuple<
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort,
                 graph::PayloadList<int>>
             >;
-
+            
         /**
          * @brief Construct sink node with optional expected message count
          * @param expected_messages Number of messages expected before signaling completion (0 = no auto-completion)
@@ -249,21 +249,21 @@ namespace test {
                 first_message_time_ = now;
             }
             last_message_time_ = now;
-
+            
             (void)msg;
             message_count_++;
-            LOG4CXX_TRACE(test_logger, "SinkTestNode consumed message (total: " << message_count_
+            LOG4CXX_TRACE(test_logger, "SinkTestNode consumed message (total: " << message_count_ 
                 << "/" << expected_message_count_ << ")");
             std::cout << "SinkTestNode consumed message: " <<  std::endl;
-
+      
             // Signal completion when expected message count reached
-            if (expected_message_count_ > 0 &&
+            if (expected_message_count_ > 0 && 
                 message_count_ >= expected_message_count_) {
-                LOG4CXX_INFO(test_logger, "SinkTestNode reached completion threshold: "
+                LOG4CXX_INFO(test_logger, "SinkTestNode reached completion threshold: " 
                     << message_count_ << " >= " << expected_message_count_);
                 SignalCompletion();
             }
-
+            
             return true;
         }
 
@@ -277,7 +277,7 @@ namespace test {
                 if (config_json.Contains("expected_message_count")) {
                     int count = config_json.GetInt("expected_message_count", -1);
                     if (count <= 0) {
-                        throw graph::ConfigError("expected_message_count must be > 0 (got " +
+                        throw graph::ConfigError("expected_message_count must be > 0 (got " + 
                                                std::to_string(count) + ")");
                     }
                     SetExpectedMessageCount(static_cast<size_t>(count));
@@ -288,15 +288,15 @@ namespace test {
                 throw graph::ConfigError(std::string("SinkTestNode configuration error: ") + e.what());
             }
         }
-
+        
         /**
          * @brief Get the number of messages consumed
          * @return Number of messages processed via Consume()
          */
-        size_t GetMessageCount() const {
-            return message_count_;
+        size_t GetMessageCount() const { 
+            return message_count_; 
         }
-
+        
         // Phase 5.5g: Performance metrics
         /**
          * @brief Get total elapsed time for message consumption (nanoseconds)
@@ -309,7 +309,7 @@ namespace test {
             auto duration = last_message_time_ - first_message_time_;
             return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         }
-
+        
         /**
          * @brief Get throughput in messages per second
          * @return Messages consumed per second
@@ -319,7 +319,7 @@ namespace test {
             if (elapsed_ns == 0 || message_count_ == 0) return 0.0;
             return static_cast<double>(message_count_) / (static_cast<double>(elapsed_ns) / 1e9);
         }
-
+        
         /**
          * @brief Get average latency per message (nanoseconds)
          * @return Average nanoseconds per message
@@ -328,7 +328,7 @@ namespace test {
             if (message_count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / message_count_;
         }
-
+        
         /**
          * @brief Get all configurable parameters and their current values
          * @return JsonView with parameter names and values
@@ -338,7 +338,7 @@ namespace test {
             params["expected_message_count"] = expected_message_count_;
             return graph::JsonView(params);
         }
-
+        
         /**
          * @brief Get parameter metadata for a specific parameter
          * @param param_name Name of parameter to describe
@@ -346,7 +346,7 @@ namespace test {
          */
         graph::JsonView GetParameterDescription(const std::string& param_name) const override {
             nlohmann::json metadata = nlohmann::json::object();
-
+            
             if (param_name == "expected_message_count") {
                 metadata["type"] = "integer";
                 metadata["description"] = "Number of messages to consume before signaling completion";
@@ -354,10 +354,10 @@ namespace test {
                 metadata["default"] = 0;
                 metadata["current"] = expected_message_count_;
             }
-
+            
             return graph::JsonView(metadata);
         }
-
+        
         /**
          * @brief Get list of all available parameter names
          * @return Vector of parameter names
@@ -365,7 +365,7 @@ namespace test {
         std::vector<std::string> GetParameterNames() const override {
             return {"expected_message_count"};
         }
-
+        
     private:
         /**
          * @brief Set the expected message count for completion detection (internal use via Configure)
@@ -376,47 +376,47 @@ namespace test {
         }
         /**
          * @brief Signal completion to the CompletionPolicy
-         *
+         * 
          * Invokes the installed callback provider's OnComplete() method,
          * which notifies the CompletionPolicy that this sink is finished processing.
          */
         void SignalCompletion() {
             LOG4CXX_DEBUG(test_logger, "SinkTestNode::SignalCompletion() called - checking callback provider");
-
+            
             if (this->HasCallbackProvider()) {
                 LOG4CXX_DEBUG(test_logger, "SinkTestNode has callback provider - calling OnComplete()");
                 auto provider = dynamic_cast<CompletionNodeCallback*>(this->GetCallbackProvider());
-                assert(provider != nullptr);   // conservative check
+                assert(provider != nullptr);   // conservative check 
                 provider->OnComplete();
             } else {
                 LOG4CXX_WARN(test_logger, "SinkTestNode has NO callback provider - completion signal cannot be fired");
             }
         }
-
+        
         std::atomic<size_t> message_count_{0};
         size_t expected_message_count_{10};
-
+        
         // Phase 5.5g: Performance metrics
         std::chrono::steady_clock::time_point first_message_time_{};
         std::chrono::steady_clock::time_point last_message_time_{};
     };
-
+    
     // =========================================================================================
     // FailingTestNode - Tests error handling
     // =========================================================================================
-
+    
     /**
      * @class FailingTestNode
      * @brief Node that can be configured to report failures
      */
     class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message> {
-    public:
+    public: 
         static constexpr char kStatePort[] = "State";
         using Ports = std::tuple<
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort,
                 graph::PayloadList<int>>
             >;
-
+            
         explicit FailingTestNode() = default;
 
         virtual ~FailingTestNode() = default;
@@ -425,10 +425,10 @@ namespace test {
             (void)msg;
             return true;
         }
-
+        
         /// Control whether Init() should fail
         void SetFailInit(bool fail) { should_fail_init_ = fail; }
-
+        
         /// Returns false if SetFailInit(true) was called
         bool Init() override {
             if (should_fail_init_) {
@@ -436,19 +436,19 @@ namespace test {
             }
             return graph::NamedSinkNode<FailingTestNode, ::graph::message::Message>::Init();
         }
-
+        
     private:
         std::atomic<bool> should_fail_init_{false};
     };
 
     class NSinkTestNode : public graph::NamedSinkNode<NSinkTestNode,
-                                graph::message::Message,
-                                graph::message::Message,
-                                graph::message::Message,
-                                graph::message::Message,
+                                graph::message::Message, 
+                                graph::message::Message, 
+                                graph::message::Message, 
+                                graph::message::Message, 
                                 graph::message::Message> {
     public:
-
+         
         static constexpr char kStatePort0[] = "State0";
         static constexpr char kStatePort1[] = "State1";
         static constexpr char kStatePort2[] = "State2";
@@ -511,17 +511,17 @@ namespace test {
     //
     // This node implements IMetricsCallbackProvider to track message transfers and publish
     // metrics events, enabling testing of the MetricsCapability framework.
-
+    
     class InteriorTestNode
         : public graph::NamedInteriorNode<
               graph::TypeList<graph::message::Message>,
               graph::TypeList<graph::message::Message>,
               InteriorTestNode> {
-          // public graph::IMetricsCallbackProvider {
+          public graph::IMetricsCallbackProvider {
     public:
-
+        
         static constexpr char kInput[] = "Input";
-        static constexpr char kOutput[] = "Output";
+        static constexpr char kOutput[] = "Output";  
 
         using Ports = std::tuple<
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput,
@@ -533,7 +533,7 @@ namespace test {
         InteriorTestNode() {
             SetName("InteriorTestNode");
         }
-
+        
         virtual ~InteriorTestNode() = default;
 
         /**
@@ -545,30 +545,30 @@ namespace test {
             const ::graph::message::Message& input,
             std::integral_constant<std::size_t, 0>,
             std::integral_constant<std::size_t, 0>) override {
-
+            
             // Phase 5.5g: Track timing
             auto now = std::chrono::steady_clock::now();
             if (first_message_time_ == std::chrono::steady_clock::time_point{}) {
                 first_message_time_ = now;
             }
             last_message_time_ = now;
-
+            
             // Increment transfer counter
             message_count_++;
-
+            
             // // Publish metrics event if callback is installed
-            // if (HasMetricsCallback()) {
-            //     app::metrics::MetricsEvent event{
-            //         .timestamp = std::chrono::system_clock::now(),
-            //         .source = "InteriorTestNode",
-            //         .event_type = "message_transfer",
-            //         .data = nlohmann::json::object({
-            //             {"transferred_messages", static_cast<uint64_t>(message_count_)}
-            //         })
-            //     };
-            //     GetMetricsCallback()->PublishAsync(event);
-            // }
-
+            if (HasMetricsCallback()) {
+                app::metrics::MetricsEvent event{
+                    .timestamp = std::chrono::system_clock::now(),
+                    .source = "InteriorTestNode",
+                    .event_type = "message_transfer",
+                    .data = nlohmann::json::object({
+                        {"transferred_messages", static_cast<uint64_t>(message_count_)}
+                    })
+                };
+                GetMetricsCallback()->PublishAsync(event);
+            }
+            
             return input;
         }
 
@@ -583,49 +583,49 @@ namespace test {
         //  * @param callback Pointer to the callback handler (may be nullptr)
         //  * @return true if callback was successfully set
         //  */
-        // virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
-        //     metrics_callback_ = callback;
-        //     return callback != nullptr;
-        // }
+        virtual bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override {
+            metrics_callback_ = callback;
+            return callback != nullptr;
+        }
 
         // /**
         //  * @brief Check if a metrics callback is installed
         //  * @return true if a callback provider is currently set
         //  */
-        // virtual bool HasMetricsCallback() const noexcept override {
-        //     return metrics_callback_ != nullptr;
-        // }
+        virtual bool HasMetricsCallback() const noexcept override {
+            return metrics_callback_ != nullptr;
+        }
 
         // /**
         //  * @brief Get the currently installed callback provider
         //  * @return Pointer to callback provider, or nullptr if none installed
         //  */
-        // virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
-        //     return metrics_callback_;
-        // }
+        virtual graph::IMetricsCallback* GetMetricsCallback() const noexcept override {
+            return metrics_callback_;
+        }
 
         // /**
         //  * @brief Get the node's metrics schema for discovery
         //  * @return Schema describing available metrics
         //  */
-        // app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
-        //     nlohmann::json metrics_json = nlohmann::json::object();
-        //     metrics_json["fields"] = nlohmann::json::array();
-        //     metrics_json["fields"].push_back(nlohmann::json::object({
-        //         {"name", "transferred_messages"},
-        //         {"type", "integer"},
-        //         {"description", "Number of messages transferred through this node"},
-        //         {"unit", "count"}
-        //     }));
+        app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override {
+            nlohmann::json metrics_json = nlohmann::json::object();
+            metrics_json["fields"] = nlohmann::json::array();
+            metrics_json["fields"].push_back(nlohmann::json::object({
+                {"name", "transferred_messages"},
+                {"type", "integer"},
+                {"description", "Number of messages transferred through this node"},
+                {"unit", "count"}
+            }));
 
-        //     return app::metrics::NodeMetricsSchema{
-        //         .node_name = "InteriorTestNode",
-        //         .node_type = "processor",
-        //         .metrics_schema = metrics_json,
-        //         .event_types = {"message_transfer"},
-        //         .display_hints = nlohmann::json::object()
-        //     };
-        // }
+            return app::metrics::NodeMetricsSchema{
+                .node_name = "InteriorTestNode",
+                .node_type = "processor",
+                .metrics_schema = metrics_json,
+                .event_types = {"message_transfer"},
+                .display_hints = nlohmann::json::object()
+            };
+        }
 
         /**
          * @brief Get the number of messages transferred
@@ -634,7 +634,7 @@ namespace test {
         size_t GetMessageCount() const {
             return message_count_;
         }
-
+        
         // Phase 5.5g: Performance metrics
         /**
          * @brief Get total elapsed time for message processing (nanoseconds)
@@ -647,7 +647,7 @@ namespace test {
             auto duration = last_message_time_ - first_message_time_;
             return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         }
-
+        
         /**
          * @brief Get throughput in messages per second
          * @return Messages processed per second
@@ -657,7 +657,7 @@ namespace test {
             if (elapsed_ns == 0 || message_count_ == 0) return 0.0;
             return static_cast<double>(message_count_) / (static_cast<double>(elapsed_ns) / 1e9);
         }
-
+        
         /**
          * @brief Get average latency per message (nanoseconds)
          * @return Average nanoseconds per message
@@ -668,8 +668,9 @@ namespace test {
         }
 
     private:
+        graph::IMetricsCallback* metrics_callback_{nullptr};
         std::atomic<size_t> message_count_{0};
-
+        
         // Phase 5.5g: Performance metrics
         std::chrono::steady_clock::time_point first_message_time_{};
         std::chrono::steady_clock::time_point last_message_time_{};
@@ -678,20 +679,20 @@ namespace test {
     // =========================================================================================
     // MergeTestNode - Multi-Input Merge Node (2 inputs -> 1 output)
     // =========================================================================================
-
+    
     /**
      * @class MergeTestNode
      * @brief Merge node combining two input streams into one output
      *
      * Tracks message counts from each input port for advanced metrics validation.
      */
-    class MergeTestNode
+    class MergeTestNode 
         : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode> {
     public:
         static constexpr char kInput0[] = "In0";
         static constexpr char kInput1[] = "In1";
         static constexpr char kOutput[] = "Out";
-
+        
         using Ports = std::tuple<
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput0,
                 graph::PayloadList<int>>,
@@ -700,11 +701,11 @@ namespace test {
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output, kOutput,
                 graph::PayloadList<int>>
         >;
-
+        
         explicit MergeTestNode() = default;
-
+        
         virtual ~MergeTestNode() = default;
-
+        
         /// Process method: pass through merged messages
         std::optional<::graph::message::Message> Process(
             const ::graph::message::Message& input,
@@ -715,26 +716,26 @@ namespace test {
                 first_message_time_ = now;
             }
             last_message_time_ = now;
-
+            
             // Track which input port the message came from
             // This is a simplified counter - base class handles actual merging
             merged_message_count_++;
             LOG4CXX_TRACE(test_logger, "MergeTestNode processed message, count=" << merged_message_count_);
             return input;
         }
-
+        
         /// Get total messages merged from both inputs
         size_t GetMergedMessageCount() const {
             return merged_message_count_;
         }
-
+        
         /// Get message count from specific input port
         size_t GetInputMessageCount(size_t port_id) const {
             if (port_id == 0) return input0_count_;
             if (port_id == 1) return input1_count_;
             return 0;
         }
-
+        
         // Phase 5.5g: Performance metrics for MergeTestNode
         /**
          * @brief Get total elapsed time for message merging (nanoseconds)
@@ -747,7 +748,7 @@ namespace test {
             auto duration = last_message_time_ - first_message_time_;
             return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         }
-
+        
         /**
          * @brief Get throughput in messages per second
          * @return Messages merged per second
@@ -757,7 +758,7 @@ namespace test {
             if (elapsed_ns == 0 || merged_message_count_ == 0) return 0.0;
             return static_cast<double>(merged_message_count_) / (static_cast<double>(elapsed_ns) / 1e9);
         }
-
+        
         /**
          * @brief Get average latency per message (nanoseconds)
          * @return Average nanoseconds per message
@@ -766,7 +767,7 @@ namespace test {
             if (merged_message_count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / merged_message_count_;
         }
-
+    
     private:
         std::atomic<size_t> merged_message_count_{0};   // Total messages processed
         std::atomic<size_t> input0_count_{0};            // Messages from input 0
@@ -778,7 +779,7 @@ namespace test {
     // =========================================================================================
     // SplitTestNode - Single Input to Multiple Outputs (1 input -> 2 outputs)
     // =========================================================================================
-
+    
     /**
      * @class SplitTestNode
      * @brief Split node that replicates input to multiple output streams
@@ -791,7 +792,7 @@ namespace test {
         static constexpr char kInput[] = "In";
         static constexpr char kOutput0[] = "Out0";
         static constexpr char kOutput1[] = "Out1";
-
+        
         using Ports = std::tuple<
             graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kInput,
                 graph::PayloadList<int>>,
@@ -800,13 +801,13 @@ namespace test {
             graph::PortSpec<1, ::graph::message::Message, graph::PortDirection::Output, kOutput1,
                 graph::PayloadList<int>>
         >;
-
+        
         explicit SplitTestNode() = default;
-
+        
         virtual ~SplitTestNode() = default;
-
+        
         /// Consume method: replicate input to both output queues
-        bool Consume(const ::graph::message::Message& msg,
+        bool Consume(const ::graph::message::Message& msg, 
                      std::integral_constant<std::size_t, 0>) override {
             // Phase 5.5g: Track timing
             auto now = std::chrono::steady_clock::now();
@@ -814,36 +815,36 @@ namespace test {
                 first_message_time_ = now;
             }
             last_message_time_ = now;
-
+            
             input_message_count_++;
             bool success = true;
             success &= input_queue_[0].Enqueue(msg);
             if (success) output0_count_++;
             success &= input_queue_[1].Enqueue(msg);
             if (success) output1_count_++;
-            LOG4CXX_TRACE(test_logger, "SplitTestNode replicated message, inputs="
-                << input_message_count_ << " out0=" << output0_count_
+            LOG4CXX_TRACE(test_logger, "SplitTestNode replicated message, inputs=" 
+                << input_message_count_ << " out0=" << output0_count_ 
                 << " out1=" << output1_count_);
             return success;
         }
-
+        
         /// Get total input messages received
         size_t GetInputMessageCount() const {
             return input_message_count_;
         }
-
+        
         /// Get total replications to specific output port
         size_t GetOutputMessageCount(size_t port_id) const {
             if (port_id == 0) return output0_count_;
             if (port_id == 1) return output1_count_;
             return 0;
         }
-
+        
         /// Get total messages sent (sum of all outputs)
         size_t GetTotalOutputCount() const {
             return output0_count_ + output1_count_;
         }
-
+        
         // Phase 5.5g: Performance metrics for SplitTestNode
         /**
          * @brief Get total elapsed time for message splitting (nanoseconds)
@@ -856,7 +857,7 @@ namespace test {
             auto duration = last_message_time_ - first_message_time_;
             return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         }
-
+        
         /**
          * @brief Get throughput in messages per second
          * @return Messages split per second
@@ -866,7 +867,7 @@ namespace test {
             if (elapsed_ns == 0 || input_message_count_ == 0) return 0.0;
             return static_cast<double>(input_message_count_) / (static_cast<double>(elapsed_ns) / 1e9);
         }
-
+        
         /**
          * @brief Get average latency per message (nanoseconds)
          * @return Average nanoseconds per message
@@ -875,7 +876,7 @@ namespace test {
             if (input_message_count_ == 0) return 0.0;
             return static_cast<double>(GetElapsedNs()) / input_message_count_;
         }
-
+    
     private:
         std::atomic<size_t> input_message_count_{0};     // Total input messages
         std::atomic<size_t> output0_count_{0};           // Replications to output 0
