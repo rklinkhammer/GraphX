@@ -74,6 +74,7 @@ bool CSVDataInjectionManager::ProcessCSVInputs(
 bool CSVDataInjectionManager::BindCSVColumnsToDataInjectionNodes(
             const std::map<std::string, capabilities::DataInjectionNodeConfig>& node_configs,
             capabilities::GraphCapability& context) { 
+    (void)node_configs;
     (void)context;
     // for(auto& header : csv_headers_) {
     //     int col = 1;

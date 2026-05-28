@@ -387,26 +387,11 @@ std::optional<sensors::SensorPayload> ParseMagnetometerRow(
 // ========== Format-Specific Dispatch ==========
 
 std::optional<sensors::SensorPayload> ParseRowUnified(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
+    [[maybe_unused]] const std::vector<std::string>& row_values,
+    [[maybe_unused]] const csv::CSVNodeConfig& config) {
 
-    // // Unified format: dispatch based on sensor_classification_type in config
-    // switch (config.sensor_classification_type) {
-    //     case sensors::SensorClassificationType::ACCELEROMETER:
-    //         return ParseAccelerometerRow(row_values, config);
-    //     case sensors::SensorClassificationType::GYROSCOPE:
-    //         return ParseGyroscopeRow(row_values, config);
-    //     case sensors::SensorClassificationType::GPS_POSITION:
-    //         return ParseGPSPositionRow(row_values, config);
-    //     case sensors::SensorClassificationType::BAROMETRIC:
-    //         return ParseBarometricRow(row_values, config);
-    //     case sensors::SensorClassificationType::MAGNETOMETER:
-    //         return ParseMagnetometerRow(row_values, config);
-    //     default:
-    //         LOG4CXX_TRACE(g_logger, "Unknown sensor type: " << 
-    //             static_cast<int>(config.sensor_classification_type));
-    //         return std::nullopt;
-    // }
+    LOG4CXX_TRACE(g_logger, "Unified CSV row parsing is not configured for this node");
+    return std::nullopt;
 }
 
 std::optional<sensors::SensorPayload> ParseRowConsolidated(

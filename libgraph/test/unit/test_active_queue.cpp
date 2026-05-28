@@ -25,6 +25,7 @@
 #include "graph/Message.hpp"
 #include <thread>
 #include <chrono>
+#include <future>
 #include <vector>
 #include <mutex>
 #include <string>
@@ -340,6 +341,62 @@ TEST_F(ActiveQueueTest, Metrics_ResetClearsCounters) {
     EXPECT_EQ(metrics.max_size_observed.load(), 0);
 }
 
+TEST_F(ActiveQueueTest, Metrics_TrackDequeStyleOperations) {
+    ActiveQueue<int> queue;
+    queue.EnableMetrics();
+
+    EXPECT_TRUE(queue.Emplace(1));
+    EXPECT_TRUE(queue.PushFront(0));
+
+    int value = 0;
+    EXPECT_TRUE(queue.PopBack(value));
+    EXPECT_EQ(value, 1);
+
+    const auto& metrics = queue.GetMetrics();
+    EXPECT_EQ(metrics.enqueued_count.load(), 2);
+    EXPECT_EQ(metrics.dequeued_count.load(), 1);
+    EXPECT_EQ(metrics.current_size.load(), 1);
+    EXPECT_EQ(metrics.max_size_observed.load(), 2);
+}
+
+TEST_F(ActiveQueueTest, Metrics_TrackRejectionsAndEmptyDequeStyleOperations) {
+    ActiveQueue<int> queue(1, false);
+    queue.EnableMetrics();
+
+    EXPECT_TRUE(queue.Enqueue(1));
+    EXPECT_FALSE(queue.Emplace(2));
+    EXPECT_FALSE(queue.PushFront(3));
+
+    int value = 0;
+    EXPECT_TRUE(queue.PopBack(value));
+    EXPECT_FALSE(queue.PopBack(value));
+
+    queue.Disable();
+    EXPECT_FALSE(queue.Enqueue(4));
+
+    const auto& metrics = queue.GetMetrics();
+    EXPECT_EQ(metrics.enqueued_count.load(), 1);
+    EXPECT_EQ(metrics.dequeued_count.load(), 1);
+    EXPECT_EQ(metrics.enqueue_rejections.load(), 3);
+    EXPECT_EQ(metrics.dequeue_empty.load(), 1);
+    EXPECT_EQ(metrics.current_size.load(), 0);
+}
+
+TEST_F(ActiveQueueTest, Metrics_ClearUpdatesCurrentSize) {
+    ActiveQueue<int> queue;
+    queue.EnableMetrics();
+
+    EXPECT_TRUE(queue.Enqueue(1));
+    EXPECT_TRUE(queue.Enqueue(2));
+    ASSERT_EQ(queue.GetMetrics().current_size.load(), 2);
+
+    queue.Clear();
+
+    const auto& metrics = queue.GetMetrics();
+    EXPECT_EQ(metrics.current_size.load(), 0);
+    EXPECT_EQ(metrics.max_size_observed.load(), 2);
+}
+
 // ============================================================================
 // Thread Safety (2 tests - simplified for Phase 1)
 // ============================================================================
@@ -455,12 +512,12 @@ TEST_F(ActiveQueueTest, MessageQueue_TypePreservation) {
     Message msg1(100);
     Message msg2(2.71828);
     
-    queue.Enqueue(std::move(msg1));
-    queue.Enqueue(std::move(msg2));
+    (void)queue.Enqueue(std::move(msg1));
+    (void)queue.Enqueue(std::move(msg2));
     
     Message r1, r2;
-    queue.DequeueNonBlocking(r1);
-    queue.DequeueNonBlocking(r2);
+    (void)queue.DequeueNonBlocking(r1);
+    (void)queue.DequeueNonBlocking(r2);
     
     EXPECT_EQ(r1.get<int>(), 100);
     EXPECT_DOUBLE_EQ(r2.get<double>(), 2.71828);
@@ -472,12 +529,12 @@ TEST_F(ActiveQueueTest, MessageQueue_CopySemantics) {
     Message original(999);
     Message copy = original;  // Independent copy
     
-    queue.Enqueue(std::move(copy));
+    (void)queue.Enqueue(std::move(copy));
     EXPECT_TRUE(queue.Enqueue(std::move(original)));
     
     Message r1, r2;
-    queue.DequeueNonBlocking(r1);
-    queue.DequeueNonBlocking(r2);
+    (void)queue.DequeueNonBlocking(r1);
+    (void)queue.DequeueNonBlocking(r2);
     
     // Both should contain 999
     EXPECT_EQ(r1.get<int>(), 999);
@@ -532,7 +589,7 @@ TEST_F(ActiveQueueTest, MessageQueue_ClearRemovesMsgElements) {
     
     for (int i = 0; i < 5; ++i) {
         Message msg(i * 100);
-        queue.Enqueue(std::move(msg));
+        (void)queue.Enqueue(std::move(msg));
     }
     
     EXPECT_EQ(queue.Size(), 5);
@@ -546,7 +603,7 @@ TEST_F(ActiveQueueTest, MessageQueue_MetricsWithMessages) {
     
     for (int i = 0; i < 10; ++i) {
         Message msg(i);
-        queue.Enqueue(std::move(msg));
+        (void)queue.Enqueue(std::move(msg));
     }
     
     const auto& metrics = queue.GetMetrics();
@@ -559,12 +616,12 @@ TEST_F(ActiveQueueTest, MessageQueue_MetricsMessageDequeue) {
     
     for (int i = 0; i < 5; ++i) {
         Message msg(i);
-        queue.Enqueue(std::move(msg));
+        (void)queue.Enqueue(std::move(msg));
     }
     
     Message retrieved;
     for (int i = 0; i < 3; ++i) {
-        queue.DequeueNonBlocking(retrieved);
+        (void)queue.DequeueNonBlocking(retrieved);
     }
     
     const auto& metrics = queue.GetMetrics();
@@ -586,9 +643,9 @@ TEST_F(ActiveQueueTest, MessageQueue_BoundedQueueDropMessages) {
 TEST_F(ActiveQueueTest, MessageQueue_FrontBackMessages) {
     ActiveQueue<Message> queue;
     
-    queue.Enqueue(Message(10));
-    queue.Enqueue(Message(20));
-    queue.Enqueue(Message(30));
+    (void)queue.Enqueue(Message(10));
+    (void)queue.Enqueue(Message(20));
+    (void)queue.Enqueue(Message(30));
     
     Message front_msg, back_msg;
     EXPECT_TRUE(queue.Front(front_msg));
@@ -602,7 +659,7 @@ TEST_F(ActiveQueueTest, MessageQueue_AtRandomAccess) {
     ActiveQueue<Message> queue;
     
     for (int i = 0; i < 5; ++i) {
-        queue.Enqueue(Message(i * 100));
+        (void)queue.Enqueue(Message(i * 100));
     }
     
     Message msg;
@@ -619,9 +676,9 @@ TEST_F(ActiveQueueTest, MessageQueue_AtRandomAccess) {
 TEST_F(ActiveQueueTest, MessageQueue_PushFrontMessages) {
     ActiveQueue<Message> queue;
     
-    queue.PushBack(Message(1));
-    queue.PushBack(Message(2));
-    queue.PushFront(Message(0));
+    (void)queue.PushBack(Message(1));
+    (void)queue.PushBack(Message(2));
+    (void)queue.PushFront(Message(0));
     
     std::vector<int> values;
     Message msg;
@@ -664,44 +721,55 @@ TEST_F(ActiveQueueTest, MessageQueue_ConcurrentMessageEnqueue) {
 TEST_F(ActiveQueueTest, BlockingDequeue_WaitsForElement) {
     ActiveQueue<int> queue;
     int value = 0;
-    bool dequeue_succeeded = false;
-    
-    std::thread enqueuer([&queue]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        queue.Enqueue(42);
+    std::promise<void> dequeue_started;
+    auto dequeue_started_future = dequeue_started.get_future();
+    std::promise<bool> dequeue_completed;
+    auto dequeue_completed_future = dequeue_completed.get_future();
+
+    std::thread dequeuer([&queue, &value, &dequeue_started, &dequeue_completed]() {
+        dequeue_started.set_value();
+        dequeue_completed.set_value(queue.Dequeue(value));
     });
-    
-    std::thread dequeuer([&queue, &value, &dequeue_succeeded]() {
-        dequeue_succeeded = queue.Dequeue(value);
-    });
-    
+
+    ASSERT_EQ(dequeue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(dequeue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
+
+    EXPECT_TRUE(queue.Enqueue(42));
+
+    ASSERT_EQ(dequeue_completed_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_TRUE(dequeue_completed_future.get());
+
     dequeuer.join();
-    enqueuer.join();
-    
-    EXPECT_TRUE(dequeue_succeeded);
     EXPECT_EQ(value, 42);
 }
 
 TEST_F(ActiveQueueTest, BlockingDequeue_WakesOnDisable) {
     ActiveQueue<int> queue;
     int value = 0;
-    bool dequeue_result = false;
-    
-    std::thread dequeuer([&queue, &value, &dequeue_result]() {
-        dequeue_result = queue.Dequeue(value);
+    std::promise<void> dequeue_started;
+    auto dequeue_started_future = dequeue_started.get_future();
+    std::promise<bool> dequeue_completed;
+    auto dequeue_completed_future = dequeue_completed.get_future();
+
+    std::thread dequeuer([&queue, &value, &dequeue_started, &dequeue_completed]() {
+        dequeue_started.set_value();
+        dequeue_completed.set_value(queue.Dequeue(value));
     });
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    ASSERT_EQ(dequeue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(dequeue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
+
     queue.Disable();
-    
+
+    ASSERT_EQ(dequeue_completed_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_FALSE(dequeue_completed_future.get());
+
     dequeuer.join();
-    
-    EXPECT_FALSE(dequeue_result);  // Should return false due to disable
 }
 
 TEST_F(ActiveQueueTest, BlockingDequeue_ImmediateIfElementAvailable) {
     ActiveQueue<int> queue;
-    queue.Enqueue(42);
+    (void)queue.Enqueue(42);
     
     int value = 0;
     EXPECT_TRUE(queue.Dequeue(value));
@@ -714,41 +782,125 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WaitsWhenFull) {
     EXPECT_TRUE(queue.Enqueue(1));
     EXPECT_TRUE(queue.Enqueue(2));
     
-    bool enqueue_succeeded = false;
-    
-    std::thread enqueuer([&queue, &enqueue_succeeded]() {
-        enqueue_succeeded = queue.Enqueue(3);  // Should block initially
+    std::promise<void> enqueue_started;
+    auto enqueue_started_future = enqueue_started.get_future();
+    std::promise<bool> enqueue_completed;
+    auto enqueue_completed_future = enqueue_completed.get_future();
+
+    std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
+        enqueue_started.set_value();
+        enqueue_completed.set_value(queue.Enqueue(3));
     });
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    ASSERT_EQ(enqueue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(enqueue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
     EXPECT_EQ(queue.Size(), 2);  // Still full
     
     int value;
-    queue.DequeueNonBlocking(value);  // Make space
-    
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));  // Make space
+
+    ASSERT_EQ(enqueue_completed_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_TRUE(enqueue_completed_future.get());
+
     enqueuer.join();
-    
-    EXPECT_TRUE(enqueue_succeeded);
     EXPECT_EQ(queue.Size(), 2);
 }
 
 TEST_F(ActiveQueueTest, BlockingEnqueue_WakesOnDisable) {
     ActiveQueue<int> queue(1, true);  // Capacity 1, block on full
     
-    queue.Enqueue(1);  // Fill it
-    
-    bool enqueue_succeeded = false;
-    
-    std::thread enqueuer([&queue, &enqueue_succeeded]() {
-        enqueue_succeeded = queue.Enqueue(2);  // Should block
+    ASSERT_TRUE(queue.Enqueue(1));  // Fill it
+
+    std::promise<void> enqueue_started;
+    auto enqueue_started_future = enqueue_started.get_future();
+    std::promise<bool> enqueue_completed;
+    auto enqueue_completed_future = enqueue_completed.get_future();
+
+    std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
+        enqueue_started.set_value();
+        enqueue_completed.set_value(queue.Enqueue(2));
     });
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    ASSERT_EQ(enqueue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(enqueue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
+
     queue.Disable();  // Unblock the enqueuer
-    
+
+    ASSERT_EQ(enqueue_completed_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_FALSE(enqueue_completed_future.get());
+
     enqueuer.join();
-    
-    EXPECT_FALSE(enqueue_succeeded);  // Failed due to disable
+}
+
+TEST_F(ActiveQueueTest, BlockingEnqueue_WakesWhenQueueCleared) {
+    ActiveQueue<int> queue(1, true);
+    ASSERT_TRUE(queue.Enqueue(1));
+
+    std::promise<void> enqueue_started;
+    auto enqueue_started_future = enqueue_started.get_future();
+    std::promise<bool> enqueue_completed;
+    auto enqueue_completed_future = enqueue_completed.get_future();
+
+    std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
+        enqueue_started.set_value();
+        enqueue_completed.set_value(queue.Enqueue(2));
+    });
+
+    ASSERT_EQ(enqueue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(enqueue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
+
+    queue.Clear();
+
+    if (enqueue_completed_future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
+        queue.Disable();
+        enqueuer.join();
+        FAIL() << "Blocked enqueue did not wake after Clear()";
+    }
+    EXPECT_TRUE(enqueue_completed_future.get());
+
+    enqueuer.join();
+
+    int value = 0;
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
+    EXPECT_EQ(value, 2);
+    EXPECT_TRUE(queue.Empty());
+}
+
+TEST_F(ActiveQueueTest, BlockingEnqueue_WakesWhenCapacityIncreased) {
+    ActiveQueue<int> queue(1, true);
+    ASSERT_TRUE(queue.Enqueue(1));
+
+    std::promise<void> enqueue_started;
+    auto enqueue_started_future = enqueue_started.get_future();
+    std::promise<bool> enqueue_completed;
+    auto enqueue_completed_future = enqueue_completed.get_future();
+
+    std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
+        enqueue_started.set_value();
+        enqueue_completed.set_value(queue.Enqueue(2));
+    });
+
+    ASSERT_EQ(enqueue_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(enqueue_completed_future.wait_for(std::chrono::milliseconds(25)), std::future_status::timeout);
+
+    queue.SetCapacity(2);
+
+    if (enqueue_completed_future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
+        queue.Disable();
+        enqueuer.join();
+        FAIL() << "Blocked enqueue did not wake after SetCapacity() made space";
+    }
+    EXPECT_TRUE(enqueue_completed_future.get());
+
+    enqueuer.join();
+
+    EXPECT_EQ(queue.Size(), 2);
+
+    int value = 0;
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
+    EXPECT_EQ(value, 1);
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
+    EXPECT_EQ(value, 2);
 }
 
 TEST_F(ActiveQueueTest, BlockingEnqueue_ImmediateIfSpace) {
@@ -759,70 +911,106 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_ImmediateIfSpace) {
     EXPECT_EQ(queue.Size(), 2);
 }
 
-TEST_F(ActiveQueueTest, MultipleBlockedDequeuers_AllWakeOnEnqueue) {
+TEST_F(ActiveQueueTest, MultipleBlockedDequeuers_OneWakesPerEnqueue) {
     ActiveQueue<int> queue;
     std::vector<int> results;
     std::mutex results_mutex;
-    
+    std::atomic<int> completed{0};
+    const int num_waiters = 3;
+
+    std::vector<std::promise<void>> started(num_waiters);
+    std::vector<std::future<void>> started_futures;
+    started_futures.reserve(num_waiters);
+    for (auto& promise : started) {
+        started_futures.push_back(promise.get_future());
+    }
+
     std::vector<std::thread> dequeuers;
     
-    // Start 3 threads waiting to dequeue
-    for (int i = 0; i < 3; ++i) {
-        dequeuers.emplace_back([&queue, &results, &results_mutex]() {
+    for (int i = 0; i < num_waiters; ++i) {
+        dequeuers.emplace_back([&queue, &results, &results_mutex, &completed, &started, i]() {
             int value;
+            started[i].set_value();
             if (queue.Dequeue(value)) {
                 std::lock_guard<std::mutex> lock(results_mutex);
                 results.push_back(value);
             }
+            completed.fetch_add(1, std::memory_order_release);
         });
     }
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
-    // Enqueue 3 items - each should wake one dequeuer
-    for (int i = 0; i < 3; ++i) {
-        queue.Enqueue(i * 100);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    for (auto& future : started_futures) {
+        ASSERT_EQ(future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    }
+    EXPECT_EQ(completed.load(std::memory_order_acquire), 0);
+
+    for (int i = 0; i < num_waiters; ++i) {
+        EXPECT_TRUE(queue.Enqueue(i * 100));
     }
     
     for (auto& t : dequeuers) {
         t.join();
     }
     
-    EXPECT_EQ(results.size(), 3);
+    EXPECT_EQ(results.size(), num_waiters);
+    EXPECT_EQ(completed.load(std::memory_order_acquire), num_waiters);
 }
 
-TEST_F(ActiveQueueTest, MultipleBlockedEnqueuers_AllWakeOnDequeue) {
+TEST_F(ActiveQueueTest, MultipleBlockedEnqueuers_OneWakesPerDequeue) {
     ActiveQueue<int> queue(1, true);  // Capacity 1
-    queue.Enqueue(0);  // Fill it
+    ASSERT_TRUE(queue.Enqueue(0));  // Fill it
     
     std::vector<bool> results;
     std::mutex results_mutex;
+    std::atomic<int> completed{0};
+    const int num_waiters = 3;
+
+    std::vector<std::promise<void>> started(num_waiters);
+    std::vector<std::future<void>> started_futures;
+    started_futures.reserve(num_waiters);
+    for (auto& promise : started) {
+        started_futures.push_back(promise.get_future());
+    }
+
     std::vector<std::thread> enqueuers;
     
-    // Start 3 threads trying to enqueue (all will block)
-    for (int i = 0; i < 3; ++i) {
-        enqueuers.emplace_back([&queue, &results, &results_mutex, i]() {
+    for (int i = 0; i < num_waiters; ++i) {
+        enqueuers.emplace_back([&queue, &results, &results_mutex, &completed, &started, i]() {
+            started[i].set_value();
             bool success = queue.Enqueue(i + 1);
             std::lock_guard<std::mutex> lock(results_mutex);
             results.push_back(success);
+            completed.fetch_add(1, std::memory_order_release);
         });
     }
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
-    // Remove 3 items - each should wake one enqueuer
+
+    for (auto& future : started_futures) {
+        ASSERT_EQ(future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    }
+    EXPECT_EQ(completed.load(std::memory_order_acquire), 0);
+
     int value;
-    for (int i = 0; i < 3; ++i) {
-        queue.DequeueNonBlocking(value);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    bool all_progressed = true;
+    for (int i = 0; i < num_waiters; ++i) {
+        EXPECT_TRUE(queue.DequeueNonBlocking(value));
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (completed.load(std::memory_order_acquire) < i + 1 &&
+               std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::yield();
+        }
+        if (completed.load(std::memory_order_acquire) < i + 1) {
+            all_progressed = false;
+            queue.Disable();
+            break;
+        }
     }
     
     for (auto& t : enqueuers) {
         t.join();
     }
     
-    // All should have successfully enqueued
+    EXPECT_TRUE(all_progressed);
+    EXPECT_EQ(completed.load(std::memory_order_acquire), num_waiters);
     for (bool result : results) {
         EXPECT_TRUE(result);
     }
@@ -836,6 +1024,17 @@ TEST_F(ActiveQueueTest, BlockingDequeue_EmptyAndDisabled) {
     EXPECT_FALSE(queue.Dequeue(value));  // Should return false, not block
 }
 
+TEST_F(ActiveQueueTest, BlockingDequeue_DisableTakesPriorityOverQueuedData) {
+    ActiveQueue<int> queue;
+    ASSERT_TRUE(queue.Enqueue(42));
+    queue.Disable();
+
+    int value = 0;
+    EXPECT_FALSE(queue.Dequeue(value));
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
+    EXPECT_EQ(value, 42);
+}
+
 TEST_F(ActiveQueueTest, BlockingDequeue_WithMessages) {
     ActiveQueue<Message> queue;
     Message result;
@@ -843,7 +1042,7 @@ TEST_F(ActiveQueueTest, BlockingDequeue_WithMessages) {
     
     std::thread enqueuer([&queue]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        queue.Enqueue(Message(42));
+        (void)queue.Enqueue(Message(42));
     });
     
     std::thread dequeuer([&queue, &result, &dequeue_succeeded]() {
@@ -860,8 +1059,8 @@ TEST_F(ActiveQueueTest, BlockingDequeue_WithMessages) {
 TEST_F(ActiveQueueTest, BlockingEnqueue_WithMessages) {
     ActiveQueue<Message> queue(2, true);
     
-    queue.Enqueue(Message(1));
-    queue.Enqueue(Message(2));
+    (void)queue.Enqueue(Message(1));
+    (void)queue.Enqueue(Message(2));
     
     bool enqueue_succeeded = false;
     
@@ -873,7 +1072,7 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WithMessages) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     
     Message msg;
-    queue.DequeueNonBlocking(msg);
+    (void)queue.DequeueNonBlocking(msg);
     
     enqueuer.join();
     
@@ -903,9 +1102,9 @@ TEST_F(ActiveQueueTest, ProducerConsumer_OneProducerMultipleConsumers) {
     std::atomic<bool> producer_done{false};
     
     // Producer thread
-    std::thread producer([&queue, total_items, &producer_done]() {
+    std::thread producer([&queue, &producer_done]() {
         for (int i = 0; i < total_items; ++i) {
-            queue.Enqueue(i);
+            (void)queue.Enqueue(i);
             std::this_thread::sleep_for(std::chrono::microseconds(50));
         }
         producer_done = true;
@@ -978,9 +1177,9 @@ TEST_F(ActiveQueueTest, Comparator_SortedInsertionAscending) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(30);
-    queue.Enqueue(10);
-    queue.Enqueue(20);
+    (void)queue.Enqueue(30);
+    (void)queue.Enqueue(10);
+    (void)queue.Enqueue(20);
 #pragma clang diagnostic pop
     
     int value;
@@ -1002,9 +1201,9 @@ TEST_F(ActiveQueueTest, Comparator_SortedInsertionDescending) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(10);
-    queue.Enqueue(30);
-    queue.Enqueue(20);
+    (void)queue.Enqueue(10);
+    (void)queue.Enqueue(30);
+    (void)queue.Enqueue(20);
 #pragma clang diagnostic pop
     
     int value;
@@ -1026,9 +1225,9 @@ TEST_F(ActiveQueueTest, Comparator_StringsSorted) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(std::string("zebra"));
-    queue.Enqueue(std::string("apple"));
-    queue.Enqueue(std::string("mango"));
+    (void)queue.Enqueue(std::string("zebra"));
+    (void)queue.Enqueue(std::string("apple"));
+    (void)queue.Enqueue(std::string("mango"));
 #pragma clang diagnostic pop
     
     std::string value;
@@ -1055,9 +1254,9 @@ TEST_F(ActiveQueueTest, Comparator_MessagesSorted) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(IntWrapper(50));
-    queue.Enqueue(IntWrapper(20));
-    queue.Enqueue(IntWrapper(40));
+    (void)queue.Enqueue(IntWrapper(50));
+    (void)queue.Enqueue(IntWrapper(20));
+    (void)queue.Enqueue(IntWrapper(40));
 #pragma clang diagnostic pop
     
     IntWrapper result;
@@ -1073,27 +1272,27 @@ TEST_F(ActiveQueueTest, Comparator_PreservesOrderAfterDequeue) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(30);
-    queue.Enqueue(10);
+    (void)queue.Enqueue(30);
+    (void)queue.Enqueue(10);
 #pragma clang diagnostic pop
     
     int value;
-    queue.DequeueNonBlocking(value);  // Remove 10
+    (void)queue.DequeueNonBlocking(value);  // Remove 10
     EXPECT_EQ(value, 10);
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(20);
-    queue.Enqueue(5);
+    (void)queue.Enqueue(20);
+    (void)queue.Enqueue(5);
 #pragma clang diagnostic pop
     
-    queue.DequeueNonBlocking(value);  // Should get 5
+    (void)queue.DequeueNonBlocking(value);  // Should get 5
     EXPECT_EQ(value, 5);
     
-    queue.DequeueNonBlocking(value);  // Should get 20
+    (void)queue.DequeueNonBlocking(value);  // Should get 20
     EXPECT_EQ(value, 20);
     
-    queue.DequeueNonBlocking(value);  // Should get 30
+    (void)queue.DequeueNonBlocking(value);  // Should get 30
     EXPECT_EQ(value, 30);
 }
 
@@ -1112,9 +1311,9 @@ TEST_F(ActiveQueueTest, Comparator_CustomComparatorComplex) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(Person("Alice", 30));
-    queue.Enqueue(Person("Bob", 20));
-    queue.Enqueue(Person("Charlie", 25));
+    (void)queue.Enqueue(Person("Alice", 30));
+    (void)queue.Enqueue(Person("Bob", 20));
+    (void)queue.Enqueue(Person("Charlie", 25));
 #pragma clang diagnostic pop
     
     Person p;
@@ -1143,7 +1342,7 @@ TEST_F(ActiveQueueTest, Comparator_SingleElement) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(42);
+    (void)queue.Enqueue(42);
 #pragma clang diagnostic pop
     
     int value;
@@ -1162,7 +1361,7 @@ TEST_F(ActiveQueueTest, Comparator_LargeDataset) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
     for (int val : input) {
-        queue.Enqueue(val);
+        (void)queue.Enqueue(val);
     }
 #pragma clang diagnostic pop
     
@@ -1185,11 +1384,11 @@ TEST_F(ActiveQueueTest, Comparator_DuplicateValues) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(5);
-    queue.Enqueue(5);
-    queue.Enqueue(5);
-    queue.Enqueue(10);
-    queue.Enqueue(10);
+    (void)queue.Enqueue(5);
+    (void)queue.Enqueue(5);
+    (void)queue.Enqueue(5);
+    (void)queue.Enqueue(10);
+    (void)queue.Enqueue(10);
 #pragma clang diagnostic pop
     
     std::vector<int> result;
@@ -1210,9 +1409,9 @@ TEST_F(ActiveQueueTest, Comparator_ClearRemovesSortedElements) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(30);
-    queue.Enqueue(10);
-    queue.Enqueue(20);
+    (void)queue.Enqueue(30);
+    (void)queue.Enqueue(10);
+    (void)queue.Enqueue(20);
 #pragma clang diagnostic pop
     
     queue.Clear();
@@ -1225,9 +1424,9 @@ TEST_F(ActiveQueueTest, Comparator_FIFOWhenNoComparator) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(3);
-    queue.Enqueue(1);
-    queue.Enqueue(2);
+    (void)queue.Enqueue(3);
+    (void)queue.Enqueue(1);
+    (void)queue.Enqueue(2);
 #pragma clang diagnostic pop
     
     int value;
@@ -1249,9 +1448,9 @@ TEST_F(ActiveQueueTest, Comparator_DoesNotAffectPeek) {
     
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-result"
-    queue.Enqueue(30);
-    queue.Enqueue(10);
-    queue.Enqueue(20);
+    (void)queue.Enqueue(30);
+    (void)queue.Enqueue(10);
+    (void)queue.Enqueue(20);
 #pragma clang diagnostic pop
     
     int front;
@@ -1294,7 +1493,7 @@ TEST_F(ActiveQueueTest, State_EmptyEnabledBlockingBounded) {
 TEST_F(ActiveQueueTest, State_PartialUnbounded) {
     ActiveQueue<int> queue(0, false);
     for (int i = 0; i < 50; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     EXPECT_FALSE(queue.Empty());
     EXPECT_EQ(queue.Size(), 50);
@@ -1304,7 +1503,7 @@ TEST_F(ActiveQueueTest, State_PartialUnbounded) {
 TEST_F(ActiveQueueTest, State_FullBounded) {
     ActiveQueue<int> queue(5, false);
     for (int i = 0; i < 5; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     EXPECT_EQ(queue.Size(), 5);
     EXPECT_EQ(queue.Capacity(), 5);
@@ -1321,8 +1520,8 @@ TEST_F(ActiveQueueTest, State_DisabledEmpty) {
 
 TEST_F(ActiveQueueTest, State_DisabledWithData) {
     ActiveQueue<int> queue;
-    queue.Enqueue(1);
-    queue.Enqueue(2);
+    (void)queue.Enqueue(1);
+    (void)queue.Enqueue(2);
     queue.Disable();
     
     EXPECT_FALSE(queue.Enabled());
@@ -1337,7 +1536,7 @@ TEST_F(ActiveQueueTest, State_DisabledWithData) {
 
 TEST_F(ActiveQueueTest, State_ReenableAfterDisable) {
     ActiveQueue<int> queue;
-    queue.Enqueue(1);
+    (void)queue.Enqueue(1);
     queue.Disable();
     EXPECT_FALSE(queue.Enabled());
     
@@ -1350,7 +1549,7 @@ TEST_F(ActiveQueueTest, State_ReenableAfterDisable) {
 TEST_F(ActiveQueueTest, State_CapacityTransition) {
     ActiveQueue<int> queue(5);
     for (int i = 0; i < 5; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     EXPECT_EQ(queue.Size(), 5);
     
@@ -1358,7 +1557,7 @@ TEST_F(ActiveQueueTest, State_CapacityTransition) {
     EXPECT_EQ(queue.Capacity(), 10);
     
     for (int i = 5; i < 10; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     EXPECT_EQ(queue.Size(), 10);
 }
@@ -1375,7 +1574,7 @@ TEST_F(ActiveQueueTest, State_MetricsEnabled) {
     queue.EnableMetrics();
     
     for (int i = 0; i < 10; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     
     const auto& metrics = queue.GetMetrics();
@@ -1386,7 +1585,7 @@ TEST_F(ActiveQueueTest, State_MetricsEnabled) {
 TEST_F(ActiveQueueTest, State_MetricsDisabledByDefault) {
     ActiveQueue<int> queue;
     for (int i = 0; i < 10; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     
     const auto& metrics = queue.GetMetrics();
@@ -1397,12 +1596,12 @@ TEST_F(ActiveQueueTest, State_TransitionToFullFromEmpty) {
     ActiveQueue<int> queue(3, false);
     EXPECT_TRUE(queue.Empty());
     
-    queue.Enqueue(1);
+    (void)queue.Enqueue(1);
     EXPECT_FALSE(queue.Empty());
     EXPECT_EQ(queue.Size(), 1);
     
-    queue.Enqueue(2);
-    queue.Enqueue(3);
+    (void)queue.Enqueue(2);
+    (void)queue.Enqueue(3);
     EXPECT_EQ(queue.Size(), 3);
     EXPECT_FALSE(queue.Enqueue(4));  // Now full
 }
@@ -1415,7 +1614,7 @@ TEST_F(ActiveQueueTest, State_BlockModeTransition) {
     EXPECT_TRUE(queue.GetBlockOnFull());
     
     // Cannot change with data
-    queue.Enqueue(1);
+    (void)queue.Enqueue(1);
     EXPECT_FALSE(queue.SetBlockOnFull(false));
     EXPECT_TRUE(queue.GetBlockOnFull());  // Unchanged
     
@@ -1444,16 +1643,16 @@ TEST_F(ActiveQueueTest, State_MultipleDisableEnable) {
 TEST_F(ActiveQueueTest, State_MetricsToggle) {
     ActiveQueue<int> queue;
     
-    queue.Enqueue(1);
+    (void)queue.Enqueue(1);
     auto& metrics = queue.GetMetrics();
     EXPECT_EQ(metrics.enqueued_count.load(), 0);  // Not enabled yet
     
     queue.EnableMetrics();
-    queue.Enqueue(2);
+    (void)queue.Enqueue(2);
     EXPECT_EQ(metrics.enqueued_count.load(), 1);  // Now tracking
     
     queue.EnableMetrics(false);
-    queue.Enqueue(3);
+    (void)queue.Enqueue(3);
     EXPECT_EQ(metrics.enqueued_count.load(), 1);  // Stopped tracking
 }
 
@@ -1474,9 +1673,9 @@ TEST_F(ActiveQueueTest, Concurrent_MultipleProducersMultipleConsumers) {
     // Producer threads
     std::vector<std::thread> producers;
     for (int p = 0; p < num_producers; ++p) {
-        producers.emplace_back([&queue, &produced, &producers_done, p, total_items, num_producers]() {
+        producers.emplace_back([&queue, &produced, &producers_done, p]() {
             for (int i = 0; i < total_items / num_producers; ++i) {
-                queue.Enqueue(p * 1000 + i);
+                (void)queue.Enqueue(p * 1000 + i);
                 produced++;
             }
             // Signal when this producer is done
@@ -1490,11 +1689,15 @@ TEST_F(ActiveQueueTest, Concurrent_MultipleProducersMultipleConsumers) {
     // Consumer threads
     std::vector<std::thread> consumers;
     for (int c = 0; c < num_consumers; ++c) {
-        consumers.emplace_back([&queue, &results, &results_mutex]() {
+        consumers.emplace_back([&queue, &results, &results_mutex, &producers_done]() {
             int value;
-            while (queue.DequeueNonBlocking(value)) {
-                std::lock_guard<std::mutex> lock(results_mutex);
-                results.push_back(value);
+            while (producers_done.load() < num_producers || !queue.Empty()) {
+                if (queue.DequeueNonBlocking(value)) {
+                    std::lock_guard<std::mutex> lock(results_mutex);
+                    results.push_back(value);
+                } else {
+                    std::this_thread::yield();
+                }
             }
         });
     }
@@ -1506,6 +1709,7 @@ TEST_F(ActiveQueueTest, Concurrent_MultipleProducersMultipleConsumers) {
         c.join();
     }
     
+    EXPECT_EQ(produced.load(), total_items);
     EXPECT_EQ(results.size(), total_items);
 }
 
@@ -1516,7 +1720,7 @@ TEST_F(ActiveQueueTest, Concurrent_HighThreadCount_Enqueue) {
     std::vector<std::thread> threads;
     
     for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([&queue, t, items_per_thread]() {
+        threads.emplace_back([&queue, t]() {
             for (int i = 0; i < items_per_thread; ++i) {
                 EXPECT_TRUE(queue.Enqueue(t * 100 + i));
             }
@@ -1536,7 +1740,7 @@ TEST_F(ActiveQueueTest, Concurrent_HighThreadCount_Dequeue) {
     const int items_per_thread = 10;
     
     for (int i = 0; i < num_threads * items_per_thread; ++i) {
-        queue.Enqueue(i);
+        (void)queue.Enqueue(i);
     }
     
     std::vector<int> results;
@@ -1544,7 +1748,7 @@ TEST_F(ActiveQueueTest, Concurrent_HighThreadCount_Dequeue) {
     std::vector<std::thread> threads;
     
     for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([&queue, &results, &results_mutex, items_per_thread]() {
+        threads.emplace_back([&queue, &results, &results_mutex]() {
             int value;
             for (int i = 0; i < items_per_thread; ++i) {
                 if (queue.DequeueNonBlocking(value)) {
@@ -1599,7 +1803,7 @@ TEST_F(ActiveQueueTest, Concurrent_SustainedLoad_10kOperations) {
     std::atomic<int> dequeued{0};
     std::atomic<bool> producer_done{false};
     
-    std::thread producer([&queue, &enqueued, &producer_done, total]() {
+    std::thread producer([&queue, &enqueued, &producer_done]() {
         for (int i = 0; i < total; ++i) {
             if (queue.Enqueue(i)) {
                 enqueued++;
@@ -1608,7 +1812,7 @@ TEST_F(ActiveQueueTest, Concurrent_SustainedLoad_10kOperations) {
         producer_done = true;
     });
     
-    std::thread consumer([&queue, &dequeued, &producer_done, total]() {
+    std::thread consumer([&queue, &dequeued, &producer_done]() {
         int value;
         while (dequeued.load() < total) {
             if (queue.DequeueNonBlocking(value)) {
@@ -1678,9 +1882,9 @@ TEST_F(ActiveQueueTest, Concurrent_MetricsAccuracy_HighFrequency) {
     const int total = 1000;
     std::atomic<bool> producer_done{false};
     
-    std::thread producer([&queue, &producer_done, total]() {
+    std::thread producer([&queue, &producer_done]() {
         for (int i = 0; i < total; ++i) {
-            queue.Enqueue(i);
+            (void)queue.Enqueue(i);
         }
         producer_done = true;
     });
@@ -1712,24 +1916,23 @@ TEST_F(ActiveQueueTest, Concurrent_VariableProducerRate) {
     ActiveQueue<int> queue;
     std::atomic<int> produced{0};
     std::atomic<int> consumed{0};
-    std::atomic<bool> both_done{false};
     
     std::thread fast_producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
-            queue.Enqueue(i);
+            (void)queue.Enqueue(i);
             produced++;
         }
     });
     
     std::thread slow_producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
-            queue.Enqueue(1000 + i);
+            (void)queue.Enqueue(1000 + i);
             produced++;
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
     
-    std::thread consumer([&queue, &consumed, &both_done, &produced]() {
+    std::thread consumer([&queue, &consumed, &produced]() {
         int value;
         while (consumed.load() < 200) {
             if (queue.DequeueNonBlocking(value)) {
@@ -1765,9 +1968,9 @@ TEST_F(ActiveQueueTest, Concurrent_Fairness_AllThreadsProgress) {
     // 4 threads enqueuing
     std::vector<std::thread> enqueuers;
     for (int t = 0; t < num_threads; ++t) {
-        enqueuers.emplace_back([&queue, t, items_per_thread, &enqueuers_done, num_threads]() {
+        enqueuers.emplace_back([&queue, t, &enqueuers_done]() {
             for (int i = 0; i < items_per_thread; ++i) {
-                queue.Enqueue(t * 1000 + i);
+                (void)queue.Enqueue(t * 1000 + i);
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
             // Unblock if all enqueuers done
@@ -1778,7 +1981,7 @@ TEST_F(ActiveQueueTest, Concurrent_Fairness_AllThreadsProgress) {
     // 4 threads dequeueing
     std::vector<std::thread> dequeuers;
     for (int t = 0; t < num_threads; ++t) {
-        dequeuers.emplace_back([&queue, t, &thread_items, &mutexes, &total_dequeued, &enqueuers_done, total_items, num_threads]() {
+        dequeuers.emplace_back([&queue, t, &thread_items, &mutexes, &total_dequeued, &enqueuers_done]() {
             int value;
             while (total_dequeued.load() < total_items) {
                 if (queue.DequeueNonBlocking(value)) {
@@ -1821,9 +2024,9 @@ TEST_F(ActiveQueueTest, MessageConcurrent_BlockingDequeueMessages_MultiThread) {
     std::mutex results_mutex;
     const int total = 30;
     
-    std::thread producer([&queue, total]() {
+    std::thread producer([&queue]() {
         for (int i = 0; i < total; ++i) {
-            queue.Enqueue(Message(i * 10));
+            (void)queue.Enqueue(Message(i * 10));
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     });
@@ -1856,14 +2059,14 @@ TEST_F(ActiveQueueTest, MessageConcurrent_HighFrequencyEnqueueDequeue) {
     const int total = 500;
     std::atomic<int> operations{0};
     
-    std::thread producer([&queue, &operations, total]() {
+    std::thread producer([&queue, &operations]() {
         for (int i = 0; i < total; ++i) {
-            queue.Enqueue(Message(i));
+            (void)queue.Enqueue(Message(i));
             operations++;
         }
     });
     
-    std::thread consumer([&queue, &operations, total]() {
+    std::thread consumer([&queue, &operations]() {
         Message msg;
         int count = 0;
         while (count < total) {
@@ -1892,13 +2095,13 @@ TEST_F(ActiveQueueTest, MessageConcurrent_TypeSafetyUnderConcurrency) {
     
     std::thread int_producer([&queue]() {
         for (int i = 0; i < 50; ++i) {
-            queue.Enqueue(Message(i));
+            (void)queue.Enqueue(Message(i));
         }
     });
     
     std::thread double_producer([&queue]() {
         for (int i = 0; i < 50; ++i) {
-            queue.Enqueue(Message(static_cast<double>(i) * 1.5));
+            (void)queue.Enqueue(Message(static_cast<double>(i) * 1.5));
         }
     });
     
@@ -1940,15 +2143,15 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MetricsWithAllocationTracking) {
     const int small = 20;   // SSO messages
     const int large = 20;   // Heap messages
     
-    std::thread producer([&queue, small, large]() {
+    std::thread producer([&queue]() {
         // Enqueue small messages (SSO)
         for (int i = 0; i < small; ++i) {
-            queue.Enqueue(Message(i));
+            (void)queue.Enqueue(Message(i));
         }
         
         // Enqueue large messages (heap)
         for (int i = 0; i < large; ++i) {
-            queue.Enqueue(Message(std::string(1000, 'a')));
+            (void)queue.Enqueue(Message(std::string(1000, 'a')));
         }
     });
     
@@ -1977,7 +2180,7 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MixedOperationsWithMetrics) {
     std::thread producer([&queue, &running]() {
         int i = 0;
         while (running) {
-            queue.Enqueue(Message(i++));
+            (void)queue.Enqueue(Message(i++));
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
@@ -1985,7 +2188,7 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MixedOperationsWithMetrics) {
     std::thread consumer([&queue, &running]() {
         Message msg;
         while (running) {
-            queue.DequeueNonBlocking(msg);
+            (void)queue.DequeueNonBlocking(msg);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
@@ -2009,7 +2212,7 @@ TEST_F(ActiveQueueTest, MessageConcurrent_BoundedBlockingWithMessages) {
     
     std::thread producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
-            queue.Enqueue(Message(i));
+            (void)queue.Enqueue(Message(i));
             produced++;
         }
     });
@@ -2041,7 +2244,7 @@ TEST_F(ActiveQueueTest, MessageConcurrent_ComparatorWithMessages) {
     
     std::thread producer([&queue]() {
         for (int i : {50, 20, 80, 10, 60, 30}) {
-            queue.Enqueue(Message(i));
+            (void)queue.Enqueue(Message(i));
         }
     });
     

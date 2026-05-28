@@ -234,7 +234,8 @@ TEST_F(MessageTest, MoveAssignmentIsNoexcept) {
 
 TEST_F(MessageTest, SelfAssignmentProtection) {
     Message msg(42);
-    msg = msg;  // Self-assignment
+    Message& same = msg;
+    msg = same;  // Self-assignment
     EXPECT_TRUE(msg.valid());
     EXPECT_EQ(msg.get<int>(), 42);
 }

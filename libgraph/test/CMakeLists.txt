@@ -4,6 +4,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURC
 
 # Collect unit test files
 file(GLOB UNIT_TEST_SOURCES "unit/test_*.cpp" "unit/TestGraphTopologies.cpp")
+set(THREADPOOL_EXTENDED_TEST_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_pool_benchmarks.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_pool_chaos.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_pool_integration.cpp"
+)
+list(REMOVE_ITEM UNIT_TEST_SOURCES ${THREADPOOL_EXTENDED_TEST_SOURCES})
+
+option(ENABLE_THREADPOOL_EXTENDED_TESTS "Build and run ThreadPool benchmark/chaos/scaling tests" OFF)
 
 add_subdirectory(plugins)
 
@@ -14,6 +22,16 @@ target_compile_definitions(test_libgraph_unit PRIVATE
 )
 target_link_libraries(test_libgraph_unit PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
+
+if(ENABLE_THREADPOOL_EXTENDED_TESTS)
+    add_executable(test_threadpool_extended ${THREADPOOL_EXTENDED_TEST_SOURCES})
+    target_compile_definitions(test_threadpool_extended PRIVATE
+        PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    )
+    target_link_libraries(test_threadpool_extended PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+    add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
+    set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")
+endif()
 
 # Collect integration test files
 file(GLOB INTEGRATION_TEST_SOURCES "integration/test_*.cpp")

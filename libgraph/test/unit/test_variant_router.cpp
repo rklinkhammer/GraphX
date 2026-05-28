@@ -175,15 +175,15 @@ TEST_F(VariantRouterTest, MultipleHandlersRegistered) {
 }
 
 TEST_F(VariantRouterTest, DispatchMultipleTypesSelectsCorrect) {
-    router.RegisterHandler<EventA>([this](const auto& event) {
+    router.RegisterHandler<EventA>([this](const auto&) {
         calls.event_a_count++;
     });
     
-    router.RegisterHandler<EventB>([this](const auto& event) {
+    router.RegisterHandler<EventB>([this](const auto&) {
         calls.event_b_count++;
     });
     
-    router.RegisterHandler<EventC>([this](const auto& event) {
+    router.RegisterHandler<EventC>([this](const auto&) {
         calls.event_c_count++;
     });
 
@@ -237,7 +237,7 @@ TEST_F(VariantRouterTest, ReplacingHandlerOverwritesPrevious) {
 // ===================================================================================
 
 TEST_F(VariantRouterTest, DispatchWithoutRegisteredHandlerIsIgnored) {
-    router.RegisterHandler<EventA>([this](const auto& event) {
+    router.RegisterHandler<EventA>([this](const auto&) {
         calls.event_a_called = true;
     });
 
@@ -335,7 +335,7 @@ TEST_F(VariantRouterTest, ClearHandlersStopsDispatch) {
 // ===================================================================================
 
 TEST_F(VariantRouterTest, MoveConstructorTransfersHandlers) {
-    router.RegisterHandler<EventA>([this](const auto& event) {
+    router.RegisterHandler<EventA>([this](const auto&) {
         calls.event_a_count++;
     });
     

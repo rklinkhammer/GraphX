@@ -511,7 +511,7 @@ TEST_F(NodeFactoryDynamicTest, DynamicNodeJoinWithTimeoutVerification) {
     
     // Join with timeout - node may timeout if still running
     // The return value (true/false) is valid either way
-    bool result = facade.JoinWithTimeout(std::chrono::milliseconds(50));
+    (void)facade.JoinWithTimeout(std::chrono::milliseconds(50));
     
     // No assertion on result - both timeout and immediate return are valid
     // depending on node implementation

@@ -15,6 +15,16 @@ endif()
 # Build options
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
+option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
+
+if(ENABLE_TSAN)
+    if(MSVC)
+        message(FATAL_ERROR "ENABLE_TSAN is not supported with MSVC")
+    endif()
+
+    add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=thread)
+endif()
 
 # Add projects
 add_subdirectory(libgraph)

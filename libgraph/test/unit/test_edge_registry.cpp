@@ -857,8 +857,6 @@ TEST_F(EdgeRegistryTest, CollisionDetection) {
  */
 TEST_F(EdgeRegistryTest, MoveSemanticsInClosure) {
     // Test move semantics within closure - using std::move with atomic values
-    std::atomic<int> moved_value(0);
-    
     graph::config::EdgeRegistry::Register<test::SourceTestNode, 0, test::SinkTestNode, 0>(
         "SourceTestNode", "SinkTestNode",
         [moved_val = 42](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
@@ -875,13 +873,11 @@ TEST_F(EdgeRegistryTest, MoveSemanticsInClosure) {
  * @brief Verify RAII semantics - resources cleaned up on Clear()
  */
 TEST_F(EdgeRegistryTest, RAIICompliance) {
-    std::atomic<int> cleanup_count(0);
-    
     {
         // Create scope for testing
         graph::config::EdgeRegistry::Register<test::SourceTestNode, 0, test::SinkTestNode, 0>(
             "SourceTestNode", "SinkTestNode",
-            [&cleanup_count](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
+            [](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
                 return true;
             });
         
@@ -896,7 +892,7 @@ TEST_F(EdgeRegistryTest, RAIICompliance) {
     EXPECT_NO_THROW(
         (graph::config::EdgeRegistry::Register<test::SourceTestNode, 0, test::SinkTestNode, 0>(
             "SourceTestNode", "SinkTestNode",
-            [&cleanup_count](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
+            [](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
                 return true;
             })));
     

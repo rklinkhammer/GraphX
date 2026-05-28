@@ -72,7 +72,7 @@ private:
 public:
     explicit SimpleIntGenerator(int max) : counter_(0), max_count_(max) {}
     
-    std::optional<int> Produce(size_t index) override {
+    std::optional<int> Produce(size_t) override {
         if (counter_ >= max_count_) {
             return std::nullopt;
         }
@@ -117,7 +117,7 @@ public:
         return message::CompletionSignal();
     }
     
-    void OnDataProduced(const int& sample) noexcept override {
+    void OnDataProduced(const int&) noexcept override {
         // Hook for metrics/logging (optional)
     }
     
@@ -761,7 +761,7 @@ public:
         return message::CompletionSignal();
     }
     
-    void OnDataProduced(const int& sample) noexcept override {
+    void OnDataProduced(const int&) noexcept override {
         iteration_count_++;
         
         // Implement failure mode if configured

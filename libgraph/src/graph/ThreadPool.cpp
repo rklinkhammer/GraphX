@@ -110,6 +110,8 @@ namespace graph
         try
         {
             running_.store(true);
+            // Keep StartExpected() behavior in sync with Start().
+            task_queue_.SetCapacity(config_.max_queue_size);
             
             // Spawn worker threads
             try {
@@ -163,6 +165,12 @@ namespace graph
         SetStopRequested(true);
         // ActiveQueue::Disable() prevents further enqueuing and wakes up workers
         task_queue_.Disable();
+
+        Task discarded;
+        while (task_queue_.DequeueNonBlocking(discarded))
+        {
+            stats_.tasks_cancelled++;
+        }
     }
 
     void ThreadPool::Join() noexcept
@@ -265,6 +273,12 @@ namespace graph
         Task local = std::move(task);
         while (std::chrono::steady_clock::now() < deadline)
         {
+            if (GetStopRequested())
+            {
+                LOG4CXX_TRACE(logger_, "ThreadPool not accepting tasks - stop requested during timed enqueue");
+                stats_.tasks_rejected++;
+                return QueueResult::Stopped;
+            }
             if (task_queue_.Enqueue(local))
             {
                 stats_.tasks_queued++;
@@ -273,6 +287,7 @@ namespace graph
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         stats_.enqueue_timeouts++;  // Phase 2: Track timeouts
+        stats_.tasks_rejected++;
         return QueueResult::Timeout;
     }
 
