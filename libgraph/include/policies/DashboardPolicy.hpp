@@ -152,6 +152,11 @@ namespace policies
         {
             LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnStop called");
             auto dashboard_capability = context.GetCapabilityBus().Get<capabilities::DashboardCapability>();
+            if (!dashboard_capability) {
+                LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnStop skipped - no DashboardCapability registered");
+                return;
+            }
+
             dashboard_capability->DisableCommandQueue();
             dashboard_capability->DisableLogQueue();        
 

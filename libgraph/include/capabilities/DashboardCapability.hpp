@@ -45,6 +45,15 @@ public:
     }
 
     /**
+     * Dequeue the next pending command without blocking
+     * @param command Output parameter to receive command string
+     * @return true if command was available, false if queue empty
+     */
+    bool DequeueCommandNonBlocking(std::string& command) {
+        return command_queue_.DequeueNonBlocking(command);
+    }
+
+    /**
      * Enqueue a log message for the UI to display
      * @param line Log message text
      * @return true if enqueued successfully, false if queue full
@@ -67,6 +76,15 @@ public:
      */
     bool DequeueLogQueue(std::string& line) {
         return log_queue_.Dequeue(line);
+    }
+
+    /**
+     * Dequeue the next pending log message without blocking
+     * @param line Output parameter to receive log text
+     * @return true if message was available, false if queue empty
+     */
+    bool DequeueLogQueueNonBlocking(std::string& line) {
+        return log_queue_.DequeueNonBlocking(line);
     }
 
     /**

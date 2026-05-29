@@ -170,8 +170,14 @@ public:
      */
     bool OnStart(capabilities::GraphCapability& context) override
     {
+        (void)context;
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnStart()");
         bool ret = true;
+        if (!metrics_capability_) {
+            LOG4CXX_WARN(metrics_logger,
+                         "MetricsPolicy::OnStart() failed - no MetricsCapability registered");
+            return false;
+        }
         
         // CRITICAL FIX: Don't capture context by reference (it's a stack parameter)
         // Instead, we rely on metrics_event_queue_.Dequeue() blocking behavior
@@ -206,6 +212,11 @@ public:
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy OnJoin called");
         if (metrics_thread_.joinable()) {
             metrics_thread_.join();
+        }
+        if (!metrics_capability_) {
+            LOG4CXX_TRACE(metrics_logger,
+                          "MetricsPolicy::OnJoin() skipped drain - no MetricsCapability registered");
+            return;
         }
         
         // CRITICAL: Drain any remaining events from queue after thread exits

@@ -62,6 +62,96 @@ namespace test {
         std::vector<app::metrics::MetricsEvent> events_;
     };
 
+    enum class TestNodeEvent {
+        None = 0,
+        Init,
+        Start,
+        Stop,
+        Join,
+        Produce,
+        Consume,
+        Transfer,
+        Merge,
+        Split,
+        MetricsCallbackSet,
+        MetricsPublished,
+        CompletionSignaled,
+        ForcedFailure
+    };
+
+    inline std::atomic<uint64_t> g_test_node_event_sequence{0};
+
+    class TestNodeInstrumentation {
+    public:
+        void Record(TestNodeEvent event) noexcept {
+            last_event_.store(static_cast<int>(event), std::memory_order_relaxed);
+            last_event_sequence_.store(
+                g_test_node_event_sequence.fetch_add(1, std::memory_order_relaxed) + 1,
+                std::memory_order_relaxed);
+        }
+
+        void RecordInit() noexcept { init_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Init); }
+        void RecordStart() noexcept { start_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Start); }
+        void RecordStop() noexcept { stop_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Stop); }
+        void RecordJoin() noexcept { join_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Join); }
+        void RecordProduced() noexcept { produced_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Produce); }
+        void RecordConsumed() noexcept { consumed_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Consume); }
+        void RecordTransferred() noexcept { transferred_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Transfer); }
+        void RecordMerged() noexcept { merged_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Merge); }
+        void RecordSplit() noexcept { split_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::Split); }
+        void RecordMetricsCallbackSet() noexcept { metrics_callback_set_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::MetricsCallbackSet); }
+        void RecordMetricsPublished() noexcept { metrics_published_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::MetricsPublished); }
+        void RecordCompletionSignaled() noexcept { completion_signal_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::CompletionSignaled); }
+        void RecordForcedFailure() noexcept { forced_failure_count_.fetch_add(1, std::memory_order_relaxed); Record(TestNodeEvent::ForcedFailure); }
+
+        size_t GetInitCount() const noexcept { return init_count_.load(std::memory_order_relaxed); }
+        size_t GetStartCount() const noexcept { return start_count_.load(std::memory_order_relaxed); }
+        size_t GetStopCount() const noexcept { return stop_count_.load(std::memory_order_relaxed); }
+        size_t GetJoinCount() const noexcept { return join_count_.load(std::memory_order_relaxed); }
+        size_t GetProducedCount() const noexcept { return produced_count_.load(std::memory_order_relaxed); }
+        size_t GetConsumedCount() const noexcept { return consumed_count_.load(std::memory_order_relaxed); }
+        size_t GetTransferredCount() const noexcept { return transferred_count_.load(std::memory_order_relaxed); }
+        size_t GetMergedCount() const noexcept { return merged_count_.load(std::memory_order_relaxed); }
+        size_t GetSplitCount() const noexcept { return split_count_.load(std::memory_order_relaxed); }
+        size_t GetMetricsCallbackSetCount() const noexcept { return metrics_callback_set_count_.load(std::memory_order_relaxed); }
+        size_t GetMetricsPublishedCount() const noexcept { return metrics_published_count_.load(std::memory_order_relaxed); }
+        size_t GetCompletionSignalCount() const noexcept { return completion_signal_count_.load(std::memory_order_relaxed); }
+        size_t GetForcedFailureCount() const noexcept { return forced_failure_count_.load(std::memory_order_relaxed); }
+        TestNodeEvent GetLastEvent() const noexcept { return static_cast<TestNodeEvent>(last_event_.load(std::memory_order_relaxed)); }
+        uint64_t GetLastEventSequence() const noexcept { return last_event_sequence_.load(std::memory_order_relaxed); }
+
+        void SetFailInit(bool value) noexcept { fail_init_.store(value, std::memory_order_relaxed); }
+        void SetFailStart(bool value) noexcept { fail_start_.store(value, std::memory_order_relaxed); }
+        void SetFailProcess(bool value) noexcept { fail_process_.store(value, std::memory_order_relaxed); }
+        void SetFailStop(bool value) noexcept { fail_stop_.store(value, std::memory_order_relaxed); }
+
+        bool ShouldFailInit() const noexcept { return fail_init_.load(std::memory_order_relaxed); }
+        bool ShouldFailStart() const noexcept { return fail_start_.load(std::memory_order_relaxed); }
+        bool ShouldFailProcess() const noexcept { return fail_process_.load(std::memory_order_relaxed); }
+        bool ShouldFailStop() const noexcept { return fail_stop_.load(std::memory_order_relaxed); }
+
+    private:
+        std::atomic<size_t> init_count_{0};
+        std::atomic<size_t> start_count_{0};
+        std::atomic<size_t> stop_count_{0};
+        std::atomic<size_t> join_count_{0};
+        std::atomic<size_t> produced_count_{0};
+        std::atomic<size_t> consumed_count_{0};
+        std::atomic<size_t> transferred_count_{0};
+        std::atomic<size_t> merged_count_{0};
+        std::atomic<size_t> split_count_{0};
+        std::atomic<size_t> metrics_callback_set_count_{0};
+        std::atomic<size_t> metrics_published_count_{0};
+        std::atomic<size_t> completion_signal_count_{0};
+        std::atomic<size_t> forced_failure_count_{0};
+        std::atomic<int> last_event_{static_cast<int>(TestNodeEvent::None)};
+        std::atomic<uint64_t> last_event_sequence_{0};
+        std::atomic<bool> fail_init_{false};
+        std::atomic<bool> fail_start_{false};
+        std::atomic<bool> fail_process_{false};
+        std::atomic<bool> fail_stop_{false};
+    };
+
     // =========================================================================================
     // SourceTestNode - Data Producer
     // =========================================================================================
@@ -102,7 +192,6 @@ namespace test {
                 count_++;
                 LOG4CXX_TRACE(test_logger, "SourceTestNode produced message: " << (count_ - 1) 
                     << " (total: " << count_ << "/" << message_count_ << ")");
-                std::cout << "SourceTestNode produced message: " << std::endl;
                 
                 // Phase 2: Publish metrics event if callback is installed
                 if (metrics_callback_) {
@@ -331,7 +420,6 @@ namespace test {
             message_count_++;
             LOG4CXX_TRACE(test_logger, "SinkTestNode consumed message (total: " << message_count_ 
                 << "/" << expected_message_count_ << ")");
-            std::cout << "SinkTestNode consumed message: " <<  std::endl;
             
             // Phase 2: Publish metrics event if callback is installed
             // Protected by mutex: input edge thread calls this method

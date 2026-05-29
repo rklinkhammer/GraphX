@@ -120,8 +120,6 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
     graph->AddNode(sink_wrapper);
     
     PluginInfrastructure::AddEdge<SourceTestNode, 0, SinkTestNode, 0>(graph, source_wrapper, sink_wrapper);
-    std::cout << "Graph Structure:" << std::endl;
-    std::cout << graph->DisplayGraph();
     return graph;
 }
 

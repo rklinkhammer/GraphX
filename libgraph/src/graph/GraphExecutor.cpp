@@ -105,16 +105,25 @@ ExecutionResult GraphExecutor::Start() {
 
     LOG4CXX_TRACE(logger_, "GraphExecutor::Start() called");
     ExecutionResult result;
+    if (GetExecutionState() != ExecutionState::INITIALIZED) {
+        result.success = false;
+        result.message = "GraphExecutor::Start() requires INITIALIZED state";
+        LOG4CXX_WARN(logger_, result.message);
+        return result;
+    }
+
     bool policy_result = policy_chain_ ? policy_chain_->OnStart(*graph_capability_) : true;
     if(!policy_result) {
         result.success = false;
         result.message = "ExecutionPolicyChain::OnStart() failed";
+        SetExecutionState(ExecutionState::ERROR);
         return result;
     }
     // Start the graph
     if (!graph_manager_->Start()) {
         result.success = false;
         result.message = "GraphManager::Start() failed";
+        SetExecutionState(ExecutionState::ERROR);
         return result;
     }
     SetExecutionState(ExecutionState::RUNNING);
@@ -132,10 +141,18 @@ ExecutionResult GraphExecutor::Run() {
 
     LOG4CXX_TRACE(logger_, "GraphExecutor::Run() called");
     ExecutionResult result;   
+    if (GetExecutionState() != ExecutionState::RUNNING) {
+        result.success = false;
+        result.message = "GraphExecutor::Run() requires RUNNING state";
+        LOG4CXX_WARN(logger_, result.message);
+        return result;
+    }
+
     bool policy_result =  policy_chain_ ? policy_chain_->OnRun(*graph_capability_) : false;
     if(!policy_result) {
         result.success = false;
         result.message = "ExecutionPolicyChain::OnRun() failed";
+        SetExecutionState(ExecutionState::ERROR);
         return result;
     }
 
@@ -144,6 +161,7 @@ ExecutionResult GraphExecutor::Run() {
     }
     
     LOG4CXX_TRACE(logger_, "GraphExecutor::Run() completed, success=" << result.success);
+    SetExecutionState(ExecutionState::STOPPED);
     result.success = true;
     result.message = "GraphExecutor run completed successfully";    
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -156,12 +174,15 @@ ExecutionResult GraphExecutor::Stop() {
 
     LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() called");
     ExecutionResult result;
+    SetExecutionState(ExecutionState::STOPPING);
+    graph_capability_->SetStopped();
     // Stop the graph
     graph_manager_->Stop();
     if (policy_chain_) {
         policy_chain_->OnStop(*graph_capability_);
     }
     LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() completed");
+    SetExecutionState(ExecutionState::STOPPED);
 
     result.success = true;
     result.message = "GraphExecutor stopped successfully";

@@ -10,9 +10,12 @@
 #include <memory>
 #include <chrono>
 #include "test/TestGraphTopologies.hpp"
+#include "graph/CapabilityDiscovery.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
+#include "graph/ICompletionCallback.hpp"
+#include "graph/NodeFacadeAdapterSpecializations.hpp"
 #include "capabilities/MetricsCapability.hpp"
 
 namespace {
@@ -24,6 +27,56 @@ void AssertExecutionSuccess(const graph::ExecutionResult& result,
 
 void AssertInitializationSuccess(const graph::InitializationResult& result) {
     ASSERT_TRUE(result.success) << "Init failed: " << result.message;
+}
+
+size_t CountCompletionCallbackProviders(
+    const std::shared_ptr<graph::GraphManager>& graph) {
+    size_t provider_count = 0;
+
+    for (const auto& node : graph->GetNodes()) {
+        auto facade_adapter = graph::GetAsNodeFacadeAdapter(node);
+        if (!facade_adapter) {
+            continue;
+        }
+
+        auto completion_provider =
+            facade_adapter->GetCompletionCallbackProviderPtr();
+        if (completion_provider) {
+            ++provider_count;
+        }
+    }
+
+    return provider_count;
+}
+
+size_t CountInstalledCompletionCallbacks(
+    const std::shared_ptr<graph::GraphManager>& graph) {
+    size_t installed_count = 0;
+
+    for (const auto& node : graph->GetNodes()) {
+        auto facade_adapter = graph::GetAsNodeFacadeAdapter(node);
+        if (!facade_adapter) {
+            continue;
+        }
+
+        auto completion_provider = std::static_pointer_cast<
+            graph::CompletionCallbackProvider>(
+                facade_adapter->GetCompletionCallbackProviderPtr());
+        if (completion_provider && completion_provider->HasCallbackProvider()) {
+            ++installed_count;
+        }
+    }
+
+    return installed_count;
+}
+
+void ExpectCompletionCallbackInstallation(
+    const std::shared_ptr<graph::GraphManager>& graph,
+    size_t expected_provider_count) {
+    ASSERT_EQ(CountCompletionCallbackProviders(graph), expected_provider_count)
+        << "Unexpected number of completion-capable nodes";
+    EXPECT_EQ(CountInstalledCompletionCallbacks(graph), expected_provider_count)
+        << "CompletionPolicy should install callbacks during executor Init()";
 }
 
 /**
@@ -45,13 +98,14 @@ TEST(TopologiesSimple, Topology1_SourceOnly) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     // Init
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 0);
 
     // Start
     AssertExecutionSuccess(executor->Start(), "Start");
@@ -68,7 +122,7 @@ TEST(TopologiesSimple, Topology1_SourceOnly) {
     // Verify: SourceOnly has no sinks, so no completion signal expected
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_FALSE(is_signaled) << "SourceOnly should not signal completion (no sinks)";
-    
+
     // Verify metrics: SourceOnly should produce but not consume
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -98,7 +152,7 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
 
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
         std::cerr << "[DEBUG] MetricsCapability is available for MinimalGraph\n";
@@ -107,6 +161,7 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -119,12 +174,12 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
     // MinimalGraph has sink that signals completion when 10 messages received
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "MinimalGraph should signal completion";
-    
+
     // Verify metrics were published
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
         std::cerr << "[DEBUG] Total metrics events received: " << events.size() << "\n";
-        
+
         // Count events by type
         size_t produced_count = 0;
         size_t consumed_count = 0;
@@ -134,12 +189,12 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
             } else if (event.event_type == "message_consumed") {
                 consumed_count++;
             }
-            std::cerr << "[DEBUG] Event: source=" << event.source 
-                     << " type=" << event.event_type 
+            std::cerr << "[DEBUG] Event: source=" << event.source
+                     << " type=" << event.event_type
                      << " timestamp=" << event.timestamp.time_since_epoch().count() << "\n";
         }
-        
-        std::cerr << "[DEBUG] Metrics summary: produced=" << produced_count 
+
+        std::cerr << "[DEBUG] Metrics summary: produced=" << produced_count
                  << " consumed=" << consumed_count << "\n";
         EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
         EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
@@ -163,12 +218,13 @@ TEST(TopologiesSimple, Topology3_LinearSequential) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -180,7 +236,7 @@ TEST(TopologiesSimple, Topology3_LinearSequential) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "LinearSequential should signal completion";
-    
+
     // Verify metrics
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -219,12 +275,13 @@ TEST(TopologiesSimple, Topology4_MergeSimple) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -236,7 +293,7 @@ TEST(TopologiesSimple, Topology4_MergeSimple) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "MergeSimple should signal completion";
-    
+
     // Verify metrics
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -275,12 +332,13 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 2);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -292,7 +350,7 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "SplitSimple should signal completion";
-    
+
     // Verify metrics
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -331,12 +389,13 @@ TEST(TopologiesSimple, Topology6_DiamondComplex) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -348,7 +407,7 @@ TEST(TopologiesSimple, Topology6_DiamondComplex) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "DiamondComplex should signal completion";
-    
+
     // Verify metrics: produced → split → transfer → merged → consumed
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -395,12 +454,13 @@ TEST(TopologiesSimple, Topology7_MultiPathSequential) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -412,7 +472,7 @@ TEST(TopologiesSimple, Topology7_MultiPathSequential) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "MultiPathSequential should signal completion";
-    
+
     // Verify metrics: produced → transfers → consumed
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -451,12 +511,13 @@ TEST(TopologiesSimple, Topology8_InteriorToMerge) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -468,7 +529,7 @@ TEST(TopologiesSimple, Topology8_InteriorToMerge) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "InteriorToMerge should signal completion";
-    
+
     // Verify metrics: produced → transfer → merged → consumed
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -511,12 +572,13 @@ TEST(TopologiesSimple, Topology9_ParallelMergeWithInterior) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 1);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -528,7 +590,7 @@ TEST(TopologiesSimple, Topology9_ParallelMergeWithInterior) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "ParallelMergeWithInterior should signal completion";
-    
+
     // Verify metrics: produced → transfer → merged → consumed
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();
@@ -571,12 +633,13 @@ TEST(TopologiesSimple, Topology10_ComplexNetwork) {
     // Setup metrics
     auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
     test::TestMetricsSubscriber test_subscriber;
-    
+
     if (metrics_cap) {
         metrics_cap->RegisterMetricsCallback(&test_subscriber);
     }
 
     AssertInitializationSuccess(executor->Init());
+    ExpectCompletionCallbackInstallation(graph, 2);
 
     AssertExecutionSuccess(executor->Start(), "Start");
 
@@ -588,7 +651,7 @@ TEST(TopologiesSimple, Topology10_ComplexNetwork) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "ComplexNetwork should signal completion";
-    
+
     // Verify metrics: All event types expected in a complex topology
     if (metrics_cap) {
         auto events = test_subscriber.GetEvents();

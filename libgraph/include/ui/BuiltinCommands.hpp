@@ -23,6 +23,7 @@
 #pragma once
 
 #include "ui/CommandRegistry.hpp"
+#include "capabilities/GraphCapability.hpp"
 #include "capabilities/CommandRegistryCapability.hpp"
 #include <memory>
 #include <string>
@@ -42,6 +43,7 @@ namespace ui {
  * Thread-safe. All commands registered atomically via capability.
  *
  * @param cmd_registry CommandRegistryCapability to register commands with
+ * @param graph_capability Optional graph capability used by execution commands
  * 
  * @see CommandRegistryCapability for thread-safety guarantees
  * @see CommandPolicy::OnInit() for call site
@@ -50,6 +52,7 @@ namespace ui {
  * (abstracted from Dashboard and direct CommandRegistry access)
  */
 void RegisterBuiltinCommands(
-    capabilities::CommandRegistryCapability& cmd_registry);
+    capabilities::CommandRegistryCapability& cmd_registry,
+    std::shared_ptr<capabilities::GraphCapability> graph_capability = nullptr);
 
 }  // namespace ui

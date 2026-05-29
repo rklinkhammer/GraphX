@@ -105,7 +105,9 @@ public:
             .Register<capabilities::CommandRegistryCapability>(cmd_registry_cap);
         
         // Register built-in commands via capability
-        ui::RegisterBuiltinCommands(*cmd_registry_cap);
+        auto graph_capability =
+            context.GetCapabilityBus().Get<capabilities::GraphCapability>();
+        ui::RegisterBuiltinCommands(*cmd_registry_cap, graph_capability);
         
         // Phase 3: Create and register CommandOutputCapability
         auto dashboard_capability = context.GetCapabilityBus().Get<capabilities::DashboardCapability>();
@@ -148,6 +150,18 @@ public:
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnStart called");
         auto graph_capability = context.GetCapabilityBus().Get<capabilities::GraphCapability>();
         dashboard_capability_ = context.GetCapabilityBus().Get<capabilities::DashboardCapability>();
+        if (!graph_capability) {
+            LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - no GraphCapability registered");
+            return false;
+        }
+        if (!dashboard_capability_) {
+            LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - no DashboardCapability registered");
+            return false;
+        }
+        if (!cmd_processor_cap_ || !cmd_processor_cap_->IsReady()) {
+            LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - command processor is not ready");
+            return false;
+        }
 
         auto command_processor = [this, graph_capability]() {
             // Command processing loop
@@ -173,7 +187,9 @@ public:
      */
     void OnStop(capabilities::GraphCapability &) override {
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnStop called");
-        // Stop command processing and cleanup here if needed
+        if (dashboard_capability_) {
+            dashboard_capability_->DisableCommandQueue();
+        }
  
     }
 

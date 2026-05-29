@@ -122,6 +122,16 @@ public:
      */
     bool OnStart(capabilities::GraphCapability &context) override {
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnStart called");
+        if (!csv_data_injection_capability_) {
+            LOG4CXX_WARN(csv_injection_logger_,
+                         "CSVInjectionPolicy OnStart failed - no CSVDataInjectionCapability registered");
+            return false;
+        }
+        if (!csv_data_injection_manager_) {
+            LOG4CXX_WARN(csv_injection_logger_,
+                         "CSVInjectionPolicy OnStart failed - no CSVDataInjectionManager initialized");
+            return false;
+        }
  
         auto fn = [this, &context]() {
             LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy::CSVInjectionThread started");
@@ -161,6 +171,12 @@ public:
      */
     void OnStop(capabilities::GraphCapability &) override {
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnStop called");
+        if (!csv_data_injection_capability_) {
+            LOG4CXX_TRACE(csv_injection_logger_,
+                          "CSVInjectionPolicy OnStop skipped - no CSVDataInjectionCapability registered");
+            return;
+        }
+
         csv_data_injection_capability_->DisableCommand();
      }
 

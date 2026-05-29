@@ -38,7 +38,8 @@
 namespace ui {
 
 void RegisterBuiltinCommands(
-    capabilities::CommandRegistryCapability& cmd_registry) {
+    capabilities::CommandRegistryCapability& cmd_registry,
+    std::shared_ptr<capabilities::GraphCapability> graph_capability) {
     
     // =========================================================================
     // HELP Command
@@ -106,9 +107,12 @@ void RegisterBuiltinCommands(
         "stop",
         "Stop graph execution",
         "stop",
-        [](const std::vector<std::string>& /*args*/) -> CommandResult {
-            // Note: Graph stop implementation would be done via GraphCapability
-            // This is a placeholder that demonstrates the pattern
+        [graph_capability](const std::vector<std::string>& /*args*/) -> CommandResult {
+            if (!graph_capability) {
+                return CommandResult(false, "Graph capability unavailable");
+            }
+
+            graph_capability->SetStopped();
             return CommandResult(true, "Graph execution stopped");
         });
 
@@ -119,11 +123,12 @@ void RegisterBuiltinCommands(
         "status",
         "Display execution status",
         "status",
-        [](const std::vector<std::string>& /*args*/) -> CommandResult {
-            // Note: Graph status information would be queried via GraphCapability
-            // This is a placeholder that demonstrates the pattern
+        [graph_capability](const std::vector<std::string>& /*args*/) -> CommandResult {
+            const auto state = graph_capability && graph_capability->IsStopped()
+                ? "Stopped"
+                : "Running";
             std::string output = "Graph Status:\n"
-                               "  State: Running\n"
+                               "  State: " + std::string(state) + "\n"
                                "  Nodes Executed: 0\n"
                                "  Edges Executed: 0\n";
             return CommandResult(true, output);

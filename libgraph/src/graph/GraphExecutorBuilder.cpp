@@ -100,6 +100,12 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInput(const std::string& path
 }
 
 GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInputs(const std::vector<std::pair<std::string, std::string>>& inputs) {
+    for (const auto& [path, node] : inputs) {
+        (void)node;
+        if (path.empty()) {
+            throw std::invalid_argument("GraphExecutorBuilder: CSV path cannot be empty");
+        }
+    }
     csv_inputs_ = inputs;
     LOG4CXX_TRACE(g_logger, "Set CSV inputs: " << inputs.size() << " files");
     return *this;
@@ -225,7 +231,6 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             "GraphExecutorBuilder: Build() already called. "
             "Create a new builder instance to build another executor.");
     }
-    already_built_ = true;
 
     // Validate configuration
     ValidateConfiguration();
@@ -319,6 +324,7 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
                 nullptr));
         }
         auto executor = std::make_shared<GraphExecutor>(std::move(chain), graph_cap);
+        already_built_ = true;
         return executor;
 
     } catch (const std::exception& e) {
