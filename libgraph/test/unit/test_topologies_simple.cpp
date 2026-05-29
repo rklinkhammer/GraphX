@@ -314,4 +314,296 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
     }
 }
 
+/**
+ * @test Topology 6: DiamondComplex
+ * Source → Split → Interior + Interior → Merge → Sink
+ */
+TEST(TopologiesSimple, Topology6_DiamondComplex) {
+    auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::DiamondComplex);
+    ASSERT_NE(graph, nullptr) << "Failed to build DiamondComplex topology";
+
+    auto executor = graph::GraphExecutorBuilder()
+        .WithGraphManager(graph)
+        .WithExecutorTimeout(std::chrono::seconds(30))
+        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
+    AssertInitializationSuccess(executor->Init());
+
+    AssertExecutionSuccess(executor->Start(), "Start");
+
+    AssertExecutionSuccess(executor->Run(), "Run");
+
+    AssertExecutionSuccess(executor->Stop(), "Stop");
+
+    AssertExecutionSuccess(executor->Join(), "Join");
+
+    bool is_signaled = executor->IsCompletionSignaled();
+    EXPECT_TRUE(is_signaled) << "DiamondComplex should signal completion";
+    
+    // Verify metrics: produced → split → transfer → merged → consumed
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t split_count = 0;
+        size_t transfer_count = 0;
+        size_t merged_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_split") {
+                split_count++;
+            } else if (event.event_type == "message_transfer") {
+                transfer_count++;
+            } else if (event.event_type == "message_merged") {
+                merged_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(split_count, 0) << "Expected SplitTestNode to split metrics";
+        EXPECT_GT(transfer_count, 0) << "Expected InteriorTestNode to transfer metrics";
+        EXPECT_GT(merged_count, 0) << "Expected MergeTestNode to merge metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
+}
+
+/**
+ * @test Topology 7: MultiPathSequential
+ * Source → Interior → Interior → Interior → Sink
+ */
+TEST(TopologiesSimple, Topology7_MultiPathSequential) {
+    auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::MultiPathSequential);
+    ASSERT_NE(graph, nullptr) << "Failed to build MultiPathSequential topology";
+
+    auto executor = graph::GraphExecutorBuilder()
+        .WithGraphManager(graph)
+        .WithExecutorTimeout(std::chrono::seconds(30))
+        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
+    AssertInitializationSuccess(executor->Init());
+
+    AssertExecutionSuccess(executor->Start(), "Start");
+
+    AssertExecutionSuccess(executor->Run(), "Run");
+
+    AssertExecutionSuccess(executor->Stop(), "Stop");
+
+    AssertExecutionSuccess(executor->Join(), "Join");
+
+    bool is_signaled = executor->IsCompletionSignaled();
+    EXPECT_TRUE(is_signaled) << "MultiPathSequential should signal completion";
+    
+    // Verify metrics: produced → transfers → consumed
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t transfer_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_transfer") {
+                transfer_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(transfer_count, 0) << "Expected InteriorTestNode(s) to transfer metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
+}
+
+/**
+ * @test Topology 8: InteriorToMerge
+ * Source → Interior → Merge → Sink
+ */
+TEST(TopologiesSimple, Topology8_InteriorToMerge) {
+    auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::InteriorToMerge);
+    ASSERT_NE(graph, nullptr) << "Failed to build InteriorToMerge topology";
+
+    auto executor = graph::GraphExecutorBuilder()
+        .WithGraphManager(graph)
+        .WithExecutorTimeout(std::chrono::seconds(30))
+        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
+    AssertInitializationSuccess(executor->Init());
+
+    AssertExecutionSuccess(executor->Start(), "Start");
+
+    AssertExecutionSuccess(executor->Run(), "Run");
+
+    AssertExecutionSuccess(executor->Stop(), "Stop");
+
+    AssertExecutionSuccess(executor->Join(), "Join");
+
+    bool is_signaled = executor->IsCompletionSignaled();
+    EXPECT_TRUE(is_signaled) << "InteriorToMerge should signal completion";
+    
+    // Verify metrics: produced → transfer → merged → consumed
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t transfer_count = 0;
+        size_t merged_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_transfer") {
+                transfer_count++;
+            } else if (event.event_type == "message_merged") {
+                merged_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(transfer_count, 0) << "Expected InteriorTestNode to transfer metrics";
+        EXPECT_GT(merged_count, 0) << "Expected MergeTestNode to merge metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
+}
+
+/**
+ * @test Topology 9: ParallelMergeWithInterior
+ * Source + Source + Interior → Merge → Sink
+ */
+TEST(TopologiesSimple, Topology9_ParallelMergeWithInterior) {
+    auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::ParallelMergeWithInterior);
+    ASSERT_NE(graph, nullptr) << "Failed to build ParallelMergeWithInterior topology";
+
+    auto executor = graph::GraphExecutorBuilder()
+        .WithGraphManager(graph)
+        .WithExecutorTimeout(std::chrono::seconds(30))
+        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
+    AssertInitializationSuccess(executor->Init());
+
+    AssertExecutionSuccess(executor->Start(), "Start");
+
+    AssertExecutionSuccess(executor->Run(), "Run");
+
+    AssertExecutionSuccess(executor->Stop(), "Stop");
+
+    AssertExecutionSuccess(executor->Join(), "Join");
+
+    bool is_signaled = executor->IsCompletionSignaled();
+    EXPECT_TRUE(is_signaled) << "ParallelMergeWithInterior should signal completion";
+    
+    // Verify metrics: produced → transfer → merged → consumed
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t transfer_count = 0;
+        size_t merged_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_transfer") {
+                transfer_count++;
+            } else if (event.event_type == "message_merged") {
+                merged_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode(s) to produce metrics";
+        EXPECT_GT(transfer_count, 0) << "Expected InteriorTestNode to transfer metrics";
+        EXPECT_GT(merged_count, 0) << "Expected MergeTestNode to merge metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
+}
+
+/**
+ * @test Topology 10: ComplexNetwork
+ * Complex interleaved merge/split operations
+ */
+TEST(TopologiesSimple, Topology10_ComplexNetwork) {
+    auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::ComplexNetwork);
+    ASSERT_NE(graph, nullptr) << "Failed to build ComplexNetwork topology";
+
+    auto executor = graph::GraphExecutorBuilder()
+        .WithGraphManager(graph)
+        .WithExecutorTimeout(std::chrono::seconds(30))
+        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
+    AssertInitializationSuccess(executor->Init());
+
+    AssertExecutionSuccess(executor->Start(), "Start");
+
+    AssertExecutionSuccess(executor->Run(), "Run");
+
+    AssertExecutionSuccess(executor->Stop(), "Stop");
+
+    AssertExecutionSuccess(executor->Join(), "Join");
+
+    bool is_signaled = executor->IsCompletionSignaled();
+    EXPECT_TRUE(is_signaled) << "ComplexNetwork should signal completion";
+    
+    // Verify metrics: All event types expected in a complex topology
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
+}
+
 }  // namespace

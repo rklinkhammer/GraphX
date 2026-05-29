@@ -470,6 +470,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
     auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     
+    // Assign unique names to each source node instance
+    source1->SetName("SourceTestNode_1");
+    source2->SetName("SourceTestNode_2");
+    
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
     auto interior_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
@@ -539,6 +543,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInte
     auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     
+    // Assign unique names to each source node instance
+    source1->SetName("SourceTestNode_1");
+    source2->SetName("SourceTestNode_2");
+    
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
     auto interior_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
@@ -603,6 +611,16 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
     auto merge2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
     auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    
+    // Assign unique names to duplicate node types
+    source1->SetName("SourceTestNode_1");
+    source2->SetName("SourceTestNode_2");
+    merge1->SetName("MergeTestNode_1");
+    merge2->SetName("MergeTestNode_2");
+    interior1->SetName("InteriorTestNode_1");
+    interior2->SetName("InteriorTestNode_2");
+    sink1->SetName("SinkTestNode_1");
+    sink2->SetName("SinkTestNode_2");
     
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
