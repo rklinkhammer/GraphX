@@ -327,6 +327,16 @@ const std::string NodeFacadeAdapter::GetName() const {
     return name ? std::string(name) : "";
 }
 
+void NodeFacadeAdapter::SetName(const std::string& name) {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::SetName()");
+    
+    if (!facade_ || !facade_->SetName || !handle_) {
+        return;
+    }
+    
+    facade_->SetName(handle_, name.c_str());
+}
+
 const std::string NodeFacadeAdapter::GetType() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetType()");
     

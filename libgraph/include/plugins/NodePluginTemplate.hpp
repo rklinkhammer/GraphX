@@ -914,6 +914,10 @@ struct PluginGlue {
         return static_cast<Instance*>(h)->name.c_str();
     }
 
+    static void SetName(void* h, const char* name) {
+        static_cast<Instance*>(h)->name = name ? name : "";
+    }
+
     static const char* GetType(void* h) {
         return static_cast<Instance*>(h)->type.c_str();
     }
@@ -1034,6 +1038,7 @@ struct PluginGlue {
         
         // ====== Metadata Queries ======
         facade.GetName = GetName;
+        facade.SetName = SetName;
         facade.GetType = GetType;
         
         // ====== Configuration ======

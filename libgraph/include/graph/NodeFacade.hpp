@@ -168,7 +168,11 @@ struct NodeFacade {
     /// Get the human-readable name of this node instance
     /// @return Pointer to null-terminated string (valid until node destroyed)
     const char* (*GetName)(NodeHandle handle);
-    
+   
+    /// Set the human-readable name of this node instance
+    /// @param name Pointer to null-terminated string
+    void (*SetName)(NodeHandle handle, const char* name);
+
     /// Get the type name of this node class
     /// @return Pointer to null-terminated string (valid until node destroyed)
     const char* (*GetType)(NodeHandle handle);

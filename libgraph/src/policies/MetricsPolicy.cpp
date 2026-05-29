@@ -64,16 +64,12 @@ void MetricsPolicy::InitMetricsSources(capabilities::GraphCapability& context) {
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::InitMetricsSources() - Node[" 
                      << node_idx << "] '" << node_name << "' supports IMetricsCallbackProvider");
     
-        // Create unique key for callback storage: "NodeName_Index" ensures each node instance
-        // gets its own callback entry even if multiple nodes share the same type name
-        std::string unique_node_key = node_name + "_" + std::to_string(node_idx);
-    
         auto metrics_callback = std::make_shared<MetricsCapabilityCallback>();
-        metrics_callback->on_publish_async_ = [this, unique_node_key](const app::metrics::MetricsEvent& event) -> bool{
+        metrics_callback->on_publish_async_ = [this, node_name](const app::metrics::MetricsEvent& event) -> bool{
             return metrics_event_queue_.Enqueue(event);
         };
         metrics_node->SetMetricsCallback(metrics_callback.get());
-        AddNodeMetrics(unique_node_key, metrics_callback, metrics_node->GetNodeMetricsSchema());
+        AddNodeMetrics(node_name, metrics_callback, metrics_node->GetNodeMetricsSchema());
         schemas.push_back(metrics_node->GetNodeMetricsSchema());
     }
     metrics_capability_->SetNodeMetricsSchemas(schemas);

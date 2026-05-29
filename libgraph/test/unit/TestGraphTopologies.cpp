@@ -212,6 +212,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
     auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     
+    // Assign unique names to each node instance
+    source1->SetName("SourceTestNode_1");
+    source2->SetName("SourceTestNode_2");
+    
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
     auto merge_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(merge);
@@ -270,6 +274,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
     auto split = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SplitTestNode"));
     auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    
+    // Assign unique names to each sink node instance
+    sink1->SetName("SinkTestNode_1");
+    sink2->SetName("SinkTestNode_2");
     
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto split_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(split);
@@ -336,6 +344,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
     auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
     
+    // Assign unique names to each interior node instance
+    interior1->SetName("InteriorTestNode_1");
+    interior2->SetName("InteriorTestNode_2");
+    
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto split_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(split);
     auto interior1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior1);
@@ -393,6 +405,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential()
     auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
     auto interior3 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    
+    // Assign unique names to each interior node instance
+    interior1->SetName("InteriorTestNode_1");
+    interior2->SetName("InteriorTestNode_2");
+    interior3->SetName("InteriorTestNode_3");
     
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto interior1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior1);

@@ -137,6 +137,13 @@ public:
         return adapter_->GetName();
     }
 
+    /*
+     * Set the name of this instance
+     */
+    void SetName(const std::string& name) {
+        adapter_->SetName(name);
+    }
+
     /**
      * Get access to the underlying NodeFacadeAdapter
      * 

@@ -42,6 +42,14 @@ TEST(TopologiesSimple, Topology1_SourceOnly) {
         .Build();
     ASSERT_NE(executor, nullptr) << "Failed to build executor";
 
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
     // Init
     AssertInitializationSuccess(executor->Init());
 
@@ -60,6 +68,18 @@ TEST(TopologiesSimple, Topology1_SourceOnly) {
     // Verify: SourceOnly has no sinks, so no completion signal expected
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_FALSE(is_signaled) << "SourceOnly should not signal completion (no sinks)";
+    
+    // Verify metrics: SourceOnly should produce but not consume
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+    }
 }
 
 /**
@@ -140,6 +160,14 @@ TEST(TopologiesSimple, Topology3_LinearSequential) {
         .Build();
     ASSERT_NE(executor, nullptr);
 
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
     AssertInitializationSuccess(executor->Init());
 
     AssertExecutionSuccess(executor->Start(), "Start");
@@ -152,6 +180,26 @@ TEST(TopologiesSimple, Topology3_LinearSequential) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "LinearSequential should signal completion";
+    
+    // Verify metrics
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t consumed_count = 0;
+        size_t transfer_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            } else if (event.event_type == "message_transfer") {
+                transfer_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(transfer_count, 0) << "Expected InteriorTestNode to transfer metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
 }
 
 /**
@@ -168,6 +216,14 @@ TEST(TopologiesSimple, Topology4_MergeSimple) {
         .Build();
     ASSERT_NE(executor, nullptr);
 
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
     AssertInitializationSuccess(executor->Init());
 
     AssertExecutionSuccess(executor->Start(), "Start");
@@ -180,6 +236,26 @@ TEST(TopologiesSimple, Topology4_MergeSimple) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "MergeSimple should signal completion";
+    
+    // Verify metrics
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t merged_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_merged") {
+                merged_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode(s) to produce metrics";
+        EXPECT_GT(merged_count, 0) << "Expected MergeTestNode to merge metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
 }
 
 /**
@@ -196,6 +272,14 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
         .Build();
     ASSERT_NE(executor, nullptr);
 
+    // Setup metrics
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+    }
+
     AssertInitializationSuccess(executor->Init());
 
     AssertExecutionSuccess(executor->Start(), "Start");
@@ -208,6 +292,26 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "SplitSimple should signal completion";
+    
+    // Verify metrics
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        size_t produced_count = 0;
+        size_t split_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_split") {
+                split_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+        }
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(split_count, 0) << "Expected SplitTestNode to split metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode(s) to consume metrics";
+    }
 }
 
 }  // namespace
