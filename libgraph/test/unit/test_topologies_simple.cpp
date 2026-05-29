@@ -13,6 +13,7 @@
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
+#include "capabilities/MetricsCapability.hpp"
 
 namespace {
 
@@ -75,6 +76,16 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
         .Build();
     ASSERT_NE(executor, nullptr);
 
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    test::TestMetricsSubscriber test_subscriber;
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(&test_subscriber);
+        std::cerr << "[DEBUG] MetricsCapability is available for MinimalGraph\n";
+    } else {
+        std::cerr << "[DEBUG] WARNING: MetricsCapability not available for MinimalGraph\n";
+    }
+
     AssertInitializationSuccess(executor->Init());
 
     AssertExecutionSuccess(executor->Start(), "Start");
@@ -88,6 +99,31 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
     // MinimalGraph has sink that signals completion when 10 messages received
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled) << "MinimalGraph should signal completion";
+    
+    // Verify metrics were published
+    if (metrics_cap) {
+        auto events = test_subscriber.GetEvents();
+        std::cerr << "[DEBUG] Total metrics events received: " << events.size() << "\n";
+        
+        // Count events by type
+        size_t produced_count = 0;
+        size_t consumed_count = 0;
+        for (const auto& event : events) {
+            if (event.event_type == "message_produced") {
+                produced_count++;
+            } else if (event.event_type == "message_consumed") {
+                consumed_count++;
+            }
+            std::cerr << "[DEBUG] Event: source=" << event.source 
+                     << " type=" << event.event_type 
+                     << " timestamp=" << event.timestamp.time_since_epoch().count() << "\n";
+        }
+        
+        std::cerr << "[DEBUG] Metrics summary: produced=" << produced_count 
+                 << " consumed=" << consumed_count << "\n";
+        EXPECT_GT(produced_count, 0) << "Expected SourceTestNode to produce metrics";
+        EXPECT_GT(consumed_count, 0) << "Expected SinkTestNode to consume metrics";
+    }
 }
 
 /**
