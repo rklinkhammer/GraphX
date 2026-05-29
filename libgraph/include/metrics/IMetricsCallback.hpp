@@ -128,7 +128,7 @@ public:
      * @note noexcept: Implementation must never throw
      * @note Thread-safe: May be called from node's Process() thread
      */
-    virtual void PublishAsync(const app::metrics::MetricsEvent& event) noexcept = 0;
+    virtual bool PublishAsync(const app::metrics::MetricsEvent& event) noexcept = 0;
 };
 
 /**

@@ -50,6 +50,9 @@ static auto metrics_logger = log4cxx::Logger::getLogger("app.policies.MetricsPol
  * @see IMetricsCallback, MetricsPolicy, MetricsCapability
  */
 struct MetricsCapabilityCallback : public graph::IMetricsCallback {
+    MetricsCapabilityCallback() = default;
+    ~MetricsCapabilityCallback() = default;
+    
     /**
      * @brief Publish a metrics event asynchronously (thread-safe)
      *
@@ -58,15 +61,16 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
      *
      * @param event The metrics event to publish
      */
-    void PublishAsync(const app::metrics::MetricsEvent& event) noexcept override {
+    bool PublishAsync(const app::metrics::MetricsEvent& event) noexcept override {
         std::lock_guard<std::mutex> lock(publish_mutex_);
         if (on_publish_async_) {
-            on_publish_async_(event);
+            return on_publish_async_(event);
         }
+        return false;
     }
     
     /// @brief Callback function for publishing metrics events
-    std::function<void(const app::metrics::MetricsEvent&)> on_publish_async_;
+    std::function<bool(const app::metrics::MetricsEvent&)> on_publish_async_;
     
     /// @brief Mutex for thread-safe concurrent PublishAsync calls
     mutable std::mutex publish_mutex_;

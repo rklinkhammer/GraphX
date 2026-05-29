@@ -320,6 +320,7 @@ namespace test {
          */
         bool Consume(const ::graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
             // Phase 5.5g: Track timing
+            bool ret = true;
             auto now = std::chrono::steady_clock::now();
             if (first_message_time_ == std::chrono::steady_clock::time_point{}) {
                 first_message_time_ = now;
@@ -333,17 +334,16 @@ namespace test {
             std::cout << "SinkTestNode consumed message: " <<  std::endl;
             
             // Phase 2: Publish metrics event if callback is installed
-            // NOTE: Metrics disabled due to heap-use-after-free in dual-sink scenarios
-            // Root cause: Edge threads try to access metrics_callback_ after it's freed by MetricsPolicy
-            // TODO: Fix framework to use shared_ptr for callbacks or ensure they outlive all edge threads
-            if (metrics_callback_ && false) {  // Disabled: callback lifetime issue
+            // Protected by mutex: input edge thread calls this method
+            // Lifetime fix: MetricsPolicy keeps callback alive in shared_ptr map until OnJoin()
+            if (metrics_callback_) {
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();
                 event.source = "SinkTestNode";
                 event.event_type = "message_consumed";
                 event.data["consumed_count"] = std::to_string(message_count_);
-                metrics_callback_->PublishAsync(event);
+                ret = metrics_callback_->PublishAsync(event);
             }
       
             // Signal completion when expected message count reached
@@ -354,7 +354,7 @@ namespace test {
                 SignalCompletion();
             }
             
-            return true;
+            return ret;
         }
 
         /**
