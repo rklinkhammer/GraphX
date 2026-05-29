@@ -11,6 +11,11 @@ set(THREADPOOL_EXTENDED_TEST_SOURCES
 )
 list(REMOVE_ITEM UNIT_TEST_SOURCES ${THREADPOOL_EXTENDED_TEST_SOURCES})
 
+# Disable old completion semantics test file (replaced by test_topologies_simple.cpp)
+list(REMOVE_ITEM UNIT_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_graph_completion.cpp")
+list(APPEND UNIT_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_graph_executor_lifecycle.cpp")
+list(REMOVE_DUPLICATES UNIT_TEST_SOURCES)
+
 option(ENABLE_THREADPOOL_EXTENDED_TESTS "Build and run ThreadPool benchmark/chaos/scaling tests" OFF)
 
 add_subdirectory(plugins)

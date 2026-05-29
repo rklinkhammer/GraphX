@@ -23,6 +23,7 @@
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <mutex>
 #include <log4cxx/logger.h>
 #include "core/ActiveQueue.hpp"
 #include "metrics/MetricsEvent.hpp"
@@ -44,18 +45,21 @@ static auto metrics_logger = log4cxx::Logger::getLogger("app.policies.MetricsPol
  * Implements IMetricsCallback interface and bridges metrics events from graph
  * nodes to the MetricsCapability via PublishAsync().
  *
+ * Provides thread-safe publishing for concurrent metrics events from multiple nodes.
+ *
  * @see IMetricsCallback, MetricsPolicy, MetricsCapability
  */
 struct MetricsCapabilityCallback : public graph::IMetricsCallback {
     /**
-     * @brief Publish a metrics event asynchronously
+     * @brief Publish a metrics event asynchronously (thread-safe)
      *
-     * Forwards the event to the registered on_publish_async_ handler,
-     * which routes it to MetricsCapability for subscriber notification.
+     * Forwards the event to the registered on_publish_async_ handler with
+     * mutex protection for concurrent calls from multiple nodes.
      *
      * @param event The metrics event to publish
      */
-    void PublishAsync(const app::metrics::MetricsEvent& event) noexcept override{
+    void PublishAsync(const app::metrics::MetricsEvent& event) noexcept override {
+        std::lock_guard<std::mutex> lock(publish_mutex_);
         if (on_publish_async_) {
             on_publish_async_(event);
         }
@@ -63,6 +67,9 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
     
     /// @brief Callback function for publishing metrics events
     std::function<void(const app::metrics::MetricsEvent&)> on_publish_async_;
+    
+    /// @brief Mutex for thread-safe concurrent PublishAsync calls
+    mutable std::mutex publish_mutex_;
 };
 
 
@@ -161,26 +168,23 @@ public:
     {
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnStart()");
         bool ret = true;
-        auto fn = [this, &context]()
+        
+        // CRITICAL FIX: Don't capture context by reference (it's a stack parameter)
+        // Instead, we rely on metrics_event_queue_.Dequeue() blocking behavior
+        // The queue will return false when Disable() is called, exiting the loop
+        auto fn = [this]()
         {
-            while (!context.IsStopped())
+            app::metrics::MetricsEvent event;
+            while (metrics_event_queue_.Dequeue(event))
             {
-                app::metrics::MetricsEvent event;
-                if (metrics_event_queue_.Dequeue(event))
+                LOG4CXX_TRACE(metrics_logger, "MetricsPolicy: Publishing metrics event from Node '" 
+                    << event.source << "' "
+                    << "of type '" << event.event_type << "' with " << event.data.size() << " fields:");
+                for (const auto &[field, value] : event.data)
                 {
-                    LOG4CXX_TRACE(metrics_logger, "MetricsPolicy: Publishing metrics event from Node '" 
-                        << event.source << "' "
-                        << "of type '" << event.event_type << "' with " << event.data.size() << " fields:");
-                    for (const auto &[field, value] : event.data)
-                    {
-                        LOG4CXX_TRACE(metrics_logger, "  Field: " << field << " = " << value);
-                    }
-                    metrics_capability_->InvokeSubscribers(event);
+                    LOG4CXX_TRACE(metrics_logger, "  Field: " << field << " = " << value);
                 }
-                else
-                {
-                    context.SetStopped();
-                }
+                metrics_capability_->InvokeSubscribers(event);
             }
         };
         metrics_thread_ = std::thread(fn);
@@ -198,6 +202,21 @@ public:
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy OnJoin called");
         if (metrics_thread_.joinable()) {
             metrics_thread_.join();
+        }
+        
+        // CRITICAL: Drain any remaining events from queue after thread exits
+        // This ensures no metrics are lost when Disable() is called
+        LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnJoin() - draining remaining metrics events");
+        app::metrics::MetricsEvent event;
+        size_t drained_count = 0;
+        while (metrics_event_queue_.DequeueNonBlocking(event)) {
+            LOG4CXX_TRACE(metrics_logger, "MetricsPolicy: Draining metrics event from Node '" 
+                << event.source << "' of type '" << event.event_type << "'");
+            metrics_capability_->InvokeSubscribers(event);
+            ++drained_count;
+        }
+        if (drained_count > 0) {
+            LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnJoin() - drained " << drained_count << " remaining events");
         }
     }   
 

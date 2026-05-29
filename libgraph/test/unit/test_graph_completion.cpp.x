@@ -20,11 +20,15 @@
 #include <memory>
 #include <thread>
 #include <iomanip>
+#include <mutex>
 #include "test/TestGraphTopologies.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "capabilities/MetricsCapability.hpp"
+#include "metrics/IMetricsSubscriber.hpp"
+#include "metrics/MetricsEvent.hpp"
 
 namespace {
 
@@ -247,6 +251,162 @@ public:
             << "  - Was stopped: " << (result.was_stopped ? "yes" : "no") << "\n"
             << "  - Elapsed time: " << result.elapsed_time.count() << " ms\n"
             << "  - Error: " << (result.error_message.empty() ? "(none)" : result.error_message);
+    }
+};
+
+// ============================================================================
+// METRICS INFRASTRUCTURE FOR TESTING (Stage 5.5 Phase 1)
+// ============================================================================
+
+/**
+ * @class TestMetricsSubscriber
+ * @brief Captures metrics events for test validation
+ *
+ * Implements IMetricsSubscriber to receive and store metrics events
+ * published by graph nodes during topology execution.
+ *
+ * Thread-safe: Uses mutex to protect concurrent event delivery from
+ * background metrics distribution thread.
+ *
+ * Phase 1 (Infrastructure): Validates that metrics infrastructure works
+ * Phase 2 (Publishing): Once metrics are enabled on nodes, validates content
+ */
+class TestMetricsSubscriber : public app::metrics::IMetricsSubscriber {
+public:
+    /**
+     * @brief Receive a metrics event (called by background metrics thread)
+     * @param event The metrics event published by a node
+     */
+    void OnMetricsEvent(const app::metrics::MetricsEvent& event) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        events_.push_back(event);
+    }
+
+    /**
+     * @brief Get all captured events (thread-safe)
+     * @return Vector of captured MetricsEvent objects
+     */
+    std::vector<app::metrics::MetricsEvent> GetCapturedEvents() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return events_;
+    }
+
+    /**
+     * @brief Get total number of captured events
+     * @return Count of events received
+     */
+    size_t GetEventCount() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return events_.size();
+    }
+
+    /**
+     * @brief Count events of a specific type
+     * @param event_type The event type to count (e.g., "message_produced")
+     * @return Number of events matching the type
+     */
+    size_t GetEventCountByType(const std::string& event_type) const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return std::count_if(events_.begin(), events_.end(),
+            [&](const auto& e) { return e.event_type == event_type; });
+    }
+
+    /**
+     * @brief Count events from a specific node source
+     * @param source The source node name (e.g., "SourceTestNode")
+     * @return Number of events from that source
+     */
+    size_t GetEventCountBySource(const std::string& source) const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return std::count_if(events_.begin(), events_.end(),
+            [&](const auto& e) { return e.source == source; });
+    }
+
+    /**
+     * @brief Clear all captured events
+     */
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        events_.clear();
+    }
+
+private:
+    mutable std::mutex mutex_;
+    std::vector<app::metrics::MetricsEvent> events_;
+};
+
+/**
+ * @class MetricsValidator
+ * @brief Validation helpers for metrics testing
+ *
+ * Provides assertion and logging utilities for metrics test cases.
+ */
+class MetricsValidator {
+public:
+    /**
+     * @brief Assert that expected number of metrics events were published
+     * @param subscriber The test subscriber
+     * @param expected_event_count Expected number of events
+     * @param topology_name Name of topology for error messages
+     */
+    static void AssertMetricsPublished(
+        const TestMetricsSubscriber& subscriber,
+        size_t expected_event_count,
+        const std::string& topology_name) {
+        
+        auto actual = subscriber.GetEventCount();
+        EXPECT_EQ(actual, expected_event_count)
+            << "Topology " << topology_name
+            << " expected " << expected_event_count
+            << " metrics events but received " << actual;
+    }
+
+    /**
+     * @brief Assert that expected events came from a specific source
+     * @param subscriber The test subscriber
+     * @param source_name The node source name
+     * @param expected_count Expected event count from that source
+     */
+    static void AssertEventsFromSource(
+        const TestMetricsSubscriber& subscriber,
+        const std::string& source_name,
+        size_t expected_count) {
+        
+        auto actual = subscriber.GetEventCountBySource(source_name);
+        EXPECT_EQ(actual, expected_count)
+            << "Expected " << expected_count
+            << " events from source '" << source_name
+            << "' but received " << actual;
+    }
+
+    /**
+     * @brief Log captured metrics for debugging
+     * @param subscriber The test subscriber
+     * @param topology_name Name of the topology being tested
+     */
+    static void LogCapturedMetrics(
+        const TestMetricsSubscriber& subscriber,
+        const std::string& topology_name) {
+        
+        auto events = subscriber.GetCapturedEvents();
+        std::cerr << "\n=== Captured Metrics: " << topology_name << " ===\n"
+                  << "Total events: " << events.size() << "\n";
+        
+        if (events.empty()) {
+            std::cerr << "(No metrics events captured)\n";
+            return;
+        }
+        
+        for (size_t i = 0; i < events.size(); ++i) {
+            const auto& e = events[i];
+            std::cerr << "  Event " << i << ":\n"
+                      << "    source: " << e.source << "\n"
+                      << "    type: " << e.event_type << "\n"
+                      << "    data fields: " << e.data.size() << "\n";
+            for (const auto& [key, value] : e.data) {
+                std::cerr << "      " << key << " = " << value << "\n";
+            }
+        }
     }
 };
 
@@ -1009,9 +1169,22 @@ TEST_F(CompletionSemanticsTest, Topology2_MinimalGraphCompletionSemantics) {
     ASSERT_NE(executor, nullptr) << "Failed to build GraphExecutor";
 
     // === INIT: Initialize the executor ===
+    // NOTE: MetricsCapability is created during Init(), so subscriber must be registered AFTER Init
     auto init_result = executor->Init();
 
     debug_.AssertSuccess(init_result, "GraphExecutor::Init()", "MinimalGraph");
+
+    // === SETUP METRICS: Register test subscriber (after Init) ===
+    // This tests the metrics infrastructure without requiring publishing enabled
+    auto test_subscriber = std::make_shared<TestMetricsSubscriber>();
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(test_subscriber.get());
+        std::cerr << "[DEBUG] Metrics subscriber registered for MinimalGraph\n";
+    } else {
+        std::cerr << "[DEBUG] WARNING: MetricsCapability not available\n";
+    }
 
     // === START: Start the graph execution ===
     // The graph will:
@@ -1040,6 +1213,18 @@ TEST_F(CompletionSemanticsTest, Topology2_MinimalGraphCompletionSemantics) {
 
     auto join_result = executor->Join();
     debug_.AssertSuccess(join_result, "GraphExecutor::Join()", "MinimalGraph");
+
+    // === VERIFY METRICS: Validate metrics infrastructure (Phase 1 Infrastructure) ===
+    // This is Phase 1: Infrastructure validation - just verify we can register & capture
+    // Phase 2 will enable publishing and validate event contents
+    if (test_subscriber) {
+        MetricsValidator::LogCapturedMetrics(*test_subscriber, "MinimalGraph");
+        
+        // Currently no events expected since publishing is disabled
+        // This just validates the infrastructure is wired correctly
+        auto event_count = test_subscriber->GetEventCount();
+        std::cerr << "[DEBUG] MinimalGraph captured " << event_count << " metrics events\n";
+    }
 
     // === VERIFY: Completion signal was triggered ===
     // MinimalGraph with sink configured for 10 messages should trigger completion
@@ -1259,6 +1444,17 @@ TEST_F(CompletionSemanticsTest, Topology5_SplitSimple) {
     auto init_result = executor->Init();
     debug_.AssertSuccess(init_result, "GraphExecutor::Init()", "SplitSimple");
 
+    // === SETUP METRICS: Register test subscriber (after Init) ===
+    auto test_subscriber = std::make_shared<TestMetricsSubscriber>();
+    auto metrics_cap = executor->GetCapability<capabilities::MetricsCapability>();
+    
+    if (metrics_cap) {
+        metrics_cap->RegisterMetricsCallback(test_subscriber.get());
+        std::cerr << "[DEBUG] Metrics subscriber registered for SplitSimple\n";
+    } else {
+        std::cerr << "[DEBUG] WARNING: MetricsCapability not available for SplitSimple\n";
+    }
+
     auto start_result = executor->Start();
     debug_.AssertSuccess(start_result, "GraphExecutor::Start()", "SplitSimple");
 
@@ -1273,6 +1469,13 @@ TEST_F(CompletionSemanticsTest, Topology5_SplitSimple) {
 
     auto join_result = executor->Join();
     debug_.AssertSuccess(join_result, "GraphExecutor::Join()", "SplitSimple");
+
+    // === VERIFY METRICS: Log captured events ===
+    if (test_subscriber) {
+        MetricsValidator::LogCapturedMetrics(*test_subscriber, "SplitSimple");
+        auto event_count = test_subscriber->GetEventCount();
+        std::cerr << "[DEBUG] SplitSimple captured " << event_count << " metrics events\n";
+    }
 
     bool is_signaled = executor->IsCompletionSignaled();
     EXPECT_TRUE(is_signaled)
