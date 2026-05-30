@@ -23,6 +23,7 @@
 #include "metrics/MetricsEvent.hpp"
 #include "metrics/NodeMetricsSchema.hpp"
 #include "metrics/IMetricsSubscriber.hpp"
+#include "test/TestMetricsSubscriber.hpp"
 #include <log4cxx/logger.h>
 
 namespace test {
@@ -41,26 +42,6 @@ namespace test {
     inline constexpr char g_split_input[] = "In";
     inline constexpr char g_split_output0[] = "Out0";
     inline constexpr char g_split_output1[] = "Out1";
-    class TestMetricsSubscriber : public app::metrics::IMetricsSubscriber {
-    public:
-        /**
-         * @brief Receive a metrics event (called by background metrics thread)
-         * @param event The metrics event published by a node
-         */
-        void OnMetricsEvent(const app::metrics::MetricsEvent& event) override {
-            std::lock_guard<std::mutex> lock(mutex_);
-            events_.push_back(event);
-        }
-
-        std::vector<app::metrics::MetricsEvent> GetEvents() const {
-            std::lock_guard<std::mutex> lock(mutex_);
-            return events_;
-        }
-
-    private:
-        mutable std::mutex mutex_;
-        std::vector<app::metrics::MetricsEvent> events_;
-    };
 
     enum class TestNodeEvent {
         None = 0,

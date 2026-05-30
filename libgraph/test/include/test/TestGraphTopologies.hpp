@@ -54,7 +54,11 @@ enum class TopologyType {
     ParallelMergeWithInterior = 6,  ///< Source + Source + Interior -> Merge -> Sink
     ComplexNetwork = 7,        ///< Complex interleaved merge/split operations
     MinimalGraph = 8,          ///< Source -> Sink (baseline)
-    SourceOnly = 9             ///< Single source node (edge case)
+    SourceOnly = 9,            ///< Single source node (edge case)
+    MinimalIntProducer = 10,                ///< TestIntProducer -> TestIntSinkNode + CompletionNode
+    LinearSequentialIntProducer = 11,       ///< TestIntProducer -> TestIntSinkNode with completion
+    MinimalDoubleProducer = 12,             ///< TestDoubleProducer -> TestDoubleSinkNode + CompletionNode
+    LinearSequentialDoubleProducer = 13     ///< TestDoubleProducer -> TestDoubleSinkNode with completion
 };
 
 // ============================================================================
@@ -102,6 +106,12 @@ private:
     static std::shared_ptr<graph::GraphManager> BuildComplexNetwork();
     static std::shared_ptr<graph::GraphManager> BuildMinimalGraph();
     static std::shared_ptr<graph::GraphManager> BuildSourceOnly();
+    
+    // Producer topology builders
+    static std::shared_ptr<graph::GraphManager> BuildMinimalIntProducer();
+    static std::shared_ptr<graph::GraphManager> BuildLinearSequentialIntProducer();
+    static std::shared_ptr<graph::GraphManager> BuildMinimalDoubleProducer();
+    static std::shared_ptr<graph::GraphManager> BuildLinearSequentialDoubleProducer();
 };
 
 // ============================================================================

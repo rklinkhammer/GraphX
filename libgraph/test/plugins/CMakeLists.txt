@@ -50,3 +50,34 @@ add_graphx_plugin(
     SOURCE_FILE split_test_node_plugin.cpp 
     DESCRIPTION "split test node for multi-output testing"
 )
+
+# Producer Test Nodes - Producer-based topology plugins
+add_graphx_plugin(
+    TARGET_NAME int_producer
+    SOURCE_FILE int_producer_plugin.cpp 
+    DESCRIPTION "integer producer test node"
+)
+
+add_graphx_plugin(
+    TARGET_NAME double_producer
+    SOURCE_FILE double_producer_plugin.cpp 
+    DESCRIPTION "double producer test node"
+)
+
+add_graphx_plugin(
+    TARGET_NAME int_sink
+    SOURCE_FILE int_sink_plugin.cpp 
+    DESCRIPTION "integer sink test node"
+)
+
+add_graphx_plugin(
+    TARGET_NAME double_sink
+    SOURCE_FILE double_sink_plugin.cpp 
+    DESCRIPTION "double sink test node"
+)
+
+add_graphx_plugin(
+    TARGET_NAME completion_node
+    SOURCE_FILE completion_node_plugin.cpp 
+    DESCRIPTION "completion signal sink node"
+)

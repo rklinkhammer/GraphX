@@ -13,75 +13,17 @@
  */
 
 #include "test/TestGraphTopologies.hpp"
-#include "graph/GraphManager.hpp"
-#include "graph/NodeFactory.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
-#include "plugins/PluginRegistry.hpp"
-#include "plugins/PluginLoader.hpp"
+#include "test/PluginInfrastructure.hpp"
 #include "test/AdvancedTestNodes.hpp"
+#include "test/ProducerTestNodes.hpp"
+#include "graph/GraphManager.hpp"
 #include <stdexcept>
 #include <memory>
 #include <vector>
 #include <string>
 #include <log4cxx/logger.h>
 
-// Ensure PLUGIN_OUTPUT_DIRECTORY is defined
-#ifndef PLUGIN_OUTPUT_DIRECTORY
-#define PLUGIN_OUTPUT_DIRECTORY "./plugins"
-#endif
-
 namespace test {
-
-// ============================================================================
-// Plugin Infrastructure Helper
-// ============================================================================
-
-class PluginInfrastructure {
-public:
-    static std::shared_ptr<graph::NodeFactory> GetFactory() {
-        static auto* factory = new std::shared_ptr<graph::NodeFactory>();
-        static auto* loader = new std::shared_ptr<graph::PluginLoader>();
-        static bool initialized = false;
-        
-        if (!initialized) {
-            auto registry = std::make_shared<graph::PluginRegistry>();
-            // Load plugins from build directory
-            *loader = std::make_shared<graph::PluginLoader>(PLUGIN_OUTPUT_DIRECTORY, registry);
-            
-            try {
-                (*loader)->LoadAllPlugins();
-            } catch (...) {
-                // Plugins may not be available in test environment
-            }
-            
-            *factory = std::make_shared<graph::NodeFactory>(registry);
-            (*factory)->SetPluginLoader(*loader);
-            initialized = true;
-        }
-        
-        return *factory;
-    }
-
-    template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t DstPort>
-    static bool AddEdge(std::shared_ptr<graph::GraphManager> g,
-                        std::shared_ptr<graph::NodeFacadeAdapterWrapper> src_wrapper,
-                        std::shared_ptr<graph::NodeFacadeAdapterWrapper> dst_wrapper,
-                        size_t buffer_size = 10)
-    {
-        auto src = src_wrapper->GetNode<SrcNode>();
-        auto dst = dst_wrapper->GetNode<DstNode>();
-        if (!src)
-        {
-            return false;
-        }
-        if (!dst)
-        {
-            return false;
-        }
-        g->AddEdge<SrcNode, SrcPort, DstNode, DstPort>(src, dst, buffer_size);
-        return true;
-    }
-};
 
 // // Helper to convert NodeFacadeAdapter to INode for use with templated AddEd
 // ============================================================================
@@ -690,6 +632,186 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
 }
 
 // ============================================================================
+// Producer Topologies (Plugin-based)
+// ============================================================================
+
+std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() {
+    /**
+     * Graph Structure:
+     *
+     *   ┌─────────────────────────────────────┐
+     *   │   Minimal Int Producer Topology     │
+     *   └─────────────────────────────────────┘
+     *
+     *   [TestIntProducer]
+     *       ├─ Port 0 (Message<int>) ──→ [TestIntSinkNode]
+     *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
+     *
+     * Data Flow:
+     *   Producer generates Message(int) on Port 0 → Sink receives and unpacks int
+     *   Producer emits CompletionSignal on Port 1 → CompletionNode records completion
+     *
+     * Purpose:
+     *   Validates two-port producer architecture with dynamic plugins
+     *   Tests Message encapsulation and unpacking for int type
+     *   Validates completion signal delivery
+     */
+    auto graph = std::make_shared<graph::GraphManager>();
+    auto factory = PluginInfrastructure::GetFactory();
+    
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    
+    auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+    auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
+    
+    graph->AddNode(producer_wrapper);
+    graph->AddNode(sink_wrapper);
+    graph->AddNode(completion_wrapper);
+    
+    // Port 0: Message(int) → Sink
+    PluginInfrastructure::AddEdge<TestIntProducer, 0, TestIntSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    
+    // Port 1: CompletionSignal → CompletionNode
+    PluginInfrastructure::AddEdge<TestIntProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
+    
+    return graph;
+}
+
+std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntProducer() {
+    /**
+     * Graph Structure:
+     *
+     *   ┌─────────────────────────────────────────┐
+     *   │ Linear Sequential Int Producer Topology │
+     *   └─────────────────────────────────────────┘
+     *
+     *   [TestIntProducer]
+     *       ├─ Port 0 (Message<int>) ──→ [TestIntSinkNode]
+     *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
+     *
+     * Data Flow:
+     *   Same as MinimalIntProducer - demonstrates consistent producer pattern
+     *
+     * Purpose:
+     *   Validates extensible producer topology pattern
+     *   Base pattern for more complex multi-producer topologies
+     */
+    auto graph = std::make_shared<graph::GraphManager>();
+    auto factory = PluginInfrastructure::GetFactory();
+    
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    
+    auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+    auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
+    
+    graph->AddNode(producer_wrapper);
+    graph->AddNode(sink_wrapper);
+    graph->AddNode(completion_wrapper);
+    
+    // Port 0: Message(int) → Sink
+    PluginInfrastructure::AddEdge<TestIntProducer, 0, TestIntSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    
+    // Port 1: CompletionSignal → CompletionNode
+    PluginInfrastructure::AddEdge<TestIntProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
+    
+    return graph;
+}
+
+std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer() {
+    /**
+     * Graph Structure:
+     *
+     *   ┌────────────────────────────────────┐
+     *   │ Minimal Double Producer Topology   │
+     *   └────────────────────────────────────┘
+     *
+     *   [TestDoubleProducer]
+     *       ├─ Port 0 (Message<double>) ──→ [TestDoubleSinkNode]
+     *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
+     *
+     * Data Flow:
+     *   Producer generates Message(double) on Port 0 → Sink receives and unpacks double
+     *   Producer emits CompletionSignal on Port 1 → CompletionNode records completion
+     *
+     * Purpose:
+     *   Validates two-port producer architecture with double type
+     *   Tests Message encapsulation and unpacking for double type
+     *   Validates completion signal delivery
+     */
+    auto graph = std::make_shared<graph::GraphManager>();
+    auto factory = PluginInfrastructure::GetFactory();
+    
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    
+    auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+    auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
+    
+    graph->AddNode(producer_wrapper);
+    graph->AddNode(sink_wrapper);
+    graph->AddNode(completion_wrapper);
+    
+    // Port 0: Message(double) → Sink
+    PluginInfrastructure::AddEdge<TestDoubleProducer, 0, TestDoubleSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    
+    // Port 1: CompletionSignal → CompletionNode
+    PluginInfrastructure::AddEdge<TestDoubleProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
+    
+    return graph;
+}
+
+std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubleProducer() {
+    /**
+     * Graph Structure:
+     *
+     *   ┌──────────────────────────────────────────┐
+     *   │Linear Sequential Double Producer Topology│
+     *   └──────────────────────────────────────────┘
+     *
+     *   [TestDoubleProducer]
+     *       ├─ Port 0 (Message<double>) ──→ [TestDoubleSinkNode]
+     *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
+     *
+     * Data Flow:
+     *   Same as MinimalDoubleProducer - demonstrates consistent producer pattern
+     *
+     * Purpose:
+     *   Validates extensible producer topology pattern for double type
+     *   Base pattern for more complex multi-producer topologies
+     */
+    auto graph = std::make_shared<graph::GraphManager>();
+    auto factory = PluginInfrastructure::GetFactory();
+    
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    
+    auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+    auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
+    
+    graph->AddNode(producer_wrapper);
+    graph->AddNode(sink_wrapper);
+    graph->AddNode(completion_wrapper);
+    
+    // Port 0: Message(double) → Sink
+    PluginInfrastructure::AddEdge<TestDoubleProducer, 0, TestDoubleSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    
+    // Port 1: CompletionSignal → CompletionNode
+    PluginInfrastructure::AddEdge<TestDoubleProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
+    
+    return graph;
+}
+
+// ============================================================================
 // Topology Factory
 // ============================================================================
 
@@ -715,6 +837,14 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildTopology(TopologyType
             return BuildMinimalGraph();
         case TopologyType::SourceOnly:
             return BuildSourceOnly();
+        case TopologyType::MinimalIntProducer:
+            return BuildMinimalIntProducer();
+        case TopologyType::LinearSequentialIntProducer:
+            return BuildLinearSequentialIntProducer();
+        case TopologyType::MinimalDoubleProducer:
+            return BuildMinimalDoubleProducer();
+        case TopologyType::LinearSequentialDoubleProducer:
+            return BuildLinearSequentialDoubleProducer();
         default:
             throw std::invalid_argument("Unknown topology type");
     }
@@ -796,6 +926,34 @@ TopologyMetadata TopologyBuilder::GetTopologyMetadata(TopologyType type) {
                 1, 0,
                 {"source"}
             };
+        case TopologyType::MinimalIntProducer:
+            return {
+                "MinimalIntProducer",
+                "TestIntProducer with Message data to TestIntSinkNode and CompletionNode",
+                3, 2,
+                {"int_producer", "int_sink", "completion_node"}
+            };
+        case TopologyType::LinearSequentialIntProducer:
+            return {
+                "LinearSequentialIntProducer",
+                "TestIntProducer to TestIntSinkNode with completion signal routing",
+                3, 2,
+                {"int_producer", "int_sink", "completion_node"}
+            };
+        case TopologyType::MinimalDoubleProducer:
+            return {
+                "MinimalDoubleProducer",
+                "TestDoubleProducer with Message data to TestDoubleSinkNode and CompletionNode",
+                3, 2,
+                {"double_producer", "double_sink", "completion_node"}
+            };
+        case TopologyType::LinearSequentialDoubleProducer:
+            return {
+                "LinearSequentialDoubleProducer",
+                "TestDoubleProducer to TestDoubleSinkNode with completion signal routing",
+                3, 2,
+                {"double_producer", "double_sink", "completion_node"}
+            };
         default:
             throw std::invalid_argument("Unknown topology type");
     }
@@ -812,7 +970,11 @@ std::vector<TopologyType> TopologyBuilder::GetAllTopologyTypes() {
         TopologyType::ParallelMergeWithInterior,
         TopologyType::ComplexNetwork,
         TopologyType::MinimalGraph,
-        TopologyType::SourceOnly
+        TopologyType::SourceOnly,
+        TopologyType::MinimalIntProducer,
+        TopologyType::LinearSequentialIntProducer,
+        TopologyType::MinimalDoubleProducer,
+        TopologyType::LinearSequentialDoubleProducer
     };
 }
 
@@ -842,6 +1004,14 @@ std::string GetTopologyDiagram(TopologyType type) {
             return "[Source] → [Sink]";
         case TopologyType::SourceOnly:
             return "[Source]";
+        case TopologyType::MinimalIntProducer:
+            return "[IntProducer] ┬→ [IntSink]\n            └→ [CompletionNode]";
+        case TopologyType::LinearSequentialIntProducer:
+            return "[IntProducer] ┬→ [IntSink]\n            └→ [CompletionNode]";
+        case TopologyType::MinimalDoubleProducer:
+            return "[DoubleProducer] ┬→ [DoubleSink]\n               └→ [CompletionNode]";
+        case TopologyType::LinearSequentialDoubleProducer:
+            return "[DoubleProducer] ┬→ [DoubleSink]\n               └→ [CompletionNode]";
         default:
             return "Unknown topology";
     }

@@ -42,6 +42,7 @@
 #include "graph/Message.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "graph/ICompletionCallback.hpp"
+#include "test/ProducerTestNodes.hpp"
 #include <chrono>
 #include <memory>
 #include <iostream>
@@ -52,184 +53,11 @@
 #include <thread>
 
 using namespace graph;
-
-enum class NodeClassification {
-        Unclassified = 0,
-        IntProducer = 1,
-        IntSink = 2,
-        CompletionSink = 3
-};
+using namespace test;
 
 // ============================================================================
-// Test Generator Implementation
+// Test Graph Topology Building
 // ============================================================================
-
-class SimpleIntGenerator : public DataGeneratorBase<int> {
-private:
-    int counter_;
-    int max_count_;
-    
-public:
-    explicit SimpleIntGenerator(int max) : counter_(0), max_count_(max) {}
-    
-    std::optional<int> Produce(size_t) override {
-        if (counter_ >= max_count_) {
-            return std::nullopt;
-        }
-        return counter_++;
-    }
-    
-    bool IsExhausted() const override {
-        return counter_ >= max_count_;
-    }
-    
-    std::chrono::nanoseconds GetLastTimestamp() const override {
-        return std::chrono::nanoseconds{0};
-    }
-};
-
-// ============================================================================
-// Test Producer Node Implementation
-// ============================================================================
-
-class TestIntProducer : public DataProducerWithNotification<
-    TestIntProducer,
-    SimpleIntGenerator,
-    int,
-    int,
-    message::CompletionSignal, 
-    NodeClassification, 
-    NodeClassification::IntProducer> {
-public:
-    TestIntProducer()
-        : DataProducerWithNotification(
-            std::make_unique<SimpleIntGenerator>(5),
-            std::chrono::microseconds(100),
-            1)  // Skip first sample
-    {
-        SetName("TestIntProducer");
-    }
-    
-    virtual ~TestIntProducer() = default;
-    
-    // Virtual method implementations
-    message::CompletionSignal CreateNotification() const noexcept override {
-        return message::CompletionSignal();
-    }
-    
-    void OnDataProduced(const int&) noexcept override {
-        // Hook for metrics/logging (optional)
-    }
-    
-    void OnDataExhausted() noexcept override {
-        // Hook for cleanup (optional)
-    }
-};
-
-class TestIntSinkNode
-    : public graph::NamedSinkNode<
-        TestIntSinkNode,
-        int> {
-public:
-    TestIntSinkNode() = default;
-    virtual ~TestIntSinkNode() = default;
-
-    bool Consume(const int& value, std::integral_constant<std::size_t, 0>) override {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        received_values_.push_back(value);
-        last_message_time_ = std::chrono::steady_clock::now();
-        if (first_message_time_ == std::chrono::steady_clock::time_point{}) {
-            first_message_time_ = last_message_time_;
-        }
-        return true;  // Return true to keep consuming
-    }
-    
-    // Test helpers
-    std::vector<int> GetReceivedValues() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return received_values_;
-    }
-    
-    size_t GetReceivedCount() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return received_values_.size();
-    }
-    
-    std::chrono::steady_clock::time_point GetFirstMessageTime() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return first_message_time_;
-    }
-    
-    std::chrono::steady_clock::time_point GetLastMessageTime() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return last_message_time_;
-    }
-    
-    bool HasDataLoss() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        // Check for gaps in sequence (expecting [1,2,3,4])
-        for (size_t i = 1; i < received_values_.size(); ++i) {
-            if (received_values_[i] != received_values_[i-1] + 1) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    bool HasDuplicates() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        std::set<int> unique_values(received_values_.begin(), received_values_.end());
-        return unique_values.size() != received_values_.size();
-    }
-
-private:
-    mutable std::mutex state_mutex_;
-    std::vector<int> received_values_;
-    std::chrono::steady_clock::time_point first_message_time_;
-    std::chrono::steady_clock::time_point last_message_time_;
-};
-
-// ============================================================================
-
-class CompletionNode : public NamedSinkNode<
-    CompletionNode,
-    graph::message::CompletionSignal>,
-    public graph::CompletionCallbackProvider {
-public:
-    CompletionNode() = default;
-    ~CompletionNode() override = default;
-
-    bool Consume(const graph::message::CompletionSignal& msg, 
-                std::integral_constant<std::size_t, 0>) override {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        completion_signals_[signal_count_] = msg;
-        signal_count_++;
-        signal_time_ = std::chrono::steady_clock::now();
-        return false;  // Return false to stop consuming after first signal
-    }
-    
-    // Test helpers
-    size_t GetSignalCount() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return signal_count_;
-    }
-    
-    bool HasReceivedCompletion() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return signal_count_ > 0;
-    }
-    
-    std::chrono::steady_clock::time_point GetSignalTime() const {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        return signal_time_;
-    }
-        
-private:
-    mutable std::mutex state_mutex_;
-    std::map<size_t, graph::message::CompletionSignal> completion_signals_;
-    size_t signal_count_{0};
-    std::chrono::steady_clock::time_point signal_time_;
-};
 
 
 void build_graph() {
@@ -723,80 +551,7 @@ TEST_F(TestGraph1, Phase2_ICompletion_CallbackProvider) {
 // PHASE 3 INTEGRATION TESTS: Shutdown, Error Handling, Resource Cleanup
 // ============================================================================
 
-/**
- * FailingProducerNode for error injection testing
- * Can be configured to fail at a specific iteration
- */
-class FailingProducerNode : public DataProducerWithNotification<
-    FailingProducerNode,
-    SimpleIntGenerator,
-    int,
-    int,
-    message::CompletionSignal,
-    NodeClassification, 
-    NodeClassification::IntProducer> {
-public:
-    enum class FailureMode {
-        NoFailure,
-        ThrowException,
-        ReturnInvalidData,
-        ProduceOutOfOrder
-    };
-    
-    FailingProducerNode(FailureMode mode = FailureMode::NoFailure, int fail_at_iteration = 2)
-        : DataProducerWithNotification(
-            std::make_unique<SimpleIntGenerator>(5),
-            std::chrono::microseconds(100),
-            1),
-          failure_mode_(mode),
-          fail_at_iteration_(fail_at_iteration),
-          iteration_count_(0)
-    {
-        SetName("FailingProducerNode");
-    }
-    
-    virtual ~FailingProducerNode() = default;
-    
-    message::CompletionSignal CreateNotification() const noexcept override {
-        return message::CompletionSignal();
-    }
-    
-    void OnDataProduced(const int&) noexcept override {
-        iteration_count_++;
-        
-        // Implement failure mode if configured
-        if (failure_mode_ == FailureMode::ThrowException &&
-            iteration_count_ == fail_at_iteration_) {
-            // Note: Would throw in real implementation
-            error_occurred_ = true;
-        }
-    }
-    
-    void OnDataExhausted() noexcept override {}
-    
-    // Test helpers
-    void SetFailureMode(FailureMode mode) {
-        failure_mode_ = mode;
-    }
-    
-    void SetFailAtIteration(int iteration) {
-        fail_at_iteration_ = iteration;
-    }
-    
-    bool HasErrorOccurred() const {
-        return error_occurred_;
-    }
-    
-    int GetIterationCount() const {
-        return iteration_count_;
-    }
-    
-private:
-    FailureMode failure_mode_;
-    int fail_at_iteration_;
-    std::atomic<int> iteration_count_{0};
-    std::atomic<bool> error_occurred_{false};
-};
+// FailingProducerNode is defined in test/ProducerTestNodes.hpp
 
 /**
  * TEST 3.1: Natural Completion
