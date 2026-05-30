@@ -22,6 +22,22 @@ target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
 )
 target_link_libraries(test_libgraph_unit PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+add_dependencies(test_libgraph_unit
+    test_node
+    source_test_node
+    sink_test_node
+    interior_test_node
+    merge_test_node
+    split_test_node
+    int_producer
+    double_producer
+    int_sink
+    double_sink
+    completion_node
+    sine_iq_source
+    fft_power_spectrum
+    analyzer_sink
+)
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 
 if(ENABLE_THREADPOOL_EXTENDED_TESTS)

@@ -4,9 +4,9 @@
  *
  * Tests the producer topology builders with dynamic plugin nodes:
  * - MinimalIntProducer: TestIntProducer → TestIntSinkNode + CompletionNode
- * - LinearSequentialIntProducer: Same pattern with different name
+ * - LinearSequentialIntProducer: TestIntProducer -> InteriorTestNode -> TestIntSinkNode + CompletionNode
  * - MinimalDoubleProducer: TestDoubleProducer → TestDoubleSinkNode + CompletionNode
- * - LinearSequentialDoubleProducer: Same pattern for double type
+ * - LinearSequentialDoubleProducer: TestDoubleProducer -> InteriorTestNode -> TestDoubleSinkNode + CompletionNode
  *
  * Validates:
  * - Two-port producer architecture (Port 0: data, Port 1: completion)
@@ -21,6 +21,9 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <chrono>
+#include <string>
+#include <vector>
+#include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "test/TestGraphTopologies.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
@@ -40,6 +43,144 @@ class ProducerTopologiesTest : public ::testing::Test {
 protected:
     void SetUp() override {}
     void TearDown() override {}
+
+    static void ExecuteSuccessfully(const std::shared_ptr<GraphManager>& graph) {
+        auto executor = GraphExecutorBuilder()
+            .WithGraphManager(graph)
+            .WithExecutorTimeout(std::chrono::seconds(5))
+            .Build();
+        ASSERT_NE(nullptr, executor) << "Failed to build executor";
+
+        auto init_result = executor->Init();
+        ASSERT_TRUE(init_result.success) << "Init failed: " << init_result.message;
+
+        auto start_result = executor->Start();
+        ASSERT_TRUE(start_result.success) << "Start failed: " << start_result.message;
+
+        auto run_result = executor->Run();
+        ASSERT_TRUE(run_result.success) << "Run failed: " << run_result.message;
+        EXPECT_LT(run_result.elapsed_time_ms, 5000u) << "Run reached executor timeout instead of completion signal";
+
+        auto stop_result = executor->Stop();
+        ASSERT_TRUE(stop_result.success) << "Stop failed: " << stop_result.message;
+
+        auto join_result = executor->Join();
+        ASSERT_TRUE(join_result.success) << "Join failed: " << join_result.message;
+    }
+
+    static void ExpectNodeTypes(const std::shared_ptr<GraphManager>& graph, const std::vector<std::string>& types) {
+        auto nodes = graph->GetNodes();
+        ASSERT_EQ(types.size(), nodes.size());
+
+        for (size_t i = 0; i < types.size(); ++i) {
+            auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(nodes[i]);
+            ASSERT_NE(nullptr, wrapper) << "Node " << i << " is not a plugin wrapper";
+            EXPECT_EQ(types[i], wrapper->GetType()) << "Unexpected type for node " << i;
+        }
+    }
+
+    static void ExpectEdge(const std::shared_ptr<GraphManager>& graph,
+                           size_t edge_index,
+                           size_t source_node_id,
+                           size_t source_port_id,
+                           size_t dest_node_id,
+                           size_t dest_port_id) {
+        const auto* edge = graph->GetEdgeMetadata(edge_index);
+        ASSERT_NE(nullptr, edge) << "Missing metadata for edge " << edge_index;
+        EXPECT_EQ(source_node_id, edge->source_node_id) << "Unexpected source node for edge " << edge_index;
+        EXPECT_EQ(source_port_id, edge->source_port_id) << "Unexpected source port for edge " << edge_index;
+        EXPECT_EQ(dest_node_id, edge->dest_node_id) << "Unexpected destination node for edge " << edge_index;
+        EXPECT_EQ(dest_port_id, edge->dest_port_id) << "Unexpected destination port for edge " << edge_index;
+    }
+
+    static std::shared_ptr<TestIntSinkNode> GetIntSink(const std::shared_ptr<GraphManager>& graph,
+                                                       size_t sink_node_index) {
+        auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(graph->GetNodes()[sink_node_index]);
+        if (!wrapper) {
+            return nullptr;
+        }
+        return wrapper->GetNode<TestIntSinkNode>();
+    }
+
+    static std::shared_ptr<TestDoubleSinkNode> GetDoubleSink(const std::shared_ptr<GraphManager>& graph,
+                                                             size_t sink_node_index) {
+        auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(graph->GetNodes()[sink_node_index]);
+        if (!wrapper) {
+            return nullptr;
+        }
+        return wrapper->GetNode<TestDoubleSinkNode>();
+    }
+
+    static std::shared_ptr<CompletionNode> GetCompletionNode(const std::shared_ptr<GraphManager>& graph,
+                                                             size_t completion_node_index) {
+        auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(graph->GetNodes()[completion_node_index]);
+        if (!wrapper) {
+            return nullptr;
+        }
+        return wrapper->GetNode<CompletionNode>();
+    }
+
+    static void ConfigureCompletionGateForIntSink(const std::shared_ptr<GraphManager>& graph,
+                                                  size_t sink_node_index,
+                                                  size_t completion_node_index,
+                                                  size_t expected_data_count) {
+        auto sink = GetIntSink(graph, sink_node_index);
+        ASSERT_NE(nullptr, sink);
+        auto completion = GetCompletionNode(graph, completion_node_index);
+        ASSERT_NE(nullptr, completion);
+
+        completion->SetCompletionGate([sink, expected_data_count] {
+            return sink->GetReceivedCount() >= expected_data_count;
+        });
+    }
+
+    static void ConfigureCompletionGateForDoubleSink(const std::shared_ptr<GraphManager>& graph,
+                                                     size_t sink_node_index,
+                                                     size_t completion_node_index,
+                                                     size_t expected_data_count) {
+        auto sink = GetDoubleSink(graph, sink_node_index);
+        ASSERT_NE(nullptr, sink);
+        auto completion = GetCompletionNode(graph, completion_node_index);
+        ASSERT_NE(nullptr, completion);
+
+        completion->SetCompletionGate([sink, expected_data_count] {
+            return sink->GetReceivedCount() >= expected_data_count;
+        });
+    }
+
+    static void ExpectIntDataFlow(const std::shared_ptr<GraphManager>& graph,
+                                  size_t sink_node_index,
+                                  const std::vector<int>& expected_values) {
+        auto sink = GetIntSink(graph, sink_node_index);
+        ASSERT_NE(nullptr, sink);
+
+        auto values = sink->GetReceivedValues();
+        EXPECT_EQ(expected_values, values);
+        EXPECT_FALSE(sink->HasDataLoss());
+        EXPECT_FALSE(sink->HasDuplicates());
+    }
+
+    static void ExpectDoubleDataFlow(const std::shared_ptr<GraphManager>& graph,
+                                     size_t sink_node_index,
+                                     const std::vector<double>& expected_values) {
+        auto sink = GetDoubleSink(graph, sink_node_index);
+        ASSERT_NE(nullptr, sink);
+
+        auto values = sink->GetReceivedValues();
+        ASSERT_EQ(expected_values.size(), values.size());
+        for (size_t i = 0; i < expected_values.size(); ++i) {
+            EXPECT_DOUBLE_EQ(expected_values[i], values[i]) << "Unexpected double payload at index " << i;
+        }
+    }
+
+    static void ExpectCompletion(const std::shared_ptr<GraphManager>& graph, size_t completion_node_index) {
+        auto completion = GetCompletionNode(graph, completion_node_index);
+        ASSERT_NE(nullptr, completion);
+        EXPECT_EQ(1u, completion->GetSignalCount());
+        EXPECT_TRUE(completion->HasReceivedCompletion());
+        EXPECT_TRUE(completion->WasCompletionGateSatisfied())
+            << "Completion callback should wait until all expected data reaches the sink";
+    }
 };
 
 // =============================================================================
@@ -60,31 +201,19 @@ TEST_F(ProducerTopologiesTest, MinimalIntProducer_HasCorrectStructure) {
     
     auto nodes = graph->GetNodes();
     ASSERT_EQ(3, nodes.size());
-    
-    // Verify we can get node counts (basic structure validation)
-    int node_count = 0;
-    for (const auto& node : nodes) {
-        EXPECT_NE(nullptr, node);
-        ++node_count;
-    }
-    EXPECT_EQ(3, node_count);
+    ASSERT_EQ(2, graph->GetEdges().size());
+    ExpectNodeTypes(graph, {"TestIntProducer", "TestIntSinkNode", "CompletionNode"});
+    ExpectEdge(graph, 0, 0, 0, 1, 0);
+    ExpectEdge(graph, 1, 0, 1, 2, 0);
 }
 
 TEST_F(ProducerTopologiesTest, MinimalIntProducer_ExecutesSuccessfully) {
     auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalIntProducer);
     ASSERT_NE(nullptr, graph);
-    
-    auto executor = GraphExecutorBuilder()
-        .WithGraphManager(graph)
-        .WithExecutorTimeout(std::chrono::seconds(30))
-        .Build();
-    ASSERT_NE(nullptr, executor) << "Failed to build executor";
-
-    ASSERT_TRUE(executor->Init().success) << "Init failed";
-    ASSERT_TRUE(executor->Start().success) << "Start failed";
-    ASSERT_TRUE(executor->Run().success) << "Run failed";
-    ASSERT_TRUE(executor->Stop().success) << "Stop failed";
-    ASSERT_TRUE(executor->Join().success) << "Join failed";
+    ConfigureCompletionGateForIntSink(graph, 1, 2, 4);
+    ExecuteSuccessfully(graph);
+    ExpectIntDataFlow(graph, 1, {1, 2, 3, 4});
+    ExpectCompletion(graph, 2);
 }
 
 // =============================================================================
@@ -96,7 +225,7 @@ TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_TopologyBuilds) {
     ASSERT_NE(nullptr, graph);
     
     auto nodes = graph->GetNodes();
-    EXPECT_EQ(3, nodes.size()) << "Expected 3 nodes (producer, sink, completion)";
+    EXPECT_EQ(4, nodes.size()) << "Expected 4 nodes (producer, interior, sink, completion)";
 }
 
 TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_HasCorrectStructure) {
@@ -104,31 +233,21 @@ TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_HasCorrectStructure) 
     ASSERT_NE(nullptr, graph);
     
     auto nodes = graph->GetNodes();
-    ASSERT_EQ(3, nodes.size());
-    
-    int node_count = 0;
-    for (const auto& node : nodes) {
-        EXPECT_NE(nullptr, node);
-        ++node_count;
-    }
-    EXPECT_EQ(3, node_count);
+    ASSERT_EQ(4, nodes.size());
+    ASSERT_EQ(3, graph->GetEdges().size());
+    ExpectNodeTypes(graph, {"TestIntProducer", "InteriorTestNode", "TestIntSinkNode", "CompletionNode"});
+    ExpectEdge(graph, 0, 0, 0, 1, 0);
+    ExpectEdge(graph, 1, 1, 0, 2, 0);
+    ExpectEdge(graph, 2, 0, 1, 3, 0);
 }
 
 TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_ExecutesSuccessfully) {
     auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialIntProducer);
     ASSERT_NE(nullptr, graph);
-    
-    auto executor = GraphExecutorBuilder()
-        .WithGraphManager(graph)
-        .WithExecutorTimeout(std::chrono::seconds(30))
-        .Build();
-    ASSERT_NE(nullptr, executor) << "Failed to build executor";
-
-    ASSERT_TRUE(executor->Init().success) << "Init failed";
-    ASSERT_TRUE(executor->Start().success) << "Start failed";
-    ASSERT_TRUE(executor->Run().success) << "Run failed";
-    ASSERT_TRUE(executor->Stop().success) << "Stop failed";
-    ASSERT_TRUE(executor->Join().success) << "Join failed";
+    ConfigureCompletionGateForIntSink(graph, 2, 3, 4);
+    ExecuteSuccessfully(graph);
+    ExpectIntDataFlow(graph, 2, {1, 2, 3, 4});
+    ExpectCompletion(graph, 3);
 }
 
 // =============================================================================
@@ -149,30 +268,19 @@ TEST_F(ProducerTopologiesTest, MinimalDoubleProducer_HasCorrectStructure) {
     
     auto nodes = graph->GetNodes();
     ASSERT_EQ(3, nodes.size());
-    
-    int node_count = 0;
-    for (const auto& node : nodes) {
-        EXPECT_NE(nullptr, node);
-        ++node_count;
-    }
-    EXPECT_EQ(3, node_count);
+    ASSERT_EQ(2, graph->GetEdges().size());
+    ExpectNodeTypes(graph, {"TestDoubleProducer", "TestDoubleSinkNode", "CompletionNode"});
+    ExpectEdge(graph, 0, 0, 0, 1, 0);
+    ExpectEdge(graph, 1, 0, 1, 2, 0);
 }
 
 TEST_F(ProducerTopologiesTest, MinimalDoubleProducer_ExecutesSuccessfully) {
     auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalDoubleProducer);
     ASSERT_NE(nullptr, graph);
-    
-    auto executor = GraphExecutorBuilder()
-        .WithGraphManager(graph)
-        .WithExecutorTimeout(std::chrono::seconds(30))
-        .Build();
-    ASSERT_NE(nullptr, executor) << "Failed to build executor";
-
-    ASSERT_TRUE(executor->Init().success) << "Init failed";
-    ASSERT_TRUE(executor->Start().success) << "Start failed";
-    ASSERT_TRUE(executor->Run().success) << "Run failed";
-    ASSERT_TRUE(executor->Stop().success) << "Stop failed";
-    ASSERT_TRUE(executor->Join().success) << "Join failed";
+    ConfigureCompletionGateForDoubleSink(graph, 1, 2, 10);
+    ExecuteSuccessfully(graph);
+    ExpectDoubleDataFlow(graph, 1, {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0});
+    ExpectCompletion(graph, 2);
 }
 
 // =============================================================================
@@ -184,7 +292,7 @@ TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_TopologyBuilds) {
     ASSERT_NE(nullptr, graph);
     
     auto nodes = graph->GetNodes();
-    EXPECT_EQ(3, nodes.size()) << "Expected 3 nodes (producer, sink, completion)";
+    EXPECT_EQ(4, nodes.size()) << "Expected 4 nodes (producer, interior, sink, completion)";
 }
 
 TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_HasCorrectStructure) {
@@ -192,31 +300,21 @@ TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_HasCorrectStructur
     ASSERT_NE(nullptr, graph);
     
     auto nodes = graph->GetNodes();
-    ASSERT_EQ(3, nodes.size());
-    
-    int node_count = 0;
-    for (const auto& node : nodes) {
-        EXPECT_NE(nullptr, node);
-        ++node_count;
-    }
-    EXPECT_EQ(3, node_count);
+    ASSERT_EQ(4, nodes.size());
+    ASSERT_EQ(3, graph->GetEdges().size());
+    ExpectNodeTypes(graph, {"TestDoubleProducer", "InteriorTestNode", "TestDoubleSinkNode", "CompletionNode"});
+    ExpectEdge(graph, 0, 0, 0, 1, 0);
+    ExpectEdge(graph, 1, 1, 0, 2, 0);
+    ExpectEdge(graph, 2, 0, 1, 3, 0);
 }
 
 TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_ExecutesSuccessfully) {
     auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialDoubleProducer);
     ASSERT_NE(nullptr, graph);
-    
-    auto executor = GraphExecutorBuilder()
-        .WithGraphManager(graph)
-        .WithExecutorTimeout(std::chrono::seconds(30))
-        .Build();
-    ASSERT_NE(nullptr, executor) << "Failed to build executor";
-
-    ASSERT_TRUE(executor->Init().success) << "Init failed";
-    ASSERT_TRUE(executor->Start().success) << "Start failed";
-    ASSERT_TRUE(executor->Run().success) << "Run failed";
-    ASSERT_TRUE(executor->Stop().success) << "Stop failed";
-    ASSERT_TRUE(executor->Join().success) << "Join failed";
+    ConfigureCompletionGateForDoubleSink(graph, 2, 3, 10);
+    ExecuteSuccessfully(graph);
+    ExpectDoubleDataFlow(graph, 2, {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0});
+    ExpectCompletion(graph, 3);
 }
 
 // =============================================================================
@@ -229,16 +327,16 @@ TEST_F(ProducerTopologiesTest, ProducerTopologies_MetadataAvailable) {
     EXPECT_EQ(2, int_minimal.expected_edge_count);
     
     auto int_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialIntProducer);
-    EXPECT_EQ(3, int_sequential.expected_node_count);
-    EXPECT_EQ(2, int_sequential.expected_edge_count);
+    EXPECT_EQ(4, int_sequential.expected_node_count);
+    EXPECT_EQ(3, int_sequential.expected_edge_count);
     
     auto double_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalDoubleProducer);
     EXPECT_EQ(3, double_minimal.expected_node_count);
     EXPECT_EQ(2, double_minimal.expected_edge_count);
     
     auto double_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialDoubleProducer);
-    EXPECT_EQ(3, double_sequential.expected_node_count);
-    EXPECT_EQ(2, double_sequential.expected_edge_count);
+    EXPECT_EQ(4, double_sequential.expected_node_count);
+    EXPECT_EQ(3, double_sequential.expected_edge_count);
 }
 
 TEST_F(ProducerTopologiesTest, ProducerTopologies_NamesCorrect) {

@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -28,6 +29,7 @@
 #include <optional>
 #include <random>
 #include <set>
+#include <thread>
 #include <vector>
 
 #include "graph/CompletionSignal.hpp"
@@ -481,10 +483,33 @@ public:
     ~CompletionNode() override = default;
 
     bool Consume(const graph::message::CompletionSignal& msg, std::integral_constant<std::size_t, 0>) override {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        completion_signals_[signal_count_] = msg;
-        signal_count_++;
-        signal_time_ = std::chrono::steady_clock::now();
+        std::function<bool()> completion_gate;
+        std::chrono::milliseconds completion_gate_timeout;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            completion_signals_[signal_count_] = msg;
+            signal_count_++;
+            signal_time_ = std::chrono::steady_clock::now();
+            completion_gate = completion_gate_;
+            completion_gate_timeout = completion_gate_timeout_;
+        }
+
+        if (completion_gate) {
+            const auto deadline = std::chrono::steady_clock::now() + completion_gate_timeout;
+            while (!completion_gate() && std::chrono::steady_clock::now() < deadline) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            completion_gate_satisfied_ = completion_gate();
+        }
+
+        if (this->HasCallbackProvider()) {
+            auto provider = dynamic_cast<CompletionNodeCallback*>(this->GetCallbackProvider());
+            if (provider) {
+                provider->OnComplete();
+            }
+        }
         return false; // Stop after first signal
     }
 
@@ -504,11 +529,27 @@ public:
         return signal_time_;
     }
 
+    void SetCompletionGate(std::function<bool()> completion_gate,
+                           std::chrono::milliseconds timeout = std::chrono::milliseconds(2000)) {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        completion_gate_ = std::move(completion_gate);
+        completion_gate_timeout_ = timeout;
+        completion_gate_satisfied_ = false;
+    }
+
+    bool WasCompletionGateSatisfied() const {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        return completion_gate_satisfied_;
+    }
+
 private:
     mutable std::mutex state_mutex_;
     std::map<size_t, graph::message::CompletionSignal> completion_signals_;
     size_t signal_count_{0};
     std::chrono::steady_clock::time_point signal_time_;
+    std::function<bool()> completion_gate_;
+    std::chrono::milliseconds completion_gate_timeout_{2000};
+    bool completion_gate_satisfied_{true};
 };
 
 } // namespace test

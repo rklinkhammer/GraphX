@@ -65,6 +65,7 @@ private:
     static log4cxx::LoggerPtr logger_;
     std::shared_ptr<PluginRegistry> plugin_registry_;
     std::shared_ptr<PluginLoader> plugin_loader_;
+    std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Multi-directory support
     std::shared_ptr<graph::config::NodeFactoryRegistry> unified_registry_;
     bool initialized_;
 
@@ -244,6 +245,62 @@ public:
     std::shared_ptr<PluginLoader> GetPluginLoader() const {
         return plugin_loader_;
     }
+
+    /**
+     * Add a plugin directory to the factory's search path
+     *
+     * Enables multi-directory plugin loading. Each directory is managed by a separate
+     * PluginLoader instance, but all plugins register with the shared PluginRegistry.
+     *
+     * Can be called before Initialize() to set up multiple directories, or after
+     * to dynamically add new plugin sources at runtime.
+     *
+     * @param directory_path Path to a directory containing .so/.dylib plugin files
+     *
+     * @throws std::invalid_argument if directory_path is empty
+     *
+     * Example:
+     * @code
+     * auto factory = std::make_shared<NodeFactory>();
+     * factory->AddPluginDirectory("/usr/local/lib/graphx/plugins");
+     * factory->AddPluginDirectory("./plugins");
+     * factory->AddPluginDirectory("./test_plugins");
+     * factory->LoadAllPluginsFromDirectories();
+     * @endcode
+     *
+     * @note Does not immediately load plugins; call LoadAllPluginsFromDirectories()
+     * @note Multiple directories are searched in registration order
+     * @note If the same plugin name exists in multiple directories, first match wins
+     * @see LoadAllPluginsFromDirectories()
+     */
+    void AddPluginDirectory(const std::string& directory_path);
+
+    /**
+     * Load all plugins from all registered directories
+     *
+     * Scans each directory added via AddPluginDirectory() and loads all .so/.dylib files.
+     * Plugins from all directories register with the shared PluginRegistry.
+     *
+     * If a specific directory doesn't exist or fails to load, logs a warning but
+     * continues with other directories.
+     *
+     * Must have called AddPluginDirectory() at least once before calling this method.
+     *
+     * @throws std::runtime_error if no directories have been added
+     *
+     * Example:
+     * @code
+     * auto factory = std::make_shared<NodeFactory>();
+     * factory->AddPluginDirectory(DIR1);
+     * factory->AddPluginDirectory(DIR2);
+     * factory->AddPluginDirectory(DIR3);
+     * factory->LoadAllPluginsFromDirectories();  // Loads from all three
+     * factory->Initialize();
+     * @endcode
+     *
+     * @see AddPluginDirectory()
+     */
+    void LoadAllPluginsFromDirectories();
 
 private:
     /**

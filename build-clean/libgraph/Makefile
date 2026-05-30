@@ -60,7 +60,7 @@ EQUALS = =
 CMAKE_SOURCE_DIR = /Users/rklinkhammer/workspace/GraphX
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build2
+CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build-clean
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -142,14 +142,14 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build2/libgraph//CMakeFiles/progress.marks
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build-clean/libgraph//CMakeFiles/progress.marks
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/clean
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/clean
 .PHONY : clean
 
 # The main clean target
@@ -158,22 +158,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 libgraph/CMakeFiles/graph.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/CMakeFiles/graph.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/CMakeFiles/graph.dir/rule
 .PHONY : libgraph/CMakeFiles/graph.dir/rule
 
 # Convenience name for target.
@@ -182,7 +182,7 @@ graph: libgraph/CMakeFiles/graph.dir/rule
 
 # fast build rule for target.
 graph/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/build
 .PHONY : graph/fast
 
 src/capabilities/DashboardOutput.o: src/capabilities/DashboardOutput.cpp.o
@@ -190,7 +190,7 @@ src/capabilities/DashboardOutput.o: src/capabilities/DashboardOutput.cpp.o
 
 # target to build an object file
 src/capabilities/DashboardOutput.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.o
 .PHONY : src/capabilities/DashboardOutput.cpp.o
 
 src/capabilities/DashboardOutput.i: src/capabilities/DashboardOutput.cpp.i
@@ -198,7 +198,7 @@ src/capabilities/DashboardOutput.i: src/capabilities/DashboardOutput.cpp.i
 
 # target to preprocess a source file
 src/capabilities/DashboardOutput.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.i
 .PHONY : src/capabilities/DashboardOutput.cpp.i
 
 src/capabilities/DashboardOutput.s: src/capabilities/DashboardOutput.cpp.s
@@ -206,7 +206,7 @@ src/capabilities/DashboardOutput.s: src/capabilities/DashboardOutput.cpp.s
 
 # target to generate assembly for a file
 src/capabilities/DashboardOutput.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/capabilities/DashboardOutput.cpp.s
 .PHONY : src/capabilities/DashboardOutput.cpp.s
 
 src/core/JsonUtilities.o: src/core/JsonUtilities.cpp.o
@@ -214,7 +214,7 @@ src/core/JsonUtilities.o: src/core/JsonUtilities.cpp.o
 
 # target to build an object file
 src/core/JsonUtilities.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.o
 .PHONY : src/core/JsonUtilities.cpp.o
 
 src/core/JsonUtilities.i: src/core/JsonUtilities.cpp.i
@@ -222,7 +222,7 @@ src/core/JsonUtilities.i: src/core/JsonUtilities.cpp.i
 
 # target to preprocess a source file
 src/core/JsonUtilities.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.i
 .PHONY : src/core/JsonUtilities.cpp.i
 
 src/core/JsonUtilities.s: src/core/JsonUtilities.cpp.s
@@ -230,7 +230,7 @@ src/core/JsonUtilities.s: src/core/JsonUtilities.cpp.s
 
 # target to generate assembly for a file
 src/core/JsonUtilities.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/core/JsonUtilities.cpp.s
 .PHONY : src/core/JsonUtilities.cpp.s
 
 src/csv/CSVDataInjectionManager.o: src/csv/CSVDataInjectionManager.cpp.o
@@ -238,7 +238,7 @@ src/csv/CSVDataInjectionManager.o: src/csv/CSVDataInjectionManager.cpp.o
 
 # target to build an object file
 src/csv/CSVDataInjectionManager.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.o
 .PHONY : src/csv/CSVDataInjectionManager.cpp.o
 
 src/csv/CSVDataInjectionManager.i: src/csv/CSVDataInjectionManager.cpp.i
@@ -246,7 +246,7 @@ src/csv/CSVDataInjectionManager.i: src/csv/CSVDataInjectionManager.cpp.i
 
 # target to preprocess a source file
 src/csv/CSVDataInjectionManager.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.i
 .PHONY : src/csv/CSVDataInjectionManager.cpp.i
 
 src/csv/CSVDataInjectionManager.s: src/csv/CSVDataInjectionManager.cpp.s
@@ -254,7 +254,7 @@ src/csv/CSVDataInjectionManager.s: src/csv/CSVDataInjectionManager.cpp.s
 
 # target to generate assembly for a file
 src/csv/CSVDataInjectionManager.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVDataInjectionManager.cpp.s
 .PHONY : src/csv/CSVDataInjectionManager.cpp.s
 
 src/csv/CSVParser.o: src/csv/CSVParser.cpp.o
@@ -262,7 +262,7 @@ src/csv/CSVParser.o: src/csv/CSVParser.cpp.o
 
 # target to build an object file
 src/csv/CSVParser.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.o
 .PHONY : src/csv/CSVParser.cpp.o
 
 src/csv/CSVParser.i: src/csv/CSVParser.cpp.i
@@ -270,7 +270,7 @@ src/csv/CSVParser.i: src/csv/CSVParser.cpp.i
 
 # target to preprocess a source file
 src/csv/CSVParser.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.i
 .PHONY : src/csv/CSVParser.cpp.i
 
 src/csv/CSVParser.s: src/csv/CSVParser.cpp.s
@@ -278,7 +278,7 @@ src/csv/CSVParser.s: src/csv/CSVParser.cpp.s
 
 # target to generate assembly for a file
 src/csv/CSVParser.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/csv/CSVParser.cpp.s
 .PHONY : src/csv/CSVParser.cpp.s
 
 src/graph/AdaptiveCapacityMonitor.o: src/graph/AdaptiveCapacityMonitor.cpp.o
@@ -286,7 +286,7 @@ src/graph/AdaptiveCapacityMonitor.o: src/graph/AdaptiveCapacityMonitor.cpp.o
 
 # target to build an object file
 src/graph/AdaptiveCapacityMonitor.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.o
 .PHONY : src/graph/AdaptiveCapacityMonitor.cpp.o
 
 src/graph/AdaptiveCapacityMonitor.i: src/graph/AdaptiveCapacityMonitor.cpp.i
@@ -294,7 +294,7 @@ src/graph/AdaptiveCapacityMonitor.i: src/graph/AdaptiveCapacityMonitor.cpp.i
 
 # target to preprocess a source file
 src/graph/AdaptiveCapacityMonitor.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.i
 .PHONY : src/graph/AdaptiveCapacityMonitor.cpp.i
 
 src/graph/AdaptiveCapacityMonitor.s: src/graph/AdaptiveCapacityMonitor.cpp.s
@@ -302,7 +302,7 @@ src/graph/AdaptiveCapacityMonitor.s: src/graph/AdaptiveCapacityMonitor.cpp.s
 
 # target to generate assembly for a file
 src/graph/AdaptiveCapacityMonitor.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/AdaptiveCapacityMonitor.cpp.s
 .PHONY : src/graph/AdaptiveCapacityMonitor.cpp.s
 
 src/graph/DefaultCommandProcessor.o: src/graph/DefaultCommandProcessor.cpp.o
@@ -310,7 +310,7 @@ src/graph/DefaultCommandProcessor.o: src/graph/DefaultCommandProcessor.cpp.o
 
 # target to build an object file
 src/graph/DefaultCommandProcessor.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.o
 .PHONY : src/graph/DefaultCommandProcessor.cpp.o
 
 src/graph/DefaultCommandProcessor.i: src/graph/DefaultCommandProcessor.cpp.i
@@ -318,7 +318,7 @@ src/graph/DefaultCommandProcessor.i: src/graph/DefaultCommandProcessor.cpp.i
 
 # target to preprocess a source file
 src/graph/DefaultCommandProcessor.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.i
 .PHONY : src/graph/DefaultCommandProcessor.cpp.i
 
 src/graph/DefaultCommandProcessor.s: src/graph/DefaultCommandProcessor.cpp.s
@@ -326,7 +326,7 @@ src/graph/DefaultCommandProcessor.s: src/graph/DefaultCommandProcessor.cpp.s
 
 # target to generate assembly for a file
 src/graph/DefaultCommandProcessor.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/DefaultCommandProcessor.cpp.s
 .PHONY : src/graph/DefaultCommandProcessor.cpp.s
 
 src/graph/EdgeRegistration.o: src/graph/EdgeRegistration.cpp.o
@@ -334,7 +334,7 @@ src/graph/EdgeRegistration.o: src/graph/EdgeRegistration.cpp.o
 
 # target to build an object file
 src/graph/EdgeRegistration.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.o
 .PHONY : src/graph/EdgeRegistration.cpp.o
 
 src/graph/EdgeRegistration.i: src/graph/EdgeRegistration.cpp.i
@@ -342,7 +342,7 @@ src/graph/EdgeRegistration.i: src/graph/EdgeRegistration.cpp.i
 
 # target to preprocess a source file
 src/graph/EdgeRegistration.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.i
 .PHONY : src/graph/EdgeRegistration.cpp.i
 
 src/graph/EdgeRegistration.s: src/graph/EdgeRegistration.cpp.s
@@ -350,7 +350,7 @@ src/graph/EdgeRegistration.s: src/graph/EdgeRegistration.cpp.s
 
 # target to generate assembly for a file
 src/graph/EdgeRegistration.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistration.cpp.s
 .PHONY : src/graph/EdgeRegistration.cpp.s
 
 src/graph/EdgeRegistry.o: src/graph/EdgeRegistry.cpp.o
@@ -358,7 +358,7 @@ src/graph/EdgeRegistry.o: src/graph/EdgeRegistry.cpp.o
 
 # target to build an object file
 src/graph/EdgeRegistry.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.o
 .PHONY : src/graph/EdgeRegistry.cpp.o
 
 src/graph/EdgeRegistry.i: src/graph/EdgeRegistry.cpp.i
@@ -366,7 +366,7 @@ src/graph/EdgeRegistry.i: src/graph/EdgeRegistry.cpp.i
 
 # target to preprocess a source file
 src/graph/EdgeRegistry.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.i
 .PHONY : src/graph/EdgeRegistry.cpp.i
 
 src/graph/EdgeRegistry.s: src/graph/EdgeRegistry.cpp.s
@@ -374,7 +374,7 @@ src/graph/EdgeRegistry.s: src/graph/EdgeRegistry.cpp.s
 
 # target to generate assembly for a file
 src/graph/EdgeRegistry.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/EdgeRegistry.cpp.s
 .PHONY : src/graph/EdgeRegistry.cpp.s
 
 src/graph/ExecutionState.o: src/graph/ExecutionState.cpp.o
@@ -382,7 +382,7 @@ src/graph/ExecutionState.o: src/graph/ExecutionState.cpp.o
 
 # target to build an object file
 src/graph/ExecutionState.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.o
 .PHONY : src/graph/ExecutionState.cpp.o
 
 src/graph/ExecutionState.i: src/graph/ExecutionState.cpp.i
@@ -390,7 +390,7 @@ src/graph/ExecutionState.i: src/graph/ExecutionState.cpp.i
 
 # target to preprocess a source file
 src/graph/ExecutionState.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.i
 .PHONY : src/graph/ExecutionState.cpp.i
 
 src/graph/ExecutionState.s: src/graph/ExecutionState.cpp.s
@@ -398,7 +398,7 @@ src/graph/ExecutionState.s: src/graph/ExecutionState.cpp.s
 
 # target to generate assembly for a file
 src/graph/ExecutionState.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ExecutionState.cpp.s
 .PHONY : src/graph/ExecutionState.cpp.s
 
 src/graph/FactoryManager.o: src/graph/FactoryManager.cpp.o
@@ -406,7 +406,7 @@ src/graph/FactoryManager.o: src/graph/FactoryManager.cpp.o
 
 # target to build an object file
 src/graph/FactoryManager.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.o
 .PHONY : src/graph/FactoryManager.cpp.o
 
 src/graph/FactoryManager.i: src/graph/FactoryManager.cpp.i
@@ -414,7 +414,7 @@ src/graph/FactoryManager.i: src/graph/FactoryManager.cpp.i
 
 # target to preprocess a source file
 src/graph/FactoryManager.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.i
 .PHONY : src/graph/FactoryManager.cpp.i
 
 src/graph/FactoryManager.s: src/graph/FactoryManager.cpp.s
@@ -422,7 +422,7 @@ src/graph/FactoryManager.s: src/graph/FactoryManager.cpp.s
 
 # target to generate assembly for a file
 src/graph/FactoryManager.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/FactoryManager.cpp.s
 .PHONY : src/graph/FactoryManager.cpp.s
 
 src/graph/GraphBuilder.o: src/graph/GraphBuilder.cpp.o
@@ -430,7 +430,7 @@ src/graph/GraphBuilder.o: src/graph/GraphBuilder.cpp.o
 
 # target to build an object file
 src/graph/GraphBuilder.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.o
 .PHONY : src/graph/GraphBuilder.cpp.o
 
 src/graph/GraphBuilder.i: src/graph/GraphBuilder.cpp.i
@@ -438,7 +438,7 @@ src/graph/GraphBuilder.i: src/graph/GraphBuilder.cpp.i
 
 # target to preprocess a source file
 src/graph/GraphBuilder.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.i
 .PHONY : src/graph/GraphBuilder.cpp.i
 
 src/graph/GraphBuilder.s: src/graph/GraphBuilder.cpp.s
@@ -446,7 +446,7 @@ src/graph/GraphBuilder.s: src/graph/GraphBuilder.cpp.s
 
 # target to generate assembly for a file
 src/graph/GraphBuilder.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphBuilder.cpp.s
 .PHONY : src/graph/GraphBuilder.cpp.s
 
 src/graph/GraphConfigParser.o: src/graph/GraphConfigParser.cpp.o
@@ -454,7 +454,7 @@ src/graph/GraphConfigParser.o: src/graph/GraphConfigParser.cpp.o
 
 # target to build an object file
 src/graph/GraphConfigParser.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.o
 .PHONY : src/graph/GraphConfigParser.cpp.o
 
 src/graph/GraphConfigParser.i: src/graph/GraphConfigParser.cpp.i
@@ -462,7 +462,7 @@ src/graph/GraphConfigParser.i: src/graph/GraphConfigParser.cpp.i
 
 # target to preprocess a source file
 src/graph/GraphConfigParser.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.i
 .PHONY : src/graph/GraphConfigParser.cpp.i
 
 src/graph/GraphConfigParser.s: src/graph/GraphConfigParser.cpp.s
@@ -470,7 +470,7 @@ src/graph/GraphConfigParser.s: src/graph/GraphConfigParser.cpp.s
 
 # target to generate assembly for a file
 src/graph/GraphConfigParser.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphConfigParser.cpp.s
 .PHONY : src/graph/GraphConfigParser.cpp.s
 
 src/graph/GraphExecutor.o: src/graph/GraphExecutor.cpp.o
@@ -478,7 +478,7 @@ src/graph/GraphExecutor.o: src/graph/GraphExecutor.cpp.o
 
 # target to build an object file
 src/graph/GraphExecutor.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.o
 .PHONY : src/graph/GraphExecutor.cpp.o
 
 src/graph/GraphExecutor.i: src/graph/GraphExecutor.cpp.i
@@ -486,7 +486,7 @@ src/graph/GraphExecutor.i: src/graph/GraphExecutor.cpp.i
 
 # target to preprocess a source file
 src/graph/GraphExecutor.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.i
 .PHONY : src/graph/GraphExecutor.cpp.i
 
 src/graph/GraphExecutor.s: src/graph/GraphExecutor.cpp.s
@@ -494,7 +494,7 @@ src/graph/GraphExecutor.s: src/graph/GraphExecutor.cpp.s
 
 # target to generate assembly for a file
 src/graph/GraphExecutor.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutor.cpp.s
 .PHONY : src/graph/GraphExecutor.cpp.s
 
 src/graph/GraphExecutorBuilder.o: src/graph/GraphExecutorBuilder.cpp.o
@@ -502,7 +502,7 @@ src/graph/GraphExecutorBuilder.o: src/graph/GraphExecutorBuilder.cpp.o
 
 # target to build an object file
 src/graph/GraphExecutorBuilder.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.o
 .PHONY : src/graph/GraphExecutorBuilder.cpp.o
 
 src/graph/GraphExecutorBuilder.i: src/graph/GraphExecutorBuilder.cpp.i
@@ -510,7 +510,7 @@ src/graph/GraphExecutorBuilder.i: src/graph/GraphExecutorBuilder.cpp.i
 
 # target to preprocess a source file
 src/graph/GraphExecutorBuilder.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.i
 .PHONY : src/graph/GraphExecutorBuilder.cpp.i
 
 src/graph/GraphExecutorBuilder.s: src/graph/GraphExecutorBuilder.cpp.s
@@ -518,7 +518,7 @@ src/graph/GraphExecutorBuilder.s: src/graph/GraphExecutorBuilder.cpp.s
 
 # target to generate assembly for a file
 src/graph/GraphExecutorBuilder.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/GraphExecutorBuilder.cpp.s
 .PHONY : src/graph/GraphExecutorBuilder.cpp.s
 
 src/graph/JsonDynamicGraphLoader.o: src/graph/JsonDynamicGraphLoader.cpp.o
@@ -526,7 +526,7 @@ src/graph/JsonDynamicGraphLoader.o: src/graph/JsonDynamicGraphLoader.cpp.o
 
 # target to build an object file
 src/graph/JsonDynamicGraphLoader.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.o
 .PHONY : src/graph/JsonDynamicGraphLoader.cpp.o
 
 src/graph/JsonDynamicGraphLoader.i: src/graph/JsonDynamicGraphLoader.cpp.i
@@ -534,7 +534,7 @@ src/graph/JsonDynamicGraphLoader.i: src/graph/JsonDynamicGraphLoader.cpp.i
 
 # target to preprocess a source file
 src/graph/JsonDynamicGraphLoader.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.i
 .PHONY : src/graph/JsonDynamicGraphLoader.cpp.i
 
 src/graph/JsonDynamicGraphLoader.s: src/graph/JsonDynamicGraphLoader.cpp.s
@@ -542,7 +542,7 @@ src/graph/JsonDynamicGraphLoader.s: src/graph/JsonDynamicGraphLoader.cpp.s
 
 # target to generate assembly for a file
 src/graph/JsonDynamicGraphLoader.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonDynamicGraphLoader.cpp.s
 .PHONY : src/graph/JsonDynamicGraphLoader.cpp.s
 
 src/graph/JsonView.o: src/graph/JsonView.cpp.o
@@ -550,7 +550,7 @@ src/graph/JsonView.o: src/graph/JsonView.cpp.o
 
 # target to build an object file
 src/graph/JsonView.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.o
 .PHONY : src/graph/JsonView.cpp.o
 
 src/graph/JsonView.i: src/graph/JsonView.cpp.i
@@ -558,7 +558,7 @@ src/graph/JsonView.i: src/graph/JsonView.cpp.i
 
 # target to preprocess a source file
 src/graph/JsonView.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.i
 .PHONY : src/graph/JsonView.cpp.i
 
 src/graph/JsonView.s: src/graph/JsonView.cpp.s
@@ -566,7 +566,7 @@ src/graph/JsonView.s: src/graph/JsonView.cpp.s
 
 # target to generate assembly for a file
 src/graph/JsonView.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/JsonView.cpp.s
 .PHONY : src/graph/JsonView.cpp.s
 
 src/graph/NodeFacade.o: src/graph/NodeFacade.cpp.o
@@ -574,7 +574,7 @@ src/graph/NodeFacade.o: src/graph/NodeFacade.cpp.o
 
 # target to build an object file
 src/graph/NodeFacade.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.o
 .PHONY : src/graph/NodeFacade.cpp.o
 
 src/graph/NodeFacade.i: src/graph/NodeFacade.cpp.i
@@ -582,7 +582,7 @@ src/graph/NodeFacade.i: src/graph/NodeFacade.cpp.i
 
 # target to preprocess a source file
 src/graph/NodeFacade.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.i
 .PHONY : src/graph/NodeFacade.cpp.i
 
 src/graph/NodeFacade.s: src/graph/NodeFacade.cpp.s
@@ -590,7 +590,7 @@ src/graph/NodeFacade.s: src/graph/NodeFacade.cpp.s
 
 # target to generate assembly for a file
 src/graph/NodeFacade.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFacade.cpp.s
 .PHONY : src/graph/NodeFacade.cpp.s
 
 src/graph/NodeFactory.o: src/graph/NodeFactory.cpp.o
@@ -598,7 +598,7 @@ src/graph/NodeFactory.o: src/graph/NodeFactory.cpp.o
 
 # target to build an object file
 src/graph/NodeFactory.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.o
 .PHONY : src/graph/NodeFactory.cpp.o
 
 src/graph/NodeFactory.i: src/graph/NodeFactory.cpp.i
@@ -606,7 +606,7 @@ src/graph/NodeFactory.i: src/graph/NodeFactory.cpp.i
 
 # target to preprocess a source file
 src/graph/NodeFactory.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.i
 .PHONY : src/graph/NodeFactory.cpp.i
 
 src/graph/NodeFactory.s: src/graph/NodeFactory.cpp.s
@@ -614,7 +614,7 @@ src/graph/NodeFactory.s: src/graph/NodeFactory.cpp.s
 
 # target to generate assembly for a file
 src/graph/NodeFactory.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactory.cpp.s
 .PHONY : src/graph/NodeFactory.cpp.s
 
 src/graph/NodeFactoryRegistry.o: src/graph/NodeFactoryRegistry.cpp.o
@@ -622,7 +622,7 @@ src/graph/NodeFactoryRegistry.o: src/graph/NodeFactoryRegistry.cpp.o
 
 # target to build an object file
 src/graph/NodeFactoryRegistry.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.o
 .PHONY : src/graph/NodeFactoryRegistry.cpp.o
 
 src/graph/NodeFactoryRegistry.i: src/graph/NodeFactoryRegistry.cpp.i
@@ -630,7 +630,7 @@ src/graph/NodeFactoryRegistry.i: src/graph/NodeFactoryRegistry.cpp.i
 
 # target to preprocess a source file
 src/graph/NodeFactoryRegistry.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.i
 .PHONY : src/graph/NodeFactoryRegistry.cpp.i
 
 src/graph/NodeFactoryRegistry.s: src/graph/NodeFactoryRegistry.cpp.s
@@ -638,7 +638,7 @@ src/graph/NodeFactoryRegistry.s: src/graph/NodeFactoryRegistry.cpp.s
 
 # target to generate assembly for a file
 src/graph/NodeFactoryRegistry.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/NodeFactoryRegistry.cpp.s
 .PHONY : src/graph/NodeFactoryRegistry.cpp.s
 
 src/graph/PooledMessage.o: src/graph/PooledMessage.cpp.o
@@ -646,7 +646,7 @@ src/graph/PooledMessage.o: src/graph/PooledMessage.cpp.o
 
 # target to build an object file
 src/graph/PooledMessage.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.o
 .PHONY : src/graph/PooledMessage.cpp.o
 
 src/graph/PooledMessage.i: src/graph/PooledMessage.cpp.i
@@ -654,7 +654,7 @@ src/graph/PooledMessage.i: src/graph/PooledMessage.cpp.i
 
 # target to preprocess a source file
 src/graph/PooledMessage.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.i
 .PHONY : src/graph/PooledMessage.cpp.i
 
 src/graph/PooledMessage.s: src/graph/PooledMessage.cpp.s
@@ -662,7 +662,7 @@ src/graph/PooledMessage.s: src/graph/PooledMessage.cpp.s
 
 # target to generate assembly for a file
 src/graph/PooledMessage.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/PooledMessage.cpp.s
 .PHONY : src/graph/PooledMessage.cpp.s
 
 src/graph/StaticNodeAdapter.o: src/graph/StaticNodeAdapter.cpp.o
@@ -670,7 +670,7 @@ src/graph/StaticNodeAdapter.o: src/graph/StaticNodeAdapter.cpp.o
 
 # target to build an object file
 src/graph/StaticNodeAdapter.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.o
 .PHONY : src/graph/StaticNodeAdapter.cpp.o
 
 src/graph/StaticNodeAdapter.i: src/graph/StaticNodeAdapter.cpp.i
@@ -678,7 +678,7 @@ src/graph/StaticNodeAdapter.i: src/graph/StaticNodeAdapter.cpp.i
 
 # target to preprocess a source file
 src/graph/StaticNodeAdapter.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.i
 .PHONY : src/graph/StaticNodeAdapter.cpp.i
 
 src/graph/StaticNodeAdapter.s: src/graph/StaticNodeAdapter.cpp.s
@@ -686,7 +686,7 @@ src/graph/StaticNodeAdapter.s: src/graph/StaticNodeAdapter.cpp.s
 
 # target to generate assembly for a file
 src/graph/StaticNodeAdapter.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/StaticNodeAdapter.cpp.s
 .PHONY : src/graph/StaticNodeAdapter.cpp.s
 
 src/graph/ThreadPool.o: src/graph/ThreadPool.cpp.o
@@ -694,7 +694,7 @@ src/graph/ThreadPool.o: src/graph/ThreadPool.cpp.o
 
 # target to build an object file
 src/graph/ThreadPool.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.o
 .PHONY : src/graph/ThreadPool.cpp.o
 
 src/graph/ThreadPool.i: src/graph/ThreadPool.cpp.i
@@ -702,7 +702,7 @@ src/graph/ThreadPool.i: src/graph/ThreadPool.cpp.i
 
 # target to preprocess a source file
 src/graph/ThreadPool.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.i
 .PHONY : src/graph/ThreadPool.cpp.i
 
 src/graph/ThreadPool.s: src/graph/ThreadPool.cpp.s
@@ -710,7 +710,7 @@ src/graph/ThreadPool.s: src/graph/ThreadPool.cpp.s
 
 # target to generate assembly for a file
 src/graph/ThreadPool.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/graph/ThreadPool.cpp.s
 .PHONY : src/graph/ThreadPool.cpp.s
 
 src/plugins/PluginInspector.o: src/plugins/PluginInspector.cpp.o
@@ -718,7 +718,7 @@ src/plugins/PluginInspector.o: src/plugins/PluginInspector.cpp.o
 
 # target to build an object file
 src/plugins/PluginInspector.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.o
 .PHONY : src/plugins/PluginInspector.cpp.o
 
 src/plugins/PluginInspector.i: src/plugins/PluginInspector.cpp.i
@@ -726,7 +726,7 @@ src/plugins/PluginInspector.i: src/plugins/PluginInspector.cpp.i
 
 # target to preprocess a source file
 src/plugins/PluginInspector.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.i
 .PHONY : src/plugins/PluginInspector.cpp.i
 
 src/plugins/PluginInspector.s: src/plugins/PluginInspector.cpp.s
@@ -734,7 +734,7 @@ src/plugins/PluginInspector.s: src/plugins/PluginInspector.cpp.s
 
 # target to generate assembly for a file
 src/plugins/PluginInspector.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginInspector.cpp.s
 .PHONY : src/plugins/PluginInspector.cpp.s
 
 src/plugins/PluginLoader.o: src/plugins/PluginLoader.cpp.o
@@ -742,7 +742,7 @@ src/plugins/PluginLoader.o: src/plugins/PluginLoader.cpp.o
 
 # target to build an object file
 src/plugins/PluginLoader.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.o
 .PHONY : src/plugins/PluginLoader.cpp.o
 
 src/plugins/PluginLoader.i: src/plugins/PluginLoader.cpp.i
@@ -750,7 +750,7 @@ src/plugins/PluginLoader.i: src/plugins/PluginLoader.cpp.i
 
 # target to preprocess a source file
 src/plugins/PluginLoader.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.i
 .PHONY : src/plugins/PluginLoader.cpp.i
 
 src/plugins/PluginLoader.s: src/plugins/PluginLoader.cpp.s
@@ -758,7 +758,7 @@ src/plugins/PluginLoader.s: src/plugins/PluginLoader.cpp.s
 
 # target to generate assembly for a file
 src/plugins/PluginLoader.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginLoader.cpp.s
 .PHONY : src/plugins/PluginLoader.cpp.s
 
 src/plugins/PluginRegistry.o: src/plugins/PluginRegistry.cpp.o
@@ -766,7 +766,7 @@ src/plugins/PluginRegistry.o: src/plugins/PluginRegistry.cpp.o
 
 # target to build an object file
 src/plugins/PluginRegistry.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.o
 .PHONY : src/plugins/PluginRegistry.cpp.o
 
 src/plugins/PluginRegistry.i: src/plugins/PluginRegistry.cpp.i
@@ -774,7 +774,7 @@ src/plugins/PluginRegistry.i: src/plugins/PluginRegistry.cpp.i
 
 # target to preprocess a source file
 src/plugins/PluginRegistry.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.i
 .PHONY : src/plugins/PluginRegistry.cpp.i
 
 src/plugins/PluginRegistry.s: src/plugins/PluginRegistry.cpp.s
@@ -782,7 +782,7 @@ src/plugins/PluginRegistry.s: src/plugins/PluginRegistry.cpp.s
 
 # target to generate assembly for a file
 src/plugins/PluginRegistry.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/plugins/PluginRegistry.cpp.s
 .PHONY : src/plugins/PluginRegistry.cpp.s
 
 src/policies/CompletionPolicy.o: src/policies/CompletionPolicy.cpp.o
@@ -790,7 +790,7 @@ src/policies/CompletionPolicy.o: src/policies/CompletionPolicy.cpp.o
 
 # target to build an object file
 src/policies/CompletionPolicy.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.o
 .PHONY : src/policies/CompletionPolicy.cpp.o
 
 src/policies/CompletionPolicy.i: src/policies/CompletionPolicy.cpp.i
@@ -798,7 +798,7 @@ src/policies/CompletionPolicy.i: src/policies/CompletionPolicy.cpp.i
 
 # target to preprocess a source file
 src/policies/CompletionPolicy.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.i
 .PHONY : src/policies/CompletionPolicy.cpp.i
 
 src/policies/CompletionPolicy.s: src/policies/CompletionPolicy.cpp.s
@@ -806,7 +806,7 @@ src/policies/CompletionPolicy.s: src/policies/CompletionPolicy.cpp.s
 
 # target to generate assembly for a file
 src/policies/CompletionPolicy.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/CompletionPolicy.cpp.s
 .PHONY : src/policies/CompletionPolicy.cpp.s
 
 src/policies/DataInjectionPolicy.o: src/policies/DataInjectionPolicy.cpp.o
@@ -814,7 +814,7 @@ src/policies/DataInjectionPolicy.o: src/policies/DataInjectionPolicy.cpp.o
 
 # target to build an object file
 src/policies/DataInjectionPolicy.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.o
 .PHONY : src/policies/DataInjectionPolicy.cpp.o
 
 src/policies/DataInjectionPolicy.i: src/policies/DataInjectionPolicy.cpp.i
@@ -822,7 +822,7 @@ src/policies/DataInjectionPolicy.i: src/policies/DataInjectionPolicy.cpp.i
 
 # target to preprocess a source file
 src/policies/DataInjectionPolicy.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.i
 .PHONY : src/policies/DataInjectionPolicy.cpp.i
 
 src/policies/DataInjectionPolicy.s: src/policies/DataInjectionPolicy.cpp.s
@@ -830,7 +830,7 @@ src/policies/DataInjectionPolicy.s: src/policies/DataInjectionPolicy.cpp.s
 
 # target to generate assembly for a file
 src/policies/DataInjectionPolicy.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/DataInjectionPolicy.cpp.s
 .PHONY : src/policies/DataInjectionPolicy.cpp.s
 
 src/policies/MetricsPolicy.o: src/policies/MetricsPolicy.cpp.o
@@ -838,7 +838,7 @@ src/policies/MetricsPolicy.o: src/policies/MetricsPolicy.cpp.o
 
 # target to build an object file
 src/policies/MetricsPolicy.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.o
 .PHONY : src/policies/MetricsPolicy.cpp.o
 
 src/policies/MetricsPolicy.i: src/policies/MetricsPolicy.cpp.i
@@ -846,7 +846,7 @@ src/policies/MetricsPolicy.i: src/policies/MetricsPolicy.cpp.i
 
 # target to preprocess a source file
 src/policies/MetricsPolicy.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.i
 .PHONY : src/policies/MetricsPolicy.cpp.i
 
 src/policies/MetricsPolicy.s: src/policies/MetricsPolicy.cpp.s
@@ -854,7 +854,7 @@ src/policies/MetricsPolicy.s: src/policies/MetricsPolicy.cpp.s
 
 # target to generate assembly for a file
 src/policies/MetricsPolicy.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/policies/MetricsPolicy.cpp.s
 .PHONY : src/policies/MetricsPolicy.cpp.s
 
 src/ui/BuiltinCommands.o: src/ui/BuiltinCommands.cpp.o
@@ -862,7 +862,7 @@ src/ui/BuiltinCommands.o: src/ui/BuiltinCommands.cpp.o
 
 # target to build an object file
 src/ui/BuiltinCommands.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.o
 .PHONY : src/ui/BuiltinCommands.cpp.o
 
 src/ui/BuiltinCommands.i: src/ui/BuiltinCommands.cpp.i
@@ -870,7 +870,7 @@ src/ui/BuiltinCommands.i: src/ui/BuiltinCommands.cpp.i
 
 # target to preprocess a source file
 src/ui/BuiltinCommands.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.i
 .PHONY : src/ui/BuiltinCommands.cpp.i
 
 src/ui/BuiltinCommands.s: src/ui/BuiltinCommands.cpp.s
@@ -878,7 +878,7 @@ src/ui/BuiltinCommands.s: src/ui/BuiltinCommands.cpp.s
 
 # target to generate assembly for a file
 src/ui/BuiltinCommands.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/BuiltinCommands.cpp.s
 .PHONY : src/ui/BuiltinCommands.cpp.s
 
 src/ui/CommandRegistry.o: src/ui/CommandRegistry.cpp.o
@@ -886,7 +886,7 @@ src/ui/CommandRegistry.o: src/ui/CommandRegistry.cpp.o
 
 # target to build an object file
 src/ui/CommandRegistry.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.o
 .PHONY : src/ui/CommandRegistry.cpp.o
 
 src/ui/CommandRegistry.i: src/ui/CommandRegistry.cpp.i
@@ -894,7 +894,7 @@ src/ui/CommandRegistry.i: src/ui/CommandRegistry.cpp.i
 
 # target to preprocess a source file
 src/ui/CommandRegistry.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.i
 .PHONY : src/ui/CommandRegistry.cpp.i
 
 src/ui/CommandRegistry.s: src/ui/CommandRegistry.cpp.s
@@ -902,7 +902,7 @@ src/ui/CommandRegistry.s: src/ui/CommandRegistry.cpp.s
 
 # target to generate assembly for a file
 src/ui/CommandRegistry.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/CMakeFiles/graph.dir/build.make libgraph/CMakeFiles/graph.dir/src/ui/CommandRegistry.cpp.s
 .PHONY : src/ui/CommandRegistry.cpp.s
 
 # Help Target
@@ -1020,6 +1020,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

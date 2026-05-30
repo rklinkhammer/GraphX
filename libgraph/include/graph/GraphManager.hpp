@@ -1631,10 +1631,17 @@ private:
             if (static_cast<const void*>(nodes_[i].get()) == node_ptr) {
                 return i;
             }
+
+            auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(nodes_[i]);
+            if (wrapper) {
+                auto wrapped_node = wrapper->GetNode<NodeType>();
+                if (wrapped_node && static_cast<const void*>(wrapped_node.get()) == node_ptr) {
+                    return i;
+                }
+            }
         }
         return SIZE_MAX;
     }
 };
 
 } // namespace graph
-

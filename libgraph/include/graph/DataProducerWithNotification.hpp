@@ -195,14 +195,14 @@ public:
      *
      * ## Sample Ignore Semantics
      *
-     * The first sample_ignore samples are produced and counted, but NOT
-     * returned (returns nullopt). This allows the generator to "warm up"
-     * its internal state before counting begins.
+     * The first sample_ignore samples are produced and counted, but not
+     * returned to the output queue. Produce continues internally until it
+     * can return a non-ignored sample or the generator is exhausted.
      *
      * Example with sample_ignore=2:
      * ```
-     * Call 1: returns nullopt (sample #1 ignored)
-     * Call 2: returns nullopt (sample #2 ignored)
+     * Call 1: skips sample #1 and continues
+     * Call 2: skips sample #2 and continues
      * Call 3: returns Message(sample) (sample #3 is data)
      * ...
      * ```
@@ -214,9 +214,9 @@ public:
      * - Produce timing (time to call generator->Produce())
      * - Thread state tracking (active/blocked)
      *
-     * @return Message wrapping the data sample, or nullopt if:
-     *   - Sample is within ignore count (early returns)
-     *   - Generator exhausted (completion signal queued on Port 1)
+     * @return Message wrapping the next non-ignored data sample, or nullopt
+     *         when the generator is exhausted and a completion signal is queued
+     *         on Port 1.
      *
      * @note **Thread Model**: Called exclusively from the producer thread
      * @note **Real-time**: Uses steady_clock for precision timing (not affected by system clock adjustments)
@@ -233,17 +233,20 @@ public:
      * - notification_queue_: Single message enqueued on exhaustion
      */
     std::optional<::graph::message::Message> Produce(std::integral_constant<std::size_t, 0>) override {
-        next_time_ += GetNextSampleInterval();
-        std::this_thread::sleep_until(next_time_);
-        std::optional<DataType> sample = generator_->Produce(0);
-        if (sample.has_value()) {
-            this->OnDataProduced(sample.value());
-            total_samples_generated_++;
-            if (total_samples_generated_ > sample_ignore_) {
-                PayloadType payload(sample.value());
-                return ::graph::message::Message(payload);
+        while (true) {
+            next_time_ += GetNextSampleInterval();
+            std::this_thread::sleep_until(next_time_);
+            std::optional<DataType> sample = generator_->Produce(0);
+            if (sample.has_value()) {
+                this->OnDataProduced(sample.value());
+                total_samples_generated_++;
+                if (total_samples_generated_ > sample_ignore_) {
+                    PayloadType payload(sample.value());
+                    return ::graph::message::Message(payload);
+                }
+                continue;
             }
-        } else {
+
             // Generator exhausted - don't emit data, completion signal will be on port 1
             this->OnDataExhausted();
             NotificationType notification = CreateNotification();
@@ -251,8 +254,8 @@ public:
             static_cast<void>(notification_queue_.Enqueue(notification));
             LOG4CXX_TRACE(logger_, "Data exhausted in DataProducerWithNotification: " << producer_name_
                                      << " (samples=" << total_samples_generated_ << ")");
+            return std::nullopt;
         }
-        return std::nullopt;
     }
 
     /**
@@ -333,7 +336,7 @@ public:
      */
     std::optional<NotificationType> Produce(std::integral_constant<std::size_t, 1>) override {
         NotificationType notification;
-        if(!notification_queue_.Dequeue(notification)) {
+        if (!notification_queue_.Dequeue(notification)) {
             return std::nullopt;
         }
         return notification;
@@ -600,4 +603,3 @@ public:
 };
 
 } // namespace graph
-

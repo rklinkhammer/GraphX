@@ -22,6 +22,7 @@
 
 #include "graph/NodeFactory.hpp"
 #include "plugins/PluginRegistry.hpp"
+#include "plugins/PluginLoader.hpp"
 #include "graph/StaticNodeAdapter.hpp"
 #include <log4cxx/logger.h>
 
@@ -88,8 +89,25 @@ void NodeFactory::Initialize() {
         return;
     }
     
+    // Support legacy single-loader path
+    if (loaders_.empty() && plugin_loader_) {
+        LOG4CXX_TRACE(logger_, "Initializing with legacy single PluginLoader");
+        // User set plugin_loader_ via SetPluginLoader() - this is the legacy path
+        // Convert it to the new multi-directory structure
+        loaders_.push_back(plugin_loader_);
+        LOG4CXX_TRACE(logger_, "Converted legacy loader to multi-directory structure");
+    }
+    
     try {
-        RegisterPluginNodes();
+        // If we have loaders, register their plugins
+        if (!loaders_.empty()) {
+            LOG4CXX_TRACE(logger_, "Registering plugins from " << loaders_.size() 
+                         << " loaders");
+            RegisterPluginNodes();
+        } else {
+            LOG4CXX_TRACE(logger_, "No plugin loaders configured, skipping plugin registration");
+        }
+        
         RegisterStaticNodes();
         initialized_ = true;
         LOG4CXX_TRACE(logger_, "Unified factory initialized successfully");
@@ -146,9 +164,11 @@ void NodeFactory::RegisterPluginNodes() {
         return;
     }
     
-    // Get list of all plugin node types
+    // Get list of all plugin node types from the registry
+    // The registry contains all types from all loaders
     auto plugin_types = plugin_registry_->GetRegisteredNodeTypes();
-    LOG4CXX_TRACE(logger_, "Registering " << plugin_types.size() << " plugin node types");
+    LOG4CXX_TRACE(logger_, "Registering " << plugin_types.size() 
+                 << " plugin node types from " << loaders_.size() << " loaders");
     
     // For each plugin type, register a factory function
     for (const auto& type_name : plugin_types) {
@@ -194,4 +214,69 @@ void NodeFactory::RegisterStaticNodes() {
     LOG4CXX_TRACE(logger_, "Finished registering static nodes");
 }
 
+void NodeFactory::AddPluginDirectory(const std::string& directory_path) {
+    LOG4CXX_TRACE(logger_, "Adding plugin directory: " << directory_path);
+    
+    if (directory_path.empty()) {
+        LOG4CXX_ERROR(logger_, "Cannot add empty directory path");
+        throw std::invalid_argument("Directory path cannot be empty");
+    }
+    
+    // First directory becomes the primary registry/loader if not already set
+    if (!plugin_registry_) {
+        LOG4CXX_TRACE(logger_, "Creating default PluginRegistry for first directory");
+        plugin_registry_ = std::make_shared<PluginRegistry>();
+    }
+    
+    // Create a new loader for this directory
+    loaders_.push_back(std::make_shared<PluginLoader>(directory_path, plugin_registry_));
+    
+    LOG4CXX_TRACE(logger_, "Added plugin directory (total directories: " 
+                 << loaders_.size() << ")");
+}
+
+void NodeFactory::LoadAllPluginsFromDirectories() {
+    LOG4CXX_TRACE(logger_, "Loading plugins from " << loaders_.size() 
+                 << " registered directories");
+    
+    if (loaders_.empty()) {
+        LOG4CXX_ERROR(logger_, "No plugin directories have been added");
+        throw std::runtime_error("No plugin directories registered. Call AddPluginDirectory() first.");
+    }
+    
+    if (!plugin_registry_) {
+        LOG4CXX_ERROR(logger_, "PluginRegistry not initialized");
+        throw std::runtime_error("PluginRegistry not initialized");
+    }
+    
+    size_t total_loaded = 0;
+    size_t total_failed = 0;
+    
+    for (size_t i = 0; i < loaders_.size(); ++i) {
+        auto& loader = loaders_[i];
+        try {
+            LOG4CXX_TRACE(logger_, "Loading plugins from directory " << (i + 1) 
+                         << " of " << loaders_.size());
+            
+            loader->LoadAllPlugins();
+            
+            auto types = loader->GetRegistry()->GetRegisteredNodeTypes();
+            size_t dir_count = types.size();
+            total_loaded += dir_count;
+            
+            LOG4CXX_TRACE(logger_, "Directory " << (i + 1) << " loaded " 
+                         << dir_count << " node types");
+        } catch (const std::exception& e) {
+            LOG4CXX_WARN(logger_, "Failed to load plugins from directory " 
+                        << (i + 1) << ": " << e.what());
+            total_failed++;
+            // Continue with next directory
+        }
+    }
+    
+    LOG4CXX_TRACE(logger_, "Plugin loading complete: " << total_loaded 
+                 << " loaded, " << total_failed << " directories failed");
+}
+
 }  // namespace graph
+

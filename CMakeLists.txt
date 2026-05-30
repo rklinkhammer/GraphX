@@ -29,6 +29,7 @@ endif()
 # Add projects
 add_subdirectory(libgraph)
 add_subdirectory(libsensor)
+add_subdirectory(libdsp)
 # add_subdirectory(libnodes)
 # add_subdirectory(libdashboard)
 # add_subdirectory(gdashboard-app)

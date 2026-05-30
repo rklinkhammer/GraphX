@@ -689,33 +689,38 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntPr
      *   └─────────────────────────────────────────┘
      *
      *   [TestIntProducer]
-     *       ├─ Port 0 (Message<int>) ──→ [TestIntSinkNode]
+     *       ├─ Port 0 (Message<int>) ──→ [InteriorTestNode] ──→ [TestIntSinkNode]
      *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
      *
      * Data Flow:
-     *   Same as MinimalIntProducer - demonstrates consistent producer pattern
+     *   Producer data passes through a Message-preserving interior node before the sink.
+     *   Completion still routes directly from producer to completion node.
      *
      * Purpose:
-     *   Validates extensible producer topology pattern
+     *   Validates extensible producer topology pattern with a sequential processing stage
      *   Base pattern for more complex multi-producer topologies
      */
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntProducer"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
     auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
     
     graph->AddNode(producer_wrapper);
+    graph->AddNode(interior_wrapper);
     graph->AddNode(sink_wrapper);
     graph->AddNode(completion_wrapper);
     
-    // Port 0: Message(int) → Sink
-    PluginInfrastructure::AddEdge<TestIntProducer, 0, TestIntSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    // Port 0: Message(int) → Interior → Sink
+    PluginInfrastructure::AddEdge<TestIntProducer, 0, InteriorTestNode, 0>(graph, producer_wrapper, interior_wrapper);
+    PluginInfrastructure::AddEdge<InteriorTestNode, 0, TestIntSinkNode, 0>(graph, interior_wrapper, sink_wrapper);
     
     // Port 1: CompletionSignal → CompletionNode
     PluginInfrastructure::AddEdge<TestIntProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
@@ -777,33 +782,38 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubl
      *   └──────────────────────────────────────────┘
      *
      *   [TestDoubleProducer]
-     *       ├─ Port 0 (Message<double>) ──→ [TestDoubleSinkNode]
+     *       ├─ Port 0 (Message<double>) ──→ [InteriorTestNode] ──→ [TestDoubleSinkNode]
      *       └─ Port 1 (CompletionSignal) ──→ [CompletionNode]
      *
      * Data Flow:
-     *   Same as MinimalDoubleProducer - demonstrates consistent producer pattern
+     *   Producer data passes through a Message-preserving interior node before the sink.
+     *   Completion still routes directly from producer to completion node.
      *
      * Purpose:
-     *   Validates extensible producer topology pattern for double type
+     *   Validates extensible producer topology pattern for double type with a sequential processing stage
      *   Base pattern for more complex multi-producer topologies
      */
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleProducer"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
+    auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
     auto completion_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(completion);
     
     graph->AddNode(producer_wrapper);
+    graph->AddNode(interior_wrapper);
     graph->AddNode(sink_wrapper);
     graph->AddNode(completion_wrapper);
     
-    // Port 0: Message(double) → Sink
-    PluginInfrastructure::AddEdge<TestDoubleProducer, 0, TestDoubleSinkNode, 0>(graph, producer_wrapper, sink_wrapper);
+    // Port 0: Message(double) → Interior → Sink
+    PluginInfrastructure::AddEdge<TestDoubleProducer, 0, InteriorTestNode, 0>(graph, producer_wrapper, interior_wrapper);
+    PluginInfrastructure::AddEdge<InteriorTestNode, 0, TestDoubleSinkNode, 0>(graph, interior_wrapper, sink_wrapper);
     
     // Port 1: CompletionSignal → CompletionNode
     PluginInfrastructure::AddEdge<TestDoubleProducer, 1, CompletionNode, 0>(graph, producer_wrapper, completion_wrapper);
@@ -936,9 +946,9 @@ TopologyMetadata TopologyBuilder::GetTopologyMetadata(TopologyType type) {
         case TopologyType::LinearSequentialIntProducer:
             return {
                 "LinearSequentialIntProducer",
-                "TestIntProducer to TestIntSinkNode with completion signal routing",
-                3, 2,
-                {"int_producer", "int_sink", "completion_node"}
+                "TestIntProducer through InteriorTestNode to TestIntSinkNode with completion signal routing",
+                4, 3,
+                {"int_producer", "interior", "int_sink", "completion_node"}
             };
         case TopologyType::MinimalDoubleProducer:
             return {
@@ -950,9 +960,9 @@ TopologyMetadata TopologyBuilder::GetTopologyMetadata(TopologyType type) {
         case TopologyType::LinearSequentialDoubleProducer:
             return {
                 "LinearSequentialDoubleProducer",
-                "TestDoubleProducer to TestDoubleSinkNode with completion signal routing",
-                3, 2,
-                {"double_producer", "double_sink", "completion_node"}
+                "TestDoubleProducer through InteriorTestNode to TestDoubleSinkNode with completion signal routing",
+                4, 3,
+                {"double_producer", "interior", "double_sink", "completion_node"}
             };
         default:
             throw std::invalid_argument("Unknown topology type");

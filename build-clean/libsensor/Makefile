@@ -60,7 +60,7 @@ EQUALS = =
 CMAKE_SOURCE_DIR = /Users/rklinkhammer/workspace/GraphX
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build2
+CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build-clean
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -142,14 +142,14 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build2/libsensor//CMakeFiles/progress.marks
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build-clean/libsensor//CMakeFiles/progress.marks
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/clean
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/clean
 .PHONY : clean
 
 # The main clean target
@@ -158,22 +158,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 libsensor/CMakeFiles/sensor.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/CMakeFiles/sensor.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libsensor/CMakeFiles/sensor.dir/rule
 .PHONY : libsensor/CMakeFiles/sensor.dir/rule
 
 # Convenience name for target.
@@ -182,7 +182,7 @@ sensor: libsensor/CMakeFiles/sensor.dir/rule
 
 # fast build rule for target.
 sensor/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/build
 .PHONY : sensor/fast
 
 src/csv/CSVParserCompat.o: src/csv/CSVParserCompat.cpp.o
@@ -190,7 +190,7 @@ src/csv/CSVParserCompat.o: src/csv/CSVParserCompat.cpp.o
 
 # target to build an object file
 src/csv/CSVParserCompat.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.o
 .PHONY : src/csv/CSVParserCompat.cpp.o
 
 src/csv/CSVParserCompat.i: src/csv/CSVParserCompat.cpp.i
@@ -198,7 +198,7 @@ src/csv/CSVParserCompat.i: src/csv/CSVParserCompat.cpp.i
 
 # target to preprocess a source file
 src/csv/CSVParserCompat.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.i
 .PHONY : src/csv/CSVParserCompat.cpp.i
 
 src/csv/CSVParserCompat.s: src/csv/CSVParserCompat.cpp.s
@@ -206,7 +206,7 @@ src/csv/CSVParserCompat.s: src/csv/CSVParserCompat.cpp.s
 
 # target to generate assembly for a file
 src/csv/CSVParserCompat.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/csv/CSVParserCompat.cpp.s
 .PHONY : src/csv/CSVParserCompat.cpp.s
 
 src/sensor/SensorClassification.o: src/sensor/SensorClassification.cpp.o
@@ -214,7 +214,7 @@ src/sensor/SensorClassification.o: src/sensor/SensorClassification.cpp.o
 
 # target to build an object file
 src/sensor/SensorClassification.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.o
 .PHONY : src/sensor/SensorClassification.cpp.o
 
 src/sensor/SensorClassification.i: src/sensor/SensorClassification.cpp.i
@@ -222,7 +222,7 @@ src/sensor/SensorClassification.i: src/sensor/SensorClassification.cpp.i
 
 # target to preprocess a source file
 src/sensor/SensorClassification.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.i
 .PHONY : src/sensor/SensorClassification.cpp.i
 
 src/sensor/SensorClassification.s: src/sensor/SensorClassification.cpp.s
@@ -230,7 +230,7 @@ src/sensor/SensorClassification.s: src/sensor/SensorClassification.cpp.s
 
 # target to generate assembly for a file
 src/sensor/SensorClassification.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libsensor/CMakeFiles/sensor.dir/build.make libsensor/CMakeFiles/sensor.dir/src/sensor/SensorClassification.cpp.s
 .PHONY : src/sensor/SensorClassification.cpp.s
 
 # Help Target
@@ -264,6 +264,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /Users/rklinkhammer/workspace/GraphX/build2 && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

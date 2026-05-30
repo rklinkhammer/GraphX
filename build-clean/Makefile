@@ -60,7 +60,7 @@ EQUALS = =
 CMAKE_SOURCE_DIR = /Users/rklinkhammer/workspace/GraphX
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build2
+CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build-clean
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -142,9 +142,9 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build2//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build-clean//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build2/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -327,6 +327,110 @@ split_test_node/fast:
 	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/build
 .PHONY : split_test_node/fast
 
+#=============================================================================
+# Target rules for targets named int_producer
+
+# Build rule for target.
+int_producer: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 int_producer
+.PHONY : int_producer
+
+# fast build rule for target.
+int_producer/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/build
+.PHONY : int_producer/fast
+
+#=============================================================================
+# Target rules for targets named double_producer
+
+# Build rule for target.
+double_producer: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 double_producer
+.PHONY : double_producer
+
+# fast build rule for target.
+double_producer/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/build
+.PHONY : double_producer/fast
+
+#=============================================================================
+# Target rules for targets named int_sink
+
+# Build rule for target.
+int_sink: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 int_sink
+.PHONY : int_sink
+
+# fast build rule for target.
+int_sink/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/build
+.PHONY : int_sink/fast
+
+#=============================================================================
+# Target rules for targets named double_sink
+
+# Build rule for target.
+double_sink: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 double_sink
+.PHONY : double_sink
+
+# fast build rule for target.
+double_sink/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/build
+.PHONY : double_sink/fast
+
+#=============================================================================
+# Target rules for targets named completion_node
+
+# Build rule for target.
+completion_node: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 completion_node
+.PHONY : completion_node
+
+# fast build rule for target.
+completion_node/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/build
+.PHONY : completion_node/fast
+
+#=============================================================================
+# Target rules for targets named sine_iq_source
+
+# Build rule for target.
+sine_iq_source: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sine_iq_source
+.PHONY : sine_iq_source
+
+# fast build rule for target.
+sine_iq_source/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sine_iq_source.dir/build.make libgraph/test/plugins/CMakeFiles/sine_iq_source.dir/build
+.PHONY : sine_iq_source/fast
+
+#=============================================================================
+# Target rules for targets named fft_power_spectrum
+
+# Build rule for target.
+fft_power_spectrum: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 fft_power_spectrum
+.PHONY : fft_power_spectrum
+
+# fast build rule for target.
+fft_power_spectrum/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/fft_power_spectrum.dir/build.make libgraph/test/plugins/CMakeFiles/fft_power_spectrum.dir/build
+.PHONY : fft_power_spectrum/fast
+
+#=============================================================================
+# Target rules for targets named analyzer_sink
+
+# Build rule for target.
+analyzer_sink: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 analyzer_sink
+.PHONY : analyzer_sink
+
+# fast build rule for target.
+analyzer_sink/fast:
+	$(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/analyzer_sink.dir/build.make libgraph/test/plugins/CMakeFiles/analyzer_sink.dir/build
+.PHONY : analyzer_sink/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -342,10 +446,18 @@ help:
 	@echo "... test"
 	@echo "... test-summary"
 	@echo "... test_libgraph"
+	@echo "... analyzer_sink"
+	@echo "... completion_node"
+	@echo "... double_producer"
+	@echo "... double_sink"
+	@echo "... fft_power_spectrum"
 	@echo "... graph"
+	@echo "... int_producer"
+	@echo "... int_sink"
 	@echo "... interior_test_node"
 	@echo "... merge_test_node"
 	@echo "... sensor"
+	@echo "... sine_iq_source"
 	@echo "... sink_test_node"
 	@echo "... source_test_node"
 	@echo "... split_test_node"
