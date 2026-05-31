@@ -31,7 +31,6 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFactory.hpp"
-#include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
 
 /**
@@ -66,14 +65,6 @@ public:
    
     std::shared_ptr<graph::PluginRegistry> GetPluginRegistry() const {
         return plugin_registry;
-    }
-    
-    void SetPluginLoader(std::shared_ptr<graph::PluginLoader> loader) {
-        plugin_loader = loader;
-    }
-    
-    std::shared_ptr<graph::PluginLoader> GetPluginLoader() const {
-        return plugin_loader;
     }
     
     void SetNodeFactory(std::shared_ptr<graph::NodeFactory> nf) {

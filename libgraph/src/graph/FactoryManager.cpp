@@ -97,7 +97,6 @@ FactoryManager::CreateFactory(const std::string& plugin_directory) {
     std::shared_ptr<graph::NodeFactory> factory;
     try {
         factory = std::make_shared<graph::NodeFactory>(registry);
-        factory->SetPluginLoader(loader);
         LOG4CXX_TRACE(logger_, "Created NodeFactory successfully");
         
         // Initialize the factory with plugin node types

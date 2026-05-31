@@ -35,6 +35,9 @@
 #pragma once
 
 #include <cstddef>
+#include <tuple>
+#include <utility>
+#include <vector>
 #include <string_view>
 #include <string>
 #include <array>
@@ -198,6 +201,89 @@ namespace graph
                 std::string(Port::name)
             };
         }
+    }
+
+    template <typename Derived>
+    struct HasPorts;
+
+    template <PortDirection Direction, typename PortsTuple, std::size_t... Is>
+    consteval std::size_t CountPortsByDirectionImpl(std::index_sequence<Is...>) {
+        return ((std::tuple_element_t<Is, PortsTuple>::direction == Direction ? 1u : 0u) + ... + 0u);
+    }
+
+    template <PortDirection Direction, typename PortsTuple>
+    consteval std::size_t CountPortsByDirection() {
+        return CountPortsByDirectionImpl<Direction, PortsTuple>(
+            std::make_index_sequence<std::tuple_size_v<PortsTuple>>{});
+    }
+
+    template <typename Node, typename = void>
+    struct NodePortDescriptor {
+        static consteval bool HasPortsTuple() {
+            return requires { typename Node::Ports; };
+        }
+
+        static consteval bool HasCountMembers() {
+            return requires { Node::NInputs; Node::NOutputs; };
+        }
+
+        static consteval std::size_t InputCount() {
+            if constexpr (HasPortsTuple()) {
+                return CountPortsByDirection<PortDirection::Input, typename Node::Ports>();
+            } else if constexpr (HasCountMembers()) {
+                return Node::NInputs;
+            } else {
+                return 0;
+            }
+        }
+
+        static consteval std::size_t OutputCount() {
+            if constexpr (HasPortsTuple()) {
+                return CountPortsByDirection<PortDirection::Output, typename Node::Ports>();
+            } else if constexpr (HasCountMembers()) {
+                return Node::NOutputs;
+            } else {
+                return 0;
+            }
+        }
+
+        static constexpr bool available = HasPortsTuple() || HasCountMembers();
+        static constexpr std::size_t input_count = InputCount();
+        static constexpr std::size_t output_count = OutputCount();
+    };
+
+    template <typename Node>
+    concept HasCompileTimePortCounts = NodePortDescriptor<Node>::available;
+
+    template <typename NodeType, PortDirection Direction>
+    std::vector<PortMetadata> MakePortMetadataForDirection() {
+        std::vector<PortMetadata> out;
+
+        if constexpr (Direction == PortDirection::Input) {
+            if constexpr (NodePortDescriptor<NodeType>::available) {
+                out.reserve(NodePortDescriptor<NodeType>::input_count);
+            }
+        } else {
+            if constexpr (NodePortDescriptor<NodeType>::available) {
+                out.reserve(NodePortDescriptor<NodeType>::output_count);
+            }
+        }
+
+        if constexpr (HasPorts<NodeType>::value) {
+            std::apply(
+                [&](auto... port) {
+                    auto append_port = [&](auto current_port) {
+                        if (current_port.direction == Direction) {
+                            out.push_back(MakePortMetadata<decltype(current_port)>());
+                        }
+                    };
+
+                    (append_port(port), ...);
+                },
+                typename NodeType::Ports{});
+        }
+
+        return out;
     }
 
     template <typename Derived>

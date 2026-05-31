@@ -3,7 +3,14 @@ project(gdashboard-workspace LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+option(GRAPHX_ENABLE_MODULE_PILOT "Enable the experimental C++ module pilot" OFF)
+
+if(NOT CMAKE_CXX_STANDARD EQUAL 26)
+    message(FATAL_ERROR "GraphX requires C++26 as the only supported standard")
+endif()
 
 # Compiler flags
 if(MSVC)

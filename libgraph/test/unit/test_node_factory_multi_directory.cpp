@@ -5,7 +5,6 @@
  * Tests the Option A multi-directory architecture:
  * - AddPluginDirectory() to register multiple plugin directories
  * - LoadAllPluginsFromDirectories() to load all plugins across directories
- * - Backward compatibility with legacy SetPluginLoader() path
  * - Plugin registration from multiple sources
  *
  * @author Test Suite
@@ -226,44 +225,17 @@ TEST_F(NodeFactoryMultiDirectoryTest,
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
-       BackwardCompatibility_SetPluginLoaderStillWorks) {
-    
-    // Setup: Put all plugins in primary directory
-    auto registry = std::make_shared<graph::PluginRegistry>();
-    auto loader = std::make_shared<graph::PluginLoader>(PLUGIN_OUTPUT_DIRECTORY, registry);
-    
-    // Create factory
-    auto factory = std::make_shared<graph::NodeFactory>(registry);
-    
-    // Use legacy SetPluginLoader() path
-    ASSERT_NO_THROW(factory->SetPluginLoader(loader));
-    ASSERT_NO_THROW(loader->LoadAllPlugins());
-    
-    // Verify plugins loaded via legacy path
-    auto registered_plugins = registry->GetRegisteredNodeTypes();
-    ASSERT_GT(registered_plugins.size(), 0);
-    ASSERT_TRUE(PluginRegistered(registered_plugins, "TestIntProducer"));;
-}
-
-TEST_F(NodeFactoryMultiDirectoryTest,
-       MixedMode_AddPluginDirectoryAfterSetPluginLoader) {
+    MixedMode_AddPluginDirectoryAcrossSources) {
     
     // Setup test directories
     CopyPluginsToDirectory(test_dir1_, {"completion_node"});
     CopyPluginsToDirectory(test_dir2_, {"test_node"});
     
     auto registry = std::make_shared<graph::PluginRegistry>();
-    
-    // First, use legacy SetPluginLoader with primary directory
-    auto legacy_loader = std::make_shared<graph::PluginLoader>(PLUGIN_OUTPUT_DIRECTORY, registry);
     auto factory = std::make_shared<graph::NodeFactory>(registry);
-    factory->SetPluginLoader(legacy_loader);
-    ASSERT_NO_THROW(legacy_loader->LoadAllPlugins());
-    
-    size_t legacy_count = registry->GetRegisteredNodeTypes().size();
-    ASSERT_GT(legacy_count, 0);
-    
-    // Then add additional directories using new API
+
+    // Load the primary directory and then add additional sources
+    ASSERT_NO_THROW(factory->AddPluginDirectory(PLUGIN_OUTPUT_DIRECTORY));
     ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
     ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
     ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
@@ -271,7 +243,7 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     // Should have plugins from all sources. Duplicate node types from added
     // directories refresh existing registrations rather than increasing count.
     size_t total_count = registry->GetRegisteredNodeTypes().size();
-    ASSERT_GE(total_count, legacy_count);
+    ASSERT_GT(total_count, 0u);
     auto registered = registry->GetRegisteredNodeTypes();
     ASSERT_TRUE(PluginRegistered(registered, "CompletionNode"));;
     ASSERT_TRUE(PluginRegistered(registered, "TestNode"));;

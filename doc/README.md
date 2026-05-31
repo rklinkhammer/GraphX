@@ -67,6 +67,7 @@ Phase-based progress reports and completion milestones:
 - **PHASE3_MESSAGE_TESTS_COMPLETE.md** - Phase 3: Message tests complete
 - **PHASE3_SYSTEM_INTEGRATION_COMPLETE.md** - Phase 3: System integration complete
 - **PHASE5_PRIORITY1_COMPLETION.md** - Phase 5: Priority 1 items complete
+- **CXX26_MIGRATION_PLAN.md** - C++26-first migration strategy
 - **PLUGIN_COMPILATION_FIX_SUMMARY.md** - Plugin compilation fixes
 - **STAGE_5_5B_COMPLETION_SUMMARY.md** - Stage 5.5b completion summary
 - **STAGE_5_5B_MESSAGE_FLOW_VALIDATION.md** - Stage 5.5b message flow validation
@@ -115,11 +116,11 @@ Documentation is organized by **purpose** rather than by module:
 
 ## Key Statistics
 
-- **Total Documentation Files:** 58
-- **Architecture Documents:** 23
-- **Test Documents:** 14
-- **Phase Reports:** 17
-- **Guides & References:** 4
+- **Total Documentation Files:** 64
+- **Architecture Documents:** 24
+- **Test Documents:** 15
+- **Phase Reports:** 19
+- **Guides & References:** 5
 
 ## Last Updated
 

@@ -315,7 +315,8 @@ This document provides a complete inventory of all classes across the GraphX pro
 |-------|--------|-----------|-------------|-------------|
 | `SensorDataRouter` | [sensor/SensorDataRouter.hpp](libsensor/include/sensor/SensorDataRouter.hpp) | ❌ No | ❌ No | Type-based dispatcher for SensorPayload variants; specialization of VariantRouter |
 | `SensorClassificationType` | [sensor/SensorClassificationType.hpp](libsensor/include/sensor/SensorClassificationType.hpp) | ❌ No | ❌ No | Enum taxonomy for sensor classification (ACCELEROMETER, GYROSCOPE, etc.) |
-| `CSVParserCompat` | [sensor/CSVParserCompat.hpp](libsensor/include/sensor/CSVParserCompat.hpp) | ❌ No | ❌ No | Backward compatibility adapters for sensor-specific CSV parsing |
+
+Note: `CSVParserCompat` was removed during C++26 migration cleanup; generic CSV parsing now uses `csv::ParseRowGeneric<T>` and related APIs in `libgraph/include/csv/CSVParser.hpp`.
 
 ---
 

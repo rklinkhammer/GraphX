@@ -1,8 +1,8 @@
 # Multi-Plugin Directory Support Analysis
 
 **Date:** May 29, 2026  
-**Status:** Analysis Phase  
-**Objective:** Enable NodeFactory and plugin system to support loading plugins from multiple directories
+**Status:** Implemented (Updated May 31, 2026)  
+**Objective:** Document the shipped NodeFactory multi-directory plugin loading model
 
 ---
 
@@ -334,11 +334,13 @@ void NodeFactory::LoadAllPluginsFromDirectories() {
 ### 4.3 Usage Patterns
 
 ```cpp
-// Pattern 1: Traditional single directory (backward compatible)
+// Pattern 1: Traditional single directory
 auto factory = std::make_shared<NodeFactory>(plugin_registry);
-factory->Initialize();  // Uses original SetPluginLoader path
+factory->AddPluginDirectory("./plugins");
+factory->LoadAllPluginsFromDirectories();
+factory->Initialize();
 
-// Pattern 2: Multiple directories (new)
+// Pattern 2: Multiple directories
 auto factory = std::make_shared<NodeFactory>();
 factory->AddPluginDirectory("/usr/local/lib/graphx/plugins");
 factory->AddPluginDirectory("./plugins");
@@ -362,29 +364,21 @@ factory->LoadAllPluginsFromDirectories();
 | Current API | Impact | Mitigation |
 |------------|--------|-----------|
 | `NodeFactory(plugin_registry)` | Constructor still works | Keep as-is |
-| `factory->Initialize()` | Works with original loader | Check if loaders_ empty before using primary_loader_ |
-| `factory->SetPluginLoader(loader)` | Becomes "set primary loader" | Document clearly |
+| `factory->Initialize()` | Works with directory-based loaders | Call after directories are added/loaded |
+| `factory->SetPluginLoader(loader)` | Removed | Migrate to `AddPluginDirectory()` + `LoadAllPluginsFromDirectories()` |
 
 ### 5.2 Backward Compatibility Strategy
 
 ```cpp
 void NodeFactory::Initialize() {
-    if (loaders_.empty() && plugin_loader_) {
-        // Legacy path: convert single loader to vector
-        loaders_.push_back(plugin_loader_);
-        LOG4CXX_TRACE(logger_, "Using legacy plugin loader");
-    }
-    
-    if (loaders_.empty()) {
-        LOG4CXX_WARN(logger_, "No plugin loaders configured");
-        // Fall back to pure static node registry
-        RegisterStaticNodes();
-        initialized_ = true;
+    if (initialized_) {
         return;
     }
-    
-    // New path: load from all directories
-    LoadAllPluginsFromDirectories();
+
+    if (!loaders_.empty()) {
+        RegisterPluginNodes();
+    }
+
     RegisterStaticNodes();
     initialized_ = true;
 }
@@ -394,17 +388,16 @@ void NodeFactory::Initialize() {
 
 ## 6. Implementation Phases
 
-### Phase 1: Infrastructure (non-breaking)
-- [ ] Add `std::vector<std::shared_ptr<PluginLoader>> loaders_` to NodeFactory
-- [ ] Implement `AddPluginDirectory(path)`
-- [ ] Implement `LoadAllPluginsFromDirectories()`
-- [ ] Add unit tests for multi-directory loading
-- [ ] **No breaking changes**
+### Phase 1: Infrastructure
+- [x] Add `std::vector<std::shared_ptr<PluginLoader>> loaders_` to NodeFactory
+- [x] Implement `AddPluginDirectory(path)`
+- [x] Implement `LoadAllPluginsFromDirectories()`
+- [x] Add unit tests for multi-directory loading
 
-### Phase 2: Transition (optional)
-- [ ] Deprecate `SetPluginLoader()` in favor of `AddPluginDirectory()`
-- [ ] Update documentation with multi-directory examples
-- [ ] Add integration tests with multiple real directories
+### Phase 2: Transition
+- [x] Remove `SetPluginLoader()` in favor of `AddPluginDirectory()`
+- [x] Update documentation with multi-directory examples
+- [x] Add integration coverage for directory-based loading
 
 ### Phase 3: Future Enhancements (if needed)
 - [ ] Priority/order-based directory search
@@ -456,13 +449,12 @@ TEST(NodeFactoryMultiDirectory, DuplicatePluginNameResolution) {
     EXPECT_EQ(info->plugin_path, /* DIR1 path */);
 }
 
-TEST(NodeFactoryMultiDirectory, BackwardCompatibility) {
-    // Old code should still work
+TEST(NodeFactoryMultiDirectory, DirectoryBasedSinglePath) {
     auto plugin_registry = std::make_shared<PluginRegistry>();
-    auto loader = std::make_shared<PluginLoader>("./plugins", plugin_registry);
     auto factory = std::make_shared<NodeFactory>(plugin_registry);
-    factory->SetPluginLoader(loader);
-    factory->Initialize();  // Should work
+    factory->AddPluginDirectory("./plugins");
+    factory->LoadAllPluginsFromDirectories();
+    factory->Initialize();
 }
 ```
 

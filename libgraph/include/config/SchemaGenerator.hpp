@@ -26,12 +26,17 @@
 #pragma once
 
 #include <string_view>
+#include <string>
 #include <type_traits>
 #include <concepts>
+#include <array>
 #include <vector>
 #include <optional>
+#include <span>
+#include <ranges>
 #include <nlohmann/json.hpp>
 #include "Config.hpp"
+#include "core/ReflectionHelper.hpp"
 
 // Feature detection for C++26 std::reflect
 #if __cplusplus >= 202600 && __has_include(<meta>)
@@ -51,6 +56,73 @@
 namespace graph {
 
 using json = nlohmann::json;
+
+template<typename T>
+using ConfigFieldsRange = decltype(T::Fields());
+
+template<typename T>
+concept JsonFieldDescriptorProvider = requires {
+    T::Fields();
+    requires std::ranges::sized_range<ConfigFieldsRange<T>>;
+    requires std::same_as<
+        std::remove_cvref_t<std::ranges::range_value_t<ConfigFieldsRange<T>>>,
+        JsonField>;
+};
+
+/**
+ * @brief Convert JsonType to a JSON schema type string
+ */
+constexpr std::string_view JsonTypeToSchemaType(JsonType type) {
+    switch (type) {
+        case JsonType::String:  return "string";
+        case JsonType::Number:   return "number";
+        case JsonType::Integer:  return "integer";
+        case JsonType::Boolean:  return "boolean";
+        case JsonType::Object:   return "object";
+        case JsonType::Array:    return "array";
+    }
+
+    return "string";
+}
+
+/**
+ * @brief Convert a JsonField default string into a JSON value when possible
+ */
+inline std::optional<json> ParseDefaultJsonValue(
+    const JsonField& field) {
+
+    if (!field.default_value.has_value()) {
+        return std::nullopt;
+    }
+
+    try {
+        switch (field.type) {
+            case JsonType::String:
+                return json(std::string(*field.default_value));
+            case JsonType::Number:
+                return json(std::stod(std::string(*field.default_value)));
+            case JsonType::Integer:
+                return json(std::stoll(std::string(*field.default_value)));
+            case JsonType::Boolean: {
+                const std::string value(*field.default_value);
+                if (value == "true" || value == "1") {
+                    return json(true);
+                }
+                if (value == "false" || value == "0") {
+                    return json(false);
+                }
+                return json(value);
+            }
+            case JsonType::Object:
+            case JsonType::Array:
+                return json::parse(std::string(*field.default_value));
+        }
+    } catch (...) {
+        return json(std::string(*field.default_value));
+    }
+
+    return json(std::string(*field.default_value));
+}
 
 /**
  * @struct FieldConstraint
@@ -144,7 +216,7 @@ consteval std::string_view GetTypeName() {
     } else if constexpr (std::is_same_v<T, std::string_view>) {
         return "std::string_view";
     } else {
-        return "custom_type";
+        return reflection::ExtractTypeNameFromFunction<T>();
     }
 #endif
 }
@@ -175,7 +247,7 @@ consteval ReflectedFieldMetadata ReflectField(
         .default_value = default_val,
         .description = field.description,
         .is_required = !default_val.has_value(),
-        .is_readonly = field.readonly
+        .is_readonly = false
     };
     
     return metadata;
@@ -220,18 +292,33 @@ consteval ReflectedFieldMetadata ReflectField(
  * @return GeneratedSchema with all field metadata and constraints
  */
 template<typename ConfigType>
-requires requires {
-    { ConfigType::Fields() } -> std::convertible_to<std::vector<JsonField>>;
-}
-consteval GeneratedSchema GenerateSchemaFromType() {
-    // TODO: Phase 3 - Use reflection to extract field information
-    // For now, return placeholder with support for future reflection
-    
+requires JsonFieldDescriptorProvider<ConfigType>
+inline GeneratedSchema GenerateSchemaFromType() {
+    static const auto reflected_fields = [] {
+        constexpr auto json_fields = ConfigType::Fields();
+        std::array<ReflectedFieldMetadata, std::ranges::size(json_fields)> fields{};
+
+        for (std::size_t index = 0; index < fields.size(); ++index) {
+            const auto& field = json_fields[index];
+            fields[index] = ReflectedFieldMetadata{
+                .field_name = field.name,
+                .field_type = JsonTypeToSchemaType(field.type),
+                .default_value = ParseDefaultJsonValue(field),
+                .description = field.description,
+                .is_required = field.required,
+                .is_readonly = false,
+                .constraints = {}
+            };
+        }
+
+        return fields;
+    }();
+
     return GeneratedSchema{
         .title = GetTypeName<ConfigType>(),
-        .description = "Auto-generated schema from reflection",
-        .fields = {},
-        .examples = json::object()
+        .description = "Auto-generated schema from JsonField descriptors",
+        .fields = reflected_fields,
+        .examples = json::array()
     };
 }
 
@@ -265,13 +352,16 @@ consteval GeneratedSchema GenerateSchemaFromType() {
  */
 template<typename ConfigType>
 class SchemaValidator {
+    static_assert(JsonFieldDescriptorProvider<ConfigType>,
+                  "ConfigType must expose a sized range of JsonField descriptors via Fields()");
+
 public:
     /**
      * @brief Get the auto-generated schema for this config type
      *
      * @return GeneratedSchema with all field information
      */
-    static consteval GeneratedSchema GetSchema() {
+    static inline GeneratedSchema GetSchema() {
         return GenerateSchemaFromType<ConfigType>();
     }
 

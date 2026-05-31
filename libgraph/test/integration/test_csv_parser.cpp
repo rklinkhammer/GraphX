@@ -7,10 +7,6 @@
 #include "config/DataTypes.hpp"
 #include "graph/Message.hpp"
 
-#ifdef LIBSENSOR_AVAILABLE
-#include "sensor/CSVParserCompat.hpp"
-#endif
-
 namespace fs = std::filesystem;
 
 /**
@@ -385,39 +381,6 @@ TEST_F(CSVIntegrationTest, ParseMagnetometerGeneric) {
     EXPECT_FLOAT_EQ(mag_rec.y_ut, 12.1f);
     EXPECT_FLOAT_EQ(mag_rec.z_ut, 45.2f);
 }
-
-// ─────────────────────────────────────────────────────────────────────────
-// Backward Compatibility Tests (libsensor compat API)
-// ─────────────────────────────────────────────────────────────────────────
-
-#ifdef LIBSENSOR_AVAILABLE
-
-/**
- * @test ParseAccelerometerCompat
- * @brief Test backward compatibility wrapper for accelerometer parsing
- */
-TEST_F(CSVIntegrationTest, ParseAccelerometerCompat) {
-    GTEST_SKIP() << "libsensor compat API requires CSVNodeConfig integration";
-    // This will be enabled after CSVNodeConfig integration is completed
-}
-
-/**
- * @test ParseGyroscopeCompat
- * @brief Test backward compatibility wrapper for gyroscope parsing
- */
-TEST_F(CSVIntegrationTest, ParseGyroscopeCompat) {
-    GTEST_SKIP() << "libsensor compat API requires CSVNodeConfig integration";
-}
-
-/**
- * @test ParseGPSCompat
- * @brief Test backward compatibility wrapper for GPS parsing
- */
-TEST_F(CSVIntegrationTest, ParseGPSCompat) {
-    GTEST_SKIP() << "libsensor compat API requires CSVNodeConfig integration";
-}
-
-#endif
 
 // ─────────────────────────────────────────────────────────────────────────
 // Error Handling Tests

@@ -363,4 +363,38 @@ TEST_F(PortMetadataReflectionTest, DetailedReflectionAnalysisAllNodes) {
     LOG4CXX_INFO(logger, "\n=== END DETAILED REFLECTION ANALYSIS ===");
 }
 
+template <typename NodeType>
+class PortMetadataConformanceTest : public ::testing::Test {};
+
+using ConformanceNodeTypes = ::testing::Types<
+    test::SourceTestNode,
+    test::SinkTestNode,
+    test::InteriorTestNode,
+    test::MergeTestNode,
+    test::FailingTestNode>;
+
+TYPED_TEST_SUITE(PortMetadataConformanceTest, ConformanceNodeTypes);
+
+TYPED_TEST(PortMetadataConformanceTest, RuntimeMetadataMatchesCompileTimeDescriptor) {
+    using NodeType = TypeParam;
+    auto node = std::make_shared<NodeType>();
+    ASSERT_NE(node, nullptr);
+
+    auto input_metadata = node->GetInputPortMetadata();
+    auto output_metadata = node->GetOutputPortMetadata();
+
+    EXPECT_EQ(graph::NodePortDescriptor<NodeType>::input_count, input_metadata.size());
+    EXPECT_EQ(graph::NodePortDescriptor<NodeType>::output_count, output_metadata.size());
+
+    for (const auto& port : input_metadata) {
+        EXPECT_FALSE(port.port_name.empty());
+        EXPECT_FALSE(port.payload_type.empty());
+    }
+
+    for (const auto& port : output_metadata) {
+        EXPECT_FALSE(port.port_name.empty());
+        EXPECT_FALSE(port.payload_type.empty());
+    }
+}
+
 }  // namespace

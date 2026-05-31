@@ -89,15 +89,6 @@ void NodeFactory::Initialize() {
         return;
     }
     
-    // Support legacy single-loader path
-    if (loaders_.empty() && plugin_loader_) {
-        LOG4CXX_TRACE(logger_, "Initializing with legacy single PluginLoader");
-        // User set plugin_loader_ via SetPluginLoader() - this is the legacy path
-        // Convert it to the new multi-directory structure
-        loaders_.push_back(plugin_loader_);
-        LOG4CXX_TRACE(logger_, "Converted legacy loader to multi-directory structure");
-    }
-    
     try {
         // If we have loaders, register their plugins
         if (!loaders_.empty()) {
@@ -127,7 +118,6 @@ NodeFacadeAdapter NodeFactory::CreateNode(const std::string& node_type_name) {
             Initialize();
         } catch (const std::exception& e) {
             LOG4CXX_WARN(logger_, "Failed to lazily initialize factory, will attempt CreateDynamicNode: " << e.what());
-            // Fall through to try CreateDynamicNode
         }
     }
     
@@ -144,7 +134,7 @@ NodeFacadeAdapter NodeFactory::CreateNode(const std::string& node_type_name) {
         }
     }
     
-    // Fallback to CreateDynamicNode for backward compatibility
+    // Fall back to CreateDynamicNode when the unified registry cannot serve the request.
     LOG4CXX_TRACE(logger_, "Falling back to CreateDynamicNode for: " << node_type_name);
     try {
         NodeFacadeAdapter adapter = CreateDynamicNode(node_type_name);

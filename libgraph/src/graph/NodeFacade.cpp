@@ -34,6 +34,18 @@
 
 namespace graph {
 
+namespace {
+
+INodeFacade::PortInfo ToPortInfo(const PortMetadataC& metadata) {
+    return INodeFacade::PortInfo{
+        .name = metadata.port_name,
+        .type = metadata.payload_type,
+        .direction = metadata.direction,
+    };
+}
+
+}  // namespace
+
 log4cxx::LoggerPtr NodeFacadeAdapter::logger_ =
     log4cxx::Logger::getLogger("graph.NodeFacadeAdapter");
 
@@ -537,30 +549,20 @@ INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
     metadata.type = GetType();
     metadata.description = GetDescription();
 
-    // Get port counts
-    metadata.input_port_count = GetInputPortCount();
-    metadata.output_port_count = GetOutputPortCount();
+    const auto input_metadata = GetInputPortMetadata();
+    const auto output_metadata = GetOutputPortMetadata();
 
-    // Build input port list
-    metadata.input_ports.reserve(metadata.input_port_count);
-    for (size_t i = 0; i < metadata.input_port_count; ++i) {
-        INodeFacade::PortInfo port{
-            .name = GetInputPortName(i),
-            .type = "",  // Type info would come from port metadata
-            .direction = "input"
-        };
-        metadata.input_ports.push_back(port);
+    metadata.input_port_count = input_metadata.size();
+    metadata.output_port_count = output_metadata.size();
+
+    metadata.input_ports.reserve(input_metadata.size());
+    for (const auto& port : input_metadata) {
+        metadata.input_ports.push_back(ToPortInfo(port));
     }
 
-    // Build output port list
-    metadata.output_ports.reserve(metadata.output_port_count);
-    for (size_t i = 0; i < metadata.output_port_count; ++i) {
-        INodeFacade::PortInfo port{
-            .name = GetOutputPortName(i),
-            .type = "",  // Type info would come from port metadata
-            .direction = "output"
-        };
-        metadata.output_ports.push_back(port);
+    metadata.output_ports.reserve(output_metadata.size());
+    for (const auto& port : output_metadata) {
+        metadata.output_ports.push_back(ToPortInfo(port));
     }
 
     return metadata;

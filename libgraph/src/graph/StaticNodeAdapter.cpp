@@ -198,15 +198,14 @@ void StaticNodeAdapter::StaticNodeInstance::BuildFacade() {
             
             // Allocate array for metadata
             auto* metadata = new PortMetadataC[ports.size()];
-            std::memset(metadata, 0, sizeof(PortMetadataC) * ports.size());
             
             // Fill in metadata
             for (size_t i = 0; i < ports.size(); ++i) {
-                metadata[i].index = i;
-                std::string type_str(ports[i].type_name);
-                std::strncpy(metadata[i].port_name, type_str.c_str(), 255);
-                metadata[i].port_name[255] = '\0';
-                std::strcpy(metadata[i].direction, "input");
+                metadata[i] = MakePortMetadataC(
+                    i,
+                    ports[i].type_name,
+                    ports[i].type_name,
+                    "input");
             }
             
             *out_count = ports.size();
@@ -231,15 +230,14 @@ void StaticNodeAdapter::StaticNodeInstance::BuildFacade() {
             
             // Allocate array for metadata
             auto* metadata = new PortMetadataC[ports.size()];
-            std::memset(metadata, 0, sizeof(PortMetadataC) * ports.size());
             
             // Fill in metadata
             for (size_t i = 0; i < ports.size(); ++i) {
-                metadata[i].index = i;
-                std::string type_str(ports[i].type_name);
-                std::strncpy(metadata[i].port_name, type_str.c_str(), 255);
-                metadata[i].port_name[255] = '\0';
-                std::strcpy(metadata[i].direction, "output");
+                metadata[i] = MakePortMetadataC(
+                    i,
+                    ports[i].type_name,
+                    ports[i].type_name,
+                    "output");
             }
             
             *out_count = ports.size();

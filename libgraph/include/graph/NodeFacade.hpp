@@ -24,8 +24,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <log4cxx/logger.h>
 #include <chrono>
@@ -63,6 +65,27 @@ typedef struct {
     char payload_type[256];         ///< Data type name (e.g., "AccelerometerData")
     char direction[16];             ///< "input" or "output"
 } PortMetadataC;
+
+inline PortMetadataC MakePortMetadataC(
+    std::size_t index,
+    std::string_view port_name,
+    std::string_view payload_type,
+    std::string_view direction)
+{
+    PortMetadataC metadata{};
+    metadata.index = index;
+
+    const auto copy_field = [](char* destination, std::size_t destination_size, std::string_view value) {
+        const std::size_t count = value.size() < destination_size - 1 ? value.size() : destination_size - 1;
+        std::memcpy(destination, value.data(), count);
+        destination[count] = '\0';
+    };
+
+    copy_field(metadata.port_name, sizeof(metadata.port_name), port_name);
+    copy_field(metadata.payload_type, sizeof(metadata.payload_type), payload_type);
+    copy_field(metadata.direction, sizeof(metadata.direction), direction);
+    return metadata;
+}
 
 /**
  * @struct ThreadMetricsC

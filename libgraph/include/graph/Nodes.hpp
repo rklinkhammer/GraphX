@@ -1591,16 +1591,7 @@ namespace graph
          * @return Vector of PortMetadata for all input ports
          */
         virtual std::vector<PortMetadata> GetInputPortMetadata() const override {
-            std::vector<PortMetadata> out;
-            if constexpr (HasPorts<Derived>::value) {
-                std::apply([&](auto... p) {
-                    ((p.direction == PortDirection::Input
-                        ? out.push_back(MakePortMetadata<decltype(p)>())
-                        : void()), ...);
-                }, typename Derived::Ports{});
-            }
-
-            return out;
+            return MakePortMetadataForDirection<Derived, PortDirection::Input>();
         }    
 
         /**
@@ -1612,16 +1603,7 @@ namespace graph
          * @return Vector of PortMetadata for all output ports
          */
         virtual std::vector<PortMetadata> GetOutputPortMetadata() const override {
-            std::vector<PortMetadata> out;
-            if constexpr (HasPorts<Derived>::value) {
-                std::apply([&](auto... p) {
-                    ((p.direction == PortDirection::Output
-                        ? out.push_back(MakePortMetadata<decltype(p)>())
-                        : void()), ...);
-                }, typename Derived::Ports{});
-            }
-
-            return out;
+            return MakePortMetadataForDirection<Derived, PortDirection::Output>();
         }
 
     };

@@ -183,189 +183,120 @@ protected:
     }
 };
 
-// =============================================================================
-// MinimalIntProducer Tests (3 tests)
-// =============================================================================
+struct ProducerTopologyCase {
+    TopologyType type;
+    const char* name;
+    std::size_t expected_nodes;
+    std::size_t expected_edges;
+    std::vector<std::string> node_types;
+    std::vector<std::tuple<std::size_t, std::size_t, std::size_t, std::size_t>> edges;
+    enum class PayloadKind { Int, Double } payload_kind;
+    std::size_t sink_node_index;
+    std::size_t completion_node_index;
+    std::size_t expected_data_count;
+    std::vector<int> int_values;
+    std::vector<double> double_values;
+};
 
-TEST_F(ProducerTopologiesTest, MinimalIntProducer_TopologyBuilds) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalIntProducer);
+class ProducerTopologyParameterizedTest
+    : public ProducerTopologiesTest,
+      public ::testing::WithParamInterface<ProducerTopologyCase> {};
+
+TEST_P(ProducerTopologyParameterizedTest, MetadataStructureAndExecutionMatchDefinition) {
+    const auto& test_case = GetParam();
+
+    auto metadata = TopologyBuilder::GetTopologyMetadata(test_case.type);
+    EXPECT_EQ(test_case.name, metadata.name);
+    EXPECT_EQ(test_case.expected_nodes, metadata.expected_node_count);
+    EXPECT_EQ(test_case.expected_edges, metadata.expected_edge_count);
+    EXPECT_FALSE(metadata.description.empty());
+
+    auto graph = TopologyBuilder::BuildTopology(test_case.type);
     ASSERT_NE(nullptr, graph);
-    
+
     auto nodes = graph->GetNodes();
-    EXPECT_EQ(3, nodes.size()) << "Expected 3 nodes (producer, sink, completion)";
+    ASSERT_EQ(test_case.expected_nodes, nodes.size());
+    ASSERT_EQ(test_case.expected_edges, graph->GetEdges().size());
+    ExpectNodeTypes(graph, test_case.node_types);
+
+    for (std::size_t i = 0; i < test_case.edges.size(); ++i) {
+        const auto [src_node, src_port, dst_node, dst_port] = test_case.edges[i];
+        ExpectEdge(graph, i, src_node, src_port, dst_node, dst_port);
+    }
+
+    if (test_case.payload_kind == ProducerTopologyCase::PayloadKind::Int) {
+        ConfigureCompletionGateForIntSink(graph, test_case.sink_node_index, test_case.completion_node_index, test_case.expected_data_count);
+        ExecuteSuccessfully(graph);
+        ExpectIntDataFlow(graph, test_case.sink_node_index, test_case.int_values);
+    } else {
+        ConfigureCompletionGateForDoubleSink(graph, test_case.sink_node_index, test_case.completion_node_index, test_case.expected_data_count);
+        ExecuteSuccessfully(graph);
+        ExpectDoubleDataFlow(graph, test_case.sink_node_index, test_case.double_values);
+    }
+
+    ExpectCompletion(graph, test_case.completion_node_index);
 }
 
-TEST_F(ProducerTopologiesTest, MinimalIntProducer_HasCorrectStructure) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalIntProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    ASSERT_EQ(3, nodes.size());
-    ASSERT_EQ(2, graph->GetEdges().size());
-    ExpectNodeTypes(graph, {"TestIntProducer", "TestIntSinkNode", "CompletionNode"});
-    ExpectEdge(graph, 0, 0, 0, 1, 0);
-    ExpectEdge(graph, 1, 0, 1, 2, 0);
-}
-
-TEST_F(ProducerTopologiesTest, MinimalIntProducer_ExecutesSuccessfully) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalIntProducer);
-    ASSERT_NE(nullptr, graph);
-    ConfigureCompletionGateForIntSink(graph, 1, 2, 4);
-    ExecuteSuccessfully(graph);
-    ExpectIntDataFlow(graph, 1, {1, 2, 3, 4});
-    ExpectCompletion(graph, 2);
-}
-
-// =============================================================================
-// LinearSequentialIntProducer Tests (3 tests)
-// =============================================================================
-
-TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_TopologyBuilds) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialIntProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    EXPECT_EQ(4, nodes.size()) << "Expected 4 nodes (producer, interior, sink, completion)";
-}
-
-TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_HasCorrectStructure) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialIntProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    ASSERT_EQ(4, nodes.size());
-    ASSERT_EQ(3, graph->GetEdges().size());
-    ExpectNodeTypes(graph, {"TestIntProducer", "InteriorTestNode", "TestIntSinkNode", "CompletionNode"});
-    ExpectEdge(graph, 0, 0, 0, 1, 0);
-    ExpectEdge(graph, 1, 1, 0, 2, 0);
-    ExpectEdge(graph, 2, 0, 1, 3, 0);
-}
-
-TEST_F(ProducerTopologiesTest, LinearSequentialIntProducer_ExecutesSuccessfully) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialIntProducer);
-    ASSERT_NE(nullptr, graph);
-    ConfigureCompletionGateForIntSink(graph, 2, 3, 4);
-    ExecuteSuccessfully(graph);
-    ExpectIntDataFlow(graph, 2, {1, 2, 3, 4});
-    ExpectCompletion(graph, 3);
-}
-
-// =============================================================================
-// MinimalDoubleProducer Tests (3 tests)
-// =============================================================================
-
-TEST_F(ProducerTopologiesTest, MinimalDoubleProducer_TopologyBuilds) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    EXPECT_EQ(3, nodes.size()) << "Expected 3 nodes (producer, sink, completion)";
-}
-
-TEST_F(ProducerTopologiesTest, MinimalDoubleProducer_HasCorrectStructure) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    ASSERT_EQ(3, nodes.size());
-    ASSERT_EQ(2, graph->GetEdges().size());
-    ExpectNodeTypes(graph, {"TestDoubleProducer", "TestDoubleSinkNode", "CompletionNode"});
-    ExpectEdge(graph, 0, 0, 0, 1, 0);
-    ExpectEdge(graph, 1, 0, 1, 2, 0);
-}
-
-TEST_F(ProducerTopologiesTest, MinimalDoubleProducer_ExecutesSuccessfully) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    ConfigureCompletionGateForDoubleSink(graph, 1, 2, 10);
-    ExecuteSuccessfully(graph);
-    ExpectDoubleDataFlow(graph, 1, {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0});
-    ExpectCompletion(graph, 2);
-}
-
-// =============================================================================
-// LinearSequentialDoubleProducer Tests (3 tests)
-// =============================================================================
-
-TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_TopologyBuilds) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    EXPECT_EQ(4, nodes.size()) << "Expected 4 nodes (producer, interior, sink, completion)";
-}
-
-TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_HasCorrectStructure) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    
-    auto nodes = graph->GetNodes();
-    ASSERT_EQ(4, nodes.size());
-    ASSERT_EQ(3, graph->GetEdges().size());
-    ExpectNodeTypes(graph, {"TestDoubleProducer", "InteriorTestNode", "TestDoubleSinkNode", "CompletionNode"});
-    ExpectEdge(graph, 0, 0, 0, 1, 0);
-    ExpectEdge(graph, 1, 1, 0, 2, 0);
-    ExpectEdge(graph, 2, 0, 1, 3, 0);
-}
-
-TEST_F(ProducerTopologiesTest, LinearSequentialDoubleProducer_ExecutesSuccessfully) {
-    auto graph = TopologyBuilder::BuildTopology(TopologyType::LinearSequentialDoubleProducer);
-    ASSERT_NE(nullptr, graph);
-    ConfigureCompletionGateForDoubleSink(graph, 2, 3, 10);
-    ExecuteSuccessfully(graph);
-    ExpectDoubleDataFlow(graph, 2, {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0});
-    ExpectCompletion(graph, 3);
-}
-
-// =============================================================================
-// Metadata Tests (4 tests)
-// =============================================================================
-
-TEST_F(ProducerTopologiesTest, ProducerTopologies_MetadataAvailable) {
-    auto int_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalIntProducer);
-    EXPECT_EQ(3, int_minimal.expected_node_count);
-    EXPECT_EQ(2, int_minimal.expected_edge_count);
-    
-    auto int_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialIntProducer);
-    EXPECT_EQ(4, int_sequential.expected_node_count);
-    EXPECT_EQ(3, int_sequential.expected_edge_count);
-    
-    auto double_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalDoubleProducer);
-    EXPECT_EQ(3, double_minimal.expected_node_count);
-    EXPECT_EQ(2, double_minimal.expected_edge_count);
-    
-    auto double_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialDoubleProducer);
-    EXPECT_EQ(4, double_sequential.expected_node_count);
-    EXPECT_EQ(3, double_sequential.expected_edge_count);
-}
-
-TEST_F(ProducerTopologiesTest, ProducerTopologies_NamesCorrect) {
-    auto int_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalIntProducer);
-    EXPECT_EQ("MinimalIntProducer", int_minimal.name);
-    
-    auto int_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialIntProducer);
-    EXPECT_EQ("LinearSequentialIntProducer", int_sequential.name);
-    
-    auto double_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalDoubleProducer);
-    EXPECT_EQ("MinimalDoubleProducer", double_minimal.name);
-    
-    auto double_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialDoubleProducer);
-    EXPECT_EQ("LinearSequentialDoubleProducer", double_sequential.name);
-}
-
-TEST_F(ProducerTopologiesTest, ProducerTopologies_DescriptionsNonEmpty) {
-    auto int_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalIntProducer);
-    EXPECT_FALSE(int_minimal.description.empty());
-    
-    auto int_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialIntProducer);
-    EXPECT_FALSE(int_sequential.description.empty());
-    
-    auto double_minimal = TopologyBuilder::GetTopologyMetadata(TopologyType::MinimalDoubleProducer);
-    EXPECT_FALSE(double_minimal.description.empty());
-    
-    auto double_sequential = TopologyBuilder::GetTopologyMetadata(TopologyType::LinearSequentialDoubleProducer);
-    EXPECT_FALSE(double_sequential.description.empty());
-}
+INSTANTIATE_TEST_SUITE_P(
+    ProducerTopologyCases,
+    ProducerTopologyParameterizedTest,
+    ::testing::Values(
+        ProducerTopologyCase{
+            TopologyType::MinimalIntProducer,
+            "MinimalIntProducer",
+            3,
+            2,
+            {"TestIntProducer", "TestIntSinkNode", "CompletionNode"},
+            {{0, 0, 1, 0}, {0, 1, 2, 0}},
+            ProducerTopologyCase::PayloadKind::Int,
+            1,
+            2,
+            4,
+            {1, 2, 3, 4},
+            {}
+        },
+        ProducerTopologyCase{
+            TopologyType::LinearSequentialIntProducer,
+            "LinearSequentialIntProducer",
+            4,
+            3,
+            {"TestIntProducer", "InteriorTestNode", "TestIntSinkNode", "CompletionNode"},
+            {{0, 0, 1, 0}, {1, 0, 2, 0}, {0, 1, 3, 0}},
+            ProducerTopologyCase::PayloadKind::Int,
+            2,
+            3,
+            4,
+            {1, 2, 3, 4},
+            {}
+        },
+        ProducerTopologyCase{
+            TopologyType::MinimalDoubleProducer,
+            "MinimalDoubleProducer",
+            3,
+            2,
+            {"TestDoubleProducer", "TestDoubleSinkNode", "CompletionNode"},
+            {{0, 0, 1, 0}, {0, 1, 2, 0}},
+            ProducerTopologyCase::PayloadKind::Double,
+            1,
+            2,
+            10,
+            {},
+            {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0}
+        },
+        ProducerTopologyCase{
+            TopologyType::LinearSequentialDoubleProducer,
+            "LinearSequentialDoubleProducer",
+            4,
+            3,
+            {"TestDoubleProducer", "InteriorTestNode", "TestDoubleSinkNode", "CompletionNode"},
+            {{0, 0, 1, 0}, {1, 0, 2, 0}, {0, 1, 3, 0}},
+            ProducerTopologyCase::PayloadKind::Double,
+            2,
+            3,
+            10,
+            {},
+            {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0}
+        }));
 
 TEST_F(ProducerTopologiesTest, AllTopologyTypes_IncludeProducers) {
     auto all_types = TopologyBuilder::GetAllTopologyTypes();

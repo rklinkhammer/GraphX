@@ -257,7 +257,6 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             std::make_shared<capabilities::GraphCapability>();
 
         graph_cap->SetNodeFactory(factory);
-        graph_cap->SetPluginLoader(loader);
         graph_cap->SetPluginRegistry(factory->GetPluginRegistry());
         graph_cap->SetJsonConfigPath(json_config_);
         graph_cap->SetCliMode(cli_mode_);

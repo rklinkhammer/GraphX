@@ -48,6 +48,10 @@ This directory tracks the development progress of GraphX through distinct phases
 - **THREADPOOL_ENHANCEMENTS_APPLIED.md** - ThreadPool performance improvements
 - **THREADPOOL_OPTIONAL_ENHANCEMENTS.md** - Additional ThreadPool features
 
+## Roadmaps & Plans
+
+- **CXX26_MIGRATION_PLAN.md** - C++26-first migration strategy and breaking-change plan
+
 ## Deliverables
 
 - **DELIVERABLES_INDEX.md** - Master index of all delivered components
@@ -99,10 +103,10 @@ Phase 5 (Weeks 12+)
 - **Compilation Performance:** 34.2x faster than TypeList approach
 
 ### Documentation
-- **Architecture Documents:** 23
-- **Test Analysis Reports:** 14
-- **Phase Reports:** This directory
-- **User Guides:** 4
+- **Architecture Documents:** 24
+- **Test Analysis Reports:** 15
+- **Phase Reports:** 19
+- **User Guides:** 5
 
 ## Feature Completion Status
 

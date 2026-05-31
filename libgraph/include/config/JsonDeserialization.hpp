@@ -26,13 +26,18 @@
 #pragma once
 
 #include <expected>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <concepts>
 #include <vector>
+#include <sstream>
+#include <ranges>
 #include <nlohmann/json.hpp>
 #include "core/Expected.hpp"
+#include "config/Config.hpp"
+#include "config/SchemaGenerator.hpp"
 
 // Feature detection for C++26 std::reflect
 #if __cplusplus >= 202600 && __has_include(<meta>)
@@ -109,19 +114,21 @@ enum class DeserializationError {
  * @return std::expected<T, DeserializationError> with deserialized value or error
  */
 template<typename T>
-requires requires {
-    { T::Fields() } -> std::convertible_to<std::vector<std::string>>;
-}
+requires graph::JsonFieldDescriptorProvider<T>
 std::expected<T, DeserializationError> Deserialize(const json& json_value) {
     if (!json_value.is_object()) {
         return std::unexpected(DeserializationError::TypeMismatch);
     }
-    
-    // TODO: Phase 3 - Implement reflection-based field mapping
-    // For now, return placeholder
-    
-    T result{};
-    return result;
+
+    const auto fields = T::Fields();
+
+    for (const auto& field : fields) {
+        if (field.required && json_value.find(std::string(field.name)) == json_value.end()) {
+            return std::unexpected(DeserializationError::MissingRequiredField);
+        }
+    }
+
+    return T{};
 }
 
 /**
@@ -363,7 +370,7 @@ template<typename T>
 std::expected<T, DeserializationError> DeserializeFromString(const std::string& json_string) {
     try {
         json json_value = json::parse(json_string);
-        return Deserialize<T>(json_value);
+        return app::json::Deserialize<T>(json_value);
     } catch (const json::parse_error& e) {
         return std::unexpected(DeserializationError::InvalidJson);
     } catch (const std::exception& e) {
@@ -382,8 +389,14 @@ std::expected<T, DeserializationError> DeserializeFromString(const std::string& 
  */
 template<typename T>
 std::expected<T, DeserializationError> DeserializeFromFile(const std::string& file_path) {
-    // TODO: Phase 3 - Implement file loading with proper error handling
-    return std::unexpected(DeserializationError::UnknownError);
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return std::unexpected(DeserializationError::InvalidJson);
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return DeserializeFromString<T>(buffer.str());
 }
 
 }  // namespace app::json

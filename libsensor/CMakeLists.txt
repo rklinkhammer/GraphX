@@ -3,6 +3,11 @@ project(libsensor VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT CMAKE_CXX_STANDARD EQUAL 26)
+    message(FATAL_ERROR "libsensor requires C++26 as the only supported standard")
+endif()
 
 # Find dependencies
 find_package(nlohmann_json REQUIRED)

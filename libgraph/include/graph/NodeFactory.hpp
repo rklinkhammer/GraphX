@@ -30,6 +30,7 @@
 #include "core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFactoryRegistry.hpp"
+#include "graph/PortTypes.hpp"
 
 namespace graph {
 
@@ -64,7 +65,6 @@ class NodeFactory {
 private:
     static log4cxx::LoggerPtr logger_;
     std::shared_ptr<PluginRegistry> plugin_registry_;
-    std::shared_ptr<PluginLoader> plugin_loader_;
     std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Multi-directory support
     std::shared_ptr<graph::config::NodeFactoryRegistry> unified_registry_;
     bool initialized_;
@@ -97,6 +97,7 @@ public:
      * @requires NodeType is a GraphNode (satisfies move construction/assignment)
      */
     template <reflection::GraphNode NodeType, typename... Args>
+        requires HasCompileTimePortCounts<NodeType>
     std::shared_ptr<NodeType> CreateNode(Args&&... args) {
         try {
             auto node = std::make_shared<NodeType>(std::forward<Args>(args)...);
@@ -230,20 +231,6 @@ public:
      */
     std::shared_ptr<PluginRegistry> GetPluginRegistry() const {
         return plugin_registry_;
-    }
-
-    /**
-     * Keep the plugin loader alive for as long as this factory can create
-     * plugin-backed nodes. PluginRegistry stores function pointers and facade
-     * pointers into dlopen'd libraries; destroying PluginLoader dlclose()s those
-     * libraries and invalidates the pointers.
-     */
-    void SetPluginLoader(std::shared_ptr<PluginLoader> loader) {
-        plugin_loader_ = std::move(loader);
-    }
-
-    std::shared_ptr<PluginLoader> GetPluginLoader() const {
-        return plugin_loader_;
     }
 
     /**

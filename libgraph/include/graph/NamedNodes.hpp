@@ -180,16 +180,7 @@ public:
      * @return Vector of PortMetadata for each output port
      */
     virtual std::vector<PortMetadata> GetOutputPortMetadata() const override {
-        std::vector<PortMetadata> out;
-        if constexpr (HasPorts<NodeType>::value) {
-            std::apply([&](auto... p) {
-                ((p.direction == PortDirection::Output
-                    ? out.push_back(MakePortMetadata<decltype(p)>())
-                    : void()), ...);
-            }, typename NodeType::Ports{});
-        }
-
-        return out;
+        return MakePortMetadataForDirection<NodeType, PortDirection::Output>();
     }
 };
 
@@ -254,16 +245,7 @@ public:
      * @return Vector of PortMetadata for all input ports
      */
     virtual std::vector<PortMetadata> GetInputPortMetadata() const override {
-        std::vector<PortMetadata> out;
-        if constexpr (HasPorts<NodeType>::value) {
-            std::apply([&](auto... p) {
-                ((p.direction == PortDirection::Input
-                    ? out.push_back(MakePortMetadata<decltype(p)>())
-                    : void()), ...);
-            }, typename NodeType::Ports{});
-        }
-
-        return out;
+        return MakePortMetadataForDirection<NodeType, PortDirection::Input>();
     }
 };
 
@@ -305,16 +287,7 @@ public:
      * @return Vector of PortMetadata for all input ports
      */
     virtual std::vector<PortMetadata> GetInputPortMetadata() const override {
-        std::vector<PortMetadata> out;
-        if constexpr (HasPorts<NodeType>::value) {
-            std::apply([&](auto... p) {
-                ((p.direction == PortDirection::Input
-                    ? out.push_back(MakePortMetadata<decltype(p)>())
-                    : void()), ...);
-            }, typename NodeType::Ports{});
-        }
-
-        return out;
+        return MakePortMetadataForDirection<NodeType, PortDirection::Input>();
     }    
 
     /**
@@ -326,16 +299,7 @@ public:
      * @return Vector of PortMetadata for all output ports
      */
     virtual std::vector<PortMetadata> GetOutputPortMetadata() const override {
-        std::vector<PortMetadata> out;
-        if constexpr (HasPorts<NodeType>::value) {
-            std::apply([&](auto... p) {
-                ((p.direction == PortDirection::Output
-                    ? out.push_back(MakePortMetadata<decltype(p)>())
-                    : void()), ...);
-            }, typename NodeType::Ports{});
-        }
-
-        return out;
+        return MakePortMetadataForDirection<NodeType, PortDirection::Output>();
     }
 
 

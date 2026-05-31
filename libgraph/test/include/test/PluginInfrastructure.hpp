@@ -56,7 +56,6 @@ public:
             }
             
             *factory = std::make_shared<graph::NodeFactory>(registry);
-            (*factory)->SetPluginLoader(*loader);
             initialized = true;
         }
         

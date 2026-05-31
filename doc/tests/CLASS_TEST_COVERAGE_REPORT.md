@@ -202,9 +202,10 @@ Test Suites:              33 test suites (↑ from 24)
 |------------|-------------|-----------|------------------|---------|
 | **SensorClassificationType** | sensor/SensorClassificationType.hpp | ❌ | ❌ | Sensor type enumeration |
 | **SensorDataRouter** | sensor/SensorDataRouter.hpp | ❌ | ⚠️ | Polymorphic sensor dispatch (inherits VariantRouter) |
-| **CSVParserCompat** | sensor/CSVParserCompat.hpp | ❌ | ⚠️ | Backward compatibility layer |
 
-**Summary**: 3 sensor classes, 0% unit tests, ~50% integration tests
+Note: `CSVParserCompat` was removed as part of migration step 7; coverage now focuses on generic CSV parsing paths in `libgraph`.
+
+**Summary**: 2 sensor classes, 0% unit tests, ~50% integration tests
 
 ---
 

@@ -152,9 +152,11 @@ Results:     std::expected<T, ParsingError>, Message<T>
 | Test data files | 5 × 6 rows | Realistic sample data |
 | **Total** | **2000+** | **Production ready** |
 
+Note (May 31, 2026): This line reflects historical phase-2 state. `CSVParserCompat` was removed during C++26 migration step 7, and the generic parser path in `libgraph/include/csv/CSVParser.hpp` is the canonical implementation.
+
 ## Backward Compatibility Status
 
-✅ **libsensor Compat API Status**: Ready for integration
+✅ **libsensor Compat API Status**: Ready for integration (historical phase-2 snapshot)
 - All 10 wrapper functions implemented
 - Sensor-specific mapping functions available
 - Conversion functions working correctly
@@ -162,7 +164,7 @@ Results:     std::expected<T, ParsingError>, Message<T>
 - Data structure member access patterns verified
 
 ### Pending Integration
-Next Phase: Connect compat API to `CSVNodeConfig` for real-world usage
+Historical next phase (completed/obsolete after migration): Connect compat API to `CSVNodeConfig` for real-world usage
 
 ## Files Modified/Created
 
