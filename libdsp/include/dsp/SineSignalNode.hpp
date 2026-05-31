@@ -229,6 +229,7 @@ private:
 
 template<size_t N>
 inline void SineSignalNode<N>::Configure(const graph::JsonView& cfg) {
+    (void)cfg;
     // Simplified configuration (full JSON parsing deferred)
     // In a full implementation, would parse frequency_hz, amplitude, sample_rate_hz
 }

@@ -38,21 +38,22 @@ namespace policies {
 
 
 bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& context) {
-    LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - scanning " 
-                  << context.GetGraphManager()->GetNodes().size() << " nodes");
-    
-    using CompletionProvider = graph::CompletionCallbackProvider;
-    
-    if (!context.GetGraphManager()) {
+    const auto graph_manager = context.GetGraphManager();
+    if (!graph_manager) {
         LOG4CXX_WARN(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - no GraphManager");
         return false;
     }
+
+    LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - scanning " 
+                  << graph_manager->GetNodes().size() << " nodes");
+    
+    using CompletionProvider = graph::CompletionCallbackProvider;
     
     // Clear any previously installed callbacks
     completion_callbacks_.clear();
     
     size_t callbacks_installed = 0;
-    const auto& nodes = context.GetGraphManager()->GetNodes();    
+    const auto& nodes = graph_manager->GetNodes();    
     for (const auto& node : nodes) {
         if (!node) {
             continue;

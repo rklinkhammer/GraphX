@@ -235,6 +235,7 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <expected>
 #include <stdexcept>
 #include <any>
 #include <mutex>
@@ -248,6 +249,7 @@
 #include <cxxabi.h>
 #include <cstdlib>
 #include "core/ReflectionHelper.hpp"
+#include "config/Errors.hpp"
 #include "graph/Nodes.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/PooledMessage.hpp"
@@ -593,79 +595,106 @@ public:
      * Returns false if any initialization fails.
      */
     bool Init() {
+        return InitExpected().has_value();
+    }
+
+    [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
+    InitExpected() noexcept {
         std::unique_lock lock(lifecycle_mtx_);
         
         // Prevent double initialization
         if (initialized_.load(std::memory_order_acquire)) {
             LOG4CXX_WARN(log4cxx::Logger::getLogger("graph.graph"),
                         "Init() called multiple times - ignoring");
-            return false;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                "GraphManager::Init() called after graph is already initialized"));
         }
         
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - starting initialization with " << num_threads_ << " threads");
-        
-        // Initialize ThreadPool
-        if (!thread_pool_) {
+        try {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                         "GraphManager::Init() - creating ThreadPool");
-            if (num_threads_ == 0) {
-                thread_pool_ = std::make_unique<ThreadPool>();
-            } else {
-                thread_pool_ = std::make_unique<ThreadPool>(num_threads_, thread_pool_config_);
+                         "GraphManager::Init() - starting initialization with " << num_threads_ << " threads");
+            
+            // Initialize ThreadPool
+            if (!thread_pool_) {
+                LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                             "GraphManager::Init() - creating ThreadPool");
+                if (num_threads_ == 0) {
+                    thread_pool_ = std::make_unique<ThreadPool>();
+                } else {
+                    thread_pool_ = std::make_unique<ThreadPool>(num_threads_, thread_pool_config_);
+                }
+                if (!thread_pool_->Init()) {
+                    LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                                 "Failed to initialize ThreadPool");
+                    return std::unexpected(app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::GraphManagerFailed,
+                        "GraphManager::Init() failed to initialize ThreadPool"));
+                }
+                LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                             "GraphManager::Init() - ThreadPool initialized");
             }
-            if (!thread_pool_->Init()) {
-                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                             "Failed to initialize ThreadPool");
-                return false;
-            }
-            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                         "GraphManager::Init() - ThreadPool initialized");
-        }
 
-        // Initialize message pool registry with common sizes
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - initializing message pools");
-        MessagePoolRegistry::GetInstance().InitializeCommonPools(256);
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - message pools initialized");
-        
-        // Initialize nodes first
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - initializing " << nodes_.size() << " nodes");
-        for (auto& node : nodes_) {
-            if (!node->Init()) {
-                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                             "Failed to initialize node");
-                return false;
+            // Initialize message pool registry with common sizes
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - initializing message pools");
+            MessagePoolRegistry::GetInstance().InitializeCommonPools(256);
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - message pools initialized");
+            
+            // Initialize nodes first
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - initializing " << nodes_.size() << " nodes");
+            for (auto& node : nodes_) {
+                if (!node->Init()) {
+                    LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                                 "Failed to initialize node");
+                    return std::unexpected(app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::NodeInitFailed,
+                        "GraphManager::Init() failed to initialize node"));
+                }
             }
-        }
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - all nodes initialized");
-        
-        // Then initialize edges
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - initializing " << edges_.size() << " edges");
-        for (auto& edge : edges_) {
-            if (!edge->Init()) {
-                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                             "Failed to initialize edge");
-                return false;
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - all nodes initialized");
+            
+            // Then initialize edges
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - initializing " << edges_.size() << " edges");
+            for (auto& edge : edges_) {
+                if (!edge->Init()) {
+                    LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                                 "Failed to initialize edge");
+                    return std::unexpected(app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::GraphManagerFailed,
+                        "GraphManager::Init() failed to initialize edge"));
+                }
             }
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - all edges initialized");
+            
+            // Mark as initialized
+            initialized_.store(true, std::memory_order_release);
+            
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                        "GraphManager initialized: " << nodes_.size() << " nodes, " 
+                        << edges_.size() << " edges");
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() - completed successfully");
+            
+            return {};
+        } catch (const std::exception& e) {
+            LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() failed with exception: " << e.what());
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::Unknown,
+                std::string("GraphManager::Init() failed: ") + e.what()));
+        } catch (...) {
+            LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Init() failed with unknown exception");
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::Unknown,
+                "GraphManager::Init() failed with unknown exception"));
         }
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - all edges initialized");
-        
-        // Mark as initialized
-        initialized_.store(true, std::memory_order_release);
-        
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                    "GraphManager initialized: " << nodes_.size() << " nodes, " 
-                    << edges_.size() << " edges");
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Init() - completed successfully");
-        
-        return true;
     }
     
     /**
@@ -704,6 +733,11 @@ public:
      * Returns false if any start fails.
      */
     bool Start() {
+        return StartExpected().has_value();
+    }
+
+    [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
+    StartExpected() noexcept {
         std::unique_lock lock(lifecycle_mtx_);
         
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
@@ -713,67 +747,93 @@ public:
         if (!initialized_.load(std::memory_order_acquire)) {
             LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
                          "Start() called before Init(). Call Init() first.");
-            return false;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                "GraphManager::Start() requires successful Init()"));
         }
         
         if (started_.load(std::memory_order_acquire)) {
             LOG4CXX_WARN(log4cxx::Logger::getLogger("graph.graph"),
                         "Start() called multiple times - ignoring");
-            return false;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                "GraphManager::Start() called after graph is already started"));
         }
         
         if (!thread_pool_) {
             LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
                          "ThreadPool not initialized. Call Init() first.");
-            return false;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::GraphManagerFailed,
+                "GraphManager::Start() requires initialized ThreadPool"));
         }
         
-        // Start the thread pool
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - starting ThreadPool");
-        if (!thread_pool_->Start()) {
+        try {
+            // Start the thread pool
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - starting ThreadPool");
+            if (!thread_pool_->StartExpected()) {
+                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                             "Failed to start ThreadPool");
+                return std::unexpected(app::error::MakeGraphExecutionFailure(
+                    app::error::GraphExecutionError::GraphManagerFailed,
+                    "GraphManager::Start() failed to start ThreadPool"));
+            }
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - ThreadPool started");
+            
+            // Start nodes first
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - starting " << nodes_.size() << " nodes");
+            for (auto& node : nodes_) {
+                if (!node->Start()) {
+                    LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                                 "Failed to start node");
+                    return std::unexpected(app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::GraphManagerFailed,
+                        "GraphManager::Start() failed to start node"));
+                }
+            }
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - all nodes started");
+            
+            // Then start edges
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - starting " << edges_.size() << " edges");
+            for (auto& edge : edges_) {
+                if (!edge->Start()) {
+                    LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                                 "Failed to start edge");
+                    return std::unexpected(app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::GraphManagerFailed,
+                        "GraphManager::Start() failed to start edge"));
+                }
+            }
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - all edges started");
+            
+            // Mark as started
+            started_.store(true, std::memory_order_release);
+            
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                        "GraphManager started execution");
+            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() - completed successfully");
+            
+            return {};
+        } catch (const std::exception& e) {
             LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                         "Failed to start ThreadPool");
-            return false;
+                         "GraphManager::Start() failed with exception: " << e.what());
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::Unknown,
+                std::string("GraphManager::Start() failed: ") + e.what()));
+        } catch (...) {
+            LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
+                         "GraphManager::Start() failed with unknown exception");
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::Unknown,
+                "GraphManager::Start() failed with unknown exception"));
         }
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - ThreadPool started");
-        
-        // Start nodes first
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - starting " << nodes_.size() << " nodes");
-        for (auto& node : nodes_) {
-            if (!node->Start()) {
-                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                             "Failed to start node");
-                return false;
-            }
-        }
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - all nodes started");
-        
-        // Then start edges
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - starting " << edges_.size() << " edges");
-        for (auto& edge : edges_) {
-            if (!edge->Start()) {
-                LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
-                             "Failed to start edge");
-                return false;
-            }
-        }
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - all edges started");
-        
-        // Mark as started
-        started_.store(true, std::memory_order_release);
-        
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                    "GraphManager started execution");
-        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                     "GraphManager::Start() - completed successfully");
-        
-        return true;
     }
     
     /**

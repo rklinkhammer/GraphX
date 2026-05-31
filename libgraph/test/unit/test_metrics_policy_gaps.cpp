@@ -143,7 +143,7 @@ TEST_F(MetricsPolicyGapsFixture, DequeueDecreasesSize) {
     event.event_type = "message_produced";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     EXPECT_EQ(test_queue_->Size(), 1);
     
     MetricsEvent dequeued;
@@ -162,9 +162,9 @@ TEST_F(MetricsPolicyGapsFixture, FIFOOrdering) {
     event2.source = "Node2"; event2.event_type = "consumed";
     event3.source = "Node3"; event3.event_type = "transferred";
     
-    test_queue_->Enqueue(event1);
-    test_queue_->Enqueue(event2);
-    test_queue_->Enqueue(event3);
+    (void)test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event3);
     
     MetricsEvent dequeued;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(dequeued));
@@ -201,7 +201,7 @@ TEST_F(MetricsPolicyGapsFixture, MultipleDequeuesExhaustQueue) {
     for (int i = 0; i < 5; ++i) {
         MetricsEvent event;
         event.source = "Node_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     EXPECT_EQ(test_queue_->Size(), 5);
     
@@ -249,7 +249,7 @@ TEST_F(MetricsPolicyGapsFixture, QueueDoesNotSilentlyDropEvents) {
     for (int i = 0; i < EVENT_COUNT; ++i) {
         MetricsEvent event;
         event.source = "Node_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Dequeue all and count
@@ -274,7 +274,7 @@ TEST_F(MetricsPolicyGapsFixture, EnqueueReturnsImmediately) {
     for (int i = 0; i < EVENT_COUNT; ++i) {
         MetricsEvent event;
         event.source = "Node";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -293,19 +293,19 @@ TEST_F(MetricsPolicyGapsFixture, QueueSizeMatchesEnqueueMinusDequeue) {
     // Enqueue 50
     for (int i = 0; i < 50; ++i) {
         event.source = "Node";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     EXPECT_EQ(test_queue_->Size(), 50);
     
     // Dequeue 20
     for (int i = 0; i < 20; ++i) {
-        test_queue_->DequeueNonBlocking(event);
+        (void)test_queue_->DequeueNonBlocking(event);
     }
     EXPECT_EQ(test_queue_->Size(), 30);
     
     // Enqueue 30
     for (int i = 0; i < 30; ++i) {
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     EXPECT_EQ(test_queue_->Size(), 60);
 }
@@ -319,7 +319,7 @@ TEST_F(MetricsPolicyGapsFixture, QueueNotificationMechanismWorks) {
     event.source = "TestNode";
     
     // Enqueue an event
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     // Disable the queue
     test_queue_->Disable();
@@ -342,17 +342,17 @@ TEST_F(MetricsPolicyGapsFixture, QueueStateAfterSequentialOps) {
     
     // Enqueue (a)
     event.source = "a";
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     EXPECT_EQ(test_queue_->Size(), 1);
     
     // Dequeue
-    test_queue_->DequeueNonBlocking(event);
+    (void)test_queue_->DequeueNonBlocking(event);
     EXPECT_EQ(test_queue_->Size(), 0);
     EXPECT_EQ(event.source, "a");
     
     // Enqueue (b, c)
-    event.source = "b"; test_queue_->Enqueue(event);
-    event.source = "c"; test_queue_->Enqueue(event);
+    event.source = "b"; (void)test_queue_->Enqueue(event);
+    event.source = "c"; (void)test_queue_->Enqueue(event);
     EXPECT_EQ(test_queue_->Size(), 2);
     
     // Dequeue all
@@ -378,7 +378,7 @@ TEST_F(MetricsPolicyGapsFixture, QueueMemoryCleanupOnDestruction) {
         for (int i = 0; i < 100; ++i) {
             MetricsEvent event;
             event.source = "Node_" + std::to_string(i);
-            queue->Enqueue(event);
+            (void)queue->Enqueue(event);
         }
         
         // Queue destruction should clean up
@@ -432,10 +432,10 @@ TEST_F(MetricsPolicyGapsFixture, EventTimestampIsSet) {
     event.event_type = "message_produced";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     // Timestamp should match (or be very close)
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -457,7 +457,7 @@ TEST_F(MetricsPolicyGapsFixture, EventTimestampsAreMonotonicallyIncreasing) {
         event.source = "Node_" + std::to_string(i);
         event.event_type = "produced";
         event.timestamp = std::chrono::system_clock::now();
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
         events.push_back(event);
         
         // Small delay to ensure timestamp differences
@@ -481,10 +481,10 @@ TEST_F(MetricsPolicyGapsFixture, EventSourceFieldMatchesPublishingNode) {
     event.event_type = "message_produced";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     EXPECT_EQ(dequeued.source, "SourceTestNode_1")
         << "Source field should be preserved exactly";
@@ -499,18 +499,18 @@ TEST_F(MetricsPolicyGapsFixture, EventSourceWithDuplicateNodeTypes) {
     MetricsEvent event1;
     event1.source = "SourceTestNode_1";
     event1.event_type = "produced";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     // Enqueue from "SourceTestNode_2"
     MetricsEvent event2;
     event2.source = "SourceTestNode_2";
     event2.event_type = "produced";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     // Dequeue and verify source fields are different
     MetricsEvent dequeued1, dequeued2;
-    test_queue_->DequeueNonBlocking(dequeued1);
-    test_queue_->DequeueNonBlocking(dequeued2);
+    (void)test_queue_->DequeueNonBlocking(dequeued1);
+    (void)test_queue_->DequeueNonBlocking(dequeued2);
     
     EXPECT_EQ(dequeued1.source, "SourceTestNode_1");
     EXPECT_EQ(dequeued2.source, "SourceTestNode_2");
@@ -529,13 +529,13 @@ TEST_F(MetricsPolicyGapsFixture, EventSourceConsistencyAcrossPublishes) {
         MetricsEvent event;
         event.source = NODE_NAME;
         event.event_type = "produced";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Verify all have same source
     MetricsEvent dequeued;
     for (int i = 0; i < 10; ++i) {
-        test_queue_->DequeueNonBlocking(dequeued);
+        (void)test_queue_->DequeueNonBlocking(dequeued);
         EXPECT_EQ(dequeued.source, NODE_NAME)
             << "Event " << i << " should have consistent source";
     }
@@ -553,10 +553,10 @@ TEST_F(MetricsPolicyGapsFixture, MessageDataSurvivesEventPublishing) {
     event.data["count"] = "42";
     event.data["message_id"] = "msg_12345";
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     EXPECT_EQ(dequeued.data.size(), 3) << "Should preserve all data fields";
     EXPECT_EQ(dequeued.data["status"], "RUNNING");
@@ -576,10 +576,10 @@ TEST_F(MetricsPolicyGapsFixture, SpecialCharactersInEventData) {
     event.data["quote"] = "value\"with\"quotes";
     event.data["unicode"] = "emoji😀test";
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     EXPECT_EQ(dequeued.data["newline"], "line1\nline2");
     EXPECT_EQ(dequeued.data["quote"], "value\"with\"quotes");
@@ -595,19 +595,19 @@ TEST_F(MetricsPolicyGapsFixture, EventTypeMatchesNodeType) {
     MetricsEvent source_event;
     source_event.source = "SourceTestNode";
     source_event.event_type = "message_produced";
-    test_queue_->Enqueue(source_event);
+    (void)test_queue_->Enqueue(source_event);
     
     // Sink publishes "message_consumed"
     MetricsEvent sink_event;
     sink_event.source = "SinkTestNode";
     sink_event.event_type = "message_consumed";
-    test_queue_->Enqueue(sink_event);
+    (void)test_queue_->Enqueue(sink_event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     EXPECT_EQ(dequeued.event_type, "message_produced");
     
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     EXPECT_EQ(dequeued.event_type, "message_consumed");
 }
 
@@ -621,13 +621,13 @@ TEST_F(MetricsPolicyGapsFixture, EventTypeConsistentAcrossInstances) {
         MetricsEvent event;
         event.source = "SourceTestNode_" + std::to_string(i);
         event.event_type = "message_produced";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Both should have "message_produced" type
     MetricsEvent dequeued;
     for (int i = 0; i < 2; ++i) {
-        test_queue_->DequeueNonBlocking(dequeued);
+        (void)test_queue_->DequeueNonBlocking(dequeued);
         EXPECT_EQ(dequeued.event_type, "message_produced")
             << "Instance " << (i+1) << " should have consistent event type";
     }
@@ -649,10 +649,10 @@ TEST_F(MetricsPolicyGapsFixture, EventDataFieldsPreservedWithLargeCount) {
         event.data[key] = value;
     }
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     EXPECT_EQ(dequeued.data.size(), 50) << "Should preserve all 50 fields";
     
@@ -674,10 +674,10 @@ TEST_F(MetricsPolicyGapsFixture, EmptyDataMapIsValid) {
     
     EXPECT_TRUE(event.data.empty());
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     EXPECT_TRUE(dequeued.data.empty())
         << "Empty data map should be preserved";
@@ -699,10 +699,10 @@ TEST_F(MetricsPolicyGapsFixture, AllEventFieldsPreservedTogether) {
     event.data["field2"] = "value2";
     event.data["field3"] = "value3";
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent dequeued;
-    test_queue_->DequeueNonBlocking(dequeued);
+    (void)test_queue_->DequeueNonBlocking(dequeued);
     
     // All fields should match
     EXPECT_EQ(dequeued.source, "CompleteNode");
@@ -736,7 +736,7 @@ TEST_F(MetricsPolicyGapsFixture, ThreadInitializationBarrierPreventsRaceConditio
     
     // Simulate 5 concurrent initialization attempts
     for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([this, &init_count, &start_count]() {
+        threads.emplace_back([&init_count, &start_count]() {
             try {
                 // Both threads try to initialize simultaneously
                 init_count.fetch_add(1);
@@ -823,7 +823,7 @@ TEST_F(MetricsPolicyGapsFixture, CallbackPointerStabilityAfterRegistration) {
     // Enqueue from one thread
     std::thread producer([this, &original_event]() {
         for (int i = 0; i < 5; ++i) {
-            test_queue_->Enqueue(original_event);
+            (void)test_queue_->Enqueue(original_event);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
@@ -869,7 +869,7 @@ TEST_F(MetricsPolicyGapsFixture, QueueNotificationMechanismUnblocks) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
     MetricsEvent event;
     event.source = "Unblock Test";
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     dequeue_thread.join();
     
@@ -924,7 +924,7 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput100EventsPerSecond) {
     std::atomic<int> dequeued{0};
     
     // Producer: enqueue 100 events as fast as possible
-    std::thread producer([this, &enqueued, event_count]() {
+    std::thread producer([this, &enqueued]() {
         for (int i = 0; i < event_count; ++i) {
             MetricsEvent event;
             event.source = "Producer_" + std::to_string(i % 5); // 5 producer nodes
@@ -939,7 +939,7 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput100EventsPerSecond) {
     });
     
     // Consumer: dequeue all events
-    std::thread consumer([this, &dequeued, event_count]() {
+    std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         int attempts = 0;
         while (dequeued < event_count && attempts < 1000) {
@@ -973,7 +973,7 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput1000EventsPerSecond) {
     // Multiple producers
     std::vector<std::thread> producers;
     for (int p = 0; p < 5; ++p) {
-        producers.emplace_back([this, p, &enqueued, event_count]() {
+        producers.emplace_back([this, p, &enqueued]() {
             int per_producer = event_count / 5;
             for (int i = 0; i < per_producer; ++i) {
                 MetricsEvent event;
@@ -990,7 +990,7 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput1000EventsPerSecond) {
     }
     
     // Consumer thread
-    std::thread consumer([this, &dequeued, event_count]() {
+    std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         while (dequeued < event_count) {
             if (test_queue_->DequeueNonBlocking(event)) {
@@ -1028,7 +1028,7 @@ TEST_F(MetricsPolicyGapsFixture, SustainedPublishingManyProducers) {
     // Create producer threads
     std::vector<std::thread> producers;
     for (int p = 0; p < num_producers; ++p) {
-        producers.emplace_back([this, p, &enqueued, events_per_producer]() {
+        producers.emplace_back([this, p, &enqueued]() {
             for (int i = 0; i < events_per_producer; ++i) {
                 MetricsEvent event;
                 event.source = "Node_" + std::to_string(p);
@@ -1044,7 +1044,7 @@ TEST_F(MetricsPolicyGapsFixture, SustainedPublishingManyProducers) {
     }
     
     // Consumer
-    std::thread consumer([this, &dequeued, total_events]() {
+    std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         int max_iterations = total_events * 10;
         int iterations = 0;
@@ -1081,7 +1081,7 @@ TEST_F(MetricsPolicyGapsFixture, EventOrderingWithConcurrentProducers) {
     // Create producers that publish ordered events
     std::vector<std::thread> producer_threads;
     for (int p = 0; p < producers; ++p) {
-        producer_threads.emplace_back([this, p, &enqueued, events_per]() {
+        producer_threads.emplace_back([this, p, &enqueued]() {
             for (int i = 0; i < events_per; ++i) {
                 MetricsEvent event;
                 event.source = "Producer_" + std::to_string(p);
@@ -1148,19 +1148,19 @@ TEST_F(MetricsPolicyGapsFixture, TimestampOrderingWithConcurrentPublish) {
     // Multiple producers publishing concurrently
     std::vector<std::thread> producers;
     for (int p = 0; p < 2; ++p) {
-        producers.emplace_back([this, total_events]() {
+        producers.emplace_back([this]() {
             for (int i = 0; i < total_events / 2; ++i) {
                 MetricsEvent event;
                 event.source = "Producer";
                 event.event_type = "timed_event";
                 event.timestamp = std::chrono::system_clock::now();
-                test_queue_->Enqueue(event);
+                (void)test_queue_->Enqueue(event);
             }
         });
     }
     
     // Consumer collecting timestamps
-    std::thread consumer([this, &timestamps, &ts_lock, total_events]() {
+    std::thread consumer([this, &timestamps, &ts_lock]() {
         MetricsEvent event;
         int count = 0;
         
@@ -1206,7 +1206,7 @@ TEST_F(MetricsPolicyGapsFixture, SourceIdentificationAccuracyUnderLoad) {
     // Multiple nodes publishing
     std::vector<std::thread> nodes;
     for (int n = 0; n < num_nodes; ++n) {
-        nodes.emplace_back([this, n, &enqueued, events_per_node]() {
+        nodes.emplace_back([this, n, &enqueued]() {
             std::string node_name = "TestNode_" + std::to_string(n);
             for (int i = 0; i < events_per_node; ++i) {
                 MetricsEvent event;
@@ -1297,14 +1297,14 @@ TEST_F(MetricsPolicyGapsFixture, OrderingGuaranteePerProducer) {
     // Launch producers
     std::vector<std::thread> producer_threads;
     for (int p = 0; p < producers; ++p) {
-        producer_threads.emplace_back([this, p, events_each]() {
+        producer_threads.emplace_back([this, p]() {
             for (int i = 0; i < events_each; ++i) {
                 MetricsEvent event;
                 event.source = "Prod_" + std::to_string(p);
                 event.event_type = "order_test";
                 event.data["seq"] = std::to_string(i);
                 event.timestamp = std::chrono::system_clock::now();
-                test_queue_->Enqueue(event);
+                (void)test_queue_->Enqueue(event);
             }
         });
     }
@@ -1352,19 +1352,18 @@ TEST_F(MetricsPolicyGapsFixture, NoLivelock_OrDeadlockUnderConcurrency) {
     
     const int producers = 3;
     const int events_per = 10;
-    std::atomic<bool> timeout_occurred{false};
     std::atomic<int> total_dequeued{0};
     
     // Producer threads
     std::vector<std::thread> prod_threads;
     for (int p = 0; p < producers; ++p) {
-        prod_threads.emplace_back([this, p, events_per]() {
+        prod_threads.emplace_back([this, p]() {
             for (int i = 0; i < events_per; ++i) {
                 MetricsEvent event;
                 event.source = "P" + std::to_string(p);
                 event.event_type = "deadlock_test";
                 event.timestamp = std::chrono::system_clock::now();
-                test_queue_->Enqueue(event);
+                (void)test_queue_->Enqueue(event);
             }
         });
     }
@@ -1403,19 +1402,19 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberInvocationKeepsUp) {
     std::atomic<int> processed{0};
     
     // Producer: rapid publishing
-    std::thread producer([this, total_events]() {
+    std::thread producer([this]() {
         for (int i = 0; i < total_events; ++i) {
             MetricsEvent event;
             event.source = "HighRate";
             event.event_type = "fast_publish";
             event.data["num"] = std::to_string(i);
             event.timestamp = std::chrono::system_clock::now();
-            test_queue_->Enqueue(event);
+            (void)test_queue_->Enqueue(event);
         }
     });
     
     // Subscriber: process events
-    std::thread subscriber([this, &processed, total_events]() {
+    std::thread subscriber([this, &processed]() {
         MetricsEvent event;
         while (processed < total_events) {
             if (test_queue_->DequeueNonBlocking(event)) {
@@ -1454,13 +1453,13 @@ TEST_F(MetricsPolicyGapsFixture, MultipleSubscribersPerformance) {
     // Publishers (write to main queue, could fanout to sub_queues)
     std::vector<std::thread> pub_threads;
     for (int p = 0; p < publishers; ++p) {
-        pub_threads.emplace_back([this, p, events_per_pub]() {
+        pub_threads.emplace_back([this, p]() {
             for (int i = 0; i < events_per_pub; ++i) {
                 MetricsEvent event;
                 event.source = "Pub_" + std::to_string(p);
                 event.event_type = "multi_sub_test";
                 event.timestamp = std::chrono::system_clock::now();
-                test_queue_->Enqueue(event);
+                (void)test_queue_->Enqueue(event);
             }
         });
     }
@@ -1525,7 +1524,7 @@ TEST_F(MetricsPolicyGapsFixture, MemoryUsageDoesNotGrowUnbounded) {
         event.event_type = "memory_test";
         event.data["data"] = "x"; // Minimal data
         event.timestamp = std::chrono::system_clock::now();
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     size_t size_after_enqueue = test_queue_->Size();
@@ -1556,11 +1555,11 @@ TEST_F(MetricsPolicyGapsFixture, MetricsFirstCSVSecondInitialization) {
     // Simulate sequential initialization
     MetricsEvent event1;
     event1.source = "Metrics";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     MetricsEvent event2;
     event2.source = "CSV";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     MetricsEvent dequeued;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(dequeued));
@@ -1573,11 +1572,11 @@ TEST_F(MetricsPolicyGapsFixture, CSVFirstMetricsSecondInitialization) {
     
     MetricsEvent event1;
     event1.source = "CSV";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     MetricsEvent event2;
     event2.source = "Metrics";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     MetricsEvent dequeued;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(dequeued));
@@ -1595,7 +1594,7 @@ TEST_F(MetricsPolicyGapsFixture, OnInitCalledOnAllPoliciesRegardlessOfOrder) {
         init_count.fetch_add(1);
         MetricsEvent event;
         event.source = "Policy_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     EXPECT_EQ(init_count, 2);
@@ -1632,7 +1631,7 @@ TEST_F(MetricsPolicyGapsFixture, CSVInjectionDoesNotBlockMetricsPublishing) {
     for (int i = 0; i < 50; ++i) {
         MetricsEvent event;
         event.source = "Metrics";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     auto end = std::chrono::high_resolution_clock::now();
@@ -1648,11 +1647,11 @@ TEST_F(MetricsPolicyGapsFixture, MetricsPublishingDoesNotBlockCSVInjection) {
     // Verify queue can handle mixed events
     MetricsEvent m_event;
     m_event.source = "Metrics";
-    test_queue_->Enqueue(m_event);
+    (void)test_queue_->Enqueue(m_event);
     
     MetricsEvent c_event;
     c_event.source = "CSV";
-    test_queue_->Enqueue(c_event);
+    (void)test_queue_->Enqueue(c_event);
     
     MetricsEvent result1, result2;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(result1));
@@ -1672,7 +1671,7 @@ TEST_F(MetricsPolicyGapsFixture, NoResourceContentionForQueues) {
     for (int i = 0; i < 100; ++i) {
         MetricsEvent event;
         event.source = "Policy";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     EXPECT_EQ(test_queue_->Size(), 100);
@@ -1728,7 +1727,7 @@ TEST_F(MetricsPolicyGapsFixture, CallbackSurvivesNodeDestruction) {
     {
         MetricsEvent event;
         event.source = "Callback";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     } // scope exit, but callback should survive
     
     MetricsEvent result;
@@ -1744,7 +1743,7 @@ TEST_F(MetricsPolicyGapsFixture, SharedPtrManagementPreventsPrematureDestruction
     for (int i = 0; i < 5; ++i) {
         MetricsEvent event;
         event.source = "Node";
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Drain queue using shared_ptr (simulated by manual dequeue)
@@ -1766,8 +1765,8 @@ TEST_F(MetricsPolicyGapsFixture, MultipleNodesShareingSameCallbackIsUnsafe) {
     event1.source = "Node1";
     event2.source = "Node2";
     
-    test_queue_->Enqueue(event1);
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event2);
     
     // Both should work, but in real scenario this would be problematic
     MetricsEvent r1, r2;
@@ -1785,7 +1784,7 @@ TEST_F(MetricsPolicyGapsFixture, SetMetricsCallbackBeforeNodeStart) {
     event.event_type = "pre_start";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent result;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(result));
@@ -1799,16 +1798,16 @@ TEST_F(MetricsPolicyGapsFixture, SetMetricsCallbackAfterNodeStart) {
     // Publish before callback set
     MetricsEvent event1;
     event1.source = "BeforeCallback";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     // Publish after (simulating late registration)
     MetricsEvent event2;
     event2.source = "AfterCallback";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     MetricsEvent r1, r2;
-    test_queue_->DequeueNonBlocking(r1);
-    test_queue_->DequeueNonBlocking(r2);
+    (void)test_queue_->DequeueNonBlocking(r1);
+    (void)test_queue_->DequeueNonBlocking(r2);
     
     EXPECT_EQ(r1.source, "BeforeCallback");
     EXPECT_EQ(r2.source, "AfterCallback");
@@ -1820,16 +1819,16 @@ TEST_F(MetricsPolicyGapsFixture, SetMetricsCallbackMultipleTimes) {
     
     MetricsEvent event1;
     event1.source = "Callback1";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     // Simulate callback change
     MetricsEvent event2;
     event2.source = "Callback2";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     MetricsEvent r1, r2;
-    test_queue_->DequeueNonBlocking(r1);
-    test_queue_->DequeueNonBlocking(r2);
+    (void)test_queue_->DequeueNonBlocking(r1);
+    (void)test_queue_->DequeueNonBlocking(r2);
     
     EXPECT_EQ(r1.source, "Callback1");
     EXPECT_EQ(r2.source, "Callback2");
@@ -1847,7 +1846,7 @@ TEST_F(MetricsPolicyGapsFixture, GetNodeMetricsSchemaReturnsValidJSON) {
     event.data["field2"] = "value2";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent result;
     EXPECT_TRUE(test_queue_->DequeueNonBlocking(result));
@@ -1864,10 +1863,10 @@ TEST_F(MetricsPolicyGapsFixture, SchemaIncludesAllExpectedFields) {
     event.data["key"] = "value";
     event.timestamp = std::chrono::system_clock::now();
     
-    test_queue_->Enqueue(event);
+    (void)test_queue_->Enqueue(event);
     
     MetricsEvent result;
-    test_queue_->DequeueNonBlocking(result);
+    (void)test_queue_->DequeueNonBlocking(result);
     
     // Verify all fields present
     EXPECT_FALSE(result.source.empty());
@@ -1885,12 +1884,12 @@ TEST_F(MetricsPolicyGapsFixture, SchemaConsistentAcrossNodeInstances) {
     event1.event_type = "event_type";
     event2.event_type = "event_type";
     
-    test_queue_->Enqueue(event1);
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event2);
     
     MetricsEvent r1, r2;
-    test_queue_->DequeueNonBlocking(r1);
-    test_queue_->DequeueNonBlocking(r2);
+    (void)test_queue_->DequeueNonBlocking(r1);
+    (void)test_queue_->DequeueNonBlocking(r2);
     
     // Event types should be consistent
     EXPECT_EQ(r1.event_type, r2.event_type);
@@ -1969,8 +1968,8 @@ TEST_F(MetricsPolicyGapsFixture, CompletionSignaledAfterLastMessageConsumed) {
     // Enqueue and dequeue last message
     MetricsEvent event;
     event.source = "LastMessage";
-    test_queue_->Enqueue(event);
-    test_queue_->DequeueNonBlocking(event);
+    (void)test_queue_->Enqueue(event);
+    (void)test_queue_->DequeueNonBlocking(event);
     
     auto end = std::chrono::high_resolution_clock::now();
     
@@ -1985,8 +1984,8 @@ TEST_F(MetricsPolicyGapsFixture, CompletionCallbackInvokedImmediatelyAfterLastMe
     auto start = std::chrono::high_resolution_clock::now();
     
     MetricsEvent event;
-    test_queue_->Enqueue(event);
-    test_queue_->DequeueNonBlocking(event);
+    (void)test_queue_->Enqueue(event);
+    (void)test_queue_->DequeueNonBlocking(event);
     
     // Simulate completion callback
     std::atomic<bool> completion_fired{true};
@@ -2028,8 +2027,8 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberRegisteredAfterCompletionMissesEvents
     // Enqueue and complete
     MetricsEvent event;
     event.source = "EarlyEvent";
-    test_queue_->Enqueue(event);
-    test_queue_->DequeueNonBlocking(event);
+    (void)test_queue_->Enqueue(event);
+    (void)test_queue_->DequeueNonBlocking(event);
     completed_events.push_back(event);
     
     // New subscriber tries to get events (after completion)
@@ -2050,7 +2049,7 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberRegisteredBeforeCompletionSeesAllEven
     for (int i = 0; i < 5; ++i) {
         MetricsEvent event;
         event.source = "Event_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
         events.push_back(event);
     }
     
@@ -2106,11 +2105,11 @@ TEST_F(MetricsPolicyGapsFixture, CapabilityDiscoveryTypeSpecific) {
     // Create MetricsEvent (MetricsCapability type)
     MetricsEvent m_event;
     m_event.source = "Metrics";
-    test_queue_->Enqueue(m_event);
+    (void)test_queue_->Enqueue(m_event);
     
     // Retrieve (should be MetricsEvent, not other types)
     MetricsEvent result;
-    test_queue_->DequeueNonBlocking(result);
+    (void)test_queue_->DequeueNonBlocking(result);
     
     EXPECT_EQ(result.source, "Metrics") << "Should retrieve correct capability type";
 }
@@ -2122,17 +2121,17 @@ TEST_F(MetricsPolicyGapsFixture, CapabilityIdempotency) {
     // First access
     MetricsEvent event1;
     event1.source = "Capability1";
-    test_queue_->Enqueue(event1);
+    (void)test_queue_->Enqueue(event1);
     
     // Second access
     MetricsEvent event2;
     event2.source = "Capability2";
-    test_queue_->Enqueue(event2);
+    (void)test_queue_->Enqueue(event2);
     
     // Both should work (same capability instance)
     MetricsEvent r1, r2;
-    test_queue_->DequeueNonBlocking(r1);
-    test_queue_->DequeueNonBlocking(r2);
+    (void)test_queue_->DequeueNonBlocking(r1);
+    (void)test_queue_->DequeueNonBlocking(r2);
     
     EXPECT_EQ(r1.source, "Capability1");
     EXPECT_EQ(r2.source, "Capability2");
@@ -2148,7 +2147,7 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberRegistrationBeforeStartReceivesAllEve
     for (int i = 0; i < 10; ++i) {
         MetricsEvent event;
         event.source = "Event_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Subscriber receives all
@@ -2169,7 +2168,7 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberRegistrationAfterStartReceivesSubsequ
     for (int i = 0; i < 5; ++i) {
         MetricsEvent event;
         event.source = "Early_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Drain early events
@@ -2181,7 +2180,7 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberRegistrationAfterStartReceivesSubsequ
     for (int i = 0; i < 5; ++i) {
         MetricsEvent event;
         event.source = "Late_" + std::to_string(i);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // Late subscriber receives only subsequent
@@ -2204,7 +2203,7 @@ TEST_F(MetricsPolicyGapsFixture, MultipleSubscriberRegistrations) {
         subscriber_count.fetch_add(1);
         MetricsEvent event;
         event.source = "Subscriber_" + std::to_string(s);
-        test_queue_->Enqueue(event);
+        (void)test_queue_->Enqueue(event);
     }
     
     // All can access queue independently

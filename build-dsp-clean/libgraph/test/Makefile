@@ -741,6 +741,30 @@ unit/test_node_factory.cpp.s:
 	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/CMakeFiles/test_libgraph_unit.dir/build.make libgraph/test/CMakeFiles/test_libgraph_unit.dir/unit/test_node_factory.cpp.s
 .PHONY : unit/test_node_factory.cpp.s
 
+unit/test_node_factory_multi_directory.o: unit/test_node_factory_multi_directory.cpp.o
+.PHONY : unit/test_node_factory_multi_directory.o
+
+# target to build an object file
+unit/test_node_factory_multi_directory.cpp.o:
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/CMakeFiles/test_libgraph_unit.dir/build.make libgraph/test/CMakeFiles/test_libgraph_unit.dir/unit/test_node_factory_multi_directory.cpp.o
+.PHONY : unit/test_node_factory_multi_directory.cpp.o
+
+unit/test_node_factory_multi_directory.i: unit/test_node_factory_multi_directory.cpp.i
+.PHONY : unit/test_node_factory_multi_directory.i
+
+# target to preprocess a source file
+unit/test_node_factory_multi_directory.cpp.i:
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/CMakeFiles/test_libgraph_unit.dir/build.make libgraph/test/CMakeFiles/test_libgraph_unit.dir/unit/test_node_factory_multi_directory.cpp.i
+.PHONY : unit/test_node_factory_multi_directory.cpp.i
+
+unit/test_node_factory_multi_directory.s: unit/test_node_factory_multi_directory.cpp.s
+.PHONY : unit/test_node_factory_multi_directory.s
+
+# target to generate assembly for a file
+unit/test_node_factory_multi_directory.cpp.s:
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/CMakeFiles/test_libgraph_unit.dir/build.make libgraph/test/CMakeFiles/test_libgraph_unit.dir/unit/test_node_factory_multi_directory.cpp.s
+.PHONY : unit/test_node_factory_multi_directory.cpp.s
+
 unit/test_plugin_diagnostics.o: unit/test_plugin_diagnostics.cpp.o
 .PHONY : unit/test_plugin_diagnostics.o
 
@@ -1039,6 +1063,9 @@ help:
 	@echo "... unit/test_node_factory.o"
 	@echo "... unit/test_node_factory.i"
 	@echo "... unit/test_node_factory.s"
+	@echo "... unit/test_node_factory_multi_directory.o"
+	@echo "... unit/test_node_factory_multi_directory.i"
+	@echo "... unit/test_node_factory_multi_directory.s"
 	@echo "... unit/test_plugin_diagnostics.o"
 	@echo "... unit/test_plugin_diagnostics.i"
 	@echo "... unit/test_plugin_diagnostics.s"

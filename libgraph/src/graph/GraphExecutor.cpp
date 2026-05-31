@@ -125,12 +125,12 @@ GraphExecutor::InitExpected() noexcept {
                 app::error::GraphExecutionError::PolicyFailed, init_result.message));
         }
         // Initialize the graph
-        if (!graph_manager_->Init()) {
+        auto graph_init = graph_manager_->InitExpected();
+        if (!graph_init) {
             init_result.success = false;
-            init_result.message = "GraphManager::Init() failed";
+            init_result.message = graph_init.error().message;
             init_result.error_details = init_result.message;
-            return std::unexpected(app::error::MakeGraphExecutionFailure(
-                app::error::GraphExecutionError::NodeInitFailed, init_result.message));
+            return std::unexpected(graph_init.error());
         }
         init_result.nodes_initialized = CountNodesinLifecycleState(graph::LifecycleState::Initialized);
         init_result.nodes_failed = CountNodesinLifecycleState(graph::LifecycleState::Invalid) +
@@ -187,13 +187,13 @@ GraphExecutor::StartExpected() noexcept {
                 app::error::GraphExecutionError::PolicyFailed, result.message));
         }
         // Start the graph
-        if (!graph_manager_->Start()) {
+        auto graph_start = graph_manager_->StartExpected();
+        if (!graph_start) {
             result.success = false;
-            result.message = "GraphManager::Start() failed";
+            result.message = graph_start.error().message;
             result.error_details = result.message;
             SetExecutionState(ExecutionState::ERROR);
-            return std::unexpected(app::error::MakeGraphExecutionFailure(
-                app::error::GraphExecutionError::GraphManagerFailed, result.message));
+            return std::unexpected(graph_start.error());
         }
         SetExecutionState(ExecutionState::RUNNING);
         LOG4CXX_TRACE(logger_, "GraphExecutor::Start() completed");

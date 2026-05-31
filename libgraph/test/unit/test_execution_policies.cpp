@@ -37,6 +37,7 @@
 #include <gtest/gtest.h>
 #include "graph/IExecutionPolicy.hpp"
 #include "capabilities/GraphCapability.hpp"
+#include "policies/CompletionPolicy.hpp"
 #include <memory>
 #include <vector>
 
@@ -173,6 +174,15 @@ TEST_F(ExecutionPolicyTest, PolicyWithCustomResults) {
     EXPECT_TRUE(policy->OnInit(*capability));
     EXPECT_FALSE(policy->OnStart(*capability));
     EXPECT_TRUE(policy->OnRun(*capability));
+}
+
+TEST_F(ExecutionPolicyTest, CompletionPolicyInitWithoutGraphManagerDoesNotThrow) {
+    policies::CompletionPolicy policy;
+
+    EXPECT_NO_THROW({
+        EXPECT_TRUE(policy.OnInit(*capability));
+    });
+    EXPECT_FALSE(capability->IsCompletionSignaled());
 }
 
 // ===================================================================================

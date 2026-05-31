@@ -161,8 +161,8 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     // Verify plugins are registered
     auto registered_plugins = registry->GetRegisteredNodeTypes();
     ASSERT_GE(registered_plugins.size(), 2);
-    ASSERT_TRUE(PluginRegistered(registered_plugins, "int_producer"));;
-    ASSERT_TRUE(PluginRegistered(registered_plugins, "completion_node"));;
+    ASSERT_TRUE(PluginRegistered(registered_plugins, "TestIntProducer"));;
+    ASSERT_TRUE(PluginRegistered(registered_plugins, "CompletionNode"));;
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -194,8 +194,8 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     ASSERT_GE(registered_plugins.size(), 6);
     
     auto expected = std::set<std::string>{
-        "int_producer", "double_sink", "int_sink", "completion_node",
-        "test_node", "source_test_node"
+        "TestIntProducer", "TestDoubleSinkNode", "TestIntSinkNode",
+        "CompletionNode", "TestNode", "SourceTestNode"
     };
     
     for (const auto& plugin : expected) {
@@ -242,7 +242,7 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     // Verify plugins loaded via legacy path
     auto registered_plugins = registry->GetRegisteredNodeTypes();
     ASSERT_GT(registered_plugins.size(), 0);
-    ASSERT_TRUE(PluginRegistered(registered_plugins, "int_producer"));;
+    ASSERT_TRUE(PluginRegistered(registered_plugins, "TestIntProducer"));;
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -268,9 +268,13 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
     ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
     
-    // Should have plugins from all sources
+    // Should have plugins from all sources. Duplicate node types from added
+    // directories refresh existing registrations rather than increasing count.
     size_t total_count = registry->GetRegisteredNodeTypes().size();
-    ASSERT_GE(total_count, legacy_count + 2);
+    ASSERT_GE(total_count, legacy_count);
+    auto registered = registry->GetRegisteredNodeTypes();
+    ASSERT_TRUE(PluginRegistered(registered, "CompletionNode"));;
+    ASSERT_TRUE(PluginRegistered(registered, "TestNode"));;
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -308,8 +312,8 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     
     // Both plugins should be in the SAME registry instance
     auto registered = registry->GetRegisteredNodeTypes();
-    ASSERT_TRUE(PluginRegistered(registered, "int_producer"));;
-    ASSERT_TRUE(PluginRegistered(registered, "completion_node"));;
+    ASSERT_TRUE(PluginRegistered(registered, "TestIntProducer"));;
+    ASSERT_TRUE(PluginRegistered(registered, "CompletionNode"));;
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -332,8 +336,8 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     
     // Both should be loaded
     auto registered = registry->GetRegisteredNodeTypes();
-    ASSERT_TRUE(PluginRegistered(registered, "int_producer"));;
-    ASSERT_TRUE(PluginRegistered(registered, "int_sink"));;
+    ASSERT_TRUE(PluginRegistered(registered, "TestIntProducer"));;
+    ASSERT_TRUE(PluginRegistered(registered, "TestIntSinkNode"));;
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -375,11 +379,11 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto plugins1 = registry1->GetRegisteredNodeTypes();
     auto plugins2 = registry2->GetRegisteredNodeTypes();
     
-    ASSERT_TRUE(PluginRegistered(plugins1, "int_producer"));;
-    ASSERT_TRUE(PluginRegistered(plugins1, "int_sink"));;
-    ASSERT_FALSE(PluginRegistered(plugins1, "completion_node"));;
+    ASSERT_TRUE(PluginRegistered(plugins1, "TestIntProducer"));;
+    ASSERT_TRUE(PluginRegistered(plugins1, "TestIntSinkNode"));;
+    ASSERT_FALSE(PluginRegistered(plugins1, "CompletionNode"));;
     
-    ASSERT_TRUE(PluginRegistered(plugins2, "completion_node"));;
-    ASSERT_FALSE(PluginRegistered(plugins2, "int_producer"));;
-    ASSERT_FALSE(PluginRegistered(plugins2, "int_sink"));;
+    ASSERT_TRUE(PluginRegistered(plugins2, "CompletionNode"));;
+    ASSERT_FALSE(PluginRegistered(plugins2, "TestIntProducer"));;
+    ASSERT_FALSE(PluginRegistered(plugins2, "TestIntSinkNode"));;
 }

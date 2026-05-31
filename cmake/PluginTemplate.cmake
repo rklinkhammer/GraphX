@@ -184,13 +184,15 @@ function(add_graphx_plugin)
     # ========================================================================
     # Link libraries
     # ========================================================================
-    # Always link the default dependencies
-    # Note: sensor is a STATIC library that depends on graph
-    # So we just need to link sensor, which transitively pulls in graph
+    set(default_plugin_dependencies log4cxx pthread)
+    if(NOT "dsp" IN_LIST PLUGIN_DEPENDENCIES)
+        list(APPEND default_plugin_dependencies sensor)
+    endif()
+
+    # Always link the default dependencies. DSP plugins receive sensor/graph
+    # transitively through dsp, so avoid adding duplicate static libraries.
     target_link_libraries(${PLUGIN_TARGET_NAME} PRIVATE
-        sensor
-        log4cxx
-        pthread
+        ${default_plugin_dependencies}
     )
 
     # Link any additional user-specified dependencies

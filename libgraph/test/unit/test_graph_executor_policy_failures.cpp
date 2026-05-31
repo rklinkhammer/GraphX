@@ -7,6 +7,7 @@
 
 #include "capabilities/GraphCapability.hpp"
 #include "graph/GraphExecutor.hpp"
+#include "graph/GraphManager.hpp"
 #include "graph/IExecutionPolicy.hpp"
 #include "test/TestGraphTopologies.hpp"
 
@@ -104,6 +105,37 @@ std::unique_ptr<graph::GraphExecutor> MakeExecutor(
 }
 
 }  // namespace
+
+TEST(GraphManagerExpectedTest, StartExpectedBeforeInitReturnsInvalidState) {
+    auto graph = test::TopologyBuilder::BuildTopology(
+        test::TopologyType::MinimalGraph);
+
+    auto result = graph->StartExpected();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, app::error::GraphExecutionError::InvalidState);
+    EXPECT_EQ(result.error().message,
+              "GraphManager::Start() requires successful Init()");
+}
+
+TEST(GraphManagerExpectedTest, InitExpectedRejectsDoubleInit) {
+    auto graph = test::TopologyBuilder::BuildTopology(
+        test::TopologyType::MinimalGraph);
+
+    auto first_result = graph->InitExpected();
+    ASSERT_TRUE(first_result);
+
+    auto second_result = graph->InitExpected();
+
+    ASSERT_FALSE(second_result);
+    EXPECT_EQ(second_result.error().code,
+              app::error::GraphExecutionError::InvalidState);
+    EXPECT_EQ(second_result.error().message,
+              "GraphManager::Init() called after graph is already initialized");
+
+    graph->Stop();
+    graph->Join();
+}
 
 TEST(GraphExecutorPolicyFailuresTest,
      InitFailureStopsAtFailingPolicyAndLeavesStateStopped) {
