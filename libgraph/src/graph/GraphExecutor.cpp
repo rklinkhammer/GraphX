@@ -25,7 +25,11 @@
 #include "graph/GraphExecutor.hpp"
 
 #include <chrono>
+#include <exception>
+#include <expected>
+#include <string_view>
 #include <thread>
+#include <utility>
 #include <log4cxx/logger.h>
 
 namespace graph {
@@ -36,6 +40,27 @@ namespace graph {
 
 static log4cxx::LoggerPtr logger_ = 
     log4cxx::Logger::getLogger("graph.GraphExecutor");
+
+namespace {
+
+template <typename ResultT, typename FuncT>
+std::expected<ResultT, app::error::GraphExecutionFailure>
+CaptureLifecycleFailure(std::string_view operation, FuncT&& func) noexcept {
+    try {
+        return std::forward<FuncT>(func)();
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "GraphExecutor::" << operation
+                                                  << "() threw: " << e.what());
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "GraphExecutor::" << operation
+                                                  << "() threw an unknown exception");
+    }
+    return std::unexpected(app::error::MakeGraphExecutionFailure(
+        app::error::GraphExecutionError::Unknown,
+        std::string("GraphExecutor::") + std::string(operation) + "() threw an exception"));
+}
+
+}  // namespace
 
 
 // ============================================================================
@@ -60,8 +85,8 @@ GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain
 GraphExecutor::~GraphExecutor() noexcept {
     try {
         if (graph_manager_) {
-            Stop();
-            Join();
+            (void)StopExpected();
+            (void)JoinExpected();
         }
     } catch (const std::exception& e) {
         LOG4CXX_WARN(logger_, "Exception during GraphExecutor cleanup: " << e.what());
@@ -71,144 +96,251 @@ GraphExecutor::~GraphExecutor() noexcept {
 }
 
 InitializationResult GraphExecutor::Init() {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto result = InitExpected();
+    if (result) {
+        return *result;
+    }
 
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Init() called");
     InitializationResult init_result;
-    bool policy_result = policy_chain_ ? policy_chain_->OnInit(*graph_capability_) : true;
-    if(!policy_result) {
-        init_result.success = false;
-        init_result.message = "ExecutionPolicyChain::OnInit() failed";
-        return init_result;
-    }
-    // Initialize the graph
-    if (!graph_manager_->Init()) {
-        init_result.success = false;
-        init_result.message = "GraphManager::Init() failed";
-        return init_result;
-    }
-    init_result.nodes_initialized = CountNodesinLifecycleState(graph::LifecycleState::Initialized);
-    init_result.nodes_failed = CountNodesinLifecycleState(graph::LifecycleState::Invalid) +
-                               CountNodesinLifecycleState(graph::LifecycleState::Uninitialized);
-    SetExecutionState(ExecutionState::INITIALIZED);
-    init_result.success = true;
-    init_result.message = "GraphExecutor initialized successfully";
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Init() completed");
-
-    auto end_time = std::chrono::high_resolution_clock::now();
-    init_result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    init_result.success = false;
+    init_result.message = result.error().message;
+    init_result.error_details = init_result.message;
     return init_result;
 }
 
+std::expected<InitializationResult, app::error::GraphExecutionFailure>
+GraphExecutor::InitExpected() noexcept {
+    return CaptureLifecycleFailure<InitializationResult>("Init", [&]()
+        -> std::expected<InitializationResult, app::error::GraphExecutionFailure> {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Init() called");
+        InitializationResult init_result;
+        bool policy_result = policy_chain_ ? policy_chain_->OnInit(*graph_capability_) : true;
+        if(!policy_result) {
+            init_result.success = false;
+            init_result.message = "ExecutionPolicyChain::OnInit() failed";
+            init_result.error_details = init_result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::PolicyFailed, init_result.message));
+        }
+        // Initialize the graph
+        if (!graph_manager_->Init()) {
+            init_result.success = false;
+            init_result.message = "GraphManager::Init() failed";
+            init_result.error_details = init_result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::NodeInitFailed, init_result.message));
+        }
+        init_result.nodes_initialized = CountNodesinLifecycleState(graph::LifecycleState::Initialized);
+        init_result.nodes_failed = CountNodesinLifecycleState(graph::LifecycleState::Invalid) +
+                                   CountNodesinLifecycleState(graph::LifecycleState::Uninitialized);
+        SetExecutionState(ExecutionState::INITIALIZED);
+        init_result.success = true;
+        init_result.message = "GraphExecutor initialized successfully";
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Init() completed");
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        init_result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        return init_result;
+    });
+}
+
 ExecutionResult GraphExecutor::Start() {
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Start() called");
-    ExecutionResult result;
-    if (GetExecutionState() != ExecutionState::INITIALIZED) {
-        result.success = false;
-        result.message = "GraphExecutor::Start() requires INITIALIZED state";
-        LOG4CXX_WARN(logger_, result.message);
-        return result;
+    auto result = StartExpected();
+    if (result) {
+        return *result;
     }
 
-    bool policy_result = policy_chain_ ? policy_chain_->OnStart(*graph_capability_) : true;
-    if(!policy_result) {
-        result.success = false;
-        result.message = "ExecutionPolicyChain::OnStart() failed";
-        SetExecutionState(ExecutionState::ERROR);
-        return result;
-    }
-    // Start the graph
-    if (!graph_manager_->Start()) {
-        result.success = false;
-        result.message = "GraphManager::Start() failed";
-        SetExecutionState(ExecutionState::ERROR);
-        return result;
-    }
-    SetExecutionState(ExecutionState::RUNNING);
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Start() completed");
+    ExecutionResult exec_result;
+    exec_result.success = false;
+    exec_result.current_state = GetExecutionState();
+    exec_result.message = result.error().message;
+    exec_result.error_details = exec_result.message;
+    return exec_result;
+}
 
-    result.success = true;
-    result.message = "GraphExecutor started successfully";
-    auto end_time = std::chrono::high_resolution_clock::now();
-    result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    return result;
+std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+GraphExecutor::StartExpected() noexcept {
+    return CaptureLifecycleFailure<ExecutionResult>("Start", [&]()
+        -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Start() called");
+        ExecutionResult result;
+        if (GetExecutionState() != ExecutionState::INITIALIZED) {
+            result.success = false;
+            result.message = "GraphExecutor::Start() requires INITIALIZED state";
+            LOG4CXX_WARN(logger_, result.message);
+            result.error_details = result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState, result.message));
+        }
+
+        bool policy_result = policy_chain_ ? policy_chain_->OnStart(*graph_capability_) : true;
+        if(!policy_result) {
+            result.success = false;
+            result.message = "ExecutionPolicyChain::OnStart() failed";
+            result.error_details = result.message;
+            SetExecutionState(ExecutionState::ERROR);
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::PolicyFailed, result.message));
+        }
+        // Start the graph
+        if (!graph_manager_->Start()) {
+            result.success = false;
+            result.message = "GraphManager::Start() failed";
+            result.error_details = result.message;
+            SetExecutionState(ExecutionState::ERROR);
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::GraphManagerFailed, result.message));
+        }
+        SetExecutionState(ExecutionState::RUNNING);
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Start() completed");
+
+        result.success = true;
+        result.message = "GraphExecutor started successfully";
+        result.current_state = GetExecutionState();
+        auto end_time = std::chrono::high_resolution_clock::now();
+        result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        return result;
+    });
 }
 
 ExecutionResult GraphExecutor::Run() {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto result = RunExpected();
+    if (result) {
+        return *result;
+    }
 
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Run() called");
-    ExecutionResult result;   
-    if (GetExecutionState() != ExecutionState::RUNNING) {
-        result.success = false;
-        result.message = "GraphExecutor::Run() requires RUNNING state";
-        LOG4CXX_WARN(logger_, result.message);
+    ExecutionResult exec_result;
+    exec_result.success = false;
+    exec_result.current_state = GetExecutionState();
+    exec_result.message = result.error().message;
+    exec_result.error_details = exec_result.message;
+    return exec_result;
+}
+
+std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+GraphExecutor::RunExpected() noexcept {
+    return CaptureLifecycleFailure<ExecutionResult>("Run", [&]()
+        -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Run() called");
+        ExecutionResult result;   
+        if (GetExecutionState() != ExecutionState::RUNNING) {
+            result.success = false;
+            result.message = "GraphExecutor::Run() requires RUNNING state";
+            LOG4CXX_WARN(logger_, result.message);
+            result.error_details = result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState, result.message));
+        }
+
+        bool policy_result =  policy_chain_ ? policy_chain_->OnRun(*graph_capability_) : false;
+        if(!policy_result) {
+            result.success = false;
+            result.message = "ExecutionPolicyChain::OnRun() failed";
+            result.error_details = result.message;
+            SetExecutionState(ExecutionState::ERROR);
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::PolicyFailed, result.message));
+        }
+
+        while(!graph_capability_->IsStopped()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Run() completed, success=" << result.success);
+        SetExecutionState(ExecutionState::STOPPED);
+        result.success = true;
+        result.message = "GraphExecutor run completed successfully";    
+        result.current_state = GetExecutionState();
+        auto end_time = std::chrono::high_resolution_clock::now();
+        result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         return result;
-    }
-
-    bool policy_result =  policy_chain_ ? policy_chain_->OnRun(*graph_capability_) : false;
-    if(!policy_result) {
-        result.success = false;
-        result.message = "ExecutionPolicyChain::OnRun() failed";
-        SetExecutionState(ExecutionState::ERROR);
-        return result;
-    }
-
-    while(!graph_capability_->IsStopped()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
-    
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Run() completed, success=" << result.success);
-    SetExecutionState(ExecutionState::STOPPED);
-    result.success = true;
-    result.message = "GraphExecutor run completed successfully";    
-    auto end_time = std::chrono::high_resolution_clock::now();
-    result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    return result;
+    });
 }
 
 ExecutionResult GraphExecutor::Stop() {
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() called");
-    ExecutionResult result;
-    SetExecutionState(ExecutionState::STOPPING);
-    graph_capability_->SetStopped();
-    // Stop the graph
-    graph_manager_->Stop();
-    if (policy_chain_) {
-        policy_chain_->OnStop(*graph_capability_);
+    auto result = StopExpected();
+    if (result) {
+        return *result;
     }
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() completed");
-    SetExecutionState(ExecutionState::STOPPED);
 
-    result.success = true;
-    result.message = "GraphExecutor stopped successfully";
-    auto end_time = std::chrono::high_resolution_clock::now();
-    result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    return result;
+    ExecutionResult exec_result;
+    exec_result.success = false;
+    exec_result.current_state = GetExecutionState();
+    exec_result.message = result.error().message;
+    exec_result.error_details = exec_result.message;
+    return exec_result;
+}
+
+std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+GraphExecutor::StopExpected() noexcept {
+    return CaptureLifecycleFailure<ExecutionResult>("Stop", [&]()
+        -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() called");
+        ExecutionResult result;
+        SetExecutionState(ExecutionState::STOPPING);
+        graph_capability_->SetStopped();
+        // Stop the graph
+        graph_manager_->Stop();
+        if (policy_chain_) {
+            policy_chain_->OnStop(*graph_capability_);
+        }
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() completed");
+        SetExecutionState(ExecutionState::STOPPED);
+
+        result.success = true;
+        result.message = "GraphExecutor stopped successfully";
+        result.current_state = GetExecutionState();
+        auto end_time = std::chrono::high_resolution_clock::now();
+        result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        return result;
+    });
 }
 
 ExecutionResult GraphExecutor::Join() {
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Join() called");
-    ExecutionResult result;
-
-    // Join all threads
-    graph_manager_->Join();
-    if (policy_chain_) {
-        policy_chain_->OnJoin(*graph_capability_);
+    auto result = JoinExpected();
+    if (result) {
+        return *result;
     }
-    LOG4CXX_TRACE(logger_, "GraphExecutor::Join() completed");
 
-    result.success = true;
-    result.message = "GraphExecutor joined successfully";
-    auto end_time = std::chrono::high_resolution_clock::now();
-    result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    return result;
+    ExecutionResult exec_result;
+    exec_result.success = false;
+    exec_result.current_state = GetExecutionState();
+    exec_result.message = result.error().message;
+    exec_result.error_details = exec_result.message;
+    return exec_result;
+}
+
+std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+GraphExecutor::JoinExpected() noexcept {
+    return CaptureLifecycleFailure<ExecutionResult>("Join", [&]()
+        -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Join() called");
+        ExecutionResult result;
+
+        // Join all threads
+        graph_manager_->Join();
+        if (policy_chain_) {
+            policy_chain_->OnJoin(*graph_capability_);
+        }
+        LOG4CXX_TRACE(logger_, "GraphExecutor::Join() completed");
+
+        result.success = true;
+        result.message = "GraphExecutor joined successfully";
+        result.current_state = GetExecutionState();
+        auto end_time = std::chrono::high_resolution_clock::now();
+        result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        return result;
+    });
 }
 
 void GraphExecutor::DisplayResults(const ExecutionResult& results) const { 
@@ -216,51 +348,64 @@ void GraphExecutor::DisplayResults(const ExecutionResult& results) const {
 }
 
 ExecutionResult GraphExecutor::Execute() {
-    ExecutionResult result;
-
-    auto init_result = Init();
-    if (!init_result.success) {
-        result.success = false;
-        result.message = "Execute failed during Init(): " + init_result.message;
-        LOG4CXX_ERROR(logger_, result.message);
-        return result;
+    auto result = ExecuteExpected();
+    if (result) {
+        return *result;
     }
 
-    auto start_result = Start();
-    if (!start_result.success) {
-        result.success = false;
-        result.message = "Execute failed during Start(): " + start_result.message;
-        LOG4CXX_ERROR(logger_, result.message);
-        return result;
-    }
+    ExecutionResult exec_result;
+    exec_result.success = false;
+    exec_result.current_state = GetExecutionState();
+    exec_result.message = result.error().message;
+    exec_result.error_details = exec_result.message;
+    return exec_result;
+}
 
-    auto run_result = Run();
-    if (!run_result.success) {
-        result.success = false;
-        result.message = "Execute failed during Run(): " + run_result.message;
-        LOG4CXX_ERROR(logger_, result.message);
-        return result;
-    }
+std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+GraphExecutor::ExecuteExpected() noexcept {
+    return CaptureLifecycleFailure<ExecutionResult>("Execute", [&]()
+        -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto init_result = InitExpected();
+        if (!init_result) {
+            LOG4CXX_ERROR(logger_, "Execute failed during Init(): "
+                                     << init_result.error().message);
+            return std::unexpected(init_result.error());
+        }
 
-    auto stop_result = Stop();
-    if (!stop_result.success) {
-        result.success = false;
-        result.message = "Execute failed during Stop(): " + stop_result.message;
-        LOG4CXX_ERROR(logger_, result.message);
-        return result;
-    }
+        auto start_result = StartExpected();
+        if (!start_result) {
+            LOG4CXX_ERROR(logger_, "Execute failed during Start(): "
+                                     << start_result.error().message);
+            return std::unexpected(start_result.error());
+        }
 
-    auto join_result = Join();
-    if (!join_result.success) {
-        result.success = false;
-        result.message = "Execute failed during Join(): " + join_result.message;
-        LOG4CXX_ERROR(logger_, result.message);
-        return result;
-    }
+        auto run_result = RunExpected();
+        if (!run_result) {
+            LOG4CXX_ERROR(logger_, "Execute failed during Run(): "
+                                     << run_result.error().message);
+            return std::unexpected(run_result.error());
+        }
 
-    result.success = true;
-    result.message = "Execute completed successfully";
-    return result;
+        auto stop_result = StopExpected();
+        if (!stop_result) {
+            LOG4CXX_ERROR(logger_, "Execute failed during Stop(): "
+                                     << stop_result.error().message);
+            return std::unexpected(stop_result.error());
+        }
+
+        auto join_result = JoinExpected();
+        if (!join_result) {
+            LOG4CXX_ERROR(logger_, "Execute failed during Join(): "
+                                     << join_result.error().message);
+            return std::unexpected(join_result.error());
+        }
+
+        ExecutionResult result;
+        result.success = true;
+        result.message = "Execute completed successfully";
+        result.current_state = GetExecutionState();
+        return result;
+    });
 }
 
 // ========== Private Methods ==========

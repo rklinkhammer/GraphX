@@ -1,0 +1,107 @@
+// MIT License
+//
+// Copyright (c) 2025 GraphX Contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+/**
+ * @file sine_signal_node_1024_plugin.cpp
+ * @brief SineSignalNode<1024> as a dynamically-loadable plugin
+ *
+ * This file demonstrates how to expose SineSignalNode (a DSP sine wave generator)
+ * with 1024 samples per packet as a dynamically-loadable plugin using the
+ * NodeFacade interface. This variant is suitable for batch processing where
+ * large packets reduce overhead and context switching.
+ *
+ * Compilation (from workspace root):
+ *   mkdir -p build/plugins
+ *   cd build
+ *   cmake ..
+ *   make sine_signal_node_1024
+ *
+ * This produces: build/plugins/libsine_signal_node_1024.so
+ */
+
+#include <memory>
+#include <string>
+#include <log4cxx/logger.h>
+#include "plugins/NodePluginTemplate.hpp"
+#include "dsp/SineSignalNode.hpp"
+
+using namespace graph;
+using dsp::SineSignalNode;
+
+// ============================================================================
+// Policy specialization
+// ============================================================================
+
+struct SineSignalNode1024Policy : PluginPolicy<dsp::SineSignalNode<1024>> {
+    static constexpr const char* Description =
+        "Sine wave DSP generator (1024 samples/packet, batch processing)";
+
+    static bool SetProperty(NodePluginInstance<dsp::SineSignalNode<1024>>* inst,
+                            const char*, const char*) {
+        LOG4CXX_TRACE(inst->logger, "No properties supported");
+        return true;
+    }
+};
+
+// ============================================================================
+// Facade
+// ============================================================================
+
+using Glue = PluginGlue<dsp::SineSignalNode<1024>, SineSignalNode1024Policy>;
+static const NodeFacade sine_signal_node_1024_facade = Glue::MakeFacade();
+
+// ============================================================================
+// C exports
+// ============================================================================
+
+extern "C" {
+
+void* plugin_create_sine_signal_node_1024() {
+    try {
+        auto node = std::make_shared<dsp::SineSignalNode<1024>>();
+        return new NodePluginInstance<dsp::SineSignalNode<1024>>(
+            node, "SineSignalNode", "plugin.SineSignalNode.1024");
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+const char* plugin_get_info() {
+    return "SineSignalNode<1024>|Sine wave DSP generator (1024 samples/packet)|1.0|"
+           "plugin_create_sine_signal_node_1024|"
+#ifdef _LIBCPP_VERSION
+           "libc++_v1";
+#else
+           "libstdc++_v1";
+#endif
+}
+
+NodeFacade* plugin_get_facade() {
+    return const_cast<NodeFacade*>(&sine_signal_node_1024_facade);
+}
+
+// Phase 4: Plugin API version negotiation
+int plugin_api_version() {
+    return 2;  // Supports PluginLoader v2+ (version negotiation)
+}
+
+}

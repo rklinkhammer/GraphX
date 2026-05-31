@@ -38,6 +38,7 @@
 #include "graph/GraphBuilder.hpp"
 #include "capabilities/GraphCapability.hpp"
 #include <log4cxx/logger.h>
+#include <expected>
 #include <filesystem>
 #include <stdexcept>
 
@@ -330,6 +331,38 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::Build() failed: " << e.what());
         throw;
+    }
+}
+
+std::expected<std::shared_ptr<GraphExecutor>, app::error::GraphExecutionFailure>
+GraphExecutorBuilder::BuildExpected() noexcept {
+    try {
+        return Build();
+    } catch (const std::invalid_argument& e) {
+        LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::BuildExpected() invalid configuration: "
+                                 << e.what());
+        return std::unexpected(app::error::MakeGraphExecutionFailure(
+            app::error::GraphExecutionError::ConfigurationInvalid, e.what()));
+    } catch (const std::logic_error& e) {
+        LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::BuildExpected() invalid state: "
+                                 << e.what());
+        return std::unexpected(app::error::MakeGraphExecutionFailure(
+            app::error::GraphExecutionError::InvalidState, e.what()));
+    } catch (const std::runtime_error& e) {
+        LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::BuildExpected() build failed: "
+                                 << e.what());
+        return std::unexpected(app::error::MakeGraphExecutionFailure(
+            app::error::GraphExecutionError::BuilderFailed, e.what()));
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::BuildExpected() unexpected failure: "
+                                 << e.what());
+        return std::unexpected(app::error::MakeGraphExecutionFailure(
+            app::error::GraphExecutionError::Unknown, e.what()));
+    } catch (...) {
+        LOG4CXX_ERROR(g_logger, "GraphExecutorBuilder::BuildExpected() unknown failure");
+        return std::unexpected(app::error::MakeGraphExecutionFailure(
+            app::error::GraphExecutionError::Unknown,
+            "GraphExecutorBuilder::BuildExpected() unknown failure"));
     }
 }
 

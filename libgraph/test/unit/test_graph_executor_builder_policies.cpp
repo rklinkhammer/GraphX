@@ -434,6 +434,36 @@ TEST(GraphExecutorBuilderPoliciesTest, BuilderIsSingleUse) {
     EXPECT_THROW(builder.Build(), std::logic_error);
 }
 
+TEST(GraphExecutorBuilderPoliciesTest,
+     BuildExpectedReportsMissingConfigWithoutThrowing) {
+    graph::GraphExecutorBuilder builder;
+
+    auto result = builder.BuildExpected();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code,
+              app::error::GraphExecutionError::ConfigurationInvalid);
+    EXPECT_NE(result.error().message.find("WithJsonConfig() is required"),
+              std::string::npos);
+}
+
+TEST(GraphExecutorBuilderPoliciesTest,
+     BuildExpectedConsumesBuilderOnSuccessAndReportsSecondUse) {
+    auto graph = BuildTopology(test::TopologyType::MinimalGraph);
+
+    graph::GraphExecutorBuilder builder;
+    auto first_result = builder.WithGraphManager(graph).BuildExpected();
+    ASSERT_TRUE(first_result);
+    ASSERT_NE(*first_result, nullptr);
+
+    auto second_result = builder.BuildExpected();
+    ASSERT_FALSE(second_result);
+    EXPECT_EQ(second_result.error().code,
+              app::error::GraphExecutionError::InvalidState);
+    EXPECT_NE(second_result.error().message.find("Build() already called"),
+              std::string::npos);
+}
+
 TEST(GraphExecutorBuilderPoliciesTest, FailedBuildDoesNotConsumeBuilder) {
     auto graph = BuildTopology(test::TopologyType::MinimalGraph);
 

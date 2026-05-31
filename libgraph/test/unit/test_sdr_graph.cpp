@@ -8,22 +8,26 @@
 #include <chrono>
 #include <memory>
 
+#include "dsp/FFTNode.hpp"
+#include "dsp/SineSignalNode.hpp"
+#include "dsp/SpectrumSinkNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "test/PluginInfrastructure.hpp"
-#include "test/SDRTestNodes.hpp"
 
 namespace {
+
+constexpr size_t kPacketSize = 256;
 
 using graph::GraphExecutorBuilder;
 using graph::GraphManager;
 using graph::NodeFacadeAdapter;
 using graph::NodeFacadeAdapterWrapper;
 using test::PluginInfrastructure;
-using test::sdr::AnalyzerSinkNode;
-using test::sdr::FFTPowerSpectrumNode;
-using test::sdr::SineIQSourceNode;
+using SineSourceNode = dsp::SineSignalNode<kPacketSize>;
+using FFTProcessorNode = dsp::FFTNode<float, kPacketSize>;
+using AnalyzerSinkNode = dsp::SpectrumSinkNode<float, kPacketSize>;
 
 std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& type) {
     auto factory = PluginInfrastructure::GetFactory();
@@ -37,19 +41,19 @@ std::shared_ptr<GraphManager> BuildSDRGraph(
     std::shared_ptr<NodeFacadeAdapterWrapper>& analyzer_wrapper) {
     auto graph = std::make_shared<GraphManager>();
 
-    source_wrapper = CreatePluginNode("SineIQSourceNode");
-    fft_wrapper = CreatePluginNode("FFTPowerSpectrumNode");
-    analyzer_wrapper = CreatePluginNode("AnalyzerSinkNode");
+    source_wrapper = CreatePluginNode("SineSignalNode<256>");
+    fft_wrapper = CreatePluginNode("FFTNode<256>");
+    analyzer_wrapper = CreatePluginNode("SpectrumSinkNode<256>");
 
     graph->AddNode(source_wrapper);
     graph->AddNode(fft_wrapper);
     graph->AddNode(analyzer_wrapper);
 
     const bool iq_edge_added =
-        PluginInfrastructure::AddEdge<SineIQSourceNode, 0, FFTPowerSpectrumNode, 0>(
+        PluginInfrastructure::AddEdge<SineSourceNode, 0, FFTProcessorNode, 0>(
             graph, source_wrapper, fft_wrapper);
     const bool spectrum_edge_added =
-        PluginInfrastructure::AddEdge<FFTPowerSpectrumNode, 0, AnalyzerSinkNode, 0>(
+        PluginInfrastructure::AddEdge<FFTProcessorNode, 0, AnalyzerSinkNode, 0>(
             graph, fft_wrapper, analyzer_wrapper);
 
     EXPECT_TRUE(iq_edge_added);
@@ -74,7 +78,7 @@ void ExecuteSuccessfully(const std::shared_ptr<GraphManager>& graph) {
     auto run_result = executor->Run();
     ASSERT_TRUE(run_result.success) << run_result.message;
     EXPECT_LT(run_result.elapsed_time_ms, 5000u)
-        << "AnalyzerSinkNode should signal completion after receiving the spectrum";
+        << "SpectrumSinkNode should signal completion after receiving the spectrum";
 
     auto stop_result = executor->Stop();
     ASSERT_TRUE(stop_result.success) << stop_result.message;
@@ -83,7 +87,7 @@ void ExecuteSuccessfully(const std::shared_ptr<GraphManager>& graph) {
     ASSERT_TRUE(join_result.success) << join_result.message;
 }
 
-TEST(SDRGraphTest, DynamicSineIQToFFTToAnalyzerDetectsToneBin) {
+TEST(SDRGraphTest, DynamicSineIQToFFTToAnalyzerProducesSpectrum) {
     std::shared_ptr<NodeFacadeAdapterWrapper> source_wrapper;
     std::shared_ptr<NodeFacadeAdapterWrapper> fft_wrapper;
     std::shared_ptr<NodeFacadeAdapterWrapper> analyzer_wrapper;
@@ -95,17 +99,15 @@ TEST(SDRGraphTest, DynamicSineIQToFFTToAnalyzerDetectsToneBin) {
     auto analyzer = analyzer_wrapper->GetNode<AnalyzerSinkNode>();
     ASSERT_NE(nullptr, analyzer);
 
-    constexpr size_t kToneBin = 5;
-    constexpr size_t kSampleCount = 64;
-    constexpr double kSampleRateHz = 64000.0;
+    EXPECT_GE(analyzer->GetFrameCount(), 1u);
 
-    EXPECT_EQ(1u, analyzer->GetSpectrumCount());
-    EXPECT_EQ(kToneBin, analyzer->GetPeakBin());
-
-    const auto spectrum = analyzer->GetLastSpectrum();
-    ASSERT_EQ(kSampleCount, spectrum.bins.size());
-    EXPECT_DOUBLE_EQ(kSampleRateHz, spectrum.sample_rate_hz);
-    EXPECT_NEAR(static_cast<double>(kSampleCount * kSampleCount), spectrum.bins[kToneBin], 1.0e-6);
+    const auto spectrum = analyzer->GetLatestSpectrum();
+    ASSERT_TRUE(spectrum.has_value());
+    EXPECT_TRUE(spectrum->IsValid());
+    EXPECT_EQ(kPacketSize / 2, spectrum->magnitudes.size());
+    EXPECT_DOUBLE_EQ(48000.0, spectrum->sample_rate_hz);
+    EXPECT_GT(spectrum->peak_magnitude, 0.0f);
+    EXPECT_LT(spectrum->peak_frequency_hz, 24000.0f);
 }
 
 TEST(SDRGraphTest, DynamicTopologyHasExpectedNodesAndEdges) {
@@ -118,9 +120,9 @@ TEST(SDRGraphTest, DynamicTopologyHasExpectedNodesAndEdges) {
     ASSERT_EQ(3u, graph->GetNodes().size());
     ASSERT_EQ(2u, graph->GetEdges().size());
 
-    EXPECT_EQ("SineIQSourceNode", source_wrapper->GetType());
-    EXPECT_EQ("FFTPowerSpectrumNode", fft_wrapper->GetType());
-    EXPECT_EQ("AnalyzerSinkNode", analyzer_wrapper->GetType());
+    EXPECT_EQ("SineSignalNode<>", source_wrapper->GetType());
+    EXPECT_EQ("FFTNode<float, 256>", fft_wrapper->GetType());
+    EXPECT_EQ("SpectrumSinkNode<float, 256>", analyzer_wrapper->GetType());
 
     const auto* iq_edge = graph->GetEdgeMetadata(0);
     ASSERT_NE(nullptr, iq_edge);

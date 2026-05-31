@@ -29,7 +29,9 @@
 #include "graph/ExecutionResult.hpp"
 #include "graph/IExecutionPolicy.hpp"
 #include "capabilities/GraphCapability.hpp"
+#include "config/Errors.hpp"
 #include "graph/ExecutionState.hpp"
+#include <expected>
 #include <memory>
 #include <chrono>
 #include <vector>
@@ -136,6 +138,8 @@ public:
      * @post State is INITIALIZED or STOPPED (on error)
      */
     InitializationResult Init();
+    [[nodiscard]] std::expected<InitializationResult, app::error::GraphExecutionFailure>
+    InitExpected() noexcept;
     
     /**
      * @brief Start graph execution
@@ -149,6 +153,8 @@ public:
      * @post State is RUNNING (or error)
      */
     ExecutionResult Start();
+    [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    StartExpected() noexcept;
     
     /**
      * @brief Execute graph nodes (blocking)
@@ -165,6 +171,8 @@ public:
      * @post State is STOPPED or other terminal state
      */
     ExecutionResult Run();
+    [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    RunExpected() noexcept;
     
     /**
      * @brief Request graceful shutdown
@@ -178,6 +186,10 @@ public:
      */
     ExecutionResult Stop();
     ExecutionResult Join();
+    [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    StopExpected() noexcept;
+    [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    JoinExpected() noexcept;
     
     // ========== Query Methods (Lock-Free, Thread-Safe) ==========
 
@@ -215,6 +227,8 @@ public:
     
 
     ExecutionResult Execute();
+    [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    ExecuteExpected() noexcept;
 
     // std::shared_ptr<app::AppContext> GetAppContext() const {
     //     return context_;

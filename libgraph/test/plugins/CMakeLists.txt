@@ -81,22 +81,3 @@ add_graphx_plugin(
     SOURCE_FILE completion_node_plugin.cpp 
     DESCRIPTION "completion signal sink node"
 )
-
-# SDR Test Nodes - dynamically loadable signal-processing pipeline
-add_graphx_plugin(
-    TARGET_NAME sine_iq_source
-    SOURCE_FILE sine_iq_source_plugin.cpp
-    DESCRIPTION "SDR sine wave IQ packet generator"
-)
-
-add_graphx_plugin(
-    TARGET_NAME fft_power_spectrum
-    SOURCE_FILE fft_power_spectrum_plugin.cpp
-    DESCRIPTION "SDR FFT processor producing power spectra"
-)
-
-add_graphx_plugin(
-    TARGET_NAME analyzer_sink
-    SOURCE_FILE analyzer_sink_plugin.cpp
-    DESCRIPTION "SDR analyzer sink node"
-)

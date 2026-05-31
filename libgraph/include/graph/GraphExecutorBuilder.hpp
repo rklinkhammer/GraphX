@@ -55,6 +55,8 @@
 #pragma once
 
 #include "graph/GraphExecutor.hpp"
+#include "config/Errors.hpp"
+#include <expected>
 #include <memory>
 #include <string>
 #include <vector>
@@ -228,6 +230,18 @@ public:
      */
     std::shared_ptr<GraphExecutor> Build();
 
+    /**
+     * @brief Build and return configured executor without throwing.
+     *
+     * Mirrors Build() semantics, including single-use behavior on success, but
+     * converts validation and construction failures into GraphExecutionFailure.
+     *
+     * @return Configured executor, or typed failure with diagnostic message
+     */
+    [[nodiscard]] std::expected<std::shared_ptr<GraphExecutor>,
+                                app::error::GraphExecutionFailure>
+    BuildExpected() noexcept;
+
 private:
     // Configuration state
     std::string json_config_;
@@ -263,4 +277,3 @@ private:
 };
 
 }  // namespace graph
-

@@ -9,6 +9,11 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
+# Include directories (for all targets)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_subdirectory(plugins)
+
 # Collect source files
 file(GLOB SOURCES "src/dsp/*.cpp")
 
@@ -26,6 +31,7 @@ if(SOURCES)
     # Link with libgraph (required dependency)
     target_link_libraries(dsp PUBLIC
         graph
+        sensor
         nlohmann_json::nlohmann_json
         Eigen3::Eigen
         Threads::Threads
@@ -44,6 +50,7 @@ else()
     )
     target_link_libraries(dsp INTERFACE
         graph
+        sensor
         nlohmann_json::nlohmann_json
         Eigen3::Eigen
         Threads::Threads

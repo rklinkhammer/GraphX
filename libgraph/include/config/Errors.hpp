@@ -56,6 +56,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include "core/FormatUtilities.hpp"
 
 namespace app::error {
@@ -346,9 +347,35 @@ enum class GraphExecutionError {
     
     /// Execution was stopped/cancelled
     Stopped = 6,
+
+    /// Execution policy hook failed
+    PolicyFailed = 7,
+
+    /// Graph manager lifecycle operation failed
+    GraphManagerFailed = 8,
+
+    /// Lifecycle method was called in an invalid executor state
+    InvalidState = 9,
+
+    /// Graph executor builder configuration is invalid
+    ConfigurationInvalid = 10,
+
+    /// Graph executor builder failed to create an executor
+    BuilderFailed = 11,
     
     /// Unknown execution error
     Unknown = 99,
+};
+
+/**
+ * @brief Rich graph execution failure for std::expected error channels.
+ *
+ * The code is stable and suitable for branching; message preserves the lifecycle
+ * context that legacy ExecutionResult callers used for diagnostics.
+ */
+struct GraphExecutionFailure {
+    GraphExecutionError code = GraphExecutionError::Unknown;
+    std::string message;
 };
 
 /**
@@ -370,11 +397,30 @@ enum class GraphExecutionError {
             return "Node initialization failed";
         case GraphExecutionError::Stopped:
             return "Graph execution was stopped";
+        case GraphExecutionError::PolicyFailed:
+            return "Execution policy hook failed";
+        case GraphExecutionError::GraphManagerFailed:
+            return "Graph manager lifecycle operation failed";
+        case GraphExecutionError::InvalidState:
+            return "Executor lifecycle method called in invalid state";
+        case GraphExecutionError::ConfigurationInvalid:
+            return "Graph executor builder configuration is invalid";
+        case GraphExecutionError::BuilderFailed:
+            return "Graph executor builder failed";
         case GraphExecutionError::Unknown:
             return "Unknown graph execution error";
         default:
             return "Unrecognized graph error";
     }
+}
+
+[[nodiscard]] inline GraphExecutionFailure MakeGraphExecutionFailure(
+    GraphExecutionError code,
+    std::string message = {}) {
+    if (message.empty()) {
+        message = ErrorMessage(code);
+    }
+    return GraphExecutionFailure{.code = code, .message = std::move(message)};
 }
 
 // ============================================================================

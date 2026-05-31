@@ -162,6 +162,7 @@ function(add_graphx_plugin)
         ${CMAKE_SOURCE_DIR}/include/core
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/libsensor/include
+        ${CMAKE_SOURCE_DIR}/libdsp/include
         ${CMAKE_SOURCE_DIR}/libgraph/test/include
     )
 

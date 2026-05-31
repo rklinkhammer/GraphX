@@ -60,7 +60,7 @@ EQUALS = =
 CMAKE_SOURCE_DIR = /Users/rklinkhammer/workspace/GraphX
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build-clean
+CMAKE_BINARY_DIR = /Users/rklinkhammer/workspace/GraphX/build-dsp-clean
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -142,14 +142,14 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build-clean/libgraph/test/plugins//CMakeFiles/progress.marks
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-clean/CMakeFiles 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-dsp-clean/CMakeFiles /Users/rklinkhammer/workspace/GraphX/build-dsp-clean/libgraph/test/plugins//CMakeFiles/progress.marks
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/rklinkhammer/workspace/GraphX/build-dsp-clean/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/clean
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/clean
 .PHONY : clean
 
 # The main clean target
@@ -158,22 +158,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/preinstall
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/test_node.dir/rule
 
 # Convenience name for target.
@@ -182,12 +182,12 @@ test_node: libgraph/test/plugins/CMakeFiles/test_node.dir/rule
 
 # fast build rule for target.
 test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/build
 .PHONY : test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/source_test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/source_test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/source_test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/source_test_node.dir/rule
 
 # Convenience name for target.
@@ -196,12 +196,12 @@ source_test_node: libgraph/test/plugins/CMakeFiles/source_test_node.dir/rule
 
 # fast build rule for target.
 source_test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/build
 .PHONY : source_test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/sink_test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/sink_test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/sink_test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/sink_test_node.dir/rule
 
 # Convenience name for target.
@@ -210,12 +210,12 @@ sink_test_node: libgraph/test/plugins/CMakeFiles/sink_test_node.dir/rule
 
 # fast build rule for target.
 sink_test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build
 .PHONY : sink_test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/interior_test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/interior_test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/interior_test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/interior_test_node.dir/rule
 
 # Convenience name for target.
@@ -224,12 +224,12 @@ interior_test_node: libgraph/test/plugins/CMakeFiles/interior_test_node.dir/rule
 
 # fast build rule for target.
 interior_test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build
 .PHONY : interior_test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/merge_test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/merge_test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/merge_test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/merge_test_node.dir/rule
 
 # Convenience name for target.
@@ -238,12 +238,12 @@ merge_test_node: libgraph/test/plugins/CMakeFiles/merge_test_node.dir/rule
 
 # fast build rule for target.
 merge_test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build
 .PHONY : merge_test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/split_test_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/split_test_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/split_test_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/split_test_node.dir/rule
 
 # Convenience name for target.
@@ -252,12 +252,12 @@ split_test_node: libgraph/test/plugins/CMakeFiles/split_test_node.dir/rule
 
 # fast build rule for target.
 split_test_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/build
 .PHONY : split_test_node/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/int_producer.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/int_producer.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/int_producer.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/int_producer.dir/rule
 
 # Convenience name for target.
@@ -266,12 +266,12 @@ int_producer: libgraph/test/plugins/CMakeFiles/int_producer.dir/rule
 
 # fast build rule for target.
 int_producer/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/build
 .PHONY : int_producer/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/double_producer.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/double_producer.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/double_producer.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/double_producer.dir/rule
 
 # Convenience name for target.
@@ -280,12 +280,12 @@ double_producer: libgraph/test/plugins/CMakeFiles/double_producer.dir/rule
 
 # fast build rule for target.
 double_producer/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/build
 .PHONY : double_producer/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/int_sink.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/int_sink.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/int_sink.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/int_sink.dir/rule
 
 # Convenience name for target.
@@ -294,12 +294,12 @@ int_sink: libgraph/test/plugins/CMakeFiles/int_sink.dir/rule
 
 # fast build rule for target.
 int_sink/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/build
 .PHONY : int_sink/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/double_sink.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/double_sink.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/double_sink.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/double_sink.dir/rule
 
 # Convenience name for target.
@@ -308,12 +308,12 @@ double_sink: libgraph/test/plugins/CMakeFiles/double_sink.dir/rule
 
 # fast build rule for target.
 double_sink/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/build
 .PHONY : double_sink/fast
 
 # Convenience name for target.
 libgraph/test/plugins/CMakeFiles/completion_node.dir/rule:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/completion_node.dir/rule
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libgraph/test/plugins/CMakeFiles/completion_node.dir/rule
 .PHONY : libgraph/test/plugins/CMakeFiles/completion_node.dir/rule
 
 # Convenience name for target.
@@ -322,7 +322,7 @@ completion_node: libgraph/test/plugins/CMakeFiles/completion_node.dir/rule
 
 # fast build rule for target.
 completion_node/fast:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/build
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/build
 .PHONY : completion_node/fast
 
 completion_node_plugin.o: completion_node_plugin.cpp.o
@@ -330,7 +330,7 @@ completion_node_plugin.o: completion_node_plugin.cpp.o
 
 # target to build an object file
 completion_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.o
 .PHONY : completion_node_plugin.cpp.o
 
 completion_node_plugin.i: completion_node_plugin.cpp.i
@@ -338,7 +338,7 @@ completion_node_plugin.i: completion_node_plugin.cpp.i
 
 # target to preprocess a source file
 completion_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.i
 .PHONY : completion_node_plugin.cpp.i
 
 completion_node_plugin.s: completion_node_plugin.cpp.s
@@ -346,7 +346,7 @@ completion_node_plugin.s: completion_node_plugin.cpp.s
 
 # target to generate assembly for a file
 completion_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/completion_node.dir/build.make libgraph/test/plugins/CMakeFiles/completion_node.dir/completion_node_plugin.cpp.s
 .PHONY : completion_node_plugin.cpp.s
 
 double_producer_plugin.o: double_producer_plugin.cpp.o
@@ -354,7 +354,7 @@ double_producer_plugin.o: double_producer_plugin.cpp.o
 
 # target to build an object file
 double_producer_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.o
 .PHONY : double_producer_plugin.cpp.o
 
 double_producer_plugin.i: double_producer_plugin.cpp.i
@@ -362,7 +362,7 @@ double_producer_plugin.i: double_producer_plugin.cpp.i
 
 # target to preprocess a source file
 double_producer_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.i
 .PHONY : double_producer_plugin.cpp.i
 
 double_producer_plugin.s: double_producer_plugin.cpp.s
@@ -370,7 +370,7 @@ double_producer_plugin.s: double_producer_plugin.cpp.s
 
 # target to generate assembly for a file
 double_producer_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_producer.dir/build.make libgraph/test/plugins/CMakeFiles/double_producer.dir/double_producer_plugin.cpp.s
 .PHONY : double_producer_plugin.cpp.s
 
 double_sink_plugin.o: double_sink_plugin.cpp.o
@@ -378,7 +378,7 @@ double_sink_plugin.o: double_sink_plugin.cpp.o
 
 # target to build an object file
 double_sink_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.o
 .PHONY : double_sink_plugin.cpp.o
 
 double_sink_plugin.i: double_sink_plugin.cpp.i
@@ -386,7 +386,7 @@ double_sink_plugin.i: double_sink_plugin.cpp.i
 
 # target to preprocess a source file
 double_sink_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.i
 .PHONY : double_sink_plugin.cpp.i
 
 double_sink_plugin.s: double_sink_plugin.cpp.s
@@ -394,7 +394,7 @@ double_sink_plugin.s: double_sink_plugin.cpp.s
 
 # target to generate assembly for a file
 double_sink_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/double_sink.dir/build.make libgraph/test/plugins/CMakeFiles/double_sink.dir/double_sink_plugin.cpp.s
 .PHONY : double_sink_plugin.cpp.s
 
 int_producer_plugin.o: int_producer_plugin.cpp.o
@@ -402,7 +402,7 @@ int_producer_plugin.o: int_producer_plugin.cpp.o
 
 # target to build an object file
 int_producer_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.o
 .PHONY : int_producer_plugin.cpp.o
 
 int_producer_plugin.i: int_producer_plugin.cpp.i
@@ -410,7 +410,7 @@ int_producer_plugin.i: int_producer_plugin.cpp.i
 
 # target to preprocess a source file
 int_producer_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.i
 .PHONY : int_producer_plugin.cpp.i
 
 int_producer_plugin.s: int_producer_plugin.cpp.s
@@ -418,7 +418,7 @@ int_producer_plugin.s: int_producer_plugin.cpp.s
 
 # target to generate assembly for a file
 int_producer_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_producer.dir/build.make libgraph/test/plugins/CMakeFiles/int_producer.dir/int_producer_plugin.cpp.s
 .PHONY : int_producer_plugin.cpp.s
 
 int_sink_plugin.o: int_sink_plugin.cpp.o
@@ -426,7 +426,7 @@ int_sink_plugin.o: int_sink_plugin.cpp.o
 
 # target to build an object file
 int_sink_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.o
 .PHONY : int_sink_plugin.cpp.o
 
 int_sink_plugin.i: int_sink_plugin.cpp.i
@@ -434,7 +434,7 @@ int_sink_plugin.i: int_sink_plugin.cpp.i
 
 # target to preprocess a source file
 int_sink_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.i
 .PHONY : int_sink_plugin.cpp.i
 
 int_sink_plugin.s: int_sink_plugin.cpp.s
@@ -442,7 +442,7 @@ int_sink_plugin.s: int_sink_plugin.cpp.s
 
 # target to generate assembly for a file
 int_sink_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/int_sink.dir/build.make libgraph/test/plugins/CMakeFiles/int_sink.dir/int_sink_plugin.cpp.s
 .PHONY : int_sink_plugin.cpp.s
 
 interior_test_node_plugin.o: interior_test_node_plugin.cpp.o
@@ -450,7 +450,7 @@ interior_test_node_plugin.o: interior_test_node_plugin.cpp.o
 
 # target to build an object file
 interior_test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.o
 .PHONY : interior_test_node_plugin.cpp.o
 
 interior_test_node_plugin.i: interior_test_node_plugin.cpp.i
@@ -458,7 +458,7 @@ interior_test_node_plugin.i: interior_test_node_plugin.cpp.i
 
 # target to preprocess a source file
 interior_test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.i
 .PHONY : interior_test_node_plugin.cpp.i
 
 interior_test_node_plugin.s: interior_test_node_plugin.cpp.s
@@ -466,7 +466,7 @@ interior_test_node_plugin.s: interior_test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 interior_test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/interior_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/interior_test_node.dir/interior_test_node_plugin.cpp.s
 .PHONY : interior_test_node_plugin.cpp.s
 
 merge_test_node_plugin.o: merge_test_node_plugin.cpp.o
@@ -474,7 +474,7 @@ merge_test_node_plugin.o: merge_test_node_plugin.cpp.o
 
 # target to build an object file
 merge_test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.o
 .PHONY : merge_test_node_plugin.cpp.o
 
 merge_test_node_plugin.i: merge_test_node_plugin.cpp.i
@@ -482,7 +482,7 @@ merge_test_node_plugin.i: merge_test_node_plugin.cpp.i
 
 # target to preprocess a source file
 merge_test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.i
 .PHONY : merge_test_node_plugin.cpp.i
 
 merge_test_node_plugin.s: merge_test_node_plugin.cpp.s
@@ -490,7 +490,7 @@ merge_test_node_plugin.s: merge_test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 merge_test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/merge_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/merge_test_node.dir/merge_test_node_plugin.cpp.s
 .PHONY : merge_test_node_plugin.cpp.s
 
 sink_test_node_plugin.o: sink_test_node_plugin.cpp.o
@@ -498,7 +498,7 @@ sink_test_node_plugin.o: sink_test_node_plugin.cpp.o
 
 # target to build an object file
 sink_test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.o
 .PHONY : sink_test_node_plugin.cpp.o
 
 sink_test_node_plugin.i: sink_test_node_plugin.cpp.i
@@ -506,7 +506,7 @@ sink_test_node_plugin.i: sink_test_node_plugin.cpp.i
 
 # target to preprocess a source file
 sink_test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.i
 .PHONY : sink_test_node_plugin.cpp.i
 
 sink_test_node_plugin.s: sink_test_node_plugin.cpp.s
@@ -514,7 +514,7 @@ sink_test_node_plugin.s: sink_test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 sink_test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/sink_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/sink_test_node.dir/sink_test_node_plugin.cpp.s
 .PHONY : sink_test_node_plugin.cpp.s
 
 source_test_node_plugin.o: source_test_node_plugin.cpp.o
@@ -522,7 +522,7 @@ source_test_node_plugin.o: source_test_node_plugin.cpp.o
 
 # target to build an object file
 source_test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.o
 .PHONY : source_test_node_plugin.cpp.o
 
 source_test_node_plugin.i: source_test_node_plugin.cpp.i
@@ -530,7 +530,7 @@ source_test_node_plugin.i: source_test_node_plugin.cpp.i
 
 # target to preprocess a source file
 source_test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.i
 .PHONY : source_test_node_plugin.cpp.i
 
 source_test_node_plugin.s: source_test_node_plugin.cpp.s
@@ -538,7 +538,7 @@ source_test_node_plugin.s: source_test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 source_test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/source_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/source_test_node.dir/source_test_node_plugin.cpp.s
 .PHONY : source_test_node_plugin.cpp.s
 
 split_test_node_plugin.o: split_test_node_plugin.cpp.o
@@ -546,7 +546,7 @@ split_test_node_plugin.o: split_test_node_plugin.cpp.o
 
 # target to build an object file
 split_test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.o
 .PHONY : split_test_node_plugin.cpp.o
 
 split_test_node_plugin.i: split_test_node_plugin.cpp.i
@@ -554,7 +554,7 @@ split_test_node_plugin.i: split_test_node_plugin.cpp.i
 
 # target to preprocess a source file
 split_test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.i
 .PHONY : split_test_node_plugin.cpp.i
 
 split_test_node_plugin.s: split_test_node_plugin.cpp.s
@@ -562,7 +562,7 @@ split_test_node_plugin.s: split_test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 split_test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/split_test_node.dir/build.make libgraph/test/plugins/CMakeFiles/split_test_node.dir/split_test_node_plugin.cpp.s
 .PHONY : split_test_node_plugin.cpp.s
 
 test_node_plugin.o: test_node_plugin.cpp.o
@@ -570,7 +570,7 @@ test_node_plugin.o: test_node_plugin.cpp.o
 
 # target to build an object file
 test_node_plugin.cpp.o:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.o
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.o
 .PHONY : test_node_plugin.cpp.o
 
 test_node_plugin.i: test_node_plugin.cpp.i
@@ -578,7 +578,7 @@ test_node_plugin.i: test_node_plugin.cpp.i
 
 # target to preprocess a source file
 test_node_plugin.cpp.i:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.i
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.i
 .PHONY : test_node_plugin.cpp.i
 
 test_node_plugin.s: test_node_plugin.cpp.s
@@ -586,7 +586,7 @@ test_node_plugin.s: test_node_plugin.cpp.s
 
 # target to generate assembly for a file
 test_node_plugin.cpp.s:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.s
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(MAKE) $(MAKESILENT) -f libgraph/test/plugins/CMakeFiles/test_node.dir/build.make libgraph/test/plugins/CMakeFiles/test_node.dir/test_node_plugin.cpp.s
 .PHONY : test_node_plugin.cpp.s
 
 # Help Target
@@ -657,6 +657,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /Users/rklinkhammer/workspace/GraphX/build-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /Users/rklinkhammer/workspace/GraphX/build-dsp-clean && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

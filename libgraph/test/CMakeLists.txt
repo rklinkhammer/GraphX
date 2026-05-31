@@ -21,7 +21,7 @@ add_executable(test_libgraph_unit ${UNIT_TEST_SOURCES})
 target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
 )
-target_link_libraries(test_libgraph_unit PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE graph dsp GTest::gtest_main Threads::Threads log4cxx)
 add_dependencies(test_libgraph_unit
     test_node
     source_test_node
@@ -34,9 +34,9 @@ add_dependencies(test_libgraph_unit
     int_sink
     double_sink
     completion_node
-    sine_iq_source
-    fft_power_spectrum
-    analyzer_sink
+    sine_signal_node_256
+    fft_node_256
+    spectrum_sink_node_256
 )
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 
