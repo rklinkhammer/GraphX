@@ -297,7 +297,7 @@ template<typename T>
  *       return;
  *   }
  *   for (const auto& plugin : result.value()) {
- *       LoadPlugin(plugin);
+ *       LoadPluginSafe(plugin);
  *   }
  * @endcode
  */

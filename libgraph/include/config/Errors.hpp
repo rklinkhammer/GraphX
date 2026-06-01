@@ -129,7 +129,7 @@ enum class JsonParseError {
  *
  * Used with std::expected<Plugin, PluginLoadError> for safe plugin loading.
  *
- * @see LoadPlugin() in PluginLoader.hpp
+ * @see LoadPluginSafe() in PluginLoader.hpp
  */
 enum class PluginLoadError {
     /// Plugin file not found at specified path

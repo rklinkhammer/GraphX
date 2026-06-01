@@ -52,8 +52,8 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
     
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
 
     auto source_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
@@ -93,9 +93,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
     auto graph = std::make_shared<graph::GraphManager>();
 
     auto factory = PluginInfrastructure::GetFactory();
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
 
 
     auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
@@ -147,10 +147,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto merge = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each node instance
     source1->SetName("SourceTestNode_1");
@@ -210,10 +210,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto split = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SplitTestNode"));
-    auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
-    auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto split = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SplitTestNode"));
+    auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
+    auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each sink node instance
     sink1->SetName("SinkTestNode_1");
@@ -277,12 +277,12 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto split = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SplitTestNode"));
-    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto split = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SplitTestNode"));
+    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto merge = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each interior node instance
     interior1->SetName("InteriorTestNode_1");
@@ -340,11 +340,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential()
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto interior3 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto interior3 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each interior node instance
     interior1->SetName("InteriorTestNode_1");
@@ -404,11 +404,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto merge = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each source node instance
     source1->SetName("SourceTestNode_1");
@@ -477,11 +477,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInte
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto merge = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto merge = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each source node instance
     source1->SetName("SourceTestNode_1");
@@ -542,15 +542,15 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-    auto merge1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto split1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SplitTestNode"));
-    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto merge2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("MergeTestNode"));
-    auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
-    auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+    auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+    auto merge1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto split1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SplitTestNode"));
+    auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto interior2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto merge2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "MergeTestNode"));
+    auto sink1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
+    auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to duplicate node types
     source1->SetName("SourceTestNode_1");
@@ -623,7 +623,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto source = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
+    auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);  
     
     graph->AddNode(source_typed);
@@ -659,9 +659,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() 
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntProducer"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntSinkNode"));
-    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestIntProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestIntSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
@@ -703,10 +703,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntPr
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntProducer"));
-    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestIntSinkNode"));
-    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestIntProducer"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestIntSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
@@ -752,9 +752,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleProducer"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleSinkNode"));
-    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestDoubleProducer"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestDoubleSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
@@ -796,10 +796,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubl
     auto graph = std::make_shared<graph::GraphManager>();
     auto factory = PluginInfrastructure::GetFactory();
     
-    auto producer = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleProducer"));
-    auto interior = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("TestDoubleSinkNode"));
-    auto completion = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("CompletionNode"));
+    auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestDoubleProducer"));
+    auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+    auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "TestDoubleSinkNode"));
+    auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "CompletionNode"));
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);

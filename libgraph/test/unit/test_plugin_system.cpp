@@ -34,6 +34,7 @@
  */
 
 #include <gtest/gtest.h>
+#include "graph/FactoryManager.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
 #include <thread>
@@ -46,6 +47,20 @@
 #endif
 
 namespace graph::test {
+
+namespace {
+
+#ifdef __APPLE__
+constexpr const char* kSharedLibraryExtension = ".dylib";
+#else
+constexpr const char* kSharedLibraryExtension = ".so";
+#endif
+
+std::string TestNodePluginFilename() {
+    return std::string("libtest_node") + kSharedLibraryExtension;
+}
+
+}  // namespace
 
 // ===================================================================================
 // Test Fixture
@@ -95,7 +110,7 @@ TEST_F(PluginRegistryTest, QueryNonexistentType) {
     // Empty registry should return empty results for queries
     EXPECT_FALSE(registry_->HasNodeType("NonexistentNode"));
     auto type_info = registry_->GetNodeTypeInfo("NonexistentNode");
-    EXPECT_EQ(type_info, nullptr);
+    EXPECT_FALSE(type_info);
     
     // GetRegisteredNodeTypes should return empty vector
     auto types = registry_->GetRegisteredNodeTypes();
@@ -117,31 +132,39 @@ TEST_F(PluginRegistryTest, ClearEmptyRegistry) {
 }
 
 TEST_F(PluginRegistryTest, RegisterNodeTypeWithInvalidHandle) {
-    // Registering with null handle should throw
-    EXPECT_THROW({
-        registry_->RegisterNodeType(
-            "TestNode", "Test node", "/path/to/test.so",
-            "create_test", "libstdc++_v1", "1.0.0",
-            nullptr, // Invalid: null plugin handle
-            nullptr  // Invalid: null facade
-        );
-    }, std::runtime_error);
+    auto result = registry_->RegisterNodeTypeExpected(
+        "TestNode", "Test node", "/path/to/test.so",
+        "create_test", "libstdc++_v1", "1.0.0",
+        nullptr,
+        nullptr
+    );
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::PluginRegistry::PluginRegistryError::InvalidPluginHandle);
     
     // Registry should still be empty
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
 }
 
+TEST_F(PluginRegistryTest, RegisterNodeTypeExpectedReportsInvalidHandle) {
+    auto result = registry_->RegisterNodeTypeExpected(
+        "TestNode", "Test node", "/path/to/test.so",
+        "create_test", "libstdc++_v1", "1.0.0",
+        nullptr,
+        nullptr
+    );
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::PluginRegistry::PluginRegistryError::InvalidPluginHandle);
+    EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
+}
+
 TEST_F(PluginRegistryTest, RegistryStateAfterFailedRegistration) {
-    // Attempt invalid registration (should throw)
-    try {
-        registry_->RegisterNodeType(
-            "FailedNode", "Failed node", "/path/to/failed.so",
-            "create_failed", "libstdc++_v1", "1.0.0",
-            nullptr, nullptr
-        );
-    } catch (const std::exception&) {
-        // Expected - null handle is invalid
-    }
+    auto result = registry_->RegisterNodeTypeExpected(
+        "FailedNode", "Failed node", "/path/to/failed.so",
+        "create_failed", "libstdc++_v1", "1.0.0",
+        nullptr, nullptr
+    );
+    ASSERT_FALSE(result);
     
     // Registry should remain empty and consistent
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
@@ -167,7 +190,7 @@ TEST_F(PluginLoaderTest, LoadAllPluginsFromEmptyDirectory) {
     graph::PluginLoader loader("/tmp", registry_);
     
     // Loading should succeed but find no plugins
-    loader.LoadAllPlugins();
+    ASSERT_TRUE(loader.LoadAllPluginsSafe());
     
     // Registry should remain empty (no plugins found)
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
@@ -177,16 +200,19 @@ TEST_F(PluginLoaderTest, LoadPluginErrorHandling) {
     // Create loader
     graph::PluginLoader loader("/tmp", registry_);
     
-    // Attempt to load non-existent plugin
-    // Should throw or handle gracefully
-    try {
-        loader.LoadPlugin("nonexistent_plugin.so");
-        // If no exception, that's also valid (loader might log and continue)
-        SUCCEED();
-    } catch (const std::exception& e) {
-        // Expected: plugin not found
-        SUCCEED();
-    }
+    auto result = loader.LoadPluginSafe("nonexistent_plugin.so");
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::PluginLoadError::FileNotFound);
+}
+
+TEST_F(PluginLoaderTest, LoadPluginSafeReturnsFileNotFoundForMissingPlugin) {
+    graph::PluginLoader loader("/tmp", registry_);
+
+    const auto result = loader.LoadPluginSafe("nonexistent_plugin.so");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::PluginLoadError::FileNotFound);
+    EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
 }
 
 TEST_F(PluginLoaderTest, RegistryIntegration) {
@@ -199,7 +225,7 @@ TEST_F(PluginLoaderTest, RegistryIntegration) {
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
     
     // After attempted load of non-existent plugins, registry should still be empty
-    loader.LoadAllPlugins();
+    ASSERT_TRUE(loader.LoadAllPluginsSafe());
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 0);
 }
 
@@ -212,16 +238,15 @@ TEST_F(PluginRegistryTest, MultipleRegistrationAttemptsWithErrors) {
     
     // First, attempt multiple invalid registrations
     for (int i = 0; i < 3; ++i) {
-        EXPECT_THROW({
-            registry_->RegisterNodeType(
-                "FailedType_" + std::to_string(i),
-                "Failed registration",
-                "/path/to/failed.so",
-                "create_failed",
-                "libstdc++_v1", "1.0.0",
-                nullptr, nullptr
-            );
-        }, std::runtime_error);
+        auto result = registry_->RegisterNodeTypeExpected(
+            "FailedType_" + std::to_string(i),
+            "Failed registration",
+            "/path/to/failed.so",
+            "create_failed",
+            "libstdc++_v1", "1.0.0",
+            nullptr, nullptr
+        );
+        ASSERT_FALSE(result);
     }
     
     // Registry should still be empty and functional
@@ -250,47 +275,63 @@ TEST_F(PluginLoaderTest, PluginLoaderConstruction) {
 TEST_F(PluginLoaderTest, LoadActualTestNodePlugin) {
     // Load the actual compiled test_node plugin
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    // Should load without exception
-    EXPECT_NO_THROW({
-        loader.LoadPlugin("libtest_node.so");
-    });
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
     // Verify registration succeeded
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 1);
     EXPECT_TRUE(registry_->HasNodeType("TestNode"));
 }
 
+TEST_F(PluginLoaderTest, LoadPluginSafeLoadsActualTestNodePlugin) {
+    const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
+    graph::PluginLoader loader(plugin_dir, registry_);
+
+    const auto result = loader.LoadPluginSafe(plugin_filename);
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(registry_->GetRegisteredTypeCount(), 1);
+    EXPECT_TRUE(registry_->HasNodeType("TestNode"));
+}
+
+TEST_F(PluginLoaderTest, LoadPluginSafeReportsInitializationFailureWithoutRegistry) {
+    const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
+    graph::PluginLoader loader(plugin_dir, nullptr);
+
+    const auto result = loader.LoadPluginSafe(plugin_filename);
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::PluginLoadError::InitializationFailed);
+}
+
 TEST_F(PluginLoaderTest, SymbolResolutionFromLoadedPlugin) {
     // Verify that dlsym() successfully resolves required symbols
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    EXPECT_NO_THROW({
-        loader.LoadPlugin("libtest_node.so");
-    });
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
     // Verify node type is accessible and can be queried
     EXPECT_TRUE(registry_->HasNodeType("TestNode"));
     auto type_info = registry_->GetNodeTypeInfo("TestNode");
-    EXPECT_NE(type_info, nullptr);
-    
-    // Clean up allocated TypeInfo
-    delete type_info;
+    EXPECT_TRUE(type_info);
 }
 
 TEST_F(PluginLoaderTest, ParseActualPluginMetadata) {
     // Verify metadata extraction from real plugin
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    EXPECT_NO_THROW({
-        loader.LoadPlugin("libtest_node.so");
-    });
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
     auto type_info = registry_->GetNodeTypeInfo("TestNode");
-    ASSERT_NE(type_info, nullptr);
+    ASSERT_TRUE(type_info);
     
     // Verify metadata fields extracted correctly
     EXPECT_EQ(type_info->type_name, "TestNode");
@@ -298,58 +339,113 @@ TEST_F(PluginLoaderTest, ParseActualPluginMetadata) {
     EXPECT_EQ(type_info->version, "1.0");
     // ABI tag is platform-specific (libstdc++_v1 or libc++_v1)
     EXPECT_TRUE(!type_info->abi_tag.empty());
-    
-    delete type_info;
 }
 
 TEST_F(PluginLoaderTest, PluginAPIVersionNegotiation) {
     // Verify that plugin API version negotiation works
     // TestNode exports plugin_api_version() = 2
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    // Should load without exception (version is compatible)
-    EXPECT_NO_THROW({
-        loader.LoadPlugin("libtest_node.so");
-    });
-    
-    // If version was incompatible, LoadPlugin() would have thrown
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
+
     EXPECT_EQ(registry_->GetRegisteredTypeCount(), 1);
 }
 
 TEST_F(PluginLoaderTest, CreateNodeFromLoadedPlugin) {
     // Verify that nodes can be instantiated from the loaded plugin
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    loader.LoadPlugin("libtest_node.so");
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
     // Verify we can create a node instance
-    auto [node_handle, facade] = registry_->CreateNode("TestNode");
+    auto created = registry_->CreateNodeExpected("TestNode");
+    ASSERT_TRUE(created);
+    auto [node_handle, facade] = *created;
     EXPECT_NE(node_handle, nullptr);
     EXPECT_NE(facade, nullptr);
 }
 
-TEST_F(PluginLoaderTest, UnloadPluginUnregistersNodeTypes) {
+TEST_F(PluginLoaderTest, CreateNodeExpectedFromLoadedPlugin) {
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
 
-    loader.LoadPlugin("libtest_node.so");
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
+
+    auto result = registry_->CreateNodeExpected("TestNode");
+    ASSERT_TRUE(result);
+    auto [node_handle, facade] = *result;
+    EXPECT_NE(node_handle, nullptr);
+    EXPECT_NE(facade, nullptr);
+}
+
+TEST_F(PluginLoaderTest, CreateNodeExpectedReportsMissingType) {
+    auto result = registry_->CreateNodeExpected("MissingNode");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::PluginRegistry::PluginRegistryError::TypeNotRegistered);
+}
+
+TEST(FactoryManagerExpectedTest, CreateFactoryExpectedCreatesEmptyFactoryForMissingDirectory) {
+    auto result = app::FactoryManager::CreateFactoryExpected(
+        "/tmp/graphx_factory_manager_missing_plugin_dir_for_expected_test"
+    );
+
+    ASSERT_TRUE(result);
+    EXPECT_NE(result->factory, nullptr);
+    EXPECT_NE(result->loader, nullptr);
+}
+
+TEST(FactoryManagerExpectedTest, CreateFactoryExpectedRejectsFilePath) {
+    const std::string plugin_file =
+        std::string(PLUGIN_OUTPUT_DIRECTORY) + "/" + TestNodePluginFilename();
+
+    auto result = app::FactoryManager::CreateFactoryExpected(plugin_file);
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::FactoryManager::FactoryError::InvalidPluginDirectory);
+}
+
+TEST(FactoryManagerExpectedTest, QueryExpectedReportsNullFactory) {
+    auto types = app::FactoryManager::GetAvailableNodeTypesExpected(nullptr);
+    ASSERT_FALSE(types);
+    EXPECT_EQ(types.error(), app::FactoryManager::FactoryError::NullFactory);
+
+    auto available = app::FactoryManager::IsNodeTypeAvailableExpected(nullptr, "TestNode");
+    ASSERT_FALSE(available);
+    EXPECT_EQ(available.error(), app::FactoryManager::FactoryError::NullFactory);
+}
+
+TEST_F(PluginLoaderTest, UnloadPluginUnregistersNodeTypes) {
+    const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
+    graph::PluginLoader loader(plugin_dir, registry_);
+
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     ASSERT_TRUE(registry_->HasNodeType("TestNode"));
 
-    EXPECT_TRUE(loader.UnloadPlugin("libtest_node.so"));
+    EXPECT_TRUE(loader.UnloadPlugin(plugin_filename));
     EXPECT_FALSE(registry_->HasNodeType("TestNode"));
-    EXPECT_THROW(registry_->CreateNode("TestNode"), std::runtime_error);
+    auto created = registry_->CreateNodeExpected("TestNode");
+    ASSERT_FALSE(created);
+    EXPECT_EQ(created.error(), graph::PluginRegistry::PluginRegistryError::TypeNotRegistered);
 }
 
 TEST_F(PluginLoaderTest, NodeFacadeInterfaceCompliance) {
     // Verify that NodeFacade vtable is properly initialized
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    loader.LoadPlugin("libtest_node.so");
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
-    auto [node_handle, facade] = registry_->CreateNode("TestNode");
+    auto created = registry_->CreateNodeExpected("TestNode");
+    ASSERT_TRUE(created);
+    auto [node_handle, facade] = *created;
     ASSERT_NE(node_handle, nullptr);
     ASSERT_NE(facade, nullptr);
     
@@ -371,15 +467,13 @@ TEST_F(PluginLoaderTest, ABICompatibilityValidation) {
     // Verify that ABI compatibility is properly detected
     // TestNode plugin should be compiled with same ABI as the application
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
+    const std::string plugin_filename = TestNodePluginFilename();
     graph::PluginLoader loader(plugin_dir, registry_);
     
-    // Should load successfully (no ABI mismatch)
-    EXPECT_NO_THROW({
-        loader.LoadPlugin("libtest_node.so");
-    });
+    ASSERT_TRUE(loader.LoadPluginSafe(plugin_filename));
     
     auto type_info = registry_->GetNodeTypeInfo("TestNode");
-    ASSERT_NE(type_info, nullptr);
+    ASSERT_TRUE(type_info);
     
     // Verify ABI tag matches expected value for this platform
     #ifdef _LIBCPP_VERSION
@@ -389,8 +483,6 @@ TEST_F(PluginLoaderTest, ABICompatibilityValidation) {
         // Linux / GCC with libstdc++
         EXPECT_EQ(type_info->abi_tag, "libstdc++_v1");
     #endif
-    
-    delete type_info;
 }
 
 } // namespace graph::test

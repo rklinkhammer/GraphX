@@ -203,11 +203,12 @@ namespace graph
     {
         LOG4CXX_TRACE(logger_, "ThreadPool JoinWithTimeout " << timeout.count() << "ms");
         running_.store(false);
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
         std::unique_lock lock(join_mtx_);
-        if (!join_cv_.wait_for(lock, timeout, [&]
-                               { return live_workers_.load() == 0 &&
-                                        active_tasks_.load() == 0 &&
-                                        task_queue_.Size() == 0; }))
+        if (!join_cv_.wait_until(lock, deadline, [&]
+                                 { return live_workers_.load() == 0 &&
+                                          active_tasks_.load() == 0 &&
+                                          task_queue_.Size() == 0; }))
         {
             return false;
         }
@@ -266,26 +267,20 @@ namespace graph
             return QueueResult::Stopped;
         }
 
-        auto start = std::chrono::steady_clock::now();
-        auto deadline = start + timeout;
-
-        // Try repeatedly with timeout
-        Task local = std::move(task);
-        while (std::chrono::steady_clock::now() < deadline)
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        if (task_queue_.EnqueueUntil(std::move(task), deadline))
         {
-            if (GetStopRequested())
-            {
-                LOG4CXX_TRACE(logger_, "ThreadPool not accepting tasks - stop requested during timed enqueue");
-                stats_.tasks_rejected++;
-                return QueueResult::Stopped;
-            }
-            if (task_queue_.Enqueue(local))
-            {
-                stats_.tasks_queued++;
-                return QueueResult::Ok;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            stats_.tasks_queued++;
+            return QueueResult::Ok;
         }
+
+        if (GetStopRequested() || !task_queue_.Enabled())
+        {
+            LOG4CXX_TRACE(logger_, "ThreadPool not accepting tasks - stop requested during timed enqueue");
+            stats_.tasks_rejected++;
+            return QueueResult::Stopped;
+        }
+
         stats_.enqueue_timeouts++;  // Phase 2: Track timeouts
         stats_.tasks_rejected++;
         return QueueResult::Timeout;

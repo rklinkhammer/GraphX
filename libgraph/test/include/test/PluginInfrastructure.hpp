@@ -12,6 +12,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <log4cxx/logger.h>
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFactory.hpp"
@@ -49,9 +50,8 @@ public:
             // Load plugins from build directory
             *loader = std::make_shared<graph::PluginLoader>(PLUGIN_OUTPUT_DIRECTORY, registry);
             
-            try {
-                (*loader)->LoadAllPlugins();
-            } catch (...) {
+            auto loaded = (*loader)->LoadAllPluginsSafe();
+            if (!loaded) {
                 // Plugins may not be available in test environment
             }
             
@@ -60,6 +60,16 @@ public:
         }
         
         return *factory;
+    }
+
+    static graph::NodeFacadeAdapter CreateDynamicNodeOrThrow(
+        const std::shared_ptr<graph::NodeFactory>& factory,
+        const std::string& type_name) {
+        auto node = factory->CreateDynamicNodeExpected(type_name);
+        if (!node) {
+            throw std::runtime_error("Failed to create dynamic test node: " + type_name);
+        }
+        return std::move(node).value();
     }
 
     /**

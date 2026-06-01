@@ -51,7 +51,7 @@ namespace graph {
  * }
  * 
  * // Usage
- * auto node = factory.CreateNode("MyNode");
+ * auto node = factory.CreateNodeExpected("MyNode");
  * if (auto* configurable = dynamic_cast<IConfigurable*>(node.get())) {
  *     configurable->Configure(json_view);
  * }
@@ -85,7 +85,7 @@ struct IConfigurable {
  * 
  * Usage:
  * @code
- * auto node = CreateNode("AltitudeFusionNode");
+ * auto node = CreateNodeExpected("AltitudeFusionNode");
  * if (auto* diagnosable = dynamic_cast<IDiagnosable*>(node.get())) {
  *     auto metrics = diagnosable->GetDiagnostics();
  *     // Process metrics...
@@ -121,7 +121,7 @@ struct IDiagnosable {
  * 
  * Usage:
  * @code
- * auto node = CreateNode("ExtendedKalmanFilterNode");
+ * auto node = CreateNodeExpected("ExtendedKalmanFilterNode");
  * if (auto* parameterized = dynamic_cast<IParameterized*>(node.get())) {
  *     auto params = parameterized->GetParameters();
  *     auto desc = parameterized->GetParameterDescription("process_noise");

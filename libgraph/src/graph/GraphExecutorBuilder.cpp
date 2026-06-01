@@ -248,7 +248,12 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     try {
          // Step 2: Create FactoryManager and load plugins
         LOG4CXX_TRACE(g_logger, "Step 2: Creating factory and loading plugins");
-        auto [factory, loader] = app::FactoryManager::CreateFactory(plugin_directory_);
+        auto factory_bundle = app::FactoryManager::CreateFactoryExpected(plugin_directory_);
+        if (!factory_bundle) {
+            throw std::runtime_error("Failed to create factory and load plugins");
+        }
+        auto factory = factory_bundle->factory;
+        auto loader = factory_bundle->loader;
         LOG4CXX_TRACE(g_logger, "Factory created and plugins loaded from: " << plugin_directory_);
 
         // Step 3: Create AppContext with loaded configuration

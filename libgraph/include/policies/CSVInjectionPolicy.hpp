@@ -155,7 +155,7 @@ public:
                 }
             }
         };
-        csv_injection_thread_ = std::thread(fn);
+        csv_injection_thread_ = std::jthread(fn);
         return true;
     }
 
@@ -217,7 +217,7 @@ public:
 
 private:
 
-    std::thread csv_injection_thread_;
+    std::jthread csv_injection_thread_;
     std::shared_ptr<csv::CSVDataInjectionManager> csv_data_injection_manager_;
     std::shared_ptr<capabilities::CSVDataInjectionCapability> csv_data_injection_capability_;
     std::vector<std::pair<std::string, std::string>> csv_input_paths_;

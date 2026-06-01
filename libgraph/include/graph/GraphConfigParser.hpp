@@ -55,9 +55,6 @@ public:
      * @param json_text Raw JSON text containing graph configuration
      * @return Parsed GraphConfig
      *
-     * @throws std::runtime_error on JSON parse error
-     * @throws std::invalid_argument on missing required fields
-     *
      * Steps:
      * 1. Parse JSON text into nlohmann::json object
      * 2. Extract graph section
@@ -65,21 +62,8 @@ public:
      * 4. Parse edges array
      * 5. Validate structure
      */
-    static GraphConfig Parse(const std::string& json_text);
-    
     /**
-     * Parse JSON file into GraphConfig structure
-     *
-     * @param filepath Path to JSON file
-     * @return Parsed GraphConfig
-     *
-     * @throws std::runtime_error on file I/O error
-     * @throws std::runtime_error on JSON parse error
-     */
-    static GraphConfig ParseFile(const std::string& filepath);
-
-    /**
-     * Parse JSON text with type-safe error handling (Phase 5c)
+     * Parse JSON text with type-safe error handling
      *
      * @param json_text Raw JSON text containing graph configuration
      * @return Expected<GraphConfig, ConfigError> - parsed config or error code
@@ -99,7 +83,7 @@ public:
     ParseSafe(const std::string& json_text) noexcept;
     
     /**
-     * Parse JSON file with type-safe error handling (Phase 5c)
+     * Parse JSON file with type-safe error handling
      *
      * @param filepath Path to JSON file
      * @return Expected<GraphConfig, ConfigError> - parsed config or error
@@ -132,11 +116,23 @@ private:
      * Parse a single node configuration
      */
     static NodeConfig ParseNode(const nlohmann::json& node_json);
+
+    /**
+     * Parse a single node configuration with typed errors
+     */
+    [[nodiscard]] static std::expected<NodeConfig, app::error::ConfigError>
+    ParseNodeSafe(const nlohmann::json& node_json) noexcept;
     
     /**
      * Parse a single edge configuration
      */
     static EdgeConfig ParseEdge(const nlohmann::json& edge_json);
+
+    /**
+     * Parse a single edge configuration with typed errors
+     */
+    [[nodiscard]] static std::expected<EdgeConfig, app::error::ConfigError>
+    ParseEdgeSafe(const nlohmann::json& edge_json) noexcept;
     
     /**
      * Validate node ID format
@@ -150,4 +146,3 @@ private:
 };
 
 }  // namespace graph::config
-

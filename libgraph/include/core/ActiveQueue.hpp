@@ -228,7 +228,7 @@ public:
                     : std::chrono::high_resolution_clock::time_point{};
 
                 not_full_condition_.wait(lock, [&] {
-                    return exit_ || deque_.size() < capacity_;
+                    return exit_ || capacity_ == 0 || deque_.size() < capacity_;
                 });
 
                 if (metrics_enabled_.load(std::memory_order_acquire) && wait_start != std::chrono::high_resolution_clock::time_point{}) {
@@ -290,6 +290,85 @@ public:
     }
 
     /**
+     * @brief Enqueue an element, waiting until a steady-clock deadline for space.
+     *
+     * This is an explicit timed enqueue operation. It waits for bounded queue
+     * capacity regardless of the default block-on-full policy, so non-blocking
+     * callers can continue using Enqueue() while timeout-aware callers avoid
+     * polling and repeated duration recalculation.
+     *
+     * @param element item to enqueue if space becomes available.
+     * @param deadline absolute steady-clock deadline for the enqueue attempt.
+     * @return true if the element was enqueued; false if disabled or timed out.
+     */
+    [[nodiscard]] bool EnqueueUntil(Element element, std::chrono::steady_clock::time_point deadline) {
+        auto start_time = metrics_enabled_.load(std::memory_order_acquire)
+            ? std::chrono::high_resolution_clock::now()
+            : std::chrono::high_resolution_clock::time_point{};
+
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        if (exit_) {
+            if (metrics_enabled_.load(std::memory_order_acquire)) {
+                metrics_.enqueue_rejections.fetch_add(1, std::memory_order_acq_rel);
+            }
+            return false;
+        }
+
+        if (capacity_ > 0 && deque_.size() >= capacity_) {
+            auto wait_start = metrics_enabled_.load(std::memory_order_acquire)
+                ? std::chrono::high_resolution_clock::now()
+                : std::chrono::high_resolution_clock::time_point{};
+
+            const bool has_space = not_full_condition_.wait_until(lock, deadline, [&] {
+                return exit_ || capacity_ == 0 || deque_.size() < capacity_;
+            });
+
+            if (metrics_enabled_.load(std::memory_order_acquire) && wait_start != std::chrono::high_resolution_clock::time_point{}) {
+                auto wait_end = std::chrono::high_resolution_clock::now();
+                auto wait_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(wait_end - wait_start).count();
+                metrics_.total_wait_time_ns.fetch_add(wait_ns, std::memory_order_acq_rel);
+            }
+
+            if (!has_space || exit_) {
+                if (metrics_enabled_.load(std::memory_order_acquire)) {
+                    metrics_.enqueue_rejections.fetch_add(1, std::memory_order_acq_rel);
+                }
+                return false;
+            }
+        }
+
+        if (comparator_) {
+            auto it = deque_.begin();
+            while (it != deque_.end() && !comparator_(element, *it)) {
+                ++it;
+            }
+            deque_.insert(it, std::move(element));
+        } else {
+            deque_.push_back(std::move(element));
+        }
+
+        if (metrics_enabled_.load(std::memory_order_acquire)) {
+            metrics_.enqueued_count.fetch_add(1, std::memory_order_acq_rel);
+            metrics_.current_size.store(deque_.size(), std::memory_order_release);
+
+            auto current = deque_.size();
+            auto max = metrics_.max_size_observed.load(std::memory_order_acquire);
+            while (current > max && !metrics_.max_size_observed.compare_exchange_weak(max, current, std::memory_order_release)) {
+            }
+
+            if (start_time != std::chrono::high_resolution_clock::time_point{}) {
+                auto end_time = std::chrono::high_resolution_clock::now();
+                auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
+                metrics_.total_enqueue_time_ns.fetch_add(duration_ns, std::memory_order_acq_rel);
+            }
+        }
+
+        condition_.notify_one();
+        return true;
+    }
+
+    /**
      * @brief Set a comparator for sorted insertion
      *
      * If set, Enqueue() will insert elements in sorted order using this comparator.
@@ -334,7 +413,7 @@ public:
         }
 
         // Notify blocked enqueuers that space is available
-        if (block_on_full_ && capacity_ > 0) {
+        if (capacity_ > 0) {
             not_full_condition_.notify_one();
         }
 
@@ -395,7 +474,7 @@ public:
         }
 
         // Notify blocked enqueuers that space is available
-        if (block_on_full_ && capacity_ > 0) {
+        if (capacity_ > 0) {
             not_full_condition_.notify_one();
         }
 
@@ -426,7 +505,7 @@ public:
                     : std::chrono::high_resolution_clock::time_point{};
 
                 not_full_condition_.wait(lock, [&] {
-                    return exit_ || deque_.size() < capacity_;
+                    return exit_ || capacity_ == 0 || deque_.size() < capacity_;
                 });
 
                 if (metrics_enabled_.load(std::memory_order_acquire) && wait_start != std::chrono::high_resolution_clock::time_point{}) {
@@ -524,7 +603,7 @@ public:
         {
             std::unique_lock<std::mutex> lock(mutex_);
             capacity_ = new_capacity;
-            may_have_space = block_on_full_ && (capacity_ == 0 || deque_.size() < capacity_);
+            may_have_space = capacity_ == 0 || deque_.size() < capacity_;
         }
 
         if (may_have_space) {
@@ -579,7 +658,7 @@ public:
         bool notify_enqueuers = false;
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            notify_enqueuers = block_on_full_ && capacity_ > 0 && !deque_.empty();
+            notify_enqueuers = capacity_ > 0 && !deque_.empty();
             deque_.clear();
             if (metrics_enabled_.load(std::memory_order_acquire)) {
                 metrics_.current_size.store(0, std::memory_order_release);
@@ -621,7 +700,7 @@ public:
                     : std::chrono::high_resolution_clock::time_point{};
 
                 not_full_condition_.wait(lock, [&] {
-                    return exit_ || deque_.size() < capacity_;
+                    return exit_ || capacity_ == 0 || deque_.size() < capacity_;
                 });
 
                 if (metrics_enabled_.load(std::memory_order_acquire) && wait_start != std::chrono::high_resolution_clock::time_point{}) {
@@ -693,7 +772,7 @@ public:
         }
 
         // Notify blocked enqueuers that space is available
-        if (block_on_full_ && capacity_ > 0) {
+        if (capacity_ > 0) {
             not_full_condition_.notify_one();
         }
 

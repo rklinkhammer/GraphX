@@ -33,7 +33,8 @@ PluginRegistry::PluginRegistry() {
     LOG4CXX_TRACE(logger_, "PluginRegistry initialized");
 }
 
-void PluginRegistry::RegisterNodeType(
+std::expected<void, PluginRegistry::PluginRegistryError>
+PluginRegistry::RegisterNodeTypeExpected(
     const std::string& type_name,
     const std::string& description,
     const std::string& plugin_path,
@@ -41,19 +42,19 @@ void PluginRegistry::RegisterNodeType(
     const std::string& abi_tag,
     const std::string& version,
     void* plugin_handle,
-    const NodeFacade* facade) {
+    const NodeFacade* facade) noexcept {
     
     LOG4CXX_TRACE(logger_, "Registering node type: " << type_name 
                  << " from plugin: " << plugin_path);
     
     if (!plugin_handle) {
         LOG4CXX_ERROR(logger_, "Invalid plugin handle for type: " << type_name);
-        throw std::runtime_error("Invalid plugin handle");
+        return std::unexpected(PluginRegistryError::InvalidPluginHandle);
     }
     
     if (!facade) {
         LOG4CXX_ERROR(logger_, "Null facade pointer for type: " << type_name);
-        throw std::runtime_error("Null facade pointer");
+        return std::unexpected(PluginRegistryError::NullFacade);
     }
     
     // Verify the create function can be found
@@ -64,7 +65,7 @@ void PluginRegistry::RegisterNodeType(
     if (error || !create_func) {
         LOG4CXX_ERROR(logger_, "Cannot find create function '" << create_function 
                       << "' in plugin: " << (error ? error : "unknown error"));
-        throw std::runtime_error(std::string("Cannot find create function: ") + create_function);
+        return std::unexpected(PluginRegistryError::MissingCreateFunction);
     }
     
     {
@@ -90,10 +91,12 @@ void PluginRegistry::RegisterNodeType(
         LOG4CXX_TRACE(logger_, "Successfully registered node type: " << type_name 
                      << " (version " << version << ", ABI: " << abi_tag << ")");
     }
+
+    return {};
 }
 
-std::pair<NodeHandle, const NodeFacade*> PluginRegistry::CreateNode(
-    const std::string& type_name) {
+std::expected<std::pair<NodeHandle, const NodeFacade*>, PluginRegistry::PluginRegistryError>
+PluginRegistry::CreateNodeExpected(const std::string& type_name) noexcept {
     
     LOG4CXX_TRACE(logger_, "Creating node of type: " << type_name);
     
@@ -103,27 +106,30 @@ std::pair<NodeHandle, const NodeFacade*> PluginRegistry::CreateNode(
         auto it = registered_types_.find(type_name);
         if (it == registered_types_.end()) {
             LOG4CXX_ERROR(logger_, "Node type not found: " << type_name);
-            throw std::runtime_error("Node type not registered: " + type_name);
+            return std::unexpected(PluginRegistryError::TypeNotRegistered);
         }
         
         const auto& info = it->second;
         
         try {
-        // Call the plugin's creation function
-        LOG4CXX_TRACE(logger_, "Calling create function: " << info.create_function);
-        NodeHandle handle = info.create_func();
-        
-        if (!handle) {
-            LOG4CXX_ERROR(logger_, "Plugin creation function failed for type: " << type_name);
-            throw std::runtime_error("Plugin creation failed for type: " + type_name);
-        }
-        
-        LOG4CXX_TRACE(logger_, "Successfully created node instance for type: " << type_name);
-        return {handle, info.facade};
+            // Call the plugin's creation function
+            LOG4CXX_TRACE(logger_, "Calling create function: " << info.create_function);
+            NodeHandle handle = info.create_func();
+            
+            if (!handle) {
+                LOG4CXX_ERROR(logger_, "Plugin creation function failed for type: " << type_name);
+                return std::unexpected(PluginRegistryError::CreationFailed);
+            }
+            
+            LOG4CXX_TRACE(logger_, "Successfully created node instance for type: " << type_name);
+            return std::pair<NodeHandle, const NodeFacade*>{handle, info.facade};
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(logger_, "Exception during node creation for type: " << type_name 
                           << " - " << e.what());
-            throw;
+            return std::unexpected(PluginRegistryError::CreationThrew);
+        } catch (...) {
+            LOG4CXX_ERROR(logger_, "Unknown exception during node creation for type: " << type_name);
+            return std::unexpected(PluginRegistryError::Unknown);
         }
     }
 }
@@ -143,18 +149,18 @@ std::vector<std::string> PluginRegistry::GetRegisteredNodeTypes() const {
     return types;
 }
 
-PluginRegistry::TypeInfo* PluginRegistry::GetNodeTypeInfo(
+std::optional<PluginRegistry::TypeInfo> PluginRegistry::GetNodeTypeInfo(
     const std::string& type_name) {
     
     std::lock_guard<std::mutex> lock(registry_mutex_);
     auto it = registered_types_.find(type_name);
     
     if (it == registered_types_.end()) {
-        return nullptr;
+        return std::nullopt;
     }
     
     const auto& info = it->second;
-    return new TypeInfo{
+    return TypeInfo{
         .type_name = info.type_name,
         .description = info.description,
         .plugin_path = info.plugin_path,

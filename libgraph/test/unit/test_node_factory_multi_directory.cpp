@@ -3,8 +3,8 @@
  * @brief Comprehensive tests for NodeFactory multi-directory plugin support
  *
  * Tests the Option A multi-directory architecture:
- * - AddPluginDirectory() to register multiple plugin directories
- * - LoadAllPluginsFromDirectories() to load all plugins across directories
+ * - AddPluginDirectoryExpected() to register multiple plugin directories
+ * - LoadAllPluginsFromDirectoriesExpected() to load all plugins across directories
  * - Plugin registration from multiple sources
  *
  * @author Test Suite
@@ -34,6 +34,16 @@ namespace fs = std::filesystem;
 inline bool PluginRegistered(const std::vector<std::string>& plugins, const std::string& name) {
     return std::find(plugins.begin(), plugins.end(), name) != plugins.end();
 }
+
+namespace {
+
+#ifdef __APPLE__
+constexpr const char* kSharedLibraryExtension = ".dylib";
+#else
+constexpr const char* kSharedLibraryExtension = ".so";
+#endif
+
+}  // namespace
 
 /**
  * @class NodeFactoryMultiDirectoryTest
@@ -72,13 +82,13 @@ protected:
     /**
      * @brief Copy specific plugins to a test directory
      * @param dest_dir Destination directory path
-     * @param plugin_names Names of plugins to copy (without .so extension)
+     * @param plugin_names Names of plugins to copy (without shared-library extension)
      */
     void CopyPluginsToDirectory(const std::string& dest_dir,
                                const std::vector<std::string>& plugin_names) {
         for (const auto& plugin_name : plugin_names) {
-            std::string src = primary_dir_ + "/lib" + plugin_name + ".so";
-            std::string dst = dest_dir + "/lib" + plugin_name + ".so";
+            std::string src = primary_dir_ + "/lib" + plugin_name + kSharedLibraryExtension;
+            std::string dst = dest_dir + "/lib" + plugin_name + kSharedLibraryExtension;
             
             if (fs::exists(src)) {
                 fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
@@ -90,15 +100,15 @@ protected:
     }
 
     /**
-     * @brief Get count of .so files in a directory
+     * @brief Get count of plugin files in a directory
      * @param dir Directory to check
-     * @return Number of .so files
+     * @return Number of plugin files
      */
     size_t CountPluginsInDirectory(const std::string& dir) {
         size_t count = 0;
         if (fs::exists(dir)) {
             for (const auto& entry : fs::directory_iterator(dir)) {
-                if (entry.path().extension() == ".so") {
+                if (entry.path().extension() == kSharedLibraryExtension) {
                     count++;
                 }
             }
@@ -107,15 +117,15 @@ protected:
     }
 
     /**
-     * @brief Get names of .so files in a directory
+     * @brief Get names of plugin files in a directory
      * @param dir Directory to check
-     * @return Set of plugin names (without .so extension)
+     * @return Set of plugin names (without shared-library extension)
      */
     std::set<std::string> GetPluginsInDirectory(const std::string& dir) {
         std::set<std::string> plugins;
         if (fs::exists(dir)) {
             for (const auto& entry : fs::directory_iterator(dir)) {
-                if (entry.path().extension() == ".so") {
+                if (entry.path().extension() == kSharedLibraryExtension) {
                     std::string name = entry.path().stem().string();
                     // Remove "lib" prefix if present
                     if (name.substr(0, 3) == "lib") {
@@ -152,16 +162,36 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Register single directory
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir1_));
     
     // Load plugins
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Verify plugins are registered
     auto registered_plugins = registry->GetRegisteredNodeTypes();
     ASSERT_GE(registered_plugins.size(), 2);
     ASSERT_TRUE(PluginRegistered(registered_plugins, "TestIntProducer"));;
     ASSERT_TRUE(PluginRegistered(registered_plugins, "CompletionNode"));;
+}
+
+TEST_F(NodeFactoryMultiDirectoryTest,
+       AddPluginDirectoryExpectedAndLoadExpected_SingleDirectory) {
+    
+    CopyPluginsToDirectory(test_dir1_, {"int_producer", "completion_node"});
+    
+    auto registry = std::make_shared<graph::PluginRegistry>();
+    auto factory = std::make_shared<graph::NodeFactory>(registry);
+    
+    auto add_result = factory->AddPluginDirectoryExpected(test_dir1_);
+    ASSERT_TRUE(add_result);
+    
+    auto load_result = factory->LoadAllPluginsFromDirectoriesExpected();
+    ASSERT_TRUE(load_result);
+    
+    auto registered_plugins = registry->GetRegisteredNodeTypes();
+    ASSERT_GE(registered_plugins.size(), 2);
+    EXPECT_TRUE(PluginRegistered(registered_plugins, "TestIntProducer"));
+    EXPECT_TRUE(PluginRegistered(registered_plugins, "CompletionNode"));
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -181,12 +211,12 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Register all directories
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir3_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir1_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir2_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir3_));
     
     // Load all plugins
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Verify all plugins from all directories are registered
     auto registered_plugins = registry->GetRegisteredNodeTypes();
@@ -208,9 +238,21 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto registry = std::make_shared<graph::PluginRegistry>();
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
-    // Should throw when no directories registered
-    ASSERT_THROW(factory->LoadAllPluginsFromDirectories(),
-                std::runtime_error);
+    auto result = factory->LoadAllPluginsFromDirectoriesExpected();
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::PluginDirectoryError::NoDirectoriesRegistered);
+}
+
+TEST_F(NodeFactoryMultiDirectoryTest,
+       LoadAllPluginsFromDirectoriesExpectedReportsNoDirectories) {
+    
+    auto registry = std::make_shared<graph::PluginRegistry>();
+    auto factory = std::make_shared<graph::NodeFactory>(registry);
+    
+    auto result = factory->LoadAllPluginsFromDirectoriesExpected();
+    
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::PluginDirectoryError::NoDirectoriesRegistered);
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -219,9 +261,21 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto registry = std::make_shared<graph::PluginRegistry>();
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
-    // Should throw on empty path
-    ASSERT_THROW(factory->AddPluginDirectory(""),
-                std::invalid_argument);
+    auto result = factory->AddPluginDirectoryExpected("");
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::PluginDirectoryError::EmptyPath);
+}
+
+TEST_F(NodeFactoryMultiDirectoryTest,
+       AddPluginDirectoryExpectedReportsEmptyPath) {
+    
+    auto registry = std::make_shared<graph::PluginRegistry>();
+    auto factory = std::make_shared<graph::NodeFactory>(registry);
+    
+    auto result = factory->AddPluginDirectoryExpected("");
+    
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::PluginDirectoryError::EmptyPath);
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -235,10 +289,10 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
 
     // Load the primary directory and then add additional sources
-    ASSERT_NO_THROW(factory->AddPluginDirectory(PLUGIN_OUTPUT_DIRECTORY));
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(PLUGIN_OUTPUT_DIRECTORY));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir1_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir2_));
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Should have plugins from all sources. Duplicate node types from added
     // directories refresh existing registrations rather than increasing count.
@@ -257,8 +311,8 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Register and load
-    ASSERT_NO_THROW(factory->AddPluginDirectory(PLUGIN_OUTPUT_DIRECTORY));
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(PLUGIN_OUTPUT_DIRECTORY));
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Should be able to create nodes loaded via AddPluginDirectory
     // This verifies the factory integration is complete
@@ -278,9 +332,9 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Add both directories
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir1_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir2_));
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Both plugins should be in the SAME registry instance
     auto registered = registry->GetRegisteredNodeTypes();
@@ -298,13 +352,13 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Add first directory
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir1_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir1_));
     
     // Add second directory later
-    ASSERT_NO_THROW(factory->AddPluginDirectory(test_dir2_));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected(test_dir2_));
     
     // Load all
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
     
     // Both should be loaded
     auto registered = registry->GetRegisteredNodeTypes();
@@ -320,11 +374,11 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     
     // Adding non-existent directory should not throw in AddPluginDirectory
     // (it's only checked when loading)
-    ASSERT_NO_THROW(factory->AddPluginDirectory("./non_existent_dir_xyz"));
+    ASSERT_TRUE(factory->AddPluginDirectoryExpected("./non_existent_dir_xyz"));
     
     // But LoadAllPluginsFromDirectories should handle it gracefully
     // (skips directories that don't exist or can't be loaded)
-    ASSERT_NO_THROW(factory->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory->LoadAllPluginsFromDirectoriesExpected());
 }
 
 TEST_F(NodeFactoryMultiDirectoryTest,
@@ -341,11 +395,11 @@ TEST_F(NodeFactoryMultiDirectoryTest,
     auto factory2 = std::make_shared<graph::NodeFactory>(registry2);
     
     // Load different plugins into each
-    ASSERT_NO_THROW(factory1->AddPluginDirectory(test_dir1_));
-    ASSERT_NO_THROW(factory1->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory1->AddPluginDirectoryExpected(test_dir1_));
+    ASSERT_TRUE(factory1->LoadAllPluginsFromDirectoriesExpected());
     
-    ASSERT_NO_THROW(factory2->AddPluginDirectory(test_dir2_));
-    ASSERT_NO_THROW(factory2->LoadAllPluginsFromDirectories());
+    ASSERT_TRUE(factory2->AddPluginDirectoryExpected(test_dir2_));
+    ASSERT_TRUE(factory2->LoadAllPluginsFromDirectoriesExpected());
     
     // Each registry should have only its plugins
     auto plugins1 = registry1->GetRegisteredNodeTypes();

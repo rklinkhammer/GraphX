@@ -26,6 +26,7 @@
 #include "graph/NodeFactory.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
+#include <system_error>
 #include <filesystem>
 
 namespace app {
@@ -37,23 +38,32 @@ namespace app {
 static log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("FactoryManager");
 
 // ============================================================================
-// FactoryManager::CreateFactory()
-// ============================================================================
-
-std::pair<std::shared_ptr<graph::NodeFactory>, 
-          std::shared_ptr<graph::PluginLoader>>
-FactoryManager::CreateFactory(const std::string& plugin_directory) {
+std::expected<FactoryManager::FactoryBundle, FactoryManager::FactoryError>
+FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexcept {
     LOG4CXX_TRACE(logger_, "Creating NodeFactory with plugin directory: " 
                           << plugin_directory);
     
     // Step 1: Validate plugin directory exists
-    if (!std::filesystem::exists(plugin_directory)) {
+    std::error_code fs_error;
+    const bool plugin_directory_exists = std::filesystem::exists(plugin_directory, fs_error);
+    if (fs_error) {
+        LOG4CXX_ERROR(logger_, "Unable to inspect plugin directory: "
+                             << plugin_directory << " - " << fs_error.message());
+        return std::unexpected(FactoryError::InvalidPluginDirectory);
+    }
+
+    if (!plugin_directory_exists) {
         LOG4CXX_WARN(logger_, "Plugin directory does not exist: " 
                             << plugin_directory << ". Proceeding with empty registry.");
-    } else if (!std::filesystem::is_directory(plugin_directory)) {
+    } else if (!std::filesystem::is_directory(plugin_directory, fs_error)) {
+        if (fs_error) {
+            LOG4CXX_ERROR(logger_, "Unable to inspect plugin path: "
+                                 << plugin_directory << " - " << fs_error.message());
+            return std::unexpected(FactoryError::InvalidPluginDirectory);
+        }
         LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: " 
                              << plugin_directory);
-        return {nullptr, nullptr};
+        return std::unexpected(FactoryError::InvalidPluginDirectory);
     }
     
     // Step 2: Create PluginRegistry
@@ -63,7 +73,10 @@ FactoryManager::CreateFactory(const std::string& plugin_directory) {
         LOG4CXX_TRACE(logger_, "Created PluginRegistry successfully");
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginRegistry: " << e.what());
-        return {nullptr, nullptr};
+        return std::unexpected(FactoryError::RegistryCreationFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to create PluginRegistry: unknown error");
+        return std::unexpected(FactoryError::Unknown);
     }
     
     // Step 3: Create PluginLoader with registry
@@ -74,14 +87,17 @@ FactoryManager::CreateFactory(const std::string& plugin_directory) {
         LOG4CXX_TRACE(logger_, "Created PluginLoader successfully");
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: " << e.what());
-        return {nullptr, nullptr};
+        return std::unexpected(FactoryError::LoaderCreationFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: unknown error");
+        return std::unexpected(FactoryError::Unknown);
     }
     
     // Step 4: Load all plugins from directory (graceful degradation on individual failures)
-    if (std::filesystem::exists(plugin_directory)) {
+    if (plugin_directory_exists) {
         try {
             LOG4CXX_TRACE(logger_, "Loading plugins from directory: " << plugin_directory);
-            loader->LoadAllPlugins();
+            static_cast<void>(loader->LoadAllPluginsSafe());
             LOG4CXX_TRACE(logger_, "Plugin loading completed");
         } catch (const std::exception& e) {
             // Log but don't fail - some plugins may have loaded successfully
@@ -105,26 +121,27 @@ FactoryManager::CreateFactory(const std::string& plugin_directory) {
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: " 
                              << e.what());
-        return {nullptr, nullptr};
+        return std::unexpected(FactoryError::FactoryCreationFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: unknown error");
+        return std::unexpected(FactoryError::Unknown);
     }
     
     LOG4CXX_TRACE(logger_, "FactoryManager::CreateFactory completed successfully. "
                          << "Returning (factory, loader) pair. "
                          << "CRITICAL: Caller must keep loader alive!");
     
-    return {factory, loader};
+    return FactoryBundle{.factory = factory, .loader = loader};
 }
 
 // ============================================================================
-// FactoryManager::GetAvailableNodeTypes()
-// ============================================================================
-
-std::vector<std::string> FactoryManager::GetAvailableNodeTypes(
-    const std::shared_ptr<graph::NodeFactory>& factory) {
+std::expected<std::vector<std::string>, FactoryManager::FactoryError>
+FactoryManager::GetAvailableNodeTypesExpected(
+    const std::shared_ptr<graph::NodeFactory>& factory) noexcept {
     
     if (!factory) {
         LOG4CXX_ERROR(logger_, "GetAvailableNodeTypes called with null factory");
-        throw std::runtime_error("NodeFactory cannot be null");
+        return std::unexpected(FactoryError::NullFactory);
     }
     
     LOG4CXX_TRACE(logger_, "Querying available node types from factory");
@@ -146,22 +163,22 @@ std::vector<std::string> FactoryManager::GetAvailableNodeTypes(
         return node_types;
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to get available node types: " << e.what());
-        throw std::runtime_error(
-            std::string("Failed to query available node types: ") + e.what());
+        return std::unexpected(FactoryError::QueryFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to get available node types: unknown error");
+        return std::unexpected(FactoryError::Unknown);
     }
 }
 
 // ============================================================================
-// FactoryManager::IsNodeTypeAvailable()
-// ============================================================================
-
-bool FactoryManager::IsNodeTypeAvailable(
+std::expected<bool, FactoryManager::FactoryError>
+FactoryManager::IsNodeTypeAvailableExpected(
     const std::shared_ptr<graph::NodeFactory>& factory,
-    const std::string& type_name) {
+    const std::string& type_name) noexcept {
     
     if (!factory) {
         LOG4CXX_ERROR(logger_, "IsNodeTypeAvailable called with null factory");
-        throw std::runtime_error("NodeFactory cannot be null");
+        return std::unexpected(FactoryError::NullFactory);
     }
     
     if (type_name.empty()) {
@@ -184,8 +201,10 @@ bool FactoryManager::IsNodeTypeAvailable(
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to check node type availability: " 
                              << e.what());
-        throw std::runtime_error(
-            std::string("Failed to check node type '") + type_name + "': " + e.what());
+        return std::unexpected(FactoryError::QueryFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to check node type availability: unknown error");
+        return std::unexpected(FactoryError::Unknown);
     }
 }
 

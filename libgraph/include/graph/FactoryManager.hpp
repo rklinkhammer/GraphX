@@ -26,6 +26,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <expected>
 
 // Forward declarations
 namespace graph {
@@ -57,26 +58,27 @@ namespace app {
  * the factory finishes using plugin functions, segfaults occur (root cause of previous
  * graphsim crashes).
  * 
- * Solution: Return (factory, loader) pair from CreateFactory(). Caller MUST:
+ * Solution: Return (factory, loader) pair from CreateFactoryExpected(). Caller MUST:
  * 1. Store loader in AppContext
  * 2. Keep loader alive until application shutdown
  * 3. Destroy factory BEFORE destroying loader
  * 
  * Usage:
  * @code
- * auto [factory, loader] = FactoryManager::CreateFactory("./plugins");
+ * auto bundle = FactoryManager::CreateFactoryExpected("./plugins");
  * if (!factory) {
  *   std::cerr << "Failed to create factory\n";
  *   return 1;
  * }
  * 
- * auto available = FactoryManager::GetAvailableNodeTypes(factory);
+ * auto available = FactoryManager::GetAvailableNodeTypesExpected(factory);
  * for (const auto& type : available) {
  *   std::cout << "  - " << type << "\n";
  * }
  * 
- * if (FactoryManager::IsNodeTypeAvailable(factory, "MyNode")) {
- *   auto node = factory->CreateNode("MyNode");
+ * auto available = FactoryManager::IsNodeTypeAvailableExpected(factory, "MyNode");
+ * if (available && *available) {
+ *   auto node = factory->CreateNodeExpected("MyNode");
  * }
  * 
  * // Keep loader alive in AppContext
@@ -86,6 +88,21 @@ namespace app {
  */
 class FactoryManager {
 public:
+  enum class FactoryError {
+    InvalidPluginDirectory = 1,
+    RegistryCreationFailed = 2,
+    LoaderCreationFailed = 3,
+    FactoryCreationFailed = 4,
+    NullFactory = 5,
+    QueryFailed = 6,
+    Unknown = 99,
+  };
+
+  struct FactoryBundle {
+    std::shared_ptr<graph::NodeFactory> factory;
+    std::shared_ptr<graph::PluginLoader> loader;
+  };
+
   /**
    * @brief Create NodeFactory and PluginLoader from plugin directory
    * 
@@ -108,24 +125,21 @@ public:
    *         - (nullptr, nullptr) if critical error (rare)
    *         - Caller MUST keep loader alive longer than factory
    * 
-   * @throws std::runtime_error if plugin_directory path is invalid or inaccessible
-   * 
    * Example:
    * @code
-   * auto [factory, loader] = FactoryManager::CreateFactory("./plugins");
-   * if (!factory || !loader) {
+   * auto bundle = FactoryManager::CreateFactoryExpected("./plugins");
+   * if (!bundle) {
    *   std::cerr << "Factory creation failed\n";
    *   return false;
    * }
    * 
    * // Keep loader alive
-   * app_context.plugin_loader = loader;  // CRITICAL
-   * app_context.factory = factory;
+   * app_context.plugin_loader = bundle->loader;  // CRITICAL
+   * app_context.factory = bundle->factory;
    * @endcode
    */
-  static std::pair<std::shared_ptr<graph::NodeFactory>, 
-                   std::shared_ptr<graph::PluginLoader>>
-  CreateFactory(const std::string& plugin_directory);
+  [[nodiscard]] static std::expected<FactoryBundle, FactoryError>
+  CreateFactoryExpected(const std::string& plugin_directory) noexcept;
   
   /**
    * @brief Get list of available node types in factory
@@ -136,19 +150,18 @@ public:
    * @param factory NodeFactory instance to query (must be non-null)
    * @return Vector of node type names (may be empty if no plugins/types loaded)
    * 
-   * @throws std::runtime_error if factory is null
-   * 
    * Example:
    * @code
-   * auto types = FactoryManager::GetAvailableNodeTypes(factory);
+   * auto types = FactoryManager::GetAvailableNodeTypesExpected(factory);
    * std::cout << "Available node types: " << types.size() << "\n";
    * for (const auto& type : types) {
    *   std::cout << "  - " << type << "\n";
    * }
    * @endcode
    */
-  static std::vector<std::string> GetAvailableNodeTypes(
-      const std::shared_ptr<graph::NodeFactory>& factory);
+  [[nodiscard]] static std::expected<std::vector<std::string>, FactoryError>
+  GetAvailableNodeTypesExpected(
+      const std::shared_ptr<graph::NodeFactory>& factory) noexcept;
   
   /**
    * @brief Check if specific node type is available
@@ -160,22 +173,21 @@ public:
    * @param type_name Node type identifier to check
    * @return true if type is available, false otherwise
    * 
-   * @throws std::runtime_error if factory is null
-   * 
    * Example:
    * @code
-   * if (FactoryManager::IsNodeTypeAvailable(factory, "AccelNode")) {
-   *   auto node = factory->CreateNode("AccelNode");
+   * auto available = FactoryManager::IsNodeTypeAvailableExpected(factory, "AccelNode");
+   * if (available && *available) {
+   *   auto node = factory->CreateNodeExpected("AccelNode");
    *   graph_manager->AddNode(node);
    * } else {
    *   std::cerr << "AccelNode type not available\n";
    * }
    * @endcode
    */
-  static bool IsNodeTypeAvailable(
+  [[nodiscard]] static std::expected<bool, FactoryError>
+  IsNodeTypeAvailableExpected(
       const std::shared_ptr<graph::NodeFactory>& factory,
-      const std::string& type_name);
+      const std::string& type_name) noexcept;
 };
 
 }  // namespace app
-

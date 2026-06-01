@@ -53,9 +53,9 @@ namespace graph {
 /// Usage:
 /// @code
 /// PluginLoader loader("./plugins", registry);
-/// loader.LoadPlugin("libsensor_node.so");
+/// auto result = loader.LoadPluginSafe("libsensor_node.so");
 /// // or
-/// loader.LoadAllPlugins();
+/// auto count = loader.LoadAllPluginsSafe();
 /// @endcode
 class PluginLoader {
 private:
@@ -96,40 +96,10 @@ public:
     // Plugin Loading Operations
     // ========================================================================
 
-    /// @brief Load a single plugin file from disk
-    /// @param plugin_filename Filename only (e.g., "libsensor_node.so")
-    ///                         Full path is constructed from plugin_directory
-    /// @throws std::runtime_error on dlopen failure, missing exports, etc.
-    ///
-    /// Performs:
-    /// 1. dlopen() the plugin file
-    /// 2. dlsym() to find plugin_get_info()
-    /// 3. Parse metadata from plugin_get_info()
-    /// 4. Validate ABI compatibility
-    /// 5. Call registry->RegisterNodeType()
-    /// 6. Store plugin handle for later cleanup
-    void LoadPlugin(const std::string& plugin_filename);
-
-    /// @brief Load all plugins from the plugin directory
-    /// @throws std::runtime_error if plugin directory doesn't exist
-    ///
-    /// Scans plugin_directory for all .so (Linux) and .dylib (macOS) files.
-    /// Failures loading individual plugins are logged as warnings but don't
-    /// prevent loading other plugins.
-    void LoadAllPlugins();
-
-    // ========================================================================
-    // Phase 5e: Safe Error Handling APIs (expected<>-based)
-    // ========================================================================
-
     /// @brief Load a single plugin file safely with expected<> error handling
     /// @param plugin_filename Filename only (e.g., "libsensor_node.so")
     /// @return expected with void on success, PluginLoadError on failure
     /// 
-    /// Safe variant of LoadPlugin() that returns expected<> instead of throwing.
-    /// Uses the same loading logic as LoadPlugin() but wraps exceptions in
-    /// PluginLoadError enum for type-safe error handling.
-    ///
     /// Error mapping:
     /// - FileNotFound: dlopen failed, file not found
     /// - SystemError: dlopen failed for other system reasons
@@ -159,9 +129,8 @@ public:
     /// @return expected with count of successfully loaded plugins on success,
     ///         PluginLoadError on failure (returns directory not found error)
     ///
-    /// Safe variant of LoadAllPlugins() that returns expected<> instead of throwing.
     /// Individual plugin failures are logged as warnings but don't affect the overall
-    /// operation (consistent with LoadAllPlugins() behavior).
+    /// operation.
     ///
     /// Returns:
     /// - Success: size_t count of plugins successfully loaded

@@ -31,18 +31,19 @@ namespace graph::config {
 
 static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("graph.config.NodeFactoryRegistry"));
 
-void NodeFactoryRegistry::Register(
+std::expected<void, NodeFactoryRegistry::RegistryError>
+NodeFactoryRegistry::RegisterExpected(
     const std::string& type_name,
-    NodeFactoryFunction factory) {
+    NodeFactoryFunction factory) noexcept {
     
     if (type_name.empty()) {
         LOG4CXX_ERROR(logger, "Cannot register factory with empty type name");
-        throw std::invalid_argument("Type name cannot be empty");
+        return std::unexpected(RegistryError::EmptyTypeName);
     }
     
     if (!factory) {
         LOG4CXX_ERROR(logger, "Factory function is null for type: " << type_name);
-        throw std::invalid_argument("Factory function cannot be null");
+        return std::unexpected(RegistryError::NullFactory);
     }
     
     // Check if already registered
@@ -56,15 +57,18 @@ void NodeFactoryRegistry::Register(
     } else {
         LOG4CXX_TRACE(logger, "Registered factory for node type: " << type_name);
     }
+
+    return {};
 }
 
-NodeFacadeAdapter NodeFactoryRegistry::Create(const std::string& type_name) {
+std::expected<NodeFacadeAdapter, NodeFactoryRegistry::RegistryError>
+NodeFactoryRegistry::CreateExpected(const std::string& type_name) noexcept {
     auto it = factories_.find(type_name);
     
     if (it == factories_.end()) {
         std::string error_msg = std::format("Node type not registered: {}", type_name);
         LOG4CXX_ERROR(logger, error_msg);
-        throw std::runtime_error(error_msg);
+        return std::unexpected(RegistryError::TypeNotRegistered);
     }
     
     try {
@@ -76,12 +80,12 @@ NodeFacadeAdapter NodeFactoryRegistry::Create(const std::string& type_name) {
         std::string error_msg = std::format("Failed to create node of type '{}': {}",
                                            type_name, e.what());
         LOG4CXX_ERROR(logger, error_msg);
-        throw std::runtime_error(error_msg);
+        return std::unexpected(RegistryError::FactoryFailed);
     } catch (...) {
         std::string error_msg = std::format("Failed to create node of type '{}': unknown exception",
                                            type_name);
         LOG4CXX_ERROR(logger, error_msg);
-        throw std::runtime_error(error_msg);
+        return std::unexpected(RegistryError::Unknown);
     }
 }
 

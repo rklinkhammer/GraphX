@@ -333,6 +333,39 @@ TEST_F(EdgeRegistryTest, CreateEdgeWithValidRegistration) {
     EXPECT_FALSE(creator_called);
 }
 
+TEST_F(EdgeRegistryTest, CreateEdgeExpectedReportsSuccessAndMissingCreator) {
+    graph::GraphManager graph_manager;
+
+    auto missing = graph::config::EdgeRegistry::CreateEdgeExpected(
+        graph_manager,
+        "SourceTestNode", 0,
+        "SinkTestNode", 0,
+        0,
+        1,
+        1024);
+    ASSERT_FALSE(missing);
+    EXPECT_EQ(missing.error(), graph::config::EdgeRegistry::EdgeCreationError::NoCreatorRegistered);
+
+    bool creator_called = false;
+    graph::config::EdgeRegistry::Register<test::SourceTestNode, 0, test::SinkTestNode, 0>(
+        "SourceTestNode", "SinkTestNode",
+        [&creator_called](graph::GraphManager&, std::size_t, std::size_t, std::size_t) {
+            creator_called = true;
+            return true;
+        });
+
+    auto created = graph::config::EdgeRegistry::CreateEdgeExpected(
+        graph_manager,
+        "SourceTestNode", 0,
+        "SinkTestNode", 0,
+        0,
+        1,
+        1024);
+
+    EXPECT_TRUE(created);
+    EXPECT_TRUE(creator_called);
+}
+
 /**
  * @test RegisterAndClearMultipleTimes
  * @brief Verify that register and clear can be done multiple times

@@ -62,18 +62,18 @@ bool EdgeRegistry::IsRegistered(
     return !GetRegistry().empty();
 }
 
-// Create an edge using registered creator
-bool EdgeRegistry::CreateEdge(
+std::expected<void, EdgeRegistry::EdgeCreationError> EdgeRegistry::CreateEdgeExpected(
     GraphManager& graph,
-    const std::string& src_node_type,
-    std::size_t src_port_idx,
-    const std::string& dst_node_type,
-    std::size_t dst_port_idx,
+    [[maybe_unused]] const std::string& src_node_type,
+    [[maybe_unused]] std::size_t src_port_idx,
+    [[maybe_unused]] const std::string& dst_node_type,
+    [[maybe_unused]] std::size_t dst_port_idx,
     std::size_t src_node_idx,
     std::size_t dst_node_idx,
-    std::size_t buffer_size) {
+    std::size_t buffer_size) noexcept {
 
     std::lock_guard<std::mutex> lock(EdgeRegistry::mutex_);
+    bool creator_found = false;
 
     // Search the registry for a matching entry
     // This is less efficient than ideal, but maintains correctness
@@ -82,19 +82,23 @@ bool EdgeRegistry::CreateEdge(
         // so we'll just try to find any registered creator and let it fail appropriately
         // In practice, this works because creators validate their types
         try {
-            return pair.second(graph, src_node_idx, dst_node_idx, buffer_size);
+            creator_found = true;
+            if (pair.second(graph, src_node_idx, dst_node_idx, buffer_size)) {
+                return {};
+            }
         } catch (const std::exception&) {
             // Try next one
             continue;
+        } catch (...) {
+            return std::unexpected(EdgeCreationError::Unknown);
         }
     }
 
-    // No valid creator found
-    std::ostringstream oss;
-    oss << "No edge creator registered for: "
-        << MakeDebugKey(src_node_type, src_port_idx, dst_node_type, dst_port_idx)
-        << " (registered " << GetRegistry().size() << " edge types)";
-    throw std::runtime_error(oss.str());
+    if (creator_found) {
+        return std::unexpected(EdgeCreationError::CreatorReturnedFalse);
+    }
+
+    return std::unexpected(EdgeCreationError::NoCreatorRegistered);
 }
 
 // Clear all registered edge creators

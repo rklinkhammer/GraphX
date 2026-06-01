@@ -176,99 +176,266 @@ EdgeConfig GraphConfigParser::ParseEdge(const json& edge_json) {
     return edge_config;
 }
 
-GraphConfig GraphConfigParser::Parse(const std::string& json_text) {
-    GraphConfig config;
-    
+std::expected<NodeConfig, app::error::ConfigError>
+GraphConfigParser::ParseNodeSafe(const json& node_json) noexcept {
     try {
-        auto json_data = json::parse(json_text);
-        
-        // Parse metadata
-        config.metadata = ParseMetadata(json_data);
-        
-        // Parse top-level graph settings
-        if (json_data.contains("name")) {
-            config.name = json_data["name"].get<std::string>();
+        if (!node_json.is_object()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
         }
-        
-        if (json_data.contains("description")) {
-            config.description = json_data["description"].get<std::string>();
-        }
-        
-        if (json_data.contains("num_threads")) {
-            config.num_threads = json_data["num_threads"].get<size_t>();
-        } else {
-            config.num_threads = std::thread::hardware_concurrency();
-        }
-        
-        if (json_data.contains("deadlock_detection")) {
-            auto dd_obj = json_data["deadlock_detection"];
-            if (dd_obj.is_object()) {
-                if (dd_obj.contains("enabled")) {
-                    config.deadlock_detection.enabled = dd_obj["enabled"].get<bool>();
-                }
-                if (dd_obj.contains("timeout_ms")) {
-                    config.deadlock_detection.timeout_ms = dd_obj["timeout_ms"].get<uint32_t>();
-                }
-            } else if (dd_obj.is_boolean()) {
-                // Legacy: just a boolean flag
-                config.deadlock_detection.enabled = dd_obj.get<bool>();
-            }
-        }
-        
-        // Parse nodes
-        if (json_data.contains("nodes")) {
-            if (!json_data["nodes"].is_array()) {
-                throw std::runtime_error("'nodes' field must be an array");
-            }
-            
-            for (const auto& node_json : json_data["nodes"]) {
-                config.nodes.push_back(ParseNode(node_json));
-            }
-        } else {
-            throw std::runtime_error("Graph configuration missing required 'nodes' array");
-        }
-        
-        // Parse edges
-        if (json_data.contains("edges")) {
-            if (!json_data["edges"].is_array()) {
-                throw std::runtime_error("'edges' field must be an array");
-            }
-            
-            for (const auto& edge_json : json_data["edges"]) {
-                config.edges.push_back(ParseEdge(edge_json));
-            }
-        }
-        
-        return config;
 
-    } catch (const json::exception& e) {
-        throw std::runtime_error(std::string("JSON parse error: ") + e.what());
+        NodeConfig node_config;
+
+        if (!node_json.contains("id")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (!node_json["id"].is_string()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+        node_config.id = node_json["id"].get<std::string>();
+
+        if (!node_json.contains("type")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (!node_json["type"].is_string()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+        node_config.type = node_json["type"].get<std::string>();
+
+        if (node_json.contains("name")) {
+            if (!node_json["name"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            node_config.name = node_json["name"].get<std::string>();
+        }
+        if (node_json.contains("description")) {
+            if (!node_json["description"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            node_config.description = node_json["description"].get<std::string>();
+        }
+        if (node_json.contains("node_config")) {
+            node_config.node_config = node_json["node_config"];
+        }
+        if (node_json.contains("port_config")) {
+            if (!node_json["port_config"].is_object()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            node_config.port_config = node_json["port_config"].get<std::map<std::string, json>>();
+        }
+
+        return node_config;
+    } catch (const json::type_error&) {
+        return std::unexpected(app::error::ConfigError::TypeMismatch);
+    } catch (const json::exception&) {
+        return std::unexpected(app::error::ConfigError::InvalidFormat);
+    } catch (...) {
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
 }
 
-GraphConfig GraphConfigParser::ParseFile(const std::string& filepath) {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
-        throw std::runtime_error("Cannot open file: " + filepath);
+std::expected<EdgeConfig, app::error::ConfigError>
+GraphConfigParser::ParseEdgeSafe(const json& edge_json) noexcept {
+    try {
+        if (!edge_json.is_object()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+
+        EdgeConfig edge_config;
+
+        if (!edge_json.contains("source_node_id")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (!edge_json["source_node_id"].is_string()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+        edge_config.source_node_id = edge_json["source_node_id"].get<std::string>();
+
+        if (!edge_json.contains("source_port")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (edge_json["source_port"].is_number_unsigned()) {
+            edge_config.source_port = edge_json["source_port"].get<size_t>();
+        } else if (edge_json["source_port"].is_number_integer()) {
+            const auto value = edge_json["source_port"].get<long long>();
+            if (value < 0) {
+                return std::unexpected(app::error::ConfigError::OutOfRange);
+            }
+            edge_config.source_port = static_cast<size_t>(value);
+        } else if (edge_json["source_port"].is_string()) {
+            edge_config.source_port = std::stoull(edge_json["source_port"].get<std::string>());
+        } else {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+
+        if (!edge_json.contains("target_node_id")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (!edge_json["target_node_id"].is_string()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+        edge_config.target_node_id = edge_json["target_node_id"].get<std::string>();
+
+        if (!edge_json.contains("target_port")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (edge_json["target_port"].is_number_unsigned()) {
+            edge_config.target_port = edge_json["target_port"].get<size_t>();
+        } else if (edge_json["target_port"].is_number_integer()) {
+            const auto value = edge_json["target_port"].get<long long>();
+            if (value < 0) {
+                return std::unexpected(app::error::ConfigError::OutOfRange);
+            }
+            edge_config.target_port = static_cast<size_t>(value);
+        } else if (edge_json["target_port"].is_string()) {
+            edge_config.target_port = std::stoull(edge_json["target_port"].get<std::string>());
+        } else {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+
+        if (edge_json.contains("buffer_size")) {
+            if (!edge_json["buffer_size"].is_number_unsigned()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            edge_config.buffer_size = edge_json["buffer_size"].get<size_t>();
+        } else {
+            edge_config.buffer_size = 100;
+        }
+
+        if (edge_json.contains("backpressure_enabled")) {
+            if (!edge_json["backpressure_enabled"].is_boolean()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            edge_config.backpressure_enabled = edge_json["backpressure_enabled"].get<bool>();
+        } else {
+            edge_config.backpressure_enabled = true;
+        }
+
+        return edge_config;
+    } catch (const std::invalid_argument&) {
+        return std::unexpected(app::error::ConfigError::TypeMismatch);
+    } catch (const std::out_of_range&) {
+        return std::unexpected(app::error::ConfigError::OutOfRange);
+    } catch (const json::type_error&) {
+        return std::unexpected(app::error::ConfigError::TypeMismatch);
+    } catch (const json::exception&) {
+        return std::unexpected(app::error::ConfigError::InvalidFormat);
+    } catch (...) {
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
-    
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    
-    return Parse(buffer.str());
 }
 
 // ============================================================================
-// Safe Versions (Phase 5c)
+// Expected-based parsing APIs
 // ============================================================================
 
 std::expected<GraphConfig, app::error::ConfigError>
 GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
     try {
-        return Parse(json_text);
-    } catch (const std::exception& e) {
+        GraphConfig config;
+        const auto json_data = json::parse(json_text);
+
+        if (!json_data.is_object()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+
+        config.metadata = ParseMetadata(json_data);
+
+        if (json_data.contains("name")) {
+            if (!json_data["name"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.name = json_data["name"].get<std::string>();
+        }
+
+        if (json_data.contains("description")) {
+            if (!json_data["description"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.description = json_data["description"].get<std::string>();
+        }
+
+        if (json_data.contains("num_threads")) {
+            if (!json_data["num_threads"].is_number_integer()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            if (json_data["num_threads"].get<long long>() < 0) {
+                return std::unexpected(app::error::ConfigError::OutOfRange);
+            }
+            config.num_threads = json_data["num_threads"].get<size_t>();
+        } else {
+            config.num_threads = std::thread::hardware_concurrency();
+        }
+
+        if (json_data.contains("deadlock_detection")) {
+            const auto& dd_obj = json_data["deadlock_detection"];
+            if (dd_obj.is_object()) {
+                if (dd_obj.contains("enabled")) {
+                    if (!dd_obj["enabled"].is_boolean()) {
+                        return std::unexpected(app::error::ConfigError::TypeMismatch);
+                    }
+                    config.deadlock_detection.enabled = dd_obj["enabled"].get<bool>();
+                }
+                if (dd_obj.contains("timeout_ms")) {
+                    if (!dd_obj["timeout_ms"].is_number_integer()) {
+                        return std::unexpected(app::error::ConfigError::TypeMismatch);
+                    }
+                    if (dd_obj["timeout_ms"].get<long long>() < 0) {
+                        return std::unexpected(app::error::ConfigError::OutOfRange);
+                    }
+                    config.deadlock_detection.timeout_ms = dd_obj["timeout_ms"].get<uint32_t>();
+                }
+            } else if (dd_obj.is_boolean()) {
+                config.deadlock_detection.enabled = dd_obj.get<bool>();
+            } else {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+        }
+
+        if (!json_data.contains("nodes")) {
+            return std::unexpected(app::error::ConfigError::MissingRequired);
+        }
+        if (!json_data["nodes"].is_array()) {
+            return std::unexpected(app::error::ConfigError::TypeMismatch);
+        }
+
+        for (const auto& node_json : json_data["nodes"]) {
+            auto node = ParseNodeSafe(node_json);
+            if (!node) {
+                return std::unexpected(node.error());
+            }
+            config.nodes.push_back(std::move(node).value());
+        }
+
+        if (json_data.contains("edges")) {
+            if (!json_data["edges"].is_array()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+
+            for (const auto& edge_json : json_data["edges"]) {
+                auto edge = ParseEdgeSafe(edge_json);
+                if (!edge) {
+                    return std::unexpected(edge.error());
+                }
+                config.edges.push_back(std::move(edge).value());
+            }
+        }
+
+        return config;
+    } catch (const json::parse_error& e) {
         LOG4CXX_ERROR(logger_, app::format::FormatError("JSONParse", e.what()));
         return std::unexpected(app::error::ConfigError::InvalidFormat);
+    } catch (const json::type_error& e) {
+        LOG4CXX_ERROR(logger_, app::format::FormatError("JSONType", e.what()));
+        return std::unexpected(app::error::ConfigError::TypeMismatch);
+    } catch (const json::exception& e) {
+        LOG4CXX_ERROR(logger_, app::format::FormatError("JSONParse", e.what()));
+        return std::unexpected(app::error::ConfigError::InvalidFormat);
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, app::format::FormatError("JSONParse", e.what()));
+        return std::unexpected(app::error::ConfigError::Unknown);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, app::format::FormatError("JSONParse", "unknown error"));
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
 }
 

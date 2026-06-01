@@ -27,6 +27,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <expected>
 
 #include "graph/NodeFacade.hpp"
 
@@ -55,27 +56,36 @@ namespace graph::config {
  * NodeFactoryRegistry registry;
  * 
  * // Register a plugin node factory
- * registry.Register("DataInjectionAccelerometerNode", []() {
- *     return factory->CreateDynamicNode("DataInjectionAccelerometerNode");
+ * registry.RegisterExpected("DataInjectionAccelerometerNode", []() {
+ *     auto node = factory->CreateDynamicNodeExpected("DataInjectionAccelerometerNode");
+ *     return std::move(node).value();
  * });
  * 
  * // Register a static node factory
- * registry.Register("FlightFSMNode", []() {
+ * registry.RegisterExpected("FlightFSMNode", []() {
  *     auto node = std::make_shared<avionics::FlightFSMNode>();
  *     return StaticNodeAdapter::Adapt(node, "FlightFSMNode");
  * });
  * 
  * // Create any node type uniformly
- * auto node = registry.Create("FlightFSMNode");
+ * auto node = registry.CreateExpected("FlightFSMNode");
  * @endcode
  */
 class NodeFactoryRegistry {
 public:
+    enum class RegistryError {
+        EmptyTypeName = 1,
+        NullFactory = 2,
+        TypeNotRegistered = 3,
+        FactoryFailed = 4,
+        Unknown = 99,
+    };
+
     /**
      * Type alias for node factory function
      * 
      * A factory function takes no parameters and returns a new NodeFacadeAdapter
-     * instance. It may throw std::runtime_error on failure.
+     * instance.
      */
     using NodeFactoryFunction = std::function<NodeFacadeAdapter()>;
 
@@ -106,25 +116,24 @@ public:
      * @param type_name The type identifier (e.g., "DataInjectionAccelerometerNode", "FlightFSMNode")
      * @param factory A callable that returns a new NodeFacadeAdapter instance
      * 
-     * @throws std::invalid_argument if type_name is empty
-     * 
      * Example:
      * @code
      * // Register a plugin node
-     * registry.Register("MyPluginNode", [factory]() {
-     *     return factory->CreateDynamicNode("MyPluginNode");
+     * registry.RegisterExpected("MyPluginNode", [factory]() {
+     *     auto node = factory->CreateDynamicNodeExpected("MyPluginNode");
+     *     return std::move(node).value();
      * });
      * 
      * // Register a static node
-     * registry.Register("MyStaticNode", []() {
+     * registry.RegisterExpected("MyStaticNode", []() {
      *     auto node = std::make_shared<MyStaticNode>();
      *     return StaticNodeAdapter::Adapt(node, "MyStaticNode");
      * });
      * @endcode
      */
-    void Register(
+    [[nodiscard]] std::expected<void, RegistryError> RegisterExpected(
         const std::string& type_name,
-        NodeFactoryFunction factory);
+        NodeFactoryFunction factory) noexcept;
 
     /**
      * Create a node instance by type name
@@ -139,24 +148,20 @@ public:
      * @param type_name The type of node to create (must be registered)
      * @return A new NodeFacadeAdapter instance
      * 
-     * @throws std::runtime_error if type_name is not registered
-     * @throws std::runtime_error if the factory function throws
-     * 
      * Example:
      * @code
-     * try {
-     *     auto node = registry.Create("FlightFSMNode");
+     * auto node = registry.CreateExpected("FlightFSMNode");
+     * if (node) {
      *     node.Init();
      *     node.Start();
      *     // ... use node ...
      *     node.Stop();
      *     node.Join();
-     * } catch (const std::runtime_error& e) {
-     *     LOG(ERROR) << "Failed to create node: " << e.what();
      * }
      * @endcode
      */
-    NodeFacadeAdapter Create(const std::string& type_name);
+    [[nodiscard]] std::expected<NodeFacadeAdapter, RegistryError>
+    CreateExpected(const std::string& type_name) noexcept;
 
     /**
      * Check if a node type is available
@@ -171,7 +176,7 @@ public:
      * Example:
      * @code
      * if (registry.IsAvailable("FlightFSMNode")) {
-     *     auto node = registry.Create("FlightFSMNode");
+     *     auto node = registry.CreateExpected("FlightFSMNode");
      * } else {
      *     LOG(ERROR) << "FlightFSMNode not available";
      * }
@@ -215,7 +220,7 @@ public:
      * Removes all registered factories from the registry. After this call,
      * the registry is equivalent to a newly constructed registry.
      * 
-     * Use with caution - after clearing, Create() will fail for all types.
+     * Use with caution - after clearing, CreateExpected() will fail for all types.
      */
     void Clear();
 

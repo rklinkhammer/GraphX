@@ -27,11 +27,13 @@
 
 //#include "plugins/plugin_common.h"
 #include "graph/NodeFacade.hpp"
+#include <expected>
 #include <string>
 #include <map>
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <log4cxx/logger.h>
 #include "plugins/NodePluginTemplate.hpp"
 
@@ -76,6 +78,16 @@ private:
     static log4cxx::LoggerPtr logger_;
 
 public:
+    enum class PluginRegistryError {
+        InvalidPluginHandle = 1,
+        NullFacade = 2,
+        MissingCreateFunction = 3,
+        TypeNotRegistered = 4,
+        CreationFailed = 5,
+        CreationThrew = 6,
+        Unknown = 99,
+    };
+
     // ========================================================================
     // Lifecycle Management
     // ========================================================================
@@ -96,12 +108,10 @@ public:
     /// @param version Plugin version string
     /// @param plugin_handle Handle from dlopen()
     /// @param facade Function pointer table for all node operations
-    /// @throws std::runtime_error if create function cannot be resolved
-    ///
     /// Called by PluginLoader after successfully dlopen-ing a plugin.
     /// Validates that the create function can be resolved and stores
     /// metadata for later instantiation.
-    void RegisterNodeType(
+    [[nodiscard]] std::expected<void, PluginRegistryError> RegisterNodeTypeExpected(
         const std::string& type_name,
         const std::string& description,
         const std::string& plugin_path,
@@ -109,17 +119,16 @@ public:
         const std::string& abi_tag,
         const std::string& version,
         void* plugin_handle,
-        const NodeFacade* facade);
+        const NodeFacade* facade) noexcept;
 
     /// @brief Create a node instance of the given type
     /// @param type_name Type of node to create (e.g., "SensorNode")
     /// @return Pair of (NodeHandle, NodeFacade*)
-    /// @throws std::runtime_error if type not registered or creation fails
     ///
     /// Calls the plugin's creation function to instantiate a node.
     /// The returned handle and facade can be used with NodeFacadeAdapter.
-    std::pair<NodeHandle, const NodeFacade*> CreateNode(
-        const std::string& type_name);
+    [[nodiscard]] std::expected<std::pair<NodeHandle, const NodeFacade*>, PluginRegistryError>
+    CreateNodeExpected(const std::string& type_name) noexcept;
 
     /// @brief Check if a node type is registered and available
     /// @param type_name Type to check
@@ -147,8 +156,8 @@ public:
 
     /// @brief Get information about a registered node type
     /// @param type_name Type to query
-    /// @return Struct with type information, or nullptr if not registered
-    TypeInfo* GetNodeTypeInfo(const std::string& type_name);
+    /// @return Struct with type information, or std::nullopt if not registered
+    std::optional<TypeInfo> GetNodeTypeInfo(const std::string& type_name);
 
     /// @brief Get count of registered types
     /// @return Number of registered node types

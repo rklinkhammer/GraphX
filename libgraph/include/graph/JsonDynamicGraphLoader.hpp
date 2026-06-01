@@ -36,8 +36,8 @@
  * Usage:
  * @code
  * auto factory = std::make_shared<NodeFactory>(registry);
- * auto nodes = JsonDynamicGraphLoader::LoadNodes("config.json", factory);
- * auto edges = JsonDynamicGraphLoader::LoadEdges("config.json");
+ * auto nodes = JsonDynamicGraphLoader::LoadNodesSafe("config.json", factory);
+ * auto edges = JsonDynamicGraphLoader::LoadEdgesSafe("config.json");
  * 
  * // Initialize and start nodes...
  * for (auto& node : nodes) {
@@ -90,95 +90,7 @@ namespace graph::config {
 class JsonDynamicGraphLoader {
 public:
     /**
-     * Load all nodes from JSON configuration
-     *
-     * Parses the JSON configuration file and creates NodeFacadeAdapter instances
-     * for each node using the provided factory.
-     *
-     * @param filepath Path to JSON configuration file
-     * @param factory NodeFactory for creating plugin nodes
-     * @return Vector of NodeFacadeAdapter instances (movable)
-     *
-     * @throws std::runtime_error if:
-     *   - File cannot be read
-     *   - JSON is malformed
-     *   - Configuration validation fails
-     *   - Node type is not found in plugin system
-     *   - Node creation fails
-     *
-     * @note Node names are set from config (uses id if name is empty)
-     *
-     * Example:
-     * @code
-     * auto nodes = JsonDynamicGraphLoader::LoadNodes("config.json", factory);
-     * // Returns vector with one NodeFacadeAdapter per node in config
-     * @endcode
-     */
-    static std::vector<std::shared_ptr<NodeFacadeAdapter>> LoadNodes(
-        const std::string& filepath,
-        std::shared_ptr<NodeFactory> factory);
-
-    /**
-     * Load edge specifications from JSON configuration
-     *
-     * Parses the JSON configuration file and extracts edge definitions.
-     * Does not create actual connections - returns metadata only.
-     * Caller must manually connect nodes using the returned EdgeConfig data.
-     *
-     * @param filepath Path to JSON configuration file
-     * @return Vector of EdgeConfig (metadata, no actual connections)
-     *
-     * @throws std::runtime_error if:
-     *   - File cannot be read
-     *   - JSON is malformed
-     *   - Configuration validation fails
-     *
-     * Example:
-     * @code
-     * auto edges = JsonDynamicGraphLoader::LoadEdges("config.json");
-     * for (const auto& edge : edges) {
-     *     // Connect nodes manually using edge metadata
-     *     nodes[edge.source_node_id].Connect(
-     *         nodes[edge.target_node_id],
-     *         edge.source_port, edge.target_port);
-     * }
-     * @endcode
-     */
-    static std::vector<EdgeConfig> LoadEdges(
-        const std::string& filepath);
-
-    /**
-     * Load and validate complete graph configuration
-     *
-     * Convenience method that loads both nodes and edges in one call.
-     * Equivalent to calling LoadNodes() then LoadEdges().
-     *
-     * @param filepath Path to JSON configuration file
-     * @param factory NodeFactory for creating plugin nodes
-     * @return Pair of (nodes, edges)
-     *
-     * @throws std::runtime_error if loading fails (see LoadNodes/LoadEdges)
-     *
-     * Example:
-     * @code
-     * auto [nodes, edges] = JsonDynamicGraphLoader::LoadGraph(
-     *     "config.json", factory);
-     * @endcode
-     */
-    static std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>, std::vector<EdgeConfig>>
-    LoadGraph(
-        const std::string& filepath,
-        std::shared_ptr<NodeFactory> factory);
-
-    // ========================================================================
-    // Phase 5d: Safe Public APIs with expected<> error handling
-    // ========================================================================
-
-    /**
      * Load all nodes from JSON configuration (safe version with expected<>)
-     *
-     * Exception-free variant of LoadNodes() that returns expected<>.
-     * Useful for application code that prefers explicit error handling.
      *
      * @param filepath Path to JSON configuration file
      * @param factory NodeFactory for creating plugin nodes
@@ -207,9 +119,8 @@ public:
         std::shared_ptr<NodeFactory> factory) noexcept;
 
     /**
-     * Load edge specifications from JSON configuration (safe version)
+     * Load edge specifications from JSON configuration
      *
-     * Exception-free variant of LoadEdges() that returns expected<>.
      * Returns edge metadata without creating actual connections.
      *
      * @param filepath Path to JSON configuration file
@@ -238,9 +149,8 @@ public:
         const std::string& filepath) noexcept;
 
     /**
-     * Load complete graph configuration (safe version with expected<>)
+     * Load complete graph configuration
      *
-     * Exception-free variant of LoadGraph() that returns expected<>.
      * Loads both nodes and edges in one call.
      *
      * @param filepath Path to JSON configuration file
@@ -271,15 +181,6 @@ public:
 
 private:
     /**
-     * Parse JSON file and return GraphConfig
-     *
-     * @param filepath Path to JSON file
-     * @return Parsed GraphConfig
-     * @throws std::runtime_error on parse failure
-     */
-    static GraphConfig ParseConfigFile(const std::string& filepath);
-
-    /**
      * Parse JSON file safely with expected<> error handling (Phase 5c)
      *
      * @param filepath Path to JSON file
@@ -301,4 +202,3 @@ private:
 };
 
 }  // namespace graph::config
-

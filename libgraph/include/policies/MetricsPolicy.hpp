@@ -197,7 +197,7 @@ public:
                 metrics_capability_->InvokeSubscribers(event);
             }
         };
-        metrics_thread_ = std::thread(fn);
+        metrics_thread_ = std::jthread(fn);
         return ret;
     }
 
@@ -250,7 +250,7 @@ public:
 private:
     void InitMetricsSources(capabilities::GraphCapability& context);
 
-    std::thread metrics_thread_;
+    std::jthread metrics_thread_;
     core::ActiveQueue<app::metrics::MetricsEvent> metrics_event_queue_;
     std::shared_ptr<capabilities::MetricsCapability> metrics_capability_;
     std::unordered_map<std::string, std::shared_ptr<MetricsCapabilityCallback>> metrics_node_callbacks_;

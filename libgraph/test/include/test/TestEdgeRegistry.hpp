@@ -3,7 +3,7 @@
  * @brief Edge registry initialization for test node topologies
  *
  * Registers all possible edges between advanced test nodes so they can be
- * created at runtime via EdgeRegistry::CreateEdge().
+ * created at runtime via EdgeRegistry::CreateEdgeExpected().
  *
  * Usage:
  * @code

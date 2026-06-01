@@ -122,7 +122,8 @@ namespace policies
             {
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - waiting for completion signal or timeout");
                 std::unique_lock lock(completion_mutex_);
-                const bool woke_for_signal = completion_cv_.wait_for(lock, max_duration_, [this] {
+                const auto deadline = std::chrono::steady_clock::now() + max_duration_;
+                const bool woke_for_signal = completion_cv_.wait_until(lock, deadline, [this] {
                     return completion_signaled_ || stop_requested_;
                 });
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - wait completed, woke_for_signal="
@@ -134,7 +135,7 @@ namespace policies
                 context.SetStopped();
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - signaling shutdown");
             };
-            completion_thread_ = std::thread(fn);
+            completion_thread_ = std::jthread(fn);
             return true;
         }
 
@@ -188,7 +189,7 @@ namespace policies
     private:
         bool InitCompletionCallbacks(capabilities::GraphCapability &context);
 
-        std::thread completion_thread_;
+        std::jthread completion_thread_;
         std::condition_variable completion_cv_;
         std::mutex completion_mutex_;
         bool completion_signaled_ = false;

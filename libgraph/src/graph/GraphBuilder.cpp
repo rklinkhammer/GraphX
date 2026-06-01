@@ -103,20 +103,19 @@ bool GraphBuilder::Validate() {
     
     LOG4CXX_TRACE(logger_, "JSON config file exists: " << json_path);
     
-    // Try to load graph configuration to validate JSON structure
-    try {
-        auto [nodes, edges] = graph::config::JsonDynamicGraphLoader::LoadGraph(
-            json_path,
-            capability_->GetNodeFactory());
-        
-        LOG4CXX_TRACE(logger_, "Validation successful: " << nodes.size() 
-                             << " nodes, " << edges.size() << " edges");
-        return true;
-    } catch (const std::exception& e) {
-        last_error_ = std::string("Failed to load graph configuration: ") + e.what();
+    auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
+        json_path,
+        capability_->GetNodeFactory());
+    if (!graph_config) {
+        last_error_ = "Failed to load graph configuration";
         LOG4CXX_WARN(logger_, last_error_);
         return false;
     }
+
+    const auto& [nodes, edges] = *graph_config;
+    LOG4CXX_TRACE(logger_, "Validation successful: " << nodes.size()
+                         << " nodes, " << edges.size() << " edges");
+    return true;
 }
 
 // ============================================================================
@@ -146,9 +145,20 @@ BuildResult GraphBuilder::Build() {
         // Step 2: Load graph configuration
         LOG4CXX_TRACE(logger_, "Step 2: Loading graph configuration");
         const auto& json_path = capability_->GetJsonConfigPath();
-        auto [nodes, edge_configs] = graph::config::JsonDynamicGraphLoader::LoadGraph(
+        auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
             json_path,
             capability_->GetNodeFactory());
+        if (!graph_config) {
+            BuildResult result;
+            result.success = false;
+            result.error_message = "Failed to load graph configuration";
+            result.graph = nullptr;
+            result.node_count = 0;
+            result.edge_count = 0;
+            return result;
+        }
+
+        auto [nodes, edge_configs] = std::move(graph_config).value();
         
         LOG4CXX_TRACE(logger_, "Loaded " << nodes.size() << " nodes and " 
                              << edge_configs.size() << " edges from JSON");
@@ -610,7 +620,7 @@ void GraphBuilder::WireEdges(
                                   << " to " << dst_type << ":" << edge.target_port);
             
             // Use EdgeRegistry to create the type-aware edge
-            bool created = graph::config::EdgeRegistry::CreateEdge(
+            auto created = graph::config::EdgeRegistry::CreateEdgeExpected(
                 *graph_,
                 src_type,
                 edge.source_port,

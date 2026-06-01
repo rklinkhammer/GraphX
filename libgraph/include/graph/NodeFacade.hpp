@@ -954,8 +954,8 @@ public:
      *
      * Example:
      * @code
-     *   auto adapter = factory.CreateDynamicNode("DataInjectionAccelerometerNode");
-     *   auto facade_adapter = std::make_shared<NodeFacadeAdapter>(adapter.first, adapter.second);
+     *   auto adapter = factory.CreateDynamicNodeExpected("DataInjectionAccelerometerNode");
+     *   auto facade_adapter = std::make_shared<NodeFacadeAdapter>(std::move(adapter).value());
      *   
      *   // Extract the underlying typed node
      *   auto accel_node = facade_adapter->GetNode<DataInjectionAccelerometerNode>();
@@ -1140,4 +1140,3 @@ public:
 void DisplayNodeFacadeAdapter(std::shared_ptr<NodeFacadeAdapter> adapter);
 
 }  // namespace graph
-

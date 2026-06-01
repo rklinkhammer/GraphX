@@ -38,136 +38,25 @@ namespace graph::config {
 static log4cxx::LoggerPtr logger_ = 
     log4cxx::Logger::getLogger("graph.config.JsonDynamicGraphLoader");
 
-// ============================================================================
-// LoadNodes Implementation
-// ============================================================================
+namespace {
 
-std::vector<std::shared_ptr<NodeFacadeAdapter>> JsonDynamicGraphLoader::LoadNodes(
-    const std::string& filepath,
-    std::shared_ptr<NodeFactory> factory) {
+std::expected<void, app::error::ConfigError> ValidateConfigSafe(
+    const GraphConfig& config) noexcept {
     
-    if (!factory) {
-        throw std::runtime_error("NodeFactory is null");
-    }
-    
-    LOG4CXX_TRACE(logger_, "Loading nodes from JSON: " << filepath);
-    LOG4CXX_TRACE(logger_, "About to parse config file");
-    
-    // Parse the JSON configuration file
-    GraphConfig config = ParseConfigFile(filepath);
-    LOG4CXX_TRACE(logger_, "Config parsed, about to validate");
-    
-    // Validate the configuration
     ValidationResult validation = GraphConfigParser::Validate(config);
-    LOG4CXX_TRACE(logger_, "Config validated");
-    if (!validation.valid) {
-        std::string error_msg = "Configuration validation failed: ";
-        for (const auto& error : validation.errors) {
-            error_msg += error + "; ";
-        }
-        LOG4CXX_ERROR(logger_, error_msg);
-        throw std::runtime_error(error_msg);
+    if (validation.valid) {
+        return {};
     }
-    
-    LOG4CXX_TRACE(logger_, "About to create node vector with " << config.nodes.size() << " nodes");
-    std::vector<std::shared_ptr<NodeFacadeAdapter>> nodes;
-    nodes.reserve(config.nodes.size());
-    LOG4CXX_TRACE(logger_, "Node vector created and reserved");
-    
-    // Create each node
-    LOG4CXX_TRACE(logger_, "Starting loop to create " << config.nodes.size() << " nodes");
-    for (size_t i = 0; i < config.nodes.size(); ++i) {
-        LOG4CXX_TRACE(logger_, "Loop iteration " << i);
-        const auto& node_config = config.nodes[i];
-        LOG4CXX_TRACE(logger_, "Got node_config for: " << node_config.id);
-        LOG4CXX_TRACE(logger_, "Node type is: " << node_config.type);
-        
-        // Create the node via factory
-        // Note: Using CreateDynamicNode directly to avoid unified factory lambda overhead
-        // The unified factory (via CreateNode) is available for explicit use when needed
-        try {
-            LOG4CXX_TRACE(logger_, "About to create node: " << node_config.id);
-            
-            // Use plugin factory path directly - more reliable than unified registry
-            std::shared_ptr<NodeFacadeAdapter> adapter = 
-                std::make_shared<NodeFacadeAdapter>(factory->CreateDynamicNode(node_config.type));
-            LOG4CXX_TRACE(logger_, "CreateDynamicNode completed for: " << node_config.id);
-            
-            LOG4CXX_TRACE(logger_, "Created node: " << node_config.id 
-                          << " (type: " << node_config.type << ")");
-            
 
-            // Apply configuration from JSON if present
-            if (!node_config.node_config.empty()) {
-                ApplyNodeConfiguration(adapter, node_config.node_config);
-            }
-            
-            // Add to vector
-            nodes.push_back(adapter);
-            LOG4CXX_TRACE(logger_, "Added node to vector, count: " << nodes.size());
-        } catch (const std::exception& e) {
-            std::string error_msg = std::format("Failed to create node '{}' (type: {}): {}",
-                                               node_config.id, node_config.type, e.what());
-            LOG4CXX_ERROR(logger_, error_msg);
-            throw std::runtime_error(error_msg);
-        }
+    std::string error_msg = "Configuration validation failed: ";
+    for (const auto& error : validation.errors) {
+        error_msg += error + "; ";
     }
-    
-    LOG4CXX_TRACE(logger_, "Successfully loaded " << nodes.size() << " nodes");
-    return nodes;
+    LOG4CXX_ERROR(logger_, error_msg);
+    return std::unexpected(app::error::ConfigError::ValidationFailed);
 }
 
-// ============================================================================
-// LoadEdges Implementation
-// ============================================================================
-
-std::vector<EdgeConfig> JsonDynamicGraphLoader::LoadEdges(
-    const std::string& filepath) {
-    
-    LOG4CXX_TRACE(logger_, "Loading edges from JSON: " << filepath);
-    
-    // Parse the JSON configuration file
-    GraphConfig config = ParseConfigFile(filepath);
-    
-    // Validate the configuration
-    ValidationResult validation = GraphConfigParser::Validate(config);
-    if (!validation.valid) {
-        std::string error_msg = "Configuration validation failed: ";
-        for (const auto& error : validation.errors) {
-            error_msg += error + "; ";
-        }
-        LOG4CXX_ERROR(logger_, error_msg);
-        throw std::runtime_error(error_msg);
-    }
-    
-    LOG4CXX_TRACE(logger_, "Successfully loaded " << config.edges.size() 
-                 << " edge specifications");
-    return config.edges;
-}
-
-// ============================================================================
-// LoadGraph Implementation
-// ============================================================================
-
-std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>, std::vector<EdgeConfig>>
-JsonDynamicGraphLoader::LoadGraph(
-    const std::string& filepath,
-    std::shared_ptr<NodeFactory> factory) {
-    
-    LOG4CXX_TRACE(logger_, "Loading complete graph from JSON: " << filepath);
-    
-    auto nodes = LoadNodes(filepath, factory);
-    auto edges = LoadEdges(filepath);
-    
-    LOG4CXX_TRACE(logger_, "Graph loaded: " << nodes.size() << " nodes, " 
-                 << edges.size() << " edges");
-    
-    return std::make_pair(nodes, std::move(edges));
-}
-
-// ============================================================================
-// Phase 5d: Safe Public APIs with expected<> error handling
-// ============================================================================
+}  // namespace
 
 std::expected<std::vector<std::shared_ptr<NodeFacadeAdapter>>, app::error::ConfigError>
 JsonDynamicGraphLoader::LoadNodesSafe(
@@ -175,25 +64,57 @@ JsonDynamicGraphLoader::LoadNodesSafe(
     std::shared_ptr<NodeFactory> factory) noexcept {
     
     LOG4CXX_TRACE(logger_, "Loading nodes (safe): " << filepath);
-    
+
     try {
-        auto nodes = LoadNodes(filepath, factory);
+        if (!factory) {
+            LOG4CXX_ERROR(logger_, "NodeFactory is null");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        auto config = ParseConfigFileSafe(filepath);
+        if (!config) {
+            return std::unexpected(config.error());
+        }
+
+        auto validation = ValidateConfigSafe(config.value());
+        if (!validation) {
+            return std::unexpected(validation.error());
+        }
+
+        std::vector<std::shared_ptr<NodeFacadeAdapter>> nodes;
+        nodes.reserve(config->nodes.size());
+
+        for (const auto& node_config : config->nodes) {
+            auto node = factory->CreateDynamicNodeExpected(node_config.type);
+            if (!node) {
+                LOG4CXX_ERROR(logger_, "Failed to create node '" << node_config.id
+                              << "' (type: " << node_config.type << ")");
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+
+            try {
+                auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(node).value());
+                if (!node_config.node_config.empty()) {
+                    ApplyNodeConfiguration(adapter, node_config.node_config);
+                }
+                nodes.push_back(std::move(adapter));
+            } catch (...) {
+                LOG4CXX_ERROR(logger_, "Failed to allocate node adapter for '"
+                              << node_config.id << "' (type: " << node_config.type << ")");
+                return std::unexpected(app::error::ConfigError::Unknown);
+            }
+        }
+
         LOG4CXX_TRACE(logger_, "Successfully loaded " << nodes.size() << " nodes");
         return nodes;
     } catch (const std::exception& e) {
         std::string error_msg = std::format("Failed to load nodes from '{}': {}",
                                            filepath, e.what());
         LOG4CXX_ERROR(logger_, error_msg);
-        // Map exception to ConfigError based on message
-        std::string error_str = e.what();
-        if (error_str.find("not found") != std::string::npos ||
-            error_str.find("No such file") != std::string::npos) {
-            return std::unexpected(app::error::ConfigError::FileNotFound);
-        } else if (error_str.find("validation") != std::string::npos) {
-            return std::unexpected(app::error::ConfigError::ValidationFailed);
-        } else {
-            return std::unexpected(app::error::ConfigError::InvalidFormat);
-        }
+        return std::unexpected(app::error::ConfigError::Unknown);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to load nodes from '" << filepath << "': unknown error");
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
 }
 
@@ -204,21 +125,26 @@ JsonDynamicGraphLoader::LoadEdgesSafe(
     LOG4CXX_TRACE(logger_, "Loading edges (safe): " << filepath);
     
     try {
-        auto edges = LoadEdges(filepath);
-        LOG4CXX_TRACE(logger_, "Successfully loaded " << edges.size() << " edges");
-        return edges;
+        auto config = ParseConfigFileSafe(filepath);
+        if (!config) {
+            return std::unexpected(config.error());
+        }
+
+        auto validation = ValidateConfigSafe(config.value());
+        if (!validation) {
+            return std::unexpected(validation.error());
+        }
+
+        LOG4CXX_TRACE(logger_, "Successfully loaded " << config->edges.size() << " edges");
+        return config->edges;
     } catch (const std::exception& e) {
         std::string error_msg = std::format("Failed to load edges from '{}': {}",
                                            filepath, e.what());
         LOG4CXX_ERROR(logger_, error_msg);
-        // Map exception to ConfigError based on message
-        std::string error_str = e.what();
-        if (error_str.find("not found") != std::string::npos ||
-            error_str.find("No such file") != std::string::npos) {
-            return std::unexpected(app::error::ConfigError::FileNotFound);
-        } else {
-            return std::unexpected(app::error::ConfigError::InvalidFormat);
-        }
+        return std::unexpected(app::error::ConfigError::Unknown);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to load edges from '" << filepath << "': unknown error");
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
 }
 
@@ -231,49 +157,29 @@ JsonDynamicGraphLoader::LoadGraphSafe(
     LOG4CXX_TRACE(logger_, "Loading graph (safe): " << filepath);
     
     try {
-        auto [nodes, edges] = LoadGraph(filepath, factory);
-        LOG4CXX_TRACE(logger_, "Successfully loaded graph: " << nodes.size() 
-                     << " nodes, " << edges.size() << " edges");
-        return std::make_pair(nodes, edges);
+        auto nodes = LoadNodesSafe(filepath, std::move(factory));
+        if (!nodes) {
+            return std::unexpected(nodes.error());
+        }
+
+        auto edges = LoadEdgesSafe(filepath);
+        if (!edges) {
+            return std::unexpected(edges.error());
+        }
+
+        LOG4CXX_TRACE(logger_, "Successfully loaded graph: " << nodes->size() 
+                     << " nodes, " << edges->size() << " edges");
+        return std::make_pair(std::move(nodes).value(), std::move(edges).value());
     } catch (const std::exception& e) {
         std::string error_msg = std::format("Failed to load graph from '{}': {}",
                                            filepath, e.what());
         LOG4CXX_ERROR(logger_, error_msg);
-        // Map exception to ConfigError
-        std::string error_str = e.what();
-        if (error_str.find("not found") != std::string::npos ||
-            error_str.find("No such file") != std::string::npos) {
-            return std::unexpected(app::error::ConfigError::FileNotFound);
-        } else if (error_str.find("validation") != std::string::npos) {
-            return std::unexpected(app::error::ConfigError::ValidationFailed);
-        } else {
-            return std::unexpected(app::error::ConfigError::InvalidFormat);
-        }
+        return std::unexpected(app::error::ConfigError::Unknown);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Failed to load graph from '" << filepath << "': unknown error");
+        return std::unexpected(app::error::ConfigError::Unknown);
     }
 }
-
-// ============================================================================
-// Helper: ParseConfigFile Implementation
-// ============================================================================
-
-GraphConfig JsonDynamicGraphLoader::ParseConfigFile(
-    const std::string& filepath) {
-    
-    LOG4CXX_TRACE(logger_, "Parsing JSON file: " << filepath);
-    
-    try {
-        return GraphConfigParser::ParseFile(filepath);
-    } catch (const std::exception& e) {
-        std::string error_msg = std::format("Failed to parse configuration file '{}': {}",
-                                           filepath, e.what());
-        LOG4CXX_ERROR(logger_, error_msg);
-        throw std::runtime_error(error_msg);
-    }
-}
-
-// ============================================================================
-// ParseConfigFileSafe Implementation (Phase 5c)
-// ============================================================================
 
 std::expected<GraphConfig, app::error::ConfigError>
 JsonDynamicGraphLoader::ParseConfigFileSafe(

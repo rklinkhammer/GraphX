@@ -26,6 +26,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <expected>
 #include <log4cxx/logger.h>
 #include "core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
@@ -70,6 +71,24 @@ private:
     bool initialized_;
 
 public:
+    enum class NodeCreationError {
+        PluginRegistryMissing = 1,
+        TypeNotFound = 2,
+        NotInitialized = 3,
+        CreationFailed = 4,
+        InvalidArgument = 5,
+        Unknown = 99,
+    };
+
+    enum class PluginDirectoryError {
+        EmptyPath = 1,
+        RegistryCreationFailed = 2,
+        LoaderCreationFailed = 3,
+        NoDirectoriesRegistered = 4,
+        PluginRegistryMissing = 5,
+        Unknown = 99,
+    };
+
     /**
      * Constructor with optional plugin registry
      *
@@ -87,18 +106,12 @@ public:
     virtual ~NodeFactory() = default;
 
     /**
-     * Create a compile-time typed node
-     *
-     * @tparam NodeType The concrete node class (e.g., MySourceNode)
-     * @tparam Args Constructor argument types
-     * @param args Arguments to pass to NodeType constructor
-     * @return Shared pointer to the created node
-     *
-     * @requires NodeType is a GraphNode (satisfies move construction/assignment)
+     * Create a compile-time typed node with typed error reporting.
      */
     template <reflection::GraphNode NodeType, typename... Args>
         requires HasCompileTimePortCounts<NodeType>
-    std::shared_ptr<NodeType> CreateNode(Args&&... args) {
+    [[nodiscard]] std::expected<std::shared_ptr<NodeType>, NodeCreationError>
+    CreateNodeExpected(Args&&... args) noexcept {
         try {
             auto node = std::make_shared<NodeType>(std::forward<Args>(args)...);
             LOG4CXX_TRACE(logger_, "Created compile-time node: "
@@ -106,7 +119,10 @@ public:
             return node;
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(logger_, "Failed to create node: " << e.what());
-            return nullptr;
+            return std::unexpected(NodeCreationError::CreationFailed);
+        } catch (...) {
+            LOG4CXX_ERROR(logger_, "Failed to create node: unknown error");
+            return std::unexpected(NodeCreationError::Unknown);
         }
     }
 
@@ -119,9 +135,9 @@ public:
      * @param node_type_name Name of the node type (e.g., "SensorNode")
      * @return NodeFacadeAdapter wrapping the created node
      *
-     * @throws std::runtime_error if plugin_registry_ is nullptr or type not found
      */
-    virtual NodeFacadeAdapter CreateDynamicNode(const std::string& node_type_name);
+    [[nodiscard]] virtual std::expected<NodeFacadeAdapter, NodeCreationError>
+    CreateDynamicNodeExpected(const std::string& node_type_name) noexcept;
 
     /**
      * Initialize the unified factory with plugin and static nodes
@@ -130,16 +146,14 @@ public:
      * Registers all available plugin nodes and built-in static nodes
      * in the unified factory registry.
      *
-     * @throws std::runtime_error if plugin_registry is not set
-     *
      * Example:
      * @code
      * auto factory = std::make_shared<NodeFactory>(plugin_registry);
      * factory->Initialize();  // Must be called once
      * 
-     * // Now can use unified CreateNode() for both plugin and static nodes
-     * auto node1 = factory->CreateNode("DataInjectionAccelerometerNode");  // Plugin
-     * auto node2 = factory->CreateNode("FlightFSMNode");          // Static
+     * // Now can use unified CreateNodeExpected() for both plugin and static nodes
+     * auto node1 = factory->CreateNodeExpected("DataInjectionAccelerometerNode");
+     * auto node2 = factory->CreateNodeExpected("FlightFSMNode");
      * @endcode
      */
     void Initialize();
@@ -155,21 +169,19 @@ public:
      * @param node_type_name Name of the node type (e.g., "DataInjectionAccelerometerNode" or "FlightFSMNode")
      * @return NodeFacadeAdapter wrapping the created node
      *
-     * @throws std::runtime_error if Initialize() not called
-     * @throws std::runtime_error if node_type_name not found in unified registry
-     *
      * Example:
      * @code
      * // Both of these work the same way:
-     * auto plugin_node = factory->CreateNode("DataInjectionAccelerometerNode");   // From plugin
-     * auto static_node = factory->CreateNode("FlightFSMNode");          // Static (adapted)
+     * auto plugin_node = factory->CreateNodeExpected("DataInjectionAccelerometerNode");
+     * auto static_node = factory->CreateNodeExpected("FlightFSMNode");
      * 
      * // Use identical interface for both
      * plugin_node.Init();
      * static_node.Init();
      * @endcode
      */
-    virtual NodeFacadeAdapter CreateNode(const std::string& node_type_name);
+    [[nodiscard]] virtual std::expected<NodeFacadeAdapter, NodeCreationError>
+    CreateNodeExpected(const std::string& node_type_name) noexcept;
 
     /**
      * Get metadata about a compile-time node type
@@ -244,50 +256,48 @@ public:
      *
      * @param directory_path Path to a directory containing .so/.dylib plugin files
      *
-     * @throws std::invalid_argument if directory_path is empty
-     *
      * Example:
      * @code
      * auto factory = std::make_shared<NodeFactory>();
-     * factory->AddPluginDirectory("/usr/local/lib/graphx/plugins");
-     * factory->AddPluginDirectory("./plugins");
-     * factory->AddPluginDirectory("./test_plugins");
-     * factory->LoadAllPluginsFromDirectories();
+     * factory->AddPluginDirectoryExpected("/usr/local/lib/graphx/plugins");
+     * factory->AddPluginDirectoryExpected("./plugins");
+     * factory->AddPluginDirectoryExpected("./test_plugins");
+     * factory->LoadAllPluginsFromDirectoriesExpected();
      * @endcode
      *
-     * @note Does not immediately load plugins; call LoadAllPluginsFromDirectories()
+     * @note Does not immediately load plugins; call LoadAllPluginsFromDirectoriesExpected()
      * @note Multiple directories are searched in registration order
      * @note If the same plugin name exists in multiple directories, first match wins
-     * @see LoadAllPluginsFromDirectories()
+     * @see LoadAllPluginsFromDirectoriesExpected()
      */
-    void AddPluginDirectory(const std::string& directory_path);
+    [[nodiscard]] std::expected<void, PluginDirectoryError>
+    AddPluginDirectoryExpected(const std::string& directory_path) noexcept;
 
     /**
      * Load all plugins from all registered directories
      *
-     * Scans each directory added via AddPluginDirectory() and loads all .so/.dylib files.
+     * Scans each directory added via AddPluginDirectoryExpected() and loads all .so/.dylib files.
      * Plugins from all directories register with the shared PluginRegistry.
      *
      * If a specific directory doesn't exist or fails to load, logs a warning but
      * continues with other directories.
      *
-     * Must have called AddPluginDirectory() at least once before calling this method.
-     *
-     * @throws std::runtime_error if no directories have been added
+     * Must have called AddPluginDirectoryExpected() at least once before calling this method.
      *
      * Example:
      * @code
      * auto factory = std::make_shared<NodeFactory>();
-     * factory->AddPluginDirectory(DIR1);
-     * factory->AddPluginDirectory(DIR2);
-     * factory->AddPluginDirectory(DIR3);
-     * factory->LoadAllPluginsFromDirectories();  // Loads from all three
+     * factory->AddPluginDirectoryExpected(DIR1);
+     * factory->AddPluginDirectoryExpected(DIR2);
+     * factory->AddPluginDirectoryExpected(DIR3);
+     * factory->LoadAllPluginsFromDirectoriesExpected();
      * factory->Initialize();
      * @endcode
      *
-     * @see AddPluginDirectory()
+     * @see AddPluginDirectoryExpected()
      */
-    void LoadAllPluginsFromDirectories();
+    [[nodiscard]] std::expected<void, PluginDirectoryError>
+    LoadAllPluginsFromDirectoriesExpected() noexcept;
 
 private:
     /**
@@ -295,7 +305,7 @@ private:
      *
      * Called by Initialize() to register plugin-based nodes.
      * For each node type in the plugin registry, creates a factory
-     * function that delegates to CreateDynamicNode().
+     * function that delegates to CreateDynamicNodeExpected().
      */
     void RegisterPluginNodes();
 
@@ -308,5 +318,7 @@ private:
      */
     void RegisterStaticNodes();
 };
+
+[[nodiscard]] std::string ErrorMessage(NodeFactory::NodeCreationError error);
 
 }  // namespace graph

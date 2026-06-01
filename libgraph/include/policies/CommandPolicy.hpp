@@ -170,7 +170,7 @@ public:
                 ExecuteCommand(command);
             }
         };
-        command_thread_ = std::thread(command_processor);
+        command_thread_ = std::jthread(command_processor);
         // Start accepting commands here if needed
         return true;
     }
@@ -213,7 +213,7 @@ public:
 
 private:
 
-    std::thread command_thread_;
+    std::jthread command_thread_;
     std::shared_ptr<capabilities::CommandProcessorCapability> cmd_processor_cap_;
     std::shared_ptr<capabilities::CommandOutputCapability> output_cap_;
     std::shared_ptr<capabilities::DashboardCapability> dashboard_capability_;

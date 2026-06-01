@@ -6,6 +6,7 @@
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "test/AdvancedTestNodes.hpp"
+#include "test/PluginInfrastructure.hpp"
 
 TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
     // Load plugins manually
@@ -13,9 +14,8 @@ TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
     auto loader = std::make_unique<graph::PluginLoader>(
         "/Users/rklinkhammer/workspace/GraphX/build/plugins", registry);
     
-    try {
-        loader->LoadAllPlugins();
-    } catch (...) {
+    auto loaded = loader->LoadAllPluginsSafe();
+    if (!loaded) {
         // Plugins may not be fully available, but registration may have worked
     }
     
@@ -26,9 +26,12 @@ TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
     EXPECT_NO_THROW({
         auto graph = std::make_shared<graph::GraphManager>();
         
-        auto source_adapter = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SourceTestNode"));
-        auto interior_adapter = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("InteriorTestNode"));
-        auto sink_adapter = std::make_shared<graph::NodeFacadeAdapter>(factory->CreateDynamicNode("SinkTestNode"));
+        auto source_adapter = std::make_shared<graph::NodeFacadeAdapter>(
+            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+        auto interior_adapter = std::make_shared<graph::NodeFacadeAdapter>(
+            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+        auto sink_adapter = std::make_shared<graph::NodeFacadeAdapter>(
+            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
         
         auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source_adapter);
         auto interiorx = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior_adapter);

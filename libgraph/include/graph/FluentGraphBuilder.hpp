@@ -286,7 +286,7 @@ public:
             }
 
             // Create edge using EdgeRegistry
-            bool success = config::EdgeRegistry::CreateEdge(
+            auto success = config::EdgeRegistry::CreateEdgeExpected(
                 *graph,
                 typeid(*graph->GetNodes()[src_it->second]).name(), edge.src_port,
                 typeid(*graph->GetNodes()[dst_it->second]).name(), edge.dst_port,

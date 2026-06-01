@@ -40,8 +40,13 @@ std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& ty
         return nullptr;
     }
 
+    auto node = factory->CreateDynamicNodeExpected(type);
+    if (!node) {
+        return nullptr;
+    }
+
     try {
-        auto adapter = std::make_shared<NodeFacadeAdapter>(factory->CreateDynamicNode(type));
+        auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(node).value());
         return std::make_shared<NodeFacadeAdapterWrapper>(adapter);
     } catch (...) {
         return nullptr;

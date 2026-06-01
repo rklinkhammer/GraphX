@@ -48,6 +48,7 @@
 #include <vector>
 #include <typeindex>
 #include <typeinfo>
+#include <expected>
 
 // GraphManager is declared in the graph namespace
 namespace graph {
@@ -133,12 +134,19 @@ struct EdgeKeyHash {
  * }
  *
  * // At JSON load time
- * EdgeRegistry::CreateEdge(
+ * auto edge = EdgeRegistry::CreateEdgeExpected(
  *   graph, "DataInjectionAccelerometerNode", 0, "FlightFSMNode", 0, src_idx, dst_idx);
  * @endcode
  */
 class EdgeRegistry {
 public:
+    enum class EdgeCreationError {
+        NoCreatorRegistered = 1,
+        CreatorReturnedFalse = 2,
+        CreatorThrew = 3,
+        Unknown = 99,
+    };
+
     /**
      * Creator function type: (GraphManager&, src_node_idx, dst_node_idx, buffer_size) -> bool
      *
@@ -216,11 +224,9 @@ public:
      * @param src_node_idx Index in graph.GetNodes()
      * @param dst_node_idx Index in graph.GetNodes()
      * @param buffer_size Queue buffer size for the edge
-     * @return true if edge was created successfully, false otherwise
-     *
-     * @throws std::runtime_error if no creator is registered for this combination
+     * @return expected<void, EdgeCreationError>; success if edge was created
      */
-    static bool CreateEdge(
+    [[nodiscard]] static std::expected<void, EdgeCreationError> CreateEdgeExpected(
         GraphManager& graph,
         const std::string& src_node_type,
         std::size_t src_port_idx,
@@ -228,7 +234,7 @@ public:
         std::size_t dst_port_idx,
         std::size_t src_node_idx,
         std::size_t dst_node_idx,
-        std::size_t buffer_size);
+        std::size_t buffer_size) noexcept;
     
     /**
      * Check if an edge creator is registered
@@ -276,4 +282,3 @@ private:
 };
 
 }  // namespace graph::config
-

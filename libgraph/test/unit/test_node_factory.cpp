@@ -40,6 +40,8 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <stdexcept>
+#include <string>
 #include "graph/NodeFactory.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
@@ -47,6 +49,26 @@
 #include "test/AdvancedTestNodes.hpp"
 
 namespace {
+
+template <typename NodeType>
+std::shared_ptr<NodeType> CreateNodeOrThrow(
+    const std::shared_ptr<graph::NodeFactory>& factory) {
+    auto node = factory->CreateNodeExpected<NodeType>();
+    if (!node) {
+        throw std::runtime_error("Failed to create compile-time test node");
+    }
+    return std::move(node).value();
+}
+
+graph::NodeFacadeAdapter CreateDynamicNodeOrThrow(
+    const std::shared_ptr<graph::NodeFactory>& factory,
+    const std::string& type_name) {
+    auto node = factory->CreateDynamicNodeExpected(type_name);
+    if (!node) {
+        throw std::runtime_error("Failed to create dynamic test node: " + type_name);
+    }
+    return std::move(node).value();
+}
 
 // ===================================================================================
 // Test Fixture for NodeFactory
@@ -77,15 +99,36 @@ TEST_F(NodeFactoryTest, CreateSourceTestNodeCompileTime) {
 
 TEST_F(NodeFactoryTest, CreateSinkTestNodeCompileTime) {
     // Create a sink node via template
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     
     // Verify creation succeeded
     EXPECT_NE(node, nullptr);
 }
 
+TEST_F(NodeFactoryTest, CreateNodeExpectedCompileTimeSuccess) {
+    auto result = factory_->CreateNodeExpected<test::TestNode>();
+
+    ASSERT_TRUE(result);
+    EXPECT_NE(result.value(), nullptr);
+}
+
+TEST_F(NodeFactoryTest, CreateDynamicNodeExpectedReportsMissingRegistry) {
+    auto result = factory_->CreateDynamicNodeExpected("TestNode");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::NodeCreationError::PluginRegistryMissing);
+}
+
+TEST_F(NodeFactoryTest, CreateNodeExpectedReportsInvalidArgument) {
+    auto result = factory_->CreateNodeExpected("");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::NodeCreationError::InvalidArgument);
+}
+
 TEST_F(NodeFactoryTest, CreateAlternateSinkTestNode) {
     // Create another sink node type
-    auto node = factory_->CreateNode<test::SinkTestNode>();
+    auto node = CreateNodeOrThrow<test::SinkTestNode>(factory_);
     
     // Verify creation succeeded
     EXPECT_NE(node, nullptr);
@@ -93,7 +136,7 @@ TEST_F(NodeFactoryTest, CreateAlternateSinkTestNode) {
 
 TEST_F(NodeFactoryTest, CreateFailingTestNodeCompileTime) {
     // Create a test node that can be configured to fail
-    auto node = factory_->CreateNode<test::FailingTestNode>();
+    auto node = CreateNodeOrThrow<test::FailingTestNode>(factory_);
     
     // Verify creation succeeded
     EXPECT_NE(node, nullptr);
@@ -105,7 +148,7 @@ TEST_F(NodeFactoryTest, CreateFailingTestNodeCompileTime) {
 
 TEST_F(NodeFactoryTest, SinkNodeLifecycleInitThenStart_Alternative) {
     // Create and execute basic lifecycle
-    auto node = factory_->CreateNode<test::SinkTestNode>();
+    auto node = CreateNodeOrThrow<test::SinkTestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Init should succeed
@@ -120,7 +163,7 @@ TEST_F(NodeFactoryTest, SinkNodeLifecycleInitThenStart_Alternative) {
 
 TEST_F(NodeFactoryTest, SinkNodeLifecycleInitThenStart) {
     // Create a sink node and test lifecycle
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Init then Start
@@ -131,7 +174,7 @@ TEST_F(NodeFactoryTest, SinkNodeLifecycleInitThenStart) {
 
 TEST_F(NodeFactoryTest, SinkNodeDoubleInit) {
     // Create node
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // First Init should succeed
@@ -145,7 +188,7 @@ TEST_F(NodeFactoryTest, SinkNodeDoubleInit) {
 
 TEST_F(NodeFactoryTest, AlternateSinkNodeLifecycle) {
     // Create alternate sink and test lifecycle
-    auto node = factory_->CreateNode<test::SinkTestNode>();
+    auto node = CreateNodeOrThrow<test::SinkTestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Complete lifecycle
@@ -160,7 +203,7 @@ TEST_F(NodeFactoryTest, AlternateSinkNodeLifecycle) {
 
 TEST_F(NodeFactoryTest, JoinWithTimeoutSucceedsImmediately) {
     // Create and run a simple node
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Initialize but don't start (no long-running task)
@@ -173,7 +216,7 @@ TEST_F(NodeFactoryTest, JoinWithTimeoutSucceedsImmediately) {
 
 TEST_F(NodeFactoryTest, JoinWithTimeoutVariousTimeouts) {
     // Test different timeout values
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     node->Init();
@@ -193,7 +236,7 @@ TEST_F(NodeFactoryTest, JoinWithTimeoutVariousTimeouts) {
 
 TEST_F(NodeFactoryTest, SinkNodeInputPorts) {
     // Create sink node and inspect input ports
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Get input port information
@@ -203,7 +246,7 @@ TEST_F(NodeFactoryTest, SinkNodeInputPorts) {
 
 TEST_F(NodeFactoryTest, AlternateSinkNodeHasPorts) {
     // Create alternate sink and check ports
-    auto node = factory_->CreateNode<test::SinkTestNode>();
+    auto node = CreateNodeOrThrow<test::SinkTestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     auto input_ports = node->InputPorts();
@@ -216,13 +259,13 @@ TEST_F(NodeFactoryTest, AlternateSinkNodeHasPorts) {
 
 TEST_F(NodeFactoryTest, TestNodeNameCorrect) {
     // Verify node name is set correctly
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     EXPECT_NE(node, nullptr);
 }
 
 TEST_F(NodeFactoryTest, SinkTestNodeNameCorrect) {
     // Verify alternate sink node name
-    auto node = factory_->CreateNode<test::SinkTestNode>();
+    auto node = CreateNodeOrThrow<test::SinkTestNode>(factory_);
     EXPECT_NE(node, nullptr);
 }
 
@@ -232,7 +275,7 @@ TEST_F(NodeFactoryTest, SinkTestNodeNameCorrect) {
 
 TEST_F(NodeFactoryTest, FailingInitNode) {
     // Create a node that fails Init()
-    auto node = factory_->CreateNode<test::FailingTestNode>();
+    auto node = CreateNodeOrThrow<test::FailingTestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Configure to fail
@@ -244,7 +287,7 @@ TEST_F(NodeFactoryTest, FailingInitNode) {
 
 TEST_F(NodeFactoryTest, FailingInitNodeSucceedsWhenNotConfigured) {
     // Create a node with failure disabled
-    auto node = factory_->CreateNode<test::FailingTestNode>();
+    auto node = CreateNodeOrThrow<test::FailingTestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Don't configure to fail
@@ -260,9 +303,9 @@ TEST_F(NodeFactoryTest, FailingInitNodeSucceedsWhenNotConfigured) {
 
 TEST_F(NodeFactoryTest, CreateMultipleSinkNodes) {
     // Factory should support creating multiple instances
-    auto node1 = factory_->CreateNode<test::TestNode>();
-    auto node2 = factory_->CreateNode<test::TestNode>();
-    auto node3 = factory_->CreateNode<test::TestNode>();
+    auto node1 = CreateNodeOrThrow<test::TestNode>(factory_);
+    auto node2 = CreateNodeOrThrow<test::TestNode>(factory_);
+    auto node3 = CreateNodeOrThrow<test::TestNode>(factory_);
     
     // All should be unique instances
     EXPECT_NE(node1, nullptr);
@@ -274,9 +317,9 @@ TEST_F(NodeFactoryTest, CreateMultipleSinkNodes) {
 
 TEST_F(NodeFactoryTest, CreateMixedSinkNodeTypes) {
     // Factory should support mixed node types in sequence
-    auto sink1 = factory_->CreateNode<test::TestNode>();
-    auto sink2 = factory_->CreateNode<test::SinkTestNode>();
-    auto sink3 = factory_->CreateNode<test::TestNode>();
+    auto sink1 = CreateNodeOrThrow<test::TestNode>(factory_);
+    auto sink2 = CreateNodeOrThrow<test::SinkTestNode>(factory_);
+    auto sink3 = CreateNodeOrThrow<test::TestNode>(factory_);
     
     EXPECT_NE(sink1, nullptr);
     EXPECT_NE(sink2, nullptr);
@@ -289,7 +332,7 @@ TEST_F(NodeFactoryTest, CreateMixedSinkNodeTypes) {
 
 TEST_F(NodeFactoryTest, NodeStartsUninitialized) {
     // New nodes should not be initialized
-    auto node = factory_->CreateNode<test::TestNode>();
+    auto node = CreateNodeOrThrow<test::TestNode>(factory_);
     ASSERT_NE(node, nullptr);
     
     // Node should be in uninitialized state
@@ -311,7 +354,7 @@ TEST_F(NodeFactoryTest, ConcurrentNodeCreation) {
     std::mutex mutex;
     
     auto create_node = [this, &nodes, &mutex]() {
-        auto node = factory_->CreateNode<test::TestNode>();
+        auto node = CreateNodeOrThrow<test::TestNode>(factory_);
         {
             std::lock_guard<std::mutex> lock(mutex);
             nodes.push_back(node);
@@ -342,7 +385,7 @@ TEST_F(NodeFactoryTest, ConcurrentNodeCreation) {
 
 TEST_F(NodeFactoryTest, NodeSupportsMove) {
     // Nodes should support move semantics
-    auto node1 = factory_->CreateNode<test::TestNode>();
+    auto node1 = CreateNodeOrThrow<test::TestNode>(factory_);
     EXPECT_NE(node1, nullptr);
     
     // Move to another variable
@@ -357,7 +400,7 @@ TEST_F(NodeFactoryTest, NodeSharedPtrManagement) {
     std::weak_ptr<test::TestNode> weak;
     
     {
-        auto node = factory_->CreateNode<test::TestNode>();
+        auto node = CreateNodeOrThrow<test::TestNode>(factory_);
         EXPECT_NE(node, nullptr);
         weak = node;
         
@@ -386,7 +429,7 @@ protected:
         factory_ = std::make_shared<graph::NodeFactory>(plugin_registry_);
         
         // Load all plugins from directory
-        plugin_loader_->LoadAllPlugins();
+        static_cast<void>(plugin_loader_->LoadAllPluginsSafe());
     }
     
     void TearDown() override {
@@ -408,7 +451,7 @@ TEST_F(NodeFactoryDynamicTest, CreateDynamicTestNodeFromPlugin) {
     // Create TestNode from plugin dynamically
     // Should not throw
     try {
-        auto facade = factory_->CreateDynamicNode("TestNode");
+        auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
         // If we got here, creation succeeded
         SUCCEED();
     } catch (const std::exception& e) {
@@ -416,9 +459,32 @@ TEST_F(NodeFactoryDynamicTest, CreateDynamicTestNodeFromPlugin) {
     }
 }
 
+TEST_F(NodeFactoryDynamicTest, CreateDynamicNodeExpectedSuccess) {
+    auto result = factory_->CreateDynamicNodeExpected("TestNode");
+
+    ASSERT_TRUE(result);
+    EXPECT_TRUE(result->Init());
+    result->Stop();
+}
+
+TEST_F(NodeFactoryDynamicTest, CreateDynamicNodeExpectedReportsMissingType) {
+    auto result = factory_->CreateDynamicNodeExpected("MissingNodeType");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), graph::NodeFactory::NodeCreationError::TypeNotFound);
+}
+
+TEST_F(NodeFactoryDynamicTest, CreateNodeExpectedFallsBackToDynamicCreation) {
+    auto result = factory_->CreateNodeExpected("TestNode");
+
+    ASSERT_TRUE(result);
+    EXPECT_TRUE(result->Init());
+    result->Stop();
+}
+
 TEST_F(NodeFactoryDynamicTest, DynamicTestNodeLifecycle) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Execute lifecycle via adapter
     EXPECT_TRUE(facade.Init());
@@ -428,7 +494,7 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeLifecycle) {
 
 TEST_F(NodeFactoryDynamicTest, DynamicTestNodeDoubleInit) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // First Init should succeed
     EXPECT_TRUE(facade.Init());
@@ -441,7 +507,7 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeDoubleInit) {
 
 TEST_F(NodeFactoryDynamicTest, DynamicTestNodePortMetadata) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Verify port metadata can be retrieved
     auto input_ports = facade.GetInputPortNames();
@@ -450,7 +516,7 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodePortMetadata) {
 
 TEST_F(NodeFactoryDynamicTest, DynamicTestNodeJoinWithTimeout) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Initialize node
     facade.Init();
@@ -462,11 +528,11 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeJoinWithTimeout) {
 
 TEST_F(NodeFactoryDynamicTest, CompileTimeAndDynamicNodesCoexist) {
     // Create compile-time node
-    auto compile_node = factory_->CreateNode<test::TestNode>();
+    auto compile_node = CreateNodeOrThrow<test::TestNode>(factory_);
     EXPECT_NE(compile_node, nullptr);
     
     // Create dynamic node
-    auto dynamic_facade = factory_->CreateDynamicNode("TestNode");
+    auto dynamic_facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Both should be valid independently
     EXPECT_TRUE(compile_node->Init());
@@ -478,9 +544,9 @@ TEST_F(NodeFactoryDynamicTest, CompileTimeAndDynamicNodesCoexist) {
 
 TEST_F(NodeFactoryDynamicTest, MultipleDynamicNodeInstances) {
     // Create multiple instances of TestNode from plugin
-    auto facade1 = factory_->CreateDynamicNode("TestNode");
-    auto facade2 = factory_->CreateDynamicNode("TestNode");
-    auto facade3 = factory_->CreateDynamicNode("TestNode");
+    auto facade1 = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade2 = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade3 = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // All should be created successfully
     EXPECT_NO_THROW({
@@ -492,7 +558,7 @@ TEST_F(NodeFactoryDynamicTest, MultipleDynamicNodeInstances) {
 
 TEST_F(NodeFactoryDynamicTest, DynamicNodeMetadata) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Get metadata information
     auto metadata = facade.GetMetadata();
@@ -503,7 +569,7 @@ TEST_F(NodeFactoryDynamicTest, DynamicNodeMetadata) {
 
 TEST_F(NodeFactoryDynamicTest, DynamicNodeJoinWithTimeoutVerification) {
     // Create TestNode from plugin
-    auto facade = factory_->CreateDynamicNode("TestNode");
+    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
     
     // Initialize node
     facade.Init();

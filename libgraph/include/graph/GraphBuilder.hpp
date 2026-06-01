@@ -301,7 +301,7 @@ private:
     ///
     /// Registers all 14 edge types (9 main pipeline + 5 completion path edges)
     /// with the EdgeRegistry singleton. This allows WireEdges() to create
-    /// runtime edges using EdgeRegistry::CreateEdge() dispatch.
+    /// runtime edges using EdgeRegistry::CreateEdgeExpected() dispatch.
     ///
     /// Called immediately after GraphManager creation (Step 3) and before
     /// node registration (Step 4).
@@ -330,7 +330,7 @@ private:
     /// @return void
     ///
     /// Uses EdgeRegistry to create type-aware connections between nodes.
-    /// Dispatches through EdgeRegistry::CreateEdge() which uses the registered
+    /// Dispatches through EdgeRegistry::CreateEdgeExpected() which uses the registered
     /// creator lambdas to instantiate Edge<SrcNode, Port, DstNode, Port> instances.
     ///
     /// @throws std::runtime_error if:
@@ -357,4 +357,3 @@ private:
 };
 
 }  // namespace app
-
