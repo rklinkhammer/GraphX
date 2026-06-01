@@ -10,6 +10,20 @@ Enable branch protection for `main` and require these checks:
 2. `Package Smoke / package-smoke (ubuntu-latest)`
 3. `Libgraph Unit / libgraph-unit`
 
+## Automated Setup
+
+Apply these settings with GitHub CLI:
+
+```bash
+scripts/apply_branch_protection.sh main
+```
+
+Requirements:
+
+1. `gh` installed
+2. Authenticated session (`gh auth login`)
+3. Admin permissions on the repository
+
 ## Recommended Protection Settings
 
 1. Require a pull request before merging
