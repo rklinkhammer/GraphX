@@ -1,0 +1,49 @@
+name: Package Smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package-smoke:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ninja nlohmann-json eigen
+
+      - name: Configure (Ninja preset, tests off)
+        run: |
+          cmake --preset ninja-debug -DBUILD_TESTS=OFF
+
+      - name: Build
+        run: |
+          cmake --build --preset build-debug
+
+      - name: Install to local prefix
+        run: |
+          prefix="$PWD/build-ninja/ninja-debug/install-check"
+          cmake --install "$PWD/build-ninja/ninja-debug" --prefix "$prefix"
+
+      - name: Configure smoke consumer
+        run: |
+          prefix="$PWD/build-ninja/ninja-debug/install-check"
+          cmake \
+            -S "$PWD/tools/package_smoke_consumer" \
+            -B "$PWD/build-ninja/ninja-debug/package-smoke" \
+            -G Ninja \
+            -DCMAKE_PREFIX_PATH="$prefix"
+
+      - name: Build smoke consumer
+        run: |
+          cmake --build "$PWD/build-ninja/ninja-debug/package-smoke"
+
+      - name: Run smoke consumer
+        run: |
+          "$PWD/build-ninja/ninja-debug/package-smoke/package_smoke_consumer"
