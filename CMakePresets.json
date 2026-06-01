@@ -1,0 +1,83 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ninja/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "GRAPHX_ENABLE_MODULE_PILOT": "OFF"
+      }
+    },
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "description": "Default GraphX development preset (Ninja, modules pilot OFF)",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "description": "Release build with Ninja (modules pilot OFF)",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ninja-debug-modules",
+      "displayName": "Ninja Debug (Module Pilot)",
+      "description": "Debug build with Ninja and module pilot enabled (toolchain dependent)",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GRAPHX_ENABLE_MODULE_PILOT": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-debug",
+      "displayName": "Build Debug",
+      "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "build-release",
+      "displayName": "Build Release",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "build-libgraph-unit",
+      "displayName": "Build test_libgraph_unit",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "test_libgraph_unit"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test-libgraph-unit",
+      "displayName": "Run libgraph unit tests",
+      "configurePreset": "ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgraph_unit"
+        }
+      }
+    }
+  ]
+}

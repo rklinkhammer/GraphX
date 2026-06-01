@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.23)
-project(libsensor VERSION 1.0.0 LANGUAGES CXX)
+project(libdsp VERSION 1.0.0 LANGUAGES CXX)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,13 +17,10 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
-# Include directories (for all targets)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 add_subdirectory(plugins)
 
 # Collect source files
-file(GLOB SOURCES "src/dsp/*.cpp")
+file(GLOB SOURCES CONFIGURE_DEPENDS "src/dsp/*.cpp")
 
 # Only create library if sources found
 if(SOURCES)
@@ -41,10 +41,17 @@ if(SOURCES)
         Eigen3::Eigen
         Threads::Threads
     )
-    
-    # Set compile options
-    if(NOT MSVC)
+
+    # Keep warning/sanitizer options local for install-exported static library.
+    if(MSVC)
+        target_compile_options(dsp PRIVATE /W4)
+    else()
         target_compile_options(dsp PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    if(ENABLE_TSAN)
+        target_compile_options(dsp PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
+        target_link_options(dsp PRIVATE -fsanitize=thread)
     endif()
 else()
     # Create empty interface library if no sources (placeholder for future development)
@@ -63,11 +70,37 @@ else()
 endif()
 
 # Installation
+set(DSP_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/dsp")
+
 install(TARGETS dsp EXPORT dspTargets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-install(DIRECTORY include/dsp DESTINATION include)
+install(DIRECTORY include/dsp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN ".DS_Store" EXCLUDE
+)
 
 # Export cmake config
-install(EXPORT dspTargets FILE dspConfig.cmake DESTINATION lib/cmake/dsp)
+install(EXPORT dspTargets
+    FILE dspTargets.cmake
+    NAMESPACE GraphX::
+    DESTINATION ${DSP_CMAKE_INSTALL_DIR}
+)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dspConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/dspConfig.cmake
+    INSTALL_DESTINATION ${DSP_CMAKE_INSTALL_DIR}
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/dspConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/dspConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/dspConfigVersion.cmake
+    DESTINATION ${DSP_CMAKE_INSTALL_DIR}
+)

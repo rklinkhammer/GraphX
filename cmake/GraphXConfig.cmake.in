@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(graph CONFIG REQUIRED)
+find_dependency(sensor CONFIG REQUIRED)
+find_dependency(dsp CONFIG REQUIRED)
+
+check_required_components(GraphX)

@@ -1,9 +1,8 @@
 find_package(GTest REQUIRED)
 find_package(log4cxx REQUIRED)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Collect unit test files
-file(GLOB UNIT_TEST_SOURCES "unit/test_*.cpp" "unit/TestGraphTopologies.cpp")
+file(GLOB UNIT_TEST_SOURCES CONFIGURE_DEPENDS "unit/test_*.cpp" "unit/TestGraphTopologies.cpp")
 set(THREADPOOL_EXTENDED_TEST_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_pool_benchmarks.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_pool_chaos.cpp"
@@ -18,10 +17,15 @@ add_subdirectory(plugins)
 
 # Unit tests executable
 add_executable(test_libgraph_unit ${UNIT_TEST_SOURCES})
+target_include_directories(test_libgraph_unit PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
 )
 target_link_libraries(test_libgraph_unit PRIVATE dsp GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
 add_dependencies(test_libgraph_unit
     test_node
     source_test_node
@@ -42,21 +46,31 @@ add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 
 if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     add_executable(test_threadpool_extended ${THREADPOOL_EXTENDED_TEST_SOURCES})
+    target_include_directories(test_threadpool_extended PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
     target_compile_definitions(test_threadpool_extended PRIVATE
         PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     )
     target_link_libraries(test_threadpool_extended PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_threadpool_extended PRIVATE graphx_project_options)
     add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
     set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")
 endif()
 
 # Collect integration test files
-file(GLOB INTEGRATION_TEST_SOURCES "integration/test_*.cpp")
+file(GLOB INTEGRATION_TEST_SOURCES CONFIGURE_DEPENDS "integration/test_*.cpp")
 
 # Integration tests executable (if integration tests exist)
 if(INTEGRATION_TEST_SOURCES)
     add_executable(test_libgraph_integration ${INTEGRATION_TEST_SOURCES})
+    target_include_directories(test_libgraph_integration PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
     target_link_libraries(test_libgraph_integration PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_libgraph_integration PRIVATE graphx_project_options)
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
 endif()
 

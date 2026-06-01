@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.23)
 project(libsensor VERSION 1.0.0 LANGUAGES CXX)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -15,7 +18,7 @@ find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
 # Collect source files
-file(GLOB SOURCES "src/*.cpp" "src/**/*.cpp")
+file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
 
 # Create library
 add_library(sensor STATIC ${SOURCES})
@@ -37,17 +40,50 @@ target_link_libraries(sensor PUBLIC
     Threads::Threads
 )
 
-# Set compile options
-if(NOT MSVC)
+# Keep warning/sanitizer options local for install-exported static library.
+if(MSVC)
+    target_compile_options(sensor PRIVATE /W4)
+else()
     target_compile_options(sensor PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+if(ENABLE_TSAN)
+    target_compile_options(sensor PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
+    target_link_options(sensor PRIVATE -fsanitize=thread)
+endif()
+
 # Installation
+set(SENSOR_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/sensor")
+
 install(TARGETS sensor EXPORT sensorTargets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-install(DIRECTORY include/sensor DESTINATION include)
+install(DIRECTORY include/sensor DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN ".DS_Store" EXCLUDE
+)
 
 # Export cmake config
-install(EXPORT sensorTargets FILE sensorConfig.cmake DESTINATION lib/cmake/sensor)
+install(EXPORT sensorTargets
+    FILE sensorTargets.cmake
+    NAMESPACE GraphX::
+    DESTINATION ${SENSOR_CMAKE_INSTALL_DIR}
+)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/sensorConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/sensorConfig.cmake
+    INSTALL_DESTINATION ${SENSOR_CMAKE_INSTALL_DIR}
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/sensorConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/sensorConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/sensorConfigVersion.cmake
+    DESTINATION ${SENSOR_CMAKE_INSTALL_DIR}
+)

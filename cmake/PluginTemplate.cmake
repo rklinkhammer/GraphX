@@ -54,6 +54,8 @@ if(NOT TARGET log4cxx)
     find_package(log4cxx REQUIRED)
 endif()
 
+find_package(Threads REQUIRED)
+
 # ============================================================================
 # Function: add_graphx_plugin
 # ============================================================================
@@ -177,14 +179,13 @@ function(add_graphx_plugin)
     set_target_properties(${PLUGIN_TARGET_NAME} PROPERTIES
         POSITION_INDEPENDENT_CODE ON
         PREFIX "lib"
-        SUFFIX ".so"
         LIBRARY_OUTPUT_DIRECTORY ${PLUGIN_OUTPUT_DIRECTORY}
     )
 
     # ========================================================================
     # Link libraries
     # ========================================================================
-    set(default_plugin_dependencies log4cxx pthread)
+    set(default_plugin_dependencies log4cxx Threads::Threads)
     if(NOT "dsp" IN_LIST PLUGIN_DEPENDENCIES)
         list(APPEND default_plugin_dependencies sensor)
     endif()
@@ -202,6 +203,10 @@ function(add_graphx_plugin)
         )
     endif()
 
+    if(TARGET graphx_project_options)
+        target_link_libraries(${PLUGIN_TARGET_NAME} PRIVATE graphx_project_options)
+    endif()
+
     # ========================================================================
     # Status message
     # ========================================================================
@@ -211,7 +216,7 @@ function(add_graphx_plugin)
     if(PLUGIN_DEPENDENCIES)
         message(STATUS "  Additional Dependencies: ${PLUGIN_DEPENDENCIES}")
     endif()
-    message(STATUS "  Output: ${PLUGIN_OUTPUT_DIRECTORY}/lib${PLUGIN_TARGET_NAME}.so")
+    message(STATUS "  Output directory: ${PLUGIN_OUTPUT_DIRECTORY}")
     message(STATUS "")
 
 endfunction()
