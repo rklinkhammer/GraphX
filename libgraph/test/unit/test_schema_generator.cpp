@@ -60,6 +60,45 @@ struct SampleConfig {
     }
 };
 
+inline constexpr std::array<std::string_view, 2> kModes{"auto", "manual"};
+
+struct ConstraintConfig {
+    static constexpr auto Fields() {
+        return std::array{
+            graph::JsonField{
+                .name = "mode",
+                .type = graph::JsonType::String,
+                .required = true,
+                .min = std::nullopt,
+                .max = std::nullopt,
+                .default_value = std::string_view{"auto"},
+                .enum_values = std::span<const std::string_view>(kModes),
+                .description = "Processing mode"
+            },
+            graph::JsonField{
+                .name = "gain",
+                .type = graph::JsonType::Number,
+                .required = true,
+                .min = 0.0,
+                .max = 1.0,
+                .default_value = std::nullopt,
+                .enum_values = std::nullopt,
+                .description = "Normalized gain"
+            },
+            graph::JsonField{
+                .name = "count",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = 1.0,
+                .max = 10.0,
+                .default_value = std::string_view{"5"},
+                .enum_values = std::nullopt,
+                .description = "Iteration count"
+            }
+        };
+    }
+};
+
 }  // namespace
 
 TEST(SchemaGeneratorTest, GeneratesSchemaFromJsonFieldDescriptors) {
@@ -92,4 +131,38 @@ TEST(SchemaGeneratorTest, ValidatorRecognizesRequiredFields) {
     EXPECT_FALSE(validator.Validate(invalid_input));
     ASSERT_FALSE(validator.GetErrors().empty());
     EXPECT_NE(validator.GetErrors().front().find("host"), std::string::npos);
+}
+
+TEST(SchemaGeneratorTest, ValidatorAppliesNumericRangeConstraints) {
+    graph::SchemaValidator<ConstraintConfig> validator;
+
+    json valid_input = json{{"mode", "auto"}, {"gain", 0.25}, {"count", 3}};
+    EXPECT_TRUE(validator.Validate(valid_input));
+
+    json invalid_input = json{{"mode", "manual"}, {"gain", 1.5}};
+    EXPECT_FALSE(validator.Validate(invalid_input));
+    ASSERT_FALSE(validator.GetErrors().empty());
+    EXPECT_NE(validator.GetErrors().front().find("gain"), std::string::npos);
+}
+
+TEST(SchemaGeneratorTest, ValidatorAppliesEnumConstraints) {
+    graph::SchemaValidator<ConstraintConfig> validator;
+
+    json invalid_input = json{{"mode", "invalid_mode"}, {"gain", 0.5}};
+    EXPECT_FALSE(validator.Validate(invalid_input));
+
+    const auto& errors = validator.GetErrors();
+    ASSERT_FALSE(errors.empty());
+    EXPECT_NE(errors.front().find("mode"), std::string::npos);
+}
+
+TEST(SchemaGeneratorTest, ValidatorReportsTypeMismatchForConstrainedField) {
+    graph::SchemaValidator<ConstraintConfig> validator;
+
+    json invalid_input = json{{"mode", "auto"}, {"gain", "high"}};
+    EXPECT_FALSE(validator.Validate(invalid_input));
+
+    const auto& errors = validator.GetErrors();
+    ASSERT_FALSE(errors.empty());
+    EXPECT_NE(errors.front().find("expected type number"), std::string::npos);
 }

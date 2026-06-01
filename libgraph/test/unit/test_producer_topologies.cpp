@@ -202,6 +202,20 @@ class ProducerTopologyParameterizedTest
     : public ProducerTopologiesTest,
       public ::testing::WithParamInterface<ProducerTopologyCase> {};
 
+TEST_F(ProducerTopologiesTest, GetNodeReturnsNullForMismatchedRequestedType) {
+    auto graph = TopologyBuilder::BuildTopology(TopologyType::MinimalIntProducer);
+    ASSERT_NE(nullptr, graph);
+
+    auto sink_wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(graph->GetNodes()[1]);
+    ASSERT_NE(nullptr, sink_wrapper);
+
+    auto correct_type = sink_wrapper->GetNode<TestIntSinkNode>();
+    EXPECT_NE(nullptr, correct_type);
+
+    auto mismatched_type = sink_wrapper->GetNode<TestDoubleSinkNode>();
+    EXPECT_EQ(nullptr, mismatched_type);
+}
+
 TEST_P(ProducerTopologyParameterizedTest, MetadataStructureAndExecutionMatchDefinition) {
     const auto& test_case = GetParam();
 

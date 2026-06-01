@@ -29,13 +29,16 @@
  */
 
 #include "plugins/PluginInspector.hpp"
+#include "graph/NodeFacade.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <dlfcn.h>
 #include <stdexcept>
+#include <regex>
 
 namespace graph {
 
@@ -328,35 +331,117 @@ std::vector<PluginCapabilities> PluginInspector::InspectAll() {
 PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) {
     PluginCapabilities result;
     result.info = info;
-    
-    // For now, we'll mark all loaded plugins as having basic capabilities
-    // since we can't reliably detect them without full initialization
-    
-    InterfaceCapability config;
-    config.name = "IConfigurable";
-    config.supported = true;  // Assume compliant for now
-    config.description = "Supports JSON configuration";
-    result.capabilities.push_back(config);
-    
-    InterfaceCapability diag;
-    diag.name = "IDiagnosable";
-    diag.supported = true;  // Assume supported for now
-    diag.description = "Provides runtime diagnostics";
-    result.capabilities.push_back(diag);
-    
-    InterfaceCapability param;
-    param.name = "IParameterized";
-    param.supported = true;  // Assume supported for now
-    param.description = "Supports parameter introspection";
-    result.capabilities.push_back(param);
-    
-    InterfaceCapability metrics;
-    metrics.name = "IMetricsCallbackProvider";
-    metrics.supported = true;  // Nodes can opt-in to metrics
-    metrics.description = "Publishes metrics events (phase transitions, state changes)";
-    result.capabilities.push_back(metrics);
-    
-    result.info.is_loaded = true;
+
+    void* plugin_handle = nullptr;
+    void* node_handle = nullptr;
+    NodeFacade* inspected_facade = nullptr;
+
+    try {
+        plugin_handle = dlopen(info.path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+        if (!plugin_handle) {
+            const char* error = dlerror();
+            throw std::runtime_error(error ? error : "dlopen failed");
+        }
+
+        using GetInfoFn = const char* (*)();
+        using GetFacadeFn = NodeFacade* (*)();
+        using CreateNodeFn = void* (*)();
+
+        auto* get_info = reinterpret_cast<GetInfoFn>(dlsym(plugin_handle, "plugin_get_info"));
+        auto* get_facade = reinterpret_cast<GetFacadeFn>(dlsym(plugin_handle, "plugin_get_facade"));
+
+        if (!get_info || !get_facade) {
+            throw std::runtime_error("plugin_get_info/plugin_get_facade missing");
+        }
+
+        const char* info_string = get_info();
+        if (!info_string) {
+            throw std::runtime_error("plugin_get_info returned null");
+        }
+
+        std::vector<std::string> info_parts;
+        std::stringstream ss(info_string);
+        std::string part;
+        while (std::getline(ss, part, '|')) {
+            info_parts.push_back(part);
+        }
+
+        if (info_parts.size() < 4) {
+            throw std::runtime_error("plugin info format invalid");
+        }
+
+        const std::string& create_symbol = info_parts[3];
+        auto* create_node = reinterpret_cast<CreateNodeFn>(dlsym(plugin_handle, create_symbol.c_str()));
+        if (!create_node) {
+            throw std::runtime_error("create function missing: " + create_symbol);
+        }
+
+        inspected_facade = get_facade();
+        if (!inspected_facade) {
+            throw std::runtime_error("plugin_get_facade returned null");
+        }
+
+        node_handle = create_node();
+        if (!node_handle) {
+            throw std::runtime_error("create function returned null handle");
+        }
+
+        InterfaceCapability config;
+        config.name = "IConfigurable";
+        config.supported =
+            inspected_facade->GetAsIConfigurable &&
+            (inspected_facade->GetAsIConfigurable(node_handle) != nullptr);
+        config.description = "IConfigurable interface is exposed by the node";
+        result.capabilities.push_back(config);
+
+        InterfaceCapability diag;
+        diag.name = "IDiagnosable";
+        diag.supported =
+            inspected_facade->GetAsIDiagnosable &&
+            (inspected_facade->GetAsIDiagnosable(node_handle) != nullptr);
+        diag.description = "IDiagnosable interface is exposed by the node";
+        result.capabilities.push_back(diag);
+
+        InterfaceCapability param;
+        param.name = "IParameterized";
+        param.supported =
+            inspected_facade->GetAsIParameterized &&
+            (inspected_facade->GetAsIParameterized(node_handle) != nullptr);
+        param.description = "IParameterized interface is exposed by the node";
+        result.capabilities.push_back(param);
+
+        InterfaceCapability metrics;
+        metrics.name = "IMetricsCallbackProvider";
+        metrics.supported =
+            inspected_facade->GetAsIMetricsCallbackProvider &&
+            (inspected_facade->GetAsIMetricsCallbackProvider(node_handle) != nullptr);
+        metrics.description = "Metrics callback provider interface is exposed by the node";
+        result.capabilities.push_back(metrics);
+
+        result.info.is_loaded = true;
+    } catch (const std::exception& e) {
+        result.info.is_loaded = false;
+        result.info.load_error = e.what();
+    }
+
+    if (node_handle && inspected_facade && inspected_facade->Destroy) {
+        inspected_facade->Destroy(node_handle);
+        node_handle = nullptr;
+    }
+
+    if (node_handle) {
+        // If we still have a node handle, we couldn't safely destroy it.
+        // Mark inspection as failed to avoid leaking opaque plugin state.
+        result.info.is_loaded = false;
+        if (result.info.load_error.empty()) {
+            result.info.load_error = "failed to destroy temporary inspection node";
+        }
+    }
+
+    if (plugin_handle) {
+        dlclose(plugin_handle);
+    }
+
     return result;
 }
 
@@ -634,18 +719,52 @@ PluginInfo PluginInspector::ExtractPluginMetadata(const PluginInfo& info) {
 }
 
 std::string PluginInspector::ExtractVersionFromELF(const std::string& plugin_path) {
-    // For now, return empty string - in a production system, would parse ELF headers
-    // This requires <elf.h> or Mach-O headers for macOS
-    // Simple approach: look for semantic version pattern in binary comments
-    
-    // TODO: Implement actual ELF header parsing with:
-    // - Read file first 4 bytes (ELF magic: 0x7f, 'E', 'L', 'F')
-    // - Parse section headers to find .comment or custom sections
-    // - Extract version string from comment section
-    // - Parse version string into version field
-    
-    (void)plugin_path;
-    return "";  // Placeholder: return empty to indicate extraction failed
+    std::ifstream file(plugin_path, std::ios::binary);
+    if (!file.is_open()) {
+        return "";
+    }
+
+    // Read a bounded chunk for quick metadata probing.
+    std::string data;
+    data.resize(64 * 1024);
+    file.read(data.data(), static_cast<std::streamsize>(data.size()));
+    data.resize(static_cast<size_t>(file.gcount()));
+
+    if (data.size() < 4) {
+        return "";
+    }
+
+    const auto b0 = static_cast<unsigned char>(data[0]);
+    const auto b1 = static_cast<unsigned char>(data[1]);
+    const auto b2 = static_cast<unsigned char>(data[2]);
+    const auto b3 = static_cast<unsigned char>(data[3]);
+
+    const bool is_elf = (b0 == 0x7f && b1 == 'E' && b2 == 'L' && b3 == 'F');
+
+    // Mach-O variants (32/64-bit, little/big endian) plus fat binaries.
+    const bool is_macho =
+        (b0 == 0xFE && b1 == 0xED && b2 == 0xFA && (b3 == 0xCE || b3 == 0xCF)) ||
+        ((b0 == 0xCE || b0 == 0xCF) && b1 == 0xFA && b2 == 0xED && b3 == 0xFE) ||
+        (b0 == 0xCA && b1 == 0xFE && b2 == 0xBA && b3 == 0xBE) ||
+        (b0 == 0xBE && b1 == 0xBA && b2 == 0xFE && b3 == 0xCA);
+
+    if (!is_elf && !is_macho) {
+        return "";
+    }
+
+    // Look for semantic version markers embedded in comments/strings.
+    static const std::regex semver_with_patch(R"((?:^|[^0-9A-Za-z])v?(\d+\.\d+\.\d+)(?:[^0-9A-Za-z]|$))");
+    static const std::regex semver_two_part(R"((?:^|[^0-9A-Za-z])v?(\d+\.\d+)(?:[^0-9A-Za-z]|$))");
+
+    std::smatch match;
+    if (std::regex_search(data, match, semver_with_patch)) {
+        return match[1].str();
+    }
+    if (std::regex_search(data, match, semver_two_part)) {
+        return match[1].str();
+    }
+
+    return "";
 }
 
 std::string PluginInspector::ExtractDescriptionFromELF(const std::string& plugin_path) {

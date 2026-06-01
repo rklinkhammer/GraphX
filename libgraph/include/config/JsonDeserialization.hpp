@@ -163,8 +163,24 @@ std::expected<T, DeserializationError> Deserialize(const json& json_value) {
  * @return std::expected<T, DeserializationError> with value or error
  */
 template<typename T>
+requires graph::JsonFieldDescriptorProvider<T>
 std::expected<T, DeserializationError> DeserializeAndValidate(const json& json_value) {
-    // TODO: Phase 3 - Combine schema validation with deserialization
+    graph::SchemaValidator<T> validator;
+    if (!validator.Validate(json_value)) {
+        for (const auto& error : validator.GetErrors()) {
+            if (error.starts_with("Missing required field:")) {
+                return std::unexpected(DeserializationError::MissingRequiredField);
+            }
+        }
+        return std::unexpected(DeserializationError::ConstraintViolation);
+    }
+
+    for (const auto& [field_name, _] : json_value.items()) {
+        if (!validator.HasField(field_name)) {
+            return std::unexpected(DeserializationError::UnexpectedField);
+        }
+    }
+
     return Deserialize<T>(json_value);
 }
 
@@ -284,12 +300,37 @@ struct DeserializationResult {
  * @return DeserializationResult<T> with value/error and details
  */
 template<typename T>
+requires graph::JsonFieldDescriptorProvider<T>
 DeserializationResult<T> DeserializeWithDetails(const json& json_value) {
     DeserializationResult<T> result;
-    result.value = Deserialize<T>(json_value);
+    result.value = DeserializeAndValidate<T>(json_value);
     
     if (!result.IsSuccess()) {
-        // TODO: Phase 3 - Add detailed error context
+        graph::SchemaValidator<T> validator;
+
+        if (!json_value.is_object()) {
+            result.error_details.push_back(
+                "Expected JSON object, got: " + std::string(json_value.type_name()));
+        }
+
+        if (!validator.Validate(json_value)) {
+            for (const auto& validation_error : validator.GetErrors()) {
+                result.error_details.push_back(validation_error);
+            }
+        }
+
+        if (json_value.is_object()) {
+            for (const auto& [field_name, _] : json_value.items()) {
+                if (!validator.HasField(field_name)) {
+                    result.error_details.push_back("Unexpected field: " + field_name);
+                }
+            }
+        }
+
+        if (!result.error_details.empty()) {
+            return result;
+        }
+
         switch (result.value.error()) {
         case DeserializationError::InvalidJson:
             result.error_details.push_back("Input is not valid JSON");

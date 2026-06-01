@@ -84,6 +84,9 @@ class SplitNode : public SinkNode<T>, public ExpandSourceNode<RepeatType_t<T, N>
 public:
     virtual ~SplitNode() = default;
 
+    static constexpr std::size_t NInputs = 1;
+    static constexpr std::size_t NOutputs = N;
+
     bool Consume(const T& value, std::integral_constant<std::size_t, 0>) override {
         bool success = true;
         for (std::size_t i = 0; i < N; ++i) {
@@ -146,7 +149,14 @@ public:
      */
     virtual std::vector<PortMetadata> GetInputPortMetadata() const override
     {
-        return MakePortMetadataForDirection<Derived, PortDirection::Input>();
+        return {
+            PortMetadata{
+                .port_index = 0,
+                .payload_type = std::string(TypeName<T>()),
+                .direction = "input",
+                .port_name = "In0"
+            }
+        };
     }
 
     /**
@@ -159,7 +169,20 @@ public:
      */
     virtual std::vector<PortMetadata> GetOutputPortMetadata() const override
     {
-        return MakePortMetadataForDirection<Derived, PortDirection::Output>();
+        std::vector<PortMetadata> out;
+        out.reserve(N);
+        const auto payload_type = std::string(TypeName<T>());
+
+        for (std::size_t i = 0; i < N; ++i) {
+            out.push_back(PortMetadata{
+                .port_index = i,
+                .payload_type = payload_type,
+                .direction = "output",
+                .port_name = "Out" + std::to_string(i)
+            });
+        }
+
+        return out;
     }
 
 protected:
@@ -353,6 +376,9 @@ class SplitNode6 : public SplitNode<T, 6, SplitNode6<T>> {
 public:
 
 virtual ~SplitNode6() = default;
+
+    std::string GetNodeTypeName() const { return "SplitNode6"; }
+
     std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
         T v;
         if (this->input_queue_[0].Dequeue(v)) {
@@ -414,7 +440,7 @@ public:
      
     virtual ~SplitNode7() = default;
     
-    std::string GetNodeTypeName() const override { return "SplitNode7"; }
+    std::string GetNodeTypeName() const { return "SplitNode7"; }
     
     std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
         T v;
@@ -486,7 +512,7 @@ public:
      
     virtual ~SplitNode8() = default;
     
-    std::string GetNodeTypeName() const override { return "SplitNode8"; }
+    std::string GetNodeTypeName() const { return "SplitNode8"; }
     
     std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
         T v;

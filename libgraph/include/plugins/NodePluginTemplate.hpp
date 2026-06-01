@@ -1066,6 +1066,9 @@ struct PluginGlue {
         
         // ====== NEW: Framework Interface Queries ======
         facade.GetAsDataInjectionNodeConfig = GetAsDataInjectionNodeConfigImpl;
+        facade.GetAsIConfigurable = GetAsIConfigurableImpl;
+        facade.GetAsIDiagnosable = GetAsIDiagnosableImpl;
+        facade.GetAsIParameterized = GetAsIParameterizedImpl;
         facade.GetAsIMetricsCallbackProvider = GetAsIMetricsCallbackProviderImpl;
         facade.GetAsICompletionCallback = GetAsICompletionCallbackImpl;
 

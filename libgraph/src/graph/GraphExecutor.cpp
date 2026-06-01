@@ -249,7 +249,9 @@ GraphExecutor::RunExpected() noexcept {
         }
 
         while(!graph_capability_->IsStopped()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            // Keep completion-to-shutdown latency low so graphs stop promptly once
+            // completion is signaled by policy callbacks.
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         
         LOG4CXX_TRACE(logger_, "GraphExecutor::Run() completed, success=" << result.success);

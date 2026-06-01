@@ -32,6 +32,7 @@
 #include <log4cxx/logger.h>
 #include <chrono>
 #include "graph/IDataInjectionSource.hpp"
+#include "core/TypeInfo.hpp"
 
 // Forward declaration to avoid circular dependency
 namespace graph {
@@ -325,6 +326,30 @@ struct NodeFacade {
      * @endcode
      */
     void* (*GetAsDataInjectionNodeConfig)(NodeHandle handle);
+
+    /**
+     * Get pointer to IConfigurable interface (if node supports JSON configuration)
+     *
+     * @param handle Opaque node handle
+     * @return void* pointer castable to graph::IConfigurable*, or nullptr
+     */
+    void* (*GetAsIConfigurable)(NodeHandle handle);
+
+    /**
+     * Get pointer to IDiagnosable interface (if node supports diagnostics)
+     *
+     * @param handle Opaque node handle
+     * @return void* pointer castable to graph::IDiagnosable*, or nullptr
+     */
+    void* (*GetAsIDiagnosable)(NodeHandle handle);
+
+    /**
+     * Get pointer to IParameterized interface (if node supports parameter introspection)
+     *
+     * @param handle Opaque node handle
+     * @return void* pointer castable to graph::IParameterized*, or nullptr
+     */
+    void* (*GetAsIParameterized)(NodeHandle handle);
     
     /**
      * Get pointer to IMetricsCallbackProvider interface (if node supports metrics callbacks)
@@ -950,17 +975,40 @@ public:
      */
     template <typename NodeT>
     std::shared_ptr<NodeT> GetNode() const {
-        // Strategy: Try to find a NodePluginInstance with a node type that can be cast to NodeT
-        // This handles both concrete types (DataInjectionAccelerometerNode) and base classes (CSVNodeConfig)
-        
-        // First, try direct cast as concrete type
-        // This works when NodeT is the exact plugin node type
-        using ConcreteInstance = graph::NodePluginInstance<NodeT>;
-        if (auto instance = static_cast<ConcreteInstance*>(handle_)) {
-            if (instance && instance->node) {
-                return instance->node;
-            }
+        if (!handle_ || !facade_ || !facade_->GetType) {
+            return nullptr;
         }
+
+        const char* runtime_type_cstr = facade_->GetType(handle_);
+        if (!runtime_type_cstr) {
+            return nullptr;
+        }
+
+        const auto type_token = [](std::string_view type_name) {
+            const auto stripped = StripNamespace(type_name);
+            const auto template_start = stripped.find('<');
+            if (template_start == std::string_view::npos) {
+                return stripped;
+            }
+            return stripped.substr(0, template_start);
+        };
+
+        const std::string_view runtime_type(runtime_type_cstr);
+        const auto runtime_token = type_token(runtime_type);
+        const auto expected_token = type_token(::TypeName<NodeT>());
+
+        // Guard against invalid handle reinterpretation by requiring a type-token match
+        // before casting the opaque handle to a typed plugin instance.
+        if (runtime_token != expected_token) {
+            return nullptr;
+        }
+
+        using ConcreteInstance = graph::NodePluginInstance<NodeT>;
+        auto* instance = static_cast<ConcreteInstance*>(handle_);
+        if (instance && instance->node) {
+            return instance->node;
+        }
+
         return nullptr;
     }
     

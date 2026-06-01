@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include <array>
+#include <algorithm>
 #include <string_view>
 
 #include <gtest/gtest.h>
@@ -75,6 +76,23 @@ TEST(JsonDeserializationTest, DeserializeFromStringAcceptsRequiredFields) {
     EXPECT_TRUE(result.has_value());
 }
 
+TEST(JsonDeserializationTest, DeserializeAndValidateRejectsUnexpectedFields) {
+    const json input = json::parse(R"({"host": "localhost", "extra": true})");
+
+    const auto result = app::json::DeserializeAndValidate<SampleConfig>(input);
+
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), app::json::DeserializationError::UnexpectedField);
+}
+
+TEST(JsonDeserializationTest, DeserializeAndValidateAcceptsKnownFields) {
+    const json input = json::parse(R"({"host": "localhost", "port": 9000})");
+
+    const auto result = app::json::DeserializeAndValidate<SampleConfig>(input);
+
+    EXPECT_TRUE(result.has_value());
+}
+
 TEST(JsonDeserializationTest, DeserializePrimitiveHandlesCommonTypes) {
     const auto int_result = app::json::DeserializePrimitive<int>(json(42));
     const auto double_result = app::json::DeserializePrimitive<double>(json(3.5));
@@ -90,4 +108,46 @@ TEST(JsonDeserializationTest, DeserializePrimitiveHandlesCommonTypes) {
     EXPECT_DOUBLE_EQ(double_result.value(), 3.5);
     EXPECT_TRUE(bool_result.value());
     EXPECT_EQ(string_result.value(), "hello");
+}
+
+TEST(JsonDeserializationTest, DeserializeWithDetailsIncludesUnexpectedFieldName) {
+    const json input = json::parse(R"({"host": "localhost", "extra": true})");
+
+    const auto result = app::json::DeserializeWithDetails<SampleConfig>(input);
+
+    EXPECT_FALSE(result.IsSuccess());
+    EXPECT_EQ(result.value.error(), app::json::DeserializationError::UnexpectedField);
+    EXPECT_TRUE(std::any_of(result.error_details.begin(),
+                            result.error_details.end(),
+                            [](const std::string& detail) {
+                                return detail.find("Unexpected field: extra") != std::string::npos;
+                            }));
+}
+
+TEST(JsonDeserializationTest, DeserializeWithDetailsIncludesMissingFieldContext) {
+    const json input = json::parse(R"({"port": 8080})");
+
+    const auto result = app::json::DeserializeWithDetails<SampleConfig>(input);
+
+    EXPECT_FALSE(result.IsSuccess());
+    EXPECT_EQ(result.value.error(), app::json::DeserializationError::MissingRequiredField);
+    EXPECT_TRUE(std::any_of(result.error_details.begin(),
+                            result.error_details.end(),
+                            [](const std::string& detail) {
+                                return detail.find("Missing required field: host") != std::string::npos;
+                            }));
+}
+
+TEST(JsonDeserializationTest, DeserializeWithDetailsReportsTopLevelType) {
+    const json input = json::parse(R"([{"host": "localhost"}])");
+
+    const auto result = app::json::DeserializeWithDetails<SampleConfig>(input);
+
+    EXPECT_FALSE(result.IsSuccess());
+    EXPECT_EQ(result.value.error(), app::json::DeserializationError::ConstraintViolation);
+    EXPECT_TRUE(std::any_of(result.error_details.begin(),
+                            result.error_details.end(),
+                            [](const std::string& detail) {
+                                return detail.find("Expected JSON object, got: array") != std::string::npos;
+                            }));
 }

@@ -23,6 +23,7 @@
 #include <vector>
 #include "test/AdvancedTestNodes.hpp"
 #include "graph/Nodes.hpp"
+#include "graph/Reflection.hpp"
 #include <log4cxx/logger.h>
 
 namespace {
@@ -371,6 +372,7 @@ using ConformanceNodeTypes = ::testing::Types<
     test::SinkTestNode,
     test::InteriorTestNode,
     test::MergeTestNode,
+    test::SplitTestNode,
     test::FailingTestNode>;
 
 TYPED_TEST_SUITE(PortMetadataConformanceTest, ConformanceNodeTypes);
@@ -395,6 +397,56 @@ TYPED_TEST(PortMetadataConformanceTest, RuntimeMetadataMatchesCompileTimeDescrip
         EXPECT_FALSE(port.port_name.empty());
         EXPECT_FALSE(port.payload_type.empty());
     }
+}
+
+struct ReflectionHelperNode {
+    static constexpr std::size_t NInputs = 2;
+    static constexpr std::size_t NOutputs = 3;
+};
+
+struct ReflectionHelperNoPortCountNode {};
+
+struct ReflectionHelperCustomPayload {};
+
+TEST(PortMetadataReflectionHelpersTest, ReflectOutputPortsUsesNodeOutputCount) {
+    constexpr auto metadata = graph::reflection::reflect_output_ports<ReflectionHelperNode>();
+
+    static_assert(metadata.size() == ReflectionHelperNode::NOutputs);
+    EXPECT_EQ(metadata.size(), ReflectionHelperNode::NOutputs);
+    EXPECT_EQ(metadata.front().id, 0);
+    EXPECT_EQ(metadata.back().id, ReflectionHelperNode::NOutputs - 1);
+    EXPECT_EQ(metadata.front().name, "Output0");
+    EXPECT_EQ(metadata.back().name, "Output2");
+    EXPECT_EQ(metadata.front().direction, graph::reflection::PortDirection::Output);
+}
+
+TEST(PortMetadataReflectionHelpersTest, ReflectInputPortsUsesNodeInputCount) {
+    constexpr auto metadata = graph::reflection::reflect_input_ports<ReflectionHelperNode>();
+
+    static_assert(metadata.size() == ReflectionHelperNode::NInputs);
+    EXPECT_EQ(metadata.size(), ReflectionHelperNode::NInputs);
+    EXPECT_EQ(metadata.front().id, 0);
+    EXPECT_EQ(metadata.back().id, ReflectionHelperNode::NInputs - 1);
+    EXPECT_EQ(metadata.front().name, "Input0");
+    EXPECT_EQ(metadata.back().name, "Input1");
+    EXPECT_EQ(metadata.front().direction, graph::reflection::PortDirection::Input);
+}
+
+TEST(PortMetadataReflectionHelpersTest, ReflectPortsWithoutCountsReturnsEmptyArray) {
+    constexpr auto input_metadata = graph::reflection::reflect_input_ports<ReflectionHelperNoPortCountNode>();
+    constexpr auto output_metadata = graph::reflection::reflect_output_ports<ReflectionHelperNoPortCountNode>();
+
+    static_assert(input_metadata.empty());
+    static_assert(output_metadata.empty());
+    EXPECT_TRUE(input_metadata.empty());
+    EXPECT_TRUE(output_metadata.empty());
+}
+
+TEST(PortMetadataReflectionHelpersTest, GetTypeNameFallbackDoesNotCollapseCustomType) {
+    constexpr auto custom_name = graph::reflection::get_type_name<ReflectionHelperCustomPayload>();
+
+    EXPECT_FALSE(custom_name.empty());
+    EXPECT_NE(custom_name, "custom_type");
 }
 
 }  // namespace

@@ -90,9 +90,33 @@ void NodeFacadeAdapter::ExtractInterfaces() {
             LOG4CXX_TRACE(logger_, "Extracted DataInjectionNodeConfig interface from plugin");
         }
     }
-    
 
+    // Try to extract IConfigurable interface from plugin callback
+    if (facade_->GetAsIConfigurable) {
+        void* ptr = facade_->GetAsIConfigurable(handle_);
+        if (ptr) {
+            configurable_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted IConfigurable interface from plugin");
+        }
+    }
 
+    // Try to extract IDiagnosable interface from plugin callback
+    if (facade_->GetAsIDiagnosable) {
+        void* ptr = facade_->GetAsIDiagnosable(handle_);
+        if (ptr) {
+            diagnosable_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted IDiagnosable interface from plugin");
+        }
+    }
+
+    // Try to extract IParameterized interface from plugin callback
+    if (facade_->GetAsIParameterized) {
+        void* ptr = facade_->GetAsIParameterized(handle_);
+        if (ptr) {
+            parameterized_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted IParameterized interface from plugin");
+        }
+    }
 
     // Try to extract IMetricsCallbackProvider interface from plugin callback
     if (facade_->GetAsIMetricsCallbackProvider) {

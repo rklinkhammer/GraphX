@@ -1160,6 +1160,10 @@ namespace test {
         >;
         
         explicit SplitTestNode() = default;
+
+        std::string GetNodeTypeName() const {
+            return "SplitTestNode";
+        }
         
         virtual ~SplitTestNode() = default;
         

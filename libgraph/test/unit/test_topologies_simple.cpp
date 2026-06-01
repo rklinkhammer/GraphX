@@ -79,6 +79,27 @@ void ExpectCompletionCallbackInstallation(
         << "CompletionPolicy should install callbacks during executor Init()";
 }
 
+void ExpectTypedSplitNodeExtraction(
+    const std::shared_ptr<graph::GraphManager>& graph,
+    size_t expected_split_nodes) {
+    size_t extracted_count = 0;
+
+    for (const auto& node : graph->GetNodes()) {
+        auto facade_adapter = graph::GetAsNodeFacadeAdapter(node);
+        if (!facade_adapter || facade_adapter->GetType() != "SplitTestNode") {
+            continue;
+        }
+
+        auto typed_split = facade_adapter->GetNode<test::SplitTestNode>();
+        ASSERT_NE(typed_split, nullptr)
+            << "SplitTestNode wrapper should allow typed extraction for edge wiring";
+        ++extracted_count;
+    }
+
+    EXPECT_EQ(extracted_count, expected_split_nodes)
+        << "Unexpected number of extractable SplitTestNode instances";
+}
+
 /**
  * @test Topology 1: SourceOnly
  * Single source node, no sinks
@@ -323,6 +344,8 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
     auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::SplitSimple);
     ASSERT_NE(graph, nullptr) << "Failed to build SplitSimple topology";
 
+    ExpectTypedSplitNodeExtraction(graph, 1);
+
     auto executor = graph::GraphExecutorBuilder()
         .WithGraphManager(graph)
         .WithExecutorTimeout(std::chrono::seconds(30))
@@ -379,6 +402,8 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
 TEST(TopologiesSimple, Topology6_DiamondComplex) {
     auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::DiamondComplex);
     ASSERT_NE(graph, nullptr) << "Failed to build DiamondComplex topology";
+
+    ExpectTypedSplitNodeExtraction(graph, 1);
 
     auto executor = graph::GraphExecutorBuilder()
         .WithGraphManager(graph)
@@ -623,6 +648,8 @@ TEST(TopologiesSimple, Topology9_ParallelMergeWithInterior) {
 TEST(TopologiesSimple, Topology10_ComplexNetwork) {
     auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::ComplexNetwork);
     ASSERT_NE(graph, nullptr) << "Failed to build ComplexNetwork topology";
+
+    ExpectTypedSplitNodeExtraction(graph, 1);
 
     auto executor = graph::GraphExecutorBuilder()
         .WithGraphManager(graph)

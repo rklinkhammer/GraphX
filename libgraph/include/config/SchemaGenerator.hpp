@@ -387,8 +387,76 @@ public:
                 errors_.push_back(std::string("Missing required field: ") + std::string(field.field_name));
             }
         }
-        
-        // TODO: Phase 3 - Add constraint validation
+
+        constexpr auto fields = ConfigType::Fields();
+        for (const auto& field : fields) {
+            const auto it = json_value.find(std::string(field.name));
+            if (it == json_value.end()) {
+                continue;
+            }
+
+            const auto expected_type = JsonTypeToSchemaType(field.type);
+            const bool type_valid = [expected = field.type, &value = *it]() {
+                switch (expected) {
+                    case JsonType::String:  return value.is_string();
+                    case JsonType::Number:  return value.is_number();
+                    case JsonType::Integer: return value.is_number_integer();
+                    case JsonType::Boolean: return value.is_boolean();
+                    case JsonType::Object:  return value.is_object();
+                    case JsonType::Array:   return value.is_array();
+                }
+                return false;
+            }();
+
+            if (!type_valid) {
+                errors_.push_back(
+                    std::string("Field '") + std::string(field.name) +
+                    "' expected type " + std::string(expected_type));
+                continue;
+            }
+
+            if (field.type == JsonType::Number || field.type == JsonType::Integer) {
+                const double numeric_value = it->get<double>();
+                if (field.min.has_value() && numeric_value < *field.min) {
+                    errors_.push_back(
+                        std::string("Field '") + std::string(field.name) +
+                        "' must be >= " + std::to_string(*field.min));
+                }
+                if (field.max.has_value() && numeric_value > *field.max) {
+                    errors_.push_back(
+                        std::string("Field '") + std::string(field.name) +
+                        "' must be <= " + std::to_string(*field.max));
+                }
+            }
+
+            if (field.enum_values.has_value()) {
+                bool allowed = false;
+
+                if (it->is_string()) {
+                    const auto value = it->get<std::string>();
+                    for (const auto candidate : *field.enum_values) {
+                        if (value == candidate) {
+                            allowed = true;
+                            break;
+                        }
+                    }
+                } else {
+                    const auto value = it->dump();
+                    for (const auto candidate : *field.enum_values) {
+                        if (value == candidate) {
+                            allowed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!allowed) {
+                    errors_.push_back(
+                        std::string("Field '") + std::string(field.name) +
+                        "' is not in the allowed enum set");
+                }
+            }
+        }
         
         return errors_.empty();
     }

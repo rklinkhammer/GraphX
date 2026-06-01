@@ -1,5 +1,3 @@
-#pragma once
-
 /**
  * @file Reflection.hpp
  * @brief C++26 Reflection utilities for compile-time port metadata generation
@@ -16,12 +14,15 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 #include <array>
 #include <optional>
 #include <type_traits>
 #include <concepts>
 #include <span>
+
+#include "core/ReflectionHelper.hpp"
 
 #if __cplusplus >= 202600
     // C++26 reflection support
@@ -44,6 +45,36 @@ namespace graph::reflection {
         Input,
         Output
     };
+
+    namespace detail {
+        inline constexpr std::array<std::string_view, 16> kInputPortNames{
+            "Input0", "Input1", "Input2", "Input3",
+            "Input4", "Input5", "Input6", "Input7",
+            "Input8", "Input9", "Input10", "Input11",
+            "Input12", "Input13", "Input14", "Input15"
+        };
+
+        inline constexpr std::array<std::string_view, 16> kOutputPortNames{
+            "Output0", "Output1", "Output2", "Output3",
+            "Output4", "Output5", "Output6", "Output7",
+            "Output8", "Output9", "Output10", "Output11",
+            "Output12", "Output13", "Output14", "Output15"
+        };
+
+        constexpr std::string_view GetPortName(PortDirection direction, std::size_t id) {
+            if (direction == PortDirection::Input) {
+                if (id < kInputPortNames.size()) {
+                    return kInputPortNames[id];
+                }
+                return "Input";
+            }
+
+            if (id < kOutputPortNames.size()) {
+                return kOutputPortNames[id];
+            }
+            return "Output";
+        }
+    }  // namespace detail
 
     /**
      * @brief Metadata for a single port, generated at compile time
@@ -111,21 +142,8 @@ namespace graph::reflection {
             // C++26: Use reflection to get type name
             return std::meta::name_of<T>();
         #else
-            // C++20 fallback: Use compiler builtins or manual registry
-            if constexpr (std::is_same_v<T, int>) {
-                return "int";
-            } else if constexpr (std::is_same_v<T, double>) {
-                return "double";
-            } else if constexpr (std::is_same_v<T, float>) {
-                return "float";
-            } else if constexpr (std::is_same_v<T, bool>) {
-                return "bool";
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                return "std::string";
-            } else {
-                // For custom types, user must specialize
-                return "custom_type";
-            }
+            // C++20/C++26-without-meta fallback: use shared compiler-signature extraction.
+            return ::reflection::ExtractTypeNameFromFunction<T>();
         #endif
     }
 
@@ -149,7 +167,7 @@ namespace graph::reflection {
     consteval PortMetadata reflect_port(PortDirection direction = PortDirection::Output) {
         return PortMetadata{
             .id = P::id,
-            .name = "Port", // TODO: Enhanced naming with constexpr format
+            .name = detail::GetPortName(direction, P::id),
             .type_name = get_type_name<typename P::type>(),
             .direction = direction
         };
@@ -218,22 +236,26 @@ namespace graph::reflection {
      * @endcode
      */
     template <typename Node>
-    consteval auto reflect_output_ports() -> std::array<PortMetadata, 0> {
-        #if GRAPH_CPP26_REFLECTION_AVAILABLE
-            // C++26: Use std::meta to reflect bases and discover ports
-            // This is a placeholder - full implementation requires
-            // std::meta::bases_of and filter for Port<T, ID> types
-            
-            // Pseudo-code of full implementation:
-            // constexpr auto bases = std::meta::bases_of<Node>();
-            // filter bases matching IsPort concept
-            // return std::array of reflect_port<FilteredPorts...>()
-        #else
-            // C++20 fallback: Return empty array
-            // Nodes must provide static_port_metadata instead
-        #endif
-        
-        return std::array<PortMetadata, 0>{};
+    consteval auto reflect_output_ports() {
+        if constexpr (requires {
+            { Node::NOutputs } -> std::convertible_to<std::size_t>;
+        }) {
+            constexpr std::size_t kCount = static_cast<std::size_t>(Node::NOutputs);
+            std::array<PortMetadata, kCount> metadata{};
+
+            for (std::size_t i = 0; i < kCount; ++i) {
+                metadata[i] = PortMetadata{
+                    .id = i,
+                    .name = detail::GetPortName(PortDirection::Output, i),
+                    .type_name = "unknown",
+                    .direction = PortDirection::Output
+                };
+            }
+
+            return metadata;
+        } else {
+            return std::array<PortMetadata, 0>{};
+        }
     }
 
     /**
@@ -244,9 +266,26 @@ namespace graph::reflection {
      * @see reflect_output_ports() for details
      */
     template <typename Node>
-    consteval auto reflect_input_ports() -> std::array<PortMetadata, 0> {
-        // Similar implementation to reflect_output_ports()
-        return std::array<PortMetadata, 0>{};
+    consteval auto reflect_input_ports() {
+        if constexpr (requires {
+            { Node::NInputs } -> std::convertible_to<std::size_t>;
+        }) {
+            constexpr std::size_t kCount = static_cast<std::size_t>(Node::NInputs);
+            std::array<PortMetadata, kCount> metadata{};
+
+            for (std::size_t i = 0; i < kCount; ++i) {
+                metadata[i] = PortMetadata{
+                    .id = i,
+                    .name = detail::GetPortName(PortDirection::Input, i),
+                    .type_name = "unknown",
+                    .direction = PortDirection::Input
+                };
+            }
+
+            return metadata;
+        } else {
+            return std::array<PortMetadata, 0>{};
+        }
     }
 
     // =====================================================================

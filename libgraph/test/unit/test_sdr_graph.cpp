@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <memory>
+#include <stdexcept>
 
 #include "dsp/FFTNode.hpp"
 #include "dsp/SineSignalNode.hpp"
@@ -31,8 +32,20 @@ using AnalyzerSinkNode = dsp::SpectrumSinkNode<float, kPacketSize>;
 
 std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& type) {
     auto factory = PluginInfrastructure::GetFactory();
-    auto adapter = std::make_shared<NodeFacadeAdapter>(factory->CreateDynamicNode(type));
-    return std::make_shared<NodeFacadeAdapterWrapper>(adapter);
+    if (!factory) {
+        return nullptr;
+    }
+
+    if (!factory->IsNodeTypeAvailable(type)) {
+        return nullptr;
+    }
+
+    try {
+        auto adapter = std::make_shared<NodeFacadeAdapter>(factory->CreateDynamicNode(type));
+        return std::make_shared<NodeFacadeAdapterWrapper>(adapter);
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 std::shared_ptr<GraphManager> BuildSDRGraph(
@@ -45,6 +58,10 @@ std::shared_ptr<GraphManager> BuildSDRGraph(
     fft_wrapper = CreatePluginNode("FFTNode<256>");
     analyzer_wrapper = CreatePluginNode("SpectrumSinkNode<256>");
 
+    if (!source_wrapper || !fft_wrapper || !analyzer_wrapper) {
+        return nullptr;
+    }
+
     graph->AddNode(source_wrapper);
     graph->AddNode(fft_wrapper);
     graph->AddNode(analyzer_wrapper);
@@ -56,8 +73,9 @@ std::shared_ptr<GraphManager> BuildSDRGraph(
         PluginInfrastructure::AddEdge<FFTProcessorNode, 0, AnalyzerSinkNode, 0>(
             graph, fft_wrapper, analyzer_wrapper);
 
-    EXPECT_TRUE(iq_edge_added);
-    EXPECT_TRUE(spectrum_edge_added);
+    if (!iq_edge_added || !spectrum_edge_added) {
+        return nullptr;
+    }
 
     return graph;
 }

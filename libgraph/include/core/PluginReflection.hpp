@@ -30,6 +30,7 @@
 #include <concepts>
 #include <optional>
 #include <vector>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 // Feature detection for C++26 std::reflect
@@ -393,8 +394,22 @@ public:
      */
     template<typename Plugin>
     void Register(Plugin& plugin) {
-        // TODO: Phase 3 - Store metadata and plugin references
-        // For now, this is a placeholder for reflection-based registration
+        const auto metadata = GetPluginMetadata<Plugin>();
+        const auto it = std::find_if(entries_.begin(), entries_.end(),
+            [&metadata](const RegisteredPlugin& entry) {
+                return entry.metadata.name == metadata.name;
+            });
+
+        if (it != entries_.end()) {
+            it->metadata = metadata;
+            it->instance = static_cast<void*>(std::addressof(plugin));
+            return;
+        }
+
+        entries_.push_back(RegisteredPlugin{
+            .metadata = metadata,
+            .instance = static_cast<void*>(std::addressof(plugin))
+        });
     }
 
     /**
@@ -404,8 +419,21 @@ public:
      * @return Vector of plugin metadata for plugins with this capability
      */
     std::vector<PluginMetadata> FindPluginsByCapability(std::string_view capability_name) const {
-        // TODO: Phase 3 - Use reflection to find plugins with given capability
-        return {};
+        std::vector<PluginMetadata> matching;
+
+        for (const auto& entry : entries_) {
+            const auto& capabilities = entry.metadata.capabilities;
+            const bool has_capability = std::any_of(capabilities.begin(), capabilities.end(),
+                [capability_name](const CapabilityMetadata& capability) {
+                    return capability.name == capability_name;
+                });
+
+            if (has_capability) {
+                matching.push_back(entry.metadata);
+            }
+        }
+
+        return matching;
     }
 
     /**
@@ -414,9 +442,23 @@ public:
      * @return Vector of metadata for all registered plugins
      */
     std::vector<PluginMetadata> GetAllPlugins() const {
-        // TODO: Phase 3 - Return all registered plugin metadata
-        return {};
+        std::vector<PluginMetadata> all;
+        all.reserve(entries_.size());
+
+        for (const auto& entry : entries_) {
+            all.push_back(entry.metadata);
+        }
+
+        return all;
     }
+
+private:
+    struct RegisteredPlugin {
+        PluginMetadata metadata;
+        void* instance = nullptr;
+    };
+
+    std::vector<RegisteredPlugin> entries_;
 };
 
 }  // namespace app::reflection
