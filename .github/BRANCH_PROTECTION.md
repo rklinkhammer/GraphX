@@ -18,6 +18,12 @@ Apply these settings with GitHub CLI:
 scripts/apply_branch_protection.sh main
 ```
 
+Check for policy drift:
+
+```bash
+scripts/check_branch_protection.sh main
+```
+
 Requirements:
 
 1. `gh` installed
