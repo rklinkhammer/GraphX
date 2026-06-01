@@ -408,6 +408,22 @@ struct ReflectionHelperNoPortCountNode {};
 
 struct ReflectionHelperCustomPayload {};
 
+TEST(PortMetadataReflectionHelpersTest, SplitNodeMetadataUsesDirectionalIndexedNames) {
+    using SplitType = graph::SplitNode2<::graph::message::Message>;
+    auto node = std::make_shared<SplitType>();
+    ASSERT_NE(node, nullptr);
+
+    const auto input_metadata = node->GetInputPortMetadata();
+    const auto output_metadata = node->GetOutputPortMetadata();
+
+    ASSERT_EQ(input_metadata.size(), 1u);
+    ASSERT_EQ(output_metadata.size(), 2u);
+
+    EXPECT_EQ(input_metadata[0].port_name, "Input0");
+    EXPECT_EQ(output_metadata[0].port_name, "Output0");
+    EXPECT_EQ(output_metadata[1].port_name, "Output1");
+}
+
 TEST(PortMetadataReflectionHelpersTest, ReflectOutputPortsUsesNodeOutputCount) {
     constexpr auto metadata = graph::reflection::reflect_output_ports<ReflectionHelperNode>();
 

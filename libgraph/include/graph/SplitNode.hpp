@@ -96,6 +96,10 @@ public:
     }
 
     using SourceBase = typename ExpandSourceNode<RepeatType_t<T, N>>::type;
+
+    static std::string MakeDirectionalPortName(const char* prefix, std::size_t index) {
+        return std::string(prefix) + std::to_string(index);
+    }
     
     bool Init() override {
         return SinkNode<T>::Init() && SourceBase::Init();
@@ -154,7 +158,7 @@ public:
                 .port_index = 0,
                 .payload_type = std::string(TypeName<T>()),
                 .direction = "input",
-                .port_name = "In0"
+                .port_name = MakeDirectionalPortName("Input", 0)
             }
         };
     }
@@ -178,7 +182,7 @@ public:
                 .port_index = i,
                 .payload_type = payload_type,
                 .direction = "output",
-                .port_name = "Out" + std::to_string(i)
+                .port_name = MakeDirectionalPortName("Output", i)
             });
         }
 

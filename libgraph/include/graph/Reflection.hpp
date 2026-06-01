@@ -24,14 +24,10 @@
 
 #include "core/ReflectionHelper.hpp"
 
-#if __cplusplus >= 202600
-    // C++26 reflection support
-    #if __has_include(<meta>)
-        #include <meta>
-        #define GRAPH_CPP26_REFLECTION_AVAILABLE 1
-    #else
-        #define GRAPH_CPP26_REFLECTION_AVAILABLE 0
-    #endif
+// GraphX is C++26-only; reflection support still depends on toolchain <meta> availability.
+#if __has_include(<meta>)
+    #include <meta>
+    #define GRAPH_CPP26_REFLECTION_AVAILABLE 1
 #else
     #define GRAPH_CPP26_REFLECTION_AVAILABLE 0
 #endif
@@ -134,7 +130,7 @@ namespace graph::reflection {
      * @tparam T The port's data type
      * @return String view of the type name, e.g., "int", "double", "MyStruct"
      * 
-     * @note Uses std::meta::name_of in C++26; fallback to manual names in C++20
+    * @note Uses std::meta::name_of when available; fallback uses compiler-signature extraction.
      */
     template <typename T>
     consteval std::string_view get_type_name() {
@@ -142,7 +138,7 @@ namespace graph::reflection {
             // C++26: Use reflection to get type name
             return std::meta::name_of<T>();
         #else
-            // C++20/C++26-without-meta fallback: use shared compiler-signature extraction.
+            // C++26 toolchains without <meta>: use shared compiler-signature extraction.
             return ::reflection::ExtractTypeNameFromFunction<T>();
         #endif
     }
