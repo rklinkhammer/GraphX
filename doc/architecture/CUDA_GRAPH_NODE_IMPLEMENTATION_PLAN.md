@@ -47,7 +47,7 @@ Out of scope (initial phase):
 
 ### 1. CUDA Capability Interfaces
 
-Create interfaces under libgraph/include/cuda/capabilities/:
+Create interfaces under libgpu/include/gpu/cuda/capabilities/:
 
 1. ICudaContextCapability
    - device selection
@@ -66,7 +66,7 @@ Create interfaces under libgraph/include/cuda/capabilities/:
 
 ### 1b. SYCL Capability Interfaces
 
-Create interfaces under libgraph/include/sycl/capabilities/:
+Create interfaces under libgpu/include/gpu/sycl/capabilities/:
 
 1. ISyclContextCapability
    - platform and device selection
@@ -84,7 +84,7 @@ Create interfaces under libgraph/include/sycl/capabilities/:
 
 ### 2. Thin Payload Types (Shared Contract)
 
-Create backend-neutral types under libgraph/include/accel/types/ (or mirrored per backend with identical fields):
+Create backend-neutral types under libgpu/include/gpu/accel/types/ (or mirrored per backend with identical fields):
 
 1. DeviceBufferView
    - device_ptr, bytes, dtype, shape and stride, device_id, execution_queue_id, ready_event
@@ -103,7 +103,7 @@ Create backend-neutral types under libgraph/include/accel/types/ (or mirrored pe
 
 ### 3. Initial CUDA Node Set
 
-Create nodes under libgraph/include/cuda/nodes/ and libgraph/src/cuda/nodes/:
+Create nodes under libgpu/include/gpu/cuda/nodes/ and libgpu/src/gpu/cuda/nodes/:
 
 1. HostIngressPinnedSourceNode
    - Source node that emits HostPinnedBufferView
@@ -130,7 +130,7 @@ Create nodes under libgraph/include/cuda/nodes/ and libgraph/src/cuda/nodes/:
 
 ### 3b. Initial SYCL Node Set (Structural Match)
 
-Create nodes under libgraph/include/sycl/nodes/ and libgraph/src/sycl/nodes/ with equivalent semantics:
+Create nodes under libgpu/include/gpu/sycl/nodes/ and libgpu/src/gpu/sycl/nodes/ with equivalent semantics:
 
 1. HostIngressPinnedSourceNodeSycl
 2. H2DAsyncNodeSycl
@@ -145,6 +145,340 @@ Create nodes under libgraph/include/sycl/nodes/ and libgraph/src/sycl/nodes/ wit
 11. CollectiveReduceNodeSycl
 
 Naming can be unified later by selecting backend via capability injection to avoid duplicated node names.
+
+## libgpu Placement and Repository Layout
+
+GPU node code should live in libgpu and follow the same packaging pattern used by libdsp.
+
+Recommended structure:
+
+1. Public headers
+   - libgpu/include/gpu/accel/types/
+   - libgpu/include/gpu/cuda/capabilities/
+   - libgpu/include/gpu/sycl/capabilities/
+   - libgpu/include/gpu/cuda/nodes/
+   - libgpu/include/gpu/sycl/nodes/
+2. Implementations
+   - libgpu/src/gpu/cuda/capabilities/
+   - libgpu/src/gpu/sycl/capabilities/
+   - libgpu/src/gpu/cuda/nodes/
+   - libgpu/src/gpu/sycl/nodes/
+3. Plugins (registration wrappers, similar to libdsp/plugins)
+   - libgpu/plugins/
+4. Tests
+   - libgpu/test/unit/
+   - libgpu/test/integration/
+   - libgpu/test/perf/
+
+Build integration notes:
+
+1. Keep graph-facing abstractions in libgraph and backend implementations in libgpu.
+2. Link libgpu against graph and sensor as already done in libgpu CMake.
+3. Add backend-gated test targets in libgpu/test with ENABLE_CUDA_GRAPH_NODES and ENABLE_SYCL_GRAPH_NODES guards.
+
+## Detailed Node Architecture and Test Plans
+
+This section defines architecture, contracts, and validation for each node pair.
+
+### 1. HostIngressPinnedSourceNode and HostIngressPinnedSourceNodeSycl
+
+Architecture plan:
+
+1. Node type: SourceNodeBase<HostPinnedBufferView>
+2. Responsibility: acquire pinned host buffers from pool capability and publish tokens only.
+3. Inputs: none (source-driven or external callback-driven ingestion).
+4. Outputs: HostPinnedBufferView plus optional BufferLease metadata side-channel.
+5. State:
+   - pre-allocated lease ring,
+   - sequence number,
+   - backpressure counters.
+6. Error handling:
+   - allocation unavailable -> emit pressure metric and defer,
+   - malformed producer input -> fail packet and increment validation counter.
+
+Test plan:
+
+1. Unit tests:
+   - emits valid HostPinnedBufferView shape and byte fields,
+   - lease lifecycle accounting under repeated acquire and release,
+   - deterministic behavior when pool is exhausted.
+2. Integration tests:
+   - source -> H2D pipeline under bounded pool size,
+   - soak test for monotonic sequence and zero leak growth.
+3. Performance tests:
+   - sustained ingress rate and lease reuse efficiency,
+   - latency impact of varying prefetch depth.
+
+### 2. H2DAsyncNode and H2DAsyncNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<HostPinnedBufferView, DeviceBufferView>
+2. Responsibility: enqueue host-to-device copy and attach completion event token.
+3. Inputs: HostPinnedBufferView with valid lease context.
+4. Outputs: DeviceBufferView with execution_queue_id and ready_event populated.
+5. State:
+   - transfer queue or stream handle,
+   - copy ticket allocator,
+   - fallback path flags.
+6. Error handling:
+   - copy submission failure -> emit transfer failure code,
+   - invalid source view -> reject token before runtime API call.
+
+Test plan:
+
+1. Unit tests:
+   - validates input invariants and rejects invalid buffers,
+   - correct mapping from source byte span to destination view.
+2. Integration tests:
+   - overlap copy with downstream compute node without global sync,
+   - event dependency chaining across two queues or streams.
+3. Performance tests:
+   - effective H2D bandwidth for representative payload sizes,
+   - overlap efficiency against non-overlapped baseline.
+
+### 3. DeviceTransformNode and DeviceTransformNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<DeviceBufferView, DeviceBufferView>
+2. Responsibility: launch one transform kernel on input device and emit output token.
+3. Inputs: DeviceBufferView with ready_event and kernel configuration metadata.
+4. Outputs: DeviceBufferView for transformed payload with updated ready_event.
+5. State:
+   - kernel handle cache,
+   - launch configuration policy,
+   - telemetry sampler.
+6. Error handling:
+   - kernel registration missing -> deterministic init failure,
+   - launch failure -> propagate error ticket with node context.
+
+Test plan:
+
+1. Unit tests:
+   - launch parameter validation,
+   - deterministic kernel selection for configured kernel_id.
+2. Integration tests:
+   - transform correctness against CPU reference vectors,
+   - chained transform stages preserve event order.
+3. Performance tests:
+   - kernel throughput by tensor size,
+   - launch overhead distribution and occupancy trends.
+
+### 4. DeviceReduceNode and DeviceReduceNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<DeviceBufferView, DeviceBufferView>
+2. Responsibility: apply reduction kernel for aggregation workloads.
+3. Inputs: DeviceBufferView and reduction mode metadata.
+4. Outputs: reduced DeviceBufferView and reduction telemetry ticket.
+5. State:
+   - reduction kernel variants,
+   - scratch allocation references,
+   - numerical tolerance policy.
+6. Error handling:
+   - unsupported reduction mode -> validation error,
+   - temporary allocation failure -> pressure/defer signal.
+
+Test plan:
+
+1. Unit tests:
+   - mode validation and shape compatibility,
+   - deterministic output for fixed seeds.
+2. Integration tests:
+   - end-to-end reduction parity against CPU reference,
+   - repeated-run numerical stability checks.
+3. Performance tests:
+   - reduction throughput scaling with batch size,
+   - memory pressure behavior under constrained pool sizes.
+
+### 5. D2HAsyncNode and D2HAsyncNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<DeviceBufferView, HostPinnedBufferView>
+2. Responsibility: enqueue device-to-host copy and return host-visible token.
+3. Inputs: DeviceBufferView with completion event from compute stage.
+4. Outputs: HostPinnedBufferView and transfer completion metadata.
+5. State:
+   - destination host pool reference,
+   - transfer stream or queue,
+   - copy fallback markers.
+6. Error handling:
+   - host lease unavailable -> defer with backpressure reason,
+   - D2H copy failure -> transfer error with source context.
+
+Test plan:
+
+1. Unit tests:
+   - destination buffer selection and size checks,
+   - completion event propagation.
+2. Integration tests:
+   - compute -> D2H -> host sink correctness chain,
+   - no global synchronization on steady-state path.
+3. Performance tests:
+   - effective D2H bandwidth and tail latency.
+
+### 6. HostEgressSinkNode and HostEgressSinkNodeSycl
+
+Architecture plan:
+
+1. Node type: SinkNodeBase<HostPinnedBufferView>
+2. Responsibility: consume host-visible output and emit completion/ack metrics.
+3. Inputs: HostPinnedBufferView and optional run status metadata.
+4. Outputs: none (sink semantics), optional completion callbacks.
+5. State:
+   - output serializer or callback adapter,
+   - sink throughput counters,
+   - error ledger.
+6. Error handling:
+   - sink callback failure -> captured as non-fatal or fatal by policy,
+   - malformed payload -> drop with diagnostics.
+
+Test plan:
+
+1. Unit tests:
+   - callback invocation contract and ordering,
+   - malformed payload handling.
+2. Integration tests:
+   - full pipeline determinism and output checksum validation,
+   - cancellation behavior during active sink processing.
+3. Performance tests:
+   - host egress throughput and callback overhead.
+
+### 7. StreamSyncNode and QueueSyncNodeSycl
+
+Architecture plan:
+
+1. Node type: control interior node for explicit dependency barriers.
+2. Responsibility: translate dependency edges into runtime wait semantics.
+3. Inputs: one or more DeviceBufferView or ticket payloads with events.
+4. Outputs: pass-through payload with synchronized ready_event semantics.
+5. State:
+   - dependency fan-in bookkeeping,
+   - timeout policy,
+   - sync diagnostics counters.
+6. Error handling:
+   - missing dependency event -> deterministic validation failure,
+   - timeout -> configurable fail or defer behavior.
+
+Test plan:
+
+1. Unit tests:
+   - fan-in barrier correctness and timeout policy behavior.
+2. Integration tests:
+   - multi-branch merge ordering,
+   - deadlock resilience in cyclic-misconfiguration detection.
+3. Performance tests:
+   - synchronization overhead under fan-in depth sweep.
+
+### 8. LeaseReleaseNode and LeaseReleaseNodeSycl
+
+Architecture plan:
+
+1. Node type: sink or control node for release semantics.
+2. Responsibility: deterministic return of host/device leases to pools.
+3. Inputs: BufferLease or buffer views carrying allocation_id.
+4. Outputs: optional release acknowledgement token.
+5. State:
+   - release ledger,
+   - duplicate-release detector,
+   - pressure relief counters.
+6. Error handling:
+   - unknown allocation_id -> diagnostics and policy-driven halt,
+   - double release -> explicit error counter and trace.
+
+Test plan:
+
+1. Unit tests:
+   - single release, duplicate release, and unknown lease handling.
+2. Integration tests:
+   - long-run pipeline leak checks,
+   - cancellation path lease cleanup verification.
+3. Performance tests:
+   - release throughput and contention impact.
+
+### 9. DeviceShardNode and DeviceShardNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<DeviceBufferView, DeviceBufferView>
+2. Responsibility: partition input into explicit shard descriptors across devices.
+3. Inputs: DeviceBufferView with global shape metadata.
+4. Outputs: per-device DeviceBufferView tokens with DeviceShardDescriptor.
+5. State:
+   - shard policy (range, block, cyclic),
+   - device map,
+   - skew metrics.
+6. Error handling:
+   - incompatible shard geometry -> validation failure,
+   - unavailable target device -> fallback or reject by policy.
+
+Test plan:
+
+1. Unit tests:
+   - shard boundary calculations for multiple shapes and counts,
+   - descriptor correctness for each shard.
+2. Integration tests:
+   - 2-GPU and 4-GPU shard fan-out/fan-in correctness,
+   - deterministic shard ownership across runs.
+3. Performance tests:
+   - load-balance efficiency and skew statistics.
+
+### 10. PeerCopyNode and PeerCopyNodeSycl
+
+Architecture plan:
+
+1. Node type: InteriorNodeBase<DeviceBufferView, DeviceBufferView>
+2. Responsibility: move shards across devices with P2P preferred path.
+3. Inputs: DeviceBufferView source on device A with destination metadata for device B.
+4. Outputs: DeviceBufferView resident on destination device.
+5. State:
+   - peer capability matrix,
+   - staged-copy fallback resources,
+   - transfer retry policy.
+6. Error handling:
+   - P2P unavailable -> staged fallback with explicit telemetry tag,
+   - transfer timeout -> bounded retry then fail.
+
+Test plan:
+
+1. Unit tests:
+   - path selection logic (P2P vs staged fallback),
+   - metadata rewrite correctness after migration.
+2. Integration tests:
+   - peer copy correctness across device pairs,
+   - fallback correctness when peer access is disabled.
+3. Performance tests:
+   - peer bandwidth vs staged bandwidth comparison.
+
+### 11. CollectiveReduceNode and CollectiveReduceNodeSycl
+
+Architecture plan:
+
+1. Node type: multi-input interior node with collective contract.
+2. Responsibility: perform all-reduce or related collective over shard outputs.
+3. Inputs: per-device DeviceBufferView tokens and CollectiveTicket metadata.
+4. Outputs: reduced DeviceBufferView plus collective completion event.
+5. State:
+   - communicator/group binding,
+   - collective algorithm selection,
+   - collective error counters.
+6. Error handling:
+   - backend collective unavailable -> fallback policy or explicit fail,
+   - rank mismatch -> hard validation error.
+
+Test plan:
+
+1. Unit tests:
+   - ticket validation and rank/world-size invariants,
+   - algorithm selection determinism.
+2. Integration tests:
+   - all-reduce correctness against CPU reference,
+   - timeout and cancellation handling under repeated runs.
+3. Performance tests:
+   - scaling efficiency over 1, 2, and 4 GPU topologies where available.
 
 ## SYCL Variant and Structural Parity
 
@@ -681,7 +1015,7 @@ Status legend:
 | ID | Task | Status | Deliverables | Exit Criteria |
 |---|---|---|---|---|
 | M1-1 | Freeze shared payload contracts | Not Started | DeviceBufferView, HostPinnedBufferView, BufferLease, TransferTicket, KernelTicket, DeviceShardDescriptor, CollectiveTicket headers | Contract review approved and no breaking changes for one sprint |
-| M1-2 | Freeze capability interfaces | Not Started | CUDA and SYCL capability interface headers under include/cuda/capabilities and include/sycl/capabilities | Interface review approved with parity checklist signed |
+| M1-2 | Freeze capability interfaces | Not Started | CUDA and SYCL capability interface headers under libgpu/include/gpu/cuda/capabilities and libgpu/include/gpu/sycl/capabilities | Interface review approved with parity checklist signed |
 | M1-3 | Define GraphRunRequest and status schema | Not Started | Request, RunHandle, RunStatus, reason-code definitions | Submit/cancel/status API stable and documented |
 | M1-4 | Implement scheduler adapter skeleton | Not Started | IGraphWorkSchedulerAdapter implementation with submit/cancel/query paths | End-to-end request lifecycle passes smoke tests |
 | M1-5 | Telemetry exporter contract baseline | Not Started | IGraphTelemetryExporter and initial metric mapping | Framework-facing telemetry contract validated |
@@ -994,6 +1328,17 @@ Exit criteria:
 
 ## Implementation Checklist
 
+### Repository and Layout Checklist
+
+1. Public GPU headers added under libgpu/include/gpu.
+2. CUDA node headers added under libgpu/include/gpu/cuda/nodes.
+3. SYCL node headers added under libgpu/include/gpu/sycl/nodes.
+4. CUDA node implementations added under libgpu/src/gpu/cuda/nodes.
+5. SYCL node implementations added under libgpu/src/gpu/sycl/nodes.
+6. Capability implementations added under libgpu/src/gpu/cuda/capabilities and libgpu/src/gpu/sycl/capabilities.
+7. libgpu plugins updated for node factory registration symmetry with libdsp/plugins.
+8. libgpu test targets added for unit, integration, and perf suites.
+
 ### Contract and Build Checklist
 
 1. ENABLE_CUDA_GRAPH_NODES implemented and documented.
@@ -1019,6 +1364,23 @@ Exit criteria:
 3. Shared conformance harness passes for both backends.
 4. Event and synchronization semantics differences documented.
 5. Backend parity report generated.
+
+### Node-by-Node Architecture and Test Checklist
+
+1. HostIngressPinnedSourceNode and HostIngressPinnedSourceNodeSycl architecture review complete.
+2. H2DAsyncNode and H2DAsyncNodeSycl architecture review complete.
+3. DeviceTransformNode and DeviceTransformNodeSycl architecture review complete.
+4. DeviceReduceNode and DeviceReduceNodeSycl architecture review complete.
+5. D2HAsyncNode and D2HAsyncNodeSycl architecture review complete.
+6. HostEgressSinkNode and HostEgressSinkNodeSycl architecture review complete.
+7. StreamSyncNode and QueueSyncNodeSycl architecture review complete.
+8. LeaseReleaseNode and LeaseReleaseNodeSycl architecture review complete.
+9. DeviceShardNode and DeviceShardNodeSycl architecture review complete.
+10. PeerCopyNode and PeerCopyNodeSycl architecture review complete.
+11. CollectiveReduceNode and CollectiveReduceNodeSycl architecture review complete.
+12. Unit test coverage implemented for all node pairs.
+13. Integration test coverage implemented for all node pairs.
+14. Performance test coverage implemented for all node pairs.
 
 ### Multi-GPU Checklist
 

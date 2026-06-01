@@ -2,10 +2,29 @@
 #include <dlfcn.h>
 #include <string>
 
+#ifndef PLUGIN_OUTPUT_DIRECTORY
+#define PLUGIN_OUTPUT_DIRECTORY "./plugins"
+#endif
+
+namespace {
+
+#ifdef __APPLE__
+constexpr const char* kSharedLibraryExtension = ".dylib";
+#else
+constexpr const char* kSharedLibraryExtension = ".so";
+#endif
+
+std::string InteriorPluginPath() {
+    return std::string(PLUGIN_OUTPUT_DIRECTORY) + "/libinterior_test_node" +
+           kSharedLibraryExtension;
+}
+
+}  // namespace
+
 // Test if we can call diagnostic functions from the interior_test_node plugin
 TEST(PluginDiagnostics, CanCallAllocateFunction) {
     // Load the plugin
-    std::string plugin_path = "/Users/rklinkhammer/workspace/GraphX/build/plugins/libinterior_test_node.so";
+    std::string plugin_path = InteriorPluginPath();
     void* handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
     ASSERT_NE(nullptr, handle) << "Failed to load plugin: " << dlerror();
     
@@ -23,7 +42,7 @@ TEST(PluginDiagnostics, CanCallAllocateFunction) {
 
 TEST(PluginDiagnostics, CanCallSharedPtrFunction) {
     // Load the plugin
-    std::string plugin_path = "/Users/rklinkhammer/workspace/GraphX/build/plugins/libinterior_test_node.so";
+    std::string plugin_path = InteriorPluginPath();
     void* handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
     ASSERT_NE(nullptr, handle) << "Failed to load plugin: " << dlerror();
     
@@ -41,7 +60,7 @@ TEST(PluginDiagnostics, CanCallSharedPtrFunction) {
 
 TEST(PluginDiagnostics, CanCallCreateFunction) {
     // Load the plugin
-    std::string plugin_path = "/Users/rklinkhammer/workspace/GraphX/build/plugins/libinterior_test_node.so";
+    std::string plugin_path = InteriorPluginPath();
     void* handle = dlopen(plugin_path.c_str(), RTLD_LAZY);
     ASSERT_NE(nullptr, handle) << "Failed to load plugin: " << dlerror();
     

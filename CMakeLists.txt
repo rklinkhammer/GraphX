@@ -3,13 +3,14 @@ project(gdashboard-workspace VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(CheckCXXCompilerFlag)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(GRAPHX_ENABLE_MODULE_PILOT "Enable the experimental C++ module pilot" ON)
+option(GRAPHX_ENABLE_MODULE_PILOT "Enable the experimental C++ module pilot" OFF)
 option(GRAPHX_REQUIRE_NINJA "Require Ninja generator for all GraphX configurations" ON)
 
 if(GRAPHX_REQUIRE_NINJA)
@@ -29,6 +30,51 @@ endif()
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
+option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
+option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" OFF)
+option(MULTI_GPU_TESTS "Enable multi-GPU test lanes (when supported)" OFF)
+
+find_package(CUDAToolkit QUIET)
+set(GRAPHX_HAS_CUDA_TOOLKIT OFF)
+if(CUDAToolkit_FOUND)
+    set(GRAPHX_HAS_CUDA_TOOLKIT ON)
+endif()
+
+set(GRAPHX_HAS_SYCL_COMPILER OFF)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|IntelLLVM")
+    check_cxx_compiler_flag("-fsycl" GRAPHX_CXX_SUPPORTS_FSYCL)
+    if(GRAPHX_CXX_SUPPORTS_FSYCL)
+        set(GRAPHX_HAS_SYCL_COMPILER ON)
+    endif()
+endif()
+
+set(GRAPHX_CUDA_GRAPH_NODES_ENABLED OFF)
+if(ENABLE_CUDA_GRAPH_NODES)
+    if(GRAPHX_HAS_CUDA_TOOLKIT)
+        set(GRAPHX_CUDA_GRAPH_NODES_ENABLED ON)
+    else()
+        message(WARNING
+            "ENABLE_CUDA_GRAPH_NODES=ON but CUDAToolkit was not found. "
+            "Disabling CUDA graph nodes for this configure.")
+    endif()
+endif()
+
+set(GRAPHX_SYCL_GRAPH_NODES_ENABLED OFF)
+if(ENABLE_SYCL_GRAPH_NODES)
+    if(GRAPHX_HAS_SYCL_COMPILER)
+        set(GRAPHX_SYCL_GRAPH_NODES_ENABLED ON)
+    else()
+        message(WARNING
+            "ENABLE_SYCL_GRAPH_NODES=ON but this compiler does not support -fsycl. "
+            "Disabling SYCL graph nodes for this configure.")
+    endif()
+endif()
+
+if(MULTI_GPU_TESTS AND NOT (GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED))
+    message(WARNING
+        "MULTI_GPU_TESTS=ON but no GPU backend is enabled. "
+        "Tests may be skipped until CUDA or SYCL graph nodes are enabled.")
+endif()
 
 if(ENABLE_TSAN)
     if(MSVC)
@@ -38,6 +84,11 @@ endif()
 
 # Shared project options target to avoid leaking global flags into all targets.
 add_library(graphx_project_options INTERFACE)
+target_compile_definitions(graphx_project_options INTERFACE
+    GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
+    GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
+    GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
+)
 
 if(MSVC)
     target_compile_options(graphx_project_options INTERFACE /W4)
@@ -50,13 +101,15 @@ if(ENABLE_TSAN)
     target_link_options(graphx_project_options INTERFACE -fsanitize=thread)
 endif()
 
+message(STATUS "GraphX CUDA graph nodes: ${GRAPHX_CUDA_GRAPH_NODES_ENABLED}")
+message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
+message(STATUS "GraphX multi-GPU tests: ${MULTI_GPU_TESTS}")
+
 # Add projects
 add_subdirectory(libgraph)
 add_subdirectory(libsensor)
 add_subdirectory(libdsp)
-# add_subdirectory(libnodes)
-# add_subdirectory(libdashboard)
-# add_subdirectory(gdashboard-app)
+add_subdirectory(libgpu)
 
 # Testing
 if(BUILD_TESTS)
@@ -64,9 +117,7 @@ if(BUILD_TESTS)
     
     # Add per-project tests
     add_subdirectory(libgraph/test)
-    # add_subdirectory(libnodes/test)
-    # add_subdirectory(libdashboard/test)
-    
+     
     # Summary target
     add_custom_target(test-summary
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure

@@ -23,12 +23,19 @@ file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
 # Create library
 add_library(graph STATIC ${SOURCES})
 if(GRAPHX_ENABLE_MODULE_PILOT)
-    set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-    target_sources(graph
-        PUBLIC
-            FILE_SET CXX_MODULES FILES
-                modules/graph.port_metadata.ixx
-    )
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        message(WARNING
+            "GRAPHX_ENABLE_MODULE_PILOT is ON, but AppleClang does not provide "
+            "the required module dependency scanning support for this target. "
+            "Skipping module pilot sources.")
+    else()
+        set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+        target_sources(graph
+            PUBLIC
+                FILE_SET CXX_MODULES FILES
+                    modules/graph.port_metadata.ixx
+        )
+    endif()
 endif()
 target_compile_definitions(graph PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_include_directories(graph PUBLIC
