@@ -1,0 +1,37 @@
+name: Libgraph Unit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  libgraph-unit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            nlohmann-json3-dev \
+            libeigen3-dev \
+            liblog4cxx-dev \
+            libgtest-dev
+
+      - name: Configure (Ninja debug)
+        run: |
+          cmake --preset ninja-debug
+
+      - name: Build libgraph unit target
+        run: |
+          cmake --build --preset build-libgraph-unit
+
+      - name: Run libgraph unit tests
+        run: |
+          ctest --preset test-libgraph-unit
