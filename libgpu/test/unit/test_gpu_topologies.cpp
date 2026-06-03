@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "capabilities/GraphCapability.hpp"
+#include "graph/CapabilityBus.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "test/PluginInfrastructure.hpp"
@@ -492,6 +494,41 @@ TEST(GpuTopology, GpuMinimalRoundTripSyclGraphExecutorBuilder) {
     for (std::uint64_t index = 0; index < sink_node->LastView().bytes; ++index) {
         EXPECT_EQ(static_cast<std::uint8_t>(sink_data[index]), kSourcePattern);
     }
+}
+
+TEST(GpuTopology, PluginLoadedNodeFailsCleanlyWithoutRequiredCapabilities) {
+    auto factory = test::PluginInfrastructure::GetFactory();
+    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
+        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
+
+    auto h2d_node = h2d_wrapper->GetNode<graph::gpu::cuda::nodes::H2DAsyncNode>();
+    ASSERT_NE(h2d_node, nullptr);
+
+    graph::CapabilityBus empty_bus;
+    EXPECT_FALSE(h2d_node->BindGpuCapabilities(empty_bus));
+}
+
+TEST(GpuTopology, ExecutorInitFailsWhenGpuBootstrapDisabledAndCapabilitiesMissing) {
+    auto graph_manager = std::make_shared<graph::GraphManager>();
+    auto factory = test::PluginInfrastructure::GetFactory();
+
+    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
+        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
+    graph_manager->AddNode(h2d_wrapper);
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithGraphManager(graph_manager)
+                        .Build();
+
+    auto graph_capability = executor->GetCapability<capabilities::GraphCapability>();
+    ASSERT_NE(graph_capability, nullptr);
+    graph_capability->SetGpuBootstrapEnabled(false);
+
+    auto init_result = executor->Init();
+    EXPECT_FALSE(init_result.success);
+    EXPECT_NE(init_result.message.find("ExecutionPolicyChain::OnInit() failed"), std::string::npos);
 }
 
 } // namespace

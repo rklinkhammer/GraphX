@@ -38,18 +38,30 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
                                     const GpuCapabilityBootstrapOptions& options) {
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     if (options.enable_cuda) {
-        bus.Register<cuda::capabilities::ICudaContextCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaContextCapability>());
-        bus.Register<cuda::capabilities::ICudaMemoryPoolCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaMemoryPoolCapability>());
-        bus.Register<cuda::capabilities::ICudaTransferCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaTransferCapability>());
-        bus.Register<cuda::capabilities::ICudaKernelCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaKernelCapability>());
-        bus.Register<cuda::capabilities::ICudaTelemetryCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaTelemetryCapability>());
-        bus.Register<cuda::capabilities::ICudaCollectiveCapability>(
-            std::make_shared<cuda::capabilities::DefaultCudaCollectiveCapability>());
+        if (!bus.Has<cuda::capabilities::ICudaContextCapability>()) {
+            bus.Register<cuda::capabilities::ICudaContextCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaContextCapability>());
+        }
+        if (!bus.Has<cuda::capabilities::ICudaMemoryPoolCapability>()) {
+            bus.Register<cuda::capabilities::ICudaMemoryPoolCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaMemoryPoolCapability>());
+        }
+        if (!bus.Has<cuda::capabilities::ICudaTransferCapability>()) {
+            bus.Register<cuda::capabilities::ICudaTransferCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaTransferCapability>());
+        }
+        if (!bus.Has<cuda::capabilities::ICudaKernelCapability>()) {
+            bus.Register<cuda::capabilities::ICudaKernelCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaKernelCapability>());
+        }
+        if (!bus.Has<cuda::capabilities::ICudaTelemetryCapability>()) {
+            bus.Register<cuda::capabilities::ICudaTelemetryCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaTelemetryCapability>());
+        }
+        if (!bus.Has<cuda::capabilities::ICudaCollectiveCapability>()) {
+            bus.Register<cuda::capabilities::ICudaCollectiveCapability>(
+                std::make_shared<cuda::capabilities::DefaultCudaCollectiveCapability>());
+        }
     }
 #else
     (void)options.enable_cuda;
@@ -57,18 +69,30 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 
 #if GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     if (options.enable_sycl) {
-        bus.Register<sycl::capabilities::ISyclContextCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclContextCapability>());
-        bus.Register<sycl::capabilities::ISyclMemoryPoolCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclMemoryPoolCapability>());
-        bus.Register<sycl::capabilities::ISyclTransferCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclTransferCapability>());
-        bus.Register<sycl::capabilities::ISyclKernelCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclKernelCapability>());
-        bus.Register<sycl::capabilities::ISyclTelemetryCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclTelemetryCapability>());
-        bus.Register<sycl::capabilities::ISyclCollectiveCapability>(
-            std::make_shared<sycl::capabilities::DefaultSyclCollectiveCapability>());
+        if (!bus.Has<sycl::capabilities::ISyclContextCapability>()) {
+            bus.Register<sycl::capabilities::ISyclContextCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclContextCapability>());
+        }
+        if (!bus.Has<sycl::capabilities::ISyclMemoryPoolCapability>()) {
+            bus.Register<sycl::capabilities::ISyclMemoryPoolCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclMemoryPoolCapability>());
+        }
+        if (!bus.Has<sycl::capabilities::ISyclTransferCapability>()) {
+            bus.Register<sycl::capabilities::ISyclTransferCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclTransferCapability>());
+        }
+        if (!bus.Has<sycl::capabilities::ISyclKernelCapability>()) {
+            bus.Register<sycl::capabilities::ISyclKernelCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclKernelCapability>());
+        }
+        if (!bus.Has<sycl::capabilities::ISyclTelemetryCapability>()) {
+            bus.Register<sycl::capabilities::ISyclTelemetryCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclTelemetryCapability>());
+        }
+        if (!bus.Has<sycl::capabilities::ISyclCollectiveCapability>()) {
+            bus.Register<sycl::capabilities::ISyclCollectiveCapability>(
+                std::make_shared<sycl::capabilities::DefaultSyclCollectiveCapability>());
+        }
     }
 #else
     (void)options.enable_sycl;

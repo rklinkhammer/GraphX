@@ -30,7 +30,7 @@
 #include "graph/IExecutionPolicy.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
 
-#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES
+#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
 #endif
 
@@ -49,11 +49,16 @@ public:
     bool OnInit(capabilities::GraphCapability& context) override {
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnInit called");
 
-#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES
+#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+    if (context.IsGpuBootstrapEnabled()) {
         graph::gpu::GpuCapabilityBootstrapOptions options{};
         graph::gpu::RegisterDefaultGpuCapabilities(context.GetCapabilityBus(), options);
         LOG4CXX_TRACE(gpu_policy_logger,
-                      "GpuPolicy registered default GPU capabilities into CapabilityBus");
+              "GpuPolicy registered default GPU capabilities into CapabilityBus");
+    } else {
+        LOG4CXX_TRACE(gpu_policy_logger,
+              "GpuPolicy GPU bootstrap disabled by GraphCapability");
+    }
 #else
         (void)context;
         LOG4CXX_TRACE(gpu_policy_logger,
@@ -84,6 +89,14 @@ public:
         LOG4CXX_TRACE(gpu_policy_logger,
                       "GpuPolicy bound GPU capabilities on "
                           << bindings_succeeded << "/" << bindings_attempted << " nodes");
+        if (bindings_succeeded != bindings_attempted) {
+            LOG4CXX_WARN(gpu_policy_logger,
+                         "GpuPolicy failed to bind required GPU capabilities on "
+                             << (bindings_attempted - bindings_succeeded)
+                             << " node(s)");
+            return false;
+        }
+
         return true;
     }
 

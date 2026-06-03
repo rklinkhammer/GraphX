@@ -22,18 +22,20 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
         log4cxx
         graphx_project_options
     )
-    add_dependencies(test_libgpu_stub_unit
-        cuda_host_ingress_pinned_source_node
-        cuda_h2d_async_node
-        cuda_d2h_async_node
-        cuda_host_egress_sink_node
-        cuda_lease_release_node
-        sycl_host_ingress_pinned_source_node
-        sycl_h2d_async_node
-        sycl_d2h_async_node
-        sycl_host_egress_sink_node
-        sycl_lease_release_node
-    )
+    if(GRAPHX_BUILD_GPU_STUB_PLUGINS)
+        add_dependencies(test_libgpu_stub_unit
+            cuda_host_ingress_pinned_source_node
+            cuda_h2d_async_node
+            cuda_d2h_async_node
+            cuda_host_egress_sink_node
+            cuda_lease_release_node
+            sycl_host_ingress_pinned_source_node
+            sycl_h2d_async_node
+            sycl_d2h_async_node
+            sycl_host_egress_sink_node
+            sycl_lease_release_node
+        )
+    endif()
     add_test(NAME libgpu_stub_unit COMMAND test_libgpu_stub_unit)
 endif()
 

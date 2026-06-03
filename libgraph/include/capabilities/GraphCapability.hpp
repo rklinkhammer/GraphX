@@ -147,6 +147,14 @@ public:
         cli_mode_ = enabled;
     }
 
+    bool IsGpuBootstrapEnabled() const {
+        return gpu_bootstrap_enabled_;
+    }
+
+    void SetGpuBootstrapEnabled(bool enabled) {
+        gpu_bootstrap_enabled_ = enabled;
+    }
+
     /// @brief Get the capability bus for inter-capability communication
     /// @return Reference to the capability bus
     graph::CapabilityBus& GetCapabilityBus()
@@ -171,6 +179,7 @@ private:
     mutable std::atomic<bool> is_stopped{false};
     mutable std::atomic<bool> completion_signaled{false};
     bool cli_mode_{false};
+    bool gpu_bootstrap_enabled_{true};
     graph::CapabilityBus capability_bus;
 };
 
