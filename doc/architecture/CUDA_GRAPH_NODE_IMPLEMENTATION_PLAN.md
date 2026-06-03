@@ -63,6 +63,29 @@ Implementation guidance before additional topology expansion:
 5. Implement DeviceTransformNode after LeaseReleaseNode using a stub kernel capability first, then add backend-gated real CUDA/SYCL execution.
 6. Maintain explicit test categories: libgpu_stub_unit, libgpu_backend_unit, libgpu_integration, and libgpu_perf.
 
+Implementation rule for the next iteration:
+
+1. Every GPU node must be implemented and validated in two lanes before the node is considered complete:
+   - CPU stub lane: contract validation using CPU-safe default capabilities.
+   - SYCL HAL lane: real queue, event, allocation, and copy or kernel path validation through SYCL capability implementations.
+2. "Node complete" means both lanes pass required unit plus integration checks for that node.
+3. Topology expansion (G1+) is gated on dual-lane completion of all prerequisite nodes in the topology.
+
+## Implementation Dashboard
+
+This dashboard is the working view for tracking the implementation sequence and the next gate per phase.
+
+| Phase | Status | What is Done | Next Gate |
+|---|---|---|---|
+| Phase 0a: Graph framework validation | Complete | Builder, executor, and topology validation gate is established with existing libgraph test assets. | Keep as regression gate before widening GPU topology work. |
+| Phase 0/1: Capability baseline and backend scaffolding | In progress | CUDA and SYCL capability bootstrap paths exist; default SYCL smoke coverage now validates context, memory, transfer, kernel, telemetry, and collective contracts. | Add backend-specific runtime validation and keep capability bootstrap parity between CUDA and SYCL. |
+| Phase 2: Payload and token model | In progress | Core payload types exist and validation now covers views, leases, transfer tickets, kernel tickets, collective tickets, and shard descriptors. | Finish node-level propagation of validated payloads across transfer and shard-adjacent paths. |
+| Phase 3: Data movement nodes | In progress | Host ingress, H2D, D2H, and lease-release nodes now enforce the payload contract in both CUDA and SYCL stub lanes. | Implement PeerCopyNode and its validation path. |
+| Phase 4: Compute nodes | Planned | Compute node contracts are defined in the plan. | Implement DeviceTransformNode and DeviceReduceNode with CPU stub and SYCL HAL lanes. |
+| Phase 5: Integration and metrics | Planned | End-to-end topology and metrics goals are defined. | Wire the full sample pipeline and surface backend telemetry. |
+| Phase 5b: Multi-GPU collectives | Planned | Collective contract shape is defined. | Implement CollectiveReduceNode and multi-GPU parity coverage. |
+| Phase 6: Hardening and CI | Planned | CI and regression goals are defined. | Split stub, backend, integration, and perf lanes in CI. |
+
 ## Proposed Artifacts
 
 ### 1. CUDA Capability Interfaces
@@ -500,6 +523,34 @@ Test plan:
 3. Performance tests:
    - scaling efficiency over 1, 2, and 4 GPU topologies where available.
 
+## Per-Node Validation Lanes (Mandatory)
+
+Each node pair must satisfy both validation lanes:
+
+1. CPU stub lane validates graph contract correctness, token semantics, lifecycle wiring, and deterministic error handling.
+2. SYCL HAL lane validates actual HAL behavior (queue usage, event dependencies, memory operations, kernel dispatch, and backend error propagation).
+
+### Node Completion Matrix
+
+| Node Pair | CPU Stub Lane (required) | SYCL HAL Lane (required) |
+|---|---|---|
+| HostIngressPinnedSourceNode / HostIngressPinnedSourceNodeSycl | Token and lease emission correctness, pool-exhaustion behavior | USM host allocation path, allocator and lease release parity |
+| H2DAsyncNode / H2DAsyncNodeSycl | Transfer token construction and event metadata propagation | queue.memcpy enqueue semantics, event chaining, async overlap behavior |
+| D2HAsyncNode / D2HAsyncNodeSycl | Host view reconstruction and lease handling | queue.memcpy device-to-host correctness and completion-event usage |
+| DeviceTransformNode / DeviceTransformNodeSycl | Kernel ticket validation and deterministic transform contract | Real SYCL kernel submit path, nd_range correctness, completion event propagation |
+| DeviceReduceNode / DeviceReduceNodeSycl | Reduction mode and shape contract validation | Real SYCL reduction kernel semantics and numeric tolerance checks |
+| StreamSyncNode / QueueSyncNodeSycl | Dependency fan-in and timeout policy logic | queue event wait semantics and barrier correctness |
+| LeaseReleaseNode / LeaseReleaseNodeSycl | Release accounting, duplicate and unknown lease behavior | Actual SYCL memory release behavior and error propagation |
+| DeviceShardNode / DeviceShardNodeSycl | Shard descriptor correctness and deterministic ownership | SYCL device mapping and per-device shard execution validity |
+| PeerCopyNode / PeerCopyNodeSycl | Path-selection logic and fallback contract | Real device-to-device or staged copy path in SYCL backend |
+| CollectiveReduceNode / CollectiveReduceNodeSycl | Ticket and rank-world-size contract checks | SYCL collective backend call behavior and completion signaling |
+
+Completion gate for each row:
+
+1. Unit tests pass in CPU stub lane and SYCL HAL lane.
+2. At least one graph integration path including the node passes in both lanes.
+3. Error-path assertions are present for malformed inputs and backend-call failures.
+
 ## SYCL Variant and Structural Parity
 
 Yes, the SYCL variant should match the fundamental CUDA structure at the graph contract level.
@@ -710,11 +761,13 @@ Deliverables:
 2. Default CUDA backend implementations using CUDA runtime APIs
 3. Default SYCL backend implementations using SYCL APIs
 4. Registration in capability bus bootstrap path
+5. HAL conformance checklist for each capability family (context, memory, transfer, kernel, telemetry, collective)
 
 Acceptance criteria:
 
 1. Capability lookup succeeds and fails predictably with clear diagnostics
 2. Basic stream or queue, event, and allocation smoke tests pass for enabled backends
+3. SYCL HAL conformance checklist passes for context, memory, and transfer capabilities
 
 ## Phase 2: Payload and Token Model
 
@@ -739,6 +792,9 @@ Deliverables:
 3. D2HAsyncNode (CUDA and SYCL variants)
 4. LeaseReleaseNode (shared behavior)
 5. PeerCopyNode for cross-device movement (CUDA and SYCL variants)
+6. Dual-lane node validation for each Phase 3 node:
+   - CPU stub contract tests
+   - SYCL HAL behavior tests
 
 Recommended implementation order inside this phase:
 
@@ -751,6 +807,7 @@ Acceptance criteria:
 2. Correct event sequencing across at least 2 queues or streams
 3. No leaks in pool accounting under repeated runs
 4. Correct peer transfer fallback behavior when direct P2P is unavailable
+5. Each Phase 3 node marked complete only after both CPU stub and SYCL HAL lanes pass
 
 ## Phase 4: Compute Nodes
 
@@ -760,6 +817,7 @@ Deliverables:
 2. DeviceReduceNode for reduction path (CUDA and SYCL variants)
 3. StreamSyncNode or QueueSyncNode for explicit event dependencies
 4. DeviceShardNode for shard fan-out and shard metadata propagation
+5. Dual-lane validation for each compute and sync node (CPU stub plus SYCL HAL)
 
 Recommended implementation order inside this phase:
 
@@ -774,6 +832,7 @@ Acceptance criteria:
 1. Correct compute output against CPU reference on representative workloads
 2. Throughput scales with batch size and queue or stream count as expected
 3. Shard fan-out and fan-in correctness validated across at least 2 GPUs
+4. Each Phase 4 node has passing SYCL HAL kernel or sync path tests, not just stub contract tests
 
 ## Phase 5: Integration and Metrics
 
@@ -831,6 +890,9 @@ Acceptance criteria:
 2. Pool lease lifecycle correctness
 3. Stream and queue event ordering and timeout behavior
 4. Payload invariants and shape and byte checks
+5. Per-node dual-lane tests:
+   - CPU stub lane contract suite
+   - SYCL HAL lane behavior suite
 
 ### Integration tests
 
@@ -840,6 +902,7 @@ Acceptance criteria:
 4. Recovery from kernel and copy errors without deadlock
 5. Two-GPU shard and merge correctness
 6. Collective correctness and timeout handling
+7. Per-node SYCL HAL integration path for every node in the completion matrix
 
 ### Performance tests
 
@@ -1087,10 +1150,22 @@ Not required for this phase:
 ## Proposed Milestone Breakdown
 
 1. M0 (review gate): Phase 0a graph-framework validation using AdvancedTestNodes, TestGraphTopologies, GraphExecutorBuilder, and GraphExecutor.
-2. M1 (1 week): Phase 0 and Phase 1 (CUDA baseline and SYCL scaffolding)
-3. M2 (1 week): Phase 2 and Phase 3 (data movement parity)
-4. M3 (1 week): Phase 4 and Phase 5 baseline (compute parity plus multi-GPU sharding)
-5. M4 (1 week): Phase 5b and Phase 6 hardening plus docs plus parity review
+   - Dual-lane node completion target: 0/10 (planning and harness validation gate only).
+2. M1 (1 week): Phase 0 and Phase 1 (capability baseline and SYCL scaffolding).
+   - Dual-lane node completion target: 0/10.
+   - Gate: capability bootstrap and HAL conformance checklist are green for context, memory, and transfer capability families.
+3. M2 (1 week): Phase 2 and Phase 3 (payload model plus data movement nodes).
+   - Dual-lane node completion target: 5/10 complete rows in the node matrix.
+   - Required node rows complete: HostIngressPinnedSourceNode, H2DAsyncNode, D2HAsyncNode, LeaseReleaseNode, PeerCopyNode.
+   - Gate: required rows pass in libgpu_stub_unit, libgpu_backend_unit (SYCL lane), and at least one libgpu_integration topology covering each required row.
+4. M3 (1 week): Phase 4 and Phase 5 baseline (compute parity plus multi-GPU sharding).
+   - Dual-lane node completion target: 9/10 complete rows in the node matrix.
+   - Required additional rows complete: DeviceTransformNode, DeviceReduceNode, StreamSyncNode/QueueSyncNode, DeviceShardNode.
+   - Gate: compute and sync rows have CPU reference parity and SYCL HAL behavior validation; end-to-end topology is green in both lanes.
+5. M4 (1 week): Phase 5b and Phase 6 hardening plus docs and parity review.
+   - Dual-lane node completion target: 10/10 complete rows in the node matrix.
+   - Required final row complete: CollectiveReduceNode.
+   - Gate: collective and hardening suites are green, CI lane separation is in place (stub vs backend), and libgpu_perf parity trends are published for review.
 
 ## Deliverables for Architecture Review
 

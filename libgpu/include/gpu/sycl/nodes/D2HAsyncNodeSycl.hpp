@@ -57,28 +57,13 @@ public:
             return std::nullopt;
         }
 
+        if (!accel::IsValidLease(lease) || !accel::IsValidTransferTicket(ticket)) {
+            return std::nullopt;
+        }
+
         last_host_lease_ = lease;
         last_transfer_ticket_ = ticket;
         return out_host_view;
-    }
-
-    bool TransferForTest(const accel::DeviceBufferView& device_view,
-                         std::uint64_t queue_id,
-                         accel::HostPinnedBufferView& out_host_view,
-                         accel::BufferLease& out_host_lease,
-                         accel::TransferTicket& out_ticket) {
-        queue_id_ = queue_id;
-        auto out = Transfer(device_view,
-                            std::integral_constant<std::size_t, 0>{},
-                            std::integral_constant<std::size_t, 0>{});
-        if (!out) {
-            return false;
-        }
-
-        out_host_view = *out;
-        out_host_lease = last_host_lease_;
-        out_ticket = last_transfer_ticket_;
-        return true;
     }
 
 private:

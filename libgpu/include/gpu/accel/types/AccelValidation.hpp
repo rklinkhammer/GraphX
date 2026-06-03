@@ -41,6 +41,25 @@ inline constexpr bool IsValidView(const HostPinnedBufferView& view) noexcept {
            IsValidLayout(view.layout);
 }
 
+inline constexpr bool IsValidLease(const BufferLease& lease) noexcept {
+    const bool has_device_view = IsValidView(lease.device_view);
+    const bool has_host_view = IsValidView(lease.host_view);
+    return lease.pool_id != 0 &&
+           lease.allocation_id != 0 &&
+           (has_device_view || has_host_view);
+}
+
+inline constexpr bool IsValidTransferTicket(const TransferTicket& ticket) noexcept {
+    const bool has_h2d = IsValidView(ticket.src_host) && IsValidView(ticket.dst_device);
+    const bool has_d2h = IsValidView(ticket.src_device) && IsValidView(ticket.dst_host);
+    const bool has_d2d = IsValidView(ticket.src_device) && IsValidView(ticket.dst_device);
+    return ticket.backend != BackendKind::Unknown &&
+           ticket.transfer_id != 0 &&
+           ticket.execution_queue_id != 0 &&
+           ticket.completion_event != 0 &&
+           (has_h2d || has_d2h || has_d2d);
+}
+
 inline constexpr bool IsValidShardDescriptor(const DeviceShardDescriptor& shard) noexcept {
     return shard.shard_count > 0 &&
            shard.shard_index < shard.shard_count &&

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "gpu/accel/types/AccelTypes.hpp"
+#include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
@@ -28,7 +29,7 @@ public:
 
     bool Consume(const accel::BufferLease& lease,
                  std::integral_constant<std::size_t, 0>) override {
-        if (!memory_pool_ || lease.allocation_id == 0) {
+        if (!memory_pool_ || !accel::IsValidLease(lease)) {
             return false;
         }
 

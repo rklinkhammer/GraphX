@@ -6,6 +6,9 @@
 
 #include "gpu/accel/types/AccelValidation.hpp"
 
+#include <algorithm>
+#include <cstring>
+
 namespace graph::gpu::sycl::capabilities {
 
 bool DefaultSyclContextCapability::SelectDevice(std::uint32_t device_id) {
@@ -43,8 +46,15 @@ bool DefaultSyclMemoryPoolCapability::AllocateDevice(std::uint64_t bytes, std::u
         return false;
     }
 
+    const auto allocation_id = next_allocation_id_++;
+    auto [it, inserted] = device_allocations_.emplace(allocation_id,
+                                                       std::vector<std::byte>(bytes));
+    if (!inserted) {
+        return false;
+    }
+
     out_lease.pool_id = 11;
-    out_lease.allocation_id = next_allocation_id_++;
+    out_lease.allocation_id = allocation_id;
     out_lease.release_policy = accel::ReleasePolicy::Manual;
     out_lease.device_view.backend = accel::BackendKind::SYCL;
     out_lease.device_view.device_id = device_id;
@@ -53,7 +63,7 @@ bool DefaultSyclMemoryPoolCapability::AllocateDevice(std::uint64_t bytes, std::u
     out_lease.device_view.layout.rank = 1;
     out_lease.device_view.layout.shape[0] = bytes;
     out_lease.device_view.layout.stride[0] = 1;
-    out_lease.device_view.device_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(out_lease.allocation_id));
+    out_lease.device_view.device_ptr = static_cast<void*>(it->second.data());
     return true;
 }
 
@@ -68,8 +78,15 @@ bool DefaultSyclMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
         return false;
     }
 
+    const auto allocation_id = next_allocation_id_++;
+    auto [it, inserted] = host_allocations_.emplace(allocation_id,
+                                                     std::vector<std::byte>(bytes));
+    if (!inserted) {
+        return false;
+    }
+
     out_lease.pool_id = 12;
-    out_lease.allocation_id = next_allocation_id_++;
+    out_lease.allocation_id = allocation_id;
     out_lease.release_policy = accel::ReleasePolicy::Manual;
     out_lease.host_view.backend = accel::BackendKind::SYCL;
     out_lease.host_view.bytes = bytes;
@@ -77,13 +94,19 @@ bool DefaultSyclMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
     out_lease.host_view.layout.rank = 1;
     out_lease.host_view.layout.shape[0] = bytes;
     out_lease.host_view.layout.stride[0] = 1;
-    out_lease.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(out_lease.allocation_id));
+    out_lease.host_view.host_ptr = static_cast<void*>(it->second.data());
     out_lease.host_view.allocator_id = out_lease.pool_id;
     return true;
 }
 
 bool DefaultSyclMemoryPoolCapability::Release(const accel::BufferLease& lease) {
-    return lease.allocation_id != 0;
+    if (lease.allocation_id == 0) {
+        return false;
+    }
+
+    const auto released_device = device_allocations_.erase(lease.allocation_id);
+    const auto released_host = host_allocations_.erase(lease.allocation_id);
+    return released_device != 0 || released_host != 0;
 }
 
 bool DefaultSyclTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -93,6 +116,9 @@ bool DefaultSyclTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView
     if (queue_id == 0 || !accel::IsValidView(src) || !accel::IsValidView(dst)) {
         return false;
     }
+
+    const auto copy_bytes = std::min(src.bytes, dst.bytes);
+    std::memcpy(dst.device_ptr, src.host_ptr, static_cast<std::size_t>(copy_bytes));
 
     out_ticket.backend = accel::BackendKind::SYCL;
     out_ticket.transfer_id = next_transfer_id_++;
@@ -112,6 +138,9 @@ bool DefaultSyclTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         return false;
     }
 
+    const auto copy_bytes = std::min(src.bytes, dst.bytes);
+    std::memcpy(dst.host_ptr, src.device_ptr, static_cast<std::size_t>(copy_bytes));
+
     out_ticket.backend = accel::BackendKind::SYCL;
     out_ticket.transfer_id = next_transfer_id_++;
     out_ticket.execution_queue_id = queue_id;
@@ -128,6 +157,9 @@ bool DefaultSyclTransferCapability::EnqueueD2D(const accel::DeviceBufferView& sr
     if (queue_id == 0 || !accel::IsValidView(src) || !accel::IsValidView(dst)) {
         return false;
     }
+
+    const auto copy_bytes = std::min(src.bytes, dst.bytes);
+    std::memcpy(dst.device_ptr, src.device_ptr, static_cast<std::size_t>(copy_bytes));
 
     out_ticket.backend = accel::BackendKind::SYCL;
     out_ticket.transfer_id = next_transfer_id_++;

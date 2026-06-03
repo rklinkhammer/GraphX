@@ -8,7 +8,9 @@
 
 #include <cstdint>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace graph::gpu::cuda::capabilities {
 
@@ -41,6 +43,8 @@ public:
 
 private:
     std::uint64_t next_allocation_id_{1};
+    std::unordered_map<std::uint64_t, std::vector<std::byte>> device_allocations_{};
+    std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
 class DefaultCudaTransferCapability final : public ICudaTransferCapability {
