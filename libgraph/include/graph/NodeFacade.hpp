@@ -370,6 +370,16 @@ struct NodeFacade {
      * @note Do not delete the returned pointer
      */
     void* (*GetAsICompletionCallback)(NodeHandle handle);
+
+    /**
+     * Get pointer to IGpuCapabilityBinding interface (if node supports GPU capability binding)
+     *
+     * @param handle Opaque node handle
+     * @return void* pointer that can be cast to graph::IGpuCapabilityBinding*, or nullptr
+     * @note Returned pointer is valid for the lifetime of the node
+     * @note Do not delete the returned pointer
+     */
+    void* (*GetAsIGpuCapabilityBinding)(NodeHandle handle);
     
     void (*Destroy)(NodeHandle handle);
 };
@@ -591,6 +601,7 @@ private:
     std::shared_ptr<void> parameterized_ptr_;             ///< Points to IParameterized if plugin provides it
     std::shared_ptr<void> metrics_callback_provider_ptr_; ///< Points to IMetricsCallbackProvider if plugin provides it
     std::shared_ptr<void> completion_callback_provider_ptr_; ///< Points to CompletionCallbackProvider if plugin provides it
+    std::shared_ptr<void> gpu_capability_binding_ptr_; ///< Points to IGpuCapabilityBinding if plugin provides it
     
     // Extract interface pointers from plugin callbacks
     void ExtractInterfaces();
@@ -874,6 +885,10 @@ public:
 
     std::shared_ptr<void> GetCompletionCallbackProviderPtr() const {
         return completion_callback_provider_ptr_;
+    }
+
+    std::shared_ptr<void> GetGpuCapabilityBindingPtr() const {
+        return gpu_capability_binding_ptr_;
     }
     
     // ====== NEW: Configuration & Diagnostics Accessors ======

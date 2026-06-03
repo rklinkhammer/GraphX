@@ -58,15 +58,22 @@ bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& co
         if (!node) {
             continue;
         }
+        std::shared_ptr<CompletionProvider> completion_provider;
+        std::string node_name;
+
         auto facade_adapter = GetAsNodeFacadeAdapter(node);
-        if (!facade_adapter) {
-            continue;
+        if (facade_adapter) {
+            node_name = facade_adapter->GetName();
+            completion_provider = std::static_pointer_cast<CompletionProvider>(
+                facade_adapter->GetCompletionCallbackProviderPtr());
+        } else {
+            // Support direct graph nodes that implement CompletionCallbackProvider.
+            node_name = "<direct-node>";
+            completion_provider = std::dynamic_pointer_cast<CompletionProvider>(node);
         }
+
         LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - checking node: "
-                      << facade_adapter->GetName());
-        std::shared_ptr<CompletionProvider> completion_provider = std::static_pointer_cast<CompletionProvider>(
-            facade_adapter->GetCompletionCallbackProviderPtr()
-        );
+                      << node_name);
 
         if(!completion_provider) {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - node does not support CompletionProvider");

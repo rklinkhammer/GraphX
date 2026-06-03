@@ -33,6 +33,7 @@
 #include "policies/DashboardPolicy.hpp"
 #include "policies/CSVInjectionPolicy.hpp"
 #include "policies/CommandPolicy.hpp"
+#include "policies/GpuPolicy.hpp"
 #include "capabilities/GraphCapability.hpp"
 #include "graph/FactoryManager.hpp"
 #include "graph/GraphBuilder.hpp"
@@ -298,15 +299,17 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
         auto completion_policy = std::make_unique<policies::CompletionPolicy>();
         completion_policy->SetMaxDuration(std::chrono::duration_cast<std::chrono::milliseconds>(executor_timeout_));
         completion_policy->SetCliMode(cli_mode_);
+        auto gpu_policy = std::make_unique<policies::GpuPolicy>();
         auto injection_policy = std::make_unique<policies::DataInjectionPolicy>();  
         auto metrics_policy = std::make_unique<policies::MetricsPolicy>();
         auto dashboard_policy = std::make_unique<policies::DashboardPolicy>();
 
         auto chain = std::make_unique<graph::ExecutionPolicyChain>(
             std::move(completion_policy), std::make_unique<graph::ExecutionPolicyChain>(
-                std::move(injection_policy), std::make_unique<graph::ExecutionPolicyChain>(
-                    std::move(metrics_policy), std::make_unique<graph::ExecutionPolicyChain>(
-                        std::move(dashboard_policy), nullptr))));
+                std::move(gpu_policy), std::make_unique<graph::ExecutionPolicyChain>(
+                    std::move(injection_policy), std::make_unique<graph::ExecutionPolicyChain>(
+                        std::move(metrics_policy), std::make_unique<graph::ExecutionPolicyChain>(
+                            std::move(dashboard_policy), nullptr)))));
        
         if (!csv_inputs_.empty()) {
             // CSV: return CSVGraphExecutor with configuration

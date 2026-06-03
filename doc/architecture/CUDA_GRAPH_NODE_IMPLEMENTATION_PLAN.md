@@ -43,6 +43,26 @@ Out of scope (initial phase):
    - libgraph/include/graph/CapabilityDiscovery.hpp
 4. Message envelope tuned for small payloads: libgraph/include/graph/Message.hpp
 
+## Current Implementation Notes and Corrections
+
+The current repository state represents a stub-backed graph-validation slice, not full CUDA/SYCL runtime validation.
+
+1. The current default CUDA and SYCL capability implementations are CPU-safe simulation backends used to validate graph contracts, token flow, lifecycle, and plugin wiring in CPU-only CI.
+2. Stub plugins may be built independently of backend enable flags so G0 topology validation remains available when ENABLE_CUDA_GRAPH_NODES and ENABLE_SYCL_GRAPH_NODES are OFF.
+3. Real backend plugins and backend-validation tests must be gated separately from stub plugins and stub tests.
+4. Current stub GPU nodes resolve capabilities through the shared libgpu capability bus and bootstrap path rather than constructor injection or private per-plugin instances. Real backend plugins must continue this pattern, but swap in backend-aware bootstrap wiring instead of stub defaults.
+5. Current topology coverage is limited to G0. G1-G8 remain planned work and must not be described as implemented.
+6. Metrics and diagnostics remain planned work beyond the current queue/thread metrics already provided by libgraph.
+
+Implementation guidance before additional topology expansion:
+
+1. Keep the stub nature of the current default backends explicit in naming, comments, build layout, and test categorization.
+2. Separate stub validation from backend validation in both CMake and CI reporting.
+3. Route real plugin node construction through CapabilityBus/bootstrap before claiming backend parity.
+4. Implement LeaseReleaseNode next to close the ownership gap in the lease model before adding more compute complexity.
+5. Implement DeviceTransformNode after LeaseReleaseNode using a stub kernel capability first, then add backend-gated real CUDA/SYCL execution.
+6. Maintain explicit test categories: libgpu_stub_unit, libgpu_backend_unit, libgpu_integration, and libgpu_perf.
+
 ## Proposed Artifacts
 
 ### 1. CUDA Capability Interfaces
@@ -518,6 +538,155 @@ Scheduling and ownership rules:
 
 ## Implementation Phases
 
+## Phase 0a: Graph Framework Validation Gate
+
+This phase must complete before additional GPU node implementation proceeds.
+
+Purpose:
+
+1. Validate current GraphExecutorBuilder and GraphExecutor behavior using the existing libgraph test harness.
+2. Prove that graph construction, lifecycle, edge wiring, and executor orchestration are correct before introducing more GPU-specific topology complexity.
+3. Reuse repository-standard test assets as the example and consistency template for GPU-node topology and graph-execution testing rather than inventing a parallel GPU-only harness.
+
+Required existing harness assets:
+
+1. Advanced test nodes:
+   - libgraph/test/include/test/AdvancedTestNodes.hpp
+2. Predefined topology factory:
+   - libgraph/test/include/test/TestGraphTopologies.hpp
+   - libgraph/test/unit/TestGraphTopologies.cpp
+3. Supporting plugin/factory infrastructure already used by these topologies.
+
+Required validation topologies:
+
+1. MinimalGraph
+   - validates simplest Source -> Sink executor path.
+2. LinearSequential
+   - validates Source -> Interior -> Sink execution and transfer semantics.
+3. MergeSimple
+   - validates multi-input readiness and merge ordering.
+4. SplitSimple
+   - validates fan-out wiring and downstream sink activation.
+5. DiamondComplex
+   - validates split -> parallel interior -> merge execution path.
+6. ComplexNetwork
+   - validates larger mixed merge/split/interior routing through GraphExecutorBuilder.
+7. MinimalIntProducer and LinearSequentialIntProducer
+   - validates producer-oriented completion and callback-sensitive executor behavior.
+
+Validation objectives:
+
+1. Build graphs via the standard topology builder pattern so GPU-node graph tests follow the same test-construction model as other node families.
+2. Run them through GraphExecutorBuilder using the current builder path.
+3. Verify executor lifecycle:
+   - build,
+   - init,
+   - start or run,
+   - stop,
+   - join,
+   - completion/cancellation behavior where applicable.
+4. Verify graph invariants:
+   - expected node count,
+   - expected edge count,
+   - successful typed edge wiring,
+   - no null extraction from plugin-backed node wrappers.
+5. Verify harness-visible node behavior:
+   - produce/consume/transfer/merge/split instrumentation,
+   - completion signaling,
+   - repeated-run stability.
+
+Example validation path:
+
+1. Build topology from TestGraphTopologies:
+   - auto graph = test::TopologyBuilder::BuildTopology(test::TopologyType::DiamondComplex);
+2. Construct executor with current production builder path:
+   - auto executor = graph::GraphExecutorBuilder().WithGraphManager(graph).Build();
+3. Execute lifecycle and assert:
+   - graph shape metadata matches expected topology metadata,
+   - executor initialization succeeds,
+   - executor run path completes cleanly,
+   - sink-side and completion-side test nodes observe expected events.
+
+Representative graph patterns to review before GPU-specific graphs:
+
+1. Source -> Sink
+   - baseline builder/executor correctness.
+2. Source -> Interior -> Sink
+   - baseline sequential transformation path.
+3. Source + Source -> Merge -> Sink
+   - baseline multi-input readiness path.
+4. Source -> Split -> Sink + Sink
+   - baseline fan-out path.
+5. Source -> Split -> Interior + Interior -> Merge -> Sink
+   - baseline parallel branch and convergence path.
+
+GPU graph generation should then mirror these proven shapes:
+
+1. Minimal GPU slice:
+   - HostIngressPinnedSourceNode -> H2DAsyncNode -> D2HAsyncNode -> HostEgressSinkNode
+2. Sequential compute slice:
+   - HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceTransformNode -> D2HAsyncNode -> HostEgressSinkNode
+3. Parallel branch slice:
+   - HostIngressPinnedSourceNode -> H2DAsyncNode -> StreamSync or split-equivalent branch -> DeviceTransformNode + DeviceTransformNode -> DeviceReduceNode or merge-equivalent -> D2HAsyncNode -> HostEgressSinkNode
+
+### GPU Graph Topologies To Be Tested
+
+The following topology set defines the required GPU graph-execution tests. These are the concrete GPU counterparts of the existing TestGraphTopologies patterns and should be exercised for both CUDA and SYCL where applicable.
+
+| GPU Topology ID | Topology Name | Node Chain / Shape | Test Intent |
+|---|---|---|---|
+| G0 | GpuMinimalRoundTrip | HostIngressPinnedSourceNode -> H2DAsyncNode -> D2HAsyncNode -> HostEgressSinkNode | Baseline GPU movement path, executor lifecycle sanity, and host-visible completion validation |
+| G1 | GpuLinearTransform | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceTransformNode -> D2HAsyncNode -> HostEgressSinkNode | Sequential compute pipeline correctness and event propagation through one compute stage |
+| G2 | GpuLinearReduce | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceReduceNode -> D2HAsyncNode -> HostEgressSinkNode | Reduction stage correctness and deterministic reduction output behavior |
+| G3 | GpuBranchMerge | HostIngressPinnedSourceNode -> H2DAsyncNode -> (DeviceTransformNode_A + DeviceTransformNode_B) -> DeviceReduceNode -> D2HAsyncNode -> HostEgressSinkNode | Split/parallel branch execution and merge-equivalent convergence under GraphExecutorBuilder |
+| G4 | GpuSyncBarrierChain | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceTransformNode -> StreamSyncNode/QueueSyncNodeSycl -> DeviceTransformNode -> D2HAsyncNode -> HostEgressSinkNode | Explicit synchronization node behavior and dependency ordering across staged compute |
+| G5 | GpuLeaseLifecycle | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceTransformNode -> D2HAsyncNode -> LeaseReleaseNode -> HostEgressSinkNode | Lease accounting correctness, no leaks, and deterministic release behavior under repeated runs |
+| G6 | GpuPeerCopySingleShard | HostIngressPinnedSourceNode -> H2DAsyncNode -> PeerCopyNode -> D2HAsyncNode -> HostEgressSinkNode | Cross-device movement semantics and fallback path validation when direct peer access is unavailable |
+| G7 | GpuTwoWayShardFanOutFanIn | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceShardNode(2-way) -> DeviceTransformNode(per shard) -> CollectiveReduceNode -> D2HAsyncNode -> HostEgressSinkNode | Multi-GPU shard fan-out/fan-in correctness and collective integration behavior |
+| G8 | GpuFourWayShardFanOutFanIn | HostIngressPinnedSourceNode -> H2DAsyncNode -> DeviceShardNode(4-way) -> DeviceTransformNode(per shard) -> CollectiveReduceNode -> D2HAsyncNode -> HostEgressSinkNode | Scaled shard topology behavior and stability under larger fan-out |
+
+Required execution matrix:
+
+1. CUDA backend: run G0-G8 where backend capability flags and hardware permit.
+2. SYCL backend: run G0-G8 where backend capability flags and hardware permit.
+3. Single-GPU mandatory set: G0-G5 must pass in backend-enabled CI lanes.
+4. Multi-GPU optional set: G6-G8 run under MULTI_GPU_TESTS and capability-aware skip logic.
+
+Required assertions per topology:
+
+1. Graph shape assertions:
+   - expected node count,
+   - expected edge count,
+   - successful typed edge wiring.
+2. Executor lifecycle assertions:
+   - build/init/start(or run)/stop/join all succeed,
+   - cancellation path leaves graph and leases in consistent state where test applies.
+3. Payload and synchronization assertions:
+   - queue or stream and event IDs are propagated as expected,
+   - host/device token invariants remain valid at each stage.
+4. Result assertions:
+   - output parity against CPU reference for transform/reduce stages,
+   - deterministic behavior across repeated runs.
+
+Testing consistency rule:
+
+1. GPU node topology tests should use AdvancedTestNodes and TestGraphTopologies as the structural example for how graphs are assembled and executed in tests.
+2. GPU graph-execution tests should follow the same GraphExecutorBuilder and GraphExecutor usage pattern already used for broader node-family validation.
+3. New GPU-specific graphs may introduce GPU payloads and nodes, but their test organization should remain consistent with the existing topology-builder-driven approach.
+
+Deliverables:
+
+1. New executor-focused test step in the implementation sequence using AdvancedTestNodes and TestGraphTopologies.
+2. Review-ready topology matrix mapping harness topologies to future GPU graph shapes.
+3. At least one example test flow documenting how GraphExecutorBuilder consumes a generated topology and how that pattern should be reused for GPU node tests.
+
+Acceptance criteria:
+
+1. All selected topology-builder tests are green using the current GraphExecutorBuilder and GraphExecutor path.
+2. Builder/executor lifecycle regressions are identified before additional GPU topology work continues.
+3. The review package includes topology-to-GPU-shape mapping and an example builder/executor test flow.
+4. This gate is treated as a prerequisite for remaining Phase 3+ GPU node work.
+
 ## Phase 0: Foundation and Build Gating
 
 Deliverables:
@@ -571,6 +740,11 @@ Deliverables:
 4. LeaseReleaseNode (shared behavior)
 5. PeerCopyNode for cross-device movement (CUDA and SYCL variants)
 
+Recommended implementation order inside this phase:
+
+1. LeaseReleaseNode
+2. PeerCopyNode only after ownership and release semantics are proven locally
+
 Acceptance criteria:
 
 1. Sustained async copy without global device sync in steady-state path
@@ -586,6 +760,14 @@ Deliverables:
 2. DeviceReduceNode for reduction path (CUDA and SYCL variants)
 3. StreamSyncNode or QueueSyncNode for explicit event dependencies
 4. DeviceShardNode for shard fan-out and shard metadata propagation
+
+Recommended implementation order inside this phase:
+
+1. DeviceTransformNode with stub kernel capability
+2. Backend-gated real CUDA and SYCL kernel capability hookup
+3. DeviceReduceNode
+4. StreamSyncNode or QueueSyncNode
+5. DeviceShardNode
 
 Acceptance criteria:
 
@@ -904,10 +1086,11 @@ Not required for this phase:
 
 ## Proposed Milestone Breakdown
 
-1. M1 (1 week): Phase 0 and Phase 1 (CUDA baseline and SYCL scaffolding)
-2. M2 (1 week): Phase 2 and Phase 3 (data movement parity)
-3. M3 (1 week): Phase 4 and Phase 5 baseline (compute parity plus multi-GPU sharding)
-4. M4 (1 week): Phase 5b and Phase 6 hardening plus docs plus parity review
+1. M0 (review gate): Phase 0a graph-framework validation using AdvancedTestNodes, TestGraphTopologies, GraphExecutorBuilder, and GraphExecutor.
+2. M1 (1 week): Phase 0 and Phase 1 (CUDA baseline and SYCL scaffolding)
+3. M2 (1 week): Phase 2 and Phase 3 (data movement parity)
+4. M3 (1 week): Phase 4 and Phase 5 baseline (compute parity plus multi-GPU sharding)
+5. M4 (1 week): Phase 5b and Phase 6 hardening plus docs plus parity review
 
 ## Deliverables for Architecture Review
 
@@ -1012,6 +1195,17 @@ Status legend:
 
 ### Milestone M1: Contracts and Scheduler Adapter
 
+### Milestone M0: Graph Framework Validation Gate
+
+| ID | Task | Status | Deliverables | Exit Criteria |
+|---|---|---|---|---|
+| M0-1 | Validate topology harness coverage | Not Started | Selected topology set from TestGraphTopologies mapped to builder/executor validation goals | Review confirms coverage for minimal, sequential, merge, split, diamond, and complex routing |
+| M0-2 | Execute generated topologies through GraphExecutorBuilder | Not Started | Builder/executor validation run across MinimalGraph, LinearSequential, MergeSimple, SplitSimple, DiamondComplex, ComplexNetwork, and producer-based topologies | All selected topology executions pass lifecycle validation |
+| M0-3 | Publish example executor validation flow | Not Started | Review-ready example using TopologyBuilder plus GraphExecutorBuilder | Example accepted as canonical pre-GPU executor validation pattern |
+| M0-4 | Approve topology-to-GPU-shape mapping | Not Started | Mapping from harness topologies to GPU topology shapes for Phase 3+ work | Review sign-off recorded before further GPU topology expansion |
+
+### Milestone M1: Contracts and Scheduler Adapter
+
 | ID | Task | Status | Deliverables | Exit Criteria |
 |---|---|---|---|---|
 | M1-1 | Freeze shared payload contracts | Not Started | DeviceBufferView, HostPinnedBufferView, BufferLease, TransferTicket, KernelTicket, DeviceShardDescriptor, CollectiveTicket headers | Contract review approved and no breaking changes for one sprint |
@@ -1057,6 +1251,7 @@ Status legend:
 
 ### Backlog and Dependency Notes
 
+1. M0 must complete before additional GPU topology expansion beyond the initial baseline node slice.
 1. M1-1 and M1-2 must complete before M2 implementation starts.
 2. M2 conformance harness is a prerequisite for M3 backend parity validation.
 3. M3 collective delivery should not block M4 cancellation and telemetry hardening.
@@ -1169,6 +1364,33 @@ Exit criteria:
 1. CPU-only build remains green when both backend flags are OFF.
 2. Backend flags compile interface-only stubs without linking full implementations.
 3. Contract review signed off and no breaking changes for one sprint.
+
+### Workstream A0: Executor and Topology Harness Validation
+
+Objective:
+
+1. Establish GraphExecutorBuilder and GraphExecutor correctness and use the existing harness as the consistency model for future GPU topology and execution tests.
+
+Steps:
+
+1. Use AdvancedTestNodes and TestGraphTopologies as the canonical example for GPU-node topology and graph-execution testing.
+2. Execute the selected topology set through GraphExecutorBuilder.
+3. Record graph shape, lifecycle, and completion behavior for each topology.
+4. Add one review example showing generated graph construction and executor usage.
+5. Use results to confirm that future GPU graphs should follow already-proven topology patterns and the same overall test-harness organization.
+
+Artifacts:
+
+1. Executor validation matrix across the selected topology set.
+2. Review example using TopologyBuilder plus GraphExecutorBuilder.
+3. Topology-to-GPU-shape mapping notes for Phase 3 and Phase 4 node work.
+4. Testing-consistency guidance tying GPU graph tests to the existing node-test harness pattern.
+
+Exit criteria:
+
+1. Selected topology set passes under current builder/executor behavior.
+2. No unresolved lifecycle or typed-edge extraction defects remain in the graph framework path.
+3. GPU implementation review explicitly signs off on this gate before more node-pair expansion.
 
 ### Workstream B: Scheduler Adapter and Control-Plane Contract
 
@@ -1350,12 +1572,24 @@ Exit criteria:
 
 ### Scheduler and Integration Checklist
 
+1. GraphExecutorBuilder and GraphExecutor validation gate completed with AdvancedTestNodes and TestGraphTopologies.
+2. Review example added for generated topology execution through GraphExecutorBuilder.
 1. GraphRunRequest schema finalized.
 2. Run status and reason codes finalized.
 3. Scheduler adapter submit/cancel/query implemented.
 4. Admission accept/defer/reject path implemented.
 5. Telemetry exporter contract implemented.
 6. Cancellation semantics validated under stress.
+
+### Build and Test Classification Checklist
+
+1. Stub/default capability backends explicitly documented as CPU-safe simulation backends.
+2. Stub plugins built independently from real backend plugin gating.
+3. Real backend plugins gated by ENABLE_CUDA_GRAPH_NODES and ENABLE_SYCL_GRAPH_NODES.
+4. libgpu_stub_unit category used for CPU-safe topology and contract validation.
+5. libgpu_backend_unit category reserved for enabled runtime backend validation.
+6. libgpu_integration category used for multi-node/backend slices.
+7. libgpu_perf category reserved for benchmark and throughput testing.
 
 ### Backend Parity Checklist
 
@@ -1408,6 +1642,16 @@ Exit criteria:
 4. Metrics and diagnostics coverage validated.
 5. Error taxonomy documented.
 6. Pilot readiness review completed and signed off.
+
+### Pre-GPU Review Addendum
+
+Before approving further GPU-node expansion, reviewers should confirm:
+
+1. The existing topology harness is sufficient to expose GraphExecutorBuilder and GraphExecutor regressions.
+2. The selected topology set covers minimal, sequential, merge, split, diamond, and complex routing behaviors.
+3. The documented GPU topologies are derived from already-validated harness shapes rather than invented independently.
+4. GPU graph tests are organized consistently with the existing node-test model built around AdvancedTestNodes, TestGraphTopologies, GraphExecutorBuilder, and GraphExecutor.
+5. The builder/executor path is treated as a prerequisite dependency for all remaining GPU graph work.
 
 ### Weekly Review Cadence
 

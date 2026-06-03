@@ -22,6 +22,11 @@ file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
 
 # Create library
 add_library(graph STATIC ${SOURCES})
+target_compile_definitions(graph PUBLIC
+    GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
+    GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
+    GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
+)
 if(GRAPHX_ENABLE_MODULE_PILOT)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         message(WARNING
@@ -46,6 +51,12 @@ target_include_directories(graph PUBLIC
 target_include_directories(graph PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+if(GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED)
+    target_include_directories(graph PRIVATE
+        ${CMAKE_SOURCE_DIR}/libgpu/include
+    )
+endif()
 
 target_link_libraries(graph PUBLIC
     nlohmann_json::nlohmann_json

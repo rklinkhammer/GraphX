@@ -47,6 +47,7 @@
 #include "graph/IConfigurable.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include "graph/IDataInjectionSource.hpp"
+#include "graph/IGpuCapabilityBinding.hpp"
 
 namespace graph {
 
@@ -133,6 +134,20 @@ template <>
 inline std::shared_ptr<graph::CompletionCallbackProvider> NodeFacadeAdapter::TryGetInterface<graph::CompletionCallbackProvider>() const {
     if (completion_callback_provider_ptr_) {
         return std::static_pointer_cast<graph::CompletionCallbackProvider>(completion_callback_provider_ptr_);
+    }
+    return nullptr;
+}
+
+/**
+ * Template specialization: TryGetInterface for graph::IGpuCapabilityBinding
+ *
+ * Allows plugin-loaded nodes to expose their IGpuCapabilityBinding interface
+ * through the NodeFacadeAdapter without requiring RTTI through wrapper layers.
+ */
+template <>
+inline std::shared_ptr<graph::IGpuCapabilityBinding> NodeFacadeAdapter::TryGetInterface<graph::IGpuCapabilityBinding>() const {
+    if (gpu_capability_binding_ptr_) {
+        return std::static_pointer_cast<graph::IGpuCapabilityBinding>(gpu_capability_binding_ptr_);
     }
     return nullptr;
 }

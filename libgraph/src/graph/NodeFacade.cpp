@@ -135,6 +135,15 @@ void NodeFacadeAdapter::ExtractInterfaces() {
             LOG4CXX_TRACE(logger_, "Extracted ICompletionCallback interface from plugin");
         }
     }
+
+    // Try to extract IGpuCapabilityBinding interface from plugin callback
+    if (facade_->GetAsIGpuCapabilityBinding) {
+        void* ptr = facade_->GetAsIGpuCapabilityBinding(handle_);
+        if (ptr) {
+            gpu_capability_binding_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
+            LOG4CXX_TRACE(logger_, "Extracted IGpuCapabilityBinding interface from plugin");
+        }
+    }
 }
 
 NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
@@ -145,7 +154,8 @@ NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
       diagnosable_ptr_(std::move(other.diagnosable_ptr_)),
       parameterized_ptr_(std::move(other.parameterized_ptr_)),
       metrics_callback_provider_ptr_(std::move(other.metrics_callback_provider_ptr_)),
-      completion_callback_provider_ptr_(std::move(other.completion_callback_provider_ptr_)) {
+    completion_callback_provider_ptr_(std::move(other.completion_callback_provider_ptr_)),
+    gpu_capability_binding_ptr_(std::move(other.gpu_capability_binding_ptr_)) {
     LOG4CXX_TRACE(logger_, "Move-constructing NodeFacadeAdapter");
     // Invalidate the other object so it doesn't call Destroy() in its destructor
     other.handle_ = nullptr;
@@ -173,6 +183,8 @@ NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexc
     diagnosable_ptr_ = std::move(other.diagnosable_ptr_);
     parameterized_ptr_ = std::move(other.parameterized_ptr_);
     metrics_callback_provider_ptr_ = std::move(other.metrics_callback_provider_ptr_);
+    completion_callback_provider_ptr_ = std::move(other.completion_callback_provider_ptr_);
+    gpu_capability_binding_ptr_ = std::move(other.gpu_capability_binding_ptr_);
     
     // Invalidate the other object
     other.handle_ = nullptr;
@@ -599,6 +611,8 @@ std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) c
         return GetMetricsCallbackProviderPtr();
     } else if (name == "completion_callback") {
         return GetCompletionCallbackProviderPtr();
+    } else if (name == "gpu_capability_binding") {
+        return GetGpuCapabilityBindingPtr();
     } else if (name == "configurable") {
         return GetConfigurablePtr();
     } else if (name == "diagnosable") {

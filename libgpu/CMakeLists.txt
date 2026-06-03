@@ -17,10 +17,25 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
+# Plugin targets are split between always-available stub plugins used for
+# topology/lifecycle validation and future backend-gated runtime plugins.
 add_subdirectory(plugins)
 
 # Collect source files
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/gpu/*.cpp")
+
+# Always include CPU-safe simulation backends. These are stub/default
+# implementations used for contract validation and CPU-only topology tests.
+# They are not evidence of a real CUDA or SYCL runtime being exercised.
+file(GLOB CUDA_STUB_CAPABILITY_SOURCES CONFIGURE_DEPENDS
+    "src/gpu/cuda/capabilities/*.cpp"
+    "src/gpu/cuda/capabilities/**/*.cpp")
+list(APPEND SOURCES ${CUDA_STUB_CAPABILITY_SOURCES})
+
+file(GLOB SYCL_STUB_CAPABILITY_SOURCES CONFIGURE_DEPENDS
+    "src/gpu/sycl/capabilities/*.cpp"
+    "src/gpu/sycl/capabilities/**/*.cpp")
+list(APPEND SOURCES ${SYCL_STUB_CAPABILITY_SOURCES})
 
 if(GRAPHX_CUDA_GRAPH_NODES_ENABLED)
     file(GLOB CUDA_SOURCES CONFIGURE_DEPENDS "src/gpu/cuda/*.cpp" "src/gpu/cuda/**/*.cpp")
@@ -40,6 +55,7 @@ if(SOURCES)
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
+        GRAPHX_GPU_STUB_BACKENDS=1
     )
     target_include_directories(gpu PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -79,6 +95,7 @@ else()
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
+        GRAPHX_GPU_STUB_BACKENDS=1
     )
     target_link_libraries(gpu INTERFACE
         graph

@@ -62,6 +62,7 @@
 #include "metrics/IMetricsCallback.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "graph/IDataInjectionSource.hpp"
+#include "graph/IGpuCapabilityBinding.hpp"
 #include <nlohmann/json.hpp>
 #include <log4cxx/logger.h>
 
@@ -643,7 +644,19 @@ struct PluginPolicy {
         }
 
         return nullptr;
-    }   
+    }
+
+    /// Get IGpuCapabilityBinding interface from node
+    static void *GetAsIGpuCapabilityBinding(NodeHandle handle) {
+        auto* instance = static_cast<NodePluginInstance<NodeT>*>(handle);
+        if (!instance || !instance->node) return nullptr;
+
+        if (auto* gpu_binding = dynamic_cast<graph::IGpuCapabilityBinding*>(instance->node.get())) {
+            return static_cast<void*>(gpu_binding);
+        }
+
+        return nullptr;
+    }
 
 };
 
@@ -1017,6 +1030,11 @@ struct PluginGlue {
     static void* GetAsICompletionCallbackImpl(void* h) {
         return Policy::GetAsICompletionCallback(static_cast<Instance*>(h));
     }
+
+    /// Wrapper for GetAsIGpuCapabilityBinding to match function pointer signature
+    static void* GetAsIGpuCapabilityBindingImpl(void* h) {
+        return Policy::GetAsIGpuCapabilityBinding(static_cast<Instance*>(h));
+    }
         
     static void Destroy(void* h) {
         delete static_cast<Instance*>(h);
@@ -1071,6 +1089,7 @@ struct PluginGlue {
         facade.GetAsIParameterized = GetAsIParameterizedImpl;
         facade.GetAsIMetricsCallbackProvider = GetAsIMetricsCallbackProviderImpl;
         facade.GetAsICompletionCallback = GetAsICompletionCallbackImpl;
+        facade.GetAsIGpuCapabilityBinding = GetAsIGpuCapabilityBindingImpl;
 
         // ====== Cleanup ======
         facade.Destroy = Destroy;
