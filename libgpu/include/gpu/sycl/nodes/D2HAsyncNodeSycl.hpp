@@ -15,6 +15,10 @@
 
 namespace graph::gpu::sycl::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class D2HAsyncNodeSycl
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

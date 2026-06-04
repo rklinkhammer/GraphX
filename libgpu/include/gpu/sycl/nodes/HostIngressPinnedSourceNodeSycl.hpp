@@ -15,6 +15,10 @@
 
 namespace graph::gpu::sycl::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class HostIngressPinnedSourceNodeSycl
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeSycl, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {

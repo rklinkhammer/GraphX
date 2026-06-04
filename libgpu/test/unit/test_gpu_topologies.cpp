@@ -488,288 +488,194 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
-TEST(GpuTopology, GpuMinimalRoundTripCudaGraphExecutorBuilder) {
-    auto graph_manager = std::make_shared<graph::GraphManager>();
-    auto factory = test::PluginInfrastructure::GetFactory();
+struct CudaTopologyTraits {
+            using SourceNode = graph::gpu::cuda::nodes::HostIngressPinnedSourceNode;
+            using H2DNode = graph::gpu::cuda::nodes::H2DAsyncNode;
+            using D2HNode = graph::gpu::cuda::nodes::D2HAsyncNode;
+            using SinkNode = graph::gpu::cuda::nodes::HostEgressSinkNode;
+            using MemoryPool = TopologyTestCudaMemoryPool;
+            using Transfer = TopologyTestCudaTransfer;
+            using MemoryPoolCapability = graph::gpu::cuda::capabilities::ICudaMemoryPoolCapability;
+            using TransferCapability = graph::gpu::cuda::capabilities::ICudaTransferCapability;
 
-    auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostIngressPinnedSourceNode"));
-    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
-    auto d2h = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "D2HAsyncNode"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostEgressSinkNode"));
+            static constexpr graph::gpu::accel::BackendKind backend = graph::gpu::accel::BackendKind::CUDA;
+            static constexpr std::uint64_t bytes = 4096;
+            static constexpr const char* source_type_name = "HostIngressPinnedSourceNode";
+            static constexpr const char* h2d_type_name = "H2DAsyncNode";
+            static constexpr const char* d2h_type_name = "D2HAsyncNode";
+            static constexpr const char* sink_type_name = "HostEgressSinkNode";
+        };
 
-    auto ingress_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(ingress);
-    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
-    auto d2h_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(d2h);
-    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+        struct SyclTopologyTraits {
+            using SourceNode = graph::gpu::sycl::nodes::HostIngressPinnedSourceNodeSycl;
+            using H2DNode = graph::gpu::sycl::nodes::H2DAsyncNodeSycl;
+            using D2HNode = graph::gpu::sycl::nodes::D2HAsyncNodeSycl;
+            using SinkNode = graph::gpu::sycl::nodes::HostEgressSinkNodeSycl;
+            using MemoryPool = TopologyTestSyclMemoryPool;
+            using Transfer = TopologyTestSyclTransfer;
+            using MemoryPoolCapability = graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability;
+            using TransferCapability = graph::gpu::sycl::capabilities::ISyclTransferCapability;
 
-    graph_manager->AddNode(ingress_wrapper);
-    graph_manager->AddNode(h2d_wrapper);
-    graph_manager->AddNode(d2h_wrapper);
-    graph_manager->AddNode(sink_wrapper);
+            static constexpr graph::gpu::accel::BackendKind backend = graph::gpu::accel::BackendKind::SYCL;
+            static constexpr std::uint64_t bytes = 2048;
+            static constexpr const char* source_type_name = "HostIngressPinnedSourceNodeSycl";
+            static constexpr const char* h2d_type_name = "H2DAsyncNodeSycl";
+            static constexpr const char* d2h_type_name = "D2HAsyncNodeSycl";
+            static constexpr const char* sink_type_name = "HostEgressSinkNodeSycl";
+        };
 
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::cuda::nodes::HostIngressPinnedSourceNode, 0,
-                                                     graph::gpu::cuda::nodes::H2DAsyncNode, 0>(
-        graph_manager,
-        ingress_wrapper,
-        h2d_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::cuda::nodes::H2DAsyncNode, 0,
-                                                     graph::gpu::cuda::nodes::D2HAsyncNode, 0>(
-        graph_manager,
-        h2d_wrapper,
-        d2h_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::cuda::nodes::D2HAsyncNode, 0,
-                                                     graph::gpu::cuda::nodes::HostEgressSinkNode, 0>(
-        graph_manager,
-        d2h_wrapper,
-        sink_wrapper)));
+        struct MetalTopologyTraits {
+            using SourceNode = graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal;
+            using H2DNode = graph::gpu::metal::nodes::H2DAsyncNodeMetal;
+            using D2HNode = graph::gpu::metal::nodes::D2HAsyncNodeMetal;
+            using SinkNode = graph::gpu::metal::nodes::HostEgressSinkNodeMetal;
+            using MemoryPool = TopologyTestMetalMemoryPool;
+            using Transfer = TopologyTestMetalTransfer;
+            using MemoryPoolCapability = graph::gpu::metal::capabilities::IMetalMemoryPoolCapability;
+            using TransferCapability = graph::gpu::metal::capabilities::IMetalTransferCapability;
 
-    auto ingress_node = ingress_wrapper->GetNode<graph::gpu::cuda::nodes::HostIngressPinnedSourceNode>();
-    auto sink_node = sink_wrapper->GetNode<graph::gpu::cuda::nodes::HostEgressSinkNode>();
-    ASSERT_NE(ingress_node, nullptr);
-    ASSERT_NE(sink_node, nullptr);
+            static constexpr graph::gpu::accel::BackendKind backend = graph::gpu::accel::BackendKind::Metal;
+            static constexpr std::uint64_t bytes = 1024;
+            static constexpr const char* source_type_name = "HostIngressPinnedSourceNodeMetal";
+            static constexpr const char* h2d_type_name = "H2DAsyncNodeMetal";
+            static constexpr const char* d2h_type_name = "D2HAsyncNodeMetal";
+            static constexpr const char* sink_type_name = "HostEgressSinkNodeMetal";
+        };
 
-    ingress_node->StageNextBufferBytes(4096);
+        template <typename Traits>
+        void RunGpuMinimalRoundTripTopology() {
+            // Graph edges in this harness represent readiness + context propagation,
+            // not a direct byte-copy contract. Backend capabilities own data movement
+            // and synchronization; nodes validate/bind capabilities and propagate
+            // handles (lease/view/ticket) through operation boundaries.
+            auto graph_manager = std::make_shared<graph::GraphManager>();
+            auto factory = test::PluginInfrastructure::GetFactory();
 
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithGraphManager(graph_manager)
-                        .Build();
+            auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::source_type_name));
+            auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::h2d_type_name));
+            auto d2h = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::d2h_type_name));
+            auto sink = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::sink_type_name));
 
-    auto memory_pool = std::make_shared<TopologyTestCudaMemoryPool>();
-    auto transfer = std::make_shared<TopologyTestCudaTransfer>();
-    executor->Register<graph::gpu::cuda::capabilities::ICudaMemoryPoolCapability>(memory_pool);
-    executor->Register<graph::gpu::cuda::capabilities::ICudaTransferCapability>(transfer);
+            auto ingress_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(ingress);
+            auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
+            auto d2h_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(d2h);
+            auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
 
-    auto init_result = executor->Init();
-    ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;
+            graph_manager->AddNode(ingress_wrapper);
+            graph_manager->AddNode(h2d_wrapper);
+            graph_manager->AddNode(d2h_wrapper);
+            graph_manager->AddNode(sink_wrapper);
 
-    auto start_result = executor->Start();
-    ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
+            ASSERT_TRUE((test::PluginInfrastructure::AddEdge<typename Traits::SourceNode, 0,
+                                                             typename Traits::H2DNode, 0>(
+                graph_manager,
+                ingress_wrapper,
+                h2d_wrapper)));
+            ASSERT_TRUE((test::PluginInfrastructure::AddEdge<typename Traits::H2DNode, 0,
+                                                             typename Traits::D2HNode, 0>(
+                graph_manager,
+                h2d_wrapper,
+                d2h_wrapper)));
+            ASSERT_TRUE((test::PluginInfrastructure::AddEdge<typename Traits::D2HNode, 0,
+                                                             typename Traits::SinkNode, 0>(
+                graph_manager,
+                d2h_wrapper,
+                sink_wrapper)));
 
-    auto run_result = executor->Run();
-    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+            auto ingress_node = ingress_wrapper->template GetNode<typename Traits::SourceNode>();
+            auto sink_node = sink_wrapper->template GetNode<typename Traits::SinkNode>();
+            ASSERT_NE(ingress_node, nullptr);
+            ASSERT_NE(sink_node, nullptr);
 
-    auto stop_result = executor->Stop();
-    EXPECT_TRUE(stop_result.success) << stop_result.message << " " << stop_result.error_details;
+            ingress_node->StageNextBufferBytes(Traits::bytes);
 
-    auto join_result = executor->Join();
-    EXPECT_TRUE(join_result.success) << join_result.message << " " << join_result.error_details;
+            auto executor = graph::GraphExecutorBuilder()
+                                .WithGraphManager(graph_manager)
+                                .Build();
 
-    EXPECT_EQ(sink_node->ConsumeCount(), 1U);
-    EXPECT_EQ(sink_node->LastView().backend, graph::gpu::accel::BackendKind::CUDA);
-    EXPECT_EQ(sink_node->LastView().bytes, 4096U);
-    EXPECT_EQ(transfer->h2d_count, 1U);
-    EXPECT_EQ(transfer->d2h_count, 1U);
+            auto memory_pool = std::make_shared<typename Traits::MemoryPool>();
+            auto transfer = std::make_shared<typename Traits::Transfer>();
+            executor->Register<typename Traits::MemoryPoolCapability>(memory_pool);
+            executor->Register<typename Traits::TransferCapability>(transfer);
 
-    const auto* sink_data = static_cast<const std::byte*>(sink_node->LastView().host_ptr);
-    ASSERT_NE(sink_data, nullptr);
-    for (std::uint64_t index = 0; index < sink_node->LastView().bytes; ++index) {
-        EXPECT_EQ(static_cast<std::uint8_t>(sink_data[index]), kSourcePattern);
-    }
-}
+            auto init_result = executor->Init();
+            ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;
 
-TEST(GpuTopology, GpuMinimalRoundTripSyclGraphExecutorBuilder) {
-    auto graph_manager = std::make_shared<graph::GraphManager>();
-    auto factory = test::PluginInfrastructure::GetFactory();
+            auto start_result = executor->Start();
+            ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
 
-    auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostIngressPinnedSourceNodeSycl"));
-    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNodeSycl"));
-    auto d2h = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "D2HAsyncNodeSycl"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostEgressSinkNodeSycl"));
+            auto run_result = executor->Run();
+            ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 
-    auto ingress_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(ingress);
-    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
-    auto d2h_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(d2h);
-    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
+            auto stop_result = executor->Stop();
+            EXPECT_TRUE(stop_result.success) << stop_result.message << " " << stop_result.error_details;
 
-    graph_manager->AddNode(ingress_wrapper);
-    graph_manager->AddNode(h2d_wrapper);
-    graph_manager->AddNode(d2h_wrapper);
-    graph_manager->AddNode(sink_wrapper);
+            auto join_result = executor->Join();
+            EXPECT_TRUE(join_result.success) << join_result.message << " " << join_result.error_details;
 
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::sycl::nodes::HostIngressPinnedSourceNodeSycl, 0,
-                                                     graph::gpu::sycl::nodes::H2DAsyncNodeSycl, 0>(
-        graph_manager,
-        ingress_wrapper,
-        h2d_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::sycl::nodes::H2DAsyncNodeSycl, 0,
-                                                     graph::gpu::sycl::nodes::D2HAsyncNodeSycl, 0>(
-        graph_manager,
-        h2d_wrapper,
-        d2h_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::sycl::nodes::D2HAsyncNodeSycl, 0,
-                                                     graph::gpu::sycl::nodes::HostEgressSinkNodeSycl, 0>(
-        graph_manager,
-        d2h_wrapper,
-        sink_wrapper)));
+            EXPECT_EQ(sink_node->ConsumeCount(), 1U);
+            EXPECT_EQ(sink_node->LastView().backend, Traits::backend);
+            EXPECT_EQ(sink_node->LastView().bytes, Traits::bytes);
+            EXPECT_EQ(transfer->h2d_count, 1U);
+            EXPECT_EQ(transfer->d2h_count, 1U);
 
-    auto ingress_node = ingress_wrapper->GetNode<graph::gpu::sycl::nodes::HostIngressPinnedSourceNodeSycl>();
-    auto sink_node = sink_wrapper->GetNode<graph::gpu::sycl::nodes::HostEgressSinkNodeSycl>();
-    ASSERT_NE(ingress_node, nullptr);
-    ASSERT_NE(sink_node, nullptr);
+            const auto* sink_data = static_cast<const std::byte*>(sink_node->LastView().host_ptr);
+            ASSERT_NE(sink_data, nullptr);
+            for (std::uint64_t index = 0; index < sink_node->LastView().bytes; ++index) {
+                EXPECT_EQ(static_cast<std::uint8_t>(sink_data[index]), kSourcePattern);
+            }
+        }
 
-    ingress_node->StageNextBufferBytes(2048);
+        template <typename Traits>
+        class GpuTopologyRoundTripTest : public ::testing::Test {};
 
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithGraphManager(graph_manager)
-                        .Build();
+        using GpuTopologyRoundTripTypes = ::testing::Types<CudaTopologyTraits, SyclTopologyTraits, MetalTopologyTraits>;
+        TYPED_TEST_SUITE(GpuTopologyRoundTripTest, GpuTopologyRoundTripTypes);
 
-    auto memory_pool = std::make_shared<TopologyTestSyclMemoryPool>();
-    auto transfer = std::make_shared<TopologyTestSyclTransfer>();
-    executor->Register<graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability>(memory_pool);
-    executor->Register<graph::gpu::sycl::capabilities::ISyclTransferCapability>(transfer);
+        TYPED_TEST(GpuTopologyRoundTripTest, MinimalRoundTripGraphExecutorBuilder) {
+            // Intent: verify control-plane token/context flow through backend stage
+            // nodes (HostIngress -> H2D -> D2H -> HostEgress), while backend-specific
+            // capabilities perform actual movement/synchronization work.
+            RunGpuMinimalRoundTripTopology<TypeParam>();
+        }
 
-    auto init_result = executor->Init();
-    ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;
+        TEST(GpuTopology, PluginLoadedNodeFailsCleanlyWithoutRequiredCapabilities) {
+            auto factory = test::PluginInfrastructure::GetFactory();
+            auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+            auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
 
-    auto start_result = executor->Start();
-    ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
+            auto h2d_node = h2d_wrapper->GetNode<graph::gpu::cuda::nodes::H2DAsyncNode>();
+            ASSERT_NE(h2d_node, nullptr);
 
-    auto run_result = executor->Run();
-    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+            graph::CapabilityBus empty_bus;
+            EXPECT_FALSE(h2d_node->BindGpuCapabilities(empty_bus));
+        }
 
-    auto stop_result = executor->Stop();
-    EXPECT_TRUE(stop_result.success) << stop_result.message << " " << stop_result.error_details;
+        TEST(GpuTopology, ExecutorInitFailsWhenGpuBootstrapDisabledAndCapabilitiesMissing) {
+            auto graph_manager = std::make_shared<graph::GraphManager>();
+            auto factory = test::PluginInfrastructure::GetFactory();
 
-    auto join_result = executor->Join();
-    EXPECT_TRUE(join_result.success) << join_result.message << " " << join_result.error_details;
+            auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
+                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+            auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
+            graph_manager->AddNode(h2d_wrapper);
 
-    EXPECT_EQ(sink_node->ConsumeCount(), 1U);
-    EXPECT_EQ(sink_node->LastView().backend, graph::gpu::accel::BackendKind::SYCL);
-    EXPECT_EQ(sink_node->LastView().bytes, 2048U);
-    EXPECT_EQ(transfer->h2d_count, 1U);
-    EXPECT_EQ(transfer->d2h_count, 1U);
+            auto executor = graph::GraphExecutorBuilder()
+                                .WithGraphManager(graph_manager)
+                                .Build();
 
-    const auto* sink_data = static_cast<const std::byte*>(sink_node->LastView().host_ptr);
-    ASSERT_NE(sink_data, nullptr);
-    for (std::uint64_t index = 0; index < sink_node->LastView().bytes; ++index) {
-        EXPECT_EQ(static_cast<std::uint8_t>(sink_data[index]), kSourcePattern);
-    }
-}
+            auto graph_capability = executor->GetCapability<capabilities::GraphCapability>();
+            ASSERT_NE(graph_capability, nullptr);
+            graph_capability->SetGpuBootstrapEnabled(false);
 
-TEST(GpuTopology, GpuMinimalRoundTripMetalGraphExecutorBuilder) {
-    auto graph_manager = std::make_shared<graph::GraphManager>();
-    auto factory = test::PluginInfrastructure::GetFactory();
+            auto init_result = executor->Init();
+            EXPECT_FALSE(init_result.success);
+            EXPECT_NE(init_result.message.find("ExecutionPolicyChain::OnInit() failed"), std::string::npos);
+        }
 
-    auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostIngressPinnedSourceNodeMetal"));
-    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNodeMetal"));
-    auto d2h = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "D2HAsyncNodeMetal"));
-    auto sink = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "HostEgressSinkNodeMetal"));
-
-    auto ingress_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(ingress);
-    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
-    auto d2h_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(d2h);
-    auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
-
-    graph_manager->AddNode(ingress_wrapper);
-    graph_manager->AddNode(h2d_wrapper);
-    graph_manager->AddNode(d2h_wrapper);
-    graph_manager->AddNode(sink_wrapper);
-
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal, 0,
-                                                     graph::gpu::metal::nodes::H2DAsyncNodeMetal, 0>(
-        graph_manager,
-        ingress_wrapper,
-        h2d_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::metal::nodes::H2DAsyncNodeMetal, 0,
-                                                     graph::gpu::metal::nodes::D2HAsyncNodeMetal, 0>(
-        graph_manager,
-        h2d_wrapper,
-        d2h_wrapper)));
-    ASSERT_TRUE((test::PluginInfrastructure::AddEdge<graph::gpu::metal::nodes::D2HAsyncNodeMetal, 0,
-                                                     graph::gpu::metal::nodes::HostEgressSinkNodeMetal, 0>(
-        graph_manager,
-        d2h_wrapper,
-        sink_wrapper)));
-
-    auto ingress_node = ingress_wrapper->GetNode<graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal>();
-    auto sink_node = sink_wrapper->GetNode<graph::gpu::metal::nodes::HostEgressSinkNodeMetal>();
-    ASSERT_NE(ingress_node, nullptr);
-    ASSERT_NE(sink_node, nullptr);
-
-    ingress_node->StageNextBufferBytes(1024);
-
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithGraphManager(graph_manager)
-                        .Build();
-
-    auto memory_pool = std::make_shared<TopologyTestMetalMemoryPool>();
-    auto transfer = std::make_shared<TopologyTestMetalTransfer>();
-    executor->Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
-    executor->Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
-
-    auto init_result = executor->Init();
-    ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;
-
-    auto start_result = executor->Start();
-    ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
-
-    auto run_result = executor->Run();
-    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
-
-    auto stop_result = executor->Stop();
-    EXPECT_TRUE(stop_result.success) << stop_result.message << " " << stop_result.error_details;
-
-    auto join_result = executor->Join();
-    EXPECT_TRUE(join_result.success) << join_result.message << " " << join_result.error_details;
-
-    EXPECT_EQ(sink_node->ConsumeCount(), 1U);
-    EXPECT_EQ(sink_node->LastView().backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_EQ(sink_node->LastView().bytes, 1024U);
-    EXPECT_EQ(transfer->h2d_count, 1U);
-    EXPECT_EQ(transfer->d2h_count, 1U);
-
-    const auto* sink_data = static_cast<const std::byte*>(sink_node->LastView().host_ptr);
-    ASSERT_NE(sink_data, nullptr);
-    for (std::uint64_t index = 0; index < sink_node->LastView().bytes; ++index) {
-        EXPECT_EQ(static_cast<std::uint8_t>(sink_data[index]), kSourcePattern);
-    }
-}
-
-TEST(GpuTopology, PluginLoadedNodeFailsCleanlyWithoutRequiredCapabilities) {
-    auto factory = test::PluginInfrastructure::GetFactory();
-    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
-    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
-
-    auto h2d_node = h2d_wrapper->GetNode<graph::gpu::cuda::nodes::H2DAsyncNode>();
-    ASSERT_NE(h2d_node, nullptr);
-
-    graph::CapabilityBus empty_bus;
-    EXPECT_FALSE(h2d_node->BindGpuCapabilities(empty_bus));
-}
-
-TEST(GpuTopology, ExecutorInitFailsWhenGpuBootstrapDisabledAndCapabilitiesMissing) {
-    auto graph_manager = std::make_shared<graph::GraphManager>();
-    auto factory = test::PluginInfrastructure::GetFactory();
-
-    auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-        test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
-    auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
-    graph_manager->AddNode(h2d_wrapper);
-
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithGraphManager(graph_manager)
-                        .Build();
-
-    auto graph_capability = executor->GetCapability<capabilities::GraphCapability>();
-    ASSERT_NE(graph_capability, nullptr);
-    graph_capability->SetGpuBootstrapEnabled(false);
-
-    auto init_result = executor->Init();
-    EXPECT_FALSE(init_result.success);
-    EXPECT_NE(init_result.message.find("ExecutionPolicyChain::OnInit() failed"), std::string::npos);
-}
-
-} // namespace
+        } // namespace

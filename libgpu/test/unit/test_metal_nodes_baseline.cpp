@@ -2,25 +2,20 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <type_traits>
-#include <vector>
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 #include "gpu/metal/nodes/CollectiveReduceNodeMetal.hpp"
-#include "gpu/metal/nodes/D2HAsyncNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceReduceNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceShardNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceTransformNodeMetal.hpp"
-#include "gpu/metal/nodes/H2DAsyncNodeMetal.hpp"
-#include "gpu/metal/nodes/HostEgressSinkNodeMetal.hpp"
-#include "gpu/metal/nodes/HostIngressPinnedSourceNodeMetal.hpp"
 #include "gpu/metal/nodes/LeaseReleaseNodeMetal.hpp"
 #include "gpu/metal/nodes/PeerCopyNodeMetal.hpp"
 #include "gpu/metal/nodes/QueueSyncNodeMetal.hpp"
 #include "graph/CapabilityBus.hpp"
+#include "graph/INode.hpp"
 
 namespace {
 
@@ -49,61 +44,6 @@ public:
     std::size_t release_count{0};
     std::uint64_t last_allocation_id{0};
 };
-
-TEST(GpuMetalNodeBaseline, IngressToH2DToD2HFlowProducesValidTokens) {
-    static_assert(std::is_base_of_v<graph::INode, graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal>);
-    static_assert(std::is_base_of_v<graph::INode, graph::gpu::metal::nodes::H2DAsyncNodeMetal>);
-    static_assert(std::is_base_of_v<graph::INode, graph::gpu::metal::nodes::D2HAsyncNodeMetal>);
-    static_assert(std::is_base_of_v<graph::INode, graph::gpu::metal::nodes::HostEgressSinkNodeMetal>);
-
-    graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal ingress;
-    graph::gpu::metal::nodes::H2DAsyncNodeMetal h2d;
-    graph::gpu::metal::nodes::D2HAsyncNodeMetal d2h;
-    graph::gpu::metal::nodes::HostEgressSinkNodeMetal sink;
-
-    graph::CapabilityBus bus;
-    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>());
-
-    ASSERT_TRUE(ingress.BindGpuCapabilities(bus));
-    ASSERT_TRUE(h2d.BindGpuCapabilities(bus));
-    ASSERT_TRUE(d2h.BindGpuCapabilities(bus));
-
-    graph::gpu::accel::HostPinnedBufferView host_view{};
-    graph::gpu::accel::BufferLease host_lease{};
-    constexpr std::uint64_t kBytes = 4096;
-    ASSERT_TRUE(ingress.ProduceForTest(kBytes, host_view, host_lease));
-
-    std::vector<std::uint8_t> expected(kBytes);
-    for (std::uint64_t index = 0; index < kBytes; ++index) {
-        expected[static_cast<std::size_t>(index)] = static_cast<std::uint8_t>((index * 11U) & 0xFFU);
-    }
-    std::memcpy(host_view.host_ptr, expected.data(), expected.size());
-
-    auto device_out = h2d.Transfer(host_view,
-                                   std::integral_constant<std::size_t, 0>{},
-                                   std::integral_constant<std::size_t, 0>{});
-    ASSERT_TRUE(device_out.has_value());
-    EXPECT_EQ(device_out->backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*device_out));
-
-    auto host_roundtrip_out = d2h.Transfer(*device_out,
-                                           std::integral_constant<std::size_t, 0>{},
-                                           std::integral_constant<std::size_t, 0>{});
-    ASSERT_TRUE(host_roundtrip_out.has_value());
-    EXPECT_EQ(host_roundtrip_out->backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*host_roundtrip_out));
-
-    std::vector<std::uint8_t> actual(kBytes, 0);
-    std::memcpy(actual.data(), host_roundtrip_out->host_ptr, actual.size());
-    EXPECT_EQ(actual, expected);
-
-    ASSERT_TRUE(sink.ConsumeForTest(*host_roundtrip_out));
-    EXPECT_EQ(sink.ConsumeCount(), 1U);
-    EXPECT_EQ(sink.LastView().bytes, host_roundtrip_out->bytes);
-}
 
 TEST(GpuMetalNodeBaseline, LeaseReleaseNodeReleasesLeaseThroughPoolCapability) {
     static_assert(std::is_base_of_v<graph::INode, graph::gpu::metal::nodes::LeaseReleaseNodeMetal>);
@@ -140,18 +80,19 @@ TEST(GpuMetalNodeBaseline, LeaseReleaseNodeReleasesLeaseThroughPoolCapability) {
 
 TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     graph::CapabilityBus bus;
-    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>());
-    bus.Register<graph::gpu::metal::capabilities::IMetalCollectiveCapability>(
-        std::make_shared<graph::gpu::metal::capabilities::DefaultMetalCollectiveCapability>());
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto transfer = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+    auto collective_cap = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalCollectiveCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+    bus.Register<graph::gpu::metal::capabilities::IMetalCollectiveCapability>(collective_cap);
 
     graph::gpu::metal::nodes::DeviceTransformNodeMetal transform;
     graph::gpu::metal::nodes::DeviceReduceNodeMetal reduce;
@@ -173,10 +114,16 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     shard.ConfigureShard(0U, 2U);
     collective.ConfigureCollective(9U, 0U, 2U);
 
-    graph::gpu::accel::DeviceBufferView input{};
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
+    auto* input_bytes = static_cast<std::byte*>(input_lease.device_view.device_ptr);
+    ASSERT_NE(input_bytes, nullptr);
+    for (std::size_t index = 0; index < 128; ++index) {
+        input_bytes[index] = std::byte{static_cast<std::uint8_t>(index)};
+    }
+
+    graph::gpu::accel::DeviceBufferView input = input_lease.device_view;
     input.backend = graph::gpu::accel::BackendKind::Metal;
-    input.device_ptr = reinterpret_cast<void*>(0x6000);
-    input.bytes = 128;
     input.dtype = graph::gpu::accel::DataType::UInt8;
     input.layout.rank = 1;
     input.layout.shape[0] = 128;
@@ -191,6 +138,12 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     ASSERT_TRUE(transformed.has_value());
     EXPECT_EQ(transformed->backend, graph::gpu::accel::BackendKind::Metal);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(*transformed));
+    auto* transformed_bytes = static_cast<const std::byte*>(transformed->device_ptr);
+    ASSERT_NE(transformed_bytes, nullptr);
+    for (std::size_t index = 0; index < 128; ++index) {
+        const auto expected = static_cast<std::uint8_t>(index ^ 0xA5U);
+        EXPECT_EQ(static_cast<std::uint8_t>(transformed_bytes[index]), expected);
+    }
 
     auto reduced = reduce.Transfer(*transformed,
                                    std::integral_constant<std::size_t, 0>{},
@@ -220,6 +173,7 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     ASSERT_TRUE(peer_copied.has_value());
     EXPECT_EQ(peer_copied->backend, graph::gpu::accel::BackendKind::Metal);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(*peer_copied));
+    EXPECT_NE(peer_copied->device_ptr, sharded->device_ptr);
 
     auto collectively_reduced = collective.Transfer(*peer_copied,
                                                      std::integral_constant<std::size_t, 0>{},
@@ -227,6 +181,91 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     ASSERT_TRUE(collectively_reduced.has_value());
     EXPECT_EQ(collectively_reduced->backend, graph::gpu::accel::BackendKind::Metal);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(*collectively_reduced));
+}
+
+TEST(GpuMetalNodeBaseline, DeviceShardNodeCopiesSelectedShardSliceAndUpdatesShape) {
+    graph::CapabilityBus bus;
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto transfer = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>();
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
+
+    graph::gpu::metal::nodes::DeviceShardNodeMetal shard;
+    ASSERT_TRUE(shard.BindGpuCapabilities(bus));
+    shard.ConfigureShard(2U, 4U);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(16, 0, input_lease));
+    auto* input_bytes = static_cast<std::byte*>(input_lease.device_view.device_ptr);
+    ASSERT_NE(input_bytes, nullptr);
+    for (std::size_t index = 0; index < 16; ++index) {
+        input_bytes[index] = std::byte{static_cast<std::uint8_t>(index)};
+    }
+
+    auto input = input_lease.device_view;
+    input.backend = graph::gpu::accel::BackendKind::Metal;
+    input.dtype = graph::gpu::accel::DataType::UInt8;
+    input.layout.rank = 1;
+    input.layout.shape[0] = 16;
+    input.layout.stride[0] = 1;
+    input.execution_queue_id = 7U;
+
+    auto sharded = shard.Transfer(input,
+                                  std::integral_constant<std::size_t, 0>{},
+                                  std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(sharded.has_value());
+    EXPECT_EQ(sharded->bytes, 4U);
+    EXPECT_EQ(sharded->layout.shape[0], 4U);
+
+    auto* shard_bytes = static_cast<const std::byte*>(sharded->device_ptr);
+    ASSERT_NE(shard_bytes, nullptr);
+    EXPECT_EQ(static_cast<std::uint8_t>(shard_bytes[0]), 8U);
+    EXPECT_EQ(static_cast<std::uint8_t>(shard_bytes[1]), 9U);
+    EXPECT_EQ(static_cast<std::uint8_t>(shard_bytes[2]), 10U);
+    EXPECT_EQ(static_cast<std::uint8_t>(shard_bytes[3]), 11U);
+}
+
+TEST(GpuMetalNodeBaseline, PeerCopyNodeAllocatesDestinationAndCopiesBytes) {
+    graph::CapabilityBus bus;
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto transfer = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>();
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
+
+    graph::gpu::metal::nodes::PeerCopyNodeMetal peer_copy;
+    ASSERT_TRUE(peer_copy.BindGpuCapabilities(bus));
+    peer_copy.SetQueue(6U);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(8, 0, input_lease));
+    auto* input_bytes = static_cast<std::byte*>(input_lease.device_view.device_ptr);
+    ASSERT_NE(input_bytes, nullptr);
+    for (std::size_t index = 0; index < 8; ++index) {
+        input_bytes[index] = std::byte{static_cast<std::uint8_t>(0x10U + index)};
+    }
+
+    auto input = input_lease.device_view;
+    input.backend = graph::gpu::accel::BackendKind::Metal;
+    input.dtype = graph::gpu::accel::DataType::UInt8;
+    input.layout.rank = 1;
+    input.layout.shape[0] = 8;
+    input.layout.stride[0] = 1;
+
+    auto copied = peer_copy.Transfer(input,
+                                     std::integral_constant<std::size_t, 0>{},
+                                     std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(copied.has_value());
+    EXPECT_NE(copied->device_ptr, input.device_ptr);
+    EXPECT_EQ(copied->bytes, input.bytes);
+
+    auto* copied_bytes = static_cast<const std::byte*>(copied->device_ptr);
+    ASSERT_NE(copied_bytes, nullptr);
+    for (std::size_t index = 0; index < 8; ++index) {
+        EXPECT_EQ(static_cast<std::uint8_t>(copied_bytes[index]),
+                  static_cast<std::uint8_t>(0x10U + index));
+    }
 }
 
 } // namespace

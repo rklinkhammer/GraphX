@@ -15,6 +15,10 @@
 
 namespace graph::gpu::metal::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class PeerCopyNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,
@@ -25,25 +29,38 @@ public:
     PeerCopyNodeMetal() = default;
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
+        memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
-        return transfer_ != nullptr;
+        return memory_pool_ != nullptr && transfer_ != nullptr;
     }
 
     std::optional<accel::DeviceBufferView> Transfer(
         const accel::DeviceBufferView& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override {
-        if (!transfer_ || !accel::IsValidView(input)) {
+        if (!memory_pool_ || !transfer_ || !accel::IsValidView(input)) {
             return std::nullopt;
         }
 
         accel::BufferLease lease{};
-        lease.device_view = input;
-        if (!transfer_->EnqueueD2D(input, lease.device_view, queue_id_, last_ticket_)) {
+        if (!memory_pool_->AllocateDevice(input.bytes, input.device_id, lease)) {
             return std::nullopt;
         }
 
-        return lease.device_view;
+        auto output = lease.device_view;
+        output.backend = input.backend;
+        output.dtype = input.dtype;
+        output.layout = input.layout;
+        output.execution_queue_id = queue_id_;
+
+        if (!transfer_->EnqueueD2D(input, output, queue_id_, last_ticket_)) {
+            return std::nullopt;
+        }
+
+        output.ready_event = last_ticket_.completion_event;
+        last_copy_lease_ = lease;
+
+        return output;
     }
 
     void SetQueue(std::uint64_t queue_id) {
@@ -51,9 +68,11 @@ public:
     }
 
 private:
+    std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::uint64_t queue_id_{1};
     accel::TransferTicket last_ticket_{};
+    accel::BufferLease last_copy_lease_{};
 };
 
 } // namespace graph::gpu::metal::nodes

@@ -4,10 +4,10 @@ find_package(log4cxx REQUIRED)
 file(GLOB GPU_STUB_UNIT_TEST_SOURCES CONFIGURE_DEPENDS "unit/test_*.cpp")
 file(GLOB GPU_BACKEND_UNIT_TEST_SOURCES CONFIGURE_DEPENDS "backend_unit/test_*.cpp")
 file(GLOB GPU_INTEGRATION_TEST_SOURCES CONFIGURE_DEPENDS "integration/test_*.cpp")
-file(GLOB GPU_SYCL_INTEGRATION_TEST_SOURCES CONFIGURE_DEPENDS "integration/test_sycl_*.cpp")
-file(GLOB GPU_METAL_INTEGRATION_TEST_SOURCES CONFIGURE_DEPENDS "integration/test_metal_*.cpp")
 file(GLOB GPU_PERF_TEST_SOURCES CONFIGURE_DEPENDS "perf/test_*.cpp")
 
+# Backend-specific integration round-trip coverage is consolidated into the
+# typed suite in unit/test_gpu_topologies.cpp (test_libgpu_stub_unit).
 list(FILTER GPU_INTEGRATION_TEST_SOURCES EXCLUDE REGEX "/test_sycl_")
 list(FILTER GPU_INTEGRATION_TEST_SOURCES EXCLUDE REGEX "/test_metal_")
 
@@ -85,64 +85,6 @@ if(GPU_INTEGRATION_TEST_SOURCES)
         graphx_project_options
     )
     add_test(NAME libgpu_integration COMMAND test_libgpu_integration)
-endif()
-
-if(GRAPHX_SYCL_GRAPH_NODES_ENABLED AND GRAPHX_BUILD_GPU_STUB_PLUGINS AND GPU_SYCL_INTEGRATION_TEST_SOURCES)
-    add_executable(test_libgpu_sycl_integration ${GPU_SYCL_INTEGRATION_TEST_SOURCES})
-    target_include_directories(test_libgpu_sycl_integration PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include
-        ${CMAKE_SOURCE_DIR}/libgraph/test/include
-    )
-    target_compile_definitions(test_libgpu_sycl_integration PRIVATE
-        PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
-    )
-    target_link_libraries(test_libgpu_sycl_integration PRIVATE
-        gpu
-        GTest::gtest_main
-        Threads::Threads
-        log4cxx
-        graphx_project_options
-    )
-    add_dependencies(test_libgpu_sycl_integration
-        sycl_host_ingress_pinned_source_node
-        sycl_h2d_async_node
-        sycl_d2h_async_node
-        sycl_host_egress_sink_node
-        sycl_lease_release_node
-    )
-    add_test(NAME libgpu_sycl_integration COMMAND test_libgpu_sycl_integration)
-endif()
-
-if(GRAPHX_METAL_GRAPH_NODES_ENABLED AND GRAPHX_BUILD_GPU_STUB_PLUGINS AND GPU_METAL_INTEGRATION_TEST_SOURCES)
-    add_executable(test_libgpu_metal_integration ${GPU_METAL_INTEGRATION_TEST_SOURCES})
-    target_include_directories(test_libgpu_metal_integration PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include
-        ${CMAKE_SOURCE_DIR}/libgraph/test/include
-    )
-    target_compile_definitions(test_libgpu_metal_integration PRIVATE
-        PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
-    )
-    target_link_libraries(test_libgpu_metal_integration PRIVATE
-        gpu
-        GTest::gtest_main
-        Threads::Threads
-        log4cxx
-        graphx_project_options
-    )
-    add_dependencies(test_libgpu_metal_integration
-        metal_host_ingress_pinned_source_node
-        metal_h2d_async_node
-        metal_d2h_async_node
-        metal_host_egress_sink_node
-        metal_lease_release_node
-        metal_device_transform_node
-        metal_device_reduce_node
-        metal_queue_sync_node
-        metal_device_shard_node
-        metal_peer_copy_node
-        metal_collective_reduce_node
-    )
-    add_test(NAME libgpu_metal_integration COMMAND test_libgpu_metal_integration)
 endif()
 
 if(GPU_PERF_TEST_SOURCES)

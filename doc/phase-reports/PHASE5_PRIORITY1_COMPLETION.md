@@ -250,3 +250,94 @@ These are timing-sensitive ThreadPool tests affected by OS scheduling:
 **Session Summary**: Successfully implemented 37 new unit tests across three critical Phase 5 Priority 1 infrastructure components, achieving 99.5% pass rate with comprehensive coverage of functionality, error handling, and thread-safety guarantees.
 
 **Status**: READY FOR PRODUCTION DEPLOYMENT
+
+---
+
+## Post-Cleanup Verification Addendum (June 3, 2026)
+
+Following GPU topology test deduplication and integration-target cleanup, the full CTest suite was re-run to validate no regressions.
+
+### Command
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+### Result Snapshot
+
+- `libgraph_unit`: Passed (80.62s)
+- `libgraph_integration`: Passed (0.07s)
+- `libgpu_stub_unit`: Passed (3.06s)
+- `100% tests passed, 0 tests failed out of 3`
+- `Total Test time (real) = 83.76 sec`
+
+### Notes
+
+- `libgpu_stub_unit` includes the typed backend parity round-trip topology suite for CUDA, SYCL, and Metal.
+- Legacy backend-specific integration binaries for SYCL/Metal are intentionally removed as redundant coverage.
+
+---
+
+## Metal Semantics Follow-up (June 3, 2026)
+
+Implemented follow-up semantics improvements for Metal GPU nodes in stub lanes:
+
+- `PeerCopyNodeMetal`: allocate destination device buffer before D2D copy (no self-copy aliasing).
+- `DeviceShardNodeMetal`: copy selected shard slice into shard-sized allocation and update shard shape metadata.
+- `DeviceTransformNodeMetal`: apply deterministic byte transform (`xor 0xA5`) after kernel launch validation.
+
+### Focused Validation
+
+```bash
+cmake --build build --target test_libgpu_stub_unit -j4
+./build/libgpu/test/test_libgpu_stub_unit --gtest_color=no --gtest_filter='GpuMetalNodeBaseline.*'
+./build/libgpu/test/test_libgpu_stub_unit --gtest_color=no --gtest_filter='GpuTopology*'
+```
+
+### Result Snapshot
+
+- Build target `test_libgpu_stub_unit`: **Passed**
+- `GpuMetalNodeBaseline.*`: **4/4 tests passed**
+- `GpuTopology*`: **5/5 tests passed**
+
+### Coverage Added
+
+- Byte-level assertions for deterministic transform output.
+- Byte-level assertions for shard slice copy semantics and shape updates.
+- Pointer inequality + byte-level content assertions for peer-copy destination allocation.
+
+### GPU Control-Plane Semantics (Contract)
+
+To keep backend behavior consistent across CUDA, SYCL, and Metal, graph execution now follows this explicit contract:
+
+- **Edges carry control-plane state**, not mandatory payload-copy semantics.
+- **Nodes define operation boundaries** and transform context/handles.
+- **Capabilities execute backend-specific work** (allocation, transfer, sync, kernel dispatch).
+
+Operationally:
+
+- Edge propagation represents **readiness + context dependency**.
+- Data/resource state is carried as handles (`BufferLease`, views, tickets), not as an edge-level copy requirement.
+- Backend-specific mechanisms remain encapsulated inside capability implementations.
+
+This contract is documented in the typed GPU topology harness and mirrored across CUDA/SYCL/Metal stage-node headers to prevent backend memory-model leakage into graph-layer semantics.
+
+### Full-Suite Gate Status
+
+Attempted full CTest gate after the Metal semantics updates:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+Observed result:
+
+- Exit code: `8`
+- `67% tests passed, 1 tests failed out of 3`
+- `libgraph_integration`: Passed
+- `libgpu_stub_unit`: Passed
+- Failed target: `libgraph_unit` (subprocess aborted)
+- Failure symptom in `SplitTestNodeTest.HandlesMultipleConsumeCallsSuccessfully`:
+   `std::system_error: mutex lock failed: Invalid argument`
+
+This failure reproduces in full-suite gate runs and is outside the Metal node change surface.

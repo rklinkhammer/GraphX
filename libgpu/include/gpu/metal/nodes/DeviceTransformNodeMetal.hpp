@@ -10,12 +10,17 @@
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
 
 namespace graph::gpu::metal::nodes {
+
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
 
 class DeviceTransformNodeMetal
     : public graph::NamedInteriorNode<
@@ -63,6 +68,13 @@ public:
             return std::nullopt;
         }
 
+        const auto* input_bytes = static_cast<const std::byte*>(input.device_ptr);
+        auto* output_bytes = static_cast<std::byte*>(output.device_ptr);
+        for (std::uint64_t index = 0; index < input.bytes; ++index) {
+            const auto value = std::to_integer<std::uint8_t>(input_bytes[index]);
+            output_bytes[index] = std::byte{static_cast<std::uint8_t>(value ^ kDeterministicXorMask)};
+        }
+
         telemetry_->RecordKernel(kernel_ticket_, 0);
         last_output_lease_ = lease;
         last_kernel_ticket_ = kernel_ticket_;
@@ -96,6 +108,8 @@ private:
     accel::KernelTicket kernel_ticket_{};
     accel::BufferLease last_output_lease_{};
     accel::KernelTicket last_kernel_ticket_{};
+
+    static constexpr std::uint8_t kDeterministicXorMask = 0xA5;
 };
 
 } // namespace graph::gpu::metal::nodes

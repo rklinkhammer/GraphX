@@ -15,6 +15,10 @@
 
 namespace graph::gpu::cuda::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class D2HAsyncNode
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

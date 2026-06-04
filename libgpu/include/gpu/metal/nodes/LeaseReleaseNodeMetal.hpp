@@ -16,6 +16,10 @@
 
 namespace graph::gpu::metal::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class LeaseReleaseNodeMetal
     : public graph::NamedSinkNode<LeaseReleaseNodeMetal, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

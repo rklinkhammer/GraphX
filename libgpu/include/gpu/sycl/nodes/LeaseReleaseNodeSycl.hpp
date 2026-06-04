@@ -16,6 +16,10 @@
 
 namespace graph::gpu::sycl::nodes {
 
+// Control-plane contract: edges carry readiness/context handles only.
+// Backend capabilities perform allocation/copy/synchronization work.
+// This node exposes an operation boundary over those backend services.
+
 class LeaseReleaseNodeSycl
     : public graph::NamedSinkNode<LeaseReleaseNodeSycl, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {
