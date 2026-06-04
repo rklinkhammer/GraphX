@@ -6,6 +6,7 @@
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/cuda/capabilities/DefaultCudaCapabilities.hpp"
@@ -13,6 +14,10 @@
 
 #if GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/sycl/capabilities/DefaultSyclCapabilities.hpp"
+#endif
+
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+#include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 #endif
 
 #include <memory>
@@ -96,6 +101,37 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
     }
 #else
     (void)options.enable_sycl;
+#endif
+
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+    if (options.enable_metal) {
+        if (!bus.Has<metal::capabilities::IMetalContextCapability>()) {
+            bus.Register<metal::capabilities::IMetalContextCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalContextCapability>());
+        }
+        if (!bus.Has<metal::capabilities::IMetalMemoryPoolCapability>()) {
+            bus.Register<metal::capabilities::IMetalMemoryPoolCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalMemoryPoolCapability>());
+        }
+        if (!bus.Has<metal::capabilities::IMetalTransferCapability>()) {
+            bus.Register<metal::capabilities::IMetalTransferCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalTransferCapability>());
+        }
+        if (!bus.Has<metal::capabilities::IMetalKernelCapability>()) {
+            bus.Register<metal::capabilities::IMetalKernelCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalKernelCapability>());
+        }
+        if (!bus.Has<metal::capabilities::IMetalTelemetryCapability>()) {
+            bus.Register<metal::capabilities::IMetalTelemetryCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalTelemetryCapability>());
+        }
+        if (!bus.Has<metal::capabilities::IMetalCollectiveCapability>()) {
+            bus.Register<metal::capabilities::IMetalCollectiveCapability>(
+                std::make_shared<metal::capabilities::DefaultMetalCollectiveCapability>());
+        }
+    }
+#else
+    (void)options.enable_metal;
 #endif
 }
 

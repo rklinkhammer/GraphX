@@ -31,7 +31,8 @@ option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
 option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
-option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" OFF)
+option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
+option(ENABLE_METAL_GRAPH_NODES "Enable Metal GPU graph nodes in libgpu" ON)
 option(MULTI_GPU_TESTS "Enable multi-GPU test lanes (when supported)" OFF)
 
 find_package(CUDAToolkit QUIET)
@@ -46,6 +47,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|IntelLLVM")
     if(GRAPHX_CXX_SUPPORTS_FSYCL)
         set(GRAPHX_HAS_SYCL_COMPILER ON)
     endif()
+endif()
+
+set(GRAPHX_HAS_METAL_PLATFORM OFF)
+if(APPLE)
+    set(GRAPHX_HAS_METAL_PLATFORM ON)
 endif()
 
 set(GRAPHX_CUDA_GRAPH_NODES_ENABLED OFF)
@@ -70,6 +76,17 @@ if(ENABLE_SYCL_GRAPH_NODES)
     endif()
 endif()
 
+set(GRAPHX_METAL_GRAPH_NODES_ENABLED OFF)
+if(ENABLE_METAL_GRAPH_NODES)
+    if(GRAPHX_HAS_METAL_PLATFORM)
+        set(GRAPHX_METAL_GRAPH_NODES_ENABLED ON)
+    else()
+        message(WARNING
+            "ENABLE_METAL_GRAPH_NODES=ON but this platform is not Apple/macOS. "
+            "Disabling Metal graph nodes for this configure.")
+    endif()
+endif()
+
 if(MULTI_GPU_TESTS AND NOT (GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED))
     message(WARNING
         "MULTI_GPU_TESTS=ON but no GPU backend is enabled. "
@@ -87,6 +104,7 @@ add_library(graphx_project_options INTERFACE)
 target_compile_definitions(graphx_project_options INTERFACE
     GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
+    GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
     GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
 )
 
@@ -103,6 +121,7 @@ endif()
 
 message(STATUS "GraphX CUDA graph nodes: ${GRAPHX_CUDA_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
+message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX multi-GPU tests: ${MULTI_GPU_TESTS}")
 
 # Add projects
@@ -117,6 +136,7 @@ if(BUILD_TESTS)
     
     # Add per-project tests
     add_subdirectory(libgraph/test)
+    add_subdirectory(libgpu/test)
      
     # Summary target
     add_custom_target(test-summary

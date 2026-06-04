@@ -1,10 +1,10 @@
-# CUDA and SYCL Graph Nodes and Thin Data Movement Implementation Plan
+# CUDA, SYCL, and Metal Graph Nodes and Thin Data Movement Implementation Plan
 
 ## Objective
 
 Add high-performance GPU computation and data movement to GraphX using thin abstractions that preserve existing libgraph node and capability patterns and avoid heavyweight framework layers.
 
-Primary backend language in this document is CUDA, with a SYCL variant that mirrors the same core structure for non-NVIDIA hardware.
+Primary backend language in this document is CUDA, with SYCL and Metal variants that mirror the same core structure for non-NVIDIA and macOS hardware.
 
 ## Scope
 
@@ -12,12 +12,14 @@ In scope:
 
 1. CUDA capability interfaces and default implementations
 2. SYCL capability interfaces and default implementations
-3. Thin buffer and token payload model for host and device movement
-4. A minimal, high-throughput CUDA node set (ingress, transfer, compute, egress, sync)
-5. A matching SYCL node set with equivalent contracts and lifecycle behavior
-6. Metrics and diagnostics integration with existing node metrics model
-7. Single-process multi-GPU execution support (sharding, peer movement, collectives)
-8. Unit, integration, and performance test coverage and CI entry points
+3. Metal capability interfaces and default implementations for macOS
+4. Thin buffer and token payload model for host and device movement
+5. A minimal, high-throughput CUDA node set (ingress, transfer, compute, egress, sync)
+6. A matching SYCL node set with equivalent contracts and lifecycle behavior
+7. A matching Metal node set with equivalent contracts and lifecycle behavior on macOS
+8. Metrics and diagnostics integration with existing node metrics model
+9. Single-process multi-GPU execution support (sharding, peer movement, collectives)
+10. Unit, integration, and performance test coverage and CI entry points
 
 Out of scope (initial phase):
 
@@ -31,7 +33,7 @@ Out of scope (initial phase):
 2. Tokenized movement: pass small metadata views on edges, never copy large buffers in messages
 3. Explicit synchronization: execution state in payloads, no implicit device-wide sync
 4. Pool-first memory strategy: pinned host pools, device pools, and reuse contracts
-5. Backend parity: CUDA and SYCL keep equivalent graph-facing contracts
+5. Backend parity: CUDA, SYCL, and Metal keep equivalent graph-facing contracts
 6. Incremental adoption: no breakage to existing CPU-only nodes and pipelines
 
 ## Existing GraphX Hooks Used
@@ -48,11 +50,12 @@ Out of scope (initial phase):
 The current repository state represents a stub-backed graph-validation slice, not full CUDA/SYCL runtime validation.
 
 1. The current default CUDA and SYCL capability implementations are CPU-safe simulation backends used to validate graph contracts, token flow, lifecycle, and plugin wiring in CPU-only CI.
-2. Stub plugins may be built independently of backend enable flags so G0 topology validation remains available when ENABLE_CUDA_GRAPH_NODES and ENABLE_SYCL_GRAPH_NODES are OFF.
-3. Real backend plugins and backend-validation tests must be gated separately from stub plugins and stub tests.
-4. Current stub GPU nodes resolve capabilities through the shared libgpu capability bus and bootstrap path rather than constructor injection or private per-plugin instances. Real backend plugins must continue this pattern, but swap in backend-aware bootstrap wiring instead of stub defaults.
-5. Current topology coverage is limited to G0. G1-G8 remain planned work and must not be described as implemented.
-6. Metrics and diagnostics remain planned work beyond the current queue/thread metrics already provided by libgraph.
+2. Metal support should follow the same capability-bus and stub-validation pattern, but remain gated until the macOS backend surfaces are added.
+3. Stub plugins may be built independently of backend enable flags so G0 topology validation remains available when ENABLE_CUDA_GRAPH_NODES and ENABLE_SYCL_GRAPH_NODES are OFF.
+4. Real backend plugins and backend-validation tests must be gated separately from stub plugins and stub tests.
+5. Current stub GPU nodes resolve capabilities through the shared libgpu capability bus and bootstrap path rather than constructor injection or private per-plugin instances. Real backend plugins must continue this pattern, but swap in backend-aware bootstrap wiring instead of stub defaults.
+6. Current topology coverage is limited to G0. G1-G8 remain planned work and must not be described as implemented.
+7. Metrics and diagnostics remain planned work beyond the current queue/thread metrics already provided by libgraph.
 
 Implementation guidance before additional topology expansion:
 
@@ -60,16 +63,17 @@ Implementation guidance before additional topology expansion:
 2. Separate stub validation from backend validation in both CMake and CI reporting.
 3. Route real plugin node construction through CapabilityBus/bootstrap before claiming backend parity.
 4. Implement LeaseReleaseNode next to close the ownership gap in the lease model before adding more compute complexity.
-5. Implement DeviceTransformNode after LeaseReleaseNode using a stub kernel capability first, then add backend-gated real CUDA/SYCL execution.
+5. Implement DeviceTransformNode after LeaseReleaseNode using a stub kernel capability first, then add backend-gated real CUDA/SYCL/Metal execution.
 6. Maintain explicit test categories: libgpu_stub_unit, libgpu_backend_unit, libgpu_integration, and libgpu_perf.
 
 Implementation rule for the next iteration:
 
-1. Every GPU node must be implemented and validated in two lanes before the node is considered complete:
+1. Every GPU node must be implemented and validated in three lanes before the node is considered complete:
    - CPU stub lane: contract validation using CPU-safe default capabilities.
    - SYCL HAL lane: real queue, event, allocation, and copy or kernel path validation through SYCL capability implementations.
-2. "Node complete" means both lanes pass required unit plus integration checks for that node.
-3. Topology expansion (G1+) is gated on dual-lane completion of all prerequisite nodes in the topology.
+   - Metal macOS lane: real command-queue, allocation, copy, and kernel path validation through Metal capability implementations.
+2. "Node complete" means all lanes pass required unit plus integration checks for that node.
+3. Topology expansion (G1+) is gated on tri-lane completion of all prerequisite nodes in the topology.
 
 ## Implementation Dashboard
 
@@ -78,10 +82,10 @@ This dashboard is the working view for tracking the implementation sequence and 
 | Phase | Status | What is Done | Next Gate |
 |---|---|---|---|
 | Phase 0a: Graph framework validation | Complete | Builder, executor, and topology validation gate is established with existing libgraph test assets. | Keep as regression gate before widening GPU topology work. |
-| Phase 0/1: Capability baseline and backend scaffolding | In progress | CUDA and SYCL capability bootstrap paths exist; default SYCL smoke coverage now validates context, memory, transfer, kernel, telemetry, and collective contracts. | Add backend-specific runtime validation and keep capability bootstrap parity between CUDA and SYCL. |
+| Phase 0/1: Capability baseline and backend scaffolding | In progress | CUDA, SYCL, and Metal capability bootstrap paths exist in the plan; default SYCL smoke coverage now validates context, memory, transfer, kernel, telemetry, and collective contracts. | Add backend-specific runtime validation and keep capability bootstrap parity across CUDA, SYCL, and Metal. |
 | Phase 2: Payload and token model | In progress | Core payload types exist and validation now covers views, leases, transfer tickets, kernel tickets, collective tickets, and shard descriptors. | Finish node-level propagation of validated payloads across transfer and shard-adjacent paths. |
-| Phase 3: Data movement nodes | In progress | Host ingress, H2D, D2H, and lease-release nodes now enforce the payload contract in both CUDA and SYCL stub lanes. | Implement PeerCopyNode and its validation path. |
-| Phase 4: Compute nodes | Planned | Compute node contracts are defined in the plan. | Implement DeviceTransformNode and DeviceReduceNode with CPU stub and SYCL HAL lanes. |
+| Phase 3: Data movement nodes | In progress | Host ingress, H2D, D2H, and lease-release nodes now enforce the payload contract in CUDA and SYCL stub lanes; Metal parity is planned on the same contracts. | Implement PeerCopyNode and its validation path. |
+| Phase 4: Compute nodes | Planned | Compute node contracts are defined in the plan. | Implement DeviceTransformNode and DeviceReduceNode with CPU stub, SYCL HAL, and Metal macOS lanes. |
 | Phase 5: Integration and metrics | Planned | End-to-end topology and metrics goals are defined. | Wire the full sample pipeline and surface backend telemetry. |
 | Phase 5b: Multi-GPU collectives | Planned | Collective contract shape is defined. | Implement CollectiveReduceNode and multi-GPU parity coverage. |
 | Phase 6: Hardening and CI | Planned | CI and regression goals are defined. | Split stub, backend, integration, and perf lanes in CI. |
@@ -124,6 +128,23 @@ Create interfaces under libgpu/include/gpu/sycl/capabilities/:
    - event timing and queue-level counters
 6. ISyclCollectiveCapability
    - backend-appropriate collectives for single-process multi-GPU
+
+### 1c. Metal Capability Interfaces
+
+Create interfaces under libgpu/include/gpu/metal/capabilities/:
+
+1. IMetalContextCapability
+   - device selection, command-queue lifecycle, and event lifecycle
+2. IMetalMemoryPoolCapability
+   - device, shared, and host allocation and release
+3. IMetalTransferCapability
+   - host-device, device-host, and device-device copy
+4. IMetalKernelCapability
+   - kernel registration and dispatch API
+5. IMetalTelemetryCapability
+   - queue timing and event counters
+6. IMetalCollectiveCapability
+   - macOS-appropriate collectives for single-process multi-GPU
 
 ### 2. Thin Payload Types (Shared Contract)
 
@@ -188,6 +209,24 @@ Create nodes under libgpu/include/gpu/sycl/nodes/ and libgpu/src/gpu/sycl/nodes/
 11. CollectiveReduceNodeSycl
 
 Naming can be unified later by selecting backend via capability injection to avoid duplicated node names.
+
+### 3c. Initial Metal Node Set (Structural Match for macOS)
+
+Create nodes under libgpu/include/gpu/metal/nodes/ and libgpu/src/gpu/metal/nodes/ with equivalent semantics:
+
+1. HostIngressPinnedSourceNodeMetal
+2. H2DAsyncNodeMetal
+3. DeviceTransformNodeMetal
+4. DeviceReduceNodeMetal
+5. D2HAsyncNodeMetal
+6. HostEgressSinkNodeMetal
+7. QueueSyncNodeMetal
+8. LeaseReleaseNodeMetal
+9. DeviceShardNodeMetal
+10. PeerCopyNodeMetal
+11. CollectiveReduceNodeMetal
+
+Metal nodes should preserve the same graph-facing payload contracts as CUDA and SYCL, but use Metal command-queue and shared-memory semantics on macOS.
 
 ## libgpu Placement and Repository Layout
 
@@ -1670,9 +1709,22 @@ Exit criteria:
 
 1. SYCL baseline pipeline passes correctness tests.
 2. CUDA baseline pipeline passes correctness tests.
-3. Shared conformance harness passes for both backends.
-4. Event and synchronization semantics differences documented.
-5. Backend parity report generated.
+3. Metal baseline pipeline passes correctness tests on macOS.
+4. Shared conformance harness passes for all enabled backends.
+5. Event and synchronization semantics differences documented.
+6. Backend parity report generated.
+
+### Metal Port Checklist
+
+1. Add Metal backend capability interfaces under libgpu/include/gpu/metal/capabilities.
+2. Add Metal node contracts under libgpu/include/gpu/metal/nodes and mirror implementations under libgpu/src/gpu/metal/nodes.
+3. Add Metal capability bootstrap registration in libgpu/src/gpu/GpuCapabilityBootstrap.cpp.
+4. Add Metal build gating and macOS detection to the top-level CMake configuration.
+5. Add Metal plugin registration wrappers under libgpu/plugins.
+6. Add Metal stub or runtime validation tests under libgpu/test/unit and libgpu/test/integration.
+7. Confirm Metal transfer paths use shared-memory or explicit copy semantics consistent with macOS constraints.
+8. Confirm Metal compute nodes expose the same graph-facing payload contracts as CUDA and SYCL.
+9. Confirm the Metal path is documented as the macOS backend lane in this plan.
 
 ### Node-by-Node Architecture and Test Checklist
 

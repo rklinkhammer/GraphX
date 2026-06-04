@@ -22,6 +22,12 @@ struct GpuCapabilityBootstrapOptions {
 #else
     bool enable_sycl{false};
 #endif
+
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+    bool enable_metal{true};
+#else
+    bool enable_metal{false};
+#endif
 };
 
 // Registers default GPU capabilities in the shared capability bus.

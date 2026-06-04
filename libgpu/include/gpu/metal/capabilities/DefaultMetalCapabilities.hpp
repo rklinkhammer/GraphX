@@ -4,47 +4,28 @@
 
 #pragma once
 
-#include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
 #include <cstdint>
-#include <memory>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#if defined(__has_include)
-#  if __has_include(<sycl/sycl.hpp>)
-#    include <sycl/sycl.hpp>
-#    define GRAPHX_HAS_SYCL_RUNTIME 1
-#  else
-#    define GRAPHX_HAS_SYCL_RUNTIME 0
-#  endif
-#else
-#  define GRAPHX_HAS_SYCL_RUNTIME 0
-#endif
+namespace graph::gpu::metal::capabilities {
 
-namespace graph::gpu::sycl::capabilities {
-
-struct SyclRuntimeState;
-
-class DefaultSyclContextCapability final : public ISyclContextCapability {
+class DefaultMetalContextCapability final : public IMetalContextCapability {
 public:
-    DefaultSyclContextCapability();
-
     bool SelectDevice(std::uint32_t device_id) override;
     std::uint32_t CurrentDevice() const override;
 
-    std::uint64_t CreateQueue() override;
-    void DestroyQueue(std::uint64_t queue_id) override;
+    std::uint64_t CreateCommandQueue() override;
+    void DestroyCommandQueue(std::uint64_t queue_id) override;
 
     std::uint64_t CreateEvent() override;
     void DestroyEvent(std::uint64_t event_id) override;
 
 private:
-#if GRAPHX_HAS_SYCL_RUNTIME
-    std::shared_ptr<SyclRuntimeState> runtime_;
-#endif
     std::uint32_t current_device_id_{0};
     std::uint64_t next_queue_id_{1};
     std::uint64_t next_event_id_{1};
@@ -52,10 +33,8 @@ private:
     std::unordered_set<std::uint64_t> events_{};
 };
 
-class DefaultSyclMemoryPoolCapability final : public ISyclMemoryPoolCapability {
+class DefaultMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
-    DefaultSyclMemoryPoolCapability();
-
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
                         accel::BufferLease& out_lease) override;
     bool AllocateShared(std::uint64_t bytes, std::uint32_t device_id,
@@ -65,18 +44,14 @@ public:
     bool Release(const accel::BufferLease& lease) override;
 
 private:
-#if GRAPHX_HAS_SYCL_RUNTIME
-    std::shared_ptr<SyclRuntimeState> runtime_;
-#endif
     std::uint64_t next_allocation_id_{1};
     std::unordered_map<std::uint64_t, std::vector<std::byte>> device_allocations_{};
+    std::unordered_map<std::uint64_t, std::vector<std::byte>> shared_allocations_{};
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
-class DefaultSyclTransferCapability final : public ISyclTransferCapability {
+class DefaultMetalTransferCapability final : public IMetalTransferCapability {
 public:
-    DefaultSyclTransferCapability();
-
     bool EnqueueH2D(const accel::HostPinnedBufferView& src,
                     accel::DeviceBufferView& dst,
                     std::uint64_t queue_id,
@@ -93,14 +68,11 @@ public:
                     accel::TransferTicket& out_ticket) override;
 
 private:
-#if GRAPHX_HAS_SYCL_RUNTIME
-    std::shared_ptr<SyclRuntimeState> runtime_;
-#endif
     std::uint64_t next_transfer_id_{1};
     std::uint64_t next_event_id_{1};
 };
 
-class DefaultSyclKernelCapability final : public ISyclKernelCapability {
+class DefaultMetalKernelCapability final : public IMetalKernelCapability {
 public:
     bool RegisterKernel(std::uint64_t kernel_id,
                         std::string_view kernel_name) override;
@@ -113,7 +85,7 @@ private:
     std::unordered_set<std::uint64_t> registered_kernels_{};
 };
 
-class DefaultSyclTelemetryCapability final : public ISyclTelemetryCapability {
+class DefaultMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
     void RecordTransfer(const accel::TransferTicket& ticket,
                         std::uint64_t duration_ns) override;
@@ -131,7 +103,7 @@ private:
     std::uint64_t error_count_{0};
 };
 
-class DefaultSyclCollectiveCapability final : public ISyclCollectiveCapability {
+class DefaultMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:
     bool AllReduce(accel::DeviceBufferView& in_out,
                    const accel::CollectiveTicket& ticket) override;
@@ -143,4 +115,4 @@ public:
                        const accel::CollectiveTicket& ticket) override;
 };
 
-} // namespace graph::gpu::sycl::capabilities
+} // namespace graph::gpu::metal::capabilities

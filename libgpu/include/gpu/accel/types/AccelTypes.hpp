@@ -16,7 +16,8 @@ constexpr std::size_t kMaxTensorRank = 8;
 enum class BackendKind : std::uint8_t {
     Unknown = 0,
     CUDA,
-    SYCL
+    SYCL,
+    Metal
 };
 
 enum class DataType : std::uint8_t {

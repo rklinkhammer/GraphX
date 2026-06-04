@@ -6,6 +6,7 @@
 #include "graph/CapabilityBus.hpp"
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #include "gpu/sycl/capabilities/DefaultSyclCapabilities.hpp"
 #include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
 
@@ -57,6 +58,12 @@ TEST(GpuCapabilityBootstrap, RegistersExpectedCapabilitiesFromFeatureFlags) {
     constexpr bool expect_sycl = false;
 #endif
 
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+    constexpr bool expect_metal = true;
+#else
+    constexpr bool expect_metal = false;
+#endif
+
     EXPECT_EQ(bus.Has<graph::gpu::cuda::capabilities::ICudaContextCapability>(), expect_cuda);
     EXPECT_EQ(bus.Has<graph::gpu::cuda::capabilities::ICudaMemoryPoolCapability>(), expect_cuda);
     EXPECT_EQ(bus.Has<graph::gpu::cuda::capabilities::ICudaTransferCapability>(), expect_cuda);
@@ -70,6 +77,13 @@ TEST(GpuCapabilityBootstrap, RegistersExpectedCapabilitiesFromFeatureFlags) {
     EXPECT_EQ(bus.Has<graph::gpu::sycl::capabilities::ISyclKernelCapability>(), expect_sycl);
     EXPECT_EQ(bus.Has<graph::gpu::sycl::capabilities::ISyclTelemetryCapability>(), expect_sycl);
     EXPECT_EQ(bus.Has<graph::gpu::sycl::capabilities::ISyclCollectiveCapability>(), expect_sycl);
+
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalContextCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalTransferCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalKernelCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalCollectiveCapability>(), expect_metal);
 }
 
 TEST(GpuCapabilityBootstrap, DefaultSyclCapabilitiesSupportSmokeOperations) {
@@ -185,11 +199,13 @@ TEST(GpuCapabilityBootstrap, ExplicitDisablePreventsRegistration) {
     graph::gpu::GpuCapabilityBootstrapOptions options{};
     options.enable_cuda = false;
     options.enable_sycl = false;
+    options.enable_metal = false;
 
     graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
 
     EXPECT_FALSE(bus.Has<graph::gpu::cuda::capabilities::ICudaContextCapability>());
     EXPECT_FALSE(bus.Has<graph::gpu::sycl::capabilities::ISyclContextCapability>());
+    EXPECT_FALSE(bus.Has<graph::gpu::metal::capabilities::IMetalContextCapability>());
 }
 
 } // namespace

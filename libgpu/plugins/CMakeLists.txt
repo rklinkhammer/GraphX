@@ -129,6 +129,127 @@ target_include_directories(sycl_lease_release_node PRIVATE
 	${CMAKE_SOURCE_DIR}/libgraph/include
 )
 
+add_graphx_plugin(
+	TARGET_NAME metal_host_ingress_pinned_source_node
+	SOURCE_FILE metal_host_ingress_pinned_source_node_plugin.cpp
+	DESCRIPTION "Metal stub host ingress pinned source node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_host_ingress_pinned_source_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_h2d_async_node
+	SOURCE_FILE metal_h2d_async_node_plugin.cpp
+	DESCRIPTION "Metal stub async host-to-device transfer node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_h2d_async_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_d2h_async_node
+	SOURCE_FILE metal_d2h_async_node_plugin.cpp
+	DESCRIPTION "Metal stub async device-to-host transfer node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_d2h_async_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_host_egress_sink_node
+	SOURCE_FILE metal_host_egress_sink_node_plugin.cpp
+	DESCRIPTION "Metal stub host egress sink node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_host_egress_sink_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_lease_release_node
+	SOURCE_FILE metal_lease_release_node_plugin.cpp
+	DESCRIPTION "Metal stub lease release node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_lease_release_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_device_transform_node
+	SOURCE_FILE metal_device_transform_node_plugin.cpp
+	DESCRIPTION "Metal stub device transform node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_device_transform_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_device_reduce_node
+	SOURCE_FILE metal_device_reduce_node_plugin.cpp
+	DESCRIPTION "Metal stub device reduce node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_device_reduce_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_queue_sync_node
+	SOURCE_FILE metal_queue_sync_node_plugin.cpp
+	DESCRIPTION "Metal stub queue sync node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_queue_sync_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_device_shard_node
+	SOURCE_FILE metal_device_shard_node_plugin.cpp
+	DESCRIPTION "Metal stub device shard node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_device_shard_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_peer_copy_node
+	SOURCE_FILE metal_peer_copy_node_plugin.cpp
+	DESCRIPTION "Metal stub peer copy node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_peer_copy_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+	TARGET_NAME metal_collective_reduce_node
+	SOURCE_FILE metal_collective_reduce_node_plugin.cpp
+	DESCRIPTION "Metal stub collective reduce node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_collective_reduce_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
 endif()
 
 # Real backend plugins remain backend-gated work. They should be introduced in
