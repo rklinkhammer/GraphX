@@ -24,7 +24,7 @@ target_include_directories(test_libgraph_unit PRIVATE
 target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
 )
-target_link_libraries(test_libgraph_unit PRIVATE dsp GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE dsp gpu GTest::gtest_main Threads::Threads log4cxx)
 target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
 add_dependencies(test_libgraph_unit
     test_node
@@ -53,7 +53,7 @@ if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     target_compile_definitions(test_threadpool_extended PRIVATE
         PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     )
-    target_link_libraries(test_threadpool_extended PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_threadpool_extended PRIVATE graph gpu GTest::gtest_main Threads::Threads log4cxx)
     target_link_libraries(test_threadpool_extended PRIVATE graphx_project_options)
     add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
     set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")
@@ -69,7 +69,7 @@ if(INTEGRATION_TEST_SOURCES)
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_link_libraries(test_libgraph_integration PRIVATE graph GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_libgraph_integration PRIVATE graph gpu GTest::gtest_main Threads::Threads log4cxx)
     target_link_libraries(test_libgraph_integration PRIVATE graphx_project_options)
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
 endif()
