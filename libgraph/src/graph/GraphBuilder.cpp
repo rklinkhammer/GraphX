@@ -23,7 +23,6 @@
 #include "graph/GraphBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphConfig.hpp"
-#include "graph/EdgeRegistry.hpp"
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacade.hpp"
@@ -46,6 +45,21 @@
 namespace fs = std::filesystem;
 
 namespace app {
+
+namespace {
+
+const char* RuntimePortLookupErrorToString(graph::RuntimePortLookupError error) {
+    switch (error) {
+        case graph::RuntimePortLookupError::PortNotFound:
+            return "PortNotFound";
+        case graph::RuntimePortLookupError::MetadataUnavailable:
+            return "MetadataUnavailable";
+        default:
+            return "UnknownRuntimePortLookupError";
+    }
+}
+
+}  // namespace
 
 // ============================================================================
 // Static Initialization
@@ -173,10 +187,6 @@ BuildResult GraphBuilder::Build() {
         // Step 3: Create GraphManager
         LOG4CXX_TRACE(logger_, "Step 3: Creating GraphManager");
         graph_ = std::make_shared<graph::GraphManager>();
-        
-        // Step 3.5: Initialize EdgeRegistry
-        LOG4CXX_TRACE(logger_, "Step 3.5: Initializing EdgeRegistry");
-        InitializeEdgeRegistry();
         
         // Step 4: Register nodes with GraphManager
         LOG4CXX_TRACE(logger_, "Step 4: Registering nodes with GraphManager");
@@ -615,27 +625,46 @@ void GraphBuilder::WireEdges(
             }
             auto [dst_idx, dst_type] = dst_it->second;
             
-            LOG4CXX_TRACE(logger_, "Edge " << i << " connecting actual types: " 
-                                  << src_type << ":" << edge.source_port 
+            LOG4CXX_TRACE(logger_, "Edge " << i << " connecting actual types: "
+                                  << src_type << ":" << edge.source_port
                                   << " to " << dst_type << ":" << edge.target_port);
-            
-            // Use EdgeRegistry to create the type-aware edge
-            auto created = graph::config::EdgeRegistry::CreateEdgeExpected(
-                *graph_,
-                src_type,
-                edge.source_port,
-                dst_type,
-                edge.target_port,
-                src_idx,
-                dst_idx,
-                edge.buffer_size);
-            
+
+            if (src_idx >= nodes_.size() || dst_idx >= nodes_.size()) {
+                throw std::runtime_error(
+                    "Node index out of range for dynamic edge creation");
+            }
+
+            auto source_handle = nodes_[src_idx]->GetOutputPortHandle(
+                std::to_string(edge.source_port), src_idx);
+            if (!source_handle) {
+                throw std::runtime_error(
+                    std::string("Failed to resolve source output port handle: node=") +
+                    edge.source_node_id + " port=" + std::to_string(edge.source_port) +
+                    " reason=" + RuntimePortLookupErrorToString(source_handle.error()));
+            }
+
+            auto destination_handle = nodes_[dst_idx]->GetInputPortHandle(
+                std::to_string(edge.target_port), dst_idx);
+            if (!destination_handle) {
+                throw std::runtime_error(
+                    std::string("Failed to resolve destination input port handle: node=") +
+                    edge.target_node_id + " port=" + std::to_string(edge.target_port) +
+                    " reason=" + RuntimePortLookupErrorToString(destination_handle.error()));
+            }
+
+            graph::DynamicEdgeConfig dynamic_edge_config{
+                .source = source_handle.value(),
+                .destination = destination_handle.value(),
+                .capacity = edge.buffer_size,
+            };
+
+            auto created = graph_->AddDynamicEdgeExpected(dynamic_edge_config);
             if (!created) {
                 throw std::runtime_error(
-                    std::string("EdgeRegistry::CreateEdge FAILED for ") + 
+                    std::string("AddDynamicEdgeExpected failed for ") +
                     src_type + ":" + std::to_string(edge.source_port) + " → " +
                     dst_type + ":" + std::to_string(edge.target_port) +
-                    " (Likely cause: GetNode<T>() returned nullptr - adapter handle mismatch or wrong type)");
+                    " reason=" + created.error().message);
             }
             
             LOG4CXX_TRACE(logger_, "Edge " << i << " created successfully: "

@@ -101,6 +101,10 @@ struct NodeFacade {
     PortMetadataC* (*GetOutputPortMetadata)(NodeHandle handle, size_t* out_count);
     void (*FreePortMetadata)(PortMetadataC* metadata);
 
+    void* (*CreateInputRuntimePort)(NodeHandle handle, size_t port);
+    void* (*CreateOutputRuntimePort)(NodeHandle handle, size_t port);
+    void (*DestroyRuntimePort)(void* runtime_port);
+
     const ThreadMetricsC* (*GetThreadMetrics)(NodeHandle handle);
     double (*GetThreadUtilizationPercent)(NodeHandle handle);
 

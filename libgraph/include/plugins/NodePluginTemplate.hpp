@@ -61,6 +61,7 @@
 #include "graph/NodePluginInstance.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"
+#include "graph/IPortFunction.hpp"
 #include "config/JsonView.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include "graph/CompletionSignal.hpp"
@@ -78,6 +79,191 @@ namespace graph {
 /// @brief Forward declarations
 static log4cxx::LoggerPtr _metadata_logger = 
     log4cxx::Logger::getLogger("graph.plugins.PortMetadataHelper");
+
+template <typename PortT>
+class PluginQueueBackedPortFunction final : public IPortFunction {
+public:
+    using ValueType = typename PortT::type;
+
+    PluginQueueBackedPortFunction(PortDirection direction,
+                                  core::ActiveQueue<ValueType>* queue)
+        : direction_(direction), queue_(queue) {}
+
+    std::size_t GetPortId() const override {
+        return PortT::id;
+    }
+
+    std::string_view GetTypeName() const override {
+        return TypeName<ValueType>();
+    }
+
+    PortDirection GetDirection() const override {
+        return direction_;
+    }
+
+    std::string_view GetTransportTypeName() const override {
+        return TypeName<core::ActiveQueue<ValueType>>();
+    }
+
+    void SetCapacity(std::size_t capacity) override {
+        if (queue_) {
+            queue_->SetCapacity(capacity);
+        }
+    }
+
+    std::size_t GetQueueSize() const override {
+        return queue_ ? queue_->Size() : 0;
+    }
+
+    bool Init() override {
+        if (queue_) {
+            queue_->Enable();
+        }
+        return true;
+    }
+
+    bool Start() override {
+        return true;
+    }
+
+    void Stop() override {
+        if (queue_) {
+            queue_->Disable();
+        }
+    }
+
+    void Join() override {
+    }
+
+    bool JoinWithTimeout(std::chrono::milliseconds) override {
+        return true;
+    }
+
+    std::expected<void, RuntimePortConnectError>
+    ConnectTo(IPortFunction& destination, std::size_t capacity) override {
+        if (GetDirection() != PortDirection::Output ||
+            destination.GetDirection() != PortDirection::Input) {
+            return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+        }
+
+        if (GetTypeName() != destination.GetTypeName()) {
+            return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+        }
+
+        SetCapacity(capacity);
+        destination.SetCapacity(capacity);
+        return {};
+    }
+
+    std::expected<bool, RuntimePortConnectError>
+    TransferTo(IPortFunction& destination) override {
+        if (GetDirection() != PortDirection::Output ||
+            destination.GetDirection() != PortDirection::Input) {
+            return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+        }
+
+        if (GetTypeName() != destination.GetTypeName()) {
+            return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+        }
+
+        if (!queue_) {
+            return std::unexpected(RuntimePortConnectError::NullDestination);
+        }
+
+        auto* destination_queue = destination.GetQueueIfType<ValueType>();
+        if (!destination_queue) {
+            return std::unexpected(RuntimePortConnectError::NullDestination);
+        }
+
+        ValueType item{};
+        if (!queue_->DequeueNonBlocking(item)) {
+            return false;
+        }
+
+        if (!destination_queue->Enqueue(std::move(item))) {
+            return std::unexpected(RuntimePortConnectError::TransferFailed);
+        }
+
+        return true;
+    }
+
+protected:
+    const void* GetQueueVoid() const override {
+        return queue_;
+    }
+
+private:
+    PortDirection direction_;
+    core::ActiveQueue<ValueType>* queue_;
+};
+
+template <typename NodeT, std::size_t Index>
+IPortFunction* CreateInputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) {
+    using InPort = typename NodeT::template InputPortType<Index>;
+    if (auto* input = dynamic_cast<InputFn<InPort>*>(inst->node.get())) {
+        return new PluginQueueBackedPortFunction<InPort>(PortDirection::Input,
+                                                          &input->GetQueue());
+    }
+
+    if constexpr (requires { NodeT::NOutputs; }) {
+        if constexpr (Index < NodeT::NOutputs) {
+            using OutPort = typename NodeT::template OutputPortType<Index>;
+            if (auto* transfer = dynamic_cast<TransferFn<InPort, OutPort>*>(inst->node.get())) {
+                return new PluginQueueBackedPortFunction<InPort>(PortDirection::Input,
+                                                                  &transfer->GetInputQueue());
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+template <typename NodeT, std::size_t Index>
+IPortFunction* CreateOutputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) {
+    using OutPort = typename NodeT::template OutputPortType<Index>;
+    if (auto* output = dynamic_cast<OutputFn<OutPort>*>(inst->node.get())) {
+        return new PluginQueueBackedPortFunction<OutPort>(PortDirection::Output,
+                                                           &output->GetQueue());
+    }
+
+    if constexpr (requires { NodeT::NInputs; }) {
+        if constexpr (Index < NodeT::NInputs) {
+            using InPort = typename NodeT::template InputPortType<Index>;
+            if (auto* transfer = dynamic_cast<TransferFn<InPort, OutPort>*>(inst->node.get())) {
+                return new PluginQueueBackedPortFunction<OutPort>(PortDirection::Output,
+                                                                   &transfer->GetOutputQueue());
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+template <typename NodeT, std::size_t Index = 0>
+void* CreateInputRuntimePortByIndex(NodePluginInstance<NodeT>* inst, std::size_t requested_index) {
+    if constexpr (requires { NodeT::NInputs; }) {
+        if constexpr (Index < NodeT::NInputs) {
+            if (requested_index == Index) {
+                return CreateInputRuntimePortForIndex<NodeT, Index>(inst);
+            }
+            return CreateInputRuntimePortByIndex<NodeT, Index + 1>(inst, requested_index);
+        }
+    }
+    return nullptr;
+}
+
+template <typename NodeT, std::size_t Index = 0>
+void* CreateOutputRuntimePortByIndex(NodePluginInstance<NodeT>* inst, std::size_t requested_index) {
+    if constexpr (requires { NodeT::NOutputs; }) {
+        if constexpr (Index < NodeT::NOutputs) {
+            if (requested_index == Index) {
+                return CreateOutputRuntimePortForIndex<NodeT, Index>(inst);
+            }
+            return CreateOutputRuntimePortByIndex<NodeT, Index + 1>(inst, requested_index);
+        }
+    }
+    return nullptr;
+}
 
 template <typename NodeType>
 NodeDescriptor BuildDescriptorFromPluginInstance(
@@ -366,6 +552,24 @@ struct PluginPolicy {
 
     static void FreePortMetadata(PortMetadataC* metadata) {
         FreePortMetadataImpl(metadata);
+    }
+
+    static void* CreateInputRuntimePort(NodePluginInstance<NodeT>* inst, std::size_t port_index) {
+        if (!inst || !inst->node) {
+            return nullptr;
+        }
+        return CreateInputRuntimePortByIndex<NodeT>(inst, port_index);
+    }
+
+    static void* CreateOutputRuntimePort(NodePluginInstance<NodeT>* inst, std::size_t port_index) {
+        if (!inst || !inst->node) {
+            return nullptr;
+        }
+        return CreateOutputRuntimePortByIndex<NodeT>(inst, port_index);
+    }
+
+    static void DestroyRuntimePort(void* runtime_port) {
+        delete static_cast<IPortFunction*>(runtime_port);
     }
 
     // ========== Diagnostic & Configuration Methods ==========
@@ -875,6 +1079,18 @@ struct PluginGlue {
     static void FreePortMetadata(PortMetadataC* metadata) {
         return Policy::FreePortMetadata(metadata);
     }
+
+    static void* CreateInputRuntimePort(void* h, std::size_t port_index) {
+        return Policy::CreateInputRuntimePort(static_cast<Instance*>(h), port_index);
+    }
+
+    static void* CreateOutputRuntimePort(void* h, std::size_t port_index) {
+        return Policy::CreateOutputRuntimePort(static_cast<Instance*>(h), port_index);
+    }
+
+    static void DestroyRuntimePort(void* runtime_port) {
+        return Policy::DestroyRuntimePort(runtime_port);
+    }
     
     // ====== NEW: Configuration & Diagnostics Wrapper Functions ======
     
@@ -982,6 +1198,9 @@ struct PluginGlue {
         facade.GetInputPortMetadata = GetInputPortMetadata;
         facade.GetOutputPortMetadata = GetOutputPortMetadata;
         facade.FreePortMetadata = FreePortMetadata;
+        facade.CreateInputRuntimePort = CreateInputRuntimePort;
+        facade.CreateOutputRuntimePort = CreateOutputRuntimePort;
+        facade.DestroyRuntimePort = DestroyRuntimePort;
         
         // ====== Thread Metrics Queries ======
         // Note: These implementations use SFINAE (requires) in NodeFacadeImpl

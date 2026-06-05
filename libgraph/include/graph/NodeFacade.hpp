@@ -23,8 +23,10 @@
 #pragma once
 
 #include <cstddef>
+#include <expected>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <log4cxx/logger.h>
 #include <chrono>
@@ -33,6 +35,7 @@
 #include "graph/NodeFacadeAbi.hpp"
 #include "graph/NodeDescriptor.hpp"
 #include "graph/NodePluginInstance.hpp"
+#include "graph/RuntimePort.hpp"
 #include "core/TypeInfo.hpp"
 
 namespace graph {
@@ -477,6 +480,12 @@ public:
      * @endcode
      */
     std::vector<PortMetadataC> GetOutputPortMetadata() const;
+
+    [[nodiscard]] std::expected<RuntimePortHandle, RuntimePortLookupError>
+    GetInputPortHandle(std::string_view name_or_id, std::size_t node_index) const;
+
+    [[nodiscard]] std::expected<RuntimePortHandle, RuntimePortLookupError>
+    GetOutputPortHandle(std::string_view name_or_id, std::size_t node_index) const;
 
     /**
      * Set a configuration property

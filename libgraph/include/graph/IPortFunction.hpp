@@ -45,8 +45,10 @@
 
 #include <cstddef>
 #include <chrono>
+#include <expected>
 #include <string_view>
 #include "graph/PortSpec.hpp"
+#include "graph/RuntimePort.hpp"
 #include "core/ActiveQueue.hpp"
 #include "core/TypeInfo.hpp"
 
@@ -129,6 +131,12 @@ namespace graph {
          */
         virtual PortDirection GetDirection() const = 0;
 
+        /**
+         * @brief Get the runtime transport identity for this port.
+         * @return Human-readable transport type name.
+         */
+        virtual std::string_view GetTransportTypeName() const = 0;
+
         // ====================================================================
         // Queue Operations - Manage Data Storage
         // ====================================================================
@@ -201,6 +209,27 @@ namespace graph {
          * If timeout exceeded, thread may still be running.
          */
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) = 0;
+
+        /**
+         * @brief Validate and bind this port to a destination port at runtime.
+         * @param destination Destination port to connect to
+         * @param capacity Requested queue capacity for the connection
+         * @return Success or structured connection error
+         *
+         * Phase 2 behavior is intentionally conservative: this validates output->input
+         * direction, matching payload types, and synchronizes queue capacity. Dynamic
+         * transport ownership remains future work.
+         */
+        virtual std::expected<void, RuntimePortConnectError>
+        ConnectTo(IPortFunction& destination, std::size_t capacity) = 0;
+
+        /**
+         * @brief Attempt to transfer one payload item to destination.
+         * @param destination Destination input port
+         * @return true if an item was moved, false if source had no item, error on mismatch/failure
+         */
+        virtual std::expected<bool, RuntimePortConnectError>
+        TransferTo(IPortFunction& destination) = 0;
 
         // ====================================================================
         // Type-Safe Queue Access - Polymorphic Downcast

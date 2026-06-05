@@ -26,6 +26,7 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include <charconv>
 #include <cstring>
 #include <stdexcept>
 #include <utility>
@@ -34,11 +35,104 @@
 #include <nlohmann/json.hpp>
 
 #include "graph/IConfigurable.hpp"
+#include "graph/IPortFunction.hpp"
 #include "graph/NodeFacadeInterop.hpp"
 
 namespace graph {
 
 namespace {
+
+class DescriptorPortFunction final : public IPortFunction {
+public:
+    explicit DescriptorPortFunction(RuntimePortDescriptor descriptor)
+        : descriptor_(std::move(descriptor)) {}
+
+    std::size_t GetPortId() const override {
+        return descriptor_.id;
+    }
+
+    std::string_view GetTypeName() const override {
+        return descriptor_.payload_type;
+    }
+
+    PortDirection GetDirection() const override {
+        return descriptor_.direction;
+    }
+
+    std::string_view GetTransportTypeName() const override {
+        return descriptor_.transport_type;
+    }
+
+    void SetCapacity(std::size_t capacity) override {
+        capacity_ = capacity;
+    }
+
+    std::size_t GetQueueSize() const override {
+        return 0;
+    }
+
+    bool Init() override {
+        return true;
+    }
+
+    bool Start() override {
+        return true;
+    }
+
+    void Stop() override {
+    }
+
+    void Join() override {
+    }
+
+    bool JoinWithTimeout(std::chrono::milliseconds) override {
+        return true;
+    }
+
+    std::expected<void, RuntimePortConnectError>
+    ConnectTo(IPortFunction& destination, std::size_t capacity) override {
+        if (GetDirection() != PortDirection::Output ||
+            destination.GetDirection() != PortDirection::Input) {
+            return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+        }
+
+        if (GetTypeName() != destination.GetTypeName()) {
+            return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+        }
+
+        const std::string_view src_transport = GetTransportTypeName();
+        const std::string_view dst_transport = destination.GetTransportTypeName();
+        if (!src_transport.empty() && !dst_transport.empty() && src_transport != dst_transport) {
+            return std::unexpected(RuntimePortConnectError::TransportTypeMismatch);
+        }
+
+        SetCapacity(capacity);
+        destination.SetCapacity(capacity);
+        return {};
+    }
+
+    std::expected<bool, RuntimePortConnectError>
+    TransferTo(IPortFunction& destination) override {
+        if (GetDirection() != PortDirection::Output ||
+            destination.GetDirection() != PortDirection::Input) {
+            return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+        }
+
+        if (GetTypeName() != destination.GetTypeName()) {
+            return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+        }
+
+        return false;
+    }
+
+    const void* GetQueueVoid() const override {
+        return nullptr;
+    }
+
+private:
+    const RuntimePortDescriptor descriptor_;
+    std::size_t capacity_ = 0;
+};
 
 INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
     return INodeFacade::PortInfo{
@@ -46,6 +140,79 @@ INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
         .type = metadata.payload_type,
         .direction = metadata.direction,
     };
+}
+
+std::expected<RuntimePortHandle, RuntimePortLookupError> LookupPortHandle(
+    const std::vector<PortMetadataC>& metadata,
+    std::string_view name_or_id,
+    std::size_t node_index,
+    PortDirection direction,
+    NodeHandle handle,
+    const NodeFacade* facade) {
+    if (metadata.empty()) {
+        return std::unexpected(RuntimePortLookupError::MetadataUnavailable);
+    }
+
+    std::size_t port_id = 0;
+    const bool parsed_as_id = [&]() {
+        if (name_or_id.empty()) {
+            return false;
+        }
+
+        const char* begin = name_or_id.data();
+        const char* end = begin + name_or_id.size();
+        auto [ptr, ec] = std::from_chars(begin, end, port_id);
+        return ec == std::errc{} && ptr == end;
+    }();
+
+    for (const auto& port : metadata) {
+        const bool id_match = parsed_as_id && port.index == port_id;
+        const bool name_match = !parsed_as_id && name_or_id == port.port_name;
+        if (!id_match && !name_match) {
+            continue;
+        }
+
+        RuntimePortDescriptor descriptor{
+            .id = port.index,
+            .name = port.port_name,
+            .direction = direction,
+            .payload_type = port.payload_type,
+            .transport_type = "runtime.descriptor",
+        };
+
+        std::shared_ptr<IPortFunction> owned_port;
+        if (facade && handle && facade->DestroyRuntimePort) {
+            void* runtime_port = nullptr;
+            if (direction == PortDirection::Input && facade->CreateInputRuntimePort) {
+                runtime_port = facade->CreateInputRuntimePort(handle, port.index);
+            } else if (direction == PortDirection::Output && facade->CreateOutputRuntimePort) {
+                runtime_port = facade->CreateOutputRuntimePort(handle, port.index);
+            }
+
+            if (runtime_port) {
+                auto destroy_runtime_port = facade->DestroyRuntimePort;
+                owned_port = std::shared_ptr<IPortFunction>(
+                    static_cast<IPortFunction*>(runtime_port),
+                    [destroy_runtime_port](IPortFunction* runtime_port_ptr) {
+                        destroy_runtime_port(static_cast<void*>(runtime_port_ptr));
+                    });
+                descriptor.transport_type = std::string(owned_port->GetTransportTypeName());
+            }
+        }
+
+        if (!owned_port) {
+            owned_port = std::make_shared<DescriptorPortFunction>(descriptor);
+        }
+
+        return RuntimePortHandle{
+            .node_index = node_index,
+            .descriptor = std::move(descriptor),
+            .owned_port = owned_port,
+            .port = owned_port.get(),
+        };
+    }
+
+    return std::unexpected(RuntimePortLookupError::PortNotFound);
 }
 
 }  // namespace
@@ -507,6 +674,28 @@ std::vector<PortMetadataC> NodeFacadeAdapter::GetOutputPortMetadata() const {
     }
     
     return result;
+}
+
+std::expected<RuntimePortHandle, RuntimePortLookupError>
+NodeFacadeAdapter::GetInputPortHandle(std::string_view name_or_id, std::size_t node_index) const {
+    return LookupPortHandle(
+        GetInputPortMetadata(),
+        name_or_id,
+        node_index,
+        PortDirection::Input,
+        handle_,
+        facade_);
+}
+
+std::expected<RuntimePortHandle, RuntimePortLookupError>
+NodeFacadeAdapter::GetOutputPortHandle(std::string_view name_or_id, std::size_t node_index) const {
+    return LookupPortHandle(
+        GetOutputPortMetadata(),
+        name_or_id,
+        node_index,
+        PortDirection::Output,
+        handle_,
+        facade_);
 }
 
 std::string NodeFacadeAdapter::GetStatusString() const {

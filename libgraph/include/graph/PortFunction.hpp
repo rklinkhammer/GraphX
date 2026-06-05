@@ -139,6 +139,10 @@ namespace graph {
             return direction_;
         }
 
+        std::string_view GetTransportTypeName() const override {
+            return TypeName<core::ActiveQueue<T>>();
+        }
+
         // ====================================================================
         // Queue Operations (IPortFunction implementation)
         // ====================================================================
@@ -193,6 +197,50 @@ namespace graph {
             }
 
             return completed;
+        }
+
+        std::expected<void, RuntimePortConnectError>
+        ConnectTo(IPortFunction& destination, std::size_t capacity) override {
+            if (GetDirection() != PortDirection::Output ||
+                destination.GetDirection() != PortDirection::Input) {
+                return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+            }
+
+            if (GetTypeName() != destination.GetTypeName()) {
+                return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+            }
+
+            SetCapacity(capacity);
+            destination.SetCapacity(capacity);
+            return {};
+        }
+
+        std::expected<bool, RuntimePortConnectError>
+        TransferTo(IPortFunction& destination) override {
+            if (GetDirection() != PortDirection::Output ||
+                destination.GetDirection() != PortDirection::Input) {
+                return std::unexpected(RuntimePortConnectError::DirectionMismatch);
+            }
+
+            if (GetTypeName() != destination.GetTypeName()) {
+                return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
+            }
+
+            auto* destination_queue = destination.GetQueueIfType<T>();
+            if (!destination_queue) {
+                return std::unexpected(RuntimePortConnectError::NullDestination);
+            }
+
+            T item{};
+            if (!queue_.DequeueNonBlocking(item)) {
+                return false;
+            }
+
+            if (!destination_queue->Enqueue(std::move(item))) {
+                return std::unexpected(RuntimePortConnectError::TransferFailed);
+            }
+
+            return true;
         }
 
         // ====================================================================

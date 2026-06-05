@@ -251,6 +251,7 @@
 #include "core/ReflectionHelper.hpp"
 #include "config/Errors.hpp"
 #include "graph/Nodes.hpp"
+#include "graph/DynamicEdge.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/PooledMessage.hpp"
 #include "ThreadPool.hpp"
@@ -562,6 +563,54 @@ public:
         
         return *edge_ptr;
     }
+
+    [[nodiscard]] std::expected<IEdgeBase*, app::error::GraphExecutionFailure>
+    AddDynamicEdgeExpected(const DynamicEdgeConfig& config) noexcept {
+        std::unique_lock lock(lifecycle_mtx_);
+
+        if (initialized_.load(std::memory_order_acquire)) {
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                "Cannot AddDynamicEdge after Init() - graph already locked"));
+        }
+
+        if (config.source.node_index >= nodes_.size() ||
+            config.destination.node_index >= nodes_.size()) {
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::MissingNode,
+                "AddDynamicEdgeExpected received node index outside graph node range"));
+        }
+
+        auto compatible = ValidateDynamicEdgeCompatibility(
+            config.source, config.destination, config.capacity);
+        if (!compatible) {
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::ConfigurationInvalid,
+                "AddDynamicEdgeExpected rejected incompatible runtime port handles"));
+        }
+
+        auto metrics = std::make_shared<EdgeMetrics>();
+        auto edge = std::make_unique<DynamicEdge>(
+            config.source,
+            config.destination,
+            config.capacity,
+            metrics);
+        auto* edge_ptr = edge.get();
+
+        EdgeMetadata metadata;
+        metadata.source_node_id = config.source.node_index;
+        metadata.source_port_id = config.source.descriptor.id;
+        metadata.dest_node_id = config.destination.node_index;
+        metadata.dest_port_id = config.destination.descriptor.id;
+        metadata.message_type_name = config.source.descriptor.payload_type;
+        metadata.message_type_demangled = config.source.descriptor.payload_type;
+
+        edges_.push_back(std::move(edge));
+        edge_metadata_.push_back(std::move(metadata));
+        edge_metrics_.push_back(std::move(metrics));
+
+        return edge_ptr;
+    }
     
     /**
      * @brief Initialize all nodes, edges, and the thread pool
@@ -601,6 +650,7 @@ public:
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
     InitExpected() noexcept {
         std::unique_lock lock(lifecycle_mtx_);
+        const auto init_begin = std::chrono::steady_clock::now();
         
         // Prevent double initialization
         if (initialized_.load(std::memory_order_acquire)) {
@@ -674,6 +724,10 @@ public:
             
             // Mark as initialized
             initialized_.store(true, std::memory_order_release);
+            const auto init_end = std::chrono::steady_clock::now();
+            const auto init_ns = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(init_end - init_begin).count());
+            metrics_.init_time_ns.store(init_ns, std::memory_order_release);
             
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                         "GraphManager initialized: " << nodes_.size() << " nodes, " 
@@ -739,6 +793,7 @@ public:
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
     StartExpected() noexcept {
         std::unique_lock lock(lifecycle_mtx_);
+        const auto start_begin = std::chrono::steady_clock::now();
         
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "GraphManager::Start() - beginning start sequence");
@@ -814,6 +869,11 @@ public:
             
             // Mark as started
             started_.store(true, std::memory_order_release);
+            execution_start_monotonic_ns_.store(NowSteadyNs(), std::memory_order_release);
+            const auto start_end = std::chrono::steady_clock::now();
+            const auto start_ns = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(start_end - start_begin).count());
+            metrics_.start_time_ns.store(start_ns, std::memory_order_release);
             
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                         "GraphManager started execution");
@@ -871,6 +931,13 @@ public:
     void Stop() {
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "GraphManager::Stop() - beginning stop sequence");
+
+        const uint64_t start_ns = execution_start_monotonic_ns_.exchange(0, std::memory_order_acq_rel);
+        if (start_ns != 0) {
+            const uint64_t now_ns = NowSteadyNs();
+            const uint64_t elapsed_ns = now_ns > start_ns ? now_ns - start_ns : 0;
+            metrics_.execution_time_ns.store(elapsed_ns, std::memory_order_release);
+        }
         
         // Stop edges first to prevent new data flow
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
@@ -1511,6 +1578,75 @@ public:
      * Safe to read at any time from any thread.
      */
     const GraphMetrics& GetMetrics() const {
+        uint64_t total_enqueued = 0;
+        uint64_t total_dequeued = 0;
+        uint64_t total_rejected = 0;
+        uint64_t total_queue_time_ns = 0;
+        uint64_t total_backpressure = 0;
+        uint64_t peak_queue_depth = 0;
+        uint64_t total_transfer_time_ns = 0;
+        uint64_t total_idle_time_ns = 0;
+        uint64_t total_queue_wait_ns = 0;
+        uint64_t active_edge_threads = 0;
+
+        for (const auto& edge_metrics : edge_metrics_) {
+            if (!edge_metrics) {
+                continue;
+            }
+
+            total_enqueued += edge_metrics->messages_enqueued.load(std::memory_order_relaxed);
+            total_dequeued += edge_metrics->messages_dequeued.load(std::memory_order_relaxed);
+            total_rejected += edge_metrics->messages_rejected.load(std::memory_order_relaxed);
+            total_queue_time_ns += edge_metrics->total_queue_time_ns.load(std::memory_order_relaxed);
+            total_backpressure += edge_metrics->backpressure_events.load(std::memory_order_relaxed);
+
+            const uint64_t edge_peak = edge_metrics->peak_queue_depth.load(std::memory_order_relaxed);
+            if (edge_peak > peak_queue_depth) {
+                peak_queue_depth = edge_peak;
+            }
+        }
+
+        for (const auto& edge : edges_) {
+            if (!edge) {
+                continue;
+            }
+
+            const auto& thread_metrics = edge->GetEdgeThreadMetrics();
+            total_transfer_time_ns += thread_metrics.total_transfer_time_ns.load(std::memory_order_relaxed);
+            total_idle_time_ns += thread_metrics.total_idle_time_ns.load(std::memory_order_relaxed);
+            total_queue_wait_ns += thread_metrics.total_queue_wait_ns.load(std::memory_order_relaxed);
+
+            if (thread_metrics.thread_active.load(std::memory_order_relaxed)) {
+                ++active_edge_threads;
+            }
+        }
+
+        const uint64_t total_thread_time_ns =
+            total_transfer_time_ns + total_idle_time_ns + total_queue_wait_ns;
+
+        metrics_.graph_total_enqueued.store(total_enqueued, std::memory_order_relaxed);
+        metrics_.graph_total_dequeued.store(total_dequeued, std::memory_order_relaxed);
+        metrics_.total_items_rejected.store(total_rejected, std::memory_order_relaxed);
+        metrics_.total_queue_time_ns.store(total_queue_time_ns, std::memory_order_relaxed);
+        metrics_.backpressure_events.store(total_backpressure, std::memory_order_relaxed);
+        metrics_.peak_queue_depth.store(peak_queue_depth, std::memory_order_relaxed);
+        metrics_.total_messages_processed.store(total_dequeued, std::memory_order_relaxed);
+        metrics_.total_items_processed.store(total_dequeued, std::memory_order_relaxed);
+        metrics_.total_process_time_ns.store(total_transfer_time_ns, std::memory_order_relaxed);
+        metrics_.total_thread_time_ns.store(total_thread_time_ns, std::memory_order_relaxed);
+
+        const uint64_t prior_peak_active = metrics_.peak_active_threads.load(std::memory_order_relaxed);
+        if (active_edge_threads > prior_peak_active) {
+            metrics_.peak_active_threads.store(active_edge_threads, std::memory_order_relaxed);
+        }
+
+        const uint64_t running_start_ns = execution_start_monotonic_ns_.load(std::memory_order_acquire);
+        if (running_start_ns != 0) {
+            const uint64_t now_ns = NowSteadyNs();
+            const uint64_t elapsed_ns = now_ns > running_start_ns ? now_ns - running_start_ns : 0;
+            metrics_.execution_time_ns.store(elapsed_ns, std::memory_order_relaxed);
+        }
+
         return metrics_;
     }
 
@@ -1558,12 +1694,20 @@ public:
         metrics_.execution_time_ns.store(0, std::memory_order_release);
         metrics_.total_items_processed.store(0, std::memory_order_release);
         metrics_.total_items_rejected.store(0, std::memory_order_release);
+        metrics_.total_messages_processed.store(0, std::memory_order_release);
+        metrics_.graph_total_enqueued.store(0, std::memory_order_release);
+        metrics_.graph_total_dequeued.store(0, std::memory_order_release);
+        metrics_.total_queue_time_ns.store(0, std::memory_order_release);
+        metrics_.total_process_time_ns.store(0, std::memory_order_release);
+        metrics_.total_thread_time_ns.store(0, std::memory_order_release);
+        metrics_.backpressure_events.store(0, std::memory_order_release);
         metrics_.peak_active_threads.store(0, std::memory_order_release);
         metrics_.peak_queue_depth.store(0, std::memory_order_release);
         metrics_.node_init_failures.store(0, std::memory_order_release);
         metrics_.edge_init_failures.store(0, std::memory_order_release);
         metrics_.node_start_failures.store(0, std::memory_order_release);
         metrics_.edge_start_failures.store(0, std::memory_order_release);
+        execution_start_monotonic_ns_.store(0, std::memory_order_release);
     }
     
     /**
@@ -1661,6 +1805,13 @@ public:
     }
 
 private:
+    static uint64_t NowSteadyNs() noexcept {
+        return static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch())
+                .count());
+    }
+
     mutable std::mutex lifecycle_mtx_;
     
     // State flags: prevent invalid state transitions
@@ -1675,7 +1826,8 @@ private:
     std::vector<std::unique_ptr<IEdgeBase>> edges_;  // Owns edges through type-erased interface
     std::vector<EdgeMetadata> edge_metadata_;  // Parallel vector to recover type information (Phase 14a)
     std::vector<std::shared_ptr<EdgeMetrics>> edge_metrics_;    // Parallel vector for per-edge metrics (Phase 14d)
-    GraphMetrics metrics_;  // Performance metrics for graph execution
+    std::atomic<uint64_t> execution_start_monotonic_ns_{0};  // Monotonic timestamp captured at Start()
+    mutable GraphMetrics metrics_;  // Performance metrics for graph execution
     
     /**
      * @brief Helper: Find the index of a node in nodes_ vector
