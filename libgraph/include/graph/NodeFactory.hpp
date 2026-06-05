@@ -31,6 +31,7 @@
 #include "core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFactoryRegistry.hpp"
+#include "graph/NodeProvider.hpp"
 #include "graph/PortTypes.hpp"
 
 namespace graph {
@@ -62,7 +63,7 @@ struct NodeFacade;
  * @see PluginLoader
  * @see GraphManager
  */
-class NodeFactory {
+class NodeFactory : public INodeProvider {
 private:
     static log4cxx::LoggerPtr logger_;
     std::shared_ptr<PluginRegistry> plugin_registry_;
@@ -71,14 +72,7 @@ private:
     bool initialized_;
 
 public:
-    enum class NodeCreationError {
-        PluginRegistryMissing = 1,
-        TypeNotFound = 2,
-        NotInitialized = 3,
-        CreationFailed = 4,
-        InvalidArgument = 5,
-        Unknown = 99,
-    };
+    using NodeCreationError = graph::NodeCreationError;
 
     enum class PluginDirectoryError {
         EmptyPath = 1,
@@ -180,8 +174,8 @@ public:
      * static_node.Init();
      * @endcode
      */
-    [[nodiscard]] virtual std::expected<NodeFacadeAdapter, NodeCreationError>
-    CreateNodeExpected(const std::string& node_type_name) noexcept;
+    [[nodiscard]] std::expected<NodeFacadeAdapter, NodeCreationError>
+    CreateNodeExpected(const std::string& node_type_name) noexcept override;
 
     /**
      * Get metadata about a compile-time node type
@@ -200,14 +194,14 @@ public:
      * @param node_type_name The node type to check
      * @return true if the node type is available, false otherwise
      */
-    bool IsNodeTypeAvailable(const std::string& node_type_name) const;
+    bool IsNodeTypeAvailable(const std::string& node_type_name) const override;
 
     /**
      * Get list of all available node types from plugins
      *
      * @return Vector of registered node type names
      */
-    std::vector<std::string> GetAvailableNodeTypes() const;
+    std::vector<std::string> GetAvailableNodeTypes() const override;
 
     /**
      * Check if factory has been initialized

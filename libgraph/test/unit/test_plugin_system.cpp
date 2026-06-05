@@ -35,6 +35,7 @@
 
 #include <gtest/gtest.h>
 #include "graph/FactoryManager.hpp"
+#include "graph/NodeProvider.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
 #include <thread>
@@ -59,6 +60,22 @@ constexpr const char* kSharedLibraryExtension = ".so";
 std::string TestNodePluginFilename() {
     return std::string("libtest_node") + kSharedLibraryExtension;
 }
+
+class MockNodeProvider final : public graph::INodeProvider {
+public:
+    std::expected<graph::NodeFacadeAdapter, graph::NodeCreationError>
+    CreateNodeExpected(const std::string&) noexcept override {
+        return std::unexpected(graph::NodeCreationError::TypeNotFound);
+    }
+
+    bool IsNodeTypeAvailable(const std::string& node_type_name) const override {
+        return node_type_name == "MockNode";
+    }
+
+    std::vector<std::string> GetAvailableNodeTypes() const override {
+        return {"MockNode"};
+    }
+};
 
 }  // namespace
 
@@ -418,6 +435,23 @@ TEST(FactoryManagerExpectedTest, QueryExpectedReportsNullFactory) {
     auto available = app::FactoryManager::IsNodeTypeAvailableExpected(nullptr, "TestNode");
     ASSERT_FALSE(available);
     EXPECT_EQ(available.error(), app::FactoryManager::FactoryError::NullFactory);
+}
+
+TEST(FactoryManagerExpectedTest, QueryExpectedUsesNodeProviderInterface) {
+    std::shared_ptr<graph::INodeProvider> provider = std::make_shared<MockNodeProvider>();
+
+    auto types = app::FactoryManager::GetAvailableNodeTypesExpected(provider);
+    ASSERT_TRUE(types);
+    ASSERT_EQ(types->size(), 1u);
+    EXPECT_EQ(types->front(), "MockNode");
+
+    auto available = app::FactoryManager::IsNodeTypeAvailableExpected(provider, "MockNode");
+    ASSERT_TRUE(available);
+    EXPECT_TRUE(*available);
+
+    auto missing = app::FactoryManager::IsNodeTypeAvailableExpected(provider, "MissingNode");
+    ASSERT_TRUE(missing);
+    EXPECT_FALSE(*missing);
 }
 
 TEST_F(PluginLoaderTest, UnloadPluginUnregistersNodeTypes) {

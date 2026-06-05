@@ -24,6 +24,7 @@
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
 #include <system_error>
@@ -137,17 +138,17 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
 // ============================================================================
 std::expected<std::vector<std::string>, FactoryManager::FactoryError>
 FactoryManager::GetAvailableNodeTypesExpected(
-    const std::shared_ptr<graph::NodeFactory>& factory) noexcept {
+    const std::shared_ptr<graph::INodeProvider>& provider) noexcept {
     
-    if (!factory) {
-        LOG4CXX_ERROR(logger_, "GetAvailableNodeTypes called with null factory");
+    if (!provider) {
+        LOG4CXX_ERROR(logger_, "GetAvailableNodeTypes called with null provider");
         return std::unexpected(FactoryError::NullFactory);
     }
     
-    LOG4CXX_TRACE(logger_, "Querying available node types from factory");
+    LOG4CXX_TRACE(logger_, "Querying available node types from provider");
     
     try {
-        auto node_types = factory->GetAvailableNodeTypes();
+        auto node_types = provider->GetAvailableNodeTypes();
         LOG4CXX_TRACE(logger_, "Found " << node_types.size() 
                              << " available node types");
         
@@ -173,11 +174,11 @@ FactoryManager::GetAvailableNodeTypesExpected(
 // ============================================================================
 std::expected<bool, FactoryManager::FactoryError>
 FactoryManager::IsNodeTypeAvailableExpected(
-    const std::shared_ptr<graph::NodeFactory>& factory,
+    const std::shared_ptr<graph::INodeProvider>& provider,
     const std::string& type_name) noexcept {
     
-    if (!factory) {
-        LOG4CXX_ERROR(logger_, "IsNodeTypeAvailable called with null factory");
+    if (!provider) {
+        LOG4CXX_ERROR(logger_, "IsNodeTypeAvailable called with null provider");
         return std::unexpected(FactoryError::NullFactory);
     }
     
@@ -189,7 +190,7 @@ FactoryManager::IsNodeTypeAvailableExpected(
     LOG4CXX_TRACE(logger_, "Checking availability of node type: " << type_name);
     
     try {
-        bool available = factory->IsNodeTypeAvailable(type_name);
+        bool available = provider->IsNodeTypeAvailable(type_name);
         
         if (available) {
             LOG4CXX_TRACE(logger_, "Node type '" << type_name << "' is available");

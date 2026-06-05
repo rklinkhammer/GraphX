@@ -31,6 +31,7 @@
 // Forward declarations
 namespace graph {
 class NodeFactory;
+class INodeProvider;
 class PluginLoader;
 class PluginRegistry;
 }
@@ -161,7 +162,7 @@ public:
    */
   [[nodiscard]] static std::expected<std::vector<std::string>, FactoryError>
   GetAvailableNodeTypesExpected(
-      const std::shared_ptr<graph::NodeFactory>& factory) noexcept;
+      const std::shared_ptr<graph::INodeProvider>& provider) noexcept;
   
   /**
    * @brief Check if specific node type is available
@@ -186,7 +187,7 @@ public:
    */
   [[nodiscard]] static std::expected<bool, FactoryError>
   IsNodeTypeAvailableExpected(
-      const std::shared_ptr<graph::NodeFactory>& factory,
+      const std::shared_ptr<graph::INodeProvider>& provider,
       const std::string& type_name) noexcept;
 };
 

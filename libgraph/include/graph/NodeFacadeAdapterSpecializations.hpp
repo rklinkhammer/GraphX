@@ -41,7 +41,6 @@
 
 #pragma once
 
-#include "graph/Nodes.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"
@@ -153,4 +152,3 @@ inline std::shared_ptr<graph::IGpuCapabilityBinding> NodeFacadeAdapter::TryGetIn
 }
 
 }  // namespace graph
-

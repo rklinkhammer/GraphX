@@ -23,9 +23,7 @@
 
 #include "graph/GraphManager.hpp"
 #include "capabilities/GraphCapability.hpp"
-#include "graph/NodeFacade.hpp"
-#include "graph/NodeFacadeAdapterSpecializations.hpp"
-#include "graph/CapabilityDiscovery.hpp"
+#include "graph/CapabilityContext.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "policies/MetricsPolicy.hpp"
@@ -40,13 +38,15 @@ namespace policies {
 
 
 void MetricsPolicy::InitMetricsSources(capabilities::GraphCapability& context) {
-     if (!context.GetGraphManager()) {
+    graph::CapabilityContext capability_context{context};
+    auto nodes_result = capability_context.Nodes();
+    if (!nodes_result) {
         LOG4CXX_WARN(metrics_logger, "MetricsPolicy::InitMetricsSources() - no GraphManager");
         return ;
     }   
     std::vector<app::metrics::NodeMetricsSchema> schemas;
     
-    const auto& nodes = context.GetGraphManager()->GetNodes();    
+    auto nodes = *nodes_result;
     for (size_t node_idx = 0; node_idx < nodes.size(); ++node_idx) {
         if (!nodes[node_idx]) {
             continue;
@@ -54,23 +54,24 @@ void MetricsPolicy::InitMetricsSources(capabilities::GraphCapability& context) {
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::InitMetricsSources() - checking Node[" 
                       << node_idx << "]");
 
-        auto metrics_node = graph::DiscoverCapability<graph::IMetricsCallbackProvider>(nodes[node_idx]);
+        auto metrics_node =
+            capability_context.NodeCapability<graph::IMetricsCallbackProvider>(nodes[node_idx]);
         if (!metrics_node) {
             LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::InitMetricsSources() - Node[" 
                           << node_idx << "] does not implement IMetricsCallbackProvider");
             continue;
         }
-        std::string node_name = GetNodeName(nodes[node_idx]);
+        auto descriptor = capability_context.DescribeNode(nodes[node_idx]);
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::InitMetricsSources() - Node[" 
-                     << node_idx << "] '" << node_name << "' supports IMetricsCallbackProvider");
+                     << node_idx << "] '" << descriptor.name << "' supports IMetricsCallbackProvider");
     
         auto metrics_callback = std::make_shared<MetricsCapabilityCallback>();
-        metrics_callback->on_publish_async_ = [this, node_name](const app::metrics::MetricsEvent& event) -> bool{
+        metrics_callback->on_publish_async_ = [this](const app::metrics::MetricsEvent& event) -> bool{
             return metrics_event_queue_.Enqueue(event);
         };
-        metrics_node->SetMetricsCallback(metrics_callback.get());
-        AddNodeMetrics(node_name, metrics_callback, metrics_node->GetNodeMetricsSchema());
-        schemas.push_back(metrics_node->GetNodeMetricsSchema());
+        (*metrics_node)->SetMetricsCallback(metrics_callback.get());
+        AddNodeMetrics(descriptor.name, metrics_callback, (*metrics_node)->GetNodeMetricsSchema());
+        schemas.push_back((*metrics_node)->GetNodeMetricsSchema());
     }
     metrics_capability_->SetNodeMetricsSchemas(schemas);
 }

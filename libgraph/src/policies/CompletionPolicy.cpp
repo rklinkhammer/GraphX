@@ -23,9 +23,7 @@
 
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutor.hpp"
-#include "graph/NodeFacade.hpp"
-#include "graph/NodeFacadeAdapterSpecializations.hpp"
-#include "graph/CapabilityDiscovery.hpp"
+#include "graph/CapabilityContext.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "policies/CompletionPolicy.hpp"
@@ -38,14 +36,15 @@ namespace policies {
 
 
 bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& context) {
-    const auto graph_manager = context.GetGraphManager();
-    if (!graph_manager) {
+    graph::CapabilityContext capability_context{context};
+    auto nodes_result = capability_context.Nodes();
+    if (!nodes_result) {
         LOG4CXX_WARN(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - no GraphManager");
         return false;
     }
 
     LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - scanning " 
-                  << graph_manager->GetNodes().size() << " nodes");
+                  << nodes_result->size() << " nodes");
     
     using CompletionProvider = graph::CompletionCallbackProvider;
     
@@ -53,27 +52,16 @@ bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& co
     completion_callbacks_.clear();
     
     size_t callbacks_installed = 0;
-    const auto& nodes = graph_manager->GetNodes();    
+    auto nodes = *nodes_result;
     for (const auto& node : nodes) {
         if (!node) {
             continue;
         }
-        std::shared_ptr<CompletionProvider> completion_provider;
-        std::string node_name;
-
-        auto facade_adapter = GetAsNodeFacadeAdapter(node);
-        if (facade_adapter) {
-            node_name = facade_adapter->GetName();
-            completion_provider = std::static_pointer_cast<CompletionProvider>(
-                facade_adapter->GetCompletionCallbackProviderPtr());
-        } else {
-            // Support direct graph nodes that implement CompletionCallbackProvider.
-            node_name = "<direct-node>";
-            completion_provider = std::dynamic_pointer_cast<CompletionProvider>(node);
-        }
+        auto descriptor = capability_context.DescribeNode(node);
+        auto completion_provider = capability_context.NodeCapability<CompletionProvider>(node);
 
         LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - checking node: "
-                      << node_name);
+                      << descriptor.name);
 
         if(!completion_provider) {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy::InitCompletionCallbacks() - node does not support CompletionProvider");
@@ -91,7 +79,7 @@ bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& co
         });
         completion_callbacks_.push_back(callback);
         ++callbacks_installed;
-        completion_provider->SetCallbackProvider(callback.get());
+        (*completion_provider)->SetCallbackProvider(callback.get());
         LOG4CXX_TRACE(completion_logger, "CompletionPolicy - callback installed on node");
     }
     

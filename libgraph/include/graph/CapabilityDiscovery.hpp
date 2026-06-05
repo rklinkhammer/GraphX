@@ -53,6 +53,7 @@ namespace graph {
  * Implements the standard discovery pattern:
  * - Phase 1: Try direct cast for built-in nodes (dynamic_pointer_cast<CapabilityT>)
  * - Phase 2: Try NodeFacadeAdapterWrapper for plugin nodes (TryGetInterface<CapabilityT>)
+ * - Phase 3: Try NodeFacadeAdapter nodes stored directly in the graph
  *
  * This abstraction ensures all capability discovery uses the same pattern,
  * matching other interfaces in the codebase.
@@ -112,6 +113,15 @@ inline std::shared_ptr<CapabilityT> DiscoverCapability(
     auto wrapper = std::dynamic_pointer_cast<NodeFacadeAdapterWrapper>(node);
     if (wrapper) {
         capability = wrapper->TryGetInterface<CapabilityT>();
+        if (capability) {
+            return capability;
+        }
+    }
+
+    // Phase 3: Some graph construction paths store NodeFacadeAdapter directly.
+    auto adapter = std::dynamic_pointer_cast<NodeFacadeAdapter>(node);
+    if (adapter) {
+        capability = adapter->TryGetInterface<CapabilityT>();
         if (capability) {
             return capability;
         }

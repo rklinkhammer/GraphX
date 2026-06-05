@@ -21,9 +21,7 @@
 // SOFTWARE.
 
 
-#include "graph/NodeFacade.hpp"
-#include "graph/NodeFacadeAdapterSpecializations.hpp"
-#include "graph/CapabilityDiscovery.hpp"
+#include "graph/CapabilityContext.hpp"
 #include "policies/DataInjectionPolicy.hpp"
 #include "capabilities/DataInjectionCapability.hpp"
 #include "capabilities/GraphCapability.hpp"
@@ -34,36 +32,39 @@
 namespace policies {
 
 void DataInjectionPolicy::InitDataInjectionSources(capabilities::GraphCapability& context) {
-    LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy::InitDataInjectionSources() - scanning " 
-                  << context.GetGraphManager()->GetNodes().size() << " nodes");
-    if (!context.GetGraphManager()) {
+    graph::CapabilityContext capability_context{context};
+    auto nodes_result = capability_context.Nodes();
+    if (!nodes_result) {
         LOG4CXX_WARN(data_injection_logger_, "DataInjectionPolicy::InitDataInjectionSources() - no GraphManager");
         return ;
-    }   
-    const auto& nodes = context.GetGraphManager()->GetNodes();    
+    }
+
+    auto nodes = *nodes_result;
+    LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy::InitDataInjectionSources() - scanning "
+                  << nodes.size() << " nodes");
+
     for (size_t node_idx = 0; node_idx < nodes.size(); ++node_idx) {
         if (!nodes[node_idx]) {
             continue;
         }
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy::InitDataInjectionSources() - checking Node[" 
                       << node_idx << "]");
-        // Use unified capability discovery for IDataInjectionSource
-        // Handles both built-in nodes (Phase 1: direct cast) and plugin nodes (Phase 2: TryGetInterface)
-        auto injection_node_config = graph::DiscoverCapability<graph::datasources::IDataInjectionSource>(nodes[node_idx]);
+        auto injection_node_config =
+            capability_context.NodeCapability<graph::datasources::IDataInjectionSource>(nodes[node_idx]);
         
         if (!injection_node_config) {
             // Not a CSV node, skip it
             LOG4CXX_TRACE(data_injection_logger_, "Injection Discovery: Node[" << node_idx << "]: Skipping - not a Injection node");
             continue;  
         }
-        std::string node_name = GetNodeName(nodes[node_idx]);
+        auto descriptor = capability_context.DescribeNode(nodes[node_idx]);
         //std::string sensor_type_str = SensorClassificationTypeToString(injection_node_config->sensor_classification_type);
         capabilities::DataInjectionNodeConfig node_config;
         node_config.node_index = node_idx;
-        node_config.node_name = node_name;
-        node_config.node_type = GetTypeName(nodes[node_idx]);
+        node_config.node_name = descriptor.name;
+        node_config.node_type = descriptor.type;
         //node_config.sensor_classification_type = injection_node_config->sensor_classification_type;
-        node_config.injection_queue = &injection_node_config->GetInjectionQueue();
+        node_config.injection_queue = &(*injection_node_config)->GetInjectionQueue();
         data_injection_capability_->RegisterDataInjectionNodeConfig(node_config);
         //LOG4CXX_TRACE(data_injection_logger_, "Injection Discovery: Node[" << node_idx << "]: Registered Injection node with classification: " << sensor_type_str);
     }

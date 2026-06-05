@@ -25,10 +25,9 @@
 #include <log4cxx/logger.h>
 
 #include "capabilities/GraphCapability.hpp"
-#include "graph/CapabilityDiscovery.hpp"
+#include "graph/CapabilityContext.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/IExecutionPolicy.hpp"
-#include "graph/NodeFacadeAdapterSpecializations.hpp"
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
@@ -65,8 +64,9 @@ public:
                       "GpuPolicy GPU capability bootstrap skipped (GPU backends disabled)");
 #endif
 
-        auto graph_manager = context.GetGraphManager();
-        if (!graph_manager) {
+        graph::CapabilityContext capability_context{context};
+        auto nodes_result = capability_context.Nodes();
+        if (!nodes_result) {
             LOG4CXX_WARN(gpu_policy_logger, "GpuPolicy OnInit no GraphManager available");
             return false;
         }
@@ -74,14 +74,14 @@ public:
         std::size_t bindings_attempted = 0;
         std::size_t bindings_succeeded = 0;
 
-        for (const auto& node : graph_manager->GetNodes()) {
-            auto gpu_binding = graph::DiscoverCapability<graph::IGpuCapabilityBinding>(node);
+        for (const auto& node : *nodes_result) {
+            auto gpu_binding = capability_context.NodeCapability<graph::IGpuCapabilityBinding>(node);
             if (!gpu_binding) {
                 continue;
             }
 
             ++bindings_attempted;
-            if (gpu_binding->BindGpuCapabilities(context.GetCapabilityBus())) {
+            if ((*gpu_binding)->BindGpuCapabilities(context.GetCapabilityBus())) {
                 ++bindings_succeeded;
             }
         }
