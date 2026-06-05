@@ -79,29 +79,23 @@ static log4cxx::LoggerPtr _metadata_logger =
     log4cxx::Logger::getLogger("graph.plugins.PortMetadataHelper");
 
 template <typename NodeType>
-NodeDescriptor BuildNodeDescriptor(NodePluginInstance<NodeType>* inst) {
-    NodeDescriptor descriptor;
+NodeDescriptor BuildDescriptorFromPluginInstance(NodePluginInstance<NodeType>* inst) {
     if (!inst || !inst->node) {
-        return descriptor;
+        return NodeDescriptor{};
     }
 
-    descriptor.name = inst->name;
-    descriptor.type = inst->type;
-    descriptor.lifecycle_state = inst->node->GetLifecycleState();
-    descriptor.supports_configuration =
-        dynamic_cast<graph::IConfigurable*>(inst->node.get()) != nullptr;
-    if constexpr (requires { NodeType::Fields(); }) {
-        for (const auto& field : NodeType::Fields()) {
-            descriptor.config_fields.push_back(ConfigFieldMetadata{
-                .name = std::string(field.name),
-                .type = field.type,
-                .required = field.required,
-            });
-        }
-    }
-    descriptor.input_ports = inst->node->GetInputPortMetadata();
-    descriptor.output_ports = inst->node->GetOutputPortMetadata();
-    return descriptor;
+    return BuildNodeDescriptor(
+        NodeDescriptorSeed{
+            .name = inst->name,
+            .type = inst->type,
+            .description = "",
+            .lifecycle_state = inst->node->GetLifecycleState(),
+            .supports_configuration =
+                dynamic_cast<graph::IConfigurable*>(inst->node.get()) != nullptr,
+        },
+        BuildConfigFieldMetadataFromType<NodeType>(),
+        inst->node->GetInputPortMetadata(),
+        inst->node->GetOutputPortMetadata());
 }
 
 // ============================================================================
@@ -142,7 +136,7 @@ PortMetadataC* GetInputPortMetadataImpl(NodePluginInstance<NodeType>* inst, size
             return nullptr;
         }
         
-        auto descriptor = BuildNodeDescriptor(inst);
+        auto descriptor = BuildDescriptorFromPluginInstance(inst);
         *out_count = descriptor.input_ports.size();
         if (descriptor.input_ports.empty()) {
             LOG4CXX_TRACE(_metadata_logger, 
@@ -212,7 +206,7 @@ PortMetadataC* GetOutputPortMetadataImpl(NodePluginInstance<NodeType>* inst, siz
             return nullptr;
         }
         
-        auto descriptor = BuildNodeDescriptor(inst);
+        auto descriptor = BuildDescriptorFromPluginInstance(inst);
         *out_count = descriptor.output_ports.size();
         if (descriptor.output_ports.empty()) {
             LOG4CXX_TRACE(_metadata_logger, 

@@ -31,7 +31,6 @@
 #include <utility>
 #include <iomanip>
 #include <cassert>
-#include <unordered_set>
 #include <nlohmann/json.hpp>
 
 #include "graph/IConfigurable.hpp"
@@ -47,44 +46,6 @@ INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
         .type = metadata.payload_type,
         .direction = metadata.direction,
     };
-}
-
-JsonType JsonTypeFromJson(const nlohmann::json& value) {
-    if (value.is_string()) {
-        return JsonType::String;
-    }
-    if (value.is_boolean()) {
-        return JsonType::Boolean;
-    }
-    if (value.is_number_integer()) {
-        return JsonType::Integer;
-    }
-    if (value.is_number_float() || value.is_number_unsigned()) {
-        return JsonType::Number;
-    }
-    if (value.is_array()) {
-        return JsonType::Array;
-    }
-    return JsonType::Object;
-}
-
-JsonType JsonTypeFromSchemaString(const std::string& type_name) {
-    if (type_name == "string") {
-        return JsonType::String;
-    }
-    if (type_name == "number") {
-        return JsonType::Number;
-    }
-    if (type_name == "integer") {
-        return JsonType::Integer;
-    }
-    if (type_name == "boolean") {
-        return JsonType::Boolean;
-    }
-    if (type_name == "array") {
-        return JsonType::Array;
-    }
-    return JsonType::Object;
 }
 
 }  // namespace
@@ -623,57 +584,22 @@ INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
 }
 
 NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
-    NodeDescriptor descriptor;
-    descriptor.name = GetName();
-    descriptor.type = GetType();
-    descriptor.description = GetDescription();
-    descriptor.lifecycle_state = static_cast<LifecycleState>(GetLifecycleState());
-    descriptor.supports_configuration = static_cast<bool>(GetConfigurablePtr());
+    std::vector<ConfigFieldMetadata> config_fields;
+    std::vector<PortMetadata> input_ports;
+    std::vector<PortMetadata> output_ports;
 
     if (const auto parameterized_ptr = GetParameterizedPtr()) {
         auto* parameterized = static_cast<IParameterized*>(parameterized_ptr.get());
         if (parameterized) {
             try {
-                const auto parameter_json = parameterized->GetParameters().Raw();
-                const auto parameter_names = parameterized->GetParameterNames();
-                std::unordered_set<std::string> seen_fields;
-
-                for (const auto& field_name : parameter_names) {
-                    const auto metadata_json = parameterized->GetParameterDescription(field_name).Raw();
-
-                    JsonType field_type = JsonType::Object;
-                    if (metadata_json.is_object() && metadata_json.contains("type") &&
-                        metadata_json["type"].is_string()) {
-                        field_type = JsonTypeFromSchemaString(metadata_json["type"].get<std::string>());
-                    } else if (parameter_json.is_object() && parameter_json.contains(field_name)) {
-                        field_type = JsonTypeFromJson(parameter_json[field_name]);
-                    }
-
-                    const bool required =
-                        metadata_json.is_object() && metadata_json.contains("required") &&
-                        metadata_json["required"].is_boolean() && metadata_json["required"].get<bool>();
-
-                    descriptor.config_fields.push_back(ConfigFieldMetadata{
-                        .name = field_name,
-                        .type = field_type,
-                        .required = required,
+                config_fields = BuildConfigFieldMetadataFromParameterized(
+                    parameterized->GetParameters().Raw(),
+                    [&parameterized]() {
+                        return parameterized->GetParameterNames();
+                    },
+                    [&parameterized](const std::string& field_name) {
+                        return parameterized->GetParameterDescription(field_name).Raw();
                     });
-                    seen_fields.insert(field_name);
-                }
-
-                if (parameter_json.is_object()) {
-                    for (const auto& [field_name, field_value] : parameter_json.items()) {
-                        if (seen_fields.contains(field_name)) {
-                            continue;
-                        }
-
-                        descriptor.config_fields.push_back(ConfigFieldMetadata{
-                            .name = field_name,
-                            .type = JsonTypeFromJson(field_value),
-                            .required = false,
-                        });
-                    }
-                }
             } catch (...) {
                 // Best-effort descriptor enrichment only.
             }
@@ -681,18 +607,28 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
     }
 
     const auto input_metadata = GetInputPortMetadata();
-    descriptor.input_ports.reserve(input_metadata.size());
+    input_ports.reserve(input_metadata.size());
     for (const auto& input_port : input_metadata) {
-        descriptor.input_ports.push_back(ToPortMetadata(input_port));
+        input_ports.push_back(ToPortMetadata(input_port));
     }
 
     const auto output_metadata = GetOutputPortMetadata();
-    descriptor.output_ports.reserve(output_metadata.size());
+    output_ports.reserve(output_metadata.size());
     for (const auto& output_port : output_metadata) {
-        descriptor.output_ports.push_back(ToPortMetadata(output_port));
+        output_ports.push_back(ToPortMetadata(output_port));
     }
 
-    return descriptor;
+    return BuildNodeDescriptor(
+        NodeDescriptorSeed{
+            .name = GetName(),
+            .type = GetType(),
+            .description = GetDescription(),
+            .lifecycle_state = static_cast<LifecycleState>(GetLifecycleState()),
+            .supports_configuration = static_cast<bool>(GetConfigurablePtr()),
+        },
+        std::move(config_fields),
+        std::move(input_ports),
+        std::move(output_ports));
 }
 
 std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) const {

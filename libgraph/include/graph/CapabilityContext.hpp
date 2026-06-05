@@ -14,6 +14,7 @@
 #include "graph/GraphManager.hpp"
 #include "graph/NodeDescriptor.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
+#include "graph/IConfigurable.hpp"
 
 namespace graph {
 
@@ -87,6 +88,22 @@ public:
         descriptor.name = GetNodeName(node);
         descriptor.type = GetTypeName(node);
         descriptor.lifecycle_state = GetLifecycleState(node);
+        descriptor.supports_configuration = static_cast<bool>(DiscoverCapability<IConfigurable>(node));
+
+        if (const auto parameterized = DiscoverCapability<IParameterized>(node)) {
+            try {
+                descriptor.config_fields = BuildConfigFieldMetadataFromParameterized(
+                    parameterized->GetParameters().Raw(),
+                    [parameterized]() {
+                        return parameterized->GetParameterNames();
+                    },
+                    [parameterized](const std::string& field_name) {
+                        return parameterized->GetParameterDescription(field_name).Raw();
+                    });
+            } catch (...) {
+                // Best-effort descriptor enrichment only.
+            }
+        }
 
         auto input_ports = node->InputPorts();
         descriptor.input_ports.reserve(input_ports.size());
