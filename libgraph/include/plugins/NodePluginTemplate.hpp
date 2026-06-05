@@ -84,7 +84,7 @@ NodeDescriptor BuildDescriptorFromPluginInstance(NodePluginInstance<NodeType>* i
         return NodeDescriptor{};
     }
 
-    return BuildNodeDescriptor(
+    return BuildRuntimeNodeDescriptor(
         NodeDescriptorSeed{
             .name = inst->name,
             .type = inst->type,
@@ -93,7 +93,7 @@ NodeDescriptor BuildDescriptorFromPluginInstance(NodePluginInstance<NodeType>* i
             .supports_configuration =
                 dynamic_cast<graph::IConfigurable*>(inst->node.get()) != nullptr,
         },
-        BuildConfigFieldMetadataFromType<NodeType>(),
+        dynamic_cast<graph::IParameterized*>(inst->node.get()),
         inst->node->GetInputPortMetadata(),
         inst->node->GetOutputPortMetadata());
 }

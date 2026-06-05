@@ -53,9 +53,13 @@ INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
 log4cxx::LoggerPtr NodeFacadeAdapter::logger_ =
     log4cxx::Logger::getLogger("graph.NodeFacadeAdapter");
 
-NodeFacadeAdapter::NodeFacadeAdapter(NodeHandle handle, const NodeFacade* facade)
+NodeFacadeAdapter::NodeFacadeAdapter(
+        NodeHandle handle,
+        const NodeFacade* facade,
+        const INodeDescriptorProvider* descriptor_provider)
     : handle_(handle), facade_(facade), initialized_(false), started_(false),
-      data_injection_node_config_ptr_(nullptr) {
+            data_injection_node_config_ptr_(nullptr),
+            descriptor_provider_(descriptor_provider ? descriptor_provider : &GetDefaultNodeDescriptorProvider()) {
     // Preconditions: handle and facade must be valid (non-null)
     // If violated, it indicates a programming error in the caller
     assert(handle != nullptr && "NodeFacadeAdapter constructor: handle must not be null");
@@ -137,7 +141,8 @@ NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
       parameterized_ptr_(std::move(other.parameterized_ptr_)),
       metrics_callback_provider_ptr_(std::move(other.metrics_callback_provider_ptr_)),
     completion_callback_provider_ptr_(std::move(other.completion_callback_provider_ptr_)),
-    gpu_capability_binding_ptr_(std::move(other.gpu_capability_binding_ptr_)) {
+        gpu_capability_binding_ptr_(std::move(other.gpu_capability_binding_ptr_)),
+        descriptor_provider_(other.descriptor_provider_) {
     LOG4CXX_TRACE(logger_, "Move-constructing NodeFacadeAdapter");
     // Invalidate the other object so it doesn't call Destroy() in its destructor
     other.handle_ = nullptr;
@@ -167,10 +172,12 @@ NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexc
     metrics_callback_provider_ptr_ = std::move(other.metrics_callback_provider_ptr_);
     completion_callback_provider_ptr_ = std::move(other.completion_callback_provider_ptr_);
     gpu_capability_binding_ptr_ = std::move(other.gpu_capability_binding_ptr_);
+    descriptor_provider_ = other.descriptor_provider_;
     
     // Invalidate the other object
     other.handle_ = nullptr;
     other.facade_ = nullptr;
+    other.descriptor_provider_ = &GetDefaultNodeDescriptorProvider();
     
     return *this;
 }
@@ -584,27 +591,8 @@ INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
 }
 
 NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
-    std::vector<ConfigFieldMetadata> config_fields;
     std::vector<PortMetadata> input_ports;
     std::vector<PortMetadata> output_ports;
-
-    if (const auto parameterized_ptr = GetParameterizedPtr()) {
-        auto* parameterized = static_cast<IParameterized*>(parameterized_ptr.get());
-        if (parameterized) {
-            try {
-                config_fields = BuildConfigFieldMetadataFromParameterized(
-                    parameterized->GetParameters().Raw(),
-                    [&parameterized]() {
-                        return parameterized->GetParameterNames();
-                    },
-                    [&parameterized](const std::string& field_name) {
-                        return parameterized->GetParameterDescription(field_name).Raw();
-                    });
-            } catch (...) {
-                // Best-effort descriptor enrichment only.
-            }
-        }
-    }
 
     const auto input_metadata = GetInputPortMetadata();
     input_ports.reserve(input_metadata.size());
@@ -618,17 +606,19 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
         output_ports.push_back(ToPortMetadata(output_port));
     }
 
-    return BuildNodeDescriptor(
-        NodeDescriptorSeed{
+    auto* parameterized = static_cast<IParameterized*>(GetParameterizedPtr().get());
+    return descriptor_provider_->BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+        .seed = NodeDescriptorSeed{
             .name = GetName(),
             .type = GetType(),
             .description = GetDescription(),
             .lifecycle_state = static_cast<LifecycleState>(GetLifecycleState()),
             .supports_configuration = static_cast<bool>(GetConfigurablePtr()),
         },
-        std::move(config_fields),
-        std::move(input_ports),
-        std::move(output_ports));
+        .parameterized = parameterized,
+        .input_ports = std::move(input_ports),
+        .output_ports = std::move(output_ports),
+    });
 }
 
 std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) const {

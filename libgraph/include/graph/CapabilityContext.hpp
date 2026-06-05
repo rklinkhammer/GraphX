@@ -34,8 +34,12 @@ enum class CapabilityContextError {
  */
 class CapabilityContext {
 public:
-    explicit CapabilityContext(capabilities::GraphCapability& context) noexcept
-        : context_(context) {}
+    explicit CapabilityContext(
+        capabilities::GraphCapability& context,
+        const INodeDescriptorProvider* descriptor_provider = nullptr) noexcept
+        : context_(context),
+          descriptor_provider_(
+              descriptor_provider ? descriptor_provider : &GetDefaultNodeDescriptorProvider()) {}
 
     [[nodiscard]] std::expected<std::shared_ptr<GraphManager>, CapabilityContextError>
     GraphManagerPtr() const noexcept {
@@ -85,39 +89,34 @@ public:
             return descriptor;
         }
 
-        descriptor.name = GetNodeName(node);
-        descriptor.type = GetTypeName(node);
-        descriptor.lifecycle_state = GetLifecycleState(node);
-        descriptor.supports_configuration = static_cast<bool>(DiscoverCapability<IConfigurable>(node));
-
-        if (const auto parameterized = DiscoverCapability<IParameterized>(node)) {
-            try {
-                descriptor.config_fields = BuildConfigFieldMetadataFromParameterized(
-                    parameterized->GetParameters().Raw(),
-                    [parameterized]() {
-                        return parameterized->GetParameterNames();
-                    },
-                    [parameterized](const std::string& field_name) {
-                        return parameterized->GetParameterDescription(field_name).Raw();
-                    });
-            } catch (...) {
-                // Best-effort descriptor enrichment only.
-            }
-        }
-
         auto input_ports = node->InputPorts();
-        descriptor.input_ports.reserve(input_ports.size());
+        std::vector<PortMetadata> descriptor_input_ports;
+        descriptor_input_ports.reserve(input_ports.size());
         for (const auto& input_port : input_ports) {
-            descriptor.input_ports.push_back(ToPortMetadata(input_port));
+            descriptor_input_ports.push_back(ToPortMetadata(input_port));
         }
 
         auto output_ports = node->OutputPorts();
-        descriptor.output_ports.reserve(output_ports.size());
+        std::vector<PortMetadata> descriptor_output_ports;
+        descriptor_output_ports.reserve(output_ports.size());
         for (const auto& output_port : output_ports) {
-            descriptor.output_ports.push_back(ToPortMetadata(output_port));
+            descriptor_output_ports.push_back(ToPortMetadata(output_port));
         }
 
-        return descriptor;
+        auto parameterized = DiscoverCapability<IParameterized>(node);
+        auto configurable = DiscoverCapability<IConfigurable>(node);
+        return descriptor_provider_->BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+            .seed = NodeDescriptorSeed{
+                .name = GetNodeName(node),
+                .type = GetTypeName(node),
+                .description = "",
+                .lifecycle_state = GetLifecycleState(node),
+                .supports_configuration = static_cast<bool>(configurable),
+            },
+            .parameterized = parameterized ? parameterized.get() : nullptr,
+            .input_ports = std::move(descriptor_input_ports),
+            .output_ports = std::move(descriptor_output_ports),
+        });
     }
 
     [[nodiscard]] capabilities::GraphCapability& GraphCapabilityRef() const noexcept {
@@ -126,6 +125,7 @@ public:
 
 private:
     capabilities::GraphCapability& context_;
+    const INodeDescriptorProvider* descriptor_provider_;
 };
 
 }  // namespace graph

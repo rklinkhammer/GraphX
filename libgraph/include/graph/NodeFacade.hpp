@@ -262,6 +262,7 @@ private:
     std::shared_ptr<void> metrics_callback_provider_ptr_; ///< Points to IMetricsCallbackProvider if plugin provides it
     std::shared_ptr<void> completion_callback_provider_ptr_; ///< Points to CompletionCallbackProvider if plugin provides it
     std::shared_ptr<void> gpu_capability_binding_ptr_; ///< Points to IGpuCapabilityBinding if plugin provides it
+    const INodeDescriptorProvider* descriptor_provider_; ///< Descriptor assembly policy boundary
     
     // Extract interface pointers from plugin callbacks
     void ExtractInterfaces();
@@ -294,7 +295,10 @@ public:
      *
      * @throws std::assertion_failure in debug builds if preconditions violated
      */
-    NodeFacadeAdapter(NodeHandle handle, const NodeFacade* facade);
+    NodeFacadeAdapter(
+        NodeHandle handle,
+        const NodeFacade* facade,
+        const INodeDescriptorProvider* descriptor_provider = nullptr);
 
     /**
      * Destructor - calls Destroy() on the facade if it's set

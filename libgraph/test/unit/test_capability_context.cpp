@@ -57,6 +57,22 @@ struct TestBusCapability {
     int value{42};
 };
 
+class StubDescriptorProvider final : public graph::INodeDescriptorProvider {
+public:
+    graph::NodeDescriptor BuildRuntimeDescriptor(
+        graph::RuntimeNodeDescriptorRequest request) const override {
+        graph::NodeDescriptor descriptor;
+        descriptor.name = "stub-provider-descriptor";
+        descriptor.type = std::move(request.seed.type);
+        descriptor.description = std::move(request.seed.description);
+        descriptor.lifecycle_state = request.seed.lifecycle_state;
+        descriptor.supports_configuration = request.seed.supports_configuration;
+        descriptor.input_ports = std::move(request.input_ports);
+        descriptor.output_ports = std::move(request.output_ports);
+        return descriptor;
+    }
+};
+
 }  // namespace
 
 TEST(CapabilityContextTest, ReportsMissingGraphManager) {
@@ -102,4 +118,15 @@ TEST(CapabilityContextTest, RetrievesBusCapabilityWithExpectedContract) {
     ASSERT_TRUE(capability);
     EXPECT_EQ(*capability, bus_capability);
     EXPECT_EQ((*capability)->value, 42);
+}
+
+TEST(CapabilityContextTest, DescribeNodeUsesInjectedDescriptorProvider) {
+    capabilities::GraphCapability graph_capability;
+    StubDescriptorProvider descriptor_provider;
+    graph::CapabilityContext context{graph_capability, &descriptor_provider};
+    auto node = std::make_shared<MetricsNode>();
+
+    auto descriptor = context.DescribeNode(node);
+
+    EXPECT_EQ(descriptor.name, "stub-provider-descriptor");
 }

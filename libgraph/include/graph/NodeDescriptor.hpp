@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include "config/Config.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/INode.hpp"
 #include "graph/PortTypes.hpp"
 #include "graph/NodeFacadeAbi.hpp"
@@ -48,6 +49,27 @@ struct NodeDescriptorSeed {
     std::string description;
     LifecycleState lifecycle_state{LifecycleState::Invalid};
     bool supports_configuration{false};
+};
+
+struct RuntimeNodeDescriptorRequest {
+    NodeDescriptorSeed seed;
+    const IParameterized* parameterized{nullptr};
+    std::vector<PortMetadata> input_ports;
+    std::vector<PortMetadata> output_ports;
+};
+
+class INodeDescriptorProvider {
+public:
+    virtual ~INodeDescriptorProvider() = default;
+
+    virtual NodeDescriptor BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest request) const = 0;
+};
+
+template <typename ParameterizedT>
+concept ParameterizedDescriptorSource = requires(const ParameterizedT& source, const std::string& name) {
+    source.GetParameters().Raw();
+    source.GetParameterNames();
+    source.GetParameterDescription(name).Raw();
 };
 
 inline NodeDescriptor BuildNodeDescriptor(
@@ -203,6 +225,63 @@ inline std::vector<ConfigFieldMetadata> BuildConfigFieldMetadataFromParameterize
     }
 
     return config_fields;
+}
+
+template <typename ParameterizedT>
+requires ParameterizedDescriptorSource<ParameterizedT>
+inline NodeDescriptor BuildRuntimeNodeDescriptor(
+    NodeDescriptorSeed seed,
+    const ParameterizedT* parameterized,
+    std::vector<PortMetadata> input_ports,
+    std::vector<PortMetadata> output_ports) {
+    std::vector<ConfigFieldMetadata> config_fields;
+    if (parameterized) {
+        try {
+            config_fields = BuildConfigFieldMetadataFromParameterized(
+                parameterized->GetParameters().Raw(),
+                [parameterized]() {
+                    return parameterized->GetParameterNames();
+                },
+                [parameterized](const std::string& field_name) {
+                    return parameterized->GetParameterDescription(field_name).Raw();
+                });
+        } catch (...) {
+            // Best-effort descriptor enrichment only.
+        }
+    }
+
+    return BuildNodeDescriptor(
+        std::move(seed),
+        std::move(config_fields),
+        std::move(input_ports),
+        std::move(output_ports));
+}
+
+inline NodeDescriptor BuildRuntimeNodeDescriptor(
+    NodeDescriptorSeed seed,
+    std::vector<PortMetadata> input_ports,
+    std::vector<PortMetadata> output_ports) {
+    return BuildNodeDescriptor(
+        std::move(seed),
+        {},
+        std::move(input_ports),
+        std::move(output_ports));
+}
+
+class DefaultNodeDescriptorProvider final : public INodeDescriptorProvider {
+public:
+    NodeDescriptor BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest request) const override {
+        return BuildRuntimeNodeDescriptor(
+            std::move(request.seed),
+            request.parameterized,
+            std::move(request.input_ports),
+            std::move(request.output_ports));
+    }
+};
+
+inline const INodeDescriptorProvider& GetDefaultNodeDescriptorProvider() {
+    static const DefaultNodeDescriptorProvider provider;
+    return provider;
 }
 
 }  // namespace graph
