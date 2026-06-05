@@ -5,9 +5,11 @@
 #pragma once
 
 #include <chrono>
+#include <condition_variable>
 #include <expected>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <thread>
 
@@ -66,11 +68,17 @@ public:
             return false;
         }
 
-        if (source_.port && destination_.port) {
-            auto connected = source_.port->ConnectTo(*destination_.port, capacity_);
-            if (!connected) {
-                return false;
-            }
+        // Descriptor-only fallback ports validate metadata but cannot transfer payloads.
+        // For executable graphs, require queue-backed runtime ports.
+        if (!source_.port || !destination_.port ||
+            source_.descriptor.transport_type == "runtime.descriptor" ||
+            destination_.descriptor.transport_type == "runtime.descriptor") {
+            return false;
+        }
+
+        auto connected = source_.port->ConnectTo(*destination_.port, capacity_);
+        if (!connected) {
+            return false;
         }
 
         initialized_.store(true, std::memory_order_release);
@@ -88,6 +96,7 @@ public:
         running_.store(true, std::memory_order_release);
 
         if (source_.port && destination_.port && !transfer_thread_.joinable()) {
+            thread_exited_.store(false, std::memory_order_release);
             transfer_thread_ = std::thread([this]() {
                 thread_metrics_.thread_active.store(true, std::memory_order_release);
                 thread_metrics_.active_thread_count.store(1, std::memory_order_release);
@@ -107,8 +116,22 @@ public:
                             metrics_->messages_rejected.fetch_add(1, std::memory_order_acq_rel);
                             metrics_->backpressure_events.fetch_add(1, std::memory_order_acq_rel);
                         }
-                        running_.store(false, std::memory_order_release);
-                        break;
+
+                        // Treat transfer failures as transient backpressure unless explicitly fatal.
+                        if (IsFatalTransferError(moved.error())) {
+                            running_.store(false, std::memory_order_release);
+                            break;
+                        }
+
+                        const auto idle_start = std::chrono::high_resolution_clock::now();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        const auto idle_ns = static_cast<uint64_t>(
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                std::chrono::high_resolution_clock::now() - idle_start)
+                                .count());
+                        thread_metrics_.total_idle_time_ns.fetch_add(idle_ns, std::memory_order_acq_rel);
+                        thread_metrics_.total_queue_wait_ns.fetch_add(idle_ns, std::memory_order_acq_rel);
+                        continue;
                     }
 
                     if (moved.value()) {
@@ -149,7 +172,11 @@ public:
                 }
                 thread_metrics_.thread_active.store(false, std::memory_order_release);
                 thread_metrics_.active_thread_count.store(0, std::memory_order_release);
+                thread_exited_.store(true, std::memory_order_release);
+                thread_exit_cv_.notify_all();
             });
+        } else {
+            thread_exited_.store(true, std::memory_order_release);
         }
 
         if (metrics_) {
@@ -168,8 +195,22 @@ public:
         }
     }
 
-    bool JoinWithTimeout(std::chrono::milliseconds) override {
-        Join();
+    bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
+        if (!transfer_thread_.joinable()) {
+            return true;
+        }
+
+        std::unique_lock<std::mutex> lock(thread_exit_mtx_);
+        if (!thread_exit_cv_.wait_for(lock, timeout_ms, [this] {
+                return thread_exited_.load(std::memory_order_acquire);
+            })) {
+            return false;
+        }
+        lock.unlock();
+
+        if (transfer_thread_.joinable()) {
+            transfer_thread_.join();
+        }
         return true;
     }
 
@@ -202,10 +243,7 @@ public:
     }
 
     std::size_t GetQueueSize() const override {
-        if (!metrics_) return 0;
-        uint64_t enqueued = metrics_->messages_enqueued.load(std::memory_order_relaxed);
-        uint64_t dequeued = metrics_->messages_dequeued.load(std::memory_order_relaxed);
-        return enqueued > dequeued ? static_cast<std::size_t>(enqueued - dequeued) : 0u;
+        return destination_.port ? destination_.port->GetQueueSize() : 0u;
     }
 
     uint64_t GetMessagesEnqueued() const override {
@@ -241,12 +279,23 @@ public:
     }
 
 private:
+    static bool IsFatalTransferError(RuntimePortConnectError error) {
+        return error == RuntimePortConnectError::DirectionMismatch ||
+               error == RuntimePortConnectError::PayloadTypeMismatch ||
+               error == RuntimePortConnectError::NullDestination ||
+               error == RuntimePortConnectError::TransportTypeMismatch ||
+               error == RuntimePortConnectError::CapacityInvalid;
+    }
+
     RuntimePortHandle source_;
     RuntimePortHandle destination_;
     std::size_t capacity_;
     std::shared_ptr<EdgeMetrics> metrics_;
     graph::ThreadMetrics thread_metrics_{};
     std::thread transfer_thread_;
+    mutable std::mutex thread_exit_mtx_;
+    std::condition_variable thread_exit_cv_;
+    std::atomic<bool> thread_exited_{true};
     std::atomic<bool> initialized_{false};
     std::atomic<bool> running_{false};
 };

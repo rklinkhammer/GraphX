@@ -303,7 +303,12 @@ Preserve existing typed path for:
 23. `GraphManager::GetMetrics()` now rolls up dynamic-edge counters into graph aggregates (`graph_total_enqueued`, `graph_total_dequeued`, `total_queue_time_ns`, `backpressure_events`, and processed totals).
 24. Graph lifecycle timing metrics (`init_time_ns`, `start_time_ns`, `execution_time_ns`) are now populated in `GraphManager` for dynamic-edge runs; `GetMetrics()` updates live execution time while running.
 25. Graph aggregate thread/process timing now includes per-edge thread metrics (`total_transfer_time_ns`, idle/wait time, and live `peak_active_threads`) via `GetMetrics()`.
-26. Focused migration validation passed:
+26. Dynamic-edge executable correctness has been tightened:
+    - descriptor-only fallback ports (`runtime.descriptor`) are now rejected during `DynamicEdge::Init()` for executable graphs
+    - `DynamicEdge::JoinWithTimeout(...)` now enforces timeout semantics instead of always blocking
+    - `DynamicEdge::GetQueueSize()` now reports destination runtime queue depth
+    - transient `TransferTo(...)` failures are treated as retryable backpressure unless the error is structurally fatal
+27. Focused migration validation passed:
     - `cmake --build build -j4`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='RuntimePortLookupTest.*:RuntimePortConnectionTest.*:DynamicEdgeTest.*:JsonDynamicGraphLoaderExpectedTest.*:GraphExecutorBuilderPoliciesTest.*:GraphExecutorPolicyFailuresTest.*:GraphExecutorLifecycleTest.*:*TopologyNodesUseInstanceNamesNotTypes*'`
     - `./libgraph/test/test_libgraph_integration --gtest_filter='*GraphTopology_ProducerToSinks*'`
@@ -314,6 +319,7 @@ Preserve existing typed path for:
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerMetricsAggregateDynamicEdgeCounters'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerLifecycleTimingMetricsTrackRuntimeExecution'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerAggregatesDynamicEdgeThreadTimingMetrics'`
+    - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.DynamicEdgeInitRejectsDescriptorOnlyFallbackPorts:DynamicEdgeTest.DynamicEdgeJoinWithTimeoutRespectsDeadline:DynamicEdgeTest.DynamicEdgeQueueSizeReflectsDestinationDepth:DynamicEdgeTest.DynamicEdgeTransientTransferFailureDoesNotStopEdge'`
 
 ### Phase 0: Guardrails and Baseline
 
@@ -412,6 +418,7 @@ Current state:
 6. Graph lifecycle timing parity is now wired for runtime dynamic-edge flows (`Init`, `Start`, run window via `Stop`).
 7. Graph-level thread/process-time rollups now include dynamic-edge transfer+idle/wait contributions and active thread peaks.
 8. Remaining phase 4 work is hardening transport ownership/lifecycle semantics and validating these rollups against broader mixed typed-edge + dynamic-edge scenarios.
+9. JSON edge schemas are still effectively index-oriented in the current loader path; named-port-first JSON ergonomics remain future work.
 
 ### Phase 5: Cleanup and Documentation
 

@@ -32,6 +32,15 @@ graph::RuntimePortHandle MakeOutputHandle(graph::IPortFunction* port, std::size_
     };
 }
 
+graph::RuntimePortHandle MakeOutputHandleWithTransport(
+    graph::IPortFunction* port,
+    std::size_t node_index,
+    std::string transport_type) {
+    auto handle = MakeOutputHandle(port, node_index);
+    handle.descriptor.transport_type = std::move(transport_type);
+    return handle;
+}
+
 graph::RuntimePortHandle MakeInputHandle(graph::IPortFunction* port, std::size_t node_index) {
     return graph::RuntimePortHandle{
         .node_index = node_index,
@@ -44,6 +53,15 @@ graph::RuntimePortHandle MakeInputHandle(graph::IPortFunction* port, std::size_t
         },
         .port = port,
     };
+}
+
+graph::RuntimePortHandle MakeInputHandleWithTransport(
+    graph::IPortFunction* port,
+    std::size_t node_index,
+    std::string transport_type) {
+    auto handle = MakeInputHandle(port, node_index);
+    handle.descriptor.transport_type = std::move(transport_type);
+    return handle;
 }
 
 TEST(DynamicEdgeTest, ValidateDynamicEdgeCompatibilityAcceptsMatchingHandles) {
@@ -91,6 +109,32 @@ TEST(DynamicEdgeTest, DynamicEdgeInitAndStartTrackState) {
     EXPECT_FALSE(edge.IsRunning());
 }
 
+TEST(DynamicEdgeTest, DynamicEdgeInitRejectsDescriptorOnlyFallbackPorts) {
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdge edge(
+        MakeOutputHandleWithTransport(&output, 0, "runtime.descriptor"),
+        MakeInputHandleWithTransport(&input, 1, "runtime.descriptor"),
+        8);
+
+    EXPECT_FALSE(edge.Init());
+}
+
+TEST(DynamicEdgeTest, DynamicEdgeJoinWithTimeoutRespectsDeadline) {
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdge edge(MakeOutputHandle(&output, 0), MakeInputHandle(&input, 1), 8);
+    ASSERT_TRUE(edge.Init());
+    ASSERT_TRUE(edge.Start());
+
+    EXPECT_FALSE(edge.JoinWithTimeout(std::chrono::milliseconds(2)));
+
+    edge.Stop();
+    EXPECT_TRUE(edge.JoinWithTimeout(std::chrono::milliseconds(250)));
+}
+
 TEST(DynamicEdgeTest, DynamicEdgeTransfersPayloadAtRuntime) {
     graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
     graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
@@ -116,6 +160,74 @@ TEST(DynamicEdgeTest, DynamicEdgeTransfersPayloadAtRuntime) {
     edge.Join();
 
     EXPECT_TRUE(transferred);
+}
+
+TEST(DynamicEdgeTest, DynamicEdgeQueueSizeReflectsDestinationDepth) {
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdge edge(MakeOutputHandle(&output, 0), MakeInputHandle(&input, 1), 8);
+    ASSERT_TRUE(edge.Init());
+    ASSERT_TRUE(output.GetQueue().Enqueue(77));
+    ASSERT_TRUE(edge.Start());
+
+    bool observed_non_zero_depth = false;
+    for (int i = 0; i < 60; ++i) {
+        if (edge.GetQueueSize() >= 1u) {
+            observed_non_zero_depth = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    edge.Stop();
+    edge.Join();
+
+    EXPECT_TRUE(observed_non_zero_depth);
+}
+
+TEST(DynamicEdgeTest, DynamicEdgeTransientTransferFailureDoesNotStopEdge) {
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdge edge(MakeOutputHandle(&output, 0), MakeInputHandle(&input, 1), 1);
+    ASSERT_TRUE(edge.Init());
+    ASSERT_TRUE(edge.Start());
+
+    ASSERT_TRUE(output.GetQueue().Enqueue(1));
+    bool first_arrived = false;
+    for (int i = 0; i < 60; ++i) {
+        if (edge.GetQueueSize() >= 1u) {
+            first_arrived = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    ASSERT_TRUE(first_arrived);
+
+    // Queue is still full, so this can trigger a transient transfer failure.
+    ASSERT_TRUE(output.GetQueue().Enqueue(2));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_TRUE(edge.IsRunning());
+
+    int value = 0;
+    ASSERT_TRUE(input.GetQueue().DequeueNonBlocking(value));
+    ASSERT_EQ(value, 1);
+
+    ASSERT_TRUE(output.GetQueue().Enqueue(3));
+    bool next_arrived = false;
+    for (int i = 0; i < 100; ++i) {
+        if (input.GetQueue().DequeueNonBlocking(value)) {
+            next_arrived = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    edge.Stop();
+    edge.Join();
+
+    EXPECT_TRUE(next_arrived);
 }
 
 TEST(DynamicEdgeTest, GraphManagerAddDynamicEdgeExpectedStoresDynamicEdgeMetadata) {
