@@ -16,6 +16,7 @@
 #include <log4cxx/logger.h>
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
@@ -37,11 +38,11 @@ namespace test {
 class PluginInfrastructure {
 public:
     /**
-     * @brief Get or initialize the NodeFactory with all plugins loaded
-     * @return Shared pointer to initialized NodeFactory
+     * @brief Get or initialize the node provider with all plugins loaded
+     * @return Shared pointer to initialized node provider
      */
-    static std::shared_ptr<graph::NodeFactory> GetFactory() {
-        static auto* factory = new std::shared_ptr<graph::NodeFactory>();
+        static std::shared_ptr<graph::INodeProvider> GetFactory() {
+            static auto* factory = new std::shared_ptr<graph::INodeProvider>();
         static auto* loader = new std::shared_ptr<graph::PluginLoader>();
         static bool initialized = false;
         
@@ -62,12 +63,12 @@ public:
         return *factory;
     }
 
-    static graph::NodeFacadeAdapter CreateDynamicNodeOrThrow(
-        const std::shared_ptr<graph::NodeFactory>& factory,
+    static graph::NodeFacadeAdapter CreateNodeOrThrow(
+        const std::shared_ptr<graph::INodeProvider>& factory,
         const std::string& type_name) {
-        auto node = factory->CreateDynamicNodeExpected(type_name);
+        auto node = factory->CreateNodeExpected(type_name);
         if (!node) {
-            throw std::runtime_error("Failed to create dynamic test node: " + type_name);
+            throw std::runtime_error("Failed to create test node: " + type_name);
         }
         return std::move(node).value();
     }

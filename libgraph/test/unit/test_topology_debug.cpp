@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -20,18 +21,18 @@ TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
     }
     
     // Create factory
-    auto factory = std::make_shared<graph::NodeFactory>(registry);
+    std::shared_ptr<graph::INodeProvider> factory = std::make_shared<graph::NodeFactory>(registry);
     
     // Build Topology3 exactly as the test does
     EXPECT_NO_THROW({
         auto graph = std::make_shared<graph::GraphManager>();
         
         auto source_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SourceTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
         auto interior_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "InteriorTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
         auto sink_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "SinkTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
         
         auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source_adapter);
         auto interiorx = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior_adapter);

@@ -1,11 +1,15 @@
 #include <gtest/gtest.h>
 
 #include "graph/JsonDynamicGraphLoader.hpp"
+#include "graph/FactoryManager.hpp"
+#include "graph/NodeFactory.hpp"
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -38,6 +42,10 @@ constexpr const char* kValidGraphConfig = R"json(
   ]
 }
 )json";
+
+#ifndef PLUGIN_OUTPUT_DIRECTORY
+#define PLUGIN_OUTPUT_DIRECTORY "./plugins"
+#endif
 
 }  // namespace
 
@@ -97,3 +105,741 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeReportsNullFactory) {
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownPortConfigKey) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_invalid_port_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "port_config": {
+            "__missing_port__": {"enabled": true}
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNonObjectNodeConfig) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_invalid_node_config_type",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": 42
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNodeConfigForNonConfigurableNode) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_non_configurable_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "node_config": {
+            "sample_rate_hz": 100
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsOmittedNodeConfigForNonConfigurableNode) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_non_configurable_node_config_omitted",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "test_1",
+          "type": "TestNode"
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsNullNodeConfigForNonConfigurableNode) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_non_configurable_node_config_null",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "node_config": null
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedNonConfigurableNullAndMissingRequiredTypedConfig) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_mixed_nonconfigurable_null_and_missing_required",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "node_config": null
+        },
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {}
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedMissingRequiredTypedConfigIndependentOfOrder) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_mixed_missing_required_order_variant",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {}
+        },
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "node_config": null
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMissingRequiredNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_missing_required_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {}
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsWrongTypeNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_wrong_type_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {
+            "message_count": "many"
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsValidTypedNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_valid_typed_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {
+            "message_count": 5
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownTypedNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_unknown_typed_node_config_field",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {
+            "message_count": 5,
+            "extra_field": true
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNullTypedNodeConfigWithRequiredField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_null_typed_node_config_required_field",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": null
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMissingRequiredSinkNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_missing_required_sink_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {}
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsWrongTypeSinkNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_wrong_type_sink_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {
+            "expected_message_count": "many"
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsValidTypedSinkNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_valid_typed_sink_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {
+            "expected_message_count": 5
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownTypedSinkNodeConfigField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_unknown_typed_sink_node_config_field",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {
+            "expected_message_count": 5,
+            "unexpected": "value"
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNullTypedSinkNodeConfigWithRequiredField) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_null_typed_sink_node_config_required_field",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": null
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsNullNodeConfigWithoutRequiredFields) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_null_optional_node_config",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "optional_1",
+          "type": "OptionalConfigTestNode",
+          "node_config": null
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownObjectForOptionalConfigNode) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_optional_node_unknown_object",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "optional_1",
+          "type": "OptionalConfigTestNode",
+          "node_config": {
+            "unexpected": 1
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsMixedNodeConfigCategories) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_mixed_node_config_categories_valid",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {
+            "message_count": 4
+          }
+        },
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {
+            "expected_message_count": 4
+          }
+        },
+        {
+          "id": "optional_1",
+          "type": "OptionalConfigTestNode",
+          "node_config": null
+        },
+        {
+          "id": "test_1",
+          "type": "TestNode"
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 4u);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedCategoriesWhenNonConfigurableHasNodeConfig) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_mixed_node_config_categories_invalid_non_configurable",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "node_config": {
+            "message_count": 4
+          }
+        },
+        {
+          "id": "optional_1",
+          "type": "OptionalConfigTestNode",
+          "node_config": null
+        },
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "node_config": {
+            "unexpected": true
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+    TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeNodeConfigModeMatrixByCategory) {
+      struct Case {
+        std::string name;
+        std::string node_block;
+        bool expect_success;
+      };
+
+      const std::vector<Case> cases = {
+        // Required typed config (SourceTestNode)
+        {
+          .name = "required_source_omitted",
+          .node_block = R"json({"id":"n1","type":"SourceTestNode"})json",
+          .expect_success = false,
+        },
+        {
+          .name = "required_source_null",
+          .node_block = R"json({"id":"n1","type":"SourceTestNode","node_config":null})json",
+          .expect_success = false,
+        },
+        {
+          .name = "required_source_object_valid",
+          .node_block = R"json({"id":"n1","type":"SourceTestNode","node_config":{"message_count":3}})json",
+          .expect_success = true,
+        },
+        {
+          .name = "required_source_object_invalid",
+          .node_block = R"json({"id":"n1","type":"SourceTestNode","node_config":{"message_count":"bad"}})json",
+          .expect_success = false,
+        },
+
+        // Optional configurable with no required fields (OptionalConfigTestNode)
+        {
+          .name = "optional_node_omitted",
+          .node_block = R"json({"id":"n1","type":"OptionalConfigTestNode"})json",
+          .expect_success = true,
+        },
+        {
+          .name = "optional_node_null",
+          .node_block = R"json({"id":"n1","type":"OptionalConfigTestNode","node_config":null})json",
+          .expect_success = true,
+        },
+        {
+          .name = "optional_node_object_valid_empty",
+          .node_block = R"json({"id":"n1","type":"OptionalConfigTestNode","node_config":{}})json",
+          .expect_success = true,
+        },
+        {
+          .name = "optional_node_object_invalid_unknown",
+          .node_block = R"json({"id":"n1","type":"OptionalConfigTestNode","node_config":{"unknown":1}})json",
+          .expect_success = false,
+        },
+
+        // Non-configurable (TestNode)
+        {
+          .name = "nonconfig_node_omitted",
+          .node_block = R"json({"id":"n1","type":"TestNode"})json",
+          .expect_success = true,
+        },
+        {
+          .name = "nonconfig_node_null",
+          .node_block = R"json({"id":"n1","type":"TestNode","node_config":null})json",
+          .expect_success = true,
+        },
+        {
+          .name = "nonconfig_node_object_valid_not_allowed",
+          .node_block = R"json({"id":"n1","type":"TestNode","node_config":{}})json",
+          .expect_success = false,
+        },
+        {
+          .name = "nonconfig_node_object_invalid",
+          .node_block = R"json({"id":"n1","type":"TestNode","node_config":{"sample_rate_hz":100}})json",
+          .expect_success = false,
+        },
+      };
+
+      auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+      ASSERT_TRUE(factory_bundle);
+
+      for (const auto& test_case : cases) {
+        const std::string config =
+          "{\n"
+          "  \"name\": \"loader_matrix_" + test_case.name + "\",\n"
+          "  \"num_threads\": 1,\n"
+          "  \"nodes\": [\n"
+          "    " + test_case.node_block + "\n"
+          "  ],\n"
+          "  \"edges\": []\n"
+          "}\n";
+
+        const auto path = WriteTempGraphConfig(config);
+        const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+          path.string(), factory_bundle->factory);
+        std::filesystem::remove(path);
+
+        if (test_case.expect_success) {
+          EXPECT_TRUE(result) << test_case.name << " error=" << static_cast<int>(result.error());
+          if (result) {
+            EXPECT_EQ(result->size(), 1u) << test_case.name;
+          }
+        } else {
+          EXPECT_FALSE(result) << test_case.name;
+          if (!result) {
+            EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed)
+              << test_case.name;
+          }
+        }
+      }
+    }
+

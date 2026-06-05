@@ -98,13 +98,13 @@ struct BuildResult {
 ///
 /// **Step 1**: Validate inputs (JSON file exists, nodes available)
 /// **Step 2**: Load graph configuration from JSON
-/// **Step 3**: Create node instances from factory
+/// **Step 3**: Create node instances from provider
 /// **Step 4**: Register nodes with GraphManager
 /// **Step 5**: Wire edges between nodes
 /// **Step 6**: Validate graph topology (optional cycle checking)
 ///
 /// The builder maintains a reference to GraphCapability which provides:
-/// - NodeFactory for creating nodes from the plugin system
+/// - INodeProvider for creating/querying nodes
 /// - PluginLoader for plugin lifetime management (CRITICAL)
 /// - ConfigManager configuration
 ///
@@ -148,7 +148,7 @@ public:
     ///
     /// The capability must contain:
     /// - graph_impl.json_config_path pointing to valid JSON file
-    /// - node_factory pointing to valid NodeFactory instance
+    /// - node_provider pointing to valid INodeProvider instance
     /// - plugin_loader (for plugin lifetime management)
     ///
     /// @throws std::invalid_argument if capability is invalid
@@ -166,7 +166,7 @@ public:
     ///
     /// Performs pre-build validation:
     /// - JSON configuration file exists and is readable
-    /// - All node types in JSON are available in NodeFactory
+    /// - All node types in JSON are available in the active INodeProvider
     /// - JSON structure is valid
     /// - Edge source/target references are valid
     ///
@@ -188,7 +188,7 @@ public:
     ///
     /// Performs the 6-step build process:
     /// 1. LoadGraphConfiguration() - Parse JSON configuration
-    /// 2. CreateNodes() - Instantiate all nodes from factory
+    /// 2. CreateNodes() - Instantiate all nodes from provider
     /// 3. RegisterNodes() - Add nodes to GraphManager
     /// 4. WireEdges() - Connect nodes with edges
     /// 5. ValidateTopology() - Check graph structure (optional)
@@ -278,17 +278,17 @@ private:
     ///
     /// Validates:
     /// - JSON config file exists and is readable
-    /// - GraphCapability has valid factory
+    /// - GraphCapability has valid node provider
     /// - JSON can be parsed as valid graph configuration
     ///
     /// Sets last_error_ on failure with descriptive message.
     bool LoadGraphConfiguration();
 
-    /// @brief Step 2: Create all node instances from factory
+    /// @brief Step 2: Create all node instances from provider
     /// @param nodes_config Parsed node configurations from JSON
     /// @return Vector of created NodeFacadeAdapter instances
     ///
-    /// Uses NodeFactory to create each node type from the configuration.
+    /// Uses INodeProvider to create each node type from the configuration.
     /// Each node is created with its specified parameters.
     ///
     /// @throws std::runtime_error if any node creation fails

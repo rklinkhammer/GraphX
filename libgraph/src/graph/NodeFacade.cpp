@@ -31,17 +31,60 @@
 #include <utility>
 #include <iomanip>
 #include <cassert>
+#include <unordered_set>
+#include <nlohmann/json.hpp>
+
+#include "graph/IConfigurable.hpp"
+#include "graph/NodeFacadeInterop.hpp"
 
 namespace graph {
 
 namespace {
 
-INodeFacade::PortInfo ToPortInfo(const PortMetadataC& metadata) {
+INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
     return INodeFacade::PortInfo{
         .name = metadata.port_name,
         .type = metadata.payload_type,
         .direction = metadata.direction,
     };
+}
+
+JsonType JsonTypeFromJson(const nlohmann::json& value) {
+    if (value.is_string()) {
+        return JsonType::String;
+    }
+    if (value.is_boolean()) {
+        return JsonType::Boolean;
+    }
+    if (value.is_number_integer()) {
+        return JsonType::Integer;
+    }
+    if (value.is_number_float() || value.is_number_unsigned()) {
+        return JsonType::Number;
+    }
+    if (value.is_array()) {
+        return JsonType::Array;
+    }
+    return JsonType::Object;
+}
+
+JsonType JsonTypeFromSchemaString(const std::string& type_name) {
+    if (type_name == "string") {
+        return JsonType::String;
+    }
+    if (type_name == "number") {
+        return JsonType::Number;
+    }
+    if (type_name == "integer") {
+        return JsonType::Integer;
+    }
+    if (type_name == "boolean") {
+        return JsonType::Boolean;
+    }
+    if (type_name == "array") {
+        return JsonType::Array;
+    }
+    return JsonType::Object;
 }
 
 }  // namespace
@@ -80,69 +123,47 @@ void NodeFacadeAdapter::ExtractInterfaces() {
     // - facade_ is valid (non-null)
     // Therefore, no need to check for null here
     
-    // Try to extract DataInjectionNodeConfig interface from plugin callback
-    if (facade_->GetAsDataInjectionNodeConfig) {
-        void* data_injection_ptr = facade_->GetAsDataInjectionNodeConfig(handle_);
-        if (data_injection_ptr) {
-            // Store as shared_ptr with no-op deleter (we don't own the pointer)
-            // The pointer is owned by the plugin node and valid for node's lifetime
-            data_injection_node_config_ptr_ = std::shared_ptr<void>(data_injection_ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted DataInjectionNodeConfig interface from plugin");
-        }
+    const auto interfaces = ExtractNodeInterfaces(handle_, facade_);
+
+    if (interfaces.data_injection_node_config) {
+        // Store as shared_ptr with no-op deleter (we don't own the pointer)
+        // The pointer is owned by the plugin node and valid for node's lifetime
+        data_injection_node_config_ptr_ =
+            std::shared_ptr<void>(interfaces.data_injection_node_config, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted DataInjectionNodeConfig interface from plugin");
     }
 
-    // Try to extract IConfigurable interface from plugin callback
-    if (facade_->GetAsIConfigurable) {
-        void* ptr = facade_->GetAsIConfigurable(handle_);
-        if (ptr) {
-            configurable_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted IConfigurable interface from plugin");
-        }
+    if (interfaces.configurable) {
+        configurable_ptr_ = std::shared_ptr<void>(interfaces.configurable, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted IConfigurable interface from plugin");
     }
 
-    // Try to extract IDiagnosable interface from plugin callback
-    if (facade_->GetAsIDiagnosable) {
-        void* ptr = facade_->GetAsIDiagnosable(handle_);
-        if (ptr) {
-            diagnosable_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted IDiagnosable interface from plugin");
-        }
+    if (interfaces.diagnosable) {
+        diagnosable_ptr_ = std::shared_ptr<void>(interfaces.diagnosable, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted IDiagnosable interface from plugin");
     }
 
-    // Try to extract IParameterized interface from plugin callback
-    if (facade_->GetAsIParameterized) {
-        void* ptr = facade_->GetAsIParameterized(handle_);
-        if (ptr) {
-            parameterized_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted IParameterized interface from plugin");
-        }
+    if (interfaces.parameterized) {
+        parameterized_ptr_ = std::shared_ptr<void>(interfaces.parameterized, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted IParameterized interface from plugin");
     }
 
-    // Try to extract IMetricsCallbackProvider interface from plugin callback
-    if (facade_->GetAsIMetricsCallbackProvider) {
-        void* ptr = facade_->GetAsIMetricsCallbackProvider(handle_);
-        if (ptr) {
-            metrics_callback_provider_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted IMetricsCallbackProvider interface from plugin");
-        }
-    }
-    
-    // Try to extract ICompletionCallback interface from plugin callback
-    if (facade_->GetAsICompletionCallback) {
-        void* ptr = facade_->GetAsICompletionCallback(handle_);
-        if (ptr) {
-            completion_callback_provider_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted ICompletionCallback interface from plugin");
-        }
+    if (interfaces.metrics_callback_provider) {
+        metrics_callback_provider_ptr_ =
+            std::shared_ptr<void>(interfaces.metrics_callback_provider, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted IMetricsCallbackProvider interface from plugin");
     }
 
-    // Try to extract IGpuCapabilityBinding interface from plugin callback
-    if (facade_->GetAsIGpuCapabilityBinding) {
-        void* ptr = facade_->GetAsIGpuCapabilityBinding(handle_);
-        if (ptr) {
-            gpu_capability_binding_ptr_ = std::shared_ptr<void>(ptr, [](void*) {});
-            LOG4CXX_TRACE(logger_, "Extracted IGpuCapabilityBinding interface from plugin");
-        }
+    if (interfaces.completion_callback_provider) {
+        completion_callback_provider_ptr_ =
+            std::shared_ptr<void>(interfaces.completion_callback_provider, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted ICompletionCallback interface from plugin");
+    }
+
+    if (interfaces.gpu_capability_binding) {
+        gpu_capability_binding_ptr_ =
+            std::shared_ptr<void>(interfaces.gpu_capability_binding, [](void*) {});
+        LOG4CXX_TRACE(logger_, "Extracted IGpuCapabilityBinding interface from plugin");
     }
 }
 
@@ -578,30 +599,100 @@ std::string NodeFacadeAdapter::GetDescription() const {
 }
 
 INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
+    auto descriptor = GetDescriptor();
+
     INodeFacade::NodeMetadata metadata;
 
-    // Get basic node information
-    metadata.name = GetName();
-    metadata.type = GetType();
-    metadata.description = GetDescription();
+    metadata.name = descriptor.name;
+    metadata.type = descriptor.type;
+    metadata.description = descriptor.description;
+    metadata.input_port_count = descriptor.input_ports.size();
+    metadata.output_port_count = descriptor.output_ports.size();
 
-    const auto input_metadata = GetInputPortMetadata();
-    const auto output_metadata = GetOutputPortMetadata();
-
-    metadata.input_port_count = input_metadata.size();
-    metadata.output_port_count = output_metadata.size();
-
-    metadata.input_ports.reserve(input_metadata.size());
-    for (const auto& port : input_metadata) {
-        metadata.input_ports.push_back(ToPortInfo(port));
+    metadata.input_ports.reserve(descriptor.input_ports.size());
+    for (const auto& port : descriptor.input_ports) {
+        metadata.input_ports.push_back(ToFacadePortInfo(port));
     }
 
-    metadata.output_ports.reserve(output_metadata.size());
-    for (const auto& port : output_metadata) {
-        metadata.output_ports.push_back(ToPortInfo(port));
+    metadata.output_ports.reserve(descriptor.output_ports.size());
+    for (const auto& port : descriptor.output_ports) {
+        metadata.output_ports.push_back(ToFacadePortInfo(port));
     }
 
     return metadata;
+}
+
+NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
+    NodeDescriptor descriptor;
+    descriptor.name = GetName();
+    descriptor.type = GetType();
+    descriptor.description = GetDescription();
+    descriptor.lifecycle_state = static_cast<LifecycleState>(GetLifecycleState());
+    descriptor.supports_configuration = static_cast<bool>(GetConfigurablePtr());
+
+    if (const auto parameterized_ptr = GetParameterizedPtr()) {
+        auto* parameterized = static_cast<IParameterized*>(parameterized_ptr.get());
+        if (parameterized) {
+            try {
+                const auto parameter_json = parameterized->GetParameters().Raw();
+                const auto parameter_names = parameterized->GetParameterNames();
+                std::unordered_set<std::string> seen_fields;
+
+                for (const auto& field_name : parameter_names) {
+                    const auto metadata_json = parameterized->GetParameterDescription(field_name).Raw();
+
+                    JsonType field_type = JsonType::Object;
+                    if (metadata_json.is_object() && metadata_json.contains("type") &&
+                        metadata_json["type"].is_string()) {
+                        field_type = JsonTypeFromSchemaString(metadata_json["type"].get<std::string>());
+                    } else if (parameter_json.is_object() && parameter_json.contains(field_name)) {
+                        field_type = JsonTypeFromJson(parameter_json[field_name]);
+                    }
+
+                    const bool required =
+                        metadata_json.is_object() && metadata_json.contains("required") &&
+                        metadata_json["required"].is_boolean() && metadata_json["required"].get<bool>();
+
+                    descriptor.config_fields.push_back(ConfigFieldMetadata{
+                        .name = field_name,
+                        .type = field_type,
+                        .required = required,
+                    });
+                    seen_fields.insert(field_name);
+                }
+
+                if (parameter_json.is_object()) {
+                    for (const auto& [field_name, field_value] : parameter_json.items()) {
+                        if (seen_fields.contains(field_name)) {
+                            continue;
+                        }
+
+                        descriptor.config_fields.push_back(ConfigFieldMetadata{
+                            .name = field_name,
+                            .type = JsonTypeFromJson(field_value),
+                            .required = false,
+                        });
+                    }
+                }
+            } catch (...) {
+                // Best-effort descriptor enrichment only.
+            }
+        }
+    }
+
+    const auto input_metadata = GetInputPortMetadata();
+    descriptor.input_ports.reserve(input_metadata.size());
+    for (const auto& input_port : input_metadata) {
+        descriptor.input_ports.push_back(ToPortMetadata(input_port));
+    }
+
+    const auto output_metadata = GetOutputPortMetadata();
+    descriptor.output_ports.reserve(output_metadata.size());
+    for (const auto& output_port : output_metadata) {
+        descriptor.output_ports.push_back(ToPortMetadata(output_port));
+    }
+
+    return descriptor;
 }
 
 std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) const {

@@ -95,6 +95,7 @@ struct InterfaceCapability {
 struct PluginCapabilities {
     PluginInfo info;
     std::vector<InterfaceCapability> capabilities;
+    nlohmann::json node_descriptor_schema;
     
     /**
      * @brief Check if plugin supports IConfigurable

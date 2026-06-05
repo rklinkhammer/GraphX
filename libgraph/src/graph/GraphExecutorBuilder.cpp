@@ -253,7 +253,8 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
         if (!factory_bundle) {
             throw std::runtime_error("Failed to create factory and load plugins");
         }
-        auto factory = factory_bundle->factory;
+        auto node_provider = factory_bundle->factory;
+        auto factory = factory_bundle->concrete_factory;
         auto loader = factory_bundle->loader;
         LOG4CXX_TRACE(g_logger, "Factory created and plugins loaded from: " << plugin_directory_);
 
@@ -262,7 +263,7 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
         std::shared_ptr<capabilities::GraphCapability> graph_cap =
             std::make_shared<capabilities::GraphCapability>();
 
-        graph_cap->SetNodeFactory(factory);
+        graph_cap->SetNodeProvider(node_provider);
         graph_cap->SetPluginRegistry(factory->GetPluginRegistry());
         graph_cap->SetJsonConfigPath(json_config_);
         graph_cap->SetCliMode(cli_mode_);

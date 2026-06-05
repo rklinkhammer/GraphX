@@ -30,13 +30,9 @@
 #include <chrono>
 #include "graph/IDataInjectionSource.hpp"
 #include "graph/NodeFacadeAbi.hpp"
+#include "graph/NodeDescriptor.hpp"
+#include "graph/NodePluginInstance.hpp"
 #include "core/TypeInfo.hpp"
-
-// Forward declaration to avoid circular dependency
-namespace graph {
-template <typename NodeT>
-struct NodePluginInstance;
-}
 
 namespace graph {
 
@@ -46,10 +42,10 @@ namespace graph {
 
 /**
  * @class INodeFacade
- * @brief Modern unified C++ interface for dynamic nodes
+ * @brief Modern unified C++ interface for plugin-backed nodes
  *
  * This interface provides a clean, type-safe way to interact with
- * dynamically-loaded nodes. It replaces the V1 individual getter pattern
+ * provider-created nodes. It replaces the V1 individual getter pattern
  * with consolidated methods that provide better performance and usability.
  *
  * All port and node metadata is accessed through a single GetMetadata() call,
@@ -143,6 +139,14 @@ public:
      * @thread-safe for reading
      */
     virtual NodeMetadata GetMetadata() const = 0;
+
+    /**
+     * Get descriptor-oriented node metadata.
+     *
+     * This descriptor model is the canonical source for metadata surfaces
+     * consumed by policy, schema, and plugin/facade adapters.
+     */
+    virtual NodeDescriptor GetDescriptor() const = 0;
 
     /**
      * Get a typed interface for optional capabilities.
@@ -625,7 +629,7 @@ public:
      *
      * Example:
      * @code
-     *   auto adapter = factory.CreateDynamicNodeExpected("DataInjectionAccelerometerNode");
+    *   auto adapter = factory.CreateNodeExpected("DataInjectionAccelerometerNode");
      *   auto facade_adapter = std::make_shared<NodeFacadeAdapter>(std::move(adapter).value());
      *   
      *   // Extract the underlying typed node
@@ -684,7 +688,7 @@ public:
     }
     
     /**
-     * Try to get a typed interface from the plugin node
+    * Try to get a typed interface from the plugin-backed node
      * 
      * This method provides type-safe access to optional plugin interfaces
      * without requiring RTTI or virtual methods on the INode hierarchy.
@@ -726,6 +730,11 @@ public:
      * Replaces multiple GetName(), GetType(), Get*PortCount(), Get*PortName() calls.
      */
     INodeFacade::NodeMetadata GetMetadata() const override;
+
+    /**
+     * @implements INodeFacade::GetDescriptor()
+     */
+    NodeDescriptor GetDescriptor() const override;
 
     /**
      * @implements INodeFacade::GetInterface(const std::string&)

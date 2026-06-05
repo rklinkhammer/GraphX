@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "plugins/PluginLoader.hpp"
+#include "plugins/PluginInterop.hpp"
 #include <dlfcn.h>
 #include <filesystem>
 #include <algorithm>
@@ -149,12 +150,8 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
 
         LOG4CXX_TRACE(logger_, "dlopen successful, handle: " << handle);
 
-        dlerror();
-        using GetInfoFunc = const char* (*)();
-        auto get_info = reinterpret_cast<GetInfoFunc>(dlsym(handle, "plugin_get_info"));
-        const char* symbol_error = dlerror();
-        
-        if (!get_info || symbol_error) {
+        auto get_info = ResolveGetPluginInfoFunction(handle);
+        if (!get_info) {
             LOG4CXX_ERROR(logger_, "Plugin missing plugin_get_info: " << plugin_filename);
             close_on_error();
             return std::unexpected(app::error::PluginLoadError::MissingSymbol);
@@ -162,7 +159,7 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
 
         LOG4CXX_TRACE(logger_, "Found plugin_get_info function");
 
-        const char* info_string = get_info();
+        const char* info_string = (*get_info)();
         if (!info_string) {
             LOG4CXX_ERROR(logger_, "plugin_get_info returned null");
             close_on_error();
@@ -198,17 +195,13 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
 
         LOG4CXX_TRACE(logger_, "ABI validation passed");
 
-        dlerror();
-        using GetApiVersionFunc = int (*)();
-        auto get_api_version = reinterpret_cast<GetApiVersionFunc>(
-            dlsym(handle, "plugin_api_version"));
         int plugin_api_version = 1;
+        auto get_api_version = ResolveGetPluginApiVersionFunction(handle);
         if (get_api_version) {
-            plugin_api_version = get_api_version();
+            plugin_api_version = (*get_api_version)();
             LOG4CXX_TRACE(logger_, "Plugin API version: " << plugin_api_version);
         } else {
             LOG4CXX_TRACE(logger_, "Plugin missing plugin_api_version, assuming v1");
-            dlerror();
         }
 
         using namespace graph::plugins;
@@ -222,18 +215,14 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
 
         LOG4CXX_TRACE(logger_, "Version validation passed");
 
-        dlerror();
-        using GetFacadeFunc = const NodeFacade* (*)();
-        auto get_facade = reinterpret_cast<GetFacadeFunc>(dlsym(handle, "plugin_get_facade"));
-        symbol_error = dlerror();
-
-        if (!get_facade || symbol_error) {
+        auto get_facade = ResolveGetPluginFacadeFunction(handle);
+        if (!get_facade) {
             LOG4CXX_ERROR(logger_, "Plugin missing plugin_get_facade: " << type_name);
             close_on_error();
             return std::unexpected(app::error::PluginLoadError::MissingSymbol);
         }
 
-        const NodeFacade* facade = get_facade();
+        const NodeFacade* facade = (*get_facade)();
         if (!facade) {
             LOG4CXX_ERROR(logger_, "plugin_get_facade returned null");
             close_on_error();

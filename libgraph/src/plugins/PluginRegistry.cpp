@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 #include "plugins/PluginRegistry.hpp"
-#include <dlfcn.h>
+#include "plugins/PluginInterop.hpp"
 #include <log4cxx/logger.h>
 
 namespace graph {
@@ -57,14 +57,10 @@ PluginRegistry::RegisterNodeTypeExpected(
         return std::unexpected(PluginRegistryError::NullFacade);
     }
     
-    // Verify the create function can be found
-    dlerror();  // Clear any previous error
-    CreateNodeFunc create_func = (CreateNodeFunc)dlsym(plugin_handle, create_function.c_str());
-    const char* error = dlerror();
-    
-    if (error || !create_func) {
+    auto create_func = ResolveCreateNodeFunction(plugin_handle, create_function);
+    if (!create_func) {
         LOG4CXX_ERROR(logger_, "Cannot find create function '" << create_function 
-                      << "' in plugin: " << (error ? error : "unknown error"));
+                      << "' in plugin");
         return std::unexpected(PluginRegistryError::MissingCreateFunction);
     }
     
@@ -83,7 +79,7 @@ PluginRegistry::RegisterNodeTypeExpected(
             .create_function = create_function,
             .abi_tag = abi_tag,
             .plugin_handle = plugin_handle,
-            .create_func = create_func,
+            .create_func = *create_func,
             .facade = facade,
             .version = version,
         };
@@ -111,26 +107,23 @@ PluginRegistry::CreateNodeExpected(const std::string& type_name) noexcept {
         
         const auto& info = it->second;
         
-        try {
-            // Call the plugin's creation function
-            LOG4CXX_TRACE(logger_, "Calling create function: " << info.create_function);
-            NodeHandle handle = info.create_func();
-            
-            if (!handle) {
+        LOG4CXX_TRACE(logger_, "Calling create function: " << info.create_function);
+        auto handle = CreateNodeFromPlugin(info.create_func);
+        if (!handle) {
+            if (handle.error() == PluginInteropError::CreationFailed) {
                 LOG4CXX_ERROR(logger_, "Plugin creation function failed for type: " << type_name);
                 return std::unexpected(PluginRegistryError::CreationFailed);
             }
-            
-            LOG4CXX_TRACE(logger_, "Successfully created node instance for type: " << type_name);
-            return std::pair<NodeHandle, const NodeFacade*>{handle, info.facade};
-        } catch (const std::exception& e) {
-            LOG4CXX_ERROR(logger_, "Exception during node creation for type: " << type_name 
-                          << " - " << e.what());
-            return std::unexpected(PluginRegistryError::CreationThrew);
-        } catch (...) {
-            LOG4CXX_ERROR(logger_, "Unknown exception during node creation for type: " << type_name);
+            if (handle.error() == PluginInteropError::CreationThrew) {
+                LOG4CXX_ERROR(logger_, "Exception during node creation for type: " << type_name);
+                return std::unexpected(PluginRegistryError::CreationThrew);
+            }
+            LOG4CXX_ERROR(logger_, "Unknown creation error for type: " << type_name);
             return std::unexpected(PluginRegistryError::Unknown);
         }
+
+        LOG4CXX_TRACE(logger_, "Successfully created node instance for type: " << type_name);
+        return std::pair<NodeHandle, const NodeFacade*>{*handle, info.facade};
     }
 }
 

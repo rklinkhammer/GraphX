@@ -37,6 +37,7 @@
 #include <nlohmann/json.hpp>
 #include "Config.hpp"
 #include "core/ReflectionHelper.hpp"
+#include "graph/NodeDescriptor.hpp"
 
 // Feature detection for C++26 std::reflect
 #if __cplusplus >= 202600 && __has_include(<meta>)
@@ -56,6 +57,71 @@
 namespace graph {
 
 using json = nlohmann::json;
+
+/**
+ * @brief Export a runtime NodeDescriptor as JSON schema-like metadata.
+ *
+ * This provides a stable bridge while descriptor-driven schema generation is
+ * being expanded across facade and plugin metadata surfaces.
+ */
+inline json GenerateNodeDescriptorSchema(const NodeDescriptor& descriptor) {
+    const auto json_type_to_schema_type = [](JsonType type) {
+        switch (type) {
+            case JsonType::String:
+                return "string";
+            case JsonType::Number:
+                return "number";
+            case JsonType::Integer:
+                return "integer";
+            case JsonType::Boolean:
+                return "boolean";
+            case JsonType::Object:
+                return "object";
+            case JsonType::Array:
+                return "array";
+        }
+        return "object";
+    };
+
+    json schema = {
+        {"name", descriptor.name},
+        {"type", descriptor.type},
+        {"description", descriptor.description},
+        {"lifecycle_state", static_cast<int>(descriptor.lifecycle_state)},
+        {"supports_configuration", descriptor.supports_configuration},
+        {"config_fields", json::array()},
+        {"inputs", json::array()},
+        {"outputs", json::array()}
+    };
+
+    for (const auto& field : descriptor.config_fields) {
+        schema["config_fields"].push_back({
+            {"name", field.name},
+            {"type", json_type_to_schema_type(field.type)},
+            {"required", field.required}
+        });
+    }
+
+    for (const auto& input_port : descriptor.input_ports) {
+        schema["inputs"].push_back({
+            {"index", input_port.port_index},
+            {"name", input_port.port_name},
+            {"payload", input_port.payload_type},
+            {"direction", input_port.direction}
+        });
+    }
+
+    for (const auto& output_port : descriptor.output_ports) {
+        schema["outputs"].push_back({
+            {"index", output_port.port_index},
+            {"name", output_port.port_name},
+            {"payload", output_port.payload_type},
+            {"direction", output_port.direction}
+        });
+    }
+
+    return schema;
+}
 
 template<typename T>
 using ConfigFieldsRange = decltype(T::Fields());

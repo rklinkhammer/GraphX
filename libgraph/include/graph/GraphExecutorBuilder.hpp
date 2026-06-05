@@ -72,7 +72,7 @@ namespace graph {
  * Single-use builder that orchestrates graph construction:
  * 1. Validate required configuration (JSON path)
  * 2. Load JSON via ConfigManager
- * 3. Create and initialize FactoryManager
+ * 3. Create provider + plugin loader bundle via FactoryManager
  * 4. Load plugins from specified directory
  * 5. Build graph via GraphBuilder
  * 6. Return appropriate executor type (with/without CSV support)
@@ -212,7 +212,7 @@ public:
      * Performs complete graph construction:
      * 1. Validates required configuration (WithJsonConfig must be called)
      * 2. Loads JSON configuration
-     * 3. Creates and initializes factory manager
+    * 3. Creates node provider + plugin loader bundle via FactoryManager
      * 4. Loads plugins from plugin directory
      * 5. Builds graph using GraphBuilder
      * 6. Creates appropriate executor type

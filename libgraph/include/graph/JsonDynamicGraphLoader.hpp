@@ -25,18 +25,18 @@
  * @brief Load JSON graph configurations as NodeFacadeAdapter collections
  *
  * JsonDynamicGraphLoader replaces the old JsonGraphLoader with a cleaner,
- * simpler design that works exclusively with NodeFacadeAdapter instances.
+ * simpler design that works with NodeFacadeAdapter instances.
  *
  * Key features:
- * - Assumes ALL nodes are dynamically loaded from plugins
+ * - Uses INodeProvider for node creation and type discovery
  * - No integration with INode or compile-time type system
  * - Returns raw NodeFacadeAdapter instances for manual graph assembly
  * - Proven interface used by rocket_telemetry.cpp
  *
  * Usage:
  * @code
- * auto factory = std::make_shared<NodeFactory>(registry);
- * auto nodes = JsonDynamicGraphLoader::LoadNodesSafe("config.json", factory);
+ * auto provider = std::make_shared<NodeFactory>(registry);
+ * auto nodes = JsonDynamicGraphLoader::LoadNodesSafe("config.json", provider);
  * auto edges = JsonDynamicGraphLoader::LoadEdgesSafe("config.json");
  * 
  * // Initialize and start nodes...
@@ -47,7 +47,7 @@
  * @endcode
  *
  * @see graph::NodeFacadeAdapter
- * @see graph::NodeFactory
+ * @see graph::INodeProvider
  * @see graph::config::GraphConfig
  *
  * @author GitHub Copilot
@@ -67,7 +67,7 @@
 
 namespace graph {
     // Forward declaration
-    class NodeFactory;
+    class INodeProvider;
 }
 
 namespace graph::config {
@@ -77,8 +77,8 @@ namespace graph::config {
  * @brief Loads JSON graph configurations as collections of NodeFacadeAdapter instances
  *
  * Replaces the old JsonGraphLoader. This loader works exclusively with the
- * plugin system and returns NodeFacadeAdapter instances. All nodes in the
- * configuration must be available via the plugin system.
+ * provider-backed creation path and returns NodeFacadeAdapter instances. All
+ * nodes in the configuration must be available via the active provider.
  *
  * Key differences from JsonGraphLoader:
  * - No INode integration (completely removed)
@@ -93,7 +93,7 @@ public:
      * Load all nodes from JSON configuration (safe version with expected<>)
      *
      * @param filepath Path to JSON configuration file
-     * @param factory NodeFactory for creating plugin nodes
+     * @param node_provider Node provider for creating configured nodes
      * @return expected<vector<NodeFacadeAdapter>, ConfigError>
      * @noexcept No exceptions in normal operation
      *
@@ -101,7 +101,7 @@ public:
      *
      * Example:
      * @code
-     * auto result = JsonDynamicGraphLoader::LoadNodesSafe("config.json", factory);
+     * auto result = JsonDynamicGraphLoader::LoadNodesSafe("config.json", provider);
      * if (result) {
      *     auto& nodes = result.value();
      *     // Use nodes
@@ -116,7 +116,7 @@ public:
         app::error::ConfigError>
     LoadNodesSafe(
         const std::string& filepath,
-        std::shared_ptr<NodeFactory> factory) noexcept;
+        std::shared_ptr<INodeProvider> node_provider) noexcept;
 
     /**
      * Load edge specifications from JSON configuration
@@ -154,7 +154,7 @@ public:
      * Loads both nodes and edges in one call.
      *
      * @param filepath Path to JSON configuration file
-     * @param factory NodeFactory for creating plugin nodes
+    * @param node_provider Node provider for creating configured nodes
      * @return expected<pair<nodes, edges>, ConfigError>
      * @noexcept No exceptions in normal operation
      *
@@ -162,7 +162,7 @@ public:
      *
      * Example:
      * @code
-     * auto result = JsonDynamicGraphLoader::LoadGraphSafe("config.json", factory);
+     * auto result = JsonDynamicGraphLoader::LoadGraphSafe("config.json", provider);
      * if (result) {
      *     auto [nodes, edges] = result.value();
      *     // Use nodes and edges
@@ -177,7 +177,7 @@ public:
         app::error::ConfigError>
     LoadGraphSafe(
         const std::string& filepath,
-        std::shared_ptr<NodeFactory> factory) noexcept;
+        std::shared_ptr<INodeProvider> node_provider) noexcept;
 
 private:
     /**

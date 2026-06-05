@@ -25,7 +25,7 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/EdgeRegistry.hpp"
 #include "graph/JsonDynamicGraphLoader.hpp"
-#include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "plugins/NodePluginTemplate.hpp"
@@ -65,9 +65,9 @@ GraphBuilder::GraphBuilder(const std::shared_ptr<capabilities::GraphCapability>&
         throw std::invalid_argument("GraphCapability cannot be null");
     }
     
-    if (!capability->GetNodeFactory()) {
-        LOG4CXX_ERROR(logger_, "GraphCapability has null NodeFactory");
-        throw std::invalid_argument("GraphCapability NodeFactory cannot be null");
+    if (!capability->GetNodeProvider()) {
+        LOG4CXX_ERROR(logger_, "GraphCapability has null NodeProvider");
+        throw std::invalid_argument("GraphCapability NodeProvider cannot be null");
     }
     
     if (capability->GetJsonConfigPath().empty()) {
@@ -105,7 +105,7 @@ bool GraphBuilder::Validate() {
     
     auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
         json_path,
-        capability_->GetNodeFactory());
+        capability_->GetNodeProvider());
     if (!graph_config) {
         last_error_ = "Failed to load graph configuration";
         LOG4CXX_WARN(logger_, last_error_);
@@ -147,7 +147,7 @@ BuildResult GraphBuilder::Build() {
         const auto& json_path = capability_->GetJsonConfigPath();
         auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
             json_path,
-            capability_->GetNodeFactory());
+            capability_->GetNodeProvider());
         if (!graph_config) {
             BuildResult result;
             result.success = false;

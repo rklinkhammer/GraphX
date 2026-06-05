@@ -34,8 +34,6 @@ log4cxx::LoggerPtr NodeFactory::logger_ =
 std::string ErrorMessage(NodeFactory::NodeCreationError error) {
     using Error = NodeFactory::NodeCreationError;
     switch (error) {
-        case Error::PluginRegistryMissing:
-            return "PluginRegistry not initialized";
         case Error::TypeNotFound:
             return "Node type not found";
         case Error::NotInitialized:
@@ -49,46 +47,6 @@ std::string ErrorMessage(NodeFactory::NodeCreationError error) {
         default:
             return "Unrecognized node creation error";
     }
-}
-
-std::expected<NodeFacadeAdapter, NodeFactory::NodeCreationError>
-NodeFactory::CreateDynamicNodeExpected(const std::string& node_type_name) noexcept {
-    LOG4CXX_TRACE(logger_, "CreateDynamicNode requested for: " << node_type_name);
-
-    if (node_type_name.empty()) {
-        LOG4CXX_ERROR(logger_, "Cannot create dynamic node with empty type name");
-        return std::unexpected(NodeCreationError::InvalidArgument);
-    }
-    
-    if (!plugin_registry_) {
-        LOG4CXX_ERROR(logger_, "PluginRegistry not set - cannot create dynamic node");
-        return std::unexpected(NodeCreationError::PluginRegistryMissing);
-    }
-
-    if (!plugin_registry_->HasNodeType(node_type_name)) {
-        LOG4CXX_ERROR(logger_, "Dynamic node type not found: " << node_type_name);
-        return std::unexpected(NodeCreationError::TypeNotFound);
-    }
-    
-    LOG4CXX_TRACE(logger_, "plugin_registry_ is valid, calling CreateNodeExpected");
-
-    auto created = plugin_registry_->CreateNodeExpected(node_type_name);
-    if (!created) {
-        if (created.error() == PluginRegistry::PluginRegistryError::TypeNotRegistered) {
-            LOG4CXX_ERROR(logger_, "Dynamic node type not found: " << node_type_name);
-            return std::unexpected(NodeCreationError::TypeNotFound);
-        }
-        if (created.error() == PluginRegistry::PluginRegistryError::Unknown) {
-            LOG4CXX_ERROR(logger_, "Failed to create dynamic node: unknown error");
-            return std::unexpected(NodeCreationError::Unknown);
-        }
-        LOG4CXX_ERROR(logger_, "Failed to create dynamic node");
-        return std::unexpected(NodeCreationError::CreationFailed);
-    }
-
-    auto [handle, facade] = *created;
-    LOG4CXX_TRACE(logger_, "Successfully created dynamic node: " << node_type_name);
-    return NodeFacadeAdapter(handle, facade);
 }
 
 bool NodeFactory::IsNodeTypeAvailable(const std::string& node_type_name) const {
@@ -130,13 +88,13 @@ void NodeFactory::Initialize() {
     }
     
     try {
-        // If we have loaders, register their plugins
-        if (!loaders_.empty()) {
-            LOG4CXX_TRACE(logger_, "Registering plugins from " << loaders_.size() 
-                         << " loaders");
+        // Register plugin nodes whenever a shared plugin registry is available.
+        // This keeps preloaded-registry and loader-managed paths aligned.
+        if (plugin_registry_) {
+            LOG4CXX_TRACE(logger_, "Registering plugin nodes from registry");
             RegisterPluginNodes();
         } else {
-            LOG4CXX_TRACE(logger_, "No plugin loaders configured, skipping plugin registration");
+            LOG4CXX_TRACE(logger_, "No plugin registry configured, skipping plugin registration");
         }
         
         RegisterStaticNodes();
@@ -163,34 +121,31 @@ NodeFactory::CreateNodeExpected(const std::string& node_type_name) noexcept {
         try {
             Initialize();
         } catch (const std::exception& e) {
-            LOG4CXX_WARN(logger_, "Failed to lazily initialize factory, will attempt CreateDynamicNode: " << e.what());
+            LOG4CXX_ERROR(logger_, "Failed to lazily initialize factory: " << e.what());
+            return std::unexpected(NodeCreationError::NotInitialized);
         }
     }
-    
-    // First try the unified registry
-    if (initialized_ && unified_registry_->IsAvailable(node_type_name)) {
+
+    // Primary creation path after successful initialization.
+    if (initialized_) {
+        if (!unified_registry_->IsAvailable(node_type_name)) {
+            LOG4CXX_ERROR(logger_, "Node type not registered in unified registry: " << node_type_name);
+            return std::unexpected(NodeCreationError::TypeNotFound);
+        }
+
         LOG4CXX_TRACE(logger_, "Creating node via unified registry: " << node_type_name);
         auto adapter = unified_registry_->CreateExpected(node_type_name);
-        if (adapter) {
-            LOG4CXX_TRACE(logger_, "Successfully created node via unified registry: " << node_type_name);
-            return std::move(adapter).value();
+        if (!adapter) {
+            LOG4CXX_ERROR(logger_, "Unified registry failed to create node: " << node_type_name);
+            return std::unexpected(NodeCreationError::CreationFailed);
         }
 
-        LOG4CXX_WARN(logger_, "Unified registry failed, trying CreateDynamicNode");
-        // Fall through to CreateDynamicNode.
-    }
-    
-    // Fall back to CreateDynamicNode when the unified registry cannot serve the request.
-    LOG4CXX_TRACE(logger_, "Falling back to CreateDynamicNode for: " << node_type_name);
-    auto adapter = CreateDynamicNodeExpected(node_type_name);
-    if (!adapter) {
-        LOG4CXX_ERROR(logger_, "Failed to create node via both paths: "
-                      << ErrorMessage(adapter.error()));
-        return std::unexpected(adapter.error());
+        LOG4CXX_TRACE(logger_, "Successfully created node via unified registry: " << node_type_name);
+        return std::move(adapter).value();
     }
 
-    LOG4CXX_TRACE(logger_, "Successfully created node via CreateDynamicNode: " << node_type_name);
-    return std::move(adapter).value();
+    LOG4CXX_ERROR(logger_, "Unified factory is not initialized");
+    return std::unexpected(NodeCreationError::NotInitialized);
 }
 
 void NodeFactory::RegisterPluginNodes() {
@@ -210,15 +165,17 @@ void NodeFactory::RegisterPluginNodes() {
     // For each plugin type, register a factory function
     for (const auto& type_name : plugin_types) {
         try {
-            // Create a lambda that captures the type name and logger
+            // Register a direct plugin-registry creation lambda for this type.
             auto registration = unified_registry_->RegisterExpected(
                 type_name,
                 [this, type_name]() {
-                    auto node = this->CreateDynamicNodeExpected(type_name);
-                    if (!node) {
-                        throw std::runtime_error(ErrorMessage(node.error()));
+                    auto created = plugin_registry_->CreateNodeExpected(type_name);
+                    if (!created) {
+                        throw std::runtime_error("PluginRegistry creation failed for type: " + type_name);
                     }
-                    return std::move(node).value();
+
+                    auto [handle, facade] = *created;
+                    return NodeFacadeAdapter(handle, facade);
                 }
             );
             if (!registration) {
@@ -240,8 +197,8 @@ void NodeFactory::RegisterStaticNodes() {
     LOG4CXX_TRACE(logger_, "Registering static nodes in unified factory");
 
     // Note: Static node registration is deferred.
-    // All Layer 5 nodes will be available through the unified factory via
-    // the CreateNode(string) fallback to CreateDynamicNode().
+    // Today Layer 5 nodes are expected to be supplied through plugin
+    // registration and inserted into the unified registry in RegisterPluginNodes().
     // This is acceptable as long as the plugin system provides these nodes.
     //
     // If direct static node registration is needed (without plugin dependency),

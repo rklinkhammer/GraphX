@@ -9,9 +9,11 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <iostream>
 #include <chrono>
+#include "config/Config.hpp"
 #include "config/DataTypes.hpp"
 #include "graph/Nodes.hpp"
 #include "graph/Message.hpp"
@@ -231,9 +233,9 @@ namespace test {
          * @return JsonView with parameter names and values
          */
         graph::JsonView GetParameters() const override {
-            nlohmann::json params = nlohmann::json::object();
-            params["message_count"] = message_count_;
-            return graph::JsonView(params);
+            parameters_cache_ = nlohmann::json::object();
+            parameters_cache_["message_count"] = message_count_;
+            return graph::JsonView(parameters_cache_);
         }
         
         /**
@@ -242,17 +244,18 @@ namespace test {
          * @return JsonView with parameter metadata
          */
         graph::JsonView GetParameterDescription(const std::string& param_name) const override {
-            nlohmann::json metadata = nlohmann::json::object();
+            parameter_description_cache_ = nlohmann::json::object();
             
             if (param_name == "message_count") {
-                metadata["type"] = "integer";
-                metadata["description"] = "Number of messages to produce before stopping";
-                metadata["minimum"] = 0;
-                metadata["default"] = 0;
-                metadata["current"] = message_count_;
+                parameter_description_cache_["type"] = "integer";
+                parameter_description_cache_["required"] = true;
+                parameter_description_cache_["description"] = "Number of messages to produce before stopping";
+                parameter_description_cache_["minimum"] = 1;
+                parameter_description_cache_["default"] = 10;
+                parameter_description_cache_["current"] = message_count_;
             }
             
-            return graph::JsonView(metadata);
+            return graph::JsonView(parameter_description_cache_);
         }
         
         /**
@@ -261,6 +264,21 @@ namespace test {
          */
         std::vector<std::string> GetParameterNames() const override {
             return {"message_count"};
+        }
+
+        static constexpr std::array<graph::JsonField, 1> Fields() {
+            return {
+                graph::JsonField{
+                    .name = "message_count",
+                    .type = graph::JsonType::Integer,
+                    .required = true,
+                    .min = 1.0,
+                    .max = std::nullopt,
+                    .default_value = "10",
+                    .enum_values = std::nullopt,
+                    .description = "Number of messages to produce before stopping"
+                }
+            };
         }
         
     private:
@@ -274,6 +292,8 @@ namespace test {
         
         size_t count_{0};
         size_t message_count_{10};
+        mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
+        mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
         
         // Phase 5.5g: Performance metrics
         std::chrono::steady_clock::time_point first_message_time_{};
@@ -501,9 +521,9 @@ namespace test {
          * @return JsonView with parameter names and values
          */
         graph::JsonView GetParameters() const override {
-            nlohmann::json params = nlohmann::json::object();
-            params["expected_message_count"] = expected_message_count_;
-            return graph::JsonView(params);
+            parameters_cache_ = nlohmann::json::object();
+            parameters_cache_["expected_message_count"] = expected_message_count_;
+            return graph::JsonView(parameters_cache_);
         }
         
         /**
@@ -512,17 +532,18 @@ namespace test {
          * @return JsonView with parameter metadata
          */
         graph::JsonView GetParameterDescription(const std::string& param_name) const override {
-            nlohmann::json metadata = nlohmann::json::object();
+            parameter_description_cache_ = nlohmann::json::object();
             
             if (param_name == "expected_message_count") {
-                metadata["type"] = "integer";
-                metadata["description"] = "Number of messages to consume before signaling completion";
-                metadata["minimum"] = 0;
-                metadata["default"] = 0;
-                metadata["current"] = expected_message_count_;
+                parameter_description_cache_["type"] = "integer";
+                parameter_description_cache_["required"] = true;
+                parameter_description_cache_["description"] = "Number of messages to consume before signaling completion";
+                parameter_description_cache_["minimum"] = 1;
+                parameter_description_cache_["default"] = 10;
+                parameter_description_cache_["current"] = expected_message_count_;
             }
             
-            return graph::JsonView(metadata);
+            return graph::JsonView(parameter_description_cache_);
         }
         
         /**
@@ -531,6 +552,21 @@ namespace test {
          */
         std::vector<std::string> GetParameterNames() const override {
             return {"expected_message_count"};
+        }
+
+        static constexpr std::array<graph::JsonField, 1> Fields() {
+            return {
+                graph::JsonField{
+                    .name = "expected_message_count",
+                    .type = graph::JsonType::Integer,
+                    .required = true,
+                    .min = 1.0,
+                    .max = std::nullopt,
+                    .default_value = "10",
+                    .enum_values = std::nullopt,
+                    .description = "Number of messages to consume before signaling completion"
+                }
+            };
         }
         
         // IMetricsCallbackProvider implementation
@@ -602,10 +638,59 @@ namespace test {
         
         std::atomic<size_t> message_count_{0};
         size_t expected_message_count_{10};
+        mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
+        mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
         
         // Phase 5.5g: Performance metrics
         std::chrono::steady_clock::time_point first_message_time_{};
         std::chrono::steady_clock::time_point last_message_time_{};
+    };
+
+    // =========================================================================================
+    // OptionalConfigTestNode - Configurable node with no required config fields
+    // =========================================================================================
+
+    class OptionalConfigTestNode
+        : public graph::NamedSinkNode<OptionalConfigTestNode, ::graph::message::Message>,
+          public graph::IConfigurable,
+          public graph::IParameterized {
+    public:
+        static constexpr char kStatePort[] = "State";
+        using Ports = std::tuple<
+            graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Input, kStatePort,
+                graph::PayloadList<int>>
+            >;
+
+        explicit OptionalConfigTestNode() = default;
+        virtual ~OptionalConfigTestNode() = default;
+
+        bool Consume(const ::graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
+            (void)msg;
+            return true;
+        }
+
+        void Configure(const graph::JsonView& config_json) override {
+            (void)config_json;
+        }
+
+        graph::JsonView GetParameters() const override {
+            parameters_cache_ = nlohmann::json::object();
+            return graph::JsonView(parameters_cache_);
+        }
+
+        graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+            (void)param_name;
+            parameter_description_cache_ = nlohmann::json::object();
+            return graph::JsonView(parameter_description_cache_);
+        }
+
+        std::vector<std::string> GetParameterNames() const override {
+            return {};
+        }
+
+    private:
+        mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
+        mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
     };
     
     // =========================================================================================

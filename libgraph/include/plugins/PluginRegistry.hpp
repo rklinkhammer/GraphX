@@ -35,7 +35,6 @@
 #include <mutex>
 #include <optional>
 #include <log4cxx/logger.h>
-#include "plugins/NodePluginTemplate.hpp"
 
 namespace graph {
 

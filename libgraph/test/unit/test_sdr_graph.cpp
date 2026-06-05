@@ -15,6 +15,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "graph/NodeProvider.hpp"
 #include "test/PluginInfrastructure.hpp"
 
 namespace {
@@ -31,7 +32,7 @@ using FFTProcessorNode = dsp::FFTNode<float, kPacketSize>;
 using AnalyzerSinkNode = dsp::SpectrumSinkNode<float, kPacketSize>;
 
 std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& type) {
-    auto factory = PluginInfrastructure::GetFactory();
+    std::shared_ptr<graph::INodeProvider> factory = PluginInfrastructure::GetFactory();
     if (!factory) {
         return nullptr;
     }
@@ -40,7 +41,7 @@ std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& ty
         return nullptr;
     }
 
-    auto node = factory->CreateDynamicNodeExpected(type);
+    auto node = factory->CreateNodeExpected(type);
     if (!node) {
         return nullptr;
     }

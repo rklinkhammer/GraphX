@@ -30,6 +30,7 @@ add_dependencies(test_libgraph_unit
     test_node
     source_test_node
     sink_test_node
+    optional_config_test_node
     interior_test_node
     merge_test_node
     split_test_node

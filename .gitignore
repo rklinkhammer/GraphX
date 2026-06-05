@@ -29,3 +29,4 @@ Testing/
 
 # Install directory
 install/
+graphlib.log.*

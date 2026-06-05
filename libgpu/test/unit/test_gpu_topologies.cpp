@@ -552,13 +552,13 @@ struct CudaTopologyTraits {
             auto factory = test::PluginInfrastructure::GetFactory();
 
             auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::source_type_name));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, Traits::source_type_name));
             auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::h2d_type_name));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, Traits::h2d_type_name));
             auto d2h = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::d2h_type_name));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, Traits::d2h_type_name));
             auto sink = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, Traits::sink_type_name));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, Traits::sink_type_name));
 
             auto ingress_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(ingress);
             auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
@@ -646,7 +646,7 @@ struct CudaTopologyTraits {
         TEST(GpuTopology, PluginLoadedNodeFailsCleanlyWithoutRequiredCapabilities) {
             auto factory = test::PluginInfrastructure::GetFactory();
             auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, "H2DAsyncNode"));
             auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
 
             auto h2d_node = h2d_wrapper->GetNode<graph::gpu::cuda::nodes::H2DAsyncNode>();
@@ -661,7 +661,7 @@ struct CudaTopologyTraits {
             auto factory = test::PluginInfrastructure::GetFactory();
 
             auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
-                test::PluginInfrastructure::CreateDynamicNodeOrThrow(factory, "H2DAsyncNode"));
+                test::PluginInfrastructure::CreateNodeOrThrow(factory, "H2DAsyncNode"));
             auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
             graph_manager->AddNode(h2d_wrapper);
 

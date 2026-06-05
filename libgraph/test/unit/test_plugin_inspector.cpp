@@ -120,4 +120,119 @@ TEST_F(PluginInspectorTest, InspectPluginReflectsFacadeCallbackPresence) {
     EXPECT_FALSE(test.HasIParameterized());
 }
 
+TEST_F(PluginInspectorTest, InspectPluginJsonIncludesNodeDescriptorSchema) {
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY);
+
+    const auto source = inspector.InspectPlugin("source_test_node");
+    ASSERT_TRUE(source.info.is_loaded) << source.info.load_error;
+
+    const auto json = source.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+
+    const auto& schema = json["node_descriptor_schema"];
+    EXPECT_TRUE(schema.is_object());
+    EXPECT_TRUE(schema.contains("name"));
+    EXPECT_TRUE(schema.contains("type"));
+    EXPECT_TRUE(schema.contains("lifecycle_state"));
+    EXPECT_TRUE(schema.contains("supports_configuration"));
+    EXPECT_TRUE(schema.contains("config_fields"));
+    EXPECT_TRUE(schema.contains("inputs"));
+    EXPECT_TRUE(schema.contains("outputs"));
+    EXPECT_TRUE(schema["supports_configuration"].is_boolean());
+    EXPECT_TRUE(schema["config_fields"].is_array());
+    EXPECT_TRUE(schema["inputs"].is_array());
+    EXPECT_TRUE(schema["outputs"].is_array());
+
+    if (!schema["config_fields"].empty()) {
+        const auto& field = schema["config_fields"][0];
+        EXPECT_TRUE(field.contains("name"));
+        EXPECT_TRUE(field.contains("type"));
+        EXPECT_TRUE(field.contains("required"));
+    }
+}
+
+TEST_F(PluginInspectorTest, InspectSinkPluginJsonIncludesTypedRequiredConfigField) {
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY);
+
+    const auto sink = inspector.InspectPlugin("sink_test_node");
+    ASSERT_TRUE(sink.info.is_loaded) << sink.info.load_error;
+
+    const auto json = sink.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+
+    const auto& schema = json["node_descriptor_schema"];
+    ASSERT_TRUE(schema.contains("supports_configuration"));
+    ASSERT_TRUE(schema["supports_configuration"].is_boolean());
+    EXPECT_TRUE(schema["supports_configuration"].get<bool>());
+
+    ASSERT_TRUE(schema.contains("config_fields"));
+    ASSERT_TRUE(schema["config_fields"].is_array());
+    ASSERT_EQ(schema["config_fields"].size(), 1u);
+
+    const auto& field = schema["config_fields"][0];
+    EXPECT_EQ(field.value("name", ""), "expected_message_count");
+    EXPECT_EQ(field.value("type", ""), "integer");
+    ASSERT_TRUE(field.contains("required"));
+    EXPECT_TRUE(field["required"].get<bool>());
+}
+
+TEST_F(PluginInspectorTest, ConfigurableTestPluginsExposeTypedRequiredConfigFields) {
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY);
+
+    const std::vector<std::string> configurable_plugins = {
+        "source_test_node",
+        "sink_test_node"
+    };
+
+    for (const auto& plugin_name : configurable_plugins) {
+        const auto plugin = inspector.InspectPlugin(plugin_name);
+        ASSERT_TRUE(plugin.info.is_loaded) << plugin_name << ": " << plugin.info.load_error;
+
+        const auto json = plugin.ToJson();
+        ASSERT_TRUE(json.contains("node_descriptor_schema")) << plugin_name;
+
+        const auto& schema = json["node_descriptor_schema"];
+        ASSERT_TRUE(schema.contains("supports_configuration")) << plugin_name;
+        ASSERT_TRUE(schema["supports_configuration"].is_boolean()) << plugin_name;
+        EXPECT_TRUE(schema["supports_configuration"].get<bool>()) << plugin_name;
+
+        ASSERT_TRUE(schema.contains("config_fields")) << plugin_name;
+        ASSERT_TRUE(schema["config_fields"].is_array()) << plugin_name;
+        ASSERT_FALSE(schema["config_fields"].empty()) << plugin_name;
+
+        for (const auto& field : schema["config_fields"]) {
+            ASSERT_TRUE(field.is_object()) << plugin_name;
+            ASSERT_TRUE(field.contains("name")) << plugin_name;
+            ASSERT_TRUE(field["name"].is_string()) << plugin_name;
+            EXPECT_FALSE(field["name"].get<std::string>().empty()) << plugin_name;
+
+            ASSERT_TRUE(field.contains("type")) << plugin_name;
+            ASSERT_TRUE(field["type"].is_string()) << plugin_name;
+            EXPECT_FALSE(field["type"].get<std::string>().empty()) << plugin_name;
+
+            ASSERT_TRUE(field.contains("required")) << plugin_name;
+            EXPECT_TRUE(field["required"].is_boolean()) << plugin_name;
+        }
+    }
+}
+
+TEST_F(PluginInspectorTest, InspectOptionalConfigPluginHasNoRequiredConfigFields) {
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY);
+
+    const auto optional_node = inspector.InspectPlugin("optional_config_test_node");
+    ASSERT_TRUE(optional_node.info.is_loaded) << optional_node.info.load_error;
+
+    const auto json = optional_node.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+
+    const auto& schema = json["node_descriptor_schema"];
+    ASSERT_TRUE(schema.contains("supports_configuration"));
+    ASSERT_TRUE(schema["supports_configuration"].is_boolean());
+    EXPECT_TRUE(schema["supports_configuration"].get<bool>());
+
+    ASSERT_TRUE(schema.contains("config_fields"));
+    ASSERT_TRUE(schema["config_fields"].is_array());
+    EXPECT_TRUE(schema["config_fields"].empty());
+}
+
 }  // namespace

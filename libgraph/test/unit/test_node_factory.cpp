@@ -60,12 +60,12 @@ std::shared_ptr<NodeType> CreateNodeOrThrow(
     return std::move(node).value();
 }
 
-graph::NodeFacadeAdapter CreateDynamicNodeOrThrow(
+graph::NodeFacadeAdapter CreateNodeOrThrow(
     const std::shared_ptr<graph::NodeFactory>& factory,
     const std::string& type_name) {
-    auto node = factory->CreateDynamicNodeExpected(type_name);
+    auto node = factory->CreateNodeExpected(type_name);
     if (!node) {
-        throw std::runtime_error("Failed to create dynamic test node: " + type_name);
+        throw std::runtime_error("Failed to create test node: " + type_name);
     }
     return std::move(node).value();
 }
@@ -110,13 +110,6 @@ TEST_F(NodeFactoryTest, CreateNodeExpectedCompileTimeSuccess) {
 
     ASSERT_TRUE(result);
     EXPECT_NE(result.value(), nullptr);
-}
-
-TEST_F(NodeFactoryTest, CreateDynamicNodeExpectedReportsMissingRegistry) {
-    auto result = factory_->CreateDynamicNodeExpected("TestNode");
-
-    ASSERT_FALSE(result);
-    EXPECT_EQ(result.error(), graph::NodeFactory::NodeCreationError::PluginRegistryMissing);
 }
 
 TEST_F(NodeFactoryTest, CreateNodeExpectedReportsInvalidArgument) {
@@ -413,10 +406,10 @@ TEST_F(NodeFactoryTest, NodeSharedPtrManagement) {
 }
 
 // ===================================================================================
-// Test Fixture for Dynamic Node Loading via Plugin System
+// Test Fixture for Plugin-Backed Node Loading via Provider Path
 // ===================================================================================
 
-class NodeFactoryDynamicTest : public ::testing::Test {
+class NodeFactoryPluginBackedTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Create plugin loader and registry
@@ -444,47 +437,24 @@ protected:
 };
 
 // ===================================================================================
-// PART 11: Dynamic Node Loading Tests (Plugin System Integration)
+// PART 11: Plugin-Backed Node Loading Tests (Provider Path)
 // ===================================================================================
 
-TEST_F(NodeFactoryDynamicTest, CreateDynamicTestNodeFromPlugin) {
-    // Create TestNode from plugin dynamically
+TEST_F(NodeFactoryPluginBackedTest, CreatePluginBackedTestNodeFromProvider) {
+    // Create TestNode through provider path backed by plugin registry
     // Should not throw
     try {
-        auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+        auto facade = CreateNodeOrThrow(factory_, "TestNode");
         // If we got here, creation succeeded
         SUCCEED();
     } catch (const std::exception& e) {
-        FAIL() << "TestNode dynamic creation failed: " << e.what();
+        FAIL() << "TestNode provider-backed creation failed: " << e.what();
     }
 }
 
-TEST_F(NodeFactoryDynamicTest, CreateDynamicNodeExpectedSuccess) {
-    auto result = factory_->CreateDynamicNodeExpected("TestNode");
-
-    ASSERT_TRUE(result);
-    EXPECT_TRUE(result->Init());
-    result->Stop();
-}
-
-TEST_F(NodeFactoryDynamicTest, CreateDynamicNodeExpectedReportsMissingType) {
-    auto result = factory_->CreateDynamicNodeExpected("MissingNodeType");
-
-    ASSERT_FALSE(result);
-    EXPECT_EQ(result.error(), graph::NodeFactory::NodeCreationError::TypeNotFound);
-}
-
-TEST_F(NodeFactoryDynamicTest, CreateNodeExpectedFallsBackToDynamicCreation) {
-    auto result = factory_->CreateNodeExpected("TestNode");
-
-    ASSERT_TRUE(result);
-    EXPECT_TRUE(result->Init());
-    result->Stop();
-}
-
-TEST_F(NodeFactoryDynamicTest, DynamicTestNodeLifecycle) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedTestNodeLifecycle) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Execute lifecycle via adapter
     EXPECT_TRUE(facade.Init());
@@ -492,9 +462,9 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeLifecycle) {
     facade.Stop();
 }
 
-TEST_F(NodeFactoryDynamicTest, DynamicTestNodeDoubleInit) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedTestNodeDoubleInit) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // First Init should succeed
     EXPECT_TRUE(facade.Init());
@@ -505,18 +475,18 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeDoubleInit) {
     (void)result;
 }
 
-TEST_F(NodeFactoryDynamicTest, DynamicTestNodePortMetadata) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedTestNodePortMetadata) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Verify port metadata can be retrieved
     auto input_ports = facade.GetInputPortNames();
     EXPECT_GT(input_ports.size(), 0) << "TestNode should have input ports";
 }
 
-TEST_F(NodeFactoryDynamicTest, DynamicTestNodeJoinWithTimeout) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedTestNodeJoinWithTimeout) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Initialize node
     facade.Init();
@@ -526,27 +496,27 @@ TEST_F(NodeFactoryDynamicTest, DynamicTestNodeJoinWithTimeout) {
     EXPECT_TRUE(result) << "JoinWithTimeout should succeed for idle node";
 }
 
-TEST_F(NodeFactoryDynamicTest, CompileTimeAndDynamicNodesCoexist) {
+TEST_F(NodeFactoryPluginBackedTest, CompileTimeAndPluginBackedNodesCoexist) {
     // Create compile-time node
     auto compile_node = CreateNodeOrThrow<test::TestNode>(factory_);
     EXPECT_NE(compile_node, nullptr);
     
-    // Create dynamic node
-    auto dynamic_facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    // Create plugin-backed node
+    auto plugin_facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Both should be valid independently
     EXPECT_TRUE(compile_node->Init());
-    EXPECT_TRUE(dynamic_facade.Init());
+    EXPECT_TRUE(plugin_facade.Init());
     
     compile_node->Stop();
-    dynamic_facade.Stop();
+    plugin_facade.Stop();
 }
 
-TEST_F(NodeFactoryDynamicTest, MultipleDynamicNodeInstances) {
+TEST_F(NodeFactoryPluginBackedTest, MultiplePluginBackedNodeInstances) {
     // Create multiple instances of TestNode from plugin
-    auto facade1 = CreateDynamicNodeOrThrow(factory_, "TestNode");
-    auto facade2 = CreateDynamicNodeOrThrow(factory_, "TestNode");
-    auto facade3 = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade1 = CreateNodeOrThrow(factory_, "TestNode");
+    auto facade2 = CreateNodeOrThrow(factory_, "TestNode");
+    auto facade3 = CreateNodeOrThrow(factory_, "TestNode");
     
     // All should be created successfully
     EXPECT_NO_THROW({
@@ -556,9 +526,9 @@ TEST_F(NodeFactoryDynamicTest, MultipleDynamicNodeInstances) {
     });
 }
 
-TEST_F(NodeFactoryDynamicTest, DynamicNodeMetadata) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedNodeMetadata) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Get metadata information
     auto metadata = facade.GetMetadata();
@@ -567,9 +537,9 @@ TEST_F(NodeFactoryDynamicTest, DynamicNodeMetadata) {
     EXPECT_GT(metadata.input_ports.size(), 0) << "Should have input ports";
 }
 
-TEST_F(NodeFactoryDynamicTest, DynamicNodeJoinWithTimeoutVerification) {
+TEST_F(NodeFactoryPluginBackedTest, PluginBackedNodeJoinWithTimeoutVerification) {
     // Create TestNode from plugin
-    auto facade = CreateDynamicNodeOrThrow(factory_, "TestNode");
+    auto facade = CreateNodeOrThrow(factory_, "TestNode");
     
     // Initialize node
     facade.Init();

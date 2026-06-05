@@ -52,10 +52,12 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <ranges>
 #include <span>
 #include <iostream>
 #include "graph/Nodes.hpp"
 #include "graph/NodeFacade.hpp"
+#include "graph/NodePluginInstance.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"
 #include "config/JsonView.hpp"
@@ -66,84 +68,7 @@
 #include <nlohmann/json.hpp>
 #include <log4cxx/logger.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
-/// Opaque handle to a node instance created by a plugin
-typedef void* NodeHandle;
-
-/// Function pointer type for node creation
-/// Returns: NodeHandle (opaque void*) for the created node instance
-typedef NodeHandle (*CreateNodeFunc)(void);
-
-/// Version of the plugin API interface
-#define PLUGIN_API_VERSION 1
-
-/// ABI tag for libstdc++ (GCC/Clang on Linux)
-#define PLUGIN_ABI_TAG_LIBSTDCXX "libstdc++_v1"
-
-/// ABI tag for libc++ (Clang on macOS/BSD)
-#define PLUGIN_ABI_TAG_LIBCXX "libc++_v1"
-
-#ifdef __cplusplus
-}
-#endif
-
 namespace graph {
-
-// ============================================================================
-// NodePluginInstance - Opaque node wrapper for plugins
-// ============================================================================
-
-/// @brief Wraps a graph node instance with metadata and logging
-/// @tparam NodeT The concrete node type being wrapped
-template <typename NodeT>
-struct NodePluginInstance {
-    std::shared_ptr<NodeT> node;
-    std::string name;
-    std::string type;
-    log4cxx::LoggerPtr logger;
-
-    NodePluginInstance(std::shared_ptr<NodeT> n,
-                       std::string nm,
-                       const char* logger_name)
-        : node(std::move(n)),
-          name(std::move(nm)),
-          type(""),  // Deferred - set after construction
-          logger(log4cxx::Logger::getLogger(logger_name)) {
-        
-        LOG4CXX_TRACE(logger, "Created plugin instance");
-        
-        // Call GetNodeTypeName() after full object construction
-        // to avoid virtual method dispatch issues with multiple inheritance
-        try {
-            if (node) {
-                type = node->GetNodeTypeName();
-                LOG4CXX_TRACE(logger, "Node type: " << type);
-            } else {
-                type = "Unknown";
-                LOG4CXX_WARN(logger, "Node is null in NodePluginInstance constructor");
-            }
-        } catch (const std::exception& e) {
-            type = "Unknown";
-            LOG4CXX_ERROR(logger, "Exception getting node type: " << e.what());
-            // Don't re-throw - allow construction to complete
-        } catch (...) {
-            type = "Unknown";
-            LOG4CXX_ERROR(logger, "Unknown exception getting node type");
-            // Don't re-throw - allow construction to complete
-        }
-    }
-
-    ~NodePluginInstance() {
-        LOG4CXX_TRACE(logger, "Destroying plugin instance");
-    }
-};
 
 // ============================================================================
 // Helper Functions - PortMetadata conversion utilities
@@ -153,47 +78,35 @@ struct NodePluginInstance {
 static log4cxx::LoggerPtr _metadata_logger = 
     log4cxx::Logger::getLogger("graph.plugins.PortMetadataHelper");
 
+template <typename NodeType>
+NodeDescriptor BuildNodeDescriptor(NodePluginInstance<NodeType>* inst) {
+    NodeDescriptor descriptor;
+    if (!inst || !inst->node) {
+        return descriptor;
+    }
+
+    descriptor.name = inst->name;
+    descriptor.type = inst->type;
+    descriptor.lifecycle_state = inst->node->GetLifecycleState();
+    descriptor.supports_configuration =
+        dynamic_cast<graph::IConfigurable*>(inst->node.get()) != nullptr;
+    if constexpr (requires { NodeType::Fields(); }) {
+        for (const auto& field : NodeType::Fields()) {
+            descriptor.config_fields.push_back(ConfigFieldMetadata{
+                .name = std::string(field.name),
+                .type = field.type,
+                .required = field.required,
+            });
+        }
+    }
+    descriptor.input_ports = inst->node->GetInputPortMetadata();
+    descriptor.output_ports = inst->node->GetOutputPortMetadata();
+    return descriptor;
+}
+
 // ============================================================================
 // Metadata Entry Copying
 // ============================================================================
-
-/// @brief Copy a single PortMetadata entry to C format
-/// @param dst Destination PortMetadataC struct
-/// @param src Source PortMetadata
-///
-/// Copies all string fields with bounds checking. Ensures null termination
-/// even if source strings are longer than the fixed-size buffers.
-///
-static inline void CopyMetadataEntry(
-    PortMetadataC& dst,
-    const graph::PortMetadata& src)
-{
-    dst.index = src.port_index;
-    
-    // Copy port_name with bounds check
-    if (!src.port_name.empty()) {
-        strncpy(dst.port_name, src.port_name.c_str(), 255);
-        dst.port_name[255] = '\0';
-    } else {
-        dst.port_name[0] = '\0';
-    }
-    
-    // Copy direction with bounds check
-    if (!src.direction.empty()) {
-        strncpy(dst.direction, src.direction.c_str(), 15);
-        dst.direction[15] = '\0';
-    } else {
-        dst.direction[0] = '\0';
-    }
-    
-    // Copy name with bounds check
-    if (!src.payload_type.empty()) {
-        strncpy(dst.payload_type, src.payload_type.c_str(), 255);
-        dst.payload_type[255] = '\0';
-    } else {
-        dst.payload_type[0] = '\0';
-    }
-}
 
 // ============================================================================
 // Input Port Metadata Extraction
@@ -229,11 +142,9 @@ PortMetadataC* GetInputPortMetadataImpl(NodePluginInstance<NodeType>* inst, size
             return nullptr;
         }
         
-        // Get C++ metadata from node
-        auto metadata = node->GetInputPortMetadata();
-        
-        *out_count = metadata.size();
-        if (metadata.empty()) {
+        auto descriptor = BuildNodeDescriptor(inst);
+        *out_count = descriptor.input_ports.size();
+        if (descriptor.input_ports.empty()) {
             LOG4CXX_TRACE(_metadata_logger, 
                          "GetInputPortMetadataImpl: no input ports");
             return nullptr;
@@ -242,7 +153,7 @@ PortMetadataC* GetInputPortMetadataImpl(NodePluginInstance<NodeType>* inst, size
         // Allocate C array
         PortMetadataC* result = nullptr;
         try {
-            result = new PortMetadataC[metadata.size()];
+            result = new PortMetadataC[descriptor.input_ports.size()];
         } catch (const std::bad_alloc& e) {
             LOG4CXX_ERROR(_metadata_logger, 
                          "Failed to allocate PortMetadataC array: " << e.what());
@@ -250,13 +161,13 @@ PortMetadataC* GetInputPortMetadataImpl(NodePluginInstance<NodeType>* inst, size
             return nullptr;
         }
         
-        // Copy each entry
-        for (size_t i = 0; i < metadata.size(); ++i) {
-            CopyMetadataEntry(result[i], metadata[i]);
+        // Convert descriptor metadata to stable C ABI representation
+        for (size_t i = 0; i < descriptor.input_ports.size(); ++i) {
+            result[i] = ToPortMetadataC(descriptor.input_ports[i]);
         }
         
         LOG4CXX_TRACE(_metadata_logger, 
-                     "Successfully converted " << metadata.size() 
+                     "Successfully converted " << descriptor.input_ports.size() 
                      << " input port metadata entries");
         return result;
         
@@ -301,11 +212,9 @@ PortMetadataC* GetOutputPortMetadataImpl(NodePluginInstance<NodeType>* inst, siz
             return nullptr;
         }
         
-        // Get C++ metadata from node
-        auto metadata = node->GetOutputPortMetadata();
-        
-        *out_count = metadata.size();
-        if (metadata.empty()) {
+        auto descriptor = BuildNodeDescriptor(inst);
+        *out_count = descriptor.output_ports.size();
+        if (descriptor.output_ports.empty()) {
             LOG4CXX_TRACE(_metadata_logger, 
                          "GetOutputPortMetadataImpl: no output ports");
             return nullptr;
@@ -314,7 +223,7 @@ PortMetadataC* GetOutputPortMetadataImpl(NodePluginInstance<NodeType>* inst, siz
         // Allocate C array
         PortMetadataC* result = nullptr;
         try {
-            result = new PortMetadataC[metadata.size()];
+            result = new PortMetadataC[descriptor.output_ports.size()];
         } catch (const std::bad_alloc& e) {
             LOG4CXX_ERROR(_metadata_logger, 
                          "Failed to allocate PortMetadataC array: " << e.what());
@@ -322,13 +231,13 @@ PortMetadataC* GetOutputPortMetadataImpl(NodePluginInstance<NodeType>* inst, siz
             return nullptr;
         }
         
-        // Copy each entry
-        for (size_t i = 0; i < metadata.size(); ++i) {
-            CopyMetadataEntry(result[i], metadata[i]);
+        // Convert descriptor metadata to stable C ABI representation
+        for (size_t i = 0; i < descriptor.output_ports.size(); ++i) {
+            result[i] = ToPortMetadataC(descriptor.output_ports[i]);
         }
         
         LOG4CXX_TRACE(_metadata_logger, 
-                     "Successfully converted " << metadata.size() 
+                     "Successfully converted " << descriptor.output_ports.size() 
                      << " output port metadata entries");
         return result;
         

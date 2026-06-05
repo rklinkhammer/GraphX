@@ -49,19 +49,18 @@ struct NodeFacade;
 
 /**
  * @class NodeFactory
- * @brief Factory for creating nodes, both compile-time and dynamically loaded
+ * @brief Unified provider-backed factory for creating graph nodes
  *
  * NodeFactory provides a unified interface for creating nodes from:
  * - Compile-time typed nodes via templates
- * - Dynamically loaded plugin nodes via string names
+ * - Plugin-registered node types via string names
  *
- * This class bridges the compile-time and runtime worlds, allowing
- * GraphManager to treat all nodes uniformly regardless of their source.
+ * This class bridges compile-time and provider-backed creation paths,
+ * allowing graph orchestration code to treat all nodes uniformly.
  *
  * @see NodeFacade
  * @see PluginRegistry
  * @see PluginLoader
- * @see GraphManager
  */
 class NodeFactory : public INodeProvider {
 private:
@@ -86,8 +85,8 @@ public:
     /**
      * Constructor with optional plugin registry
      *
-     * @param plugin_registry Shared pointer to PluginRegistry for dynamic loading.
-     *                         If nullptr, dynamic loading is disabled.
+        * @param plugin_registry Shared pointer to PluginRegistry for plugin-backed
+        *                        node registration and availability queries.
      */
     explicit NodeFactory(std::shared_ptr<PluginRegistry> plugin_registry = nullptr)
         : plugin_registry_(plugin_registry), 
@@ -119,19 +118,6 @@ public:
             return std::unexpected(NodeCreationError::Unknown);
         }
     }
-
-    /**
-     * Create a dynamically loaded node
-     *
-     * Creates a node from a plugin by type name. Requires PluginLoader
-     * to have already loaded the plugin containing this node type.
-     *
-     * @param node_type_name Name of the node type (e.g., "SensorNode")
-     * @return NodeFacadeAdapter wrapping the created node
-     *
-     */
-    [[nodiscard]] virtual std::expected<NodeFacadeAdapter, NodeCreationError>
-    CreateDynamicNodeExpected(const std::string& node_type_name) noexcept;
 
     /**
      * Initialize the unified factory with plugin and static nodes
@@ -299,7 +285,7 @@ private:
      *
      * Called by Initialize() to register plugin-based nodes.
      * For each node type in the plugin registry, creates a factory
-     * function that delegates to CreateDynamicNodeExpected().
+    * function that delegates to plugin-registry creation.
      */
     void RegisterPluginNodes();
 

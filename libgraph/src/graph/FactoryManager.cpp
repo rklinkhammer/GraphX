@@ -132,7 +132,7 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
                          << "Returning (factory, loader) pair. "
                          << "CRITICAL: Caller must keep loader alive!");
     
-    return FactoryBundle{.factory = factory, .loader = loader};
+    return FactoryBundle{.factory = factory, .concrete_factory = factory, .loader = loader};
 }
 
 // ============================================================================

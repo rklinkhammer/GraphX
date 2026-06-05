@@ -57,7 +57,7 @@ namespace graph::config {
  * 
  * // Register a plugin node factory
  * registry.RegisterExpected("DataInjectionAccelerometerNode", []() {
- *     auto node = factory->CreateDynamicNodeExpected("DataInjectionAccelerometerNode");
+ *     auto node = factory->CreateNodeExpected("DataInjectionAccelerometerNode");
  *     return std::move(node).value();
  * });
  * 
@@ -120,7 +120,7 @@ public:
      * @code
      * // Register a plugin node
      * registry.RegisterExpected("MyPluginNode", [factory]() {
-     *     auto node = factory->CreateDynamicNodeExpected("MyPluginNode");
+    *     auto node = factory->CreateNodeExpected("MyPluginNode");
      *     return std::move(node).value();
      * });
      * 

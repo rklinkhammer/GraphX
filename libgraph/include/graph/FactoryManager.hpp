@@ -40,14 +40,15 @@ namespace app {
 
 /**
  * @class FactoryManager
- * @brief Manage NodeFactory lifecycle and plugin discovery
+ * @brief Manage node-provider lifecycle and plugin discovery
  * 
  * Purpose: Centralized management of plugin loading and factory creation with proper
  * lifetime management. Ensures PluginLoader outlives all node creation operations.
  * 
  * Design:
  * - Static factory creation (no instances needed)
- * - Returns pair of (factory, loader) to force caller to manage loader lifetime
+ * - Returns FactoryBundle (provider handle + concrete factory + loader)
+ *   to force caller-managed loader lifetime
  * - Graceful error handling (logs failures but doesn't crash on missing plugins)
  * - Query methods for discovering available node types
  * 
@@ -59,32 +60,33 @@ namespace app {
  * the factory finishes using plugin functions, segfaults occur (root cause of previous
  * graphsim crashes).
  * 
- * Solution: Return (factory, loader) pair from CreateFactoryExpected(). Caller MUST:
+ * Solution: Return FactoryBundle from CreateFactoryExpected(). Caller MUST:
  * 1. Store loader in AppContext
  * 2. Keep loader alive until application shutdown
- * 3. Destroy factory BEFORE destroying loader
+ * 3. Destroy provider/concrete factory BEFORE destroying loader
  * 
  * Usage:
  * @code
  * auto bundle = FactoryManager::CreateFactoryExpected("./plugins");
- * if (!factory) {
+ * if (!bundle) {
  *   std::cerr << "Failed to create factory\n";
  *   return 1;
  * }
  * 
- * auto available = FactoryManager::GetAvailableNodeTypesExpected(factory);
+ * auto provider = bundle->factory;
+ * auto available = FactoryManager::GetAvailableNodeTypesExpected(provider);
  * for (const auto& type : available) {
  *   std::cout << "  - " << type << "\n";
  * }
  * 
- * auto available = FactoryManager::IsNodeTypeAvailableExpected(factory, "MyNode");
+ * auto available = FactoryManager::IsNodeTypeAvailableExpected(provider, "MyNode");
  * if (available && *available) {
- *   auto node = factory->CreateNodeExpected("MyNode");
+ *   auto node = provider->CreateNodeExpected("MyNode");
  * }
  * 
  * // Keep loader alive in AppContext
- * context.plugin_loader = loader;
- * context.factory = factory;
+ * context.plugin_loader = bundle->loader;
+ * context.factory = provider;
  * @endcode
  */
 class FactoryManager {
@@ -100,30 +102,32 @@ public:
   };
 
   struct FactoryBundle {
-    std::shared_ptr<graph::NodeFactory> factory;
+    // Primary orchestration contract.
+    std::shared_ptr<graph::INodeProvider> factory;
+    // Concrete access for NodeFactory-specific operations.
+    std::shared_ptr<graph::NodeFactory> concrete_factory;
     std::shared_ptr<graph::PluginLoader> loader;
   };
 
   /**
-   * @brief Create NodeFactory and PluginLoader from plugin directory
+  * @brief Create node provider and PluginLoader from plugin directory
    * 
    * Process:
    * 1. Create PluginRegistry (for tracking loaded plugins)
    * 2. Create PluginLoader with registry and plugin directory
    * 3. Load plugins from directory (logs failures but continues)
-   * 4. Create NodeFactory with registry
-   * 5. Return (factory, loader) pair
+  * 4. Create NodeFactory with registry
+  * 5. Return FactoryBundle
    * 
    * Error Handling:
    * - Missing plugin directory: Creates empty factory (logs warning)
    * - Plugin load failure: Logs error but continues (graceful degradation)
    * - Empty plugin directory: Creates factory with no plugins (not an error)
-   * - Returns (nullptr, nullptr) only on critical failure
+  * - Returns error on critical failure
    * 
    * @param plugin_directory Path to directory containing .so/.dll plugin files
-   * @return std::pair of (NodeFactory, PluginLoader)
+  * @return FactoryBundle with provider-first handle and PluginLoader
    *         - Both non-null if successful
-   *         - (nullptr, nullptr) if critical error (rare)
    *         - Caller MUST keep loader alive longer than factory
    * 
    * Example:
@@ -136,24 +140,24 @@ public:
    * 
    * // Keep loader alive
    * app_context.plugin_loader = bundle->loader;  // CRITICAL
-   * app_context.factory = bundle->factory;
+  * app_context.factory = bundle->factory;  // provider handle
    * @endcode
    */
   [[nodiscard]] static std::expected<FactoryBundle, FactoryError>
   CreateFactoryExpected(const std::string& plugin_directory) noexcept;
   
   /**
-   * @brief Get list of available node types in factory
+    * @brief Get list of available node types in provider
    * 
-   * Queries the factory for all registered node types.
+    * Queries the provider for all registered node types.
    * Types come from loaded plugins plus built-in node types.
    * 
-   * @param factory NodeFactory instance to query (must be non-null)
+    * @param provider INodeProvider instance to query (must be non-null)
    * @return Vector of node type names (may be empty if no plugins/types loaded)
    * 
    * Example:
    * @code
-   * auto types = FactoryManager::GetAvailableNodeTypesExpected(factory);
+    * auto types = FactoryManager::GetAvailableNodeTypesExpected(provider);
    * std::cout << "Available node types: " << types.size() << "\n";
    * for (const auto& type : types) {
    *   std::cout << "  - " << type << "\n";
@@ -167,18 +171,18 @@ public:
   /**
    * @brief Check if specific node type is available
    * 
-   * Determines if the factory can create nodes of the given type.
+    * Determines if the provider can create nodes of the given type.
    * More efficient than GetAvailableNodeTypes() when checking single type.
    * 
-   * @param factory NodeFactory instance to query (must be non-null)
+    * @param provider INodeProvider instance to query (must be non-null)
    * @param type_name Node type identifier to check
    * @return true if type is available, false otherwise
    * 
    * Example:
    * @code
-   * auto available = FactoryManager::IsNodeTypeAvailableExpected(factory, "AccelNode");
+    * auto available = FactoryManager::IsNodeTypeAvailableExpected(provider, "AccelNode");
    * if (available && *available) {
-   *   auto node = factory->CreateNodeExpected("AccelNode");
+    *   auto node = provider->CreateNodeExpected("AccelNode");
    *   graph_manager->AddNode(node);
    * } else {
    *   std::cerr << "AccelNode type not available\n";

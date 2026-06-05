@@ -27,8 +27,11 @@
 
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/GraphConfigParser.hpp"
-#include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
+#include "config/SchemaGenerator.hpp"
 #include "config/JsonUtilities.hpp"
+#include <unordered_map>
+#include <unordered_set>
 #include <stdexcept>
 #include <format>
 #include <log4cxx/logger.h>
@@ -56,18 +59,217 @@ std::expected<void, app::error::ConfigError> ValidateConfigSafe(
     return std::unexpected(app::error::ConfigError::ValidationFailed);
 }
 
+std::expected<void, app::error::ConfigError> ValidatePortConfigAgainstDescriptorSchema(
+    const NodeConfig& node_config,
+    const std::shared_ptr<NodeFacadeAdapter>& adapter) noexcept {
+
+    if (node_config.port_config.empty()) {
+        return {};
+    }
+
+    try {
+        const auto descriptor_schema = GenerateNodeDescriptorSchema(adapter->GetDescriptor());
+        std::unordered_set<std::string> valid_ports;
+
+        if (descriptor_schema.contains("inputs") && descriptor_schema["inputs"].is_array()) {
+            for (const auto& input_port : descriptor_schema["inputs"]) {
+                if (input_port.contains("name") && input_port["name"].is_string()) {
+                    valid_ports.insert(input_port["name"].get<std::string>());
+                }
+            }
+        }
+
+        if (descriptor_schema.contains("outputs") && descriptor_schema["outputs"].is_array()) {
+            for (const auto& output_port : descriptor_schema["outputs"]) {
+                if (output_port.contains("name") && output_port["name"].is_string()) {
+                    valid_ports.insert(output_port["name"].get<std::string>());
+                }
+            }
+        }
+
+        for (const auto& [port_name, _] : node_config.port_config) {
+            if (!valid_ports.contains(port_name)) {
+                LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                              << "' has invalid port_config key '" << port_name
+                              << "' for type '" << node_config.type << "'");
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+        }
+
+        return {};
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Descriptor schema validation failed for node '"
+                      << node_config.id << "': " << e.what());
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Descriptor schema validation failed for node '"
+                      << node_config.id << "': unknown error");
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    }
+}
+
+std::expected<void, app::error::ConfigError> ValidateNodeConfigAgainstDescriptorSchema(
+    const NodeConfig& node_config,
+    const std::shared_ptr<NodeFacadeAdapter>& adapter) noexcept {
+    try {
+        const auto descriptor_schema = GenerateNodeDescriptorSchema(adapter->GetDescriptor());
+        const bool has_config_fields =
+            descriptor_schema.contains("config_fields") &&
+            descriptor_schema["config_fields"].is_array() &&
+            !descriptor_schema["config_fields"].empty();
+        const bool supports_configuration =
+            descriptor_schema.contains("supports_configuration") &&
+            descriptor_schema["supports_configuration"].is_boolean() &&
+            descriptor_schema["supports_configuration"].get<bool>();
+
+        if (node_config.node_config.is_null()) {
+            if (!has_config_fields) {
+                return {};
+            }
+
+            for (const auto& field : descriptor_schema["config_fields"]) {
+                const bool required =
+                    field.contains("required") && field["required"].is_boolean() &&
+                    field["required"].get<bool>();
+                if (!required) {
+                    continue;
+                }
+
+                const std::string required_name =
+                    field.contains("name") && field["name"].is_string()
+                        ? field["name"].get<std::string>()
+                        : "<unknown>";
+                LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                              << "' missing required node_config field '"
+                              << required_name << "'");
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+
+            return {};
+        }
+
+        if (!supports_configuration && !has_config_fields) {
+            LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                          << "' (type: " << node_config.type
+                          << ") does not support node_config");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        if (!node_config.node_config.is_object()) {
+            LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                          << "' has invalid node_config: expected JSON object");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        // Strict field-level validation is applied when config_fields is non-empty.
+        // For configurable nodes that publish an empty config_fields list, only
+        // an empty object is accepted; non-empty objects are rejected as unknown
+        // node_config keys.
+        if (supports_configuration && !has_config_fields) {
+            if (!node_config.node_config.empty()) {
+                LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                              << "' has unknown node_config fields: descriptor declares no config_fields");
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+            return {};
+        }
+
+        if (descriptor_schema.contains("config_fields") &&
+            descriptor_schema["config_fields"].is_array() &&
+            !descriptor_schema["config_fields"].empty()) {
+
+            std::unordered_map<std::string, std::pair<std::string, bool>> expected_fields;
+            for (const auto& field : descriptor_schema["config_fields"]) {
+                if (!field.contains("name") || !field["name"].is_string()) {
+                    continue;
+                }
+
+                const std::string field_name = field["name"].get<std::string>();
+                const std::string field_type =
+                    field.contains("type") && field["type"].is_string()
+                        ? field["type"].get<std::string>()
+                        : "object";
+                const bool required =
+                    field.contains("required") && field["required"].is_boolean() &&
+                    field["required"].get<bool>();
+
+                expected_fields[field_name] = std::make_pair(field_type, required);
+            }
+
+            for (const auto& [field_name, field_info] : expected_fields) {
+                if (field_info.second && !node_config.node_config.contains(field_name)) {
+                    LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                                  << "' missing required node_config field '"
+                                  << field_name << "'");
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
+                }
+            }
+
+            const auto matches_type = [](const nlohmann::json& value,
+                                         const std::string& expected_type) {
+                if (expected_type == "string") {
+                    return value.is_string();
+                }
+                if (expected_type == "number") {
+                    return value.is_number();
+                }
+                if (expected_type == "integer") {
+                    return value.is_number_integer() || value.is_number_unsigned();
+                }
+                if (expected_type == "boolean") {
+                    return value.is_boolean();
+                }
+                if (expected_type == "array") {
+                    return value.is_array();
+                }
+                if (expected_type == "object") {
+                    return value.is_object();
+                }
+                return true;
+            };
+
+            for (const auto& [field_name, field_value] : node_config.node_config.items()) {
+                auto it = expected_fields.find(field_name);
+                if (it == expected_fields.end()) {
+                    LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                                  << "' has unknown node_config field '"
+                                  << field_name << "'");
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
+                }
+
+                if (!matches_type(field_value, it->second.first)) {
+                    LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                                  << "' has invalid type for node_config field '"
+                                  << field_name << "' (expected " << it->second.first << ")");
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
+                }
+            }
+        }
+
+        return {};
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Descriptor schema validation failed for node_config on node '"
+                      << node_config.id << "': " << e.what());
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Descriptor schema validation failed for node_config on node '"
+                      << node_config.id << "': unknown error");
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    }
+}
+
 }  // namespace
 
 std::expected<std::vector<std::shared_ptr<NodeFacadeAdapter>>, app::error::ConfigError>
 JsonDynamicGraphLoader::LoadNodesSafe(
     const std::string& filepath,
-    std::shared_ptr<NodeFactory> factory) noexcept {
+    std::shared_ptr<INodeProvider> node_provider) noexcept {
     
     LOG4CXX_TRACE(logger_, "Loading nodes (safe): " << filepath);
 
     try {
-        if (!factory) {
-            LOG4CXX_ERROR(logger_, "NodeFactory is null");
+        if (!node_provider) {
+            LOG4CXX_ERROR(logger_, "INodeProvider is null");
             return std::unexpected(app::error::ConfigError::ValidationFailed);
         }
 
@@ -85,7 +287,7 @@ JsonDynamicGraphLoader::LoadNodesSafe(
         nodes.reserve(config->nodes.size());
 
         for (const auto& node_config : config->nodes) {
-            auto node = factory->CreateDynamicNodeExpected(node_config.type);
+            auto node = node_provider->CreateNodeExpected(node_config.type);
             if (!node) {
                 LOG4CXX_ERROR(logger_, "Failed to create node '" << node_config.id
                               << "' (type: " << node_config.type << ")");
@@ -94,6 +296,16 @@ JsonDynamicGraphLoader::LoadNodesSafe(
 
             try {
                 auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(node).value());
+                auto descriptor_validation =
+                    ValidatePortConfigAgainstDescriptorSchema(node_config, adapter);
+                if (!descriptor_validation) {
+                    return std::unexpected(descriptor_validation.error());
+                }
+                auto node_config_validation =
+                    ValidateNodeConfigAgainstDescriptorSchema(node_config, adapter);
+                if (!node_config_validation) {
+                    return std::unexpected(node_config_validation.error());
+                }
                 if (!node_config.node_config.empty()) {
                     ApplyNodeConfiguration(adapter, node_config.node_config);
                 }
@@ -152,12 +364,12 @@ std::expected<std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>, std::ve
               app::error::ConfigError>
 JsonDynamicGraphLoader::LoadGraphSafe(
     const std::string& filepath,
-    std::shared_ptr<NodeFactory> factory) noexcept {
+    std::shared_ptr<INodeProvider> node_provider) noexcept {
     
     LOG4CXX_TRACE(logger_, "Loading graph (safe): " << filepath);
     
     try {
-        auto nodes = LoadNodesSafe(filepath, std::move(factory));
+        auto nodes = LoadNodesSafe(filepath, std::move(node_provider));
         if (!nodes) {
             return std::unexpected(nodes.error());
         }

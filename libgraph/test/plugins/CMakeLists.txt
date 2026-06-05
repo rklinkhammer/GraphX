@@ -34,6 +34,12 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
+    TARGET_NAME optional_config_test_node
+    SOURCE_FILE optional_config_test_node_plugin.cpp
+    DESCRIPTION "configurable test node with optional config only"
+)
+
+add_graphx_plugin(
     TARGET_NAME interior_test_node
     SOURCE_FILE interior_test_node_plugin.cpp 
     DESCRIPTION "interior test node for transformation testing"

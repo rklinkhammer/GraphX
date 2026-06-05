@@ -31,6 +31,7 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeFactory.hpp"
+#include "graph/NodeProvider.hpp"
 #include "plugins/PluginRegistry.hpp"
 
 /**
@@ -67,12 +68,22 @@ public:
         return plugin_registry;
     }
     
+    // Compatibility wrapper: legacy callers may still pass NodeFactory directly.
     void SetNodeFactory(std::shared_ptr<graph::NodeFactory> nf) {
-        node_factory = nf;
+        node_provider = nf;
     }
     
+    // Compatibility wrapper: prefer GetNodeProvider() for new orchestration code.
     std::shared_ptr<graph::NodeFactory> GetNodeFactory() const {
-        return node_factory;
+        return std::dynamic_pointer_cast<graph::NodeFactory>(node_provider);
+    }
+
+    void SetNodeProvider(std::shared_ptr<graph::INodeProvider> provider) {
+        node_provider = std::move(provider);
+    }
+
+    std::shared_ptr<graph::INodeProvider> GetNodeProvider() const {
+        return node_provider;
     }
 
     /// @brief Set the node names for the graph
@@ -172,7 +183,8 @@ private:
     /// Calling dlclose() on plugin_loader invalidates all plugin function pointers.
     /// Root cause of previous graphsim segfaults.
     std::shared_ptr<graph::PluginLoader> plugin_loader  {nullptr};
-    std::shared_ptr<graph::NodeFactory> node_factory {nullptr};
+    // Primary node creation/query contract used by graph orchestration.
+    std::shared_ptr<graph::INodeProvider> node_provider {nullptr};
     std::shared_ptr<graph::GraphManager> graph_manager {nullptr};
     std::vector<std::string> node_names;
     std::vector<std::string> edge_descriptions;

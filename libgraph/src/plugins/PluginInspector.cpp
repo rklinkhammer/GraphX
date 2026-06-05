@@ -29,7 +29,10 @@
  */
 
 #include "plugins/PluginInspector.hpp"
+#include "plugins/PluginInterop.hpp"
 #include "graph/NodeFacade.hpp"
+#include "graph/NodeDescriptor.hpp"
+#include "config/SchemaGenerator.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include <filesystem>
 #include <fstream>
@@ -171,6 +174,10 @@ nlohmann::json PluginCapabilities::ToJson() const {
     j["capabilities"]["parameterized"] = HasIParameterized();
     j["capabilities"]["metrics_callback"] = HasIMetricsCallback();
     j["compliant"] = IsCompliant();
+
+    if (!node_descriptor_schema.is_null() && !node_descriptor_schema.empty()) {
+        j["node_descriptor_schema"] = node_descriptor_schema;
+    }
     
     return j;
 }
@@ -331,10 +338,11 @@ std::vector<PluginCapabilities> PluginInspector::InspectAll() {
 PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) {
     PluginCapabilities result;
     result.info = info;
+    result.node_descriptor_schema = nlohmann::json();
 
     void* plugin_handle = nullptr;
     void* node_handle = nullptr;
-    NodeFacade* inspected_facade = nullptr;
+    const NodeFacade* inspected_facade = nullptr;
 
     try {
         plugin_handle = dlopen(info.path.c_str(), RTLD_LAZY | RTLD_LOCAL);
@@ -343,18 +351,14 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
             throw std::runtime_error(error ? error : "dlopen failed");
         }
 
-        using GetInfoFn = const char* (*)();
-        using GetFacadeFn = NodeFacade* (*)();
-        using CreateNodeFn = void* (*)();
-
-        auto* get_info = reinterpret_cast<GetInfoFn>(dlsym(plugin_handle, "plugin_get_info"));
-        auto* get_facade = reinterpret_cast<GetFacadeFn>(dlsym(plugin_handle, "plugin_get_facade"));
+        auto get_info = ResolveGetPluginInfoFunction(plugin_handle);
+        auto get_facade = ResolveGetPluginFacadeFunction(plugin_handle);
 
         if (!get_info || !get_facade) {
             throw std::runtime_error("plugin_get_info/plugin_get_facade missing");
         }
 
-        const char* info_string = get_info();
+        const char* info_string = (*get_info)();
         if (!info_string) {
             throw std::runtime_error("plugin_get_info returned null");
         }
@@ -371,20 +375,26 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
         }
 
         const std::string& create_symbol = info_parts[3];
-        auto* create_node = reinterpret_cast<CreateNodeFn>(dlsym(plugin_handle, create_symbol.c_str()));
+        auto create_node = ResolveCreateNodeFunction(plugin_handle, create_symbol);
         if (!create_node) {
             throw std::runtime_error("create function missing: " + create_symbol);
         }
 
-        inspected_facade = get_facade();
+        inspected_facade = (*get_facade)();
         if (!inspected_facade) {
             throw std::runtime_error("plugin_get_facade returned null");
         }
 
-        node_handle = create_node();
-        if (!node_handle) {
+        auto created_node = CreateNodeFromPlugin(*create_node);
+        if (!created_node) {
             throw std::runtime_error("create function returned null handle");
         }
+        node_handle = *created_node;
+
+        // Descriptor-driven metadata path: rely on NodeFacadeAdapter so all
+        // surfaces share one descriptor extraction implementation.
+        NodeFacadeAdapter adapter(node_handle, inspected_facade);
+        result.node_descriptor_schema = GenerateNodeDescriptorSchema(adapter.GetDescriptor());
 
         InterfaceCapability config;
         config.name = "IConfigurable";
