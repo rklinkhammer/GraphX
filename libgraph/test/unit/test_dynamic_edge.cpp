@@ -214,7 +214,6 @@ TEST(DynamicEdgeTest, DynamicEdgeTransientTransferFailureDoesNotStopEdge) {
     ASSERT_TRUE(input.GetQueue().DequeueNonBlocking(value));
     ASSERT_EQ(value, 1);
 
-    ASSERT_TRUE(output.GetQueue().Enqueue(3));
     bool next_arrived = false;
     for (int i = 0; i < 100; ++i) {
         if (input.GetQueue().DequeueNonBlocking(value)) {
@@ -228,6 +227,50 @@ TEST(DynamicEdgeTest, DynamicEdgeTransientTransferFailureDoesNotStopEdge) {
     edge.Join();
 
     EXPECT_TRUE(next_arrived);
+    EXPECT_EQ(value, 2);
+}
+
+TEST(DynamicEdgeTest, DynamicEdgeDoesNotLosePayloadOnDestinationBackpressure) {
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdge edge(MakeOutputHandle(&output, 0), MakeInputHandle(&input, 1), 1);
+    ASSERT_TRUE(edge.Init());
+    ASSERT_TRUE(edge.Start());
+
+    ASSERT_TRUE(output.GetQueue().Enqueue(10));
+    bool first_arrived = false;
+    for (int i = 0; i < 80; ++i) {
+        if (edge.GetQueueSize() >= 1u) {
+            first_arrived = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    ASSERT_TRUE(first_arrived);
+
+    // Destination remains full. Second payload must not be dropped.
+    ASSERT_TRUE(output.GetQueue().Enqueue(20));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    int value = 0;
+    ASSERT_TRUE(input.GetQueue().DequeueNonBlocking(value));
+    ASSERT_EQ(value, 10);
+
+    bool second_arrived = false;
+    for (int i = 0; i < 120; ++i) {
+        if (input.GetQueue().DequeueNonBlocking(value)) {
+            second_arrived = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    edge.Stop();
+    edge.Join();
+
+    ASSERT_TRUE(second_arrived);
+    EXPECT_EQ(value, 20);
 }
 
 TEST(DynamicEdgeTest, GraphManagerAddDynamicEdgeExpectedStoresDynamicEdgeMetadata) {
@@ -271,6 +314,26 @@ TEST(DynamicEdgeTest, GraphManagerAddDynamicEdgeExpectedRejectsInvalidNodeIndex)
 
     ASSERT_FALSE(added);
     EXPECT_EQ(added.error().code, app::error::GraphExecutionError::MissingNode);
+}
+
+TEST(DynamicEdgeTest, GraphManagerAddDynamicEdgeExpectedRejectsDescriptorOnlyHandlesEarly) {
+    graph::GraphManager graph;
+    graph.AddNode(std::make_shared<test::SourceTestNode>());
+    graph.AddNode(std::make_shared<test::SinkTestNode>());
+
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+
+    graph::DynamicEdgeConfig config{
+        .source = MakeOutputHandleWithTransport(&output, 0, "runtime.descriptor"),
+        .destination = MakeInputHandleWithTransport(&input, 1, "runtime.descriptor"),
+        .capacity = 8,
+    };
+
+    auto added = graph.AddDynamicEdgeExpected(config);
+
+    ASSERT_FALSE(added);
+    EXPECT_EQ(added.error().code, app::error::GraphExecutionError::ConfigurationInvalid);
 }
 
 TEST(DynamicEdgeTest, GraphManagerDynamicEdgeMetricsTrackRuntimeTransfer) {

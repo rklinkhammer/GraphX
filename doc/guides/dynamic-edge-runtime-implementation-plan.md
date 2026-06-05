@@ -310,7 +310,9 @@ Preserve existing typed path for:
     - transient `TransferTo(...)` failures are treated as retryable backpressure unless the error is structurally fatal
 27. JSON edge configuration now supports named-port tokens (`source_port_name`/`target_port_name`, or non-numeric string tokens in `source_port`/`target_port`) and `GraphBuilder::WireEdges(...)` resolves name-first tokens via runtime port lookup.
 28. Mixed typed-edge + dynamic-edge lifecycle validation is now covered by unit tests to ensure both edge paths coexist in one `GraphManager` and still report aggregate metrics.
-29. Focused migration validation passed:
+29. `GraphManager::AddDynamicEdgeExpected(...)` now rejects non-executable descriptor-only runtime handles before graph init/start, improving JSON config error quality.
+30. Runtime transfer hardening now prevents payload loss under destination backpressure by avoiding dequeue-then-drop behavior in `PortFunction::TransferTo(...)`.
+31. Focused migration validation passed:
     - `cmake --build build -j4`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='RuntimePortLookupTest.*:RuntimePortConnectionTest.*:DynamicEdgeTest.*:JsonDynamicGraphLoaderExpectedTest.*:GraphExecutorBuilderPoliciesTest.*:GraphExecutorPolicyFailuresTest.*:GraphExecutorLifecycleTest.*:*TopologyNodesUseInstanceNamesNotTypes*'`
     - `./libgraph/test/test_libgraph_integration --gtest_filter='*GraphTopology_ProducerToSinks*'`
@@ -324,6 +326,7 @@ Preserve existing typed path for:
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.DynamicEdgeInitRejectsDescriptorOnlyFallbackPorts:DynamicEdgeTest.DynamicEdgeJoinWithTimeoutRespectsDeadline:DynamicEdgeTest.DynamicEdgeQueueSizeReflectsDestinationDepth:DynamicEdgeTest.DynamicEdgeTransientTransferFailureDoesNotStopEdge'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='GraphConfigParserExpectedTest.ParseSafeParsesNamedPorts:GraphConfigParserExpectedTest.ParseSafeTreatsStringPortTokensAsNamesWhenNotNumeric:JsonDynamicGraphLoaderExpectedTest.LoadEdgesSafeParsesNamedPorts'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.MixedTypedAndDynamicEdgesRunThroughLifecycle'`
+    - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerAddDynamicEdgeExpectedRejectsDescriptorOnlyHandlesEarly:DynamicEdgeTest.DynamicEdgeDoesNotLosePayloadOnDestinationBackpressure'`
 
 ### Phase 0: Guardrails and Baseline
 

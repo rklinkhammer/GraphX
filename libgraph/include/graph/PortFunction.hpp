@@ -231,12 +231,22 @@ namespace graph {
                 return std::unexpected(RuntimePortConnectError::NullDestination);
             }
 
+            // Avoid dequeueing when destination cannot currently accept data.
+            const auto destination_capacity = destination_queue->Capacity();
+            if (destination_capacity > 0 &&
+                destination_queue->Size() >= destination_capacity) {
+                return std::unexpected(RuntimePortConnectError::TransferFailed);
+            }
+
             T item{};
             if (!queue_.DequeueNonBlocking(item)) {
                 return false;
             }
 
             if (!destination_queue->Enqueue(std::move(item))) {
+                // Best-effort recovery to avoid dropping payloads if destination
+                // became full between the capacity check and enqueue.
+                static_cast<void>(queue_.Enqueue(std::move(item)));
                 return std::unexpected(RuntimePortConnectError::TransferFailed);
             }
 

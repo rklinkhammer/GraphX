@@ -589,6 +589,17 @@ public:
                 "AddDynamicEdgeExpected rejected incompatible runtime port handles"));
         }
 
+        const bool executable_handles =
+            config.source.port != nullptr &&
+            config.destination.port != nullptr &&
+            config.source.descriptor.transport_type != "runtime.descriptor" &&
+            config.destination.descriptor.transport_type != "runtime.descriptor";
+        if (!executable_handles) {
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::ConfigurationInvalid,
+                "AddDynamicEdgeExpected requires executable runtime ports (descriptor-only handles are non-executable)"));
+        }
+
         auto metrics = std::make_shared<EdgeMetrics>();
         auto edge = std::make_unique<DynamicEdge>(
             config.source,
