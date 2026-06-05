@@ -2,7 +2,9 @@
 */build/
 build/
 build-*/
+build-clean/
 */build-*/
+*/build_*/
 cmake_install.cmake
 CMakeFiles/
 CMakeCache.txt
