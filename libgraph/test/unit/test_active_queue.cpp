@@ -131,8 +131,8 @@ TEST_F(ActiveQueueTest, Disable_PreventsEnqueue) {
 
 TEST_F(ActiveQueueTest, PushFront_AddToFront) {
     ActiveQueue<int> queue;
-    EXPECT_TRUE(queue.PushBack(1));
-    EXPECT_TRUE(queue.PushBack(2));
+    EXPECT_TRUE(queue.Enqueue(1));
+    EXPECT_TRUE(queue.Enqueue(2));
     EXPECT_TRUE(queue.PushFront(0));
     
     std::vector<int> values;
@@ -161,7 +161,7 @@ TEST_F(ActiveQueueTest, PopFront_SameAsDequeueNonBlocking) {
     EXPECT_TRUE(queue.Enqueue(42));
     
     int value;
-    EXPECT_TRUE(queue.PopFront(value));
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
     EXPECT_EQ(value, 42);
 }
 
@@ -213,10 +213,10 @@ TEST_F(ActiveQueueTest, At_OutOfBounds) {
 
 TEST_F(ActiveQueueTest, PushBack_Enqueue_Equivalent) {
     ActiveQueue<int> queue;
-    EXPECT_TRUE(queue.PushBack(42));
+    EXPECT_TRUE(queue.Enqueue(42));
     
     int value;
-    EXPECT_TRUE(queue.PopFront(value));
+    EXPECT_TRUE(queue.DequeueNonBlocking(value));
     EXPECT_EQ(value, 42);
 }
 
@@ -676,8 +676,8 @@ TEST_F(ActiveQueueTest, MessageQueue_AtRandomAccess) {
 TEST_F(ActiveQueueTest, MessageQueue_PushFrontMessages) {
     ActiveQueue<Message> queue;
     
-    (void)queue.PushBack(Message(1));
-    (void)queue.PushBack(Message(2));
+    (void)queue.Enqueue(Message(1));
+    (void)queue.Enqueue(Message(2));
     (void)queue.PushFront(Message(0));
     
     std::vector<int> values;

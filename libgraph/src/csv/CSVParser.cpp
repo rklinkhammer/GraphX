@@ -168,82 +168,8 @@ std::vector<std::string> SplitCSVLine(const std::string& line) {
     return result;
 }
 
-// ========== Sensor-Specific Parsers ==========
-
-std::optional<sensors::SensorPayload> ParseAccelerometerRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseAccelerometerRowExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
-std::optional<sensors::SensorPayload> ParseGyroscopeRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseGyroscopeRowExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
 //timestamp_us,accel_x_ms2,accel_y_ms2,accel_z_ms2,gyro_x_rads,gyro_y_rads,gyro_z_rads,mag_x_ut,
 // mag_y_ut,mag_z_ut,baro_pa,baro_temp_c,gps_lat_deg,gps_lon_deg,gps_alt_m,gps_speed_ms,gps_valid,gps_sats
-
-std::optional<sensors::SensorPayload> ParseGPSPositionRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseGPSPositionRowExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
-std::optional<sensors::SensorPayload> ParseBarometricRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseBarometricRowExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
-std::optional<sensors::SensorPayload> ParseMagnetometerRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseMagnetometerRowExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
-// ========== Format-Specific Dispatch ==========
-
-std::optional<sensors::SensorPayload> ParseRowUnified(
-    [[maybe_unused]] const std::vector<std::string>& row_values,
-    [[maybe_unused]] const csv::CSVNodeConfig& config) {
-    auto result = ParseRowUnifiedExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
-
-std::optional<sensors::SensorPayload> ParseRowConsolidated(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    auto result = ParseRowConsolidatedExpected(row_values, config);
-    if (!result) {
-        return std::nullopt;
-    }
-    return result.value();
-}
 
 // ========== Validation ==========
 

@@ -50,7 +50,6 @@ namespace graph {
  * @endcode
  * 
  * Preferred APIs are TryGet* methods returning std::expected.
- * Legacy Get* throwing methods remain for compatibility and are deprecated.
  */
 class JsonView {
 public:
@@ -73,86 +72,8 @@ public:
      */
     bool Contains(const std::string& key) const;
     
-    /**
-     * Get a string field.
-     * 
-     * @param key Field name
-     * @param default_val Value to use if field missing
-     * @return The string value
-     * @throws ConfigError if field wrong type
-     */
-    [[deprecated("Use TryGetString() for expected-based error handling")]]
-    std::string GetString(const std::string& key,
-                         const std::string& default_val = "") const;
-    
-    /**
-     * Get a floating-point field.
-     * 
-     * @param key Field name
-     * @param default_val Value to use if field missing
-     * @return The float value
-     * @throws ConfigError if field missing (no default) or wrong type
-     */
-    [[deprecated("Use TryGetFloat() for expected-based error handling")]]
-    float GetFloat(const std::string& key,
-                   float default_val = std::numeric_limits<float>::quiet_NaN()) const;
-    
-    /**
-     * Get an integer field.
-     * 
-     * @param key Field name
-     * @param default_val Value to use if field missing
-     * @return The int value
-     * @throws ConfigError if field missing (no default) or wrong type
-     */
-    [[deprecated("Use TryGetInt() for expected-based error handling")]]
-    int GetInt(const std::string& key,
-               int default_val = -1) const;
-    
-    /**
-     * Get a boolean field.
-     * 
-     * @param key Field name
-     * @param default_val Value to use if field missing
-     * @return The bool value
-     * @throws ConfigError if field wrong type
-     */
-    [[deprecated("Use TryGetBool() for expected-based error handling")]]
-    bool GetBool(const std::string& key,
-                 bool default_val = false) const;
-    
-    /**
-     * Get a nested object as a JsonView.
-     * 
-     * @param key Field name
-     * @return JsonView wrapping the nested object
-     * @throws ConfigError if field missing or not an object
-     */
-    [[deprecated("Use TryGetObject() for expected-based error handling")]]
-    JsonView GetObject(const std::string& key) const;
-    
-    /**
-     * Get a string array.
-     * 
-     * @param key Field name
-     * @return Vector of strings
-     * @throws ConfigError if field missing or not an array
-     */
-    [[deprecated("Use TryGetStringArray() for expected-based error handling")]]
-    std::vector<std::string> GetStringArray(const std::string& key) const;
-    
-    /**
-     * Get array elements as JsonView objects.
-     * 
-     * @param key Field name
-     * @return Vector of JsonView objects
-     * @throws ConfigError if field missing or not an array
-     */
-    [[deprecated("Use TryGetArray() for expected-based error handling")]]
-    std::vector<JsonView> GetArray(const std::string& key) const;
-
     // ========================================================================
-    // C++26 ENHANCED METHODS - Non-throwing alternatives
+    // C++26 METHODS - Non-throwing field access
     // ========================================================================
     
     /**

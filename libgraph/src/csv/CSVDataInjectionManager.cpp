@@ -117,14 +117,15 @@ bool CSVDataInjectionManager::InjectRowToNodes(capabilities::GraphCapability& co
     auto line = csv_data_[0][current_row_index_];
     auto row_values = csv::SplitCSVLine(line);
     for(auto& [node_name, config] : csv_node_configs_) {
-        auto payload_opt = csv::ParseRowUnified(row_values, config);
-        if(!payload_opt) {
+        auto payload_result = csv::ParseRowUnifiedExpected(row_values, config);
+        if(!payload_result) {
             LOG4CXX_WARN(g_logger, "CSVDataInjectionManager::InjectRowToNodes() - failed to parse row for node: " 
-                          << node_name << " at row index: " << current_row_index_);
+                          << node_name << " at row index: " << current_row_index_
+                          << " error: " << static_cast<int>(payload_result.error()));
             continue;
         }
         // C++26: [[nodiscard]] return value intentionally unused (fire-and-forget data injection)
-        static_cast<void>(config.injection_queue->Enqueue(*payload_opt));
+        static_cast<void>(config.injection_queue->Enqueue(*payload_result));
         LOG4CXX_TRACE(g_logger, "Injected row index: " << current_row_index_ 
                          << " to node: " << node_name);
     }

@@ -31,66 +31,6 @@ bool JsonView::Contains(const std::string& key) const {
     return json_.contains(key) && !json_[key].is_null();
 }
 
-std::string JsonView::GetString(const std::string& key,
-                                const std::string& default_val) const {
-    auto result = TryGetString(key, default_val);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-float JsonView::GetFloat(const std::string& key,
-                         float default_val) const {
-    auto result = TryGetFloat(key, default_val);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-int JsonView::GetInt(const std::string& key,
-                     int default_val) const {
-    auto result = TryGetInt(key, default_val);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-bool JsonView::GetBool(const std::string& key,
-                       bool default_val) const {
-    auto result = TryGetBool(key, default_val);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-JsonView JsonView::GetObject(const std::string& key) const {
-    auto result = TryGetObject(key);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-std::vector<std::string> JsonView::GetStringArray(const std::string& key) const {
-    auto result = TryGetStringArray(key);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
-std::vector<JsonView> JsonView::GetArray(const std::string& key) const {
-    auto result = TryGetArray(key);
-    if (!result) {
-        throw result.error();
-    }
-    return result.value();
-}
-
 std::string JsonView::FormatError(const std::string& key,
                                   const std::string& expected,
                                   const std::string& actual) {

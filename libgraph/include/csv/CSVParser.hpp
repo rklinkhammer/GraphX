@@ -179,152 +179,6 @@ std::string DetectFormat(const CSVHeader& header);
  */
 std::vector<std::string> SplitCSVLine(const std::string& line);
 
-// ========== Sensor-Specific Row Parsers ==========
-
-/**
- * @brief Parse accelerometer data from CSV row
- *
- * Extracts timestamp and 3D acceleration from row values.
- * Creates AccelerometerData and wraps in SensorPayload variant.
- *
- * Expected columns: timestamp_ns, accel_x_mss, accel_y_mss, accel_z_mss
- * Format: Unified (one value per column)
- *
- * Error Handling:
- * - Returns nullopt if any column is empty
- * - Returns nullopt if values cannot be parsed as numbers
- * - Timestamp converted from ns to seconds (divide by 1e9)
- *
- * @param row_values CSV column values
- * @param config CSV configuration (column indices, etc.)
- * @return SensorPayload with AccelerometerData, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseAccelerometerRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-/**
- * @brief Parse gyroscope data from CSV row
- *
- * Extracts timestamp and 3D angular velocity from row values.
- * Creates GyroscopeData and wraps in SensorPayload variant.
- *
- * Expected columns: timestamp_ns, gyro_x_rads, gyro_y_rads, gyro_z_rads
- * Format: Unified (one value per column)
- *
- * Error Handling: Same as ParseAccelerometerRow
- *
- * @param row_values CSV column values
- * @param config CSV configuration
- * @return SensorPayload with GyroscopeData, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseGyroscopeRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-/**
- * @brief Parse GPS position data from CSV row
- *
- * Extracts timestamp and position (lat, lon, alt) from row values.
- * Creates GPSPositionData and wraps in SensorPayload variant.
- *
- * Expected columns: timestamp_ns, latitude_deg, longitude_deg, altitude_m
- * Format: Unified (one value per column)
- *
- * Error Handling: Same as ParseAccelerometerRow
- *
- * @param row_values CSV column values
- * @param config CSV configuration
- * @return SensorPayload with GPSPositionData, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseGPSPositionRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-/**
- * @brief Parse barometric data from CSV row
- *
- * Extracts timestamp and atmospheric measurements from row values.
- * Creates BarometricData and wraps in SensorPayload variant.
- *
- * Expected columns: timestamp_ns, pressure_pa, temperature_c, altitude_m
- * Format: Unified (one value per column)
- *
- * Error Handling: Same as ParseAccelerometerRow
- *
- * @param row_values CSV column values
- * @param config CSV configuration
- * @return SensorPayload with BarometricData, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseBarometricRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-/**
- * @brief Parse magnetometer data from CSV row
- *
- * Extracts timestamp and 3D magnetic field from row values.
- * Creates MagnetometerData and wraps in SensorPayload variant.
- *
- * Expected columns: timestamp_ns, mag_x_ut, mag_y_ut, mag_z_ut
- * Format: Unified (one value per column)
- *
- * Error Handling: Same as ParseAccelerometerRow
- *
- * @param row_values CSV column values
- * @param config CSV configuration
- * @return SensorPayload with MagnetometerData, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseMagnetometerRow(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-// ========== Format-Specific Dispatch ==========
-
-/**
- * @brief Parse row in unified format
- *
- * Unified format: Each CSV file contains one sensor type.
- * Dispatches to appropriate sensor parser based on config.type_identifier.
- *
- * Example unified CSV:
- * ```
- * timestamp_ns,accel_x_mss,accel_y_mss,accel_z_mss
- * 1000000000,0.1,0.2,0.3
- * 2000000000,0.2,0.3,0.4
- * ```
- *
- * @param row_values CSV column values
- * @param config CSV configuration (contains type_identifier)
- * @return Parsed SensorPayload, or nullopt if parse failed
- */
-std::optional<sensors::SensorPayload> ParseRowUnified(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
-/**
- * @brief Parse row in consolidated format
- *
- * Consolidated format: Single CSV file with all sensor types.
- * Uses "data_type" column to determine which sensor parser to use.
- *
- * Example consolidated CSV:
- * ```
- * timestamp_ns,data_type,accel_x_mss,accel_y_mss,accel_z_mss,gyro_x_rads,gyro_y_rads,gyro_z_rads,...
- * 1000000000,accel,0.1,0.2,0.3,,,,
- * 2000000000,gyro,,,,0.01,0.02,0.03
- * ```
- *
- * Each row specifies which sensor type the data belongs to.
- *
- * @param row_values CSV column values
- * @param config CSV configuration (contains column indices)
- * @return Parsed SensorPayload, or nullopt if parse failed or unknown type
- */
-std::optional<sensors::SensorPayload> ParseRowConsolidated(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
 // ========== Validation ==========
 
 /**
@@ -352,7 +206,6 @@ bool ValidateCSVRow(
 /**
  * @brief Parse accelerometer data with error handling (C++26)
  *
- * Type-safe alternative to ParseAccelerometerRow().
  * Returns std::expected<> for composable error handling.
  *
  * Example:
@@ -377,7 +230,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseAccelerometerRowExpecte
 /**
  * @brief Parse gyroscope data with error handling (C++26)
  *
- * Type-safe alternative to ParseGyroscopeRow().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values
@@ -391,7 +243,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseGyroscopeRowExpected(
 /**
  * @brief Parse GPS position data with error handling (C++26)
  *
- * Type-safe alternative to ParseGPSPositionRow().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values
@@ -405,7 +256,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseGPSPositionRowExpected(
 /**
  * @brief Parse barometric data with error handling (C++26)
  *
- * Type-safe alternative to ParseBarometricRow().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values
@@ -419,7 +269,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseBarometricRowExpected(
 /**
  * @brief Parse magnetometer data with error handling (C++26)
  *
- * Type-safe alternative to ParseMagnetometerRow().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values
@@ -433,7 +282,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseMagnetometerRowExpected
 /**
  * @brief Parse row in unified format with error handling (C++26)
  *
- * Type-safe alternative to ParseRowUnified().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values
@@ -447,7 +295,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseRowUnifiedExpected(
 /**
  * @brief Parse row in consolidated format with error handling (C++26)
  *
- * Type-safe alternative to ParseRowConsolidated().
  * See ParseAccelerometerRowExpected() for usage examples.
  *
  * @param row_values CSV column values

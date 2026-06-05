@@ -57,7 +57,7 @@ protected:
             std::thread::hardware_concurrency()
         );
         pool->Init();
-        pool->Start();
+        pool->StartExpected();
     }
 
     void TearDown() override {
@@ -145,7 +145,7 @@ TEST_F(ThreadPoolIntegrationTest, ThreadCountScalingImpact) {
     for (int num_threads : {1, 2, 4, 8, static_cast<int>(std::thread::hardware_concurrency())}) {
         auto test_pool = std::make_shared<graph::ThreadPool>(num_threads);
         test_pool->Init();
-        test_pool->Start();
+        test_pool->StartExpected();
 
         const int NUM_TASKS = 10000;
         std::atomic<int> completed(0);
@@ -202,7 +202,7 @@ TEST_F(ThreadPoolIntegrationTest, QueueCapacityImpact) {
 
         auto test_pool = std::make_shared<graph::ThreadPool>(4, cfg);
         test_pool->Init();
-        test_pool->Start();
+        test_pool->StartExpected();
 
         const int NUM_TASKS = 5000;
         std::atomic<int> completed(0);

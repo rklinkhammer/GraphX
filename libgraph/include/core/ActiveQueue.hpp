@@ -745,13 +745,6 @@ public:
     }
 
     /**
-     * @brief Add element to the back of the queue (alias for Enqueue)
-     */
-    [[nodiscard]] bool PushBack(Element element) {
-        return Enqueue(std::move(element));
-    }
-
-    /**
      * @brief Remove element from the back of the queue (non-blocking)
      */
     [[nodiscard]] bool PopBack(Element& element) {
@@ -777,13 +770,6 @@ public:
         }
 
         return true;
-    }
-
-    /**
-     * @brief Remove element from the front (alias for DequeueNonBlocking)
-     */
-    [[nodiscard]] bool PopFront(Element& element) {
-        return DequeueNonBlocking(element);
     }
 
     /**

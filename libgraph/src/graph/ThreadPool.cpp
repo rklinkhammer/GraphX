@@ -59,16 +59,6 @@ namespace graph
         return true;
     }
 
-    bool ThreadPool::Start() noexcept
-    {
-        auto result = StartExpected();
-        if (!result) {
-            LOG4CXX_ERROR(logger_, "ThreadPool::Start() compatibility adapter failed with code "
-                                  << static_cast<int>(result.error()));
-        }
-        return result.has_value();
-    }
-
     // C++26 Modernization: std::expected<> error handling (Phase 1)
     std::expected<void, ThreadPool::ThreadPoolError> ThreadPool::StartExpected() noexcept
     {
@@ -374,7 +364,7 @@ namespace graph
         }
     }
 
-    bool ThreadPool::ExecuteTask(const Task &task)
+    bool ThreadPool::ExecuteTask(Task &task)
     {
         try
         {

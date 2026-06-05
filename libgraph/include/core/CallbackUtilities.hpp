@@ -31,29 +31,83 @@
 #include <type_traits>
 #include <memory>
 
-// Feature detection for std::move_only_function (C++23)
-#if __cpp_lib_move_only_function >= 202110L
-    #include <functional>
-    #define GDASHBOARD_HAS_MOVE_ONLY_FUNCTION 1
-#else
-    #define GDASHBOARD_HAS_MOVE_ONLY_FUNCTION 0
-#endif
-
 // ============================================================================
 // Callback Modernization Infrastructure (Phase 4: std::move_only_function)
 // ============================================================================
 // Replaces std::function with std::move_only_function for better performance
 // and memory efficiency. Single-ownership semantics prevent accidental copies.
-// Backward compatible with C++20 via std::function fallback.
 // ============================================================================
 
 namespace app::callbacks {
 
+namespace detail {
+
+template<typename Signature>
+class MoveOnlyFunction;
+
+template<typename ReturnT, typename... ArgsT>
+class MoveOnlyFunction<ReturnT(ArgsT...)> {
+public:
+    MoveOnlyFunction() = default;
+    MoveOnlyFunction(std::nullptr_t) noexcept {}
+
+    MoveOnlyFunction(const MoveOnlyFunction&) = delete;
+    MoveOnlyFunction& operator=(const MoveOnlyFunction&) = delete;
+    MoveOnlyFunction(MoveOnlyFunction&&) noexcept = default;
+    MoveOnlyFunction& operator=(MoveOnlyFunction&&) noexcept = default;
+
+    template<typename Fn>
+        requires (!std::same_as<std::remove_cvref_t<Fn>, MoveOnlyFunction> &&
+                  std::invocable<Fn&, ArgsT...> &&
+                  std::convertible_to<std::invoke_result_t<Fn&, ArgsT...>, ReturnT>)
+    MoveOnlyFunction(Fn&& fn)
+        : callable_(std::make_unique<Model<std::remove_cvref_t<Fn>>>(std::forward<Fn>(fn))) {}
+
+    explicit operator bool() const noexcept {
+        return static_cast<bool>(callable_);
+    }
+
+    ReturnT operator()(ArgsT... args) {
+        if constexpr (std::is_void_v<ReturnT>) {
+            callable_->Invoke(std::forward<ArgsT>(args)...);
+        } else {
+            return callable_->Invoke(std::forward<ArgsT>(args)...);
+        }
+    }
+
+private:
+    struct Concept {
+        virtual ~Concept() = default;
+        virtual ReturnT Invoke(ArgsT... args) = 0;
+    };
+
+    template<typename Fn>
+    struct Model final : Concept {
+        template<typename Callable>
+        explicit Model(Callable&& fn) : fn_(std::forward<Callable>(fn)) {}
+
+        ReturnT Invoke(ArgsT... args) override {
+            if constexpr (std::is_void_v<ReturnT>) {
+                std::invoke(fn_, std::forward<ArgsT>(args)...);
+            } else {
+                return std::invoke(fn_, std::forward<ArgsT>(args)...);
+            }
+        }
+
+        Fn fn_;
+    };
+
+    std::unique_ptr<Concept> callable_;
+};
+
+}  // namespace detail
+
 /**
  * @brief Move-only callback type alias (Phase 4: C++23)
  *
- * Uses std::move_only_function when available (C++23) for better performance.
- * Falls back to std::function for earlier C++ standards.
+ * Uses std::move_only_function when the active C++26 standard library provides
+ * it. AppleClang C++26 toolchains without that library facility use a local
+ * move-only type-erased callable with the same ownership model.
  *
  * **Benefits of std::move_only_function** (C++23):
  * - No copy constructor (enforces single ownership)
@@ -76,11 +130,10 @@ namespace app::callbacks {
  * @tparam Signature Function signature (e.g., void(), int(double))
  */
 template<typename Signature>
-#if GDASHBOARD_HAS_MOVE_ONLY_FUNCTION
+#if defined(__cpp_lib_move_only_function) && __cpp_lib_move_only_function >= 202110L
 using MoveOnlyCallback = std::move_only_function<Signature>;
 #else
-// C++20 fallback: Use std::function (no performance benefit, but compatible)
-using MoveOnlyCallback = std::function<Signature>;
+using MoveOnlyCallback = detail::MoveOnlyFunction<Signature>;
 #endif
 
 // ============================================================================

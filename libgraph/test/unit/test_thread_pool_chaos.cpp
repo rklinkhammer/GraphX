@@ -62,7 +62,7 @@ protected:
 TEST_F(ThreadPoolChaosTest, RandomTaskFailures) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 1000;
     std::atomic<int> completed(0);
@@ -105,7 +105,7 @@ TEST_F(ThreadPoolChaosTest, ExceptionCascade) {
     // Test that exceptions in one task don't affect others
     graph::ThreadPool pool(4);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 100;
     std::vector<int> completed_tasks;
@@ -149,7 +149,7 @@ TEST_F(ThreadPoolChaosTest, ExceptionCascade) {
 TEST_F(ThreadPoolChaosTest, RandomizedExecutionTimes) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 500;
     std::atomic<int> completed(0);
@@ -192,7 +192,7 @@ TEST_F(ThreadPoolChaosTest, RapidQueueStopCycles) {
     for (int cycle = 0; cycle < NUM_CYCLES; ++cycle) {
         graph::ThreadPool pool(2);
         pool.Init();
-        pool.Start();
+        pool.StartExpected();
 
         // Queue tasks rapidly
         const int TASKS_PER_CYCLE = 100;
@@ -232,7 +232,7 @@ TEST_F(ThreadPoolChaosTest, RapidQueueStopCycles) {
 TEST_F(ThreadPoolChaosTest, ConcurrentStopRequests) {
     graph::ThreadPool pool(4);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 500;
     std::atomic<int> completed(0);
@@ -276,7 +276,7 @@ TEST_F(ThreadPoolChaosTest, ConcurrentStopRequests) {
 TEST_F(ThreadPoolChaosTest, LargeTaskPayloads) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 100;
     std::atomic<int> completed(0);
@@ -315,7 +315,7 @@ TEST_F(ThreadPoolChaosTest, LargeTaskPayloads) {
 TEST_F(ThreadPoolChaosTest, RapidQueueDepthFluctuations) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_BATCHES = 20;
     const int BATCH_SIZE = 100;
@@ -373,7 +373,7 @@ TEST_F(ThreadPoolChaosTest, RealisticWorkloadMix) {
     // Simulate realistic workload: mix of fast tasks, slow tasks, and failing tasks
     graph::ThreadPool pool(4);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 200;
     std::atomic<int> fast_count(0);
@@ -432,7 +432,7 @@ TEST_F(ThreadPoolChaosTest, RealisticWorkloadMix) {
 TEST_F(ThreadPoolChaosTest, SustainedLoadStability) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int DURATION_MS = 1000;  // 1 second of sustained load
     const auto deadline = std::chrono::steady_clock::now() +

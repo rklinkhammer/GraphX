@@ -59,7 +59,7 @@
  *     ↓
  * Init() called
  *     ↓
- * Started (Start() called, threads spawned)
+ * Started (StartExpected() called, threads spawned)
  *     ↓
  * Stop() called (threads begin shutdown)
  *     ↓
@@ -122,7 +122,7 @@
  * @code
  *   ThreadPool pool(4);  // 4 worker threads
  *   pool.Init();
- *   pool.Start();
+ *   pool.StartExpected();
  *   
  *   // Queue work
  *   for (int i = 0; i < 100; ++i) {
@@ -144,7 +144,7 @@
  *   
  *   ThreadPool pool(4, cfg);
  *   pool.Init();
- *   pool.Start();
+ *   pool.StartExpected();
  * @endcode
  *
  * ### With Timeout
@@ -343,7 +343,7 @@ struct ThreadPoolStats {
  *
  * - **Fixed thread count**: Specified at construction, never changes
  * - **FIFO ordering**: Tasks execute in enqueue order
- * - **Explicit lifecycle**: Init() → Start() → Stop() → Join()
+ * - **Explicit lifecycle**: Init() → StartExpected() → Stop() → Join()
  * - **No task cancellation**: Once started, tasks run to completion
  * - **Graceful shutdown**: Active tasks complete, pending tasks discarded
  * - **Optional watchdog**: Monitors long-running tasks for diagnostics
@@ -354,7 +354,7 @@ struct ThreadPoolStats {
  * ThreadPool pool(num_threads);   // Constructed, no threads yet
  *
  * pool.Init();                     // Initialize (still no threads)
- * pool.Start();                    // ← Threads spawned here
+ * pool.StartExpected();                    // ← Threads spawned here
  *
  * pool.QueueTask(work);            // (can be called from any thread)
  * pool.QueueTask(work);            // (can be called from any thread)
@@ -382,7 +382,7 @@ struct ThreadPoolStats {
  * ## State Machine
  *
  * ```
- * [Constructed] --Init()--→ [Initialized] --Start()--→ [Started]
+ * [Constructed] --Init()--→ [Initialized] --StartExpected()--→ [Started]
  *                                                           ↓
  *                                                       Stop()
  *                                                           ↓
@@ -490,7 +490,7 @@ public:
      *
      * Example:
      * ```cpp
-     * auto result = thread_pool.Start();
+     * auto result = thread_pool.StartExpected();
      * if (!result) {
      *     switch (result.error()) {
      *         case ThreadPoolError::AlreadyRunning:
@@ -506,7 +506,7 @@ public:
      */
     enum class ThreadPoolError {
         Ok = 0,                        ///< Operation succeeded (success state)
-        AlreadyRunning = 1,            ///< Pool Start() called when already running
+        AlreadyRunning = 1,            ///< Pool StartExpected() called when already running
         ThreadCreationFailed = 2,      ///< std::thread constructor failed
         AllocationFailed = 3,          ///< std::bad_alloc during thread creation
         QueueInitializationFailed = 4, ///< ActiveQueue initialization failed
@@ -606,8 +606,8 @@ public:
      * @brief Construct a thread pool with default configuration
      *
      * Creates a thread pool in the Constructed state. No threads are spawned
-     * until Start() is called. The pool must transition through Init() before
-     * calling Start().
+     * until StartExpected() is called. The pool must transition through Init() before
+     * calling StartExpected().
      *
      * @param num_threads Number of worker threads to manage
      *        - If > 0: Exact number of threads created
@@ -639,7 +639,7 @@ public:
      *
      * Creates a thread pool in the Constructed state with the specified
      * deadlock detection and queue settings. No threads are spawned until
-     * Start() is called.
+     * StartExpected() is called.
      *
      * @param num_threads Number of worker threads
      *        - If > 0: Exact number of threads created
@@ -715,7 +715,7 @@ public:
      *   {
      *       ThreadPool pool(4);
      *       pool.Init();
-     *       pool.Start();
+     *       pool.StartExpected();
      *       pool.QueueTask([]{ \/ \/ work });
      *       // Destructor automatically cleans up
      *   }
@@ -723,7 +723,7 @@ public:
      *   // Or explicitly:
      *   auto pool = std::make_unique<ThreadPool>(4);
      *   pool->Init();
-     *   pool->Start();
+     *   pool->StartExpected();
      *   pool->QueueTask([]{ \/\/ work });
      *   pool->Stop();
      *   pool->Join();
@@ -742,7 +742,7 @@ public:
      * @brief Initialize internal state (preparation phase)
      *
      * Prepares the pool for starting without spawning threads.
-     * Called once after construction, before Start().
+     * Called once after construction, before StartExpected().
      *
      * ## What It Does
      * - Validates configuration
@@ -751,7 +751,7 @@ public:
      * - Does NOT spawn any threads
      *
      * ## When to Call
-     * Must be called in the Constructed state, before Start().
+     * Must be called in the Constructed state, before StartExpected().
      *
      * ## Valid State Transitions
      * Constructed → Init() → Initialized
@@ -771,10 +771,10 @@ public:
      *       std::cerr << "Failed to init pool" << std::endl;
      *       return;
      *   }
-     *   pool.Start();  // Now safe to start
+     *   pool.StartExpected();  // Now safe to start
      * @endcode
      *
-     * @see Start() for spawning worker threads
+     * @see StartExpected() for spawning worker threads
      * @see ThreadPool constructor for options
      */
     [[nodiscard]] bool Init() noexcept;
@@ -799,7 +799,7 @@ public:
      * - No shared stack between worker threads
      *
      * ## Valid State Transitions
-     * Initialized → Start() → Started
+     * Initialized → StartExpected() → Started
      *
      * @return true if all threads were created successfully
      *         false if thread creation fails (rare OS error)
@@ -814,7 +814,7 @@ public:
      * @code
      *   ThreadPool pool(4);
      *   pool.Init();
-     *   if (!pool.Start()) {
+     *   if (!pool.StartExpected()) {
      *       std::cerr << "Failed to start threads" << std::endl;
      *       return;
      *   }
@@ -830,12 +830,9 @@ public:
      * @see WorkerMain() for individual thread behavior
      * @see WatchdogMain() for deadlock detection
      */
-    [[nodiscard]] bool Start() noexcept;
-
     /**
      * @brief Start thread pool with C++26 std::expected error handling (Phase 1 C++26 Modernization)
      *
-     * Type-safe alternative to Start() that returns std::expected<void, ThreadPoolError>.
      * Replaces try-catch-return patterns with composable error types.
      *
      * ## Usage
@@ -869,18 +866,7 @@ public:
      *   pool.Join();
      * @endcode
      *
-     * ## Comparison with Start()
-     *
-     * | Feature | Start() | StartExpected() |
-     * |---------|---------|-----------------|
-     * | Return type | bool | std::expected<void, ThreadPoolError> |
-     * | Error info | None (bool only) | Detailed error codes |
-     * | Exception handling | try-catch | Explicit error enum |
-     * | C++ standard | C++17 | C++23+ (std::expected) |
-     * | Backward compat | Yes | New pattern (Phase 1) |
-     *
      * @return Success (void) or specific ThreadPoolError describing failure
-     * @see Start() for backward-compatible bool-returning version
      * @see ThreadPoolError for error code meanings
      * @see app::error::Result for expected<> type alias
      */
@@ -996,7 +982,7 @@ public:
      * @code
      *   ThreadPool pool(4);
      *   pool.Init();
-     *   pool.Start();
+     *   pool.StartExpected();
      *
      *   // Queue lots of work
      *   for (int i = 0; i < 1000; ++i) {
@@ -1141,7 +1127,7 @@ public:
      * @code
      *   ThreadPool pool(4);
      *   pool.Init();
-     *   pool.Start();
+     *   pool.StartExpected();
      *
      *   // Simple task
      *   auto result = pool.QueueTask([]{ std::cout << "Hello\n"; });
@@ -1711,7 +1697,7 @@ private:
     void WatchdogMain();
 
     /// Execute a single task and update statistics
-    bool ExecuteTask(const Task& task);
+    bool ExecuteTask(Task& task);
 
     // (private data members follow)
 

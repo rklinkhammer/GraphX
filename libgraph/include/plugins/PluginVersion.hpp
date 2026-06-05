@@ -63,10 +63,9 @@ constexpr int CURRENT_API_VERSION = 2;
  * Plugins with API_VERSION < MINIMUM_API_VERSION are rejected.
  * This allows us to drop support for very old plugins in future versions.
  * 
- * Currently set to 1 to accept all existing plugins (backward compatible).
- * Future: Can be increased when old plugins are no longer supported.
+ * GraphX does not support pre-versioned plugin APIs.
  */
-constexpr int MINIMUM_API_VERSION = 1;
+constexpr int MINIMUM_API_VERSION = CURRENT_API_VERSION;
 
 /**
  * @brief Check if a plugin API version is compatible with the loader

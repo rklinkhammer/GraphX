@@ -115,7 +115,7 @@ protected:
 TEST_F(ThreadPoolBenchmarkTest, ThroughputSingleThread_LightTasks) {
     graph::ThreadPool pool(1);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 10000;
     std::atomic<int> completed(0);
@@ -164,7 +164,7 @@ TEST_F(ThreadPoolBenchmarkTest, ThroughputMultiThread_LightTasks) {
     int num_threads = std::thread::hardware_concurrency();
     graph::ThreadPool pool(num_threads);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 50000;
     std::atomic<int> completed(0);
@@ -213,7 +213,7 @@ TEST_F(ThreadPoolBenchmarkTest, ThroughputMultiThread_LightTasks) {
 TEST_F(ThreadPoolBenchmarkTest, LatencyMeasurement_SingleThread) {
     graph::ThreadPool pool(1);
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int NUM_TASKS = 1000;
     std::vector<uint64_t> task_times;
@@ -256,7 +256,7 @@ TEST_F(ThreadPoolBenchmarkTest, LatencyScaling_ThreadCount) {
     for (int num_threads : {1, 2, 4, 8}) {
         graph::ThreadPool pool(num_threads);
         pool.Init();
-        pool.Start();
+        pool.StartExpected();
 
         const int NUM_TASKS = 1000;
         std::vector<uint64_t> task_times;
@@ -302,7 +302,7 @@ TEST_F(ThreadPoolBenchmarkTest, LatencyScaling_ThreadCount) {
 TEST_F(ThreadPoolBenchmarkTest, QueueOverhead_WithBatching) {
     graph::ThreadPool pool(std::thread::hardware_concurrency());
     pool.Init();
-    pool.Start();
+    pool.StartExpected();
 
     const int BATCH_SIZE = 100;
     const int NUM_BATCHES = 100;
@@ -358,7 +358,7 @@ TEST_F(ThreadPoolBenchmarkTest, MemoryScaling_QueueSize) {
 
         graph::ThreadPool pool(4, cfg);
         pool.Init();
-        pool.Start();
+        pool.StartExpected();
 
         const int NUM_TASKS = 5000;
         std::atomic<int> completed(0);
@@ -407,7 +407,7 @@ TEST_F(ThreadPoolBenchmarkTest, StartupShutdownOverhead) {
     for (int i = 0; i < NUM_POOLS; ++i) {
         graph::ThreadPool pool(2);
         pool.Init();
-        pool.Start();
+        pool.StartExpected();
 
         pool.QueueTask([]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));

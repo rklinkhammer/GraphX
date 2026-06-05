@@ -203,7 +203,7 @@ TEST_F(ThreadPoolTest, InitStartStopJoinSequence) {
     EXPECT_TRUE(pool.Init());
 
     // Start
-    EXPECT_TRUE(pool.Start());
+    EXPECT_TRUE(pool.StartExpected());
 
     EXPECT_EQ(pool.GetQueueDepth(), 0);
 
@@ -304,7 +304,7 @@ TEST_F(ThreadPoolTest, DestructorSafety) {
     {
         graph::ThreadPool pool(4, NoWatchdogConfig());
         (void)pool.Init();
-        (void)pool.Start();
+        (void)pool.StartExpected();
 
         // Queue some tasks but don't manually stop/join
         std::atomic<int> counter(0);
@@ -330,7 +330,7 @@ TEST_F(ThreadPoolTest, DestructorSafety) {
 TEST_F(ThreadPoolTest, SingleTaskExecution) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue and execute single task
     std::shared_ptr<std::atomic<bool>> executed = std::make_shared<std::atomic<bool>>(false);
@@ -355,7 +355,7 @@ TEST_F(ThreadPoolTest, SingleTaskExecution) {
 TEST_F(ThreadPoolTest, MultipleTasksFIFOOrder) {
     graph::ThreadPool pool(4, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue tasks and verify FIFO ordering
     std::shared_ptr<std::vector<int>> results = std::make_shared<std::vector<int>>();
@@ -390,7 +390,7 @@ TEST_F(ThreadPoolTest, QueueCapacityEnforcement) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     auto release_active = std::make_shared<std::promise<void>>();
     auto active_released = release_active->get_future().share();
@@ -427,7 +427,7 @@ TEST_F(ThreadPoolTest, QueueCapacityEnforcement) {
 TEST_F(ThreadPoolTest, TaskCounters) {
     graph::ThreadPool pool(4, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue normal tasks
     std::shared_ptr<std::atomic<int>> success_count = std::make_shared<std::atomic<int>>(0);
@@ -461,7 +461,7 @@ TEST_F(ThreadPoolTest, TaskCounters) {
 TEST_F(ThreadPoolTest, ExecutionMetrics) {
     graph::ThreadPool pool(2, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue tasks with known duration
     std::chrono::milliseconds task_duration(5);
@@ -502,7 +502,7 @@ TEST_F(ThreadPoolTest, WatchdogDetectsLongTask) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue a task that exceeds timeout
     auto task = []() {
@@ -534,7 +534,7 @@ TEST_F(ThreadPoolTest, ClearDeadlockFlag) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Trigger deadlock detection
     (void)pool.QueueTask([]() {
@@ -573,7 +573,7 @@ TEST_F(ThreadPoolTest, ClearDeadlockFlag) {
 TEST_F(ThreadPoolTest, TaskExceptionIncrementsFailCount) {
     graph::ThreadPool pool(2, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Add delay for thread startup
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -644,7 +644,7 @@ TEST_F(ThreadPoolTest, AtomicMemoryOrdering) {
 
     graph::ThreadPool pool(4, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Concurrent queue from multiple threads
     std::vector<std::thread> threads;
@@ -687,7 +687,7 @@ TEST_F(ThreadPoolTest, AtomicMemoryOrdering) {
 TEST_F(ThreadPoolTest, JoinWithTimeout) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue a short task
     std::shared_ptr<std::atomic<bool>> executed = std::make_shared<std::atomic<bool>>(false);
@@ -707,7 +707,7 @@ TEST_F(ThreadPoolTest, JoinWithTimeout) {
 TEST_F(ThreadPoolTest, NullTaskHandling) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Attempting to queue null task should fail
     graph::ThreadPool::Task null_task;
@@ -722,7 +722,7 @@ TEST_F(ThreadPoolTest, NullTaskHandling) {
 TEST_F(ThreadPoolTest, QueueAfterStop) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue some tasks
     std::atomic<bool> task1(false);
@@ -745,7 +745,7 @@ TEST_F(ThreadPoolTest, QueueAfterStop) {
 TEST_F(ThreadPoolTest, IdempotentStop) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue task
     std::shared_ptr<std::atomic<bool>> executed = std::make_shared<std::atomic<bool>>(false);
@@ -774,7 +774,7 @@ TEST_F(ThreadPoolTest, QueueTaskWithTimeout) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     auto release_active = std::make_shared<std::promise<void>>();
     auto active_released = release_active->get_future().share();
@@ -811,7 +811,7 @@ TEST_F(ThreadPoolTest, QueueTaskWithTimeout) {
 TEST_F(ThreadPoolTest, CancelledTasksCounter) {
     graph::ThreadPool pool(1, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     std::atomic<int> executed_count(0);
     auto release_active = std::make_shared<std::promise<void>>();
@@ -854,7 +854,7 @@ TEST_F(ThreadPoolTest, CancelledTasksCounter) {
 TEST_F(ThreadPoolTest, HighConcurrencyStressTest) {
     graph::ThreadPool pool(std::thread::hardware_concurrency(), NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Use realistic queue size - reduce tasks to fit default constraints
     const int NUM_THREADS = 4;
@@ -904,7 +904,7 @@ TEST_F(ThreadPoolTest, HighConcurrencyStressTest) {
 TEST_F(ThreadPoolTest, GetQueueDepthAccuracy) {
     graph::ThreadPool pool(1, NoWatchdogConfig());  // Single thread to control execution timing
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     std::atomic<int> started_count(0);
     std::atomic<int> can_finish(0);
@@ -947,7 +947,7 @@ TEST_F(ThreadPoolTest, EnqueueTimeoutTracking) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     auto release_active = std::make_shared<std::promise<void>>();
     auto active_released = release_active->get_future().share();
@@ -986,7 +986,7 @@ TEST_F(ThreadPoolTest, QueueTaskWithTimeoutReturnsStoppedWhenStopCancelsQueuedWo
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     auto release_active = std::make_shared<std::promise<void>>();
     auto active_released = release_active->get_future().share();
@@ -1032,7 +1032,7 @@ TEST_F(ThreadPoolTest, DeadlockDetectionDisabled) {
 
     graph::ThreadPool pool(1, cfg);
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     // Queue long task that would trigger detection if enabled
     (void)pool.QueueTask([]() {
@@ -1055,7 +1055,7 @@ TEST_F(ThreadPoolTest, DeadlockDetectionDisabled) {
 TEST_F(ThreadPoolTest, MixedTaskTypeSequence) {
     graph::ThreadPool pool(2, NoWatchdogConfig());
     (void)pool.Init();
-    (void)pool.Start();
+    (void)pool.StartExpected();
 
     std::atomic<int> short_count(0);
     std::atomic<int> long_count(0);
