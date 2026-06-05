@@ -56,8 +56,52 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesValidGraphConfig) {
     ASSERT_EQ(result->edges.size(), 1u);
     EXPECT_EQ(result->edges[0].source_port, 0u);
     EXPECT_EQ(result->edges[0].target_port, 0u);
+    EXPECT_TRUE(result->edges[0].source_port_name.empty());
+    EXPECT_TRUE(result->edges[0].target_port_name.empty());
     EXPECT_EQ(result->edges[0].buffer_size, 64u);
 }
+
+  TEST(GraphConfigParserExpectedTest, ParseSafeParsesNamedPorts) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "named_ports_graph",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [{
+        "source_node_id": "source_1",
+        "source_port_name": "Output0",
+        "target_node_id": "sink_1",
+        "target_port_name": "Input0"
+      }]
+    })");
+
+    ASSERT_TRUE(result);
+    ASSERT_EQ(result->edges.size(), 1u);
+    EXPECT_EQ(result->edges[0].source_port_name, "Output0");
+    EXPECT_EQ(result->edges[0].target_port_name, "Input0");
+  }
+
+  TEST(GraphConfigParserExpectedTest, ParseSafeTreatsStringPortTokensAsNamesWhenNotNumeric) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "string_token_ports_graph",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [{
+        "source_node_id": "source_1",
+        "source_port": "Output0",
+        "target_node_id": "sink_1",
+        "target_port": "Input0"
+      }]
+    })");
+
+    ASSERT_TRUE(result);
+    ASSERT_EQ(result->edges.size(), 1u);
+    EXPECT_EQ(result->edges[0].source_port_name, "Output0");
+    EXPECT_EQ(result->edges[0].target_port_name, "Input0");
+  }
 
 TEST(GraphConfigParserExpectedTest, ParseSafeReportsInvalidJson) {
     const auto result = graph::config::GraphConfigParser::ParseSafe("{not json}");

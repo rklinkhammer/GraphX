@@ -472,4 +472,50 @@ TEST(DynamicEdgeTest, GraphManagerAggregatesDynamicEdgeThreadTimingMetrics) {
               metrics.total_process_time_ns.load(std::memory_order_relaxed));
 }
 
+TEST(DynamicEdgeTest, MixedTypedAndDynamicEdgesRunThroughLifecycle) {
+    graph::GraphManager graph;
+    auto source_node = std::make_shared<test::SourceTestNode>();
+    auto typed_sink = std::make_shared<test::SinkTestNode>();
+    auto dynamic_sink = std::make_shared<test::SinkTestNode>();
+
+    graph.AddNode(source_node);
+    graph.AddNode(typed_sink);
+    graph.AddNode(dynamic_sink);
+    graph.AddEdge<test::SourceTestNode, 0, test::SinkTestNode, 0>(source_node, typed_sink, 8);
+
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+    graph::DynamicEdgeConfig config{
+        .source = MakeOutputHandle(&output, 0),
+        .destination = MakeInputHandle(&input, 2),
+        .capacity = 8,
+    };
+
+    auto added_dynamic = graph.AddDynamicEdgeExpected(config);
+    ASSERT_TRUE(added_dynamic);
+
+    ASSERT_TRUE(graph.Init());
+    ASSERT_TRUE(graph.Start());
+    ASSERT_TRUE(output.GetQueue().Enqueue(42));
+
+    bool transferred = false;
+    for (int i = 0; i < 100; ++i) {
+        int value = 0;
+        if (input.GetQueue().DequeueNonBlocking(value)) {
+            EXPECT_EQ(value, 42);
+            transferred = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    graph.Stop();
+    graph.Join();
+
+    ASSERT_TRUE(transferred);
+    const auto& metrics = graph.GetMetrics();
+    EXPECT_GE(metrics.graph_total_enqueued.load(std::memory_order_relaxed), 1u);
+    EXPECT_GE(metrics.graph_total_dequeued.load(std::memory_order_relaxed), 1u);
+}
+
 }  // namespace

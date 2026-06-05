@@ -590,11 +590,15 @@ void GraphBuilder::WireEdges(
     
     for (size_t i = 0; i < edge_configs.size(); ++i) {
         const auto& edge = edge_configs[i];
+        const std::string source_port_token =
+            !edge.source_port_name.empty() ? edge.source_port_name : std::to_string(edge.source_port);
+        const std::string target_port_token =
+            !edge.target_port_name.empty() ? edge.target_port_name : std::to_string(edge.target_port);
         
         try {
             LOG4CXX_TRACE(logger_, "Wiring edge " << i << ": " 
-                                  << edge.source_node_id << ":" << edge.source_port
-                                  << " → " << edge.target_node_id << ":" << edge.target_port);
+                                  << edge.source_node_id << ":" << source_port_token
+                                  << " → " << edge.target_node_id << ":" << target_port_token);
             
             // Validate edge configuration
             if (!edge.Validate()) {
@@ -626,8 +630,8 @@ void GraphBuilder::WireEdges(
             auto [dst_idx, dst_type] = dst_it->second;
             
             LOG4CXX_TRACE(logger_, "Edge " << i << " connecting actual types: "
-                                  << src_type << ":" << edge.source_port
-                                  << " to " << dst_type << ":" << edge.target_port);
+                                  << src_type << ":" << source_port_token
+                                  << " to " << dst_type << ":" << target_port_token);
 
             if (src_idx >= nodes_.size() || dst_idx >= nodes_.size()) {
                 throw std::runtime_error(
@@ -635,20 +639,20 @@ void GraphBuilder::WireEdges(
             }
 
             auto source_handle = nodes_[src_idx]->GetOutputPortHandle(
-                std::to_string(edge.source_port), src_idx);
+                source_port_token, src_idx);
             if (!source_handle) {
                 throw std::runtime_error(
                     std::string("Failed to resolve source output port handle: node=") +
-                    edge.source_node_id + " port=" + std::to_string(edge.source_port) +
+                    edge.source_node_id + " port=" + source_port_token +
                     " reason=" + RuntimePortLookupErrorToString(source_handle.error()));
             }
 
             auto destination_handle = nodes_[dst_idx]->GetInputPortHandle(
-                std::to_string(edge.target_port), dst_idx);
+                target_port_token, dst_idx);
             if (!destination_handle) {
                 throw std::runtime_error(
                     std::string("Failed to resolve destination input port handle: node=") +
-                    edge.target_node_id + " port=" + std::to_string(edge.target_port) +
+                    edge.target_node_id + " port=" + target_port_token +
                     " reason=" + RuntimePortLookupErrorToString(destination_handle.error()));
             }
 
@@ -662,14 +666,14 @@ void GraphBuilder::WireEdges(
             if (!created) {
                 throw std::runtime_error(
                     std::string("AddDynamicEdgeExpected failed for ") +
-                    src_type + ":" + std::to_string(edge.source_port) + " → " +
-                    dst_type + ":" + std::to_string(edge.target_port) +
+                    src_type + ":" + source_port_token + " → " +
+                    dst_type + ":" + target_port_token +
                     " reason=" + created.error().message);
             }
             
             LOG4CXX_TRACE(logger_, "Edge " << i << " created successfully: "
-                                 << src_type << ":" << edge.source_port << " → "
-                                 << dst_type << ":" << edge.target_port);
+                                 << src_type << ":" << source_port_token << " → "
+                                 << dst_type << ":" << target_port_token);
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(logger_, "Failed to wire edge " << i << ": " << e.what());
             throw std::runtime_error(

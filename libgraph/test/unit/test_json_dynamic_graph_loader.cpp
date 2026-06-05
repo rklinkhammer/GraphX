@@ -100,6 +100,34 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadEdgesSafeReturnsParsedEdges) {
     EXPECT_EQ(result->front().target_node_id, "sink_1");
 }
 
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadEdgesSafeParsesNamedPorts) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_named_ports_graph",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [
+        {
+          "source_node_id": "source_1",
+          "source_port_name": "Output0",
+          "target_node_id": "sink_1",
+          "target_port_name": "Input0"
+        }
+      ]
+    }
+    )json");
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadEdgesSafe(path.string());
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result);
+    ASSERT_EQ(result->size(), 1u);
+    EXPECT_EQ(result->front().source_port_name, "Output0");
+    EXPECT_EQ(result->front().target_port_name, "Input0");
+}
+
 TEST(JsonDynamicGraphLoaderExpectedTest, LoadEdgesSafeReportsMissingFile) {
     const auto missing_path =
         (std::filesystem::temp_directory_path() / "graphx_missing_dynamic_loader_test.json").string();

@@ -101,12 +101,18 @@ struct EdgeConfig {
     
     /// Source port index (default: 0)
     std::size_t source_port = 0;
+
+    /// Source port name (optional, preferred when non-empty)
+    std::string source_port_name;
     
     /// Target node ID
     std::string target_node_id;
     
     /// Target port index (default: 0)
     std::size_t target_port = 0;
+
+    /// Target port name (optional, preferred when non-empty)
+    std::string target_port_name;
     
     /// Queue capacity (optional, default: 256)
     std::size_t buffer_size = 256;

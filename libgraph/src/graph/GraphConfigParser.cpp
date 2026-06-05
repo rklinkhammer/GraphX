@@ -25,6 +25,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 #include <regex>
 #include <thread>
 #include <set>
@@ -130,15 +131,35 @@ EdgeConfig GraphConfigParser::ParseEdge(const json& edge_json) {
     }
     edge_config.source_node_id = edge_json["source_node_id"].get<std::string>();
     
-    if (!edge_json.contains("source_port")) {
-        throw std::runtime_error("Edge from '" + edge_config.source_node_id + "' missing required 'source_port' field");
+    const bool has_source_port = edge_json.contains("source_port");
+    const bool has_source_port_name = edge_json.contains("source_port_name");
+    if (!has_source_port && !has_source_port_name) {
+        throw std::runtime_error(
+            "Edge from '" + edge_config.source_node_id +
+            "' missing required 'source_port' or 'source_port_name' field");
     }
-    // source_port is a size_t, not a string
-    if (edge_json["source_port"].is_number()) {
-        edge_config.source_port = edge_json["source_port"].get<size_t>();
-    } else if (edge_json["source_port"].is_string()) {
-        // Allow string representation and parse it
-        edge_config.source_port = std::stoull(edge_json["source_port"].get<std::string>());
+
+    if (has_source_port_name) {
+        if (!edge_json["source_port_name"].is_string()) {
+            throw std::runtime_error("'source_port_name' must be a string");
+        }
+        edge_config.source_port_name = edge_json["source_port_name"].get<std::string>();
+    }
+
+    if (has_source_port) {
+        if (edge_json["source_port"].is_number()) {
+            edge_config.source_port = edge_json["source_port"].get<size_t>();
+        } else if (edge_json["source_port"].is_string()) {
+            const auto token = edge_json["source_port"].get<std::string>();
+            const bool numeric = !token.empty() &&
+                std::all_of(token.begin(), token.end(),
+                            [](unsigned char c) { return std::isdigit(c) != 0; });
+            if (numeric) {
+                edge_config.source_port = std::stoull(token);
+            } else {
+                edge_config.source_port_name = token;
+            }
+        }
     }
     
     if (!edge_json.contains("target_node_id")) {
@@ -146,15 +167,35 @@ EdgeConfig GraphConfigParser::ParseEdge(const json& edge_json) {
     }
     edge_config.target_node_id = edge_json["target_node_id"].get<std::string>();
     
-    if (!edge_json.contains("target_port")) {
-        throw std::runtime_error("Edge to '" + edge_config.target_node_id + "' missing required 'target_port' field");
+    const bool has_target_port = edge_json.contains("target_port");
+    const bool has_target_port_name = edge_json.contains("target_port_name");
+    if (!has_target_port && !has_target_port_name) {
+        throw std::runtime_error(
+            "Edge to '" + edge_config.target_node_id +
+            "' missing required 'target_port' or 'target_port_name' field");
     }
-    // target_port is also a size_t
-    if (edge_json["target_port"].is_number()) {
-        edge_config.target_port = edge_json["target_port"].get<size_t>();
-    } else if (edge_json["target_port"].is_string()) {
-        // Allow string representation and parse it
-        edge_config.target_port = std::stoull(edge_json["target_port"].get<std::string>());
+
+    if (has_target_port_name) {
+        if (!edge_json["target_port_name"].is_string()) {
+            throw std::runtime_error("'target_port_name' must be a string");
+        }
+        edge_config.target_port_name = edge_json["target_port_name"].get<std::string>();
+    }
+
+    if (has_target_port) {
+        if (edge_json["target_port"].is_number()) {
+            edge_config.target_port = edge_json["target_port"].get<size_t>();
+        } else if (edge_json["target_port"].is_string()) {
+            const auto token = edge_json["target_port"].get<std::string>();
+            const bool numeric = !token.empty() &&
+                std::all_of(token.begin(), token.end(),
+                            [](unsigned char c) { return std::isdigit(c) != 0; });
+            if (numeric) {
+                edge_config.target_port = std::stoull(token);
+            } else {
+                edge_config.target_port_name = token;
+            }
+        }
     }
     
     // Optional fields with defaults
@@ -250,21 +291,41 @@ GraphConfigParser::ParseEdgeSafe(const json& edge_json) noexcept {
         }
         edge_config.source_node_id = edge_json["source_node_id"].get<std::string>();
 
-        if (!edge_json.contains("source_port")) {
+        const bool has_source_port = edge_json.contains("source_port");
+        const bool has_source_port_name = edge_json.contains("source_port_name");
+        if (!has_source_port && !has_source_port_name) {
             return std::unexpected(app::error::ConfigError::MissingRequired);
         }
-        if (edge_json["source_port"].is_number_unsigned()) {
-            edge_config.source_port = edge_json["source_port"].get<size_t>();
-        } else if (edge_json["source_port"].is_number_integer()) {
-            const auto value = edge_json["source_port"].get<long long>();
-            if (value < 0) {
-                return std::unexpected(app::error::ConfigError::OutOfRange);
+
+        if (has_source_port_name) {
+            if (!edge_json["source_port_name"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
             }
-            edge_config.source_port = static_cast<size_t>(value);
-        } else if (edge_json["source_port"].is_string()) {
-            edge_config.source_port = std::stoull(edge_json["source_port"].get<std::string>());
-        } else {
-            return std::unexpected(app::error::ConfigError::TypeMismatch);
+            edge_config.source_port_name = edge_json["source_port_name"].get<std::string>();
+        }
+
+        if (has_source_port) {
+            if (edge_json["source_port"].is_number_unsigned()) {
+                edge_config.source_port = edge_json["source_port"].get<size_t>();
+            } else if (edge_json["source_port"].is_number_integer()) {
+                const auto value = edge_json["source_port"].get<long long>();
+                if (value < 0) {
+                    return std::unexpected(app::error::ConfigError::OutOfRange);
+                }
+                edge_config.source_port = static_cast<size_t>(value);
+            } else if (edge_json["source_port"].is_string()) {
+                const auto token = edge_json["source_port"].get<std::string>();
+                const bool numeric = !token.empty() &&
+                    std::all_of(token.begin(), token.end(),
+                                [](unsigned char c) { return std::isdigit(c) != 0; });
+                if (numeric) {
+                    edge_config.source_port = std::stoull(token);
+                } else {
+                    edge_config.source_port_name = token;
+                }
+            } else {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
         }
 
         if (!edge_json.contains("target_node_id")) {
@@ -275,21 +336,41 @@ GraphConfigParser::ParseEdgeSafe(const json& edge_json) noexcept {
         }
         edge_config.target_node_id = edge_json["target_node_id"].get<std::string>();
 
-        if (!edge_json.contains("target_port")) {
+        const bool has_target_port = edge_json.contains("target_port");
+        const bool has_target_port_name = edge_json.contains("target_port_name");
+        if (!has_target_port && !has_target_port_name) {
             return std::unexpected(app::error::ConfigError::MissingRequired);
         }
-        if (edge_json["target_port"].is_number_unsigned()) {
-            edge_config.target_port = edge_json["target_port"].get<size_t>();
-        } else if (edge_json["target_port"].is_number_integer()) {
-            const auto value = edge_json["target_port"].get<long long>();
-            if (value < 0) {
-                return std::unexpected(app::error::ConfigError::OutOfRange);
+
+        if (has_target_port_name) {
+            if (!edge_json["target_port_name"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
             }
-            edge_config.target_port = static_cast<size_t>(value);
-        } else if (edge_json["target_port"].is_string()) {
-            edge_config.target_port = std::stoull(edge_json["target_port"].get<std::string>());
-        } else {
-            return std::unexpected(app::error::ConfigError::TypeMismatch);
+            edge_config.target_port_name = edge_json["target_port_name"].get<std::string>();
+        }
+
+        if (has_target_port) {
+            if (edge_json["target_port"].is_number_unsigned()) {
+                edge_config.target_port = edge_json["target_port"].get<size_t>();
+            } else if (edge_json["target_port"].is_number_integer()) {
+                const auto value = edge_json["target_port"].get<long long>();
+                if (value < 0) {
+                    return std::unexpected(app::error::ConfigError::OutOfRange);
+                }
+                edge_config.target_port = static_cast<size_t>(value);
+            } else if (edge_json["target_port"].is_string()) {
+                const auto token = edge_json["target_port"].get<std::string>();
+                const bool numeric = !token.empty() &&
+                    std::all_of(token.begin(), token.end(),
+                                [](unsigned char c) { return std::isdigit(c) != 0; });
+                if (numeric) {
+                    edge_config.target_port = std::stoull(token);
+                } else {
+                    edge_config.target_port_name = token;
+                }
+            } else {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
         }
 
         if (edge_json.contains("buffer_size")) {

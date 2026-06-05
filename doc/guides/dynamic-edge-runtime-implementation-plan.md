@@ -308,7 +308,9 @@ Preserve existing typed path for:
     - `DynamicEdge::JoinWithTimeout(...)` now enforces timeout semantics instead of always blocking
     - `DynamicEdge::GetQueueSize()` now reports destination runtime queue depth
     - transient `TransferTo(...)` failures are treated as retryable backpressure unless the error is structurally fatal
-27. Focused migration validation passed:
+27. JSON edge configuration now supports named-port tokens (`source_port_name`/`target_port_name`, or non-numeric string tokens in `source_port`/`target_port`) and `GraphBuilder::WireEdges(...)` resolves name-first tokens via runtime port lookup.
+28. Mixed typed-edge + dynamic-edge lifecycle validation is now covered by unit tests to ensure both edge paths coexist in one `GraphManager` and still report aggregate metrics.
+29. Focused migration validation passed:
     - `cmake --build build -j4`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='RuntimePortLookupTest.*:RuntimePortConnectionTest.*:DynamicEdgeTest.*:JsonDynamicGraphLoaderExpectedTest.*:GraphExecutorBuilderPoliciesTest.*:GraphExecutorPolicyFailuresTest.*:GraphExecutorLifecycleTest.*:*TopologyNodesUseInstanceNamesNotTypes*'`
     - `./libgraph/test/test_libgraph_integration --gtest_filter='*GraphTopology_ProducerToSinks*'`
@@ -320,6 +322,8 @@ Preserve existing typed path for:
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerLifecycleTimingMetricsTrackRuntimeExecution'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.GraphManagerAggregatesDynamicEdgeThreadTimingMetrics'`
     - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.DynamicEdgeInitRejectsDescriptorOnlyFallbackPorts:DynamicEdgeTest.DynamicEdgeJoinWithTimeoutRespectsDeadline:DynamicEdgeTest.DynamicEdgeQueueSizeReflectsDestinationDepth:DynamicEdgeTest.DynamicEdgeTransientTransferFailureDoesNotStopEdge'`
+    - `./libgraph/test/test_libgraph_unit --gtest_filter='GraphConfigParserExpectedTest.ParseSafeParsesNamedPorts:GraphConfigParserExpectedTest.ParseSafeTreatsStringPortTokensAsNamesWhenNotNumeric:JsonDynamicGraphLoaderExpectedTest.LoadEdgesSafeParsesNamedPorts'`
+    - `./libgraph/test/test_libgraph_unit --gtest_filter='DynamicEdgeTest.MixedTypedAndDynamicEdgesRunThroughLifecycle'`
 
 ### Phase 0: Guardrails and Baseline
 
@@ -418,7 +422,8 @@ Current state:
 6. Graph lifecycle timing parity is now wired for runtime dynamic-edge flows (`Init`, `Start`, run window via `Stop`).
 7. Graph-level thread/process-time rollups now include dynamic-edge transfer+idle/wait contributions and active thread peaks.
 8. Remaining phase 4 work is hardening transport ownership/lifecycle semantics and validating these rollups against broader mixed typed-edge + dynamic-edge scenarios.
-9. JSON edge schemas are still effectively index-oriented in the current loader path; named-port-first JSON ergonomics remain future work.
+9. Named-port JSON ergonomics have started: both explicit `*_port_name` fields and non-numeric string port tokens are now accepted and wired name-first.
+10. Remaining phase 4/5 work is expanding mixed topology validation breadth and transition cleanup/documentation around legacy registry-only guidance.
 
 ### Phase 5: Cleanup and Documentation
 
