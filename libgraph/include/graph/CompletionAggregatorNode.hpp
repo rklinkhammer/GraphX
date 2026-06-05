@@ -99,7 +99,11 @@ public:
             LOG4CXX_TRACE(completion_logger_, "Configuring CompletionAggregatorNode from JSON");
             // Configure expected_sensors parameter if present
             if (config_json.Contains("expected_sensors")) {
-                int expected_count = config_json.GetInt("expected_sensors", -1);
+                auto expected_count_result = config_json.TryGetInt("expected_sensors", -1);
+                if (!expected_count_result) {
+                    throw expected_count_result.error();
+                }
+                int expected_count = expected_count_result.value();
                 if (expected_count <= 0) {
                     throw ConfigError("expected_sensors must be > 0 (got " + 
                                      std::to_string(expected_count) + ")");

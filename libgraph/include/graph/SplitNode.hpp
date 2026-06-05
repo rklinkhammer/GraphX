@@ -190,406 +190,79 @@ public:
     }
 
 protected:
+    template<std::size_t Index>
+    std::optional<T> ProduceFromQueue() {
+        static_assert(Index < N, "SplitNode output index out of range");
+        T value;
+        if (input_queue_[Index].Dequeue(value)) {
+            return value;
+        }
+        return std::nullopt;
+    }
+
     core::ActiveQueue<T> input_queue_[N];
 };
 
-// Explicit specializations for SplitNode1-SplitNode8
+// Compile-time generated produce override chain for SplitNodeN (N=1..8)
 
-template<typename T>
-class SplitNode1 : public SplitNode<T, 1, SplitNode1<T>> {
+template<typename T, std::size_t N, typename Derived, std::size_t PortIndex, bool Done = (PortIndex == N)>
+class SplitProduceOverrideChain;
+
+template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
+class SplitProduceOverrideChain<T, N, Derived, PortIndex, false>
+    : public SplitProduceOverrideChain<T, N, Derived, PortIndex + 1, (PortIndex + 1 == N)> {
 public:
-     
-    virtual ~SplitNode1() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode1"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
+    using Next = SplitProduceOverrideChain<T, N, Derived, PortIndex + 1, (PortIndex + 1 == N)>;
+    using Next::Produce;
+
+    std::optional<T> Produce(std::integral_constant<std::size_t, PortIndex>) override {
+        return this->template ProduceFromQueue<PortIndex>();
     }
 };
 
-template<typename T>
-class SplitNode2 : public SplitNode<T, 2, SplitNode2<T>> {
+template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
+class SplitProduceOverrideChain<T, N, Derived, PortIndex, true>
+    : public SplitNode<T, N, Derived> {
 public:
-     
-    virtual ~SplitNode2() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode2"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
+    using SplitNode<T, N, Derived>::ProduceFromQueue;
+};
 
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
+template<typename T, std::size_t N>
+class SplitNodeN
+    : public SplitProduceOverrideChain<T, N, SplitNodeN<T, N>, 0, (0 == N)> {
+public:
+    static_assert(N >= 1 && N <= 8, "SplitNodeN supports 1-8 outputs");
+
+    using SplitProduceOverrideChain<T, N, SplitNodeN<T, N>, 0, (0 == N)>::Produce;
+
+    virtual ~SplitNodeN() = default;
+
+    std::string GetNodeTypeName() const { return "SplitNode" + std::to_string(N); }
 };
 
 template<typename T>
-class SplitNode3 : public SplitNode<T, 3, SplitNode3<T>> {
-public:
-      
-    virtual ~SplitNode3() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode3"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+using SplitNode1 = SplitNodeN<T, 1>;
 
 template<typename T>
-class SplitNode4 : public SplitNode<T, 4, SplitNode4<T>> {
-public:
-     
-    virtual ~SplitNode4() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode4"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 3>) override {
-        T v;
-        if (this->input_queue_[3].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+using SplitNode2 = SplitNodeN<T, 2>;
 
 template<typename T>
-class SplitNode5 : public SplitNode<T, 5, SplitNode5<T>> {
-public:
-     
-    virtual ~SplitNode5() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode5"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 3>) override {
-        T v;
-        if (this->input_queue_[3].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 4>) override {
-        T v;
-        if (this->input_queue_[4].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+using SplitNode3 = SplitNodeN<T, 3>;
 
 template<typename T>
-class SplitNode6 : public SplitNode<T, 6, SplitNode6<T>> {
-public:
-
-virtual ~SplitNode6() = default;
-
-    std::string GetNodeTypeName() const { return "SplitNode6"; }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 3>) override {
-        T v;
-        if (this->input_queue_[3].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 4>) override {
-        T v;
-        if (this->input_queue_[4].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 5>) override {
-        T v;
-        if (this->input_queue_[5].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+using SplitNode4 = SplitNodeN<T, 4>;
 
 template<typename T>
-class SplitNode7 : public SplitNode<T, 7, SplitNode7<T>> {
-public:
-     
-    virtual ~SplitNode7() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode7"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 3>) override {
-        T v;
-        if (this->input_queue_[3].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 4>) override {
-        T v;
-        if (this->input_queue_[4].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 5>) override {
-        T v;
-        if (this->input_queue_[5].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 6>) override {
-        T v;
-        if (this->input_queue_[6].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+using SplitNode5 = SplitNodeN<T, 5>;
 
 template<typename T>
-class SplitNode8 : public SplitNode<T, 8, SplitNode8<T>> {
-public:
-     
-    virtual ~SplitNode8() = default;
-    
-    std::string GetNodeTypeName() const { return "SplitNode8"; }
-    
-    std::optional<T> Produce(std::integral_constant<std::size_t, 0>) override {
-        T v;
-        if (this->input_queue_[0].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
+using SplitNode6 = SplitNodeN<T, 6>;
 
-    std::optional<T> Produce(std::integral_constant<std::size_t, 1>) override {
-        T v;
-        if (this->input_queue_[1].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
+template<typename T>
+using SplitNode7 = SplitNodeN<T, 7>;
 
-    std::optional<T> Produce(std::integral_constant<std::size_t, 2>) override {
-        T v;
-        if (this->input_queue_[2].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 3>) override {
-        T v;
-        if (this->input_queue_[3].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 4>) override {
-        T v;
-        if (this->input_queue_[4].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 5>) override {
-        T v;
-        if (this->input_queue_[5].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 6>) override {
-        T v;
-        if (this->input_queue_[6].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<T> Produce(std::integral_constant<std::size_t, 7>) override {
-        T v;
-        if (this->input_queue_[7].Dequeue(v)) {
-            return std::optional<T>(v);
-        } else {
-            return std::nullopt;
-        }
-    }
-};
+template<typename T>
+using SplitNode8 = SplitNodeN<T, 8>;
 
 } // namespace graph
 

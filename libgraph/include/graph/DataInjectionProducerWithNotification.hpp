@@ -236,7 +236,11 @@ namespace graph {
             try {
                 // Parse sample_interval_ms if provided
                 if (cfg.Contains("sample_interval_ms")) {
-                    auto ms_value = cfg.GetInt("sample_interval_ms");
+                    auto ms_result = cfg.TryGetInt("sample_interval_ms");
+                    if (!ms_result) {
+                        throw ms_result.error();
+                    }
+                    auto ms_value = ms_result.value();
                     if (ms_value < 1) {
                         throw std::invalid_argument("sample_interval_ms must be >= 1");
                     }
@@ -245,7 +249,11 @@ namespace graph {
                 
                 // Parse sample_ignore if provided
                 if (cfg.Contains("sample_ignore")) {
-                    SetSampleIgnore(cfg.GetInt("sample_ignore"));
+                    auto ignore_result = cfg.TryGetInt("sample_ignore");
+                    if (!ignore_result) {
+                        throw ignore_result.error();
+                    }
+                    SetSampleIgnore(ignore_result.value());
                 }
             } catch (const std::exception& e) {
                 LOG4CXX_ERROR(BaseType::logger_, 

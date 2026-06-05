@@ -33,118 +33,62 @@ bool JsonView::Contains(const std::string& key) const {
 
 std::string JsonView::GetString(const std::string& key,
                                 const std::string& default_val) const {
-    if (!Contains(key)) {
-        return default_val;
+    auto result = TryGetString(key, default_val);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_string()) {
-        throw ConfigError(FormatError(key, "string", value.type_name()));
-    }
-    
-    return value.get<std::string>();
+    return result.value();
 }
 
 float JsonView::GetFloat(const std::string& key,
                          float default_val) const {
-    if (!Contains(key)) {
-        if (std::isnan(default_val)) {
-            throw ConfigError(std::format("Missing required field: {}", key));
-        }
-        return default_val;
+    auto result = TryGetFloat(key, default_val);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_number()) {
-        throw ConfigError(FormatError(key, "number", value.type_name()));
-    }
-    
-    return value.get<float>();
+    return result.value();
 }
 
 int JsonView::GetInt(const std::string& key,
                      int default_val) const {
-    if (!Contains(key)) {
-        if (default_val == -1) {
-            throw ConfigError(std::format("Missing required field: {}", key));
-        }
-        return default_val;
+    auto result = TryGetInt(key, default_val);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_number_integer()) {
-        throw ConfigError(FormatError(key, "integer", value.type_name()));
-    }
-    
-    return value.get<int>();
+    return result.value();
 }
 
 bool JsonView::GetBool(const std::string& key,
                        bool default_val) const {
-    if (!Contains(key)) {
-        return default_val;
+    auto result = TryGetBool(key, default_val);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_boolean()) {
-        throw ConfigError(FormatError(key, "boolean", value.type_name()));
-    }
-    
-    return value.get<bool>();
+    return result.value();
 }
 
 JsonView JsonView::GetObject(const std::string& key) const {
-    if (!Contains(key)) {
-        throw ConfigError(std::format("Missing required object: {}", key));
+    auto result = TryGetObject(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_object()) {
-        throw ConfigError(FormatError(key, "object", value.type_name()));
-    }
-    
-    return JsonView(value);
+    return result.value();
 }
 
 std::vector<std::string> JsonView::GetStringArray(const std::string& key) const {
-    if (!Contains(key)) {
-        throw ConfigError(std::format("Missing required array: {}", key));
+    auto result = TryGetStringArray(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_array()) {
-        throw ConfigError(FormatError(key, "array", value.type_name()));
-    }
-    
-    std::vector<std::string> result;
-    for (const auto& item : value) {
-        if (!item.is_string()) {
-            throw ConfigError(
-                std::format("Array '{}' contains non-string element", key)
-            );
-        }
-        result.push_back(item.get<std::string>());
-    }
-    
-    return result;
+    return result.value();
 }
 
 std::vector<JsonView> JsonView::GetArray(const std::string& key) const {
-    if (!Contains(key)) {
-        throw ConfigError(std::format("Missing required array: {}", key));
+    auto result = TryGetArray(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_array()) {
-        throw ConfigError(FormatError(key, "array", value.type_name()));
-    }
-    
-    std::vector<JsonView> result;
-    for (const auto& item : value) {
-        result.emplace_back(item);
-    }
-    
-    return result;
+    return result.value();
 }
 
 std::string JsonView::FormatError(const std::string& key,
@@ -163,68 +107,124 @@ std::string JsonView::FormatError(const std::string& key,
 std::expected<std::string, ConfigError> JsonView::TryGetString(
     const std::string& key,
     const std::string& default_val) const {
-    try {
-        return GetString(key, default_val);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        return default_val;
     }
+
+    const auto& value = json_[key];
+    if (!value.is_string()) {
+        return std::unexpected(ConfigError(FormatError(key, "string", value.type_name())));
+    }
+
+    return value.get<std::string>();
 }
 
 std::expected<float, ConfigError> JsonView::TryGetFloat(
     const std::string& key,
     float default_val) const {
-    try {
-        return GetFloat(key, default_val);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        if (std::isnan(default_val)) {
+            return std::unexpected(ConfigError(std::format("Missing required field: {}", key)));
+        }
+        return default_val;
     }
+
+    const auto& value = json_[key];
+    if (!value.is_number()) {
+        return std::unexpected(ConfigError(FormatError(key, "number", value.type_name())));
+    }
+
+    return value.get<float>();
 }
 
 std::expected<int, ConfigError> JsonView::TryGetInt(
     const std::string& key,
     int default_val) const {
-    try {
-        return GetInt(key, default_val);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        if (default_val == -1) {
+            return std::unexpected(ConfigError(std::format("Missing required field: {}", key)));
+        }
+        return default_val;
     }
+
+    const auto& value = json_[key];
+    if (!value.is_number_integer()) {
+        return std::unexpected(ConfigError(FormatError(key, "integer", value.type_name())));
+    }
+
+    return value.get<int>();
 }
 
 std::expected<bool, ConfigError> JsonView::TryGetBool(
     const std::string& key,
     bool default_val) const {
-    try {
-        return GetBool(key, default_val);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        return default_val;
     }
+
+    const auto& value = json_[key];
+    if (!value.is_boolean()) {
+        return std::unexpected(ConfigError(FormatError(key, "boolean", value.type_name())));
+    }
+
+    return value.get<bool>();
 }
 
 std::expected<JsonView, ConfigError> JsonView::TryGetObject(
     const std::string& key) const {
-    try {
-        return GetObject(key);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        return std::unexpected(ConfigError(std::format("Missing required object: {}", key)));
     }
+
+    const auto& value = json_[key];
+    if (!value.is_object()) {
+        return std::unexpected(ConfigError(FormatError(key, "object", value.type_name())));
+    }
+
+    return JsonView(value);
 }
 
 std::expected<std::vector<std::string>, ConfigError> JsonView::TryGetStringArray(
     const std::string& key) const {
-    try {
-        return GetStringArray(key);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        return std::unexpected(ConfigError(std::format("Missing required array: {}", key)));
     }
+
+    const auto& value = json_[key];
+    if (!value.is_array()) {
+        return std::unexpected(ConfigError(FormatError(key, "array", value.type_name())));
+    }
+
+    std::vector<std::string> result;
+    for (const auto& item : value) {
+        if (!item.is_string()) {
+            return std::unexpected(ConfigError(
+                std::format("Array '{}' contains non-string element", key)
+            ));
+        }
+        result.push_back(item.get<std::string>());
+    }
+
+    return result;
 }
 
 std::expected<std::vector<JsonView>, ConfigError> JsonView::TryGetArray(
     const std::string& key) const {
-    try {
-        return GetArray(key);
-    } catch (const ConfigError& e) {
-        return std::unexpected(e);
+    if (!Contains(key)) {
+        return std::unexpected(ConfigError(std::format("Missing required array: {}", key)));
     }
+
+    const auto& value = json_[key];
+    if (!value.is_array()) {
+        return std::unexpected(ConfigError(FormatError(key, "array", value.type_name())));
+    }
+
+    std::vector<JsonView> result;
+    for (const auto& item : value) {
+        result.emplace_back(item);
+    }
+
+    return result;
 }
 
 // ============================================================================
@@ -236,13 +236,13 @@ std::optional<std::string> JsonView::GetOptionalString(
     if (!Contains(key)) {
         return std::nullopt;
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_string()) {
-        throw ConfigError(FormatError(key, "string", value.type_name()));
+
+    auto result = TryGetString(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    return value.get<std::string>();
+
+    return result.value();
 }
 
 std::optional<float> JsonView::GetOptionalFloat(
@@ -250,13 +250,13 @@ std::optional<float> JsonView::GetOptionalFloat(
     if (!Contains(key)) {
         return std::nullopt;
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_number()) {
-        throw ConfigError(FormatError(key, "number", value.type_name()));
+
+    auto result = TryGetFloat(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    return value.get<float>();
+
+    return result.value();
 }
 
 std::optional<int> JsonView::GetOptionalInt(
@@ -264,13 +264,13 @@ std::optional<int> JsonView::GetOptionalInt(
     if (!Contains(key)) {
         return std::nullopt;
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_number_integer()) {
-        throw ConfigError(FormatError(key, "integer", value.type_name()));
+
+    auto result = TryGetInt(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    return value.get<int>();
+
+    return result.value();
 }
 
 std::optional<bool> JsonView::GetOptionalBool(
@@ -278,13 +278,13 @@ std::optional<bool> JsonView::GetOptionalBool(
     if (!Contains(key)) {
         return std::nullopt;
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_boolean()) {
-        throw ConfigError(FormatError(key, "boolean", value.type_name()));
+
+    auto result = TryGetBool(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    return value.get<bool>();
+
+    return result.value();
 }
 
 std::optional<JsonView> JsonView::GetOptionalObject(
@@ -292,13 +292,13 @@ std::optional<JsonView> JsonView::GetOptionalObject(
     if (!Contains(key)) {
         return std::nullopt;
     }
-    
-    const auto& value = json_[key];
-    if (!value.is_object()) {
-        throw ConfigError(FormatError(key, "object", value.type_name()));
+
+    auto result = TryGetObject(key);
+    if (!result) {
+        throw result.error();
     }
-    
-    return JsonView(value);
+
+    return result.value();
 }
 
 }  // namespace graph

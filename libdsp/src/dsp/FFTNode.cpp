@@ -108,7 +108,11 @@ void FFTNode<SampleT, N>::Configure(const graph::JsonView& cfg) {
     try {
         // Parse accumulation_count if present
         if (cfg.Raw().contains("accumulation_count")) {
-            int acc_count = cfg.GetInt("accumulation_count", -1);
+            auto acc_count_result = cfg.TryGetInt("accumulation_count", -1);
+            if (!acc_count_result) {
+                throw acc_count_result.error();
+            }
+            int acc_count = acc_count_result.value();
             if (acc_count > 0) {
                 SetAccumulationCount(acc_count);
             }
@@ -116,7 +120,11 @@ void FFTNode<SampleT, N>::Configure(const graph::JsonView& cfg) {
 
         // Parse window_type if present
         if (cfg.Raw().contains("window_type")) {
-            std::string window_str = cfg.GetString("window_type", "hann");
+            auto window_result = cfg.TryGetString("window_type", "hann");
+            if (!window_result) {
+                throw window_result.error();
+            }
+            std::string window_str = window_result.value();
             auto window_type_opt = WindowFunctions::Parse(window_str);
             if (window_type_opt.has_value()) {
                 SetWindowType(window_type_opt.value());
@@ -125,7 +133,11 @@ void FFTNode<SampleT, N>::Configure(const graph::JsonView& cfg) {
 
         // Parse sample_rate_hz if present
         if (cfg.Raw().contains("sample_rate_hz")) {
-            float sample_rate_f = cfg.GetFloat("sample_rate_hz", 48000.0f);
+            auto sample_rate_result = cfg.TryGetFloat("sample_rate_hz", 48000.0f);
+            if (!sample_rate_result) {
+                throw sample_rate_result.error();
+            }
+            float sample_rate_f = sample_rate_result.value();
             SetSampleRate(static_cast<double>(sample_rate_f));
         }
 
@@ -146,7 +158,12 @@ std::expected<void, FFTConfigError> FFTNode<SampleT, N>::ConfigureExpected(
     try {
         // Parse accumulation_count if present
         if (cfg.Raw().contains("accumulation_count")) {
-            int acc_count = cfg.GetInt("accumulation_count", -1);
+            auto acc_count_result = cfg.TryGetInt("accumulation_count", -1);
+            if (!acc_count_result) {
+                LOG4CXX_WARN(logger, "Invalid accumulation_count type");
+                return std::unexpected(FFTConfigError::InvalidAccumulationCount);
+            }
+            int acc_count = acc_count_result.value();
             if (acc_count <= 0 || acc_count > 16) {
                 LOG4CXX_WARN(logger, "Invalid accumulation_count: " << acc_count);
                 return std::unexpected(FFTConfigError::InvalidAccumulationCount);
@@ -156,7 +173,12 @@ std::expected<void, FFTConfigError> FFTNode<SampleT, N>::ConfigureExpected(
 
         // Parse window_type if present
         if (cfg.Raw().contains("window_type")) {
-            std::string window_str = cfg.GetString("window_type", "hann");
+            auto window_result = cfg.TryGetString("window_type", "hann");
+            if (!window_result) {
+                LOG4CXX_WARN(logger, "Invalid window_type field");
+                return std::unexpected(FFTConfigError::InvalidWindowType);
+            }
+            std::string window_str = window_result.value();
             auto window_type_opt = WindowFunctions::Parse(window_str);
             if (!window_type_opt.has_value()) {
                 LOG4CXX_WARN(logger, "Invalid window_type: " << window_str);
@@ -167,7 +189,12 @@ std::expected<void, FFTConfigError> FFTNode<SampleT, N>::ConfigureExpected(
 
         // Parse sample_rate_hz if present
         if (cfg.Raw().contains("sample_rate_hz")) {
-            float sample_rate_f = cfg.GetFloat("sample_rate_hz", 48000.0f);
+            auto sample_rate_result = cfg.TryGetFloat("sample_rate_hz", 48000.0f);
+            if (!sample_rate_result) {
+                LOG4CXX_WARN(logger, "Invalid sample_rate_hz field");
+                return std::unexpected(FFTConfigError::InvalidSampleRate);
+            }
+            float sample_rate_f = sample_rate_result.value();
             if (sample_rate_f <= 0.0f) {
                 LOG4CXX_WARN(logger, "Invalid sample_rate_hz: " << sample_rate_f);
                 return std::unexpected(FFTConfigError::InvalidSampleRate);

@@ -173,82 +173,21 @@ std::vector<std::string> SplitCSVLine(const std::string& line) {
 std::optional<sensors::SensorPayload> ParseAccelerometerRow(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    if (!ValidateCSVRow(row_values, config)) {
+    auto result = ParseAccelerometerRowExpected(row_values, config);
+    if (!result) {
         return std::nullopt;
     }
-
-    // Extract timestamp
-    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
-    if (!ts_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid timestamp in accelerometer row");
-        return std::nullopt;
-    }
-    uint64_t timestamp_ns = *ts_opt;
-
-    // Extract acceleration values (expecting 3 columns: x, y, z)
-    if (config.data_columns.size() < 3) {
-        LOG4CXX_TRACE(g_logger, "Accelerometer row missing data columns");
-        return std::nullopt;
-    }
-
-    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
-    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
-    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
-
-    if (!x_opt || !y_opt || !z_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid acceleration values in row");
-        return std::nullopt;
-    }
-
-    sensors::AccelerometerData data(
-        sensors::Vector3D(static_cast<float>(*x_opt), 
-                                static_cast<float>(*y_opt), 
-                                static_cast<float>(*z_opt)));
-    data.SetTimestamp(std::chrono::nanoseconds{timestamp_ns});
-
-    return sensors::SensorPayload(data);
+    return result.value();
 }
 
 std::optional<sensors::SensorPayload> ParseGyroscopeRow(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    if (!ValidateCSVRow(row_values, config)) {
+    auto result = ParseGyroscopeRowExpected(row_values, config);
+    if (!result) {
         return std::nullopt;
     }
-
-    // Extract timestamp
-    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
-    if (!ts_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid timestamp in gyroscope row");
-        return std::nullopt;
-    }
-    uint64_t timestamp_ns = *ts_opt;
-
-    // Extract angular velocity values (expecting 3 columns: x, y, z)
-    if (config.data_columns.size() < 3) {
-        LOG4CXX_TRACE(g_logger, "Gyroscope row missing data columns");
-        return std::nullopt;
-    }
-
-    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
-    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
-    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
-
-    if (!x_opt || !y_opt || !z_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid angular velocity values in row");
-        return std::nullopt;
-    }
-
-    sensors::GyroscopeData data(
-        static_cast<float>(*x_opt),
-        static_cast<float>(*y_opt),
-        static_cast<float>(*z_opt)
-    );
-    data.SetTimestamp(std::chrono::nanoseconds{timestamp_ns});
-
-    return sensors::SensorPayload(data);
+    return result.value();
 }
 
 //timestamp_us,accel_x_ms2,accel_y_ms2,accel_z_ms2,gyro_x_rads,gyro_y_rads,gyro_z_rads,mag_x_ut,
@@ -257,131 +196,31 @@ std::optional<sensors::SensorPayload> ParseGyroscopeRow(
 std::optional<sensors::SensorPayload> ParseGPSPositionRow(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    if (!ValidateCSVRow(row_values, config)) {
+    auto result = ParseGPSPositionRowExpected(row_values, config);
+    if (!result) {
         return std::nullopt;
     }
-
-    // Extract timestamp
-    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
-    if (!ts_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid timestamp in GPS row");
-        return std::nullopt;
-    }
-    uint64_t timestamp_ns = *ts_opt;
-
-    // Extract position values (expecting 3 columns: lat, lon, alt)
-    if (config.data_columns.size() < 6) {
-        LOG4CXX_TRACE(g_logger, "GPS row missing data columns");
-        return std::nullopt;
-    }
-
-    auto lat_opt = StringToDouble(row_values[config.data_columns[0]]);
-    auto lon_opt = StringToDouble(row_values[config.data_columns[1]]);
-    auto alt_opt = StringToDouble(row_values[config.data_columns[2]]);
-    auto speed_opt = StringToDouble(row_values[config.data_columns[3]]);
-    auto valid_opt = StringToUInt64(row_values[config.data_columns[4]]);
-    auto sats_opt = StringToUInt64(row_values[config.data_columns[5]]);
-
-   if (!lat_opt || !lon_opt || !alt_opt || !speed_opt || !valid_opt || !sats_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid GPS position values in row");
-        return std::nullopt;
-    }
-
-    sensors::GPSPositionData data(
-        *lat_opt,
-        *lon_opt,
-        *alt_opt,
-        0.0f, // horizontal_accuracy
-        0.0f, // vertical_accuracy
-        *speed_opt,
-        0.0f, // heading
-        static_cast<uint8_t>(*sats_opt),
-        (*valid_opt != 0)  // fix_valid
-    );
-    data.SetTimestamp(std::chrono::nanoseconds{timestamp_ns});
-
-    return sensors::SensorPayload(data);
+    return result.value();
 }
 
 std::optional<sensors::SensorPayload> ParseBarometricRow(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    if (!ValidateCSVRow(row_values, config)) {
+    auto result = ParseBarometricRowExpected(row_values, config);
+    if (!result) {
         return std::nullopt;
     }
-
-    // Extract timestamp
-    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
-    if (!ts_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid timestamp in barometric row");
-        return std::nullopt;
-    }
-    uint64_t timestamp_ns = *ts_opt;
-
-    // Extract barometric values (expecting 2 columns: pressure, temp)
-    if (config.data_columns.size() < 2) {
-        LOG4CXX_TRACE(g_logger, "Barometric row missing data columns");
-        return std::nullopt;
-    }
-
-    auto pressure_opt = StringToDouble(row_values[config.data_columns[0]]);
-    auto temp_opt = StringToDouble(row_values[config.data_columns[1]]);
-
-    if (!pressure_opt || !temp_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid barometric values in row");
-        return std::nullopt;
-    }
-
-    sensors::BarometricData data(
-        static_cast<float>(*pressure_opt),
-        static_cast<float>(*temp_opt)
-    );
-    data.SetTimestamp(std::chrono::nanoseconds{timestamp_ns});
-
-    return sensors::SensorPayload(data);
+    return result.value();
 }
 
 std::optional<sensors::SensorPayload> ParseMagnetometerRow(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    if (!ValidateCSVRow(row_values, config)) {
+    auto result = ParseMagnetometerRowExpected(row_values, config);
+    if (!result) {
         return std::nullopt;
     }
-
-    // Extract timestamp
-    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
-    if (!ts_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid timestamp in magnetometer row");
-        return std::nullopt;
-    }
-    uint64_t timestamp_ns = *ts_opt;
-
-    // Extract magnetic field values (expecting 3 columns: x, y, z)
-    if (config.data_columns.size() < 3) {
-        LOG4CXX_TRACE(g_logger, "Magnetometer row missing data columns");
-        return std::nullopt;
-    }
-
-    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
-    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
-    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
-
-    if (!x_opt || !y_opt || !z_opt) {
-        LOG4CXX_TRACE(g_logger, "Invalid magnetic field values in row");
-        return std::nullopt;
-    }
-
-    sensors::MagnetometerData data(
-        static_cast<float>(*x_opt),
-        static_cast<float>(*y_opt),
-        static_cast<float>(*z_opt)
-    );
-    data.SetTimestamp(std::chrono::nanoseconds{timestamp_ns});
-
-    return sensors::SensorPayload(data);
+    return result.value();
 }
 
 // ========== Format-Specific Dispatch ==========
@@ -389,21 +228,21 @@ std::optional<sensors::SensorPayload> ParseMagnetometerRow(
 std::optional<sensors::SensorPayload> ParseRowUnified(
     [[maybe_unused]] const std::vector<std::string>& row_values,
     [[maybe_unused]] const csv::CSVNodeConfig& config) {
-
-    LOG4CXX_TRACE(g_logger, "Unified CSV row parsing is not configured for this node");
-    return std::nullopt;
+    auto result = ParseRowUnifiedExpected(row_values, config);
+    if (!result) {
+        return std::nullopt;
+    }
+    return result.value();
 }
 
 std::optional<sensors::SensorPayload> ParseRowConsolidated(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-
-    // Consolidated format: find "data_type" column to determine type
-    // This implementation assumes each row in a consolidated file may have any sensor type
-    // For simplicity, we dispatch based on config.type_identifier
-    // (In production, would parse data_type column to determine type per row)
-
-    return ParseRowUnified(row_values, config);
+    auto result = ParseRowConsolidatedExpected(row_values, config);
+    if (!result) {
+        return std::nullopt;
+    }
+    return result.value();
 }
 
 // ========== Validation ==========
@@ -445,108 +284,184 @@ bool ValidateCSVRow(
 std::expected<sensors::SensorPayload, ParsingError> ParseAccelerometerRowExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseAccelerometerRow(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    // Determine specific error
-    if (static_cast<size_t>(config.timestamp_column) >= row_values.size()) {
+    if (!ValidateCSVRow(row_values, config)) {
         return std::unexpected(ParsingError::EmptyColumn);
     }
-    if (row_values[config.timestamp_column].empty()) {
-        return std::unexpected(ParsingError::EmptyColumn);
+    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
+    if (!ts_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid timestamp in accelerometer row");
+        return std::unexpected(ParsingError::InvalidNumber);
     }
-    return std::unexpected(ParsingError::InvalidNumber);
+    if (config.data_columns.size() < 3) {
+        LOG4CXX_TRACE(g_logger, "Accelerometer row missing data columns");
+        return std::unexpected(ParsingError::InsufficientColumns);
+    }
+
+    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
+    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
+    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
+    if (!x_opt || !y_opt || !z_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid acceleration values in row");
+        return std::unexpected(ParsingError::InvalidNumber);
+    }
+
+    sensors::AccelerometerData data(sensors::Vector3D(
+        static_cast<float>(*x_opt),
+        static_cast<float>(*y_opt),
+        static_cast<float>(*z_opt)));
+    data.SetTimestamp(std::chrono::nanoseconds{*ts_opt});
+    return sensors::SensorPayload(data);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseGyroscopeRowExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseGyroscopeRow(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    if (static_cast<size_t>(config.timestamp_column) >= row_values.size()) {
+    if (!ValidateCSVRow(row_values, config)) {
         return std::unexpected(ParsingError::EmptyColumn);
     }
-    if (row_values[config.timestamp_column].empty()) {
-        return std::unexpected(ParsingError::EmptyColumn);
+    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
+    if (!ts_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid timestamp in gyroscope row");
+        return std::unexpected(ParsingError::InvalidNumber);
     }
-    return std::unexpected(ParsingError::InvalidNumber);
+    if (config.data_columns.size() < 3) {
+        LOG4CXX_TRACE(g_logger, "Gyroscope row missing data columns");
+        return std::unexpected(ParsingError::InsufficientColumns);
+    }
+
+    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
+    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
+    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
+    if (!x_opt || !y_opt || !z_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid angular velocity values in row");
+        return std::unexpected(ParsingError::InvalidNumber);
+    }
+
+    sensors::GyroscopeData data(
+        static_cast<float>(*x_opt),
+        static_cast<float>(*y_opt),
+        static_cast<float>(*z_opt));
+    data.SetTimestamp(std::chrono::nanoseconds{*ts_opt});
+    return sensors::SensorPayload(data);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseGPSPositionRowExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseGPSPositionRow(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    if (static_cast<size_t>(config.timestamp_column) >= row_values.size()) {
+    if (!ValidateCSVRow(row_values, config)) {
         return std::unexpected(ParsingError::EmptyColumn);
     }
-    if (row_values[config.timestamp_column].empty()) {
-        return std::unexpected(ParsingError::EmptyColumn);
+    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
+    if (!ts_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid timestamp in GPS row");
+        return std::unexpected(ParsingError::InvalidNumber);
     }
-    return std::unexpected(ParsingError::InvalidNumber);
+    if (config.data_columns.size() < 6) {
+        LOG4CXX_TRACE(g_logger, "GPS row missing data columns");
+        return std::unexpected(ParsingError::InsufficientColumns);
+    }
+
+    auto lat_opt = StringToDouble(row_values[config.data_columns[0]]);
+    auto lon_opt = StringToDouble(row_values[config.data_columns[1]]);
+    auto alt_opt = StringToDouble(row_values[config.data_columns[2]]);
+    auto speed_opt = StringToDouble(row_values[config.data_columns[3]]);
+    auto valid_opt = StringToUInt64(row_values[config.data_columns[4]]);
+    auto sats_opt = StringToUInt64(row_values[config.data_columns[5]]);
+    if (!lat_opt || !lon_opt || !alt_opt || !speed_opt || !valid_opt || !sats_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid GPS position values in row");
+        return std::unexpected(ParsingError::InvalidNumber);
+    }
+
+    sensors::GPSPositionData data(
+        *lat_opt,
+        *lon_opt,
+        *alt_opt,
+        0.0f,
+        0.0f,
+        *speed_opt,
+        0.0f,
+        static_cast<uint8_t>(*sats_opt),
+        (*valid_opt != 0));
+    data.SetTimestamp(std::chrono::nanoseconds{*ts_opt});
+    return sensors::SensorPayload(data);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseBarometricRowExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseBarometricRow(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    if (static_cast<size_t>(config.timestamp_column) >= row_values.size()) {
+    if (!ValidateCSVRow(row_values, config)) {
         return std::unexpected(ParsingError::EmptyColumn);
     }
-    if (row_values[config.timestamp_column].empty()) {
-        return std::unexpected(ParsingError::EmptyColumn);
+    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
+    if (!ts_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid timestamp in barometric row");
+        return std::unexpected(ParsingError::InvalidNumber);
     }
-    return std::unexpected(ParsingError::InvalidNumber);
+    if (config.data_columns.size() < 2) {
+        LOG4CXX_TRACE(g_logger, "Barometric row missing data columns");
+        return std::unexpected(ParsingError::InsufficientColumns);
+    }
+
+    auto pressure_opt = StringToDouble(row_values[config.data_columns[0]]);
+    auto temp_opt = StringToDouble(row_values[config.data_columns[1]]);
+    if (!pressure_opt || !temp_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid barometric values in row");
+        return std::unexpected(ParsingError::InvalidNumber);
+    }
+
+    sensors::BarometricData data(
+        static_cast<float>(*pressure_opt),
+        static_cast<float>(*temp_opt));
+    data.SetTimestamp(std::chrono::nanoseconds{*ts_opt});
+    return sensors::SensorPayload(data);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseMagnetometerRowExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseMagnetometerRow(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    if (static_cast<size_t>(config.timestamp_column) >= row_values.size()) {
+    if (!ValidateCSVRow(row_values, config)) {
         return std::unexpected(ParsingError::EmptyColumn);
     }
-    if (row_values[config.timestamp_column].empty()) {
-        return std::unexpected(ParsingError::EmptyColumn);
+    auto ts_opt = StringToUInt64(row_values[config.timestamp_column]);
+    if (!ts_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid timestamp in magnetometer row");
+        return std::unexpected(ParsingError::InvalidNumber);
     }
-    return std::unexpected(ParsingError::InvalidNumber);
+    if (config.data_columns.size() < 3) {
+        LOG4CXX_TRACE(g_logger, "Magnetometer row missing data columns");
+        return std::unexpected(ParsingError::InsufficientColumns);
+    }
+
+    auto x_opt = StringToDouble(row_values[config.data_columns[0]]);
+    auto y_opt = StringToDouble(row_values[config.data_columns[1]]);
+    auto z_opt = StringToDouble(row_values[config.data_columns[2]]);
+    if (!x_opt || !y_opt || !z_opt) {
+        LOG4CXX_TRACE(g_logger, "Invalid magnetic field values in row");
+        return std::unexpected(ParsingError::InvalidNumber);
+    }
+
+    sensors::MagnetometerData data(
+        static_cast<float>(*x_opt),
+        static_cast<float>(*y_opt),
+        static_cast<float>(*z_opt));
+    data.SetTimestamp(std::chrono::nanoseconds{*ts_opt});
+    return sensors::SensorPayload(data);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseRowUnifiedExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseRowUnified(row_values, config);
-    if (result) {
-        return result.value();
-    }
     if (!ValidateCSVRow(row_values, config)) {
-        return std::unexpected(ParsingError::InvalidNumber);
+        return std::unexpected(ParsingError::EmptyColumn);
     }
+    LOG4CXX_TRACE(g_logger, "Unified CSV row parsing is not configured for this node");
     return std::unexpected(ParsingError::UnknownError);
 }
 
 std::expected<sensors::SensorPayload, ParsingError> ParseRowConsolidatedExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config) {
-    auto result = ParseRowConsolidated(row_values, config);
-    if (result) {
-        return result.value();
-    }
-    if (!ValidateCSVRow(row_values, config)) {
-        return std::unexpected(ParsingError::InvalidNumber);
-    }
-    return std::unexpected(ParsingError::UnknownError);
+    return ParseRowUnifiedExpected(row_values, config);
 }
 
 }  // namespace csv

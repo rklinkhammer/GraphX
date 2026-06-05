@@ -200,7 +200,11 @@ namespace test {
         void Configure(const graph::JsonView& config_json) override {
             try {
                 if (config_json.Contains("message_count")) {
-                    int count = config_json.GetInt("message_count", -1);
+                    auto count_result = config_json.TryGetInt("message_count", -1);
+                    if (!count_result) {
+                        throw count_result.error();
+                    }
+                    int count = count_result.value();
                     if (count <= 0) {
                         throw graph::ConfigError("message_count must be > 0 (got " + 
                                                std::to_string(count) + ")");
@@ -434,7 +438,11 @@ namespace test {
         void Configure(const graph::JsonView& config_json) override {
             try {
                 if (config_json.Contains("expected_message_count")) {
-                    int count = config_json.GetInt("expected_message_count", -1);
+                    auto count_result = config_json.TryGetInt("expected_message_count", -1);
+                    if (!count_result) {
+                        throw count_result.error();
+                    }
+                    int count = count_result.value();
                     if (count <= 0) {
                         throw graph::ConfigError("expected_message_count must be > 0 (got " + 
                                                std::to_string(count) + ")");

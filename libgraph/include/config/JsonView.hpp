@@ -42,12 +42,15 @@ namespace graph {
  * Usage:
  * @code
  * JsonView view(json_object);
- * float q = view.GetFloat("q", 0.01f);
- * std::string name = view.GetString("name", "default");
+ * auto q_result = view.TryGetFloat("q", 0.01f);
+ * auto name_result = view.TryGetString("name", "default");
+ * if (!q_result || !name_result) {
+ *     throw q_result ? name_result.error() : q_result.error();
+ * }
  * @endcode
  * 
- * If a field is missing and no default provided, throws ConfigError.
- * If a field has wrong type, throws ConfigError with context.
+ * Preferred APIs are TryGet* methods returning std::expected.
+ * Legacy Get* throwing methods remain for compatibility and are deprecated.
  */
 class JsonView {
 public:
@@ -78,6 +81,7 @@ public:
      * @return The string value
      * @throws ConfigError if field wrong type
      */
+    [[deprecated("Use TryGetString() for expected-based error handling")]]
     std::string GetString(const std::string& key,
                          const std::string& default_val = "") const;
     
@@ -89,6 +93,7 @@ public:
      * @return The float value
      * @throws ConfigError if field missing (no default) or wrong type
      */
+    [[deprecated("Use TryGetFloat() for expected-based error handling")]]
     float GetFloat(const std::string& key,
                    float default_val = std::numeric_limits<float>::quiet_NaN()) const;
     
@@ -100,6 +105,7 @@ public:
      * @return The int value
      * @throws ConfigError if field missing (no default) or wrong type
      */
+    [[deprecated("Use TryGetInt() for expected-based error handling")]]
     int GetInt(const std::string& key,
                int default_val = -1) const;
     
@@ -111,6 +117,7 @@ public:
      * @return The bool value
      * @throws ConfigError if field wrong type
      */
+    [[deprecated("Use TryGetBool() for expected-based error handling")]]
     bool GetBool(const std::string& key,
                  bool default_val = false) const;
     
@@ -121,6 +128,7 @@ public:
      * @return JsonView wrapping the nested object
      * @throws ConfigError if field missing or not an object
      */
+    [[deprecated("Use TryGetObject() for expected-based error handling")]]
     JsonView GetObject(const std::string& key) const;
     
     /**
@@ -130,6 +138,7 @@ public:
      * @return Vector of strings
      * @throws ConfigError if field missing or not an array
      */
+    [[deprecated("Use TryGetStringArray() for expected-based error handling")]]
     std::vector<std::string> GetStringArray(const std::string& key) const;
     
     /**
@@ -139,6 +148,7 @@ public:
      * @return Vector of JsonView objects
      * @throws ConfigError if field missing or not an array
      */
+    [[deprecated("Use TryGetArray() for expected-based error handling")]]
     std::vector<JsonView> GetArray(const std::string& key) const;
 
     // ========================================================================

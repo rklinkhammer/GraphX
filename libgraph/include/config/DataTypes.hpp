@@ -238,7 +238,6 @@ struct GPSPositionData : public TimestampedData {
  * @brief Accelerometer sensor data with timestamp
  *
  * Represents 3-axis acceleration measurements from an accelerometer sensor.
- * Provides conversion operators for compatibility with Vector3D.
  */
 struct AccelerometerData : public TimestampedData {
     Vector3D acceleration{0, 0, 0};  ///< Acceleration (m/s²)
@@ -255,8 +254,6 @@ struct AccelerometerData : public TimestampedData {
     explicit AccelerometerData(float x, float y, float z) 
         : acceleration(x, y, z) {}
     
-    /// Implicit conversion to Vector3D for backward compatibility
-    operator Vector3D() const { return acceleration; }
 };
 
 /**
@@ -264,7 +261,6 @@ struct AccelerometerData : public TimestampedData {
  * @brief Gyroscope sensor data with timestamp
  *
  * Represents 3-axis angular velocity measurements from a gyroscope sensor.
- * Provides conversion operators for compatibility with Vector3D.
  */
 struct GyroscopeData : public TimestampedData {
     Vector3D angular_velocity{0, 0, 0};  ///< Angular velocity (rad/s)
@@ -281,8 +277,6 @@ struct GyroscopeData : public TimestampedData {
     explicit GyroscopeData(float x, float y, float z) 
         : angular_velocity(x, y, z) {}
     
-    /// Implicit conversion to Vector3D for backward compatibility
-    operator Vector3D() const { return angular_velocity; }
 };
 
 /**
@@ -290,7 +284,6 @@ struct GyroscopeData : public TimestampedData {
  * @brief Magnetometer sensor data with timestamp
  *
  * Represents 3-axis magnetic field measurements from a magnetometer sensor.
- * Provides conversion operators for compatibility with Vector3D.
  */
 struct MagnetometerData : public TimestampedData {
     Vector3D magnetic_field{0, 0, 0};  ///< Magnetic field (µT - microtesla)
@@ -307,8 +300,6 @@ struct MagnetometerData : public TimestampedData {
     explicit MagnetometerData(float x, float y, float z) 
         : magnetic_field(x, y, z) {}
     
-    /// Implicit conversion to Vector3D for backward compatibility
-    operator Vector3D() const { return magnetic_field; }
 };
 
 /**

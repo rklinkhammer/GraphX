@@ -30,6 +30,80 @@
 using namespace graph;
 using json = nlohmann::json;
 
+// Test adapter: preserve legacy Get* behavior while internally exercising
+// expected-based TryGet* APIs.
+class JsonViewAdapter : public graph::JsonView {
+public:
+    using graph::JsonView::JsonView;
+
+    std::string GetString(const std::string& key,
+                          const std::string& default_val = "") const {
+        auto result = TryGetString(key, default_val);
+        if (!result) {
+            throw result.error();
+        }
+        return result.value();
+    }
+
+    float GetFloat(const std::string& key,
+                   float default_val = std::numeric_limits<float>::quiet_NaN()) const {
+        auto result = TryGetFloat(key, default_val);
+        if (!result) {
+            throw result.error();
+        }
+        return result.value();
+    }
+
+    int GetInt(const std::string& key,
+               int default_val = -1) const {
+        auto result = TryGetInt(key, default_val);
+        if (!result) {
+            throw result.error();
+        }
+        return result.value();
+    }
+
+    bool GetBool(const std::string& key,
+                 bool default_val = false) const {
+        auto result = TryGetBool(key, default_val);
+        if (!result) {
+            throw result.error();
+        }
+        return result.value();
+    }
+
+    JsonViewAdapter GetObject(const std::string& key) const {
+        auto result = TryGetObject(key);
+        if (!result) {
+            throw result.error();
+        }
+        return JsonViewAdapter(result.value().Raw());
+    }
+
+    std::vector<std::string> GetStringArray(const std::string& key) const {
+        auto result = TryGetStringArray(key);
+        if (!result) {
+            throw result.error();
+        }
+        return result.value();
+    }
+
+    std::vector<JsonViewAdapter> GetArray(const std::string& key) const {
+        auto result = TryGetArray(key);
+        if (!result) {
+            throw result.error();
+        }
+        std::vector<JsonViewAdapter> converted;
+        converted.reserve(result.value().size());
+        for (const auto& item : result.value()) {
+            converted.emplace_back(item.Raw());
+        }
+        return converted;
+    }
+};
+
+#define JsonView JsonViewAdapter
+
 // ============================================================================
 // Test Fixture for JsonView Basic Operations
 // ============================================================================
@@ -845,7 +919,9 @@ TEST_F(JsonViewBasicTest, TryGetObject_Success) {
     JsonView view(obj);
     auto result = view.TryGetObject("config");
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().GetString("name"), "test");
+    auto name = result.value().TryGetString("name");
+    ASSERT_TRUE(name.has_value());
+    EXPECT_EQ(name.value(), "test");
 }
 
 TEST_F(JsonViewBasicTest, TryGetObject_Missing_ReturnsError) {
@@ -978,7 +1054,9 @@ TEST_F(JsonViewBasicTest, GetOptionalObject_ExistingField) {
     JsonView view(obj);
     auto result = view.GetOptionalObject("config");
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result.value().GetString("name"), "test");
+    auto name = result.value().TryGetString("name");
+    ASSERT_TRUE(name.has_value());
+    EXPECT_EQ(name.value(), "test");
 }
 
 TEST_F(JsonViewBasicTest, GetOptionalObject_MissingField) {

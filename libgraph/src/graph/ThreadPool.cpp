@@ -61,39 +61,12 @@ namespace graph
 
     bool ThreadPool::Start() noexcept
     {
-
-        LOG4CXX_TRACE(logger_, "ThreadPool starting " << num_threads_ << " worker threads");
-
-        try
-        {
-            running_.store(true);
-            // Set queue capacity for this pool instance
-            task_queue_.SetCapacity(config_.max_queue_size);
-            // Spawn worker threads
-            for (size_t i = 0; i < num_threads_; ++i)
-            {
-                worker_threads_.emplace_back([this]
-                                             { WorkerMain(); });
-            }
-
-            // Spawn deadlock watchdog if enabled
-            if (config_.enable_detection)
-            {
-                watchdog_ = std::thread([this]
-                                        { WatchdogMain(); });
-            }
-
-            LOG4CXX_TRACE(logger_, "ThreadPool started successfully");
-            return true;
+        auto result = StartExpected();
+        if (!result) {
+            LOG4CXX_ERROR(logger_, "ThreadPool::Start() compatibility adapter failed with code "
+                                  << static_cast<int>(result.error()));
         }
-        catch (const std::exception &e)
-        {
-            LOG4CXX_ERROR(logger_, "Failed to start ThreadPool: " << e.what());
-            // Disable queue to wake up any workers that started
-            task_queue_.Disable();
-            // running_.store(false);
-            return false;
-        }
+        return result.has_value();
     }
 
     // C++26 Modernization: std::expected<> error handling (Phase 1)
