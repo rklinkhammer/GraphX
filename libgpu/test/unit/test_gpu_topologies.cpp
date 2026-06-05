@@ -549,7 +549,7 @@ struct CudaTopologyTraits {
             // and synchronization; nodes validate/bind capabilities and propagate
             // handles (lease/view/ticket) through operation boundaries.
             auto graph_manager = std::make_shared<graph::GraphManager>();
-            auto factory = test::PluginInfrastructure::GetFactory();
+            auto factory = test::PluginInfrastructure::GetProvider();
 
             auto ingress = std::make_shared<graph::NodeFacadeAdapter>(
                 test::PluginInfrastructure::CreateNodeOrThrow(factory, Traits::source_type_name));
@@ -644,7 +644,7 @@ struct CudaTopologyTraits {
         }
 
         TEST(GpuTopology, PluginLoadedNodeFailsCleanlyWithoutRequiredCapabilities) {
-            auto factory = test::PluginInfrastructure::GetFactory();
+            auto factory = test::PluginInfrastructure::GetProvider();
             auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
                 test::PluginInfrastructure::CreateNodeOrThrow(factory, "H2DAsyncNode"));
             auto h2d_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(h2d);
@@ -658,7 +658,7 @@ struct CudaTopologyTraits {
 
         TEST(GpuTopology, ExecutorInitFailsWhenGpuBootstrapDisabledAndCapabilitiesMissing) {
             auto graph_manager = std::make_shared<graph::GraphManager>();
-            auto factory = test::PluginInfrastructure::GetFactory();
+            auto factory = test::PluginInfrastructure::GetProvider();
 
             auto h2d = std::make_shared<graph::NodeFacadeAdapter>(
                 test::PluginInfrastructure::CreateNodeOrThrow(factory, "H2DAsyncNode"));

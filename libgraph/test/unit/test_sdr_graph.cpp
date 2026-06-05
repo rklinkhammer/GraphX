@@ -32,7 +32,7 @@ using FFTProcessorNode = dsp::FFTNode<float, kPacketSize>;
 using AnalyzerSinkNode = dsp::SpectrumSinkNode<float, kPacketSize>;
 
 std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNode(const std::string& type) {
-    std::shared_ptr<graph::INodeProvider> factory = PluginInfrastructure::GetFactory();
+    std::shared_ptr<graph::INodeProvider> factory = PluginInfrastructure::GetProvider();
     if (!factory) {
         return nullptr;
     }

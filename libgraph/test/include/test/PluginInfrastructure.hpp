@@ -41,7 +41,7 @@ public:
      * @brief Get or initialize the node provider with all plugins loaded
      * @return Shared pointer to initialized node provider
      */
-        static std::shared_ptr<graph::INodeProvider> GetFactory() {
+        static std::shared_ptr<graph::INodeProvider> GetProvider() {
             static auto* factory = new std::shared_ptr<graph::INodeProvider>();
         static auto* loader = new std::shared_ptr<graph::PluginLoader>();
         static bool initialized = false;
@@ -71,6 +71,16 @@ public:
             throw std::runtime_error("Failed to create test node: " + type_name);
         }
         return std::move(node).value();
+    }
+
+    static std::shared_ptr<graph::NodeFacadeAdapter> CreateNamedNodeOrThrow(
+        const std::shared_ptr<graph::INodeProvider>& factory,
+        const std::string& type_name,
+        const std::string& node_name) {
+        auto node = std::make_shared<graph::NodeFacadeAdapter>(
+            CreateNodeOrThrow(factory, type_name));
+        node->SetName(node_name);
+        return node;
     }
 
     /**

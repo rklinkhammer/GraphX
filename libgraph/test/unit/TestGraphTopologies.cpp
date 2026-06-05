@@ -51,7 +51,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
 
@@ -95,7 +95,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
 
     auto graph = std::make_shared<graph::GraphManager>();
 
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
@@ -152,7 +152,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
@@ -217,7 +217,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto split = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SplitTestNode"));
@@ -286,7 +286,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto split = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SplitTestNode"));
@@ -353,7 +353,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential()
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto interior1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
@@ -419,7 +419,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
@@ -495,7 +495,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInte
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
@@ -563,7 +563,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source1 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto source2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
@@ -645,7 +645,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
      */
     
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     source->SetName("source_1");
@@ -682,7 +682,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() 
      *   Validates completion signal delivery
      */
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntProducer"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntSinkNode"));
@@ -730,7 +730,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntPr
      *   Base pattern for more complex multi-producer topologies
      */
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntProducer"));
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
@@ -784,7 +784,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer
      *   Validates completion signal delivery
      */
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleProducer"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleSinkNode"));
@@ -832,7 +832,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubl
      *   Base pattern for more complex multi-producer topologies
      */
     auto graph = std::make_shared<graph::GraphManager>();
-    auto factory = PluginInfrastructure::GetFactory();
+    auto factory = PluginInfrastructure::GetProvider();
     
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleProducer"));
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
