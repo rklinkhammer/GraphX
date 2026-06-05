@@ -46,6 +46,7 @@ namespace graph {
 
 // Forward declarations
 class PluginInspector;
+class INodeMetadataService;
 
 /**
  * @struct PluginInfo
@@ -302,7 +303,8 @@ public:
      *                    (default: /usr/local/lib/graphx)
      */
     explicit PluginInspector(
-        const std::string& plugin_dir = "/usr/local/lib/graphx");
+        const std::string& plugin_dir = "/usr/local/lib/graphx",
+        const INodeMetadataService* metadata_service = nullptr);
     
     /**
      * @brief Destructor
@@ -571,6 +573,7 @@ public:
 
 private:
     std::string plugin_dir_;
+    const INodeMetadataService* metadata_service_;
     std::vector<PluginCapabilities> cached_capabilities_;
     CacheInfo cache_info_;
     

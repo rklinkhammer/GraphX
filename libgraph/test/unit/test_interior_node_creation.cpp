@@ -19,6 +19,41 @@
 using namespace graph;
 using namespace test;
 
+namespace {
+
+class StubPluginDescriptorProvider final : public graph::INodeDescriptorProvider {
+public:
+    graph::NodeDescriptor BuildRuntimeDescriptor(
+        graph::RuntimeNodeDescriptorRequest request) const override {
+        graph::NodeDescriptor descriptor;
+        descriptor.name = "stub-plugin-descriptor";
+        descriptor.type = std::move(request.seed.type);
+        descriptor.description = std::move(request.seed.description);
+        descriptor.lifecycle_state = request.seed.lifecycle_state;
+        descriptor.supports_configuration = request.seed.supports_configuration;
+        descriptor.config_fields = {};
+        descriptor.input_ports = std::move(request.input_ports);
+        descriptor.output_ports = std::move(request.output_ports);
+        return descriptor;
+    }
+};
+
+class StubPluginMetadataService final : public graph::INodeMetadataService {
+public:
+    const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+        return descriptor_provider_;
+    }
+
+    const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+        return graph::GetDefaultNodeDescriptorSchemaProvider();
+    }
+
+private:
+    StubPluginDescriptorProvider descriptor_provider_;
+};
+
+}  // namespace
+
 class InteriorNodeCreationTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -88,6 +123,22 @@ TEST_F(InteriorNodeCreationTest, WrapInNodePluginInstance) {
         // Don't leak memory
         delete instance;
     });
+}
+
+TEST_F(InteriorNodeCreationTest, BuildDescriptorUsesInjectedMetadataService) {
+    auto node = std::make_shared<InteriorTestNode>();
+    ASSERT_NE(nullptr, node);
+
+    NodePluginInstance<InteriorTestNode> instance(
+        node,
+        "InteriorTestNode",
+        "plugin.InteriorTestNode");
+
+    StubPluginMetadataService metadata_service;
+    const auto descriptor = BuildDescriptorFromPluginInstance(&instance, &metadata_service);
+
+    EXPECT_EQ(descriptor.name, "stub-plugin-descriptor");
+    EXPECT_EQ(descriptor.type, instance.type);
 }
 
 // ============================================================================

@@ -10,6 +10,9 @@
 
 #include <gtest/gtest.h>
 
+#include "config/SchemaGenerator.hpp"
+#include "graph/NodeDescriptor.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "plugins/PluginInspector.hpp"
 
 namespace {
@@ -25,6 +28,44 @@ constexpr const char* kPluginExtension = ".dll";
 #else
 constexpr const char* kPluginExtension = ".so";
 #endif
+
+class StubInspectorDescriptorProvider final : public graph::INodeDescriptorProvider {
+public:
+    graph::NodeDescriptor BuildRuntimeDescriptor(
+        graph::RuntimeNodeDescriptorRequest request) const override {
+        auto descriptor = graph::BuildRuntimeNodeDescriptor(
+            std::move(request.seed),
+            request.parameterized,
+            std::move(request.input_ports),
+            std::move(request.output_ports));
+        descriptor.name = "provider_overridden_name";
+        return descriptor;
+    }
+};
+
+class StubInspectorSchemaProvider final : public graph::INodeDescriptorSchemaProvider {
+public:
+    nlohmann::json BuildSchema(const graph::NodeDescriptor& descriptor) const override {
+        auto schema = graph::GenerateNodeDescriptorSchema(descriptor);
+        schema["name"] = "schema_overridden_name";
+        return schema;
+    }
+};
+
+class StubInspectorMetadataService final : public graph::INodeMetadataService {
+public:
+    const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+        return descriptor_provider_;
+    }
+
+    const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+        return schema_provider_;
+    }
+
+private:
+    StubInspectorDescriptorProvider descriptor_provider_;
+    StubInspectorSchemaProvider schema_provider_;
+};
 
 class PluginInspectorTest : public ::testing::Test {
 protected:
@@ -214,6 +255,77 @@ TEST_F(PluginInspectorTest, ConfigurableTestPluginsExposeTypedRequiredConfigFiel
             EXPECT_TRUE(field["required"].is_boolean()) << plugin_name;
         }
     }
+}
+
+TEST_F(PluginInspectorTest, InspectPluginUsesInjectedDescriptorProvider) {
+    class DescriptorOnlyMetadataService final : public graph::INodeMetadataService {
+    public:
+        const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+            return descriptor_provider_;
+        }
+
+        const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+            return graph::GetDefaultNodeDescriptorSchemaProvider();
+        }
+
+    private:
+        StubInspectorDescriptorProvider descriptor_provider_;
+    } metadata_service;
+
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY, &metadata_service);
+
+    const auto source = inspector.InspectPlugin("source_test_node");
+    ASSERT_TRUE(source.info.is_loaded) << source.info.load_error;
+
+    const auto json = source.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+
+    const auto& schema = json["node_descriptor_schema"];
+    ASSERT_TRUE(schema.contains("name"));
+    EXPECT_EQ(schema["name"], "provider_overridden_name");
+}
+
+TEST_F(PluginInspectorTest, InspectPluginUsesInjectedDescriptorSchemaProvider) {
+    class SchemaOnlyMetadataService final : public graph::INodeMetadataService {
+    public:
+        const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+            return graph::GetDefaultNodeDescriptorProvider();
+        }
+
+        const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+            return schema_provider_;
+        }
+
+    private:
+        StubInspectorSchemaProvider schema_provider_;
+    } metadata_service;
+
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY, &metadata_service);
+
+    const auto source = inspector.InspectPlugin("source_test_node");
+    ASSERT_TRUE(source.info.is_loaded) << source.info.load_error;
+
+    const auto json = source.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+
+    const auto& schema = json["node_descriptor_schema"];
+    ASSERT_TRUE(schema.contains("name"));
+    EXPECT_EQ(schema["name"], "schema_overridden_name");
+}
+
+TEST_F(PluginInspectorTest, InspectPluginUsesInjectedMetadataService) {
+    StubInspectorMetadataService metadata_service;
+    graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY, &metadata_service);
+
+    const auto source = inspector.InspectPlugin("source_test_node");
+    ASSERT_TRUE(source.info.is_loaded) << source.info.load_error;
+
+    const auto json = source.ToJson();
+    ASSERT_TRUE(json.contains("node_descriptor_schema"));
+    const auto& schema = json["node_descriptor_schema"];
+
+    ASSERT_TRUE(schema.contains("name"));
+    EXPECT_EQ(schema["name"], "schema_overridden_name");
 }
 
 TEST_F(PluginInspectorTest, InspectOptionalConfigPluginHasNoRequiredConfigFields) {

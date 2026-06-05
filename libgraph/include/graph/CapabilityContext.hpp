@@ -12,6 +12,7 @@
 #include "capabilities/GraphCapability.hpp"
 #include "graph/CapabilityDiscovery.hpp"
 #include "graph/GraphManager.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "graph/NodeDescriptor.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
 #include "graph/IConfigurable.hpp"
@@ -36,10 +37,10 @@ class CapabilityContext {
 public:
     explicit CapabilityContext(
         capabilities::GraphCapability& context,
-        const INodeDescriptorProvider* descriptor_provider = nullptr) noexcept
+                const INodeMetadataService* metadata_service = nullptr) noexcept
         : context_(context),
-          descriptor_provider_(
-              descriptor_provider ? descriptor_provider : &GetDefaultNodeDescriptorProvider()) {}
+                    metadata_service_(
+                            metadata_service ? metadata_service : &GetDefaultNodeMetadataService()) {}
 
     [[nodiscard]] std::expected<std::shared_ptr<GraphManager>, CapabilityContextError>
     GraphManagerPtr() const noexcept {
@@ -105,7 +106,8 @@ public:
 
         auto parameterized = DiscoverCapability<IParameterized>(node);
         auto configurable = DiscoverCapability<IConfigurable>(node);
-        return descriptor_provider_->BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+        return metadata_service_->DescriptorProvider().BuildRuntimeDescriptor(
+            RuntimeNodeDescriptorRequest{
             .seed = NodeDescriptorSeed{
                 .name = GetNodeName(node),
                 .type = GetTypeName(node),
@@ -125,7 +127,7 @@ public:
 
 private:
     capabilities::GraphCapability& context_;
-    const INodeDescriptorProvider* descriptor_provider_;
+    const INodeMetadataService* metadata_service_;
 };
 
 }  // namespace graph

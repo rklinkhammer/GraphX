@@ -27,6 +27,7 @@
 
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/GraphConfigParser.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "graph/NodeProvider.hpp"
 #include "config/SchemaGenerator.hpp"
 #include "config/JsonUtilities.hpp"
@@ -61,14 +62,15 @@ std::expected<void, app::error::ConfigError> ValidateConfigSafe(
 
 std::expected<void, app::error::ConfigError> ValidatePortConfigAgainstDescriptorSchema(
     const NodeConfig& node_config,
-    const std::shared_ptr<NodeFacadeAdapter>& adapter) noexcept {
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const INodeDescriptorSchemaProvider& descriptor_schema_provider) noexcept {
 
     if (node_config.port_config.empty()) {
         return {};
     }
 
     try {
-        const auto descriptor_schema = GenerateNodeDescriptorSchema(adapter->GetDescriptor());
+        const auto descriptor_schema = descriptor_schema_provider.BuildSchema(adapter->GetDescriptor());
         std::unordered_set<std::string> valid_ports;
 
         if (descriptor_schema.contains("inputs") && descriptor_schema["inputs"].is_array()) {
@@ -110,9 +112,10 @@ std::expected<void, app::error::ConfigError> ValidatePortConfigAgainstDescriptor
 
 std::expected<void, app::error::ConfigError> ValidateNodeConfigAgainstDescriptorSchema(
     const NodeConfig& node_config,
-    const std::shared_ptr<NodeFacadeAdapter>& adapter) noexcept {
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const INodeDescriptorSchemaProvider& descriptor_schema_provider) noexcept {
     try {
-        const auto descriptor_schema = GenerateNodeDescriptorSchema(adapter->GetDescriptor());
+        const auto descriptor_schema = descriptor_schema_provider.BuildSchema(adapter->GetDescriptor());
         const bool has_config_fields =
             descriptor_schema.contains("config_fields") &&
             descriptor_schema["config_fields"].is_array() &&
@@ -263,7 +266,8 @@ std::expected<void, app::error::ConfigError> ValidateNodeConfigAgainstDescriptor
 std::expected<std::vector<std::shared_ptr<NodeFacadeAdapter>>, app::error::ConfigError>
 JsonDynamicGraphLoader::LoadNodesSafe(
     const std::string& filepath,
-    std::shared_ptr<INodeProvider> node_provider) noexcept {
+    std::shared_ptr<INodeProvider> node_provider,
+    const INodeMetadataService* metadata_service) noexcept {
     
     LOG4CXX_TRACE(logger_, "Loading nodes (safe): " << filepath);
 
@@ -286,6 +290,11 @@ JsonDynamicGraphLoader::LoadNodesSafe(
         std::vector<std::shared_ptr<NodeFacadeAdapter>> nodes;
         nodes.reserve(config->nodes.size());
 
+        const INodeMetadataService& active_metadata_service =
+            metadata_service ? *metadata_service : GetDefaultNodeMetadataService();
+        const INodeDescriptorSchemaProvider& active_descriptor_schema_provider =
+            active_metadata_service.DescriptorSchemaProvider();
+
         for (const auto& node_config : config->nodes) {
             auto node = node_provider->CreateNodeExpected(node_config.type);
             if (!node) {
@@ -295,14 +304,22 @@ JsonDynamicGraphLoader::LoadNodesSafe(
             }
 
             try {
-                auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(node).value());
+                auto created_adapter = std::move(node).value();
+                auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(created_adapter));
+                adapter->SetMetadataService(&active_metadata_service);
                 auto descriptor_validation =
-                    ValidatePortConfigAgainstDescriptorSchema(node_config, adapter);
+                    ValidatePortConfigAgainstDescriptorSchema(
+                        node_config,
+                        adapter,
+                        active_descriptor_schema_provider);
                 if (!descriptor_validation) {
                     return std::unexpected(descriptor_validation.error());
                 }
                 auto node_config_validation =
-                    ValidateNodeConfigAgainstDescriptorSchema(node_config, adapter);
+                    ValidateNodeConfigAgainstDescriptorSchema(
+                        node_config,
+                        adapter,
+                        active_descriptor_schema_provider);
                 if (!node_config_validation) {
                     return std::unexpected(node_config_validation.error());
                 }
@@ -364,12 +381,16 @@ std::expected<std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>, std::ve
               app::error::ConfigError>
 JsonDynamicGraphLoader::LoadGraphSafe(
     const std::string& filepath,
-    std::shared_ptr<INodeProvider> node_provider) noexcept {
+    std::shared_ptr<INodeProvider> node_provider,
+    const INodeMetadataService* metadata_service) noexcept {
     
     LOG4CXX_TRACE(logger_, "Loading graph (safe): " << filepath);
     
     try {
-        auto nodes = LoadNodesSafe(filepath, std::move(node_provider));
+        auto nodes = LoadNodesSafe(
+            filepath,
+            std::move(node_provider),
+            metadata_service);
         if (!nodes) {
             return std::unexpected(nodes.error());
         }

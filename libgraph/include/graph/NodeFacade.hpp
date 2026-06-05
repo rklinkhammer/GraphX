@@ -29,6 +29,7 @@
 #include <log4cxx/logger.h>
 #include <chrono>
 #include "graph/IDataInjectionSource.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFacadeAbi.hpp"
 #include "graph/NodeDescriptor.hpp"
 #include "graph/NodePluginInstance.hpp"
@@ -262,7 +263,7 @@ private:
     std::shared_ptr<void> metrics_callback_provider_ptr_; ///< Points to IMetricsCallbackProvider if plugin provides it
     std::shared_ptr<void> completion_callback_provider_ptr_; ///< Points to CompletionCallbackProvider if plugin provides it
     std::shared_ptr<void> gpu_capability_binding_ptr_; ///< Points to IGpuCapabilityBinding if plugin provides it
-    const INodeDescriptorProvider* descriptor_provider_; ///< Descriptor assembly policy boundary
+    const INodeMetadataService* metadata_service_; ///< Metadata policy boundary
     
     // Extract interface pointers from plugin callbacks
     void ExtractInterfaces();
@@ -298,7 +299,7 @@ public:
     NodeFacadeAdapter(
         NodeHandle handle,
         const NodeFacade* facade,
-        const INodeDescriptorProvider* descriptor_provider = nullptr);
+        const INodeMetadataService* metadata_service = nullptr);
 
     /**
      * Destructor - calls Destroy() on the facade if it's set
@@ -614,6 +615,10 @@ public:
      * Get the underlying facade pointer (for advanced use)
      */
     const NodeFacade* GetFacade() const { return facade_; }
+
+    void SetMetadataService(const INodeMetadataService* metadata_service) {
+        metadata_service_ = metadata_service ? metadata_service : &GetDefaultNodeMetadataService();
+    }
 
     /**
      * Extract the underlying typed node from the opaque handle

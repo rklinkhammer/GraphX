@@ -56,10 +56,10 @@ log4cxx::LoggerPtr NodeFacadeAdapter::logger_ =
 NodeFacadeAdapter::NodeFacadeAdapter(
         NodeHandle handle,
         const NodeFacade* facade,
-        const INodeDescriptorProvider* descriptor_provider)
+    const INodeMetadataService* metadata_service)
     : handle_(handle), facade_(facade), initialized_(false), started_(false),
             data_injection_node_config_ptr_(nullptr),
-            descriptor_provider_(descriptor_provider ? descriptor_provider : &GetDefaultNodeDescriptorProvider()) {
+        metadata_service_(metadata_service ? metadata_service : &GetDefaultNodeMetadataService()) {
     // Preconditions: handle and facade must be valid (non-null)
     // If violated, it indicates a programming error in the caller
     assert(handle != nullptr && "NodeFacadeAdapter constructor: handle must not be null");
@@ -142,7 +142,7 @@ NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
       metrics_callback_provider_ptr_(std::move(other.metrics_callback_provider_ptr_)),
     completion_callback_provider_ptr_(std::move(other.completion_callback_provider_ptr_)),
         gpu_capability_binding_ptr_(std::move(other.gpu_capability_binding_ptr_)),
-        descriptor_provider_(other.descriptor_provider_) {
+        metadata_service_(other.metadata_service_) {
     LOG4CXX_TRACE(logger_, "Move-constructing NodeFacadeAdapter");
     // Invalidate the other object so it doesn't call Destroy() in its destructor
     other.handle_ = nullptr;
@@ -172,12 +172,12 @@ NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexc
     metrics_callback_provider_ptr_ = std::move(other.metrics_callback_provider_ptr_);
     completion_callback_provider_ptr_ = std::move(other.completion_callback_provider_ptr_);
     gpu_capability_binding_ptr_ = std::move(other.gpu_capability_binding_ptr_);
-    descriptor_provider_ = other.descriptor_provider_;
+    metadata_service_ = other.metadata_service_;
     
     // Invalidate the other object
     other.handle_ = nullptr;
     other.facade_ = nullptr;
-    other.descriptor_provider_ = &GetDefaultNodeDescriptorProvider();
+    other.metadata_service_ = &GetDefaultNodeMetadataService();
     
     return *this;
 }
@@ -606,8 +606,10 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
         output_ports.push_back(ToPortMetadata(output_port));
     }
 
+    const INodeDescriptorProvider& descriptor_provider = metadata_service_->DescriptorProvider();
+
     auto* parameterized = static_cast<IParameterized*>(GetParameterizedPtr().get());
-    return descriptor_provider_->BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+    return descriptor_provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
         .seed = NodeDescriptorSeed{
             .name = GetName(),
             .type = GetType(),

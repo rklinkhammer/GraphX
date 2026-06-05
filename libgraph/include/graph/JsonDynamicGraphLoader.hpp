@@ -68,6 +68,7 @@
 namespace graph {
     // Forward declaration
     class INodeProvider;
+    class INodeMetadataService;
 }
 
 namespace graph::config {
@@ -116,7 +117,8 @@ public:
         app::error::ConfigError>
     LoadNodesSafe(
         const std::string& filepath,
-        std::shared_ptr<INodeProvider> node_provider) noexcept;
+        std::shared_ptr<INodeProvider> node_provider,
+        const INodeMetadataService* metadata_service = nullptr) noexcept;
 
     /**
      * Load edge specifications from JSON configuration
@@ -177,7 +179,8 @@ public:
         app::error::ConfigError>
     LoadGraphSafe(
         const std::string& filepath,
-        std::shared_ptr<INodeProvider> node_provider) noexcept;
+        std::shared_ptr<INodeProvider> node_provider,
+        const INodeMetadataService* metadata_service = nullptr) noexcept;
 
 private:
     /**

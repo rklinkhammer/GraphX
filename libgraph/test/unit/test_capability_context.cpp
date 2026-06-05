@@ -73,6 +73,20 @@ public:
     }
 };
 
+class StubCapabilityContextMetadataService final : public graph::INodeMetadataService {
+public:
+    const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+        return descriptor_provider_;
+    }
+
+    const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+        return graph::GetDefaultNodeDescriptorSchemaProvider();
+    }
+
+private:
+    StubDescriptorProvider descriptor_provider_;
+};
+
 }  // namespace
 
 TEST(CapabilityContextTest, ReportsMissingGraphManager) {
@@ -122,8 +136,19 @@ TEST(CapabilityContextTest, RetrievesBusCapabilityWithExpectedContract) {
 
 TEST(CapabilityContextTest, DescribeNodeUsesInjectedDescriptorProvider) {
     capabilities::GraphCapability graph_capability;
-    StubDescriptorProvider descriptor_provider;
-    graph::CapabilityContext context{graph_capability, &descriptor_provider};
+    StubCapabilityContextMetadataService metadata_service;
+    graph::CapabilityContext context{graph_capability, &metadata_service};
+    auto node = std::make_shared<MetricsNode>();
+
+    auto descriptor = context.DescribeNode(node);
+
+    EXPECT_EQ(descriptor.name, "stub-provider-descriptor");
+}
+
+TEST(CapabilityContextTest, DescribeNodeUsesInjectedMetadataService) {
+    capabilities::GraphCapability graph_capability;
+    StubCapabilityContextMetadataService metadata_service;
+    graph::CapabilityContext context{graph_capability, &metadata_service};
     auto node = std::make_shared<MetricsNode>();
 
     auto descriptor = context.DescribeNode(node);

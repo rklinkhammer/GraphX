@@ -56,6 +56,7 @@
 #include <span>
 #include <iostream>
 #include "graph/Nodes.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodePluginInstance.hpp"
 #include "graph/ICompletionCallback.hpp"
@@ -79,13 +80,19 @@ static log4cxx::LoggerPtr _metadata_logger =
     log4cxx::Logger::getLogger("graph.plugins.PortMetadataHelper");
 
 template <typename NodeType>
-NodeDescriptor BuildDescriptorFromPluginInstance(NodePluginInstance<NodeType>* inst) {
+NodeDescriptor BuildDescriptorFromPluginInstance(
+    NodePluginInstance<NodeType>* inst,
+    const INodeMetadataService* metadata_service = nullptr) {
     if (!inst || !inst->node) {
         return NodeDescriptor{};
     }
 
-    return BuildRuntimeNodeDescriptor(
-        NodeDescriptorSeed{
+    const INodeMetadataService& active_metadata_service =
+        metadata_service ? *metadata_service : GetDefaultNodeMetadataService();
+    const INodeDescriptorProvider& provider = active_metadata_service.DescriptorProvider();
+
+    return provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+        .seed = NodeDescriptorSeed{
             .name = inst->name,
             .type = inst->type,
             .description = "",
@@ -93,9 +100,10 @@ NodeDescriptor BuildDescriptorFromPluginInstance(NodePluginInstance<NodeType>* i
             .supports_configuration =
                 dynamic_cast<graph::IConfigurable*>(inst->node.get()) != nullptr,
         },
-        dynamic_cast<graph::IParameterized*>(inst->node.get()),
-        inst->node->GetInputPortMetadata(),
-        inst->node->GetOutputPortMetadata());
+        .parameterized = dynamic_cast<graph::IParameterized*>(inst->node.get()),
+        .input_ports = inst->node->GetInputPortMetadata(),
+        .output_ports = inst->node->GetOutputPortMetadata(),
+    });
 }
 
 // ============================================================================

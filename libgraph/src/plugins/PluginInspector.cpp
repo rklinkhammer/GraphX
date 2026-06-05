@@ -32,6 +32,7 @@
 #include "plugins/PluginInterop.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeDescriptor.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "config/SchemaGenerator.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include <filesystem>
@@ -186,8 +187,11 @@ nlohmann::json PluginCapabilities::ToJson() const {
 // PluginInspector Implementation
 // ============================================================================
 
-PluginInspector::PluginInspector(const std::string& plugin_dir)
-    : plugin_dir_(plugin_dir) {
+PluginInspector::PluginInspector(
+    const std::string& plugin_dir,
+    const INodeMetadataService* metadata_service)
+    : plugin_dir_(plugin_dir),
+      metadata_service_(metadata_service ? metadata_service : &GetDefaultNodeMetadataService()) {
 }
 
 PluginInspector::~PluginInspector() = default;
@@ -393,8 +397,12 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
 
         // Descriptor-driven metadata path: rely on NodeFacadeAdapter so all
         // surfaces share one descriptor extraction implementation.
-        NodeFacadeAdapter adapter(node_handle, inspected_facade);
-        result.node_descriptor_schema = GenerateNodeDescriptorSchema(adapter.GetDescriptor());
+        NodeFacadeAdapter adapter(
+            node_handle,
+            inspected_facade,
+            metadata_service_);
+        result.node_descriptor_schema =
+            metadata_service_->DescriptorSchemaProvider().BuildSchema(adapter.GetDescriptor());
 
         InterfaceCapability config;
         config.name = "IConfigurable";

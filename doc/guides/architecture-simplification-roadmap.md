@@ -196,3 +196,6 @@ Large inline examples reduce scanability of API contracts.
 - One architectural objective per PR when possible.
 - Land adapters and compatibility shims first, internal rewrites second.
 - Avoid API removals until a stable deprecation window has elapsed.
+
+## Active Migration Tracker
+- Metadata shim removal checklist: `doc/guides/metadata-shim-removal-checklist.md`

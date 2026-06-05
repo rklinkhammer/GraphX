@@ -58,6 +58,13 @@ namespace graph {
 
 using json = nlohmann::json;
 
+class INodeDescriptorSchemaProvider {
+public:
+    virtual ~INodeDescriptorSchemaProvider() = default;
+
+    virtual json BuildSchema(const NodeDescriptor& descriptor) const = 0;
+};
+
 /**
  * @brief Export a runtime NodeDescriptor as JSON schema-like metadata.
  *
@@ -121,6 +128,18 @@ inline json GenerateNodeDescriptorSchema(const NodeDescriptor& descriptor) {
     }
 
     return schema;
+}
+
+class DefaultNodeDescriptorSchemaProvider final : public INodeDescriptorSchemaProvider {
+public:
+    json BuildSchema(const NodeDescriptor& descriptor) const override {
+        return GenerateNodeDescriptorSchema(descriptor);
+    }
+};
+
+inline const INodeDescriptorSchemaProvider& GetDefaultNodeDescriptorSchemaProvider() {
+    static const DefaultNodeDescriptorSchemaProvider provider;
+    return provider;
 }
 
 template<typename T>

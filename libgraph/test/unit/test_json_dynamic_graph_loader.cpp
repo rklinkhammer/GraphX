@@ -2,7 +2,9 @@
 
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/FactoryManager.hpp"
+#include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFactory.hpp"
+#include "config/SchemaGenerator.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -46,6 +48,43 @@ constexpr const char* kValidGraphConfig = R"json(
 #ifndef PLUGIN_OUTPUT_DIRECTORY
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
+
+class StubLoaderDescriptorSchemaProvider final : public graph::INodeDescriptorSchemaProvider {
+public:
+  nlohmann::json BuildSchema(const graph::NodeDescriptor&) const override {
+    return nlohmann::json{
+      {"name", "stub_loader_descriptor"},
+      {"type", "stub_loader_type"},
+      {"description", ""},
+      {"lifecycle_state", 0},
+      {"supports_configuration", false},
+      {"config_fields", nlohmann::json::array()},
+      {"inputs", nlohmann::json::array({
+        {
+          {"index", 0},
+          {"name", "__schema_override_port__"},
+          {"payload", "integer"},
+          {"direction", "input"}
+        }
+      })},
+      {"outputs", nlohmann::json::array()}
+    };
+  }
+};
+
+class StubLoaderMetadataService final : public graph::INodeMetadataService {
+public:
+  const graph::INodeDescriptorProvider& DescriptorProvider() const override {
+    return graph::GetDefaultNodeDescriptorProvider();
+  }
+
+  const graph::INodeDescriptorSchemaProvider& DescriptorSchemaProvider() const override {
+    return schema_provider_;
+  }
+
+private:
+  StubLoaderDescriptorSchemaProvider schema_provider_;
+};
 
 }  // namespace
 
@@ -133,6 +172,38 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownPortConfigKe
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesInjectedDescriptorSchemaProvider) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_schema_provider_override",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "test_1",
+          "type": "TestNode",
+          "port_config": {
+            "__schema_override_port__": {"enabled": true}
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    StubLoaderMetadataService metadata_service;
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(),
+        factory_bundle->factory,
+      &metadata_service);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 1u);
 }
 
 TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNonObjectNodeConfig) {
