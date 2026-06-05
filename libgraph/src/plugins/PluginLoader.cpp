@@ -201,14 +201,16 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
             plugin_api_version = (*get_api_version)();
             LOG4CXX_TRACE(logger_, "Plugin API version: " << plugin_api_version);
         } else {
-            LOG4CXX_TRACE(logger_, "Plugin missing plugin_api_version, assuming v1");
+            LOG4CXX_ERROR(logger_, "Plugin missing required plugin_api_version: " << type_name);
+            close_on_error();
+            return std::unexpected(app::error::PluginLoadError::MissingSymbol);
         }
 
         using namespace graph::plugins;
         if (!IsVersionCompatible(plugin_api_version)) {
-            const std::string version_msg = GetVersionMessage(plugin_api_version);
-            LOG4CXX_ERROR(logger_, "Version mismatch for " << type_name 
-                          << ": " << version_msg);
+            LOG4CXX_ERROR(logger_, "Plugin API version mismatch for " << type_name
+                          << ": expected v" << CURRENT_API_VERSION
+                          << ", got v" << plugin_api_version);
             close_on_error();
             return std::unexpected(app::error::PluginLoadError::VersionMismatch);
         }

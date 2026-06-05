@@ -68,16 +68,6 @@ public:
         return plugin_registry;
     }
     
-    // Compatibility wrapper: legacy callers may still pass NodeFactory directly.
-    void SetNodeFactory(std::shared_ptr<graph::NodeFactory> nf) {
-        node_provider = nf;
-    }
-    
-    // Compatibility wrapper: prefer GetNodeProvider() for new orchestration code.
-    std::shared_ptr<graph::NodeFactory> GetNodeFactory() const {
-        return std::dynamic_pointer_cast<graph::NodeFactory>(node_provider);
-    }
-
     void SetNodeProvider(std::shared_ptr<graph::INodeProvider> provider) {
         node_provider = std::move(provider);
     }

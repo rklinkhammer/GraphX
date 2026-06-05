@@ -307,6 +307,12 @@ JsonDynamicGraphLoader::LoadNodesSafe(
                 auto created_adapter = std::move(node).value();
                 auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(created_adapter));
                 adapter->SetMetadataService(&active_metadata_service);
+                const std::string node_name = !node_config.name.empty()
+                    ? node_config.name
+                    : node_config.id;
+                if (!node_name.empty()) {
+                    adapter->SetName(node_name);
+                }
                 auto descriptor_validation =
                     ValidatePortConfigAgainstDescriptorSchema(
                         node_config,

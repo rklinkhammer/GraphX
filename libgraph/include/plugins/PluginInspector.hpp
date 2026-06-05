@@ -517,48 +517,6 @@ public:
      */
     PluginInfo ExtractPluginMetadata(const PluginInfo& info);
     
-    // ========================================================================
-    // Version Compatibility Checking
-    // ========================================================================
-    
-    /**
-     * @brief Check if a specific plugin version is compatible
-     *
-     * Verifies that the plugin's version falls within the required range.
-     *
-     * @param plugin_name Name of plugin to check
-     * @param min_version Minimum required version (inclusive)
-     * @param max_version Maximum required version (exclusive)
-     * @return true if plugin version is compatible
-     *
-     * @throws std::runtime_error if plugin not found
-     */
-    bool CheckVersionCompatibility(
-        const std::string& plugin_name,
-        const std::string& min_version,
-        const std::string& max_version);
-    
-    /**
-     * @brief Get the version of a specific plugin
-     *
-     * @param plugin_name Name of plugin
-     * @return Plugin version as semantic version
-     *
-     * @throws std::runtime_error if plugin not found
-     */
-    SemanticVersion GetPluginVersion(const std::string& plugin_name);
-    
-    /**
-     * @brief Find all plugins compatible with a version requirement
-     *
-     * @param min_version Minimum required version (inclusive)
-     * @param max_version Maximum required version (exclusive)
-     * @return Names of compatible plugins
-     */
-    std::vector<std::string> FindCompatiblePlugins(
-        const std::string& min_version,
-        const std::string& max_version);
-    
     /**
      * @brief Find the newest version of a plugin
      *

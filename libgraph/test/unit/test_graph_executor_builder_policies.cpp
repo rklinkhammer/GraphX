@@ -388,7 +388,7 @@ TEST(GraphExecutorBuilderPoliciesTest,
     AssertExecutionSuccess(executor->Stop(), "Stop");
     AssertExecutionSuccess(executor->Join(), "Join");
 
-    auto events = subscriber.GetEvents();
+    auto events = subscriber.GetCapturedEvents();
     EXPECT_FALSE(events.empty());
 
     bool saw_produced = false;

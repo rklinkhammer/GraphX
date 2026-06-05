@@ -358,8 +358,8 @@ TEST_F(PluginLoaderTest, ParseActualPluginMetadata) {
     EXPECT_TRUE(!type_info->abi_tag.empty());
 }
 
-TEST_F(PluginLoaderTest, PluginAPIVersionNegotiation) {
-    // Verify that plugin API version negotiation works
+TEST_F(PluginLoaderTest, PluginAPIRequiredVersionMatchesCurrent) {
+    // Verify that loaded plugins match the current required plugin API version.
     // TestNode exports plugin_api_version() = 2
     const std::string plugin_dir = PLUGIN_OUTPUT_DIRECTORY;
     const std::string plugin_filename = TestNodePluginFilename();

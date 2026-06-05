@@ -100,6 +100,29 @@ void ExpectTypedSplitNodeExtraction(
         << "Unexpected number of extractable SplitTestNode instances";
 }
 
+void ExpectNodeNamesDifferFromTypes(
+    const std::shared_ptr<graph::GraphManager>& graph,
+    const char* topology_name) {
+    for (const auto& node : graph->GetNodes()) {
+        auto facade_adapter = graph::GetAsNodeFacadeAdapter(node);
+        ASSERT_NE(facade_adapter, nullptr)
+            << topology_name << ": expected a NodeFacadeAdapter-backed node";
+        EXPECT_FALSE(facade_adapter->GetName().empty())
+            << topology_name << ": node name should not be empty";
+        EXPECT_NE(facade_adapter->GetName(), facade_adapter->GetType())
+            << topology_name << ": node name must not reuse node type";
+    }
+}
+
+TEST(TopologiesSimple, TopologyNodesUseInstanceNamesNotTypes) {
+    for (const auto type : test::TopologyBuilder::GetAllTopologyTypes()) {
+        auto graph = test::TopologyBuilder::BuildTopology(type);
+        ASSERT_NE(graph, nullptr)
+            << "Failed to build topology " << static_cast<int>(type);
+        ExpectNodeNamesDifferFromTypes(graph, test::GetTopologyDocumentation(type).c_str());
+    }
+}
+
 /**
  * @test Topology 1: SourceOnly
  * Single source node, no sinks
@@ -146,7 +169,7 @@ TEST(TopologiesSimple, Topology1_SourceOnly) {
 
     // Verify metrics: SourceOnly should produce but not consume
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         for (const auto& event : events) {
             if (event.event_type == "message_produced") {
@@ -198,7 +221,7 @@ TEST(TopologiesSimple, Topology2_MinimalGraph) {
 
     // Verify metrics were published
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         std::cerr << "[DEBUG] Total metrics events received: " << events.size() << "\n";
 
         // Count events by type
@@ -260,7 +283,7 @@ TEST(TopologiesSimple, Topology3_LinearSequential) {
 
     // Verify metrics
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t consumed_count = 0;
         size_t transfer_count = 0;
@@ -317,7 +340,7 @@ TEST(TopologiesSimple, Topology4_MergeSimple) {
 
     // Verify metrics
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t merged_count = 0;
         size_t consumed_count = 0;
@@ -376,7 +399,7 @@ TEST(TopologiesSimple, Topology5_SplitSimple) {
 
     // Verify metrics
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t split_count = 0;
         size_t consumed_count = 0;
@@ -435,7 +458,7 @@ TEST(TopologiesSimple, Topology6_DiamondComplex) {
 
     // Verify metrics: produced → split → transfer → merged → consumed
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t split_count = 0;
         size_t transfer_count = 0;
@@ -500,7 +523,7 @@ TEST(TopologiesSimple, Topology7_MultiPathSequential) {
 
     // Verify metrics: produced → transfers → consumed
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t transfer_count = 0;
         size_t consumed_count = 0;
@@ -557,7 +580,7 @@ TEST(TopologiesSimple, Topology8_InteriorToMerge) {
 
     // Verify metrics: produced → transfer → merged → consumed
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t transfer_count = 0;
         size_t merged_count = 0;
@@ -618,7 +641,7 @@ TEST(TopologiesSimple, Topology9_ParallelMergeWithInterior) {
 
     // Verify metrics: produced → transfer → merged → consumed
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t transfer_count = 0;
         size_t merged_count = 0;
@@ -681,7 +704,7 @@ TEST(TopologiesSimple, Topology10_ComplexNetwork) {
 
     // Verify metrics: All event types expected in a complex topology
     if (metrics_cap) {
-        auto events = test_subscriber.GetEvents();
+        auto events = test_subscriber.GetCapturedEvents();
         size_t produced_count = 0;
         size_t consumed_count = 0;
         for (const auto& event : events) {

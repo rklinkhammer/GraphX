@@ -206,6 +206,50 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesInjectedDescriptorSche
     ASSERT_EQ(result->size(), 1u);
 }
 
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesConfigNameOrIdForNodeNames) {
+    const auto path = WriteTempGraphConfig(R"json(
+    {
+      "name": "loader_name_resolution",
+      "num_threads": 1,
+      "nodes": [
+        {
+          "id": "source_1",
+          "type": "SourceTestNode",
+          "name": "source_alpha",
+          "node_config": {
+            "message_count": 1
+          }
+        },
+        {
+          "id": "sink_1",
+          "type": "SinkTestNode",
+          "node_config": {
+            "expected_message_count": 1
+          }
+        }
+      ],
+      "edges": []
+    }
+    )json");
+
+    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(factory_bundle);
+
+    const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
+        path.string(), factory_bundle->factory);
+
+    std::filesystem::remove(path);
+    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
+    ASSERT_EQ(result->size(), 2u);
+
+    EXPECT_EQ((*result)[0]->GetName(), "source_alpha");
+    EXPECT_EQ((*result)[0]->GetType(), "SourceTestNode");
+    EXPECT_EQ((*result)[1]->GetName(), "sink_1");
+    EXPECT_EQ((*result)[1]->GetType(), "SinkTestNode");
+    EXPECT_NE((*result)[0]->GetName(), (*result)[0]->GetType());
+    EXPECT_NE((*result)[1]->GetName(), (*result)[1]->GetType());
+}
+
 TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNonObjectNodeConfig) {
     const auto path = WriteTempGraphConfig(R"json(
     {

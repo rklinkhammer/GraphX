@@ -844,57 +844,6 @@ void PluginInspector::ClearCache() {
     cache_info_.last_cached = std::chrono::system_clock::time_point();
 }
 
-// ============================================================================
-// Version Compatibility Checking
-// ============================================================================
-
-bool PluginInspector::CheckVersionCompatibility(
-    const std::string& plugin_name,
-    const std::string& min_version,
-    const std::string& max_version) {
-    
-    // Get the plugin's version
-    SemanticVersion plugin_version = GetPluginVersion(plugin_name);
-    SemanticVersion min_ver = SemanticVersion::Parse(min_version);
-    SemanticVersion max_ver = SemanticVersion::Parse(max_version);
-    
-    return plugin_version.IsCompatible(min_ver, max_ver);
-}
-
-SemanticVersion PluginInspector::GetPluginVersion(const std::string& plugin_name) {
-    auto capabilities = InspectAll();
-    
-    // Phase 2: Modern ranges approach - find_if for locating plugins
-    auto it = std::ranges::find_if(capabilities,
-        [&plugin_name](const auto& cap) { return cap.info.name == plugin_name; });
-    
-    if (it != capabilities.end()) {
-        return SemanticVersion::Parse(it->info.version);
-    }
-    
-    throw std::runtime_error("Plugin not found: " + plugin_name);
-}
-
-std::vector<std::string> PluginInspector::FindCompatiblePlugins(
-    const std::string& min_version,
-    const std::string& max_version) {
-    
-    SemanticVersion min_ver = SemanticVersion::Parse(min_version);
-    SemanticVersion max_ver = SemanticVersion::Parse(max_version);
-    
-    auto capabilities = InspectAll();
-    
-    // Phase 2: Modern ranges approach - filter and transform compatible plugins
-    using namespace std::ranges;
-    return capabilities
-        | views::filter([&min_ver, &max_ver](const auto& cap) {
-            SemanticVersion plugin_version = SemanticVersion::Parse(cap.info.version);
-            return plugin_version.IsCompatible(min_ver, max_ver);
-        })
-        | views::transform([](const auto& cap) { return cap.info.name; })
-        | to<std::vector>();
-}
-
 SemanticVersion PluginInspector::GetNewestVersion(const std::string& plugin_name) {
     auto capabilities = InspectAll();
     

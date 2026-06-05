@@ -55,6 +55,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
 
+    source->SetName("source_1");
+    sink->SetName("sink_1");
+
     auto source_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
 
@@ -96,6 +99,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
+
+    source->SetName("source_1");
+    interior->SetName("interior_1");
+    sink->SetName("sink_1");
 
 
     auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
@@ -153,8 +160,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each node instance
-    source1->SetName("SourceTestNode_1");
-    source2->SetName("SourceTestNode_2");
+    source1->SetName("source_1");
+    source2->SetName("source_2");
+    merge->SetName("merge_1");
+    sink->SetName("sink_1");
     
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
@@ -216,8 +225,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
     auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each sink node instance
-    sink1->SetName("SinkTestNode_1");
-    sink2->SetName("SinkTestNode_2");
+    source->SetName("source_1");
+    split->SetName("split_1");
+    sink1->SetName("sink_1");
+    sink2->SetName("sink_2");
     
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto split_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(split);
@@ -285,8 +296,12 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each interior node instance
-    interior1->SetName("InteriorTestNode_1");
-    interior2->SetName("InteriorTestNode_2");
+    source->SetName("source_1");
+    split->SetName("split_1");
+    interior1->SetName("interior_1");
+    interior2->SetName("interior_2");
+    merge->SetName("merge_1");
+    sink->SetName("sink_1");
     
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto split_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(split);
@@ -347,9 +362,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential()
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each interior node instance
-    interior1->SetName("InteriorTestNode_1");
-    interior2->SetName("InteriorTestNode_2");
-    interior3->SetName("InteriorTestNode_3");
+    source->SetName("source_1");
+    interior1->SetName("interior_1");
+    interior2->SetName("interior_2");
+    interior3->SetName("interior_3");
+    sink->SetName("sink_1");
     
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);
     auto interior1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior1);
@@ -411,8 +428,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each source node instance
-    source1->SetName("SourceTestNode_1");
-    source2->SetName("SourceTestNode_2");
+    source1->SetName("source_1");
+    source2->SetName("source_2");
+    interior->SetName("interior_1");
+    merge->SetName("merge_1");
+    sink->SetName("sink_1");
     
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
@@ -484,8 +504,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInte
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to each source node instance
-    source1->SetName("SourceTestNode_1");
-    source2->SetName("SourceTestNode_2");
+    source1->SetName("source_1");
+    source2->SetName("source_2");
+    interior->SetName("interior_1");
+    merge->SetName("merge_1");
+    sink->SetName("sink_1");
     
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
@@ -553,14 +576,15 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
     auto sink2 = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
     
     // Assign unique names to duplicate node types
-    source1->SetName("SourceTestNode_1");
-    source2->SetName("SourceTestNode_2");
-    merge1->SetName("MergeTestNode_1");
-    merge2->SetName("MergeTestNode_2");
-    interior1->SetName("InteriorTestNode_1");
-    interior2->SetName("InteriorTestNode_2");
-    sink1->SetName("SinkTestNode_1");
-    sink2->SetName("SinkTestNode_2");
+    source1->SetName("source_1");
+    source2->SetName("source_2");
+    merge1->SetName("merge_1");
+    merge2->SetName("merge_2");
+    split1->SetName("split_1");
+    interior1->SetName("interior_1");
+    interior2->SetName("interior_2");
+    sink1->SetName("sink_1");
+    sink2->SetName("sink_2");
     
     auto source1_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source1);
     auto source2_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source2);
@@ -624,6 +648,7 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
     auto factory = PluginInfrastructure::GetFactory();
     
     auto source = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
+    source->SetName("source_1");
     auto source_typed = std::make_shared<graph::NodeFacadeAdapterWrapper>(source);  
     
     graph->AddNode(source_typed);
@@ -662,6 +687,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() 
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntProducer"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "CompletionNode"));
+
+    producer->SetName("producer_1");
+    sink->SetName("sink_1");
+    completion->SetName("completion_1");
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
@@ -707,6 +736,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntPr
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestIntSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "CompletionNode"));
+
+    producer->SetName("producer_1");
+    interior->SetName("interior_1");
+    sink->SetName("sink_1");
+    completion->SetName("completion_1");
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);
@@ -755,6 +789,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer
     auto producer = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleProducer"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "CompletionNode"));
+
+    producer->SetName("producer_1");
+    sink->SetName("sink_1");
+    completion->SetName("completion_1");
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto sink_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(sink);
@@ -800,6 +838,11 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubl
     auto interior = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
     auto sink = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "TestDoubleSinkNode"));
     auto completion = std::make_shared<graph::NodeFacadeAdapter>(PluginInfrastructure::CreateNodeOrThrow(factory, "CompletionNode"));
+
+    producer->SetName("producer_1");
+    interior->SetName("interior_1");
+    sink->SetName("sink_1");
+    completion->SetName("completion_1");
     
     auto producer_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(producer);
     auto interior_wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior);

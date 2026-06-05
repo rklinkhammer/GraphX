@@ -65,15 +65,6 @@ public:
     }
 
     /**
-     * @brief Get all captured events (legacy alias for GetCapturedEvents)
-     * @return Vector of captured MetricsEvent objects
-     * @note Provided for backward compatibility with existing tests
-     */
-    std::vector<app::metrics::MetricsEvent> GetEvents() const {
-        return GetCapturedEvents();
-    }
-
-    /**
      * @brief Get total number of captured events
      * @return Count of events received
      */

@@ -28,7 +28,8 @@
 namespace graph {
 
 bool JsonView::Contains(const std::string& key) const {
-    return json_.contains(key) && !json_[key].is_null();
+    const auto it = json_.find(key);
+    return it != json_.end() && !it->is_null();
 }
 
 std::string JsonView::FormatError(const std::string& key,
