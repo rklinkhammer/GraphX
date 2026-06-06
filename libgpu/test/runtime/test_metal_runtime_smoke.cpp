@@ -195,16 +195,13 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         collective_ticket.execution_queue_id = queue_id;
         collective_ticket.completion_event = event_id;
 
-        EXPECT_TRUE(collective->AllReduce(device_lease.device_view, collective_ticket));
-        EXPECT_EQ(device_lease.device_view.ready_event, event_id);
+        EXPECT_FALSE(collective->AllReduce(device_lease.device_view, collective_ticket));
 
         collective_ticket.kind = graph::gpu::accel::CollectiveKind::AllGather;
-        EXPECT_TRUE(collective->AllGather(device_lease.device_view, shared_lease.device_view, collective_ticket));
-        EXPECT_EQ(shared_lease.device_view.ready_event, event_id);
+        EXPECT_FALSE(collective->AllGather(device_lease.device_view, shared_lease.device_view, collective_ticket));
 
         collective_ticket.kind = graph::gpu::accel::CollectiveKind::ReduceScatter;
-        EXPECT_TRUE(collective->ReduceScatter(device_lease.device_view, shared_lease.device_view, collective_ticket));
-        EXPECT_EQ(shared_lease.device_view.ready_event, event_id);
+        EXPECT_FALSE(collective->ReduceScatter(device_lease.device_view, shared_lease.device_view, collective_ticket));
 
         EXPECT_TRUE(memory_pool->Release(device_lease));
         EXPECT_TRUE(memory_pool->Release(shared_lease));
@@ -288,6 +285,12 @@ TEST(MetalNativeRuntimeCollectiveTest, RejectsInvalidCollectiveInputs) {
     graph::gpu::accel::CollectiveTicket invalid_ticket = valid_ticket;
     invalid_ticket.kind = graph::gpu::accel::CollectiveKind::Unknown;
     EXPECT_FALSE(collective->AllReduce(device_lease.device_view, invalid_ticket));
+
+    EXPECT_FALSE(collective->AllReduce(device_lease.device_view, valid_ticket));
+    valid_ticket.kind = graph::gpu::accel::CollectiveKind::AllGather;
+    EXPECT_FALSE(collective->AllGather(device_lease.device_view, output_lease.device_view, valid_ticket));
+    valid_ticket.kind = graph::gpu::accel::CollectiveKind::ReduceScatter;
+    EXPECT_FALSE(collective->ReduceScatter(device_lease.device_view, output_lease.device_view, valid_ticket));
 
     graph::gpu::accel::DeviceBufferView invalid_view{};
     EXPECT_FALSE(collective->AllReduce(invalid_view, valid_ticket));

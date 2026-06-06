@@ -1505,49 +1505,48 @@ void NativeMetalTelemetryCapability::ResetForTesting() {
 
 bool NativeMetalCollectiveCapability::AllReduce(accel::DeviceBufferView& in_out,
                                                 const accel::CollectiveTicket& ticket) {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (!accel::IsValidView(in_out) || !accel::IsValidCollectiveTicket(ticket)) {
         return false;
     }
 
-    // Single-process baseline: treat as in-place no-op reduction and surface completion.
-    in_out.ready_event = ticket.completion_event;
-    return true;
+    auto& telemetry = TelemetryState();
+    std::scoped_lock lock(telemetry.mutex);
+    ++telemetry.error_count;
+    ++telemetry.error_code_counts["unsupported-metal-collective-allreduce"];
+    return false;
 }
 
 bool NativeMetalCollectiveCapability::AllGather(const accel::DeviceBufferView& input,
                                                 accel::DeviceBufferView& output,
                                                 const accel::CollectiveTicket& ticket) {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (!accel::IsValidView(input) || !accel::IsValidView(output) ||
         !accel::IsValidCollectiveTicket(ticket)) {
         return false;
     }
 
-    const auto copy_bytes = std::min(input.bytes, output.bytes);
-    if (copy_bytes == 0) {
-        return false;
-    }
-
-    std::memcpy(output.device_ptr, input.device_ptr, static_cast<std::size_t>(copy_bytes));
-    output.ready_event = ticket.completion_event;
-    return true;
+    auto& telemetry = TelemetryState();
+    std::scoped_lock lock(telemetry.mutex);
+    ++telemetry.error_count;
+    ++telemetry.error_code_counts["unsupported-metal-collective-allgather"];
+    return false;
 }
 
 bool NativeMetalCollectiveCapability::ReduceScatter(const accel::DeviceBufferView& input,
                                                     accel::DeviceBufferView& output,
                                                     const accel::CollectiveTicket& ticket) {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (!accel::IsValidView(input) || !accel::IsValidView(output) ||
         !accel::IsValidCollectiveTicket(ticket)) {
         return false;
     }
 
-    const auto copy_bytes = std::min(input.bytes, output.bytes);
-    if (copy_bytes == 0) {
-        return false;
-    }
-
-    std::memcpy(output.device_ptr, input.device_ptr, static_cast<std::size_t>(copy_bytes));
-    output.ready_event = ticket.completion_event;
-    return true;
+    auto& telemetry = TelemetryState();
+    std::scoped_lock lock(telemetry.mutex);
+    ++telemetry.error_count;
+    ++telemetry.error_code_counts["unsupported-metal-collective-reducescatter"];
+    return false;
 }
 
 } // namespace graph::gpu::metal::capabilities

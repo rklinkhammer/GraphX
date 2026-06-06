@@ -97,6 +97,12 @@ and also accepts prefixed forms:
 - `source:<function_name>::<msl_source>`
 - `metallib:<function_name>::<absolute_or_relative_path_to_metallib>`
 
+## Collective Operations
+
+Native Metal collective calls are currently explicit unsupported operations.
+`AllReduce`, `AllGather`, and `ReduceScatter` return `false` in the native
+capability until a full multi-device collective runtime is implemented.
+
 ## Fallback Behavior
 
 If headers are not found, GraphX automatically falls back to simulated Metal capabilities and prints a warning.
