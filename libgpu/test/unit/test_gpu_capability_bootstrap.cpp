@@ -7,6 +7,7 @@
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "gpu/metal/nodes/DeviceShardNodeMetal.hpp"
 #include "gpu/metal/nodes/D2HAsyncNodeMetal.hpp"
 #include "gpu/metal/nodes/H2DAsyncNodeMetal.hpp"
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
@@ -112,9 +113,11 @@ TEST(GpuCapabilityBootstrap, MetalNodesUseBootstrappedSharedQueue) {
 
     graph::gpu::metal::nodes::H2DAsyncNodeMetal h2d;
     graph::gpu::metal::nodes::D2HAsyncNodeMetal d2h;
+    graph::gpu::metal::nodes::DeviceShardNodeMetal shard;
 
     ASSERT_TRUE(h2d.BindGpuCapabilities(bus));
     ASSERT_TRUE(d2h.BindGpuCapabilities(bus));
+    ASSERT_TRUE(shard.BindGpuCapabilities(bus));
 
     const auto h2d_queue_id = h2d.GetParameters().TryGetInt("queue_id");
     ASSERT_TRUE(h2d_queue_id.has_value());
@@ -123,6 +126,10 @@ TEST(GpuCapabilityBootstrap, MetalNodesUseBootstrappedSharedQueue) {
     const auto d2h_queue_id = d2h.GetParameters().TryGetInt("queue_id");
     ASSERT_TRUE(d2h_queue_id.has_value());
     EXPECT_EQ(static_cast<std::uint64_t>(d2h_queue_id.value()), shared_queue_id);
+
+    const auto shard_queue_id = shard.GetParameters().TryGetInt("queue_id");
+    ASSERT_TRUE(shard_queue_id.has_value());
+    EXPECT_EQ(static_cast<std::uint64_t>(shard_queue_id.value()), shared_queue_id);
 #else
     GTEST_SKIP() << "Metal graph nodes are disabled in this build configuration.";
 #endif
