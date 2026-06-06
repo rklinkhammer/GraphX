@@ -1,0 +1,80 @@
+{
+  "name": "MetalVibrationHealthPipeline",
+  "description": "JSON-loaded Metal vibration-health test pipeline",
+  "num_threads": 2,
+  "nodes": [
+    {
+      "id": "ingress",
+      "type": "HostIngressPinnedSourceNodeMetal",
+      "name": "ingress"
+    },
+    {
+      "id": "h2d",
+      "type": "H2DAsyncNodeMetal",
+      "name": "h2d"
+    },
+    {
+      "id": "shard",
+      "type": "DeviceShardNodeMetal",
+      "name": "shard"
+    },
+    {
+      "id": "transform",
+      "type": "DeviceTransformNodeMetal",
+      "name": "transform"
+    },
+    {
+      "id": "reduce",
+      "type": "DeviceReduceNodeMetal",
+      "name": "reduce"
+    },
+    {
+      "id": "d2h",
+      "type": "D2HAsyncNodeMetal",
+      "name": "d2h"
+    },
+    {
+      "id": "egress",
+      "type": "HostEgressSinkNodeMetal",
+      "name": "egress"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "ingress",
+      "source_port": 0,
+      "target_node_id": "h2d",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "h2d",
+      "source_port": 0,
+      "target_node_id": "shard",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "shard",
+      "source_port": 0,
+      "target_node_id": "transform",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "transform",
+      "source_port": 0,
+      "target_node_id": "reduce",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "reduce",
+      "source_port": 0,
+      "target_node_id": "d2h",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "egress",
+      "target_port": 0
+    }
+  ]
+}

@@ -6,6 +6,12 @@ Comprehensive test analysis, test coverage reports, and test validation document
 
 This directory contains all test-related documentation including analysis of test coverage, test results, and validation reports for each major component of GraphX.
 
+## Project Testing Rule
+
+- Any runtime contract test that involves a graph topology must include a companion GraphExecutor-based test.
+- The GraphExecutor-based variant is required because GraphExecutor is the project API surface for graph execution.
+- Direct node-level runtime contract tests are still allowed for low-level determinism and diagnostics, but they do not replace the GraphExecutor companion.
+
 ## Organization
 
 ### Component Test Analysis
