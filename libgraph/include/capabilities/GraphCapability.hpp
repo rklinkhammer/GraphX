@@ -31,7 +31,6 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/NodeProvider.hpp"
-#include "plugins/PluginRegistry.hpp"
 
 /**
  * @file MetricsCapability.hpp
@@ -59,14 +58,6 @@ public:
         return graph_manager;
     }
 
-    void SetPluginRegistry(std::shared_ptr<graph::PluginRegistry> registry) {
-        plugin_registry = registry;
-    }
-   
-    std::shared_ptr<graph::PluginRegistry> GetPluginRegistry() const {
-        return plugin_registry;
-    }
-    
     void SetNodeProvider(std::shared_ptr<graph::INodeProvider> provider) {
         node_provider = std::move(provider);
     }
@@ -166,7 +157,6 @@ private:
 
     std::string json_config_path;
     //graph::GraphConfig graph_impl;
-    std::shared_ptr<graph::PluginRegistry> plugin_registry  {nullptr};
     // Primary node creation/query contract used by graph orchestration.
     std::shared_ptr<graph::INodeProvider> node_provider {nullptr};
     std::shared_ptr<graph::GraphManager> graph_manager {nullptr};

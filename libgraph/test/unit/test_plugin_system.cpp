@@ -417,6 +417,19 @@ TEST(FactoryManagerExpectedTest, CreateFactoryExpectedCreatesEmptyFactoryForMiss
     EXPECT_NE(result->loader, nullptr);
 }
 
+TEST(FactoryManagerExpectedTest, CreateProviderExpectedReportsDiagnosticsAndLifetime) {
+    auto result = app::FactoryManager::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
+
+    ASSERT_TRUE(result);
+    EXPECT_NE(result->provider, nullptr);
+    EXPECT_NE(result->lifetime, nullptr);
+    EXPECT_NE(result->lifetime->plugin_registry, nullptr);
+    EXPECT_NE(result->lifetime->loader, nullptr);
+    EXPECT_GE(result->diagnostics.discovered_count, result->diagnostics.loaded_count);
+    EXPECT_GE(result->diagnostics.scan_duration.count(), 0);
+    EXPECT_GE(result->diagnostics.init_duration.count(), 0);
+}
+
 TEST(FactoryManagerExpectedTest, CreateFactoryExpectedRejectsFilePath) {
     const std::string plugin_file =
         std::string(PLUGIN_OUTPUT_DIRECTORY) + "/" + TestNodePluginFilename();

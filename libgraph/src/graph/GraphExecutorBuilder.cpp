@@ -249,12 +249,18 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     try {
          // Step 2: Create FactoryManager and load plugins
         LOG4CXX_TRACE(g_logger, "Step 2: Creating factory and loading plugins");
-        auto factory_bundle = app::FactoryManager::CreateFactoryExpected(plugin_directory_);
-        if (!factory_bundle) {
+        auto provider_bootstrap = app::FactoryManager::CreateProviderExpected(plugin_directory_);
+        if (!provider_bootstrap) {
             throw std::runtime_error("Failed to create factory and load plugins");
         }
-        auto node_provider = factory_bundle->factory;
+        auto node_provider = provider_bootstrap->provider;
         LOG4CXX_TRACE(g_logger, "Factory created and plugins loaded from: " << plugin_directory_);
+        LOG4CXX_TRACE(g_logger, "Provider bootstrap diagnostics: discovered="
+                     << provider_bootstrap->diagnostics.discovered_count
+                     << ", loaded=" << provider_bootstrap->diagnostics.loaded_count
+                     << ", failed=" << provider_bootstrap->diagnostics.failed_count
+                     << ", scan_ms=" << provider_bootstrap->diagnostics.scan_duration.count()
+                     << ", init_ms=" << provider_bootstrap->diagnostics.init_duration.count());
 
         // Step 3: Create AppContext with loaded configuration
         LOG4CXX_TRACE(g_logger, "Step 3: Creating AppContext");
@@ -262,7 +268,6 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             std::make_shared<capabilities::GraphCapability>();
 
         graph_cap->SetNodeProvider(node_provider);
-        graph_cap->SetPluginRegistry(factory_bundle->plugin_registry);
         graph_cap->SetJsonConfigPath(json_config_);
         graph_cap->SetCliMode(cli_mode_);
 

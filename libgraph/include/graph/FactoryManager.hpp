@@ -27,6 +27,7 @@
 #include <memory>
 #include <utility>
 #include <expected>
+#include <chrono>
 
 // Forward declarations
 namespace graph {
@@ -91,11 +92,32 @@ public:
     Unknown = 99,
   };
 
+  struct ProviderBootstrapDiagnostics {
+    std::string plugin_directory{};
+    std::size_t discovered_count{0};
+    std::size_t loaded_count{0};
+    std::size_t failed_count{0};
+    std::chrono::milliseconds scan_duration{0};
+    std::chrono::milliseconds init_duration{0};
+  };
+
+  struct ProviderBootstrapHandle {
+    std::shared_ptr<graph::PluginRegistry> plugin_registry;
+    std::shared_ptr<graph::PluginLoader> loader;
+  };
+
+  struct ProviderBootstrapResult {
+    std::shared_ptr<graph::INodeProvider> provider;
+    ProviderBootstrapDiagnostics diagnostics{};
+    std::shared_ptr<ProviderBootstrapHandle> lifetime;
+  };
+
   struct FactoryBundle {
-    // Primary orchestration contract.
+    // Legacy compatibility shape. Prefer ProviderBootstrapResult moving forward.
     std::shared_ptr<graph::INodeProvider> factory;
     std::shared_ptr<graph::PluginRegistry> plugin_registry;
     std::shared_ptr<graph::PluginLoader> loader;
+    ProviderBootstrapDiagnostics diagnostics{};
   };
 
   /**
@@ -130,6 +152,9 @@ public:
   * app_context.factory = bundle->factory;  // provider handle
    * @endcode
    */
+  [[nodiscard]] static std::expected<ProviderBootstrapResult, FactoryError>
+  CreateProviderExpected(const std::string& plugin_directory) noexcept;
+
   [[nodiscard]] static std::expected<FactoryBundle, FactoryError>
   CreateFactoryExpected(const std::string& plugin_directory) noexcept;
   

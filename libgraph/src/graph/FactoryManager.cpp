@@ -29,6 +29,7 @@
 #include <log4cxx/basicconfigurator.h>
 #include <system_error>
 #include <filesystem>
+#include <chrono>
 
 namespace app {
 
@@ -39,11 +40,14 @@ namespace app {
 static log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("FactoryManager");
 
 // ============================================================================
-std::expected<FactoryManager::FactoryBundle, FactoryManager::FactoryError>
-FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexcept {
-    LOG4CXX_TRACE(logger_, "Creating NodeFactory with plugin directory: " 
+std::expected<FactoryManager::ProviderBootstrapResult, FactoryManager::FactoryError>
+FactoryManager::CreateProviderExpected(const std::string& plugin_directory) noexcept {
+    LOG4CXX_TRACE(logger_, "Bootstrapping node provider with plugin directory: "
                           << plugin_directory);
-    
+
+    ProviderBootstrapDiagnostics diagnostics{};
+    diagnostics.plugin_directory = plugin_directory;
+
     // Step 1: Validate plugin directory exists
     std::error_code fs_error;
     const bool plugin_directory_exists = std::filesystem::exists(plugin_directory, fs_error);
@@ -54,7 +58,7 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
     }
 
     if (!plugin_directory_exists) {
-        LOG4CXX_WARN(logger_, "Plugin directory does not exist: " 
+        LOG4CXX_WARN(logger_, "Plugin directory does not exist: "
                             << plugin_directory << ". Proceeding with empty registry.");
     } else if (!std::filesystem::is_directory(plugin_directory, fs_error)) {
         if (fs_error) {
@@ -62,11 +66,11 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
                                  << plugin_directory << " - " << fs_error.message());
             return std::unexpected(FactoryError::InvalidPluginDirectory);
         }
-        LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: " 
+        LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: "
                              << plugin_directory);
         return std::unexpected(FactoryError::InvalidPluginDirectory);
     }
-    
+
     // Step 2: Create PluginRegistry
     std::shared_ptr<graph::PluginRegistry> registry;
     try {
@@ -79,9 +83,8 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
         LOG4CXX_ERROR(logger_, "Failed to create PluginRegistry: unknown error");
         return std::unexpected(FactoryError::Unknown);
     }
-    
+
     // Step 3: Create PluginLoader with registry
-    // CRITICAL: Must return this loader to caller to prevent dlclose() segfaults
     std::shared_ptr<graph::PluginLoader> loader;
     try {
         loader = std::make_shared<graph::PluginLoader>(plugin_directory, registry);
@@ -93,45 +96,100 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
         LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: unknown error");
         return std::unexpected(FactoryError::Unknown);
     }
-    
-    // Step 4: Load all plugins from directory (graceful degradation on individual failures)
+
+    // Step 4: Scan and load plugins from directory
+    const auto scan_start = std::chrono::steady_clock::now();
     if (plugin_directory_exists) {
-        try {
-            LOG4CXX_TRACE(logger_, "Loading plugins from directory: " << plugin_directory);
-            static_cast<void>(loader->LoadAllPluginsSafe());
-            LOG4CXX_TRACE(logger_, "Plugin loading completed");
-        } catch (const std::exception& e) {
-            // Log but don't fail - some plugins may have loaded successfully
-            LOG4CXX_WARN(logger_, "Plugin loading encountered errors: " << e.what()
+        for (const auto& entry : std::filesystem::directory_iterator(plugin_directory, fs_error)) {
+            if (fs_error) {
+                LOG4CXX_WARN(logger_, "Plugin directory iteration warning for "
+                                      << plugin_directory << ": " << fs_error.message());
+                break;
+            }
+
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+
+            const auto ext = entry.path().extension().string();
+            if (ext == ".so" || ext == ".dylib" || ext == ".dll") {
+                ++diagnostics.discovered_count;
+            }
+        }
+
+        auto loaded = loader->LoadAllPluginsSafe();
+        if (loaded) {
+            diagnostics.loaded_count = *loaded;
+        } else {
+            LOG4CXX_WARN(logger_, "Plugin loading encountered errors: "
+                                  << app::error::ErrorMessage(loaded.error())
                                   << ". Some plugins may not be available.");
         }
+        diagnostics.failed_count = diagnostics.discovered_count >= diagnostics.loaded_count
+            ? diagnostics.discovered_count - diagnostics.loaded_count
+            : 0;
     } else {
         LOG4CXX_WARN(logger_, "Plugin directory does not exist, skipping plugin loading: "
                             << plugin_directory);
     }
-    
+    diagnostics.scan_duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - scan_start);
+
     // Step 5: Create NodeFactory with loaded registry
+    const auto init_start = std::chrono::steady_clock::now();
     std::shared_ptr<graph::NodeFactory> factory;
     try {
         factory = std::make_shared<graph::NodeFactory>(registry);
         LOG4CXX_TRACE(logger_, "Created NodeFactory successfully");
-        
-        // Initialize the factory with plugin node types
+
         factory->Initialize();
         LOG4CXX_TRACE(logger_, "Initialized NodeFactory with plugins");
     } catch (const std::exception& e) {
-        LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: " 
+        LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: "
                              << e.what());
         return std::unexpected(FactoryError::FactoryCreationFailed);
     } catch (...) {
         LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: unknown error");
         return std::unexpected(FactoryError::Unknown);
     }
-    
-    LOG4CXX_TRACE(logger_, "FactoryManager::CreateFactory completed successfully. "
-                         << "Returning provider, plugin registry, and loader bookkeeping.");
-    
-    return FactoryBundle{.factory = factory, .plugin_registry = registry, .loader = loader};
+    diagnostics.init_duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - init_start);
+
+    auto lifetime = std::make_shared<ProviderBootstrapHandle>();
+    lifetime->plugin_registry = registry;
+    lifetime->loader = loader;
+
+    LOG4CXX_TRACE(logger_, "Provider bootstrap completed. discovered="
+                         << diagnostics.discovered_count
+                         << ", loaded=" << diagnostics.loaded_count
+                         << ", failed=" << diagnostics.failed_count
+                         << ", scan_ms=" << diagnostics.scan_duration.count()
+                         << ", init_ms=" << diagnostics.init_duration.count());
+
+    return ProviderBootstrapResult{.provider = factory, .diagnostics = diagnostics, .lifetime = lifetime};
+}
+
+// ============================================================================
+std::expected<FactoryManager::FactoryBundle, FactoryManager::FactoryError>
+FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexcept {
+    auto result = CreateProviderExpected(plugin_directory);
+    if (!result) {
+        return std::unexpected(result.error());
+    }
+
+    std::shared_ptr<graph::PluginRegistry> registry;
+    std::shared_ptr<graph::PluginLoader> loader;
+    if (result->lifetime != nullptr) {
+        registry = result->lifetime->plugin_registry;
+        loader = result->lifetime->loader;
+    }
+
+    return FactoryBundle{
+        .factory = result->provider,
+        .plugin_registry = registry,
+        .loader = loader,
+        .diagnostics = result->diagnostics,
+    };
 }
 
 // ============================================================================
