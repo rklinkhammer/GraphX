@@ -58,8 +58,8 @@ public:
             MTL::Library* library{nullptr};
             MTL::Function* function{nullptr};
             MTL::ComputePipelineState* pipeline{nullptr};
-            std::vector<NativeMetalKernelArgDescriptor> arg_layout{};
-            NativeMetalKernelDispatchDescriptor dispatch{};
+            std::vector<MetalKernelArgDescriptor> arg_layout{};
+            MetalKernelDispatchDescriptor dispatch{};
         };
 
         std::mutex mutex{};
@@ -379,7 +379,7 @@ NS::String* ToNSString(std::string_view value) {
     return NS::String::string(owned.c_str(), NS::UTF8StringEncoding);
 }
 
-std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
+std::optional<MetalKernelDescriptor> ParseKernelRegistration(
     std::uint64_t kernel_id,
     std::string_view registration) {
     constexpr std::string_view kBuiltinPrefix = "builtin:";
@@ -387,7 +387,7 @@ std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
     constexpr std::string_view kMetallibPrefix = "metallib:";
     constexpr std::string_view kDivider = "::";
 
-    NativeMetalKernelDescriptor descriptor{};
+    MetalKernelDescriptor descriptor{};
     descriptor.kernel_id = kernel_id;
 
     if (StartsWith(registration, kBuiltinPrefix)) {
@@ -395,7 +395,7 @@ std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
         if (!IsValidKernelName(function_name)) {
             return std::nullopt;
         }
-        descriptor.source_kind = NativeMetalKernelSourceKind::Builtin;
+        descriptor.source_kind = MetalKernelSourceKind::Builtin;
         descriptor.function_name = std::string(function_name);
         return descriptor;
     }
@@ -413,7 +413,7 @@ std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
             return std::nullopt;
         }
 
-        descriptor.source_kind = NativeMetalKernelSourceKind::InlineSource;
+        descriptor.source_kind = MetalKernelSourceKind::InlineSource;
         descriptor.function_name = std::string(function_name);
         descriptor.source_payload = std::string(source);
         return descriptor;
@@ -432,7 +432,7 @@ std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
             return std::nullopt;
         }
 
-        descriptor.source_kind = NativeMetalKernelSourceKind::MetallibPath;
+        descriptor.source_kind = MetalKernelSourceKind::MetallibPath;
         descriptor.function_name = std::string(function_name);
         descriptor.source_payload = std::string(path);
         return descriptor;
@@ -442,7 +442,7 @@ std::optional<NativeMetalKernelDescriptor> ParseKernelRegistration(
         return std::nullopt;
     }
 
-    descriptor.source_kind = NativeMetalKernelSourceKind::Builtin;
+    descriptor.source_kind = MetalKernelSourceKind::Builtin;
     descriptor.function_name = std::string(registration);
     return descriptor;
 }
@@ -469,8 +469,8 @@ BuiltinKernelKind ResolveBuiltinKernelKind(std::string_view kernel_name) {
     return BuiltinKernelKind::Noop;
 }
 
-void PopulateBuiltinKernelDefaults(NativeMetalKernelDescriptor& descriptor) {
-    if (descriptor.source_kind != NativeMetalKernelSourceKind::Builtin ||
+void PopulateBuiltinKernelDefaults(MetalKernelDescriptor& descriptor) {
+    if (descriptor.source_kind != MetalKernelSourceKind::Builtin ||
         !descriptor.arg_layout.empty()) {
         return;
     }
@@ -478,17 +478,17 @@ void PopulateBuiltinKernelDefaults(NativeMetalKernelDescriptor& descriptor) {
     switch (ResolveBuiltinKernelKind(descriptor.function_name)) {
     case BuiltinKernelKind::XorInplaceU8:
     case BuiltinKernelKind::IdentityInplaceU8:
-        descriptor.arg_layout.push_back(NativeMetalKernelArgDescriptor{
-            NativeMetalKernelArgKind::DeviceBuffer,
-            NativeMetalKernelArgAccess::ReadWrite});
+        descriptor.arg_layout.push_back(MetalKernelArgDescriptor{
+            MetalKernelArgKind::DeviceBuffer,
+            MetalKernelArgAccess::ReadWrite});
         break;
     case BuiltinKernelKind::ReduceMetricsU8:
-        descriptor.arg_layout.push_back(NativeMetalKernelArgDescriptor{
-            NativeMetalKernelArgKind::DeviceBuffer,
-            NativeMetalKernelArgAccess::ReadOnly});
-        descriptor.arg_layout.push_back(NativeMetalKernelArgDescriptor{
-            NativeMetalKernelArgKind::DeviceBuffer,
-            NativeMetalKernelArgAccess::WriteOnly});
+        descriptor.arg_layout.push_back(MetalKernelArgDescriptor{
+            MetalKernelArgKind::DeviceBuffer,
+            MetalKernelArgAccess::ReadOnly});
+        descriptor.arg_layout.push_back(MetalKernelArgDescriptor{
+            MetalKernelArgKind::DeviceBuffer,
+            MetalKernelArgAccess::WriteOnly});
         break;
     case BuiltinKernelKind::Noop:
     default:
@@ -589,7 +589,7 @@ MTL::Library* LoadLibraryFromMetallibPath(MTL::Device* device, std::string_view 
 bool CreateAndStoreKernelPipeline(std::uint64_t kernel_id,
                                   std::string_view entry_label,
                                   std::string_view function_name,
-                                  const NativeMetalKernelDescriptor& descriptor,
+                                  const MetalKernelDescriptor& descriptor,
                                   MTL::Device* device,
                                   MTL::Library* library) {
     if (kernel_id == 0 || device == nullptr || library == nullptr || !IsValidKernelName(function_name)) {
@@ -1192,7 +1192,11 @@ bool NativeMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
     return RegisterKernel(*descriptor);
 }
 
-bool NativeMetalKernelCapability::RegisterKernel(const NativeMetalKernelDescriptor& descriptor) {
+bool NativeMetalKernelCapability::RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) {
+    return RegisterKernel(descriptor);
+}
+
+bool NativeMetalKernelCapability::RegisterKernel(const MetalKernelDescriptor& descriptor) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (descriptor.kernel_id == 0 || !IsValidKernelName(descriptor.function_name)) {
         return false;
@@ -1202,7 +1206,7 @@ bool NativeMetalKernelCapability::RegisterKernel(const NativeMetalKernelDescript
     PopulateBuiltinKernelDefaults(canonical_descriptor);
 
     for (const auto& arg : canonical_descriptor.arg_layout) {
-        if (arg.kind != NativeMetalKernelArgKind::DeviceBuffer) {
+        if (arg.kind != MetalKernelArgKind::DeviceBuffer) {
             return false;
         }
     }
@@ -1218,21 +1222,21 @@ bool NativeMetalKernelCapability::RegisterKernel(const NativeMetalKernelDescript
     std::string entry_label{};
 
     switch (canonical_descriptor.source_kind) {
-    case NativeMetalKernelSourceKind::Builtin: {
+    case MetalKernelSourceKind::Builtin: {
         const auto kernel_kind = ResolveBuiltinKernelKind(canonical_descriptor.function_name);
         const auto source_text = MakeKernelSource(canonical_descriptor.function_name, kernel_kind);
         library = BuildLibraryFromSource(device, source_text);
         entry_label = canonical_descriptor.function_name;
         break;
     }
-    case NativeMetalKernelSourceKind::InlineSource:
+    case MetalKernelSourceKind::InlineSource:
         if (canonical_descriptor.source_payload.empty()) {
             return false;
         }
         library = BuildLibraryFromSource(device, canonical_descriptor.source_payload);
         entry_label = "source:" + canonical_descriptor.function_name;
         break;
-    case NativeMetalKernelSourceKind::MetallibPath:
+    case MetalKernelSourceKind::MetallibPath:
         if (canonical_descriptor.source_payload.empty()) {
             return false;
         }
@@ -1259,10 +1263,10 @@ bool NativeMetalKernelCapability::RegisterKernel(const NativeMetalKernelDescript
 bool NativeMetalKernelCapability::RegisterKernelBuiltin(std::uint64_t kernel_id,
                                                         std::string_view function_name) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
-    NativeMetalKernelDescriptor descriptor{};
+    MetalKernelDescriptor descriptor{};
     descriptor.kernel_id = kernel_id;
     descriptor.function_name = std::string(function_name);
-    descriptor.source_kind = NativeMetalKernelSourceKind::Builtin;
+    descriptor.source_kind = MetalKernelSourceKind::Builtin;
     PopulateBuiltinKernelDefaults(descriptor);
     return RegisterKernel(descriptor);
 }
@@ -1271,10 +1275,10 @@ bool NativeMetalKernelCapability::RegisterKernelFromSource(std::uint64_t kernel_
                                                            std::string_view function_name,
                                                            std::string_view msl_source) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
-    NativeMetalKernelDescriptor descriptor{};
+    MetalKernelDescriptor descriptor{};
     descriptor.kernel_id = kernel_id;
     descriptor.function_name = std::string(function_name);
-    descriptor.source_kind = NativeMetalKernelSourceKind::InlineSource;
+    descriptor.source_kind = MetalKernelSourceKind::InlineSource;
     descriptor.source_payload = std::string(msl_source);
     return RegisterKernel(descriptor);
 }
@@ -1283,10 +1287,10 @@ bool NativeMetalKernelCapability::RegisterKernelFromMetallib(std::uint64_t kerne
                                                              std::string_view function_name,
                                                              std::string_view metallib_path) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
-    NativeMetalKernelDescriptor descriptor{};
+    MetalKernelDescriptor descriptor{};
     descriptor.kernel_id = kernel_id;
     descriptor.function_name = std::string(function_name);
-    descriptor.source_kind = NativeMetalKernelSourceKind::MetallibPath;
+    descriptor.source_kind = MetalKernelSourceKind::MetallibPath;
     descriptor.source_payload = std::string(metallib_path);
     return RegisterKernel(descriptor);
 }

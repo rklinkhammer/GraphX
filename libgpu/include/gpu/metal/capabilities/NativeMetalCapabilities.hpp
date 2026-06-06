@@ -17,45 +17,6 @@ class NativeMetalRuntimeContext;
 
 std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext();
 
-enum class NativeMetalKernelSourceKind : std::uint8_t {
-    Builtin = 0,
-    InlineSource,
-    MetallibPath,
-};
-
-enum class NativeMetalKernelArgKind : std::uint8_t {
-    DeviceBuffer = 0,
-};
-
-enum class NativeMetalKernelArgAccess : std::uint8_t {
-    ReadOnly = 0,
-    WriteOnly,
-    ReadWrite,
-};
-
-struct NativeMetalKernelArgDescriptor {
-    NativeMetalKernelArgKind kind{NativeMetalKernelArgKind::DeviceBuffer};
-    NativeMetalKernelArgAccess access{NativeMetalKernelArgAccess::ReadWrite};
-};
-
-struct NativeMetalKernelDispatchDescriptor {
-    std::uint32_t default_grid_x{1};
-    std::uint32_t default_grid_y{1};
-    std::uint32_t default_grid_z{1};
-    std::uint32_t default_block_x{1};
-    std::uint32_t default_block_y{1};
-    std::uint32_t default_block_z{1};
-};
-
-struct NativeMetalKernelDescriptor {
-    std::uint64_t kernel_id{0};
-    std::string function_name{};
-    NativeMetalKernelSourceKind source_kind{NativeMetalKernelSourceKind::Builtin};
-    std::string source_payload{};
-    std::vector<NativeMetalKernelArgDescriptor> arg_layout{};
-    NativeMetalKernelDispatchDescriptor dispatch{};
-};
-
 // Native Metal capabilities currently delegate dataflow behavior to the
 // existing contract-safe defaults while native runtime plumbing is brought up.
 class NativeMetalContextCapability final : public IMetalContextCapability {
@@ -118,13 +79,16 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
-class NativeMetalKernelCapability final : public IMetalKernelCapability {
+class NativeMetalKernelCapability final : public IMetalKernelCapability,
+                                          public IMetalKernelDescriptorCapability {
 public:
     explicit NativeMetalKernelCapability(
         std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
             CreateNativeMetalRuntimeContext());
 
-    bool RegisterKernel(const NativeMetalKernelDescriptor& descriptor);
+    bool RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) override;
+
+    bool RegisterKernel(const MetalKernelDescriptor& descriptor);
 
     // Registers one of GraphX built-in kernels by function name.
     bool RegisterKernelBuiltin(std::uint64_t kernel_id,

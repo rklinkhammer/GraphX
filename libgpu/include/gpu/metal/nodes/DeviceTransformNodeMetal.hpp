@@ -7,10 +7,12 @@
 #include "gpu/accel/types/AccelFormatting.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "gpu/metal/capabilities/MetalKernelDescriptorParsing.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -48,6 +50,7 @@ public:
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
          transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         kernel_ = capability_bus.Get<capabilities::IMetalKernelCapability>();
+        kernel_descriptor_capability_ = std::dynamic_pointer_cast<capabilities::IMetalKernelDescriptorCapability>(kernel_);
         telemetry_ = capability_bus.Get<capabilities::IMetalTelemetryCapability>();
         if (queue_id_ == 0 && context_ != nullptr) {
             if (shared_queue_ != nullptr) {
@@ -64,7 +67,11 @@ public:
         }
         if (kernel_ && has_pending_kernel_configuration_) {
             const auto effective_queue = configured_queue_id_ == 0 ? queue_id_ : configured_queue_id_;
-            ConfigureKernel(configured_kernel_id_, configured_kernel_name_, configured_device_id_, effective_queue);
+            if (has_typed_kernel_descriptor_) {
+                ConfigureKernelDescriptor(configured_kernel_descriptor_, configured_device_id_, effective_queue);
+            } else {
+                ConfigureKernel(configured_kernel_id_, configured_kernel_name_, configured_device_id_, effective_queue);
+            }
             has_pending_kernel_configuration_ = false;
         }
          return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr &&
@@ -122,13 +129,29 @@ public:
                          std::string_view kernel_name,
                          std::uint32_t device_id,
                          std::uint64_t queue_id) {
-        configured_kernel_id_ = kernel_id;
-        configured_kernel_name_ = std::string(kernel_name);
+        capabilities::MetalKernelDescriptor descriptor{};
+        descriptor.kernel_id = kernel_id;
+        descriptor.function_name = std::string(kernel_name);
+        descriptor.source_kind = capabilities::MetalKernelSourceKind::Builtin;
+        descriptor.arg_layout = {
+            capabilities::MetalKernelArgDescriptor{capabilities::MetalKernelArgKind::DeviceBuffer,
+                                                   capabilities::MetalKernelArgAccess::ReadWrite},
+        };
+        ConfigureKernelDescriptor(descriptor, device_id, queue_id);
+    }
+
+    void ConfigureKernelDescriptor(const capabilities::MetalKernelDescriptor& descriptor,
+                                   std::uint32_t device_id,
+                                   std::uint64_t queue_id) {
+        configured_kernel_descriptor_ = descriptor;
+        has_typed_kernel_descriptor_ = true;
+        configured_kernel_id_ = descriptor.kernel_id;
+        configured_kernel_name_ = descriptor.function_name;
         configured_device_id_ = device_id;
         configured_queue_id_ = queue_id;
 
         kernel_ticket_.backend = accel::BackendKind::Metal;
-        kernel_ticket_.kernel_id = kernel_id;
+        kernel_ticket_.kernel_id = descriptor.kernel_id;
         kernel_ticket_.arg_count = kDefaultArgCount;
         kernel_ticket_.execution_queue_id = queue_id;
         ApplyFallbackLaunchDefaults(kernel_ticket_.launch);
@@ -136,12 +159,30 @@ public:
         queue_id_ = queue_id;
         device_id_ = device_id;
         if (kernel_) {
-            kernel_->RegisterKernel(kernel_id, kernel_name);
+            if (kernel_descriptor_capability_) {
+                kernel_descriptor_capability_->RegisterKernelDescriptor(descriptor);
+            } else {
+                kernel_->RegisterKernel(descriptor.kernel_id, descriptor.function_name);
+            }
             PopulateRegisteredKernelExecution(kernel_ticket_);
         }
     }
 
     void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("kernel_descriptor")) {
+            auto descriptor_obj = cfg.TryGetObject("kernel_descriptor");
+            if (!descriptor_obj) {
+                throw descriptor_obj.error();
+            }
+            const auto descriptor = capabilities::ParseMetalKernelDescriptor(descriptor_obj.value());
+
+            configured_kernel_descriptor_ = descriptor;
+            configured_kernel_id_ = descriptor.kernel_id;
+            configured_kernel_name_ = descriptor.function_name;
+            has_typed_kernel_descriptor_ = true;
+            has_pending_kernel_configuration_ = true;
+        }
+
         if (cfg.Contains("queue_id")) {
             auto parsed_queue = cfg.TryGetInt("queue_id");
             if (!parsed_queue) {
@@ -198,6 +239,15 @@ public:
             {"device_id", configured_device_id_},
             {"kernel_id", configured_kernel_id_},
             {"kernel_name", configured_kernel_name_},
+            {"kernel_descriptor", {
+                {"kernel_id", configured_kernel_descriptor_.kernel_id},
+                {"function_name", configured_kernel_descriptor_.function_name},
+                {"source_kind", configured_kernel_descriptor_.source_kind == capabilities::MetalKernelSourceKind::Builtin
+                                    ? "builtin"
+                                    : (configured_kernel_descriptor_.source_kind == capabilities::MetalKernelSourceKind::InlineSource
+                                           ? "inline_source"
+                                           : "metallib_path")},
+            }},
         };
         return graph::JsonView(params);
     }
@@ -216,6 +266,9 @@ public:
         } else if (param_name == "kernel_name") {
             desc = {{"type", "string"}, {"required", false},
                     {"description", "Kernel function name for transform operation."}};
+        } else if (param_name == "kernel_descriptor") {
+            desc = {{"type", "object"}, {"required", false},
+                    {"description", "Typed kernel descriptor with source, dispatch and argument layout."}};
         } else {
             desc = nlohmann::json::object();
         }
@@ -223,7 +276,7 @@ public:
     }
 
     [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
-        return {"queue_id", "device_id", "kernel_id", "kernel_name"};
+        return {"queue_id", "device_id", "kernel_id", "kernel_name", "kernel_descriptor"};
     }
 
 private:
@@ -260,6 +313,7 @@ private:
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::shared_ptr<capabilities::IMetalKernelCapability> kernel_;
+    std::shared_ptr<capabilities::IMetalKernelDescriptorCapability> kernel_descriptor_capability_;
     std::shared_ptr<capabilities::IMetalTelemetryCapability> telemetry_;
     std::uint64_t queue_id_{0};
     std::uint32_t device_id_{0};
@@ -267,8 +321,10 @@ private:
     accel::KernelTicket kernel_ticket_{};
     std::uint64_t configured_kernel_id_{0};
     std::string configured_kernel_name_{};
+    capabilities::MetalKernelDescriptor configured_kernel_descriptor_{};
     std::uint32_t configured_device_id_{0};
     std::uint64_t configured_queue_id_{0};
+    bool has_typed_kernel_descriptor_{false};
     bool has_pending_kernel_configuration_{false};
     accel::BufferLease last_output_lease_{};
     accel::TransferTicket last_transfer_ticket_{};

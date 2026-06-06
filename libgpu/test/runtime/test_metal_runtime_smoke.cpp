@@ -169,15 +169,15 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_TRUE(kernel->Launch(prefixed_ticket, args, 1));
 
         constexpr std::uint64_t kTypedKernelId = 9004;
-        graph::gpu::metal::capabilities::NativeMetalKernelDescriptor typed_descriptor{};
+        graph::gpu::metal::capabilities::MetalKernelDescriptor typed_descriptor{};
         typed_descriptor.kernel_id = kTypedKernelId;
         typed_descriptor.function_name = "graphx_typed_identity";
-        typed_descriptor.source_kind = graph::gpu::metal::capabilities::NativeMetalKernelSourceKind::Builtin;
+        typed_descriptor.source_kind = graph::gpu::metal::capabilities::MetalKernelSourceKind::Builtin;
         typed_descriptor.dispatch.default_block_x = 32;
         typed_descriptor.arg_layout.push_back(
-            graph::gpu::metal::capabilities::NativeMetalKernelArgDescriptor{
-                graph::gpu::metal::capabilities::NativeMetalKernelArgKind::DeviceBuffer,
-                graph::gpu::metal::capabilities::NativeMetalKernelArgAccess::ReadWrite});
+            graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
+                graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
+                graph::gpu::metal::capabilities::MetalKernelArgAccess::ReadWrite});
         EXPECT_TRUE(native_kernel->RegisterKernel(typed_descriptor));
 
         graph::gpu::metal::capabilities::IMetalKernelCapability::RegisteredKernelExecution
