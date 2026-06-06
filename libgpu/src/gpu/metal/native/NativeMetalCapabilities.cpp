@@ -132,6 +132,15 @@ public:
             memory_pool_state.host_allocations.clear();
         }
         {
+            std::scoped_lock lock(transfer_state.mutex);
+            for (auto& [_, pending_copy] : transfer_state.pending_d2h_copies) {
+                if (pending_copy.staging != nullptr) {
+                    pending_copy.staging->release();
+                }
+            }
+            transfer_state.pending_d2h_copies.clear();
+        }
+        {
             std::scoped_lock lock(context_state.mutex);
             for (auto& [_, queue] : context_state.queues) {
                 if (queue != nullptr) {
@@ -374,6 +383,10 @@ void RegisterPendingD2HCopy(std::uint64_t completion_event,
 
     auto& transfer_state = TransferState();
     std::scoped_lock lock(transfer_state.mutex);
+    const auto existing = transfer_state.pending_d2h_copies.find(completion_event);
+    if (existing != transfer_state.pending_d2h_copies.end() && existing->second.staging != nullptr) {
+        existing->second.staging->release();
+    }
     transfer_state.pending_d2h_copies[completion_event] =
         NativeMetalTransferState::PendingD2HCopy{staging, dst_host_ptr, bytes};
 }
