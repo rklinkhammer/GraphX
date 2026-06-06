@@ -60,6 +60,7 @@ public:
             MTL::Buffer* staging{nullptr};
             void* dst_host_ptr{nullptr};
             std::uint64_t bytes{0};
+            std::uint64_t queue_id{0};
         };
 
         std::mutex mutex{};
@@ -373,10 +374,13 @@ bool ResolveAsyncD2HModeEnabled() {
            normalized == "yes";
 }
 
+void DropPendingD2HCopy(std::uint64_t completion_event);
+
 void RegisterPendingD2HCopy(std::uint64_t completion_event,
                             MTL::Buffer* staging,
                             void* dst_host_ptr,
-                            std::uint64_t bytes) {
+                            std::uint64_t bytes,
+                            std::uint64_t queue_id) {
     if (completion_event == 0 || staging == nullptr || dst_host_ptr == nullptr || bytes == 0) {
         return;
     }
@@ -388,7 +392,28 @@ void RegisterPendingD2HCopy(std::uint64_t completion_event,
         existing->second.staging->release();
     }
     transfer_state.pending_d2h_copies[completion_event] =
-        NativeMetalTransferState::PendingD2HCopy{staging, dst_host_ptr, bytes};
+        NativeMetalTransferState::PendingD2HCopy{staging, dst_host_ptr, bytes, queue_id};
+}
+
+void DropPendingD2HCopiesForQueue(std::uint64_t queue_id) {
+    if (queue_id == 0) {
+        return;
+    }
+
+    auto& transfer_state = TransferState();
+    std::vector<std::uint64_t> event_ids_to_drop{};
+    {
+        std::scoped_lock lock(transfer_state.mutex);
+        for (const auto& [event_id, pending_copy] : transfer_state.pending_d2h_copies) {
+            if (pending_copy.queue_id == queue_id) {
+                event_ids_to_drop.push_back(event_id);
+            }
+        }
+    }
+
+    for (const auto event_id : event_ids_to_drop) {
+        DropPendingD2HCopy(event_id);
+    }
 }
 
 void DropPendingD2HCopy(std::uint64_t completion_event) {
@@ -974,6 +999,8 @@ std::uint64_t NativeMetalContextCapability::CreateCommandQueue() {
 
 void NativeMetalContextCapability::DestroyCommandQueue(std::uint64_t queue_id) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    DropPendingD2HCopiesForQueue(queue_id);
+
     auto& state = ContextState();
     std::scoped_lock lock(state.mutex);
 
@@ -1417,7 +1444,7 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
 
     if (copied && async_d2h_enabled) {
         staging->retain();
-        RegisterPendingD2HCopy(completion_event, staging, dst.host_ptr, copy_bytes);
+        RegisterPendingD2HCopy(completion_event, staging, dst.host_ptr, copy_bytes, queue_id);
     }
 
     if (copied && !async_d2h_enabled) {

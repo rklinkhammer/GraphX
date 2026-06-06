@@ -581,3 +581,103 @@ TEST(MetalNativeRuntimeTransferTest, AsyncD2HCompletesHostCopyOnEventPoll) {
     context->DestroyEvent(d2h_ticket.completion_event);
     context->DestroyCommandQueue(queue_id);
 }
+
+TEST(MetalNativeRuntimeTransferTest, AsyncD2HQueueDestroyDropsPendingCopy) {
+    AssertNativeMetalRuntimeIfStrict();
+
+    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+
+    ScopedEnvVar async_d2h_mode("GRAPHX_METAL_ASYNC_D2H", "1");
+
+    graph::CapabilityBus bus;
+    graph::gpu::GpuCapabilityBootstrapOptions options{};
+    options.enable_metal = true;
+    graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
+
+    auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
+    auto memory_pool = bus.Get<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>();
+    auto transfer = bus.Get<graph::gpu::metal::capabilities::IMetalTransferCapability>();
+    ASSERT_NE(context, nullptr);
+    ASSERT_NE(memory_pool, nullptr);
+    ASSERT_NE(transfer, nullptr);
+
+    ASSERT_TRUE(context->SelectDevice(0U));
+    const auto queue_id = context->CreateCommandQueue();
+    ASSERT_NE(queue_id, 0U);
+
+    graph::gpu::accel::BufferLease device_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(64U, 0U, device_lease));
+
+    std::array<std::uint8_t, 64> host_src{};
+    std::array<std::uint8_t, 64> host_dst{};
+    host_dst.fill(0);
+    for (std::size_t i = 0; i < host_src.size(); ++i) {
+        host_src[i] = static_cast<std::uint8_t>((i * 17U) & 0xFFU);
+    }
+
+    graph::gpu::accel::HostPinnedBufferView host_src_view{};
+    host_src_view.backend = graph::gpu::accel::BackendKind::Metal;
+    host_src_view.host_ptr = host_src.data();
+    host_src_view.bytes = host_src.size();
+    host_src_view.dtype = graph::gpu::accel::DataType::UInt8;
+    host_src_view.layout.rank = 1;
+    host_src_view.layout.shape[0] = host_src.size();
+    host_src_view.layout.stride[0] = 1;
+    host_src_view.allocator_id = 9301;
+
+    graph::gpu::accel::HostPinnedBufferView host_dst_view{};
+    host_dst_view.backend = graph::gpu::accel::BackendKind::Metal;
+    host_dst_view.host_ptr = host_dst.data();
+    host_dst_view.bytes = host_dst.size();
+    host_dst_view.dtype = graph::gpu::accel::DataType::UInt8;
+    host_dst_view.layout.rank = 1;
+    host_dst_view.layout.shape[0] = host_dst.size();
+    host_dst_view.layout.stride[0] = 1;
+    host_dst_view.allocator_id = 9302;
+
+    graph::gpu::accel::TransferTicket h2d_ticket{};
+    ASSERT_TRUE(transfer->EnqueueH2D(host_src_view, device_lease.device_view, queue_id, h2d_ticket));
+    ASSERT_TRUE(context->WaitEvent(h2d_ticket.completion_event, 2000U));
+
+    graph::gpu::accel::TransferTicket d2h_ticket{};
+    ASSERT_TRUE(transfer->EnqueueD2H(device_lease.device_view, host_dst_view, queue_id, d2h_ticket));
+    ASSERT_TRUE(graph::gpu::accel::IsValidTransferTicket(d2h_ticket));
+
+    context->DestroyCommandQueue(queue_id);
+    context->DestroyEvent(d2h_ticket.completion_event);
+
+    EXPECT_NE(host_src, host_dst);
+    EXPECT_TRUE(memory_pool->Release(device_lease));
+}
+
+TEST(MetalNativeRuntimeContextTest, WaitEventTimesOutWhenUnsignaled) {
+    AssertNativeMetalRuntimeIfStrict();
+
+    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+
+    graph::CapabilityBus bus;
+    graph::gpu::GpuCapabilityBootstrapOptions options{};
+    options.enable_metal = true;
+    graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
+
+    auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
+    ASSERT_NE(context, nullptr);
+
+    ASSERT_TRUE(context->SelectDevice(0U));
+    const auto event_id = context->CreateEvent();
+    ASSERT_NE(event_id, 0U);
+
+    EXPECT_FALSE(context->IsEventComplete(event_id));
+    EXPECT_FALSE(context->WaitEvent(event_id, 0U));
+    EXPECT_FALSE(context->IsEventComplete(event_id));
+
+    context->DestroyEvent(event_id);
+}
