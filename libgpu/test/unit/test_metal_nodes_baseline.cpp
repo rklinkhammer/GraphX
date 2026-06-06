@@ -178,9 +178,7 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     auto collectively_reduced = collective.Transfer(*peer_copied,
                                                      std::integral_constant<std::size_t, 0>{},
                                                      std::integral_constant<std::size_t, 0>{});
-    ASSERT_TRUE(collectively_reduced.has_value());
-    EXPECT_EQ(collectively_reduced->backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*collectively_reduced));
+    EXPECT_FALSE(collectively_reduced.has_value());
 }
 
 TEST(GpuMetalNodeBaseline, DeviceShardNodeCopiesSelectedShardSliceAndUpdatesShape) {

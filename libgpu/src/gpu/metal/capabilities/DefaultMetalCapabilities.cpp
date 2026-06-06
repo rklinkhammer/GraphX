@@ -194,29 +194,43 @@ bool DefaultMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& s
     return true;
 }
 
-bool DefaultMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
-                                                  std::string_view kernel_name) {
-    if (kernel_id == 0 || kernel_name.empty()) {
+bool DefaultMetalKernelCapability::RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) {
+    if (descriptor.kernel_id == 0 || descriptor.function_name.empty()) {
         return false;
     }
-    registered_kernels_.insert(kernel_id);
+
+    RegisteredKernelExecution execution{};
+    execution.arg_count = descriptor.arg_layout.empty()
+        ? 0U
+        : static_cast<std::uint32_t>(descriptor.arg_layout.size());
+    execution.dispatch.grid_x = std::max(1U, descriptor.dispatch.default_grid_x);
+    execution.dispatch.grid_y = std::max(1U, descriptor.dispatch.default_grid_y);
+    execution.dispatch.grid_z = std::max(1U, descriptor.dispatch.default_grid_z);
+    execution.dispatch.block_x = std::max(1U, descriptor.dispatch.default_block_x);
+    execution.dispatch.block_y = std::max(1U, descriptor.dispatch.default_block_y);
+    execution.dispatch.block_z = std::max(1U, descriptor.dispatch.default_block_z);
+
+    registered_kernels_[descriptor.kernel_id] = execution;
     return true;
+}
+
+bool DefaultMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
+                                                  std::string_view kernel_name) {
+    MetalKernelDescriptor descriptor{};
+    descriptor.kernel_id = kernel_id;
+    descriptor.function_name = std::string(kernel_name);
+    return RegisterKernelDescriptor(descriptor);
 }
 
 bool DefaultMetalKernelCapability::TryGetRegisteredKernelExecution(
     std::uint64_t kernel_id,
     RegisteredKernelExecution& out_execution) const {
-    if (!registered_kernels_.contains(kernel_id)) {
+    const auto it = registered_kernels_.find(kernel_id);
+    if (it == registered_kernels_.end()) {
         return false;
     }
 
-    out_execution.arg_count = 0;
-    out_execution.dispatch.grid_x = 1;
-    out_execution.dispatch.grid_y = 1;
-    out_execution.dispatch.grid_z = 1;
-    out_execution.dispatch.block_x = 1;
-    out_execution.dispatch.block_y = 1;
-    out_execution.dispatch.block_z = 1;
+    out_execution = it->second;
     return true;
 }
 
@@ -248,21 +262,27 @@ void DefaultMetalTelemetryCapability::IncrementErrorCounter(std::string_view) {
 
 bool DefaultMetalCollectiveCapability::AllReduce(accel::DeviceBufferView& in_out,
                                                  const accel::CollectiveTicket& ticket) {
-    return accel::IsValidView(in_out) && accel::IsValidCollectiveTicket(ticket);
+    (void)in_out;
+    (void)ticket;
+    return false;
 }
 
 bool DefaultMetalCollectiveCapability::AllGather(const accel::DeviceBufferView& input,
                                                  accel::DeviceBufferView& output,
                                                  const accel::CollectiveTicket& ticket) {
-    return accel::IsValidView(input) && accel::IsValidView(output) &&
-           accel::IsValidCollectiveTicket(ticket);
+    (void)input;
+    (void)output;
+    (void)ticket;
+    return false;
 }
 
 bool DefaultMetalCollectiveCapability::ReduceScatter(const accel::DeviceBufferView& input,
                                                      accel::DeviceBufferView& output,
                                                      const accel::CollectiveTicket& ticket) {
-    return accel::IsValidView(input) && accel::IsValidView(output) &&
-           accel::IsValidCollectiveTicket(ticket);
+    (void)input;
+    (void)output;
+    (void)ticket;
+    return false;
 }
 
 } // namespace graph::gpu::metal::capabilities
