@@ -35,6 +35,9 @@ option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
 option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
 option(ENABLE_METAL_GRAPH_NODES "Enable Metal GPU graph nodes in libgpu" ON)
 option(ENABLE_METAL_NATIVE_RUNTIME "Enable native Metal runtime implementation on Apple" ON)
+option(GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    "Fail configure/startup when native Metal runtime is requested but unavailable"
+    OFF)
 set(GRAPHX_METAL_CPP_INCLUDE_DIR "" CACHE PATH
     "Path to metal-cpp headers root containing Metal/Metal.hpp")
 option(MULTI_GPU_TESTS "Enable multi-GPU test lanes (when supported)" OFF)
@@ -155,6 +158,24 @@ if(ENABLE_METAL_NATIVE_RUNTIME)
     endif()
 endif()
 
+if(GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME)
+    if(NOT ENABLE_METAL_NATIVE_RUNTIME)
+        message(FATAL_ERROR
+            "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON requires ENABLE_METAL_NATIVE_RUNTIME=ON.")
+    endif()
+
+    if(NOT GRAPHX_METAL_GRAPH_NODES_ENABLED)
+        message(FATAL_ERROR
+            "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON requires Metal graph nodes to be enabled on Apple.")
+    endif()
+
+    if(NOT GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
+        message(FATAL_ERROR
+            "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime prerequisites are missing "
+            "(frameworks and/or metal-cpp headers).")
+    endif()
+endif()
+
 if(MULTI_GPU_TESTS AND NOT (GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED))
     message(WARNING
         "MULTI_GPU_TESTS=ON but no GPU backend is enabled. "
@@ -174,6 +195,7 @@ target_compile_definitions(graphx_project_options INTERFACE
     GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
+    GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}>
     GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>
     GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
 )
@@ -193,6 +215,7 @@ message(STATUS "GraphX CUDA graph nodes: ${GRAPHX_CUDA_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal native runtime: ${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}")
+message(STATUS "GraphX strict native Metal requirement: ${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}")
 message(STATUS "GraphX GPU test hooks: ${GRAPHX_GPU_TEST_HOOKS_ENABLED}")
 if(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
     message(STATUS "GraphX metal-cpp include dir: ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}")

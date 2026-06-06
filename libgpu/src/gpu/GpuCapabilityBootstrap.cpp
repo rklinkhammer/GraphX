@@ -24,6 +24,8 @@
 #endif
 
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 namespace graph::gpu {
 
@@ -110,6 +112,19 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
     if (options.enable_metal) {
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
         const bool use_native_metal = metal::capabilities::NativeMetalRuntimeAvailable();
+        auto native_runtime_context = use_native_metal
+            ? metal::capabilities::CreateNativeMetalRuntimeContext()
+            : std::shared_ptr<metal::capabilities::NativeMetalRuntimeContext>{};
+    if (options.require_native_metal_runtime && !use_native_metal) {
+        throw std::runtime_error(
+        std::string("Native Metal runtime required but no usable Metal device is available. ") +
+        "Diagnostics: " + metal::capabilities::NativeMetalRuntimeDiagnostics());
+    }
+#else
+    if (options.require_native_metal_runtime) {
+        throw std::runtime_error(
+        "Native Metal runtime required but this build does not include native Metal runtime support.");
+    }
 #endif
 
         if (!bus.Has<metal::capabilities::IMetalContextCapability>()) {
@@ -117,7 +132,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalContextCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalContextCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalContextCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalContextCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalContextCapability>()));
 #else
@@ -129,7 +145,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalMemoryPoolCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalMemoryPoolCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalMemoryPoolCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalMemoryPoolCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalMemoryPoolCapability>()));
 #else
@@ -141,7 +158,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalTransferCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalTransferCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalTransferCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalTransferCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalTransferCapability>()));
 #else
@@ -153,7 +171,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalKernelCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalKernelCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalKernelCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalKernelCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalKernelCapability>()));
 #else
@@ -165,7 +184,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalTelemetryCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalTelemetryCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalTelemetryCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalTelemetryCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalTelemetryCapability>()));
 #else
@@ -177,7 +197,8 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
                 use_native_metal
                     ? std::static_pointer_cast<metal::capabilities::IMetalCollectiveCapability>(
-                          std::make_shared<metal::capabilities::NativeMetalCollectiveCapability>())
+                          std::make_shared<metal::capabilities::NativeMetalCollectiveCapability>(
+                            native_runtime_context))
                     : std::static_pointer_cast<metal::capabilities::IMetalCollectiveCapability>(
                           std::make_shared<metal::capabilities::DefaultMetalCollectiveCapability>()));
 #else
@@ -187,6 +208,7 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
     }
 #else
     (void)options.enable_metal;
+    (void)options.require_native_metal_runtime;
 #endif
 }
 

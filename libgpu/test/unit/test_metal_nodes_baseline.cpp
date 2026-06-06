@@ -235,8 +235,8 @@ TEST(GpuMetalNodeBaseline, PeerCopyNodeAllocatesDestinationAndCopiesBytes) {
     bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
 
     graph::gpu::metal::nodes::PeerCopyNodeMetal peer_copy;
-    ASSERT_TRUE(peer_copy.BindGpuCapabilities(bus));
     peer_copy.SetQueue(6U);
+    ASSERT_TRUE(peer_copy.BindGpuCapabilities(bus));
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(8, 0, input_lease));

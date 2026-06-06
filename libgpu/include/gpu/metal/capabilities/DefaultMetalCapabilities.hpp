@@ -77,6 +77,10 @@ public:
     bool RegisterKernel(std::uint64_t kernel_id,
                         std::string_view kernel_name) override;
 
+    bool TryGetRegisteredKernelExecution(
+        std::uint64_t kernel_id,
+        RegisteredKernelExecution& out_execution) const override;
+
     bool Launch(const accel::KernelTicket& ticket,
                 void* const* args,
                 std::size_t arg_count) override;

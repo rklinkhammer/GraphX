@@ -63,8 +63,17 @@ class IMetalKernelCapability {
 public:
     virtual ~IMetalKernelCapability() = default;
 
+    struct RegisteredKernelExecution {
+        std::uint32_t arg_count{0};
+        accel::KernelLaunchConfig dispatch{};
+    };
+
     virtual bool RegisterKernel(std::uint64_t kernel_id,
                                 std::string_view kernel_name) = 0;
+
+    virtual bool TryGetRegisteredKernelExecution(
+        std::uint64_t kernel_id,
+        RegisteredKernelExecution& out_execution) const = 0;
 
     virtual bool Launch(const accel::KernelTicket& ticket,
                         void* const* args,

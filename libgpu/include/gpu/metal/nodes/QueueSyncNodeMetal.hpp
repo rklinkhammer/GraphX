@@ -27,10 +27,19 @@ class QueueSyncNodeMetal
       public graph::IGpuCapabilityBinding {
 public:
     QueueSyncNodeMetal() = default;
+    ~QueueSyncNodeMetal() {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
-        return context_ != nullptr;
+        if (queue_id_ == 0 && context_ != nullptr) {
+            queue_id_ = context_->CreateCommandQueue();
+            owns_queue_ = queue_id_ != 0;
+        }
+        return context_ != nullptr && queue_id_ != 0;
     }
 
     std::optional<accel::DeviceBufferView> Transfer(
@@ -48,12 +57,14 @@ public:
     }
 
     void SetQueue(std::uint64_t queue_id) {
+        owns_queue_ = false;
         queue_id_ = queue_id;
     }
 
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
-    std::uint64_t queue_id_{1};
+    std::uint64_t queue_id_{0};
+    bool owns_queue_{false};
     std::uint64_t last_ready_event_{0};
 };
 

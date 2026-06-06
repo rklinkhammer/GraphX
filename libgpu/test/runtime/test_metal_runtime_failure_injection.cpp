@@ -35,7 +35,7 @@ TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrack
     auto native_telemetry = std::dynamic_pointer_cast<
         graph::gpu::metal::capabilities::NativeMetalTelemetryCapability>(telemetry);
     ASSERT_NE(native_telemetry, nullptr);
-    graph::gpu::metal::capabilities::NativeMetalTelemetryCapability::ResetForTesting();
+    native_telemetry->ResetForTesting();
 
     auto native_kernel = std::dynamic_pointer_cast<
         graph::gpu::metal::capabilities::NativeMetalKernelCapability>(kernel);

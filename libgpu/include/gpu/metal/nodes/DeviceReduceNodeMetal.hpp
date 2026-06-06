@@ -29,6 +29,11 @@ class DeviceReduceNodeMetal
       public graph::IGpuCapabilityBinding {
 public:
     DeviceReduceNodeMetal() = default;
+    ~DeviceReduceNodeMetal() {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
@@ -36,8 +41,15 @@ public:
          transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         kernel_ = capability_bus.Get<capabilities::IMetalKernelCapability>();
         telemetry_ = capability_bus.Get<capabilities::IMetalTelemetryCapability>();
+        if (queue_id_ == 0 && context_ != nullptr) {
+            queue_id_ = context_->CreateCommandQueue();
+            owns_queue_ = queue_id_ != 0;
+            if (kernel_ticket_.execution_queue_id == 0) {
+                kernel_ticket_.execution_queue_id = queue_id_;
+            }
+        }
          return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr &&
-             kernel_ != nullptr &&
+             kernel_ != nullptr && queue_id_ != 0 &&
                telemetry_ != nullptr;
     }
 
@@ -67,13 +79,11 @@ public:
         }
 
         auto launch_ticket = kernel_ticket_;
-        launch_ticket.arg_count = 2;
+        launch_ticket.arg_count = kDefaultArgCount;
+        if (!PopulateRegisteredKernelExecution(launch_ticket)) {
+            ApplyFallbackLaunchDefaults(launch_ticket.launch);
+        }
         launch_ticket.launch.grid_x = static_cast<std::uint32_t>(input.bytes);
-        launch_ticket.launch.grid_y = 1;
-        launch_ticket.launch.grid_z = 1;
-        launch_ticket.launch.block_x = 1;
-        launch_ticket.launch.block_y = 1;
-        launch_ticket.launch.block_z = 1;
 
         accel::DeviceBufferView* arg0 = const_cast<accel::DeviceBufferView*>(&input);
         accel::DeviceBufferView* arg1 = &output;
@@ -94,25 +104,55 @@ public:
                          std::uint64_t queue_id) {
         kernel_ticket_.backend = accel::BackendKind::Metal;
         kernel_ticket_.kernel_id = kernel_id;
-        kernel_ticket_.arg_count = 2;
+        kernel_ticket_.arg_count = kDefaultArgCount;
         kernel_ticket_.execution_queue_id = queue_id;
-        kernel_ticket_.launch.grid_x = 1;
-        kernel_ticket_.launch.block_x = 1;
+        ApplyFallbackLaunchDefaults(kernel_ticket_.launch);
+        owns_queue_ = false;
         queue_id_ = queue_id;
         device_id_ = device_id;
         if (kernel_) {
             kernel_->RegisterKernel(kernel_id, kernel_name);
+            PopulateRegisteredKernelExecution(kernel_ticket_);
         }
     }
 
 private:
+    static constexpr std::uint32_t kDefaultArgCount = 2;
+
+    static void ApplyFallbackLaunchDefaults(accel::KernelLaunchConfig& launch) {
+        launch.grid_x = 1;
+        launch.grid_y = 1;
+        launch.grid_z = 1;
+        launch.block_x = 1;
+        launch.block_y = 1;
+        launch.block_z = 1;
+    }
+
+    bool PopulateRegisteredKernelExecution(accel::KernelTicket& ticket) const {
+        if (!kernel_) {
+            return false;
+        }
+
+        capabilities::IMetalKernelCapability::RegisteredKernelExecution execution{};
+        if (!kernel_->TryGetRegisteredKernelExecution(ticket.kernel_id, execution)) {
+            return false;
+        }
+
+        ticket.launch = execution.dispatch;
+        if (execution.arg_count != 0) {
+            ticket.arg_count = execution.arg_count;
+        }
+        return true;
+    }
+
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::shared_ptr<capabilities::IMetalKernelCapability> kernel_;
     std::shared_ptr<capabilities::IMetalTelemetryCapability> telemetry_;
-    std::uint64_t queue_id_{1};
+    std::uint64_t queue_id_{0};
     std::uint32_t device_id_{0};
+    bool owns_queue_{false};
     accel::KernelTicket kernel_ticket_{};
     accel::BufferLease last_output_lease_{};
     accel::TransferTicket last_transfer_ticket_{};

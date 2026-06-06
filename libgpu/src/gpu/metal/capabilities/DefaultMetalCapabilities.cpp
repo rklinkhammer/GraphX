@@ -203,6 +203,23 @@ bool DefaultMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
     return true;
 }
 
+bool DefaultMetalKernelCapability::TryGetRegisteredKernelExecution(
+    std::uint64_t kernel_id,
+    RegisteredKernelExecution& out_execution) const {
+    if (!registered_kernels_.contains(kernel_id)) {
+        return false;
+    }
+
+    out_execution.arg_count = 0;
+    out_execution.dispatch.grid_x = 1;
+    out_execution.dispatch.grid_y = 1;
+    out_execution.dispatch.grid_z = 1;
+    out_execution.dispatch.block_x = 1;
+    out_execution.dispatch.block_y = 1;
+    out_execution.dispatch.block_z = 1;
+    return true;
+}
+
 bool DefaultMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
                                           void* const* args,
                                           std::size_t arg_count) {

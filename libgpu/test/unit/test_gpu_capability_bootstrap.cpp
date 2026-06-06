@@ -7,10 +7,15 @@
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+#include "gpu/metal/capabilities/NativeMetalCapabilities.hpp"
+#endif
 #include "gpu/sycl/capabilities/DefaultSyclCapabilities.hpp"
 #include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
 
 #include <array>
+#include <memory>
+#include <stdexcept>
 
 namespace {
 
@@ -206,6 +211,35 @@ TEST(GpuCapabilityBootstrap, ExplicitDisablePreventsRegistration) {
     EXPECT_FALSE(bus.Has<graph::gpu::cuda::capabilities::ICudaContextCapability>());
     EXPECT_FALSE(bus.Has<graph::gpu::sycl::capabilities::ISyclContextCapability>());
     EXPECT_FALSE(bus.Has<graph::gpu::metal::capabilities::IMetalContextCapability>());
+}
+
+TEST(GpuCapabilityBootstrap, StrictNativeMetalRequirementBehavior) {
+    graph::CapabilityBus bus;
+    graph::gpu::GpuCapabilityBootstrapOptions options{};
+    options.enable_cuda = false;
+    options.enable_sycl = false;
+    options.enable_metal = true;
+    options.require_native_metal_runtime = true;
+
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+    const bool native_available = graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable();
+    if (native_available) {
+        EXPECT_NO_THROW(graph::gpu::RegisterDefaultGpuCapabilities(bus, options));
+        auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
+        ASSERT_NE(context, nullptr);
+        auto native_context = std::dynamic_pointer_cast<
+            graph::gpu::metal::capabilities::NativeMetalContextCapability>(context);
+        EXPECT_NE(native_context, nullptr);
+    } else {
+        EXPECT_THROW(graph::gpu::RegisterDefaultGpuCapabilities(bus, options), std::runtime_error);
+    }
+#else
+    EXPECT_THROW(graph::gpu::RegisterDefaultGpuCapabilities(bus, options), std::runtime_error);
+#endif
+#else
+    EXPECT_THROW(graph::gpu::RegisterDefaultGpuCapabilities(bus, options), std::runtime_error);
+#endif
 }
 
 } // namespace

@@ -62,13 +62,33 @@ If CTest reports "No tests were found", native runtime is still disabled for
 that configure directory. Re-run configure and confirm it prints
 "GraphX Metal native runtime: ON".
 
+## Strict Native Requirement
+
+For environments where simulated fallback is not acceptable, enable strict mode:
+
+cmake --preset ninja-debug-metal-native -DGRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON
+
+With strict mode enabled:
+
+- Configure fails if native Metal runtime prerequisites are missing.
+- Startup/registration fails if no usable Metal device is visible at runtime.
+
 ## Native Kernel Registration Modes
 
 `NativeMetalKernelCapability` now supports explicit registration methods:
 
+- `RegisterKernel(const NativeMetalKernelDescriptor&)`
 - `RegisterKernelBuiltin(kernel_id, function_name)`
 - `RegisterKernelFromSource(kernel_id, function_name, msl_source)`
 - `RegisterKernelFromMetallib(kernel_id, function_name, metallib_path)`
+
+`NativeMetalKernelDescriptor` captures source and execution metadata explicitly:
+
+- `source_kind` (`Builtin`, `InlineSource`, `MetallibPath`)
+- `function_name`
+- `source_payload` (inline MSL or metallib path)
+- `arg_layout` (`DeviceBuffer` + read/write access mode)
+- `dispatch` default grid/block metadata
 
 The existing `RegisterKernel(kernel_id, kernel_name)` remains backward compatible
 and also accepts prefixed forms:

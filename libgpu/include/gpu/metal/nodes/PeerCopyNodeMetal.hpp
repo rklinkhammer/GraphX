@@ -27,11 +27,21 @@ class PeerCopyNodeMetal
       public graph::IGpuCapabilityBinding {
 public:
     PeerCopyNodeMetal() = default;
+    ~PeerCopyNodeMetal() {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
+        context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
-        return memory_pool_ != nullptr && transfer_ != nullptr;
+        if (queue_id_ == 0 && context_ != nullptr) {
+            queue_id_ = context_->CreateCommandQueue();
+            owns_queue_ = queue_id_ != 0;
+        }
+        return memory_pool_ != nullptr && transfer_ != nullptr && queue_id_ != 0;
     }
 
     std::optional<accel::DeviceBufferView> Transfer(
@@ -64,13 +74,16 @@ public:
     }
 
     void SetQueue(std::uint64_t queue_id) {
+        owns_queue_ = false;
         queue_id_ = queue_id;
     }
 
 private:
+    std::shared_ptr<capabilities::IMetalContextCapability> context_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
-    std::uint64_t queue_id_{1};
+    std::uint64_t queue_id_{0};
+    bool owns_queue_{false};
     accel::TransferTicket last_ticket_{};
     accel::BufferLease last_copy_lease_{};
 };

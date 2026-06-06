@@ -28,12 +28,21 @@ class DeviceShardNodeMetal
       public graph::IGpuCapabilityBinding {
 public:
     DeviceShardNodeMetal() = default;
+    ~DeviceShardNodeMetal() {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
-        return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr;
+        if (queue_id_ == 0 && context_ != nullptr) {
+            queue_id_ = context_->CreateCommandQueue();
+            owns_queue_ = queue_id_ != 0;
+        }
+        return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr && queue_id_ != 0;
     }
 
     std::optional<accel::DeviceBufferView> Transfer(
@@ -80,7 +89,10 @@ public:
         output.device_id = input.device_id;
         output.execution_queue_id = input.execution_queue_id;
 
-        const auto queue_id = input.execution_queue_id == 0 ? 1 : input.execution_queue_id;
+        const auto queue_id = input.execution_queue_id == 0 ? queue_id_ : input.execution_queue_id;
+        if (queue_id == 0) {
+            return std::nullopt;
+        }
         if (!transfer_->EnqueueD2D(src_slice, output, queue_id, last_transfer_ticket_)) {
             return std::nullopt;
         }
@@ -95,10 +107,17 @@ public:
         shard_count_ = shard_count;
     }
 
+    void SetQueue(std::uint64_t queue_id) {
+        owns_queue_ = false;
+        queue_id_ = queue_id;
+    }
+
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
+    std::uint64_t queue_id_{0};
+    bool owns_queue_{false};
     std::uint32_t shard_index_{0};
     std::uint32_t shard_count_{1};
     accel::BufferLease last_shard_lease_{};

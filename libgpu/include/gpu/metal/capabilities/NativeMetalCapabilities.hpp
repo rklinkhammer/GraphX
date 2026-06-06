@@ -6,24 +6,81 @@
 
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace graph::gpu::metal::capabilities {
+
+class NativeMetalRuntimeContext;
+
+std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext();
+
+enum class NativeMetalKernelSourceKind : std::uint8_t {
+    Builtin = 0,
+    InlineSource,
+    MetallibPath,
+};
+
+enum class NativeMetalKernelArgKind : std::uint8_t {
+    DeviceBuffer = 0,
+};
+
+enum class NativeMetalKernelArgAccess : std::uint8_t {
+    ReadOnly = 0,
+    WriteOnly,
+    ReadWrite,
+};
+
+struct NativeMetalKernelArgDescriptor {
+    NativeMetalKernelArgKind kind{NativeMetalKernelArgKind::DeviceBuffer};
+    NativeMetalKernelArgAccess access{NativeMetalKernelArgAccess::ReadWrite};
+};
+
+struct NativeMetalKernelDispatchDescriptor {
+    std::uint32_t default_grid_x{1};
+    std::uint32_t default_grid_y{1};
+    std::uint32_t default_grid_z{1};
+    std::uint32_t default_block_x{1};
+    std::uint32_t default_block_y{1};
+    std::uint32_t default_block_z{1};
+};
+
+struct NativeMetalKernelDescriptor {
+    std::uint64_t kernel_id{0};
+    std::string function_name{};
+    NativeMetalKernelSourceKind source_kind{NativeMetalKernelSourceKind::Builtin};
+    std::string source_payload{};
+    std::vector<NativeMetalKernelArgDescriptor> arg_layout{};
+    NativeMetalKernelDispatchDescriptor dispatch{};
+};
 
 // Native Metal capabilities currently delegate dataflow behavior to the
 // existing contract-safe defaults while native runtime plumbing is brought up.
 class NativeMetalContextCapability final : public IMetalContextCapability {
 public:
+    explicit NativeMetalContextCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
     bool SelectDevice(std::uint32_t device_id) override;
     std::uint32_t CurrentDevice() const override;
     std::uint64_t CreateCommandQueue() override;
     void DestroyCommandQueue(std::uint64_t queue_id) override;
     std::uint64_t CreateEvent() override;
     void DestroyEvent(std::uint64_t event_id) override;
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 class NativeMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
+    explicit NativeMetalMemoryPoolCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
                         accel::BufferLease& out_lease) override;
     bool AllocateShared(std::uint64_t bytes, std::uint32_t device_id,
@@ -31,10 +88,17 @@ public:
     bool AllocateHost(std::uint64_t bytes,
                       accel::BufferLease& out_lease) override;
     bool Release(const accel::BufferLease& lease) override;
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 class NativeMetalTransferCapability final : public IMetalTransferCapability {
 public:
+    explicit NativeMetalTransferCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
     bool EnqueueH2D(const accel::HostPinnedBufferView& src,
                     accel::DeviceBufferView& dst,
                     std::uint64_t queue_id,
@@ -49,10 +113,19 @@ public:
                     accel::DeviceBufferView& dst,
                     std::uint64_t queue_id,
                     accel::TransferTicket& out_ticket) override;
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 class NativeMetalKernelCapability final : public IMetalKernelCapability {
 public:
+    explicit NativeMetalKernelCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
+    bool RegisterKernel(const NativeMetalKernelDescriptor& descriptor);
+
     // Registers one of GraphX built-in kernels by function name.
     bool RegisterKernelBuiltin(std::uint64_t kernel_id,
                                std::string_view function_name);
@@ -70,13 +143,24 @@ public:
     bool RegisterKernel(std::uint64_t kernel_id,
                         std::string_view kernel_name) override;
 
+    bool TryGetRegisteredKernelExecution(
+        std::uint64_t kernel_id,
+        RegisteredKernelExecution& out_execution) const override;
+
     bool Launch(const accel::KernelTicket& ticket,
                 void* const* args,
                 std::size_t arg_count) override;
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 class NativeMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
+    explicit NativeMetalTelemetryCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
     void RecordTransfer(const accel::TransferTicket& ticket,
                         std::uint64_t duration_ns) override;
     void RecordKernel(const accel::KernelTicket& ticket,
@@ -88,12 +172,19 @@ public:
     [[nodiscard]] std::uint64_t ErrorCount() const;
 
 #if GRAPHX_ENABLE_GPU_TEST_HOOKS
-    static void ResetForTesting();
+    void ResetForTesting();
 #endif
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 class NativeMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:
+    explicit NativeMetalCollectiveCapability(
+        std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
+            CreateNativeMetalRuntimeContext());
+
     bool AllReduce(accel::DeviceBufferView& in_out,
                    const accel::CollectiveTicket& ticket) override;
     bool AllGather(const accel::DeviceBufferView& input,
@@ -102,6 +193,9 @@ public:
     bool ReduceScatter(const accel::DeviceBufferView& input,
                        accel::DeviceBufferView& output,
                        const accel::CollectiveTicket& ticket) override;
+
+private:
+    std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
 bool NativeMetalRuntimeAvailable();

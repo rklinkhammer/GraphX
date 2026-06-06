@@ -99,7 +99,7 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         auto native_telemetry = std::dynamic_pointer_cast<
             graph::gpu::metal::capabilities::NativeMetalTelemetryCapability>(telemetry);
         ASSERT_NE(native_telemetry, nullptr);
-        graph::gpu::metal::capabilities::NativeMetalTelemetryCapability::ResetForTesting();
+        native_telemetry->ResetForTesting();
 
         auto native_kernel = std::dynamic_pointer_cast<
             graph::gpu::metal::capabilities::NativeMetalKernelCapability>(kernel);
@@ -153,6 +153,33 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         graph::gpu::accel::KernelTicket prefixed_ticket = kernel_ticket;
         prefixed_ticket.kernel_id = kPrefixedKernelId;
         EXPECT_TRUE(kernel->Launch(prefixed_ticket, args, 1));
+
+        constexpr std::uint64_t kTypedKernelId = 9004;
+        graph::gpu::metal::capabilities::NativeMetalKernelDescriptor typed_descriptor{};
+        typed_descriptor.kernel_id = kTypedKernelId;
+        typed_descriptor.function_name = "graphx_typed_identity";
+        typed_descriptor.source_kind = graph::gpu::metal::capabilities::NativeMetalKernelSourceKind::Builtin;
+        typed_descriptor.dispatch.default_block_x = 32;
+        typed_descriptor.arg_layout.push_back(
+            graph::gpu::metal::capabilities::NativeMetalKernelArgDescriptor{
+                graph::gpu::metal::capabilities::NativeMetalKernelArgKind::DeviceBuffer,
+                graph::gpu::metal::capabilities::NativeMetalKernelArgAccess::ReadWrite});
+        EXPECT_TRUE(native_kernel->RegisterKernel(typed_descriptor));
+
+        graph::gpu::metal::capabilities::IMetalKernelCapability::RegisteredKernelExecution
+            typed_execution{};
+        ASSERT_TRUE(kernel->TryGetRegisteredKernelExecution(kTypedKernelId, typed_execution));
+        EXPECT_EQ(typed_execution.arg_count, 1U);
+        EXPECT_EQ(typed_execution.dispatch.block_x, 32U);
+
+        graph::gpu::accel::KernelTicket typed_ticket = kernel_ticket;
+        typed_ticket.kernel_id = kTypedKernelId;
+        typed_ticket.launch.block_x = typed_execution.dispatch.block_x;
+        EXPECT_TRUE(kernel->Launch(typed_ticket, args, 1));
+
+        graph::gpu::accel::KernelTicket typed_bad_ticket = typed_ticket;
+        typed_bad_ticket.arg_count = 0;
+        EXPECT_FALSE(kernel->Launch(typed_bad_ticket, nullptr, 0));
 
         telemetry->RecordKernel(kernel_ticket, 444);
         EXPECT_EQ(native_telemetry->KernelSamples(), kernel_before + 1U);
@@ -211,7 +238,7 @@ TEST(MetalNativeRuntimeTelemetryTest, InvalidTicketsIncreaseErrorCounter) {
     }
 
     ASSERT_NE(native_telemetry, nullptr);
-    graph::gpu::metal::capabilities::NativeMetalTelemetryCapability::ResetForTesting();
+    native_telemetry->ResetForTesting();
 
     const auto transfer_before = native_telemetry->TransferSamples();
     const auto kernel_before = native_telemetry->KernelSamples();

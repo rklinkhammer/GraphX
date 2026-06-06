@@ -28,6 +28,12 @@ struct GpuCapabilityBootstrapOptions {
 #else
     bool enable_metal{false};
 #endif
+
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    bool require_native_metal_runtime{true};
+#else
+    bool require_native_metal_runtime{false};
+#endif
 };
 
 // Registers default GPU capabilities in the shared capability bus.

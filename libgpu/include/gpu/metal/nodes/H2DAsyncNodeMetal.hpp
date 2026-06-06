@@ -27,11 +27,21 @@ class H2DAsyncNodeMetal
       public graph::IGpuCapabilityBinding {
 public:
     H2DAsyncNodeMetal() = default;
+    ~H2DAsyncNodeMetal() {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
+        context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
-        return memory_pool_ != nullptr && transfer_ != nullptr;
+        if (queue_id_ == 0 && context_ != nullptr) {
+            queue_id_ = context_->CreateCommandQueue();
+            owns_queue_ = queue_id_ != 0;
+        }
+        return memory_pool_ != nullptr && transfer_ != nullptr && queue_id_ != 0;
     }
 
     std::optional<accel::DeviceBufferView> Transfer(
@@ -71,15 +81,18 @@ public:
     }
 
     void SetQueueAndDevice(std::uint64_t queue_id, std::uint32_t device_id) {
+        owns_queue_ = false;
         queue_id_ = queue_id;
         device_id_ = device_id;
     }
 
 private:
+    std::shared_ptr<capabilities::IMetalContextCapability> context_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
-    std::uint64_t queue_id_{1};
+    std::uint64_t queue_id_{0};
     std::uint32_t device_id_{0};
+    bool owns_queue_{false};
     accel::BufferLease last_device_lease_{};
     accel::TransferTicket last_transfer_ticket_{};
 };
