@@ -24,6 +24,7 @@
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "graph/StaticNodeAdapter.hpp"
+#include <algorithm>
 #include <log4cxx/logger.h>
 
 namespace graph {
@@ -51,31 +52,39 @@ std::string ErrorMessage(NodeFactory::NodeCreationError error) {
 
 bool NodeFactory::IsNodeTypeAvailable(const std::string& node_type_name) const {
     LOG4CXX_TRACE(logger_, "Checking availability of node type: " << node_type_name);
-    
-    if (!plugin_registry_) {
-        LOG4CXX_TRACE(logger_, "PluginRegistry not set");
-        return false;
+
+    if (node_factories_.contains(node_type_name)) {
+        return true;
     }
-    
-    bool available = plugin_registry_->HasNodeType(node_type_name);
-    LOG4CXX_TRACE(logger_, "Node type " << node_type_name 
-                  << " available: " << (available ? "YES" : "NO"));
-    return available;
+
+    return plugin_registry_ && plugin_registry_->HasNodeType(node_type_name);
 }
 
 std::vector<std::string> NodeFactory::GetAvailableNodeTypes() const {
     LOG4CXX_TRACE(logger_, "Getting list of available node types");
     
     std::vector<std::string> available_types;
-    
-    if (!plugin_registry_) {
-        LOG4CXX_TRACE(logger_, "PluginRegistry not set");
-        return available_types;
+
+    available_types.reserve(node_factories_.size());
+    for (const auto& [type_name, factory] : node_factories_) {
+        (void)factory;
+        available_types.push_back(type_name);
     }
-    
-    available_types = plugin_registry_->GetRegisteredNodeTypes();
+
+    if (!initialized_ && plugin_registry_) {
+        auto plugin_types = plugin_registry_->GetRegisteredNodeTypes();
+        available_types.insert(
+            available_types.end(),
+            plugin_types.begin(),
+            plugin_types.end());
+    }
+
+    std::sort(available_types.begin(), available_types.end());
+    available_types.erase(
+        std::unique(available_types.begin(), available_types.end()),
+        available_types.end());
+
     LOG4CXX_TRACE(logger_, "Found " << available_types.size() << " available node types");
-    
     return available_types;
 }
 
@@ -88,8 +97,8 @@ void NodeFactory::Initialize() {
     }
     
     try {
-        // Register plugin nodes whenever a shared plugin registry is available.
-        // This keeps preloaded-registry and loader-managed paths aligned.
+        node_factories_.clear();
+
         if (plugin_registry_) {
             LOG4CXX_TRACE(logger_, "Registering plugin nodes from registry");
             RegisterPluginNodes();
@@ -128,20 +137,22 @@ NodeFactory::CreateNodeExpected(const std::string& node_type_name) noexcept {
 
     // Primary creation path after successful initialization.
     if (initialized_) {
-        if (!unified_registry_->IsAvailable(node_type_name)) {
-            LOG4CXX_ERROR(logger_, "Node type not registered in unified registry: " << node_type_name);
+        auto factory = node_factories_.find(node_type_name);
+        if (factory == node_factories_.end()) {
+            LOG4CXX_ERROR(logger_, "Node type not registered: " << node_type_name);
             return std::unexpected(NodeCreationError::TypeNotFound);
         }
 
-        LOG4CXX_TRACE(logger_, "Creating node via unified registry: " << node_type_name);
-        auto adapter = unified_registry_->CreateExpected(node_type_name);
-        if (!adapter) {
-            LOG4CXX_ERROR(logger_, "Unified registry failed to create node: " << node_type_name);
+        LOG4CXX_TRACE(logger_, "Creating node: " << node_type_name);
+        try {
+            return factory->second();
+        } catch (const std::exception& e) {
+            LOG4CXX_ERROR(logger_, "Factory failed to create node " << node_type_name << ": " << e.what());
             return std::unexpected(NodeCreationError::CreationFailed);
+        } catch (...) {
+            LOG4CXX_ERROR(logger_, "Factory failed to create node " << node_type_name << ": unknown error");
+            return std::unexpected(NodeCreationError::Unknown);
         }
-
-        LOG4CXX_TRACE(logger_, "Successfully created node via unified registry: " << node_type_name);
-        return std::move(adapter).value();
     }
 
     LOG4CXX_ERROR(logger_, "Unified factory is not initialized");
@@ -165,23 +176,26 @@ void NodeFactory::RegisterPluginNodes() {
     // For each plugin type, register a factory function
     for (const auto& type_name : plugin_types) {
         try {
-            // Register a direct plugin-registry creation lambda for this type.
-            auto registration = unified_registry_->RegisterExpected(
-                type_name,
-                [this, type_name]() {
-                    auto created = plugin_registry_->CreateNodeExpected(type_name);
-                    if (!created) {
-                        throw std::runtime_error("PluginRegistry creation failed for type: " + type_name);
-                    }
-
-                    auto [handle, facade] = *created;
-                    return NodeFacadeAdapter(handle, facade);
-                }
-            );
-            if (!registration) {
-                throw std::runtime_error("Failed to register plugin node type");
+            if (type_name.empty()) {
+                throw std::runtime_error("Plugin registry returned an empty type name");
             }
-            LOG4CXX_TRACE(logger_, "Registered plugin node type: " << type_name);
+
+            const bool replacing_existing = node_factories_.contains(type_name);
+            node_factories_[type_name] = [registry = plugin_registry_, type_name]() {
+                auto created = registry->CreateNodeExpected(type_name);
+                if (!created) {
+                    throw std::runtime_error("PluginRegistry creation failed for type: " + type_name);
+                }
+
+                auto [handle, facade] = *created;
+                return NodeFacadeAdapter(handle, facade);
+            };
+
+            if (replacing_existing) {
+                LOG4CXX_WARN(logger_, "Replacing existing node factory for type: " << type_name);
+            } else {
+                LOG4CXX_TRACE(logger_, "Registered plugin node type: " << type_name);
+            }
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(logger_, "Failed to register plugin node type '" 
                 << type_name << "': " << e.what());
@@ -194,20 +208,20 @@ void NodeFactory::RegisterPluginNodes() {
 }
 
 void NodeFactory::RegisterStaticNodes() {
-    LOG4CXX_TRACE(logger_, "Registering static nodes in unified factory");
+    LOG4CXX_TRACE(logger_, "Registering static node factories");
 
     // Note: Static node registration is deferred.
     // Today Layer 5 nodes are expected to be supplied through plugin
-    // registration and inserted into the unified registry in RegisterPluginNodes().
+    // registration and inserted into the provider map in RegisterPluginNodes().
     // This is acceptable as long as the plugin system provides these nodes.
     //
     // If direct static node registration is needed (without plugin dependency),
     // the pattern would be to create factory lambdas like:
     //
-    //   unified_registry_->Register("FlightFSMNode", [this]() {
+    //   node_factories_["FlightFSMNode"] = []() {
     //       auto node = std::make_shared<avionics::FlightFSMNode>();
     //       return config::StaticNodeAdapter::Adapt(node, "FlightFSMNode");
-    //   });
+    //   };
     //
     // However, this requires careful lambda type handling due to
     // NodeFacadeAdapter being a move-only type.
@@ -286,6 +300,9 @@ NodeFactory::LoadAllPluginsFromDirectoriesExpected() noexcept {
     
     LOG4CXX_TRACE(logger_, "Plugin loading complete: " << total_loaded 
                  << " loaded, " << total_failed << " directories failed");
+
+    node_factories_.clear();
+    initialized_ = false;
     return {};
 }
 

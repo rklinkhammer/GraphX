@@ -32,3 +32,4 @@ Testing/
 install/
 graphlib.log.*
 .DS_Store
+**/.DS_Store

@@ -30,6 +30,7 @@ Backwards compatibility is not required for this project. New APIs are the sourc
 5. `GraphCapability::GetNodeFactory()`: removed.
 6. `TestMetricsSubscriber::GetEvents()`: removed.
 7. `JsonViewAdapter` legacy test adapter: removed.
+8. `NodeFactoryRegistry` public creation layer: removed; `NodeFactory` owns provider-backed creation directly.
 
 ## Next Cleanup Steps
 

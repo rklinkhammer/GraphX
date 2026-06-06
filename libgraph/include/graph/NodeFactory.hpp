@@ -25,12 +25,12 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <map>
 #include <vector>
 #include <expected>
 #include <log4cxx/logger.h>
 #include "core/ReflectionHelper.hpp"
 #include "graph/NodeFacade.hpp"
-#include "graph/NodeFactoryRegistry.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/PortTypes.hpp"
 
@@ -39,9 +39,6 @@ namespace graph {
 // Forward declarations
 namespace nodes {
     class INode;
-}
-namespace config {
-    class NodeFactoryRegistry;
 }
 class PluginRegistry;
 class PluginLoader;
@@ -65,9 +62,11 @@ struct NodeFacade;
 class NodeFactory : public INodeProvider {
 private:
     static log4cxx::LoggerPtr logger_;
+    using NodeFactoryFunction = std::function<NodeFacadeAdapter()>;
+
     std::shared_ptr<PluginRegistry> plugin_registry_;
     std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Multi-directory support
-    std::shared_ptr<graph::config::NodeFactoryRegistry> unified_registry_;
+    std::map<std::string, NodeFactoryFunction> node_factories_;
     bool initialized_;
 
 public:
@@ -90,7 +89,6 @@ public:
      */
     explicit NodeFactory(std::shared_ptr<PluginRegistry> plugin_registry = nullptr)
         : plugin_registry_(plugin_registry), 
-          unified_registry_(std::make_shared<graph::config::NodeFactoryRegistry>()),
           initialized_(false) {}
 
     /**
@@ -120,18 +118,18 @@ public:
     }
 
     /**
-     * Initialize the unified factory with plugin and static nodes
+     * Initialize the provider-backed factory map with plugin and static nodes
      *
      * Must be called once after construction, before creating nodes.
      * Registers all available plugin nodes and built-in static nodes
-     * in the unified factory registry.
+     * in the provider's creation map.
      *
      * Example:
      * @code
      * auto factory = std::make_shared<NodeFactory>(plugin_registry);
      * factory->Initialize();  // Must be called once
      * 
-     * // Now can use unified CreateNodeExpected() for both plugin and static nodes
+     * // Now can use CreateNodeExpected() for both plugin and static nodes
      * auto node1 = factory->CreateNodeExpected("DataInjectionAccelerometerNode");
      * auto node2 = factory->CreateNodeExpected("FlightFSMNode");
      * @endcode
@@ -139,7 +137,7 @@ public:
     void Initialize();
 
     /**
-     * Create a node by type name (unified factory path)
+     * Create a node by type name
      *
      * Creates a node regardless of whether it's from a plugin or static/built-in.
      * Works identically for both node types - the caller receives a NodeFacadeAdapter.
@@ -199,21 +197,14 @@ public:
     }
 
     /**
-     * Get the unified factory registry
-     *
-     * @return Shared pointer to NodeFactoryRegistry
-     */
-    std::shared_ptr<graph::config::NodeFactoryRegistry> GetUnifiedRegistry() const {
-        return unified_registry_;
-    }
-
-    /**
      * Set the plugin registry (for late initialization)
      *
      * @param registry Shared pointer to PluginRegistry
      */
     void SetPluginRegistry(std::shared_ptr<PluginRegistry> registry) {
         plugin_registry_ = registry;
+        node_factories_.clear();
+        initialized_ = false;
     }
 
     /**

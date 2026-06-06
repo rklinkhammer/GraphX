@@ -30,7 +30,6 @@
 
 // Forward declarations
 namespace graph {
-class NodeFactory;
 class INodeProvider;
 class PluginLoader;
 class PluginRegistry;
@@ -42,28 +41,19 @@ namespace app {
  * @class FactoryManager
  * @brief Manage node-provider lifecycle and plugin discovery
  * 
- * Purpose: Centralized management of plugin loading and factory creation with proper
- * lifetime management. Ensures PluginLoader outlives all node creation operations.
+ * Purpose: Centralized management of plugin loading and provider creation.
  * 
  * Design:
  * - Static factory creation (no instances needed)
- * - Returns FactoryBundle (provider handle + concrete factory + loader)
- *   to force caller-managed loader lifetime
+ * - Returns FactoryBundle (provider handle + plugin registry + loader)
  * - Graceful error handling (logs failures but doesn't crash on missing plugins)
  * - Query methods for discovering available node types
  * 
  * Thread Safety: Single-threaded use only (factory creation must happen before graph build)
  * 
- * Critical Lifetime Management:
- * The PluginLoader MUST outlive all plugin function calls. This is because dlopen() keeps
- * function pointers that are invalid after dlclose(). If PluginLoader is destroyed before
- * the factory finishes using plugin functions, segfaults occur (root cause of previous
- * graphsim crashes).
- * 
- * Solution: Return FactoryBundle from CreateFactoryExpected(). Caller MUST:
- * 1. Store loader in AppContext
- * 2. Keep loader alive until application shutdown
- * 3. Destroy provider/concrete factory BEFORE destroying loader
+ * PluginLoader does not dlclose loaded plugin handles during normal destruction,
+ * so the returned loader primarily preserves plugin bookkeeping for callers that
+ * need inspection or explicit unload operations.
  * 
  * Usage:
  * @code
@@ -104,8 +94,7 @@ public:
   struct FactoryBundle {
     // Primary orchestration contract.
     std::shared_ptr<graph::INodeProvider> factory;
-    // Concrete access for NodeFactory-specific operations.
-    std::shared_ptr<graph::NodeFactory> concrete_factory;
+    std::shared_ptr<graph::PluginRegistry> plugin_registry;
     std::shared_ptr<graph::PluginLoader> loader;
   };
 
@@ -126,9 +115,8 @@ public:
   * - Returns error on critical failure
    * 
    * @param plugin_directory Path to directory containing .so/.dll plugin files
-  * @return FactoryBundle with provider-first handle and PluginLoader
+  * @return FactoryBundle with provider-first handle, plugin registry, and PluginLoader
    *         - Both non-null if successful
-   *         - Caller MUST keep loader alive longer than factory
    * 
    * Example:
    * @code
@@ -138,8 +126,7 @@ public:
    *   return false;
    * }
    * 
-   * // Keep loader alive
-   * app_context.plugin_loader = bundle->loader;  // CRITICAL
+   * app_context.plugin_loader = bundle->loader;
   * app_context.factory = bundle->factory;  // provider handle
    * @endcode
    */

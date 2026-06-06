@@ -254,8 +254,6 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             throw std::runtime_error("Failed to create factory and load plugins");
         }
         auto node_provider = factory_bundle->factory;
-        auto factory = factory_bundle->concrete_factory;
-        auto loader = factory_bundle->loader;
         LOG4CXX_TRACE(g_logger, "Factory created and plugins loaded from: " << plugin_directory_);
 
         // Step 3: Create AppContext with loaded configuration
@@ -264,7 +262,7 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             std::make_shared<capabilities::GraphCapability>();
 
         graph_cap->SetNodeProvider(node_provider);
-        graph_cap->SetPluginRegistry(factory->GetPluginRegistry());
+        graph_cap->SetPluginRegistry(factory_bundle->plugin_registry);
         graph_cap->SetJsonConfigPath(json_config_);
         graph_cap->SetCliMode(cli_mode_);
 

@@ -30,7 +30,6 @@
 #include "graph/CapabilityBus.hpp"
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphManager.hpp"
-#include "graph/NodeFactory.hpp"
 #include "graph/NodeProvider.hpp"
 #include "plugins/PluginRegistry.hpp"
 
@@ -168,11 +167,6 @@ private:
     std::string json_config_path;
     //graph::GraphConfig graph_impl;
     std::shared_ptr<graph::PluginRegistry> plugin_registry  {nullptr};
-    /// Plugin loader - CRITICAL: Must outlive all plugin function calls
-    /// Keep this alive throughout entire application lifetime.
-    /// Calling dlclose() on plugin_loader invalidates all plugin function pointers.
-    /// Root cause of previous graphsim segfaults.
-    std::shared_ptr<graph::PluginLoader> plugin_loader  {nullptr};
     // Primary node creation/query contract used by graph orchestration.
     std::shared_ptr<graph::INodeProvider> node_provider {nullptr};
     std::shared_ptr<graph::GraphManager> graph_manager {nullptr};
@@ -186,4 +180,3 @@ private:
 };
 
 }  // namespace capabilities
-

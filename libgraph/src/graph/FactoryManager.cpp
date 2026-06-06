@@ -129,10 +129,9 @@ FactoryManager::CreateFactoryExpected(const std::string& plugin_directory) noexc
     }
     
     LOG4CXX_TRACE(logger_, "FactoryManager::CreateFactory completed successfully. "
-                         << "Returning (factory, loader) pair. "
-                         << "CRITICAL: Caller must keep loader alive!");
+                         << "Returning provider, plugin registry, and loader bookkeeping.");
     
-    return FactoryBundle{.factory = factory, .concrete_factory = factory, .loader = loader};
+    return FactoryBundle{.factory = factory, .plugin_registry = registry, .loader = loader};
 }
 
 // ============================================================================

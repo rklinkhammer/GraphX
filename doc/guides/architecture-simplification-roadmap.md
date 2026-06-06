@@ -58,6 +58,11 @@ void pointers, C callbacks, and cast-heavy probing spread complexity into core t
 #### Why
 Adjacent layers overlap responsibilities and increase lifecycle branching.
 
+#### Current Status
+- `NodeFactoryRegistry` has been removed as a public layer.
+- `NodeFactory` now owns the provider-backed creation map directly.
+- `FactoryManager::FactoryBundle` exposes the provider contract, plugin registry, and loader bookkeeping without leaking concrete `NodeFactory` access.
+
 #### Scope
 - Move to a clear pipeline: descriptor registry -> graph construction -> execution plan/runtime.
 - Keep native and plugin nodes on one registration and creation path.
