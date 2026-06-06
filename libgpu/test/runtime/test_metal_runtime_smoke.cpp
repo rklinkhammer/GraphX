@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstdlib>
 #include <memory>
+#include <string>
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
@@ -17,6 +19,32 @@ void AssertNativeMetalRuntimeIfStrict() {
         << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
 #endif
 }
+
+class ScopedEnvVar {
+public:
+    ScopedEnvVar(const char* key, const char* value)
+        : key_(key) {
+        const char* current = std::getenv(key_);
+        if (current != nullptr) {
+            had_previous_value_ = true;
+            previous_value_ = current;
+        }
+        setenv(key_, value, 1);
+    }
+
+    ~ScopedEnvVar() {
+        if (had_previous_value_) {
+            setenv(key_, previous_value_.c_str(), 1);
+        } else {
+            unsetenv(key_);
+        }
+    }
+
+private:
+    const char* key_;
+    bool had_previous_value_{false};
+    std::string previous_value_;
+};
 
 }  // namespace
 
@@ -317,4 +345,75 @@ TEST(MetalNativeRuntimeCollectiveTest, RejectsInvalidCollectiveInputs) {
 
     EXPECT_TRUE(memory_pool->Release(device_lease));
     EXPECT_TRUE(memory_pool->Release(output_lease));
+}
+
+TEST(MetalNativeRuntimeMemoryModeTest, PrivateDeviceStorageUsesStagedTransfers) {
+    AssertNativeMetalRuntimeIfStrict();
+
+    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+
+    ScopedEnvVar private_storage_mode("GRAPHX_METAL_DEVICE_STORAGE_MODE", "private");
+
+    graph::CapabilityBus bus;
+    graph::gpu::GpuCapabilityBootstrapOptions options{};
+    options.enable_metal = true;
+    graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
+
+    auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
+    auto memory_pool = bus.Get<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>();
+    auto transfer = bus.Get<graph::gpu::metal::capabilities::IMetalTransferCapability>();
+    ASSERT_NE(context, nullptr);
+    ASSERT_NE(memory_pool, nullptr);
+    ASSERT_NE(transfer, nullptr);
+
+    ASSERT_TRUE(context->SelectDevice(0U));
+    const auto queue_id = context->CreateCommandQueue();
+    ASSERT_NE(queue_id, 0U);
+
+    graph::gpu::accel::BufferLease device_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(128U, 0U, device_lease));
+    ASSERT_NE(device_lease.device_view.device_ptr, nullptr);
+
+    std::array<std::uint8_t, 128> host_src{};
+    std::array<std::uint8_t, 128> host_dst{};
+    for (std::size_t i = 0; i < host_src.size(); ++i) {
+        host_src[i] = static_cast<std::uint8_t>((i * 7U) & 0xFFU);
+    }
+
+    graph::gpu::accel::HostPinnedBufferView host_src_view{};
+    host_src_view.backend = graph::gpu::accel::BackendKind::Metal;
+    host_src_view.host_ptr = host_src.data();
+    host_src_view.bytes = host_src.size();
+    host_src_view.dtype = graph::gpu::accel::DataType::UInt8;
+    host_src_view.layout.rank = 1;
+    host_src_view.layout.shape[0] = host_src.size();
+    host_src_view.layout.stride[0] = 1;
+    host_src_view.allocator_id = 4101;
+
+    graph::gpu::accel::HostPinnedBufferView host_dst_view{};
+    host_dst_view.backend = graph::gpu::accel::BackendKind::Metal;
+    host_dst_view.host_ptr = host_dst.data();
+    host_dst_view.bytes = host_dst.size();
+    host_dst_view.dtype = graph::gpu::accel::DataType::UInt8;
+    host_dst_view.layout.rank = 1;
+    host_dst_view.layout.shape[0] = host_dst.size();
+    host_dst_view.layout.stride[0] = 1;
+    host_dst_view.allocator_id = 4102;
+
+    graph::gpu::accel::TransferTicket h2d_ticket{};
+    ASSERT_TRUE(transfer->EnqueueH2D(host_src_view, device_lease.device_view, queue_id, h2d_ticket));
+    ASSERT_TRUE(graph::gpu::accel::IsValidTransferTicket(h2d_ticket));
+
+    graph::gpu::accel::TransferTicket d2h_ticket{};
+    ASSERT_TRUE(transfer->EnqueueD2H(device_lease.device_view, host_dst_view, queue_id, d2h_ticket));
+    ASSERT_TRUE(graph::gpu::accel::IsValidTransferTicket(d2h_ticket));
+
+    EXPECT_EQ(host_src, host_dst);
+
+    EXPECT_TRUE(memory_pool->Release(device_lease));
+    context->DestroyCommandQueue(queue_id);
 }

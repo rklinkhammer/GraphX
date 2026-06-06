@@ -13,8 +13,10 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <utility>
 #include <string>
@@ -40,11 +42,17 @@ public:
     };
 
     struct MemoryPoolState {
+        struct AllocationRecord {
+            MTL::Buffer* buffer{nullptr};
+            std::uint64_t bytes{0};
+            std::byte* host_token{nullptr};
+        };
+
         std::mutex mutex{};
         std::uint64_t next_allocation_id{1};
-        std::unordered_map<std::uint64_t, MTL::Buffer*> device_allocations{};
-        std::unordered_map<std::uint64_t, MTL::Buffer*> shared_allocations{};
-        std::unordered_map<std::uint64_t, MTL::Buffer*> host_allocations{};
+        std::unordered_map<std::uint64_t, AllocationRecord> device_allocations{};
+        std::unordered_map<std::uint64_t, AllocationRecord> shared_allocations{};
+        std::unordered_map<std::uint64_t, AllocationRecord> host_allocations{};
     };
 
     struct TransferState {
@@ -94,20 +102,23 @@ public:
         }
         {
             std::scoped_lock lock(memory_pool_state.mutex);
-            for (auto& [_, buffer] : memory_pool_state.device_allocations) {
-                if (buffer != nullptr) {
-                    buffer->release();
+            for (auto& [_, allocation] : memory_pool_state.device_allocations) {
+                if (allocation.buffer != nullptr) {
+                    allocation.buffer->release();
                 }
+                delete[] allocation.host_token;
             }
-            for (auto& [_, buffer] : memory_pool_state.shared_allocations) {
-                if (buffer != nullptr) {
-                    buffer->release();
+            for (auto& [_, allocation] : memory_pool_state.shared_allocations) {
+                if (allocation.buffer != nullptr) {
+                    allocation.buffer->release();
                 }
+                delete[] allocation.host_token;
             }
-            for (auto& [_, buffer] : memory_pool_state.host_allocations) {
-                if (buffer != nullptr) {
-                    buffer->release();
+            for (auto& [_, allocation] : memory_pool_state.host_allocations) {
+                if (allocation.buffer != nullptr) {
+                    allocation.buffer->release();
                 }
+                delete[] allocation.host_token;
             }
             memory_pool_state.device_allocations.clear();
             memory_pool_state.shared_allocations.clear();
@@ -256,13 +267,29 @@ BufferResolution AcquireDeviceBufferFromPointer(void* pointer) {
 
     const auto find_in = [pointer](const auto& allocations) -> BufferResolution {
         const auto* pointer_bytes = static_cast<const std::byte*>(pointer);
-        for (const auto& [_, buffer] : allocations) {
-            if (buffer == nullptr || buffer->contents() == nullptr) {
+        for (const auto& [_, allocation] : allocations) {
+            auto* buffer = allocation.buffer;
+            if (buffer == nullptr) {
                 continue;
             }
 
-            const auto* base_bytes = static_cast<const std::byte*>(buffer->contents());
-            const auto buffer_length = static_cast<std::uint64_t>(buffer->length());
+            const std::byte* base_bytes = nullptr;
+            std::uint64_t buffer_length = allocation.bytes;
+            if (allocation.host_token != nullptr) {
+                base_bytes = allocation.host_token;
+            } else {
+                base_bytes = static_cast<const std::byte*>(buffer->contents());
+                if (base_bytes == nullptr) {
+                    continue;
+                }
+                if (buffer_length == 0) {
+                    buffer_length = static_cast<std::uint64_t>(buffer->length());
+                }
+            }
+
+            if (buffer_length == 0) {
+                buffer_length = static_cast<std::uint64_t>(buffer->length());
+            }
             const auto* end_bytes = base_bytes + buffer_length;
             if (pointer_bytes < base_bytes || pointer_bytes >= end_bytes) {
                 continue;
@@ -273,8 +300,8 @@ BufferResolution AcquireDeviceBufferFromPointer(void* pointer) {
                 continue;
             }
 
-                buffer->retain();
-                return BufferResolution{buffer, offset};
+            buffer->retain();
+            return BufferResolution{buffer, offset};
         }
         return {};
     };
@@ -370,6 +397,43 @@ enum class BuiltinKernelKind : std::uint8_t {
 bool StartsWith(std::string_view value, std::string_view prefix) {
     return value.size() >= prefix.size() &&
            value.substr(0, prefix.size()) == prefix;
+}
+
+enum class DeviceStorageMode : std::uint8_t {
+    Shared,
+    Private,
+};
+
+DeviceStorageMode ResolveDeviceStorageMode() {
+    const char* value = std::getenv("GRAPHX_METAL_DEVICE_STORAGE_MODE");
+    if (value == nullptr) {
+        return DeviceStorageMode::Shared;
+    }
+
+    std::string normalized(value);
+    std::transform(
+        normalized.begin(),
+        normalized.end(),
+        normalized.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "private") {
+        return DeviceStorageMode::Private;
+    }
+    return DeviceStorageMode::Shared;
+}
+
+MTL::ResourceOptions DeviceResourceOptionsForAllocation() {
+    return ResolveDeviceStorageMode() == DeviceStorageMode::Private
+               ? MTL::ResourceStorageModePrivate
+               : MTL::ResourceStorageModeShared;
+}
+
+std::byte* AllocateHostToken(std::uint64_t bytes) {
+    if (bytes == 0) {
+        return nullptr;
+    }
+    return new (std::nothrow) std::byte[bytes];
 }
 
 NS::String* ToNSString(std::string_view value) {
@@ -858,7 +922,7 @@ bool NativeMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes,
         device = context_state.active_device;
     }
 
-    auto* buffer = CreateBuffer(device, bytes, MTL::ResourceStorageModeShared);
+    auto* buffer = CreateBuffer(device, bytes, DeviceResourceOptionsForAllocation());
     if (buffer == nullptr) {
         return false;
     }
@@ -867,7 +931,21 @@ bool NativeMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes,
     std::scoped_lock pool_lock(pool_state.mutex);
 
     const auto allocation_id = pool_state.next_allocation_id++;
-    pool_state.device_allocations.emplace(allocation_id, buffer);
+    NativeMetalMemoryPoolState::AllocationRecord record{};
+    record.buffer = buffer;
+    record.bytes = bytes;
+
+    void* device_pointer = buffer->contents();
+    if (device_pointer == nullptr) {
+        record.host_token = AllocateHostToken(bytes);
+        if (record.host_token == nullptr) {
+            buffer->release();
+            return false;
+        }
+        device_pointer = record.host_token;
+    }
+
+    pool_state.device_allocations.emplace(allocation_id, record);
 
     out_lease.pool_id = 31;
     out_lease.allocation_id = allocation_id;
@@ -879,7 +957,7 @@ bool NativeMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes,
     out_lease.device_view.layout.rank = 1;
     out_lease.device_view.layout.shape[0] = bytes;
     out_lease.device_view.layout.stride[0] = 1;
-    out_lease.device_view.device_ptr = buffer->contents();
+    out_lease.device_view.device_ptr = device_pointer;
     return true;
 }
 
@@ -918,7 +996,21 @@ bool NativeMetalMemoryPoolCapability::AllocateShared(std::uint64_t bytes,
     std::scoped_lock pool_lock(pool_state.mutex);
 
     const auto allocation_id = pool_state.next_allocation_id++;
-    pool_state.shared_allocations.emplace(allocation_id, buffer);
+    NativeMetalMemoryPoolState::AllocationRecord record{};
+    record.buffer = buffer;
+    record.bytes = bytes;
+
+    void* device_pointer = buffer->contents();
+    if (device_pointer == nullptr) {
+        record.host_token = AllocateHostToken(bytes);
+        if (record.host_token == nullptr) {
+            buffer->release();
+            return false;
+        }
+        device_pointer = record.host_token;
+    }
+
+    pool_state.shared_allocations.emplace(allocation_id, record);
 
     out_lease.pool_id = 32;
     out_lease.allocation_id = allocation_id;
@@ -930,7 +1022,7 @@ bool NativeMetalMemoryPoolCapability::AllocateShared(std::uint64_t bytes,
     out_lease.device_view.layout.rank = 1;
     out_lease.device_view.layout.shape[0] = bytes;
     out_lease.device_view.layout.stride[0] = 1;
-    out_lease.device_view.device_ptr = buffer->contents();
+    out_lease.device_view.device_ptr = device_pointer;
     return true;
 }
 
@@ -956,7 +1048,10 @@ bool NativeMetalMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
     auto& pool_state = MemoryPoolState();
     std::scoped_lock pool_lock(pool_state.mutex);
     const auto allocation_id = pool_state.next_allocation_id++;
-    pool_state.host_allocations.emplace(allocation_id, buffer);
+    NativeMetalMemoryPoolState::AllocationRecord record{};
+    record.buffer = buffer;
+    record.bytes = bytes;
+    pool_state.host_allocations.emplace(allocation_id, record);
 
     out_lease.pool_id = 33;
     out_lease.allocation_id = allocation_id;
@@ -987,9 +1082,10 @@ bool NativeMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
             return false;
         }
 
-        if (it->second != nullptr) {
-            it->second->release();
+        if (it->second.buffer != nullptr) {
+            it->second.buffer->release();
         }
+        delete[] it->second.host_token;
         allocations.erase(it);
         return true;
     };
