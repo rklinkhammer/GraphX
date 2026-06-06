@@ -242,7 +242,7 @@ target_include_directories(metal_peer_copy_node PRIVATE
 add_graphx_plugin(
 	TARGET_NAME metal_collective_reduce_node
 	SOURCE_FILE metal_collective_reduce_node_plugin.cpp
-	DESCRIPTION "Metal collective reduce node"
+	DESCRIPTION "Metal collective reduce node (runtime unsupported)"
 	DEPENDENCIES gpu
 )
 target_include_directories(metal_collective_reduce_node PRIVATE

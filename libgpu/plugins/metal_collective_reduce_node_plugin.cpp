@@ -12,7 +12,7 @@ using namespace graph;
 struct MetalCollectiveReduceNodePolicy
     : PluginPolicy<graph::gpu::metal::nodes::CollectiveReduceNodeMetal> {
     static constexpr const char* Description =
-        "Metal collective reduce node plugin";
+    "Metal collective reduce node plugin (runtime unsupported)";
 };
 
 using Glue = PluginGlue<graph::gpu::metal::nodes::CollectiveReduceNodeMetal,
@@ -35,7 +35,7 @@ void* plugin_create_metal_collective_reduce_node() {
 }
 
 const char* plugin_get_info() {
-    return "CollectiveReduceNodeMetal|Metal collective reduce node|1.0|"
+    return "CollectiveReduceNodeMetal|Metal collective reduce node (runtime unsupported)|1.0|"
            "plugin_create_metal_collective_reduce_node|"
 #ifdef _LIBCPP_VERSION
            "libc++_v1";
