@@ -8,7 +8,21 @@
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #include "gpu/metal/capabilities/NativeMetalCapabilities.hpp"
 
+namespace {
+
+void AssertNativeMetalRuntimeIfStrict() {
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable())
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#endif
+}
+
+}  // namespace
+
 TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
+    AssertNativeMetalRuntimeIfStrict();
+
     graph::CapabilityBus bus;
     graph::gpu::GpuCapabilityBootstrapOptions options{};
     options.enable_metal = true;
@@ -217,6 +231,8 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
 }
 
 TEST(MetalNativeRuntimeTelemetryTest, InvalidTicketsIncreaseErrorCounter) {
+    AssertNativeMetalRuntimeIfStrict();
+
     graph::CapabilityBus bus;
     graph::gpu::GpuCapabilityBootstrapOptions options{};
     options.enable_metal = true;
@@ -253,6 +269,8 @@ TEST(MetalNativeRuntimeTelemetryTest, InvalidTicketsIncreaseErrorCounter) {
 }
 
 TEST(MetalNativeRuntimeCollectiveTest, RejectsInvalidCollectiveInputs) {
+    AssertNativeMetalRuntimeIfStrict();
+
     graph::CapabilityBus bus;
     graph::gpu::GpuCapabilityBootstrapOptions options{};
     options.enable_metal = true;

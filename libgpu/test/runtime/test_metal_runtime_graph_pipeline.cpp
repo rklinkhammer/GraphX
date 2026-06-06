@@ -89,6 +89,20 @@ std::filesystem::path GetVibrationHealthPipelineJsonConfigPath() {
     return test_root / "config" / "topologies" / "metal_vibration_health_pipeline.json";
 }
 
+void RequireNativeMetalRuntimeOrSkip() {
+    const bool native_available = graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+    }
+#endif
+}
+
 }  // namespace
 
 TEST(MetalNativeRuntimeGraphPipelineTest, VibrationHealthPipelineRunsEndToEnd) {
@@ -97,10 +111,7 @@ TEST(MetalNativeRuntimeGraphPipelineTest, VibrationHealthPipelineRunsEndToEnd) {
     options.enable_metal = true;
     graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
 
-    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable: "
-                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-    }
+    RequireNativeMetalRuntimeOrSkip();
 
     auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
     auto memory_pool = bus.Get<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>();
@@ -206,10 +217,7 @@ TEST(MetalNativeRuntimeGraphPipelineTest, VibrationHealthPipelineRunsEndToEnd) {
 
 TEST(MetalNativeRuntimeGraphPipelineTest,
      JsonLoadedVibrationHealthPipelineRunsEndToEnd) {
-    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable: "
-                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-    }
+    RequireNativeMetalRuntimeOrSkip();
 
     const auto config_path = GetVibrationHealthPipelineJsonConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
@@ -321,10 +329,7 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
 
 TEST(MetalNativeRuntimeGraphPipelineTest,
      JsonLoadedVibrationHealthPipelineRunsEndToEndWithGraphExecutor) {
-    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable: "
-                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-    }
+    RequireNativeMetalRuntimeOrSkip();
 
     const auto config_path = GetVibrationHealthPipelineJsonConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
@@ -367,6 +372,20 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
     const auto expected_message_count = egress_params.TryGetInt("expected_message_count");
     ASSERT_TRUE(expected_message_count.has_value());
     EXPECT_EQ(expected_message_count.value(), 1);
+
+    const auto transform_params = nodes.transform->GetParameters();
+    const auto transform_kernel_desc_obj = transform_params.TryGetObject("kernel_descriptor");
+    ASSERT_TRUE(transform_kernel_desc_obj.has_value());
+    const auto transform_function_name = transform_kernel_desc_obj->TryGetString("function_name");
+    ASSERT_TRUE(transform_function_name.has_value());
+    EXPECT_EQ(transform_function_name.value(), "graphx_transform_xor_u8_inplace");
+
+    const auto reduce_params = nodes.reduce->GetParameters();
+    const auto reduce_kernel_desc_obj = reduce_params.TryGetObject("kernel_descriptor");
+    ASSERT_TRUE(reduce_kernel_desc_obj.has_value());
+    const auto reduce_function_name = reduce_kernel_desc_obj->TryGetString("function_name");
+    ASSERT_TRUE(reduce_function_name.has_value());
+    EXPECT_EQ(reduce_function_name.value(), "graphx_reduce_health_metrics_u8");
 
     const auto init_result = executor->Init();
     ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;

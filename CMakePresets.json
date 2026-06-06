@@ -55,6 +55,15 @@
         "ENABLE_METAL_NATIVE_RUNTIME": "ON",
         "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
       }
+    },
+    {
+      "name": "ninja-debug-metal-native-strict",
+      "displayName": "Ninja Debug (Metal Native, Strict)",
+      "description": "Debug build with strict native Metal runtime requirement",
+      "inherits": "ninja-debug-metal-native",
+      "cacheVariables": {
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -80,6 +89,11 @@
       "name": "build-debug-metal-native",
       "displayName": "Build Debug (Metal Native)",
       "configurePreset": "ninja-debug-metal-native"
+    },
+    {
+      "name": "build-debug-metal-native-strict",
+      "displayName": "Build Debug (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict"
     }
   ],
   "testPresets": [
@@ -100,6 +114,19 @@
       "name": "test-libgpu-metal-runtime",
       "displayName": "Run native Metal runtime tests",
       "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgpu_metal_runtime"
+        }
+      }
+    },
+    {
+      "name": "test-libgpu-metal-runtime-strict",
+      "displayName": "Run native Metal runtime tests (strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
       "output": {
         "outputOnFailure": true
       },

@@ -9,6 +9,24 @@
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #include "gpu/metal/capabilities/NativeMetalCapabilities.hpp"
 
+namespace {
+
+void RequireNativeMetalRuntimeOrSkip() {
+    const bool native_available = graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+    }
+#endif
+}
+
+}  // namespace
+
 TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrackTelemetryErrors) {
     graph::CapabilityBus bus;
     graph::gpu::GpuCapabilityBootstrapOptions options{};
@@ -27,10 +45,7 @@ TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrack
     ASSERT_NE(kernel, nullptr);
     ASSERT_NE(telemetry, nullptr);
 
-    if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable: "
-                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-    }
+    RequireNativeMetalRuntimeOrSkip();
 
     auto native_telemetry = std::dynamic_pointer_cast<
         graph::gpu::metal::capabilities::NativeMetalTelemetryCapability>(telemetry);
