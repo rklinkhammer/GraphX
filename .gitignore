@@ -31,3 +31,4 @@ Testing/
 # Install directory
 install/
 graphlib.log.*
+.DS_Store
