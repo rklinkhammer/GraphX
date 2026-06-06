@@ -341,12 +341,30 @@ std::uint64_t NextTransferId() {
     return transfer_state.next_transfer_id++;
 }
 
+MTL::SharedEvent* AcquireSharedEvent(std::uint64_t event_id) {
+    if (event_id == 0) {
+        return nullptr;
+    }
+
+    auto& context_state = ContextState();
+    std::scoped_lock lock(context_state.mutex);
+    const auto it = context_state.events.find(event_id);
+    if (it == context_state.events.end() || it->second == nullptr) {
+        return nullptr;
+    }
+
+    it->second->retain();
+    return it->second;
+}
+
 bool ExecuteBlitCopy(MTL::CommandQueue* queue,
                     MTL::Buffer* src,
                     std::uint64_t src_offset,
                     MTL::Buffer* dst,
                     std::uint64_t dst_offset,
-                    std::uint64_t copy_bytes) {
+                    std::uint64_t copy_bytes,
+                    std::uint64_t completion_event,
+                    bool wait_for_completion) {
     if (queue == nullptr || src == nullptr || dst == nullptr || copy_bytes == 0) {
         return false;
     }
@@ -368,8 +386,21 @@ bool ExecuteBlitCopy(MTL::CommandQueue* queue,
 
     blit->copyFromBuffer(src, src_offset, dst, dst_offset, copy_bytes);
     blit->endEncoding();
+
+    auto* event = AcquireSharedEvent(completion_event);
+    if (event != nullptr) {
+        command_buffer->encodeSignalEvent(event, 1);
+    }
+
     command_buffer->commit();
-    command_buffer->waitUntilCompleted();
+
+    if (wait_for_completion) {
+        command_buffer->waitUntilCompleted();
+    }
+
+    if (event != nullptr) {
+        event->release();
+    }
     return true;
 }
 
@@ -1129,17 +1160,28 @@ bool NativeMetalTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView
         return false;
     }
 
+    const auto completion_event = RegisterTransferCompletionEvent();
+    if (completion_event == 0) {
+        staging->release();
+        dst_buffer->release();
+        queue->release();
+        return false;
+    }
+
     std::memcpy(staging->contents(), src.host_ptr, static_cast<std::size_t>(copy_bytes));
-    const bool copied = ExecuteBlitCopy(queue, staging, 0, dst_buffer, dst_resolution.offset, copy_bytes);
+    const bool copied = ExecuteBlitCopy(
+        queue,
+        staging,
+        0,
+        dst_buffer,
+        dst_resolution.offset,
+        copy_bytes,
+        completion_event,
+        false);
     staging->release();
     dst_buffer->release();
     queue->release();
     if (!copied) {
-        return false;
-    }
-
-    const auto completion_event = RegisterTransferCompletionEvent();
-    if (completion_event == 0) {
         return false;
     }
 
@@ -1186,7 +1228,23 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         return false;
     }
 
-    const bool copied = ExecuteBlitCopy(queue, src_buffer, src_resolution.offset, staging, 0, copy_bytes);
+    const auto completion_event = RegisterTransferCompletionEvent();
+    if (completion_event == 0) {
+        staging->release();
+        src_buffer->release();
+        queue->release();
+        return false;
+    }
+
+    const bool copied = ExecuteBlitCopy(
+        queue,
+        src_buffer,
+        src_resolution.offset,
+        staging,
+        0,
+        copy_bytes,
+        completion_event,
+        true);
     if (copied) {
         std::memcpy(dst.host_ptr, staging->contents(), static_cast<std::size_t>(copy_bytes));
     }
@@ -1195,11 +1253,6 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
     src_buffer->release();
     queue->release();
     if (!copied) {
-        return false;
-    }
-
-    const auto completion_event = RegisterTransferCompletionEvent();
-    if (completion_event == 0) {
         return false;
     }
 
@@ -1246,22 +1299,27 @@ bool NativeMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& sr
         return false;
     }
 
+    const auto completion_event = RegisterTransferCompletionEvent();
+    if (completion_event == 0) {
+        src_buffer->release();
+        dst_buffer->release();
+        queue->release();
+        return false;
+    }
+
     const bool copied = ExecuteBlitCopy(
         queue,
         src_buffer,
         src_resolution.offset,
         dst_buffer,
         dst_resolution.offset,
-        copy_bytes);
+        copy_bytes,
+        completion_event,
+        false);
     src_buffer->release();
     dst_buffer->release();
     queue->release();
     if (!copied) {
-        return false;
-    }
-
-    const auto completion_event = RegisterTransferCompletionEvent();
-    if (completion_event == 0) {
         return false;
     }
 
@@ -1513,11 +1571,20 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
                                                    ticket.launch.block_z);
     encoder->dispatchThreadgroups(threadgroups, threads_per_group);
     encoder->endEncoding();
+
+    auto* event = AcquireSharedEvent(ticket.completion_event);
+    if (event != nullptr) {
+        command_buffer->encodeSignalEvent(event, 1);
+    }
+
     command_buffer->commit();
-    command_buffer->waitUntilCompleted();
 
     for (auto* b : bound_buffers) {
         b->release();
+    }
+
+    if (event != nullptr) {
+        event->release();
     }
 
     queue->release();
