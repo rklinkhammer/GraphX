@@ -169,3 +169,17 @@ TEST(GraphConfigParserExpectedTest, ParseSafeReportsMissingGraphSection) {
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error(), app::error::ConfigError::MissingRequired);
 }
+
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsEmptyNodeId) {
+  const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+    "name": "empty_id_graph",
+    "nodes": [
+      {"id": "", "type": "SourceTestNode"}
+    ],
+    "edges": []
+  })");
+
+  ASSERT_TRUE(result);
+  const auto validation = graph::config::GraphConfigParser::Validate(result.value());
+  EXPECT_FALSE(validation.valid);
+}

@@ -5,6 +5,7 @@
 #include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFactory.hpp"
 #include "config/SchemaGenerator.hpp"
+#include "test/AdvancedTestNodes.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -202,7 +203,7 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownPortConfigKe
     EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
 
-TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesInjectedDescriptorSchemaProvider) {
+TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsPortConfigEvenWhenSchemaProviderAcceptsKeys) {
     const auto path = WriteTempGraphConfig(R"json(
     {
       "name": "loader_schema_provider_override",
@@ -230,8 +231,8 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesInjectedDescriptorSche
       &metadata_service);
 
     std::filesystem::remove(path);
-    ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
-    ASSERT_EQ(result->size(), 1u);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
 
 TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesConfigNameOrIdForNodeNames) {
@@ -534,6 +535,10 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsValidTypedNodeConfi
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
     ASSERT_EQ(result->size(), 1u);
+
+    auto configured_source = (*result)[0]->GetNode<test::SourceTestNode>();
+    ASSERT_NE(configured_source, nullptr);
+    EXPECT_EQ(configured_source->GetMessageCount(), 5u);
 }
 
 TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownTypedNodeConfigField) {

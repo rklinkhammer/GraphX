@@ -23,6 +23,7 @@
 #include "graph/GraphBuilder.hpp"
 #include "graph/GraphManager.hpp"
 #include "graph/GraphConfig.hpp"
+#include "graph/GraphConfigParser.hpp"
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacade.hpp"
@@ -117,18 +118,32 @@ bool GraphBuilder::Validate() {
     
     LOG4CXX_TRACE(logger_, "JSON config file exists: " << json_path);
     
-    auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
-        json_path,
-        capability_->GetNodeProvider());
-    if (!graph_config) {
-        last_error_ = "Failed to load graph configuration";
+    auto parsed_config = graph::config::GraphConfigParser::ParseFileSafe(json_path);
+    if (!parsed_config) {
+        last_error_ = "Failed to parse graph configuration";
+        LOG4CXX_WARN(logger_, last_error_ << " (error=" << static_cast<int>(parsed_config.error()) << ")");
+        return false;
+    }
+
+    const auto validation_result = graph::config::GraphConfigParser::Validate(parsed_config.value());
+    if (!validation_result.valid) {
+        std::string message = "Graph configuration validation failed";
+        if (!validation_result.errors.empty()) {
+            message += ": ";
+            for (size_t i = 0; i < validation_result.errors.size(); ++i) {
+                if (i > 0) {
+                    message += "; ";
+                }
+                message += validation_result.errors[i];
+            }
+        }
+        last_error_ = message;
         LOG4CXX_WARN(logger_, last_error_);
         return false;
     }
 
-    const auto& [nodes, edges] = *graph_config;
-    LOG4CXX_TRACE(logger_, "Validation successful: " << nodes.size()
-                         << " nodes, " << edges.size() << " edges");
+    LOG4CXX_TRACE(logger_, "Validation successful: " << parsed_config->nodes.size()
+                         << " nodes, " << parsed_config->edges.size() << " edges");
     return true;
 }
 
@@ -632,6 +647,11 @@ void GraphBuilder::WireEdges(
             LOG4CXX_TRACE(logger_, "Edge " << i << " connecting actual types: "
                                   << src_type << ":" << source_port_token
                                   << " to " << dst_type << ":" << target_port_token);
+
+            if (!edge.backpressure_enabled) {
+                throw std::runtime_error(
+                    "backpressure_enabled=false is not currently supported for dynamic edges");
+            }
 
             if (src_idx >= nodes_.size() || dst_idx >= nodes_.size()) {
                 throw std::runtime_error(

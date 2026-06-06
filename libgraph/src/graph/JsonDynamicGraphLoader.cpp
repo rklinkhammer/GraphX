@@ -27,6 +27,7 @@
 
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/GraphConfigParser.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/NodeMetadataService.hpp"
 #include "graph/NodeProvider.hpp"
 #include "config/SchemaGenerator.hpp"
@@ -261,6 +262,134 @@ std::expected<void, app::error::ConfigError> ValidateNodeConfigAgainstDescriptor
     }
 }
 
+std::expected<void, app::error::ConfigError> InternalApplyNodeConfiguration(
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const nlohmann::json& config_json) noexcept {
+
+    if (config_json.empty()) {
+        LOG4CXX_TRACE(logger_, "Configuration is empty, skipping");
+        return {};
+    }
+
+    try {
+        auto configurable_ptr = adapter ? adapter->GetConfigurablePtr() : nullptr;
+        if (!configurable_ptr) {
+            LOG4CXX_ERROR(logger_, "Node has node_config but does not expose IConfigurable");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        auto* configurable = static_cast<IConfigurable*>(configurable_ptr.get());
+        if (!configurable) {
+            LOG4CXX_ERROR(logger_, "Failed to access IConfigurable interface for node_config application");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        configurable->Configure(JsonView(config_json));
+        return {};
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Failed to apply node configuration: " << e.what());
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    }
+
+    LOG4CXX_ERROR(logger_, "Failed to apply node configuration: unknown error");
+    return std::unexpected(app::error::ConfigError::Unknown);
+}
+
+std::expected<void, app::error::ConfigError> InternalApplyPortConfiguration(
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const std::map<std::string, nlohmann::json>& port_config) noexcept {
+
+    if (port_config.empty()) {
+        return {};
+    }
+
+    const auto node_name = adapter ? adapter->GetName() : std::string("<unknown>");
+    LOG4CXX_ERROR(logger_, "port_config is currently not executable at runtime for node '"
+                  << node_name << "'; remove port_config or implement runtime port configuration support");
+    return std::unexpected(app::error::ConfigError::ValidationFailed);
+}
+
+std::expected<std::vector<std::shared_ptr<NodeFacadeAdapter>>, app::error::ConfigError>
+BuildNodeAdaptersFromConfig(
+    const GraphConfig& config,
+    std::shared_ptr<INodeProvider> node_provider,
+    const INodeMetadataService* metadata_service) noexcept {
+
+    if (!node_provider) {
+        LOG4CXX_ERROR(logger_, "INodeProvider is null");
+        return std::unexpected(app::error::ConfigError::ValidationFailed);
+    }
+
+    std::vector<std::shared_ptr<NodeFacadeAdapter>> nodes;
+    nodes.reserve(config.nodes.size());
+
+    const INodeMetadataService& active_metadata_service =
+        metadata_service ? *metadata_service : GetDefaultNodeMetadataService();
+    const INodeDescriptorSchemaProvider& active_descriptor_schema_provider =
+        active_metadata_service.DescriptorSchemaProvider();
+
+    for (const auto& node_config : config.nodes) {
+        auto node = node_provider->CreateNodeExpected(node_config.type);
+        if (!node) {
+            LOG4CXX_ERROR(logger_, "Failed to create node '" << node_config.id
+                          << "' (type: " << node_config.type << ")");
+            return std::unexpected(app::error::ConfigError::ValidationFailed);
+        }
+
+        try {
+            auto created_adapter = std::move(node).value();
+            auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(created_adapter));
+            adapter->SetMetadataService(&active_metadata_service);
+            const std::string node_name = !node_config.name.empty()
+                ? node_config.name
+                : node_config.id;
+            if (!node_name.empty()) {
+                adapter->SetName(node_name);
+            }
+
+            auto descriptor_validation =
+                ValidatePortConfigAgainstDescriptorSchema(
+                    node_config,
+                    adapter,
+                    active_descriptor_schema_provider);
+            if (!descriptor_validation) {
+                return std::unexpected(descriptor_validation.error());
+            }
+
+            auto node_config_validation =
+                ValidateNodeConfigAgainstDescriptorSchema(
+                    node_config,
+                    adapter,
+                    active_descriptor_schema_provider);
+            if (!node_config_validation) {
+                return std::unexpected(node_config_validation.error());
+            }
+
+            auto apply_node_config = InternalApplyNodeConfiguration(
+                adapter,
+                node_config.node_config);
+            if (!apply_node_config) {
+                return std::unexpected(apply_node_config.error());
+            }
+
+            auto apply_port_config = InternalApplyPortConfiguration(
+                adapter,
+                node_config.port_config);
+            if (!apply_port_config) {
+                return std::unexpected(apply_port_config.error());
+            }
+
+            nodes.push_back(std::move(adapter));
+        } catch (...) {
+            LOG4CXX_ERROR(logger_, "Failed to allocate node adapter for '"
+                          << node_config.id << "' (type: " << node_config.type << ")");
+            return std::unexpected(app::error::ConfigError::Unknown);
+        }
+    }
+
+    return nodes;
+}
+
 }  // namespace
 
 std::expected<std::vector<std::shared_ptr<NodeFacadeAdapter>>, app::error::ConfigError>
@@ -272,11 +401,6 @@ JsonDynamicGraphLoader::LoadNodesSafe(
     LOG4CXX_TRACE(logger_, "Loading nodes (safe): " << filepath);
 
     try {
-        if (!node_provider) {
-            LOG4CXX_ERROR(logger_, "INodeProvider is null");
-            return std::unexpected(app::error::ConfigError::ValidationFailed);
-        }
-
         auto config = ParseConfigFileSafe(filepath);
         if (!config) {
             return std::unexpected(config.error());
@@ -287,60 +411,15 @@ JsonDynamicGraphLoader::LoadNodesSafe(
             return std::unexpected(validation.error());
         }
 
-        std::vector<std::shared_ptr<NodeFacadeAdapter>> nodes;
-        nodes.reserve(config->nodes.size());
-
-        const INodeMetadataService& active_metadata_service =
-            metadata_service ? *metadata_service : GetDefaultNodeMetadataService();
-        const INodeDescriptorSchemaProvider& active_descriptor_schema_provider =
-            active_metadata_service.DescriptorSchemaProvider();
-
-        for (const auto& node_config : config->nodes) {
-            auto node = node_provider->CreateNodeExpected(node_config.type);
-            if (!node) {
-                LOG4CXX_ERROR(logger_, "Failed to create node '" << node_config.id
-                              << "' (type: " << node_config.type << ")");
-                return std::unexpected(app::error::ConfigError::ValidationFailed);
-            }
-
-            try {
-                auto created_adapter = std::move(node).value();
-                auto adapter = std::make_shared<NodeFacadeAdapter>(std::move(created_adapter));
-                adapter->SetMetadataService(&active_metadata_service);
-                const std::string node_name = !node_config.name.empty()
-                    ? node_config.name
-                    : node_config.id;
-                if (!node_name.empty()) {
-                    adapter->SetName(node_name);
-                }
-                auto descriptor_validation =
-                    ValidatePortConfigAgainstDescriptorSchema(
-                        node_config,
-                        adapter,
-                        active_descriptor_schema_provider);
-                if (!descriptor_validation) {
-                    return std::unexpected(descriptor_validation.error());
-                }
-                auto node_config_validation =
-                    ValidateNodeConfigAgainstDescriptorSchema(
-                        node_config,
-                        adapter,
-                        active_descriptor_schema_provider);
-                if (!node_config_validation) {
-                    return std::unexpected(node_config_validation.error());
-                }
-                if (!node_config.node_config.empty()) {
-                    ApplyNodeConfiguration(adapter, node_config.node_config);
-                }
-                nodes.push_back(std::move(adapter));
-            } catch (...) {
-                LOG4CXX_ERROR(logger_, "Failed to allocate node adapter for '"
-                              << node_config.id << "' (type: " << node_config.type << ")");
-                return std::unexpected(app::error::ConfigError::Unknown);
-            }
+        auto nodes = BuildNodeAdaptersFromConfig(
+            config.value(),
+            std::move(node_provider),
+            metadata_service);
+        if (!nodes) {
+            return std::unexpected(nodes.error());
         }
 
-        LOG4CXX_TRACE(logger_, "Successfully loaded " << nodes.size() << " nodes");
+        LOG4CXX_TRACE(logger_, "Successfully loaded " << nodes->size() << " nodes");
         return nodes;
     } catch (const std::exception& e) {
         std::string error_msg = std::format("Failed to load nodes from '{}': {}",
@@ -393,22 +472,29 @@ JsonDynamicGraphLoader::LoadGraphSafe(
     LOG4CXX_TRACE(logger_, "Loading graph (safe): " << filepath);
     
     try {
-        auto nodes = LoadNodesSafe(
-            filepath,
+        auto config = ParseConfigFileSafe(filepath);
+        if (!config) {
+            return std::unexpected(config.error());
+        }
+
+        auto validation = ValidateConfigSafe(config.value());
+        if (!validation) {
+            return std::unexpected(validation.error());
+        }
+
+        auto nodes = BuildNodeAdaptersFromConfig(
+            config.value(),
             std::move(node_provider),
             metadata_service);
         if (!nodes) {
             return std::unexpected(nodes.error());
         }
 
-        auto edges = LoadEdgesSafe(filepath);
-        if (!edges) {
-            return std::unexpected(edges.error());
-        }
+        auto edges = config->edges;
 
-        LOG4CXX_TRACE(logger_, "Successfully loaded graph: " << nodes->size() 
-                     << " nodes, " << edges->size() << " edges");
-        return std::make_pair(std::move(nodes).value(), std::move(edges).value());
+        LOG4CXX_TRACE(logger_, "Successfully loaded graph: " << nodes->size()
+                     << " nodes, " << edges.size() << " edges");
+        return std::make_pair(std::move(nodes).value(), std::move(edges));
     } catch (const std::exception& e) {
         std::string error_msg = std::format("Failed to load graph from '{}': {}",
                                            filepath, e.what());
@@ -436,21 +522,16 @@ JsonDynamicGraphLoader::ParseConfigFileSafe(
     }
 }
 
-void JsonDynamicGraphLoader::ApplyNodeConfiguration(
-    [[maybe_unused]] std::shared_ptr<NodeFacadeAdapter> adapter,
-    const nlohmann::json& config_json) {
-    
-    if (config_json.empty()) {
-        LOG4CXX_TRACE(logger_, "Configuration is empty, skipping");
-        return;
-    }
-    
-    try {
-        // Note: Configuration via SetConfigurationJSON has been removed
-        // Nodes should be initialized with their configuration at creation time
-    } catch (const std::exception& e) {
-        LOG4CXX_WARN(logger_, "Failed to apply node configuration: " << e.what());
-    }
+std::expected<void, app::error::ConfigError> JsonDynamicGraphLoader::ApplyNodeConfiguration(
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const nlohmann::json& config_json) noexcept {
+    return InternalApplyNodeConfiguration(adapter, config_json);
+}
+
+std::expected<void, app::error::ConfigError> JsonDynamicGraphLoader::ApplyPortConfiguration(
+    const std::shared_ptr<NodeFacadeAdapter>& adapter,
+    const std::map<std::string, nlohmann::json>& port_config) noexcept {
+    return InternalApplyPortConfiguration(adapter, port_config);
 }
 
 }  // namespace graph::config

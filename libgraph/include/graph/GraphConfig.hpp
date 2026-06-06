@@ -72,8 +72,14 @@ struct NodeConfig {
      */
     bool Validate() const {
         // ID must be non-empty and alphanumeric with underscores
-        bool is_letter = (id[0] >= 'a' && id[0] <= 'z') || (id[0] >= 'A' && id[0] <= 'Z') || id[0] == '_';
-        if (id.empty() || !is_letter) {
+        if (id.empty()) {
+            return false;
+        }
+
+        const bool is_letter = (id[0] >= 'a' && id[0] <= 'z') ||
+                               (id[0] >= 'A' && id[0] <= 'Z') ||
+                               id[0] == '_';
+        if (!is_letter) {
             return false;
         }
         

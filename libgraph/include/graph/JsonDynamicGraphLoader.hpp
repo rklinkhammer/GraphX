@@ -199,9 +199,13 @@ private:
      * @param adapter NodeFacadeAdapter to configure
      * @param config_json JSON object with node configuration
      */
-    static void ApplyNodeConfiguration(
-        std::shared_ptr<NodeFacadeAdapter> adapter,
-        const nlohmann::json& config_json);
+    [[nodiscard]] static std::expected<void, app::error::ConfigError> ApplyNodeConfiguration(
+        const std::shared_ptr<NodeFacadeAdapter>& adapter,
+        const nlohmann::json& config_json) noexcept;
+
+    [[nodiscard]] static std::expected<void, app::error::ConfigError> ApplyPortConfiguration(
+        const std::shared_ptr<NodeFacadeAdapter>& adapter,
+        const std::map<std::string, nlohmann::json>& port_config) noexcept;
 };
 
 }  // namespace graph::config

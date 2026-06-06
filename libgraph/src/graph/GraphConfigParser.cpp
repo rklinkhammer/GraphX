@@ -123,98 +123,14 @@ NodeConfig GraphConfigParser::ParseNode(const json& node_json) {
 
 // Parse a single edge configuration
 EdgeConfig GraphConfigParser::ParseEdge(const json& edge_json) {
-    EdgeConfig edge_config;
-    
-    // Required fields
-    if (!edge_json.contains("source_node_id")) {
-        throw std::runtime_error("Edge missing required 'source_node_id' field");
-    }
-    edge_config.source_node_id = edge_json["source_node_id"].get<std::string>();
-    
-    const bool has_source_port = edge_json.contains("source_port");
-    const bool has_source_port_name = edge_json.contains("source_port_name");
-    if (!has_source_port && !has_source_port_name) {
-        throw std::runtime_error(
-            "Edge from '" + edge_config.source_node_id +
-            "' missing required 'source_port' or 'source_port_name' field");
+    auto parsed = ParseEdgeSafe(edge_json);
+    if (parsed) {
+        return parsed.value();
     }
 
-    if (has_source_port_name) {
-        if (!edge_json["source_port_name"].is_string()) {
-            throw std::runtime_error("'source_port_name' must be a string");
-        }
-        edge_config.source_port_name = edge_json["source_port_name"].get<std::string>();
-    }
-
-    if (has_source_port) {
-        if (edge_json["source_port"].is_number()) {
-            edge_config.source_port = edge_json["source_port"].get<size_t>();
-        } else if (edge_json["source_port"].is_string()) {
-            const auto token = edge_json["source_port"].get<std::string>();
-            const bool numeric = !token.empty() &&
-                std::all_of(token.begin(), token.end(),
-                            [](unsigned char c) { return std::isdigit(c) != 0; });
-            if (numeric) {
-                edge_config.source_port = std::stoull(token);
-            } else {
-                edge_config.source_port_name = token;
-            }
-        }
-    }
-    
-    if (!edge_json.contains("target_node_id")) {
-        throw std::runtime_error("Edge missing required 'target_node_id' field");
-    }
-    edge_config.target_node_id = edge_json["target_node_id"].get<std::string>();
-    
-    const bool has_target_port = edge_json.contains("target_port");
-    const bool has_target_port_name = edge_json.contains("target_port_name");
-    if (!has_target_port && !has_target_port_name) {
-        throw std::runtime_error(
-            "Edge to '" + edge_config.target_node_id +
-            "' missing required 'target_port' or 'target_port_name' field");
-    }
-
-    if (has_target_port_name) {
-        if (!edge_json["target_port_name"].is_string()) {
-            throw std::runtime_error("'target_port_name' must be a string");
-        }
-        edge_config.target_port_name = edge_json["target_port_name"].get<std::string>();
-    }
-
-    if (has_target_port) {
-        if (edge_json["target_port"].is_number()) {
-            edge_config.target_port = edge_json["target_port"].get<size_t>();
-        } else if (edge_json["target_port"].is_string()) {
-            const auto token = edge_json["target_port"].get<std::string>();
-            const bool numeric = !token.empty() &&
-                std::all_of(token.begin(), token.end(),
-                            [](unsigned char c) { return std::isdigit(c) != 0; });
-            if (numeric) {
-                edge_config.target_port = std::stoull(token);
-            } else {
-                edge_config.target_port_name = token;
-            }
-        }
-    }
-    
-    // Optional fields with defaults
-    if (edge_json.contains("buffer_size")) {
-        auto sz = edge_json["buffer_size"];
-        if (sz.is_number()) {
-            edge_config.buffer_size = static_cast<size_t>(sz.get<unsigned int>());
-        }
-    } else {
-        edge_config.buffer_size = 100;  // Default buffer size
-    }
-    
-    if (edge_json.contains("backpressure_enabled")) {
-        edge_config.backpressure_enabled = edge_json["backpressure_enabled"].get<bool>();
-    } else {
-        edge_config.backpressure_enabled = true;  // Default enabled
-    }
-    
-    return edge_config;
+    throw std::runtime_error(
+        "Failed to parse edge configuration (error=" +
+        std::to_string(static_cast<int>(parsed.error())) + ")");
 }
 
 std::expected<NodeConfig, app::error::ConfigError>
