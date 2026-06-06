@@ -1,0 +1,47 @@
+{
+  "name": "LinearSequentialDoubleProducer",
+  "description": "Double producer through interior to double sink plus completion output.",
+  "num_threads": 2,
+  "nodes": [
+    {
+      "id": "producer_1",
+      "type": "TestDoubleProducer",
+      "name": "producer_1"
+    },
+    {
+      "id": "interior_1",
+      "type": "InteriorTestNode",
+      "name": "interior_1"
+    },
+    {
+      "id": "sink_1",
+      "type": "TestDoubleSinkNode",
+      "name": "sink_1"
+    },
+    {
+      "id": "completion_1",
+      "type": "CompletionNode",
+      "name": "completion_1"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "producer_1",
+      "source_port": 0,
+      "target_node_id": "interior_1",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "interior_1",
+      "source_port": 0,
+      "target_node_id": "sink_1",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "producer_1",
+      "source_port": 1,
+      "target_node_id": "completion_1",
+      "target_port": 0
+    }
+  ]
+}

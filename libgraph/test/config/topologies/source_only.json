@@ -1,0 +1,16 @@
+{
+  "name": "SourceOnly",
+  "description": "Single source node with no outgoing edges.",
+  "num_threads": 2,
+  "nodes": [
+    {
+      "id": "source_1",
+      "type": "SourceTestNode",
+      "name": "source_1",
+      "node_config": {
+        "message_count": 10
+      }
+    }
+  ],
+  "edges": []
+}

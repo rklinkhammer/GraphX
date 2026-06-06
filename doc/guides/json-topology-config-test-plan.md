@@ -19,10 +19,43 @@ Relevant files:
 
 ## Implementation Plan (For Review)
 
+### Step 0 (Required First): Create Persistent JSON Topology Config Files
+
+Create checked-in JSON topology configs before adding parity execution tests so reviewers can inspect topology intent directly in version control.
+
+Proposed location:
+
+- `libgraph/test/config/topologies/`
+
+Required files (first-pass review set):
+
+1. `libgraph/test/config/topologies/source_only.json`
+2. `libgraph/test/config/topologies/minimal_graph.json`
+3. `libgraph/test/config/topologies/linear_sequential.json`
+4. `libgraph/test/config/topologies/merge_simple.json`
+5. `libgraph/test/config/topologies/split_simple.json`
+6. `libgraph/test/config/topologies/diamond_complex.json`
+7. `libgraph/test/config/topologies/multi_path_sequential.json`
+8. `libgraph/test/config/topologies/interior_to_merge.json`
+9. `libgraph/test/config/topologies/parallel_merge_with_interior.json`
+10. `libgraph/test/config/topologies/complex_network.json`
+11. `libgraph/test/config/topologies/minimal_int_producer.json`
+12. `libgraph/test/config/topologies/linear_sequential_int_producer.json`
+13. `libgraph/test/config/topologies/minimal_double_producer.json`
+14. `libgraph/test/config/topologies/linear_sequential_double_producer.json`
+
+Authoring rules for these files:
+
+1. Use explicit `id` for each node and set `name` for each node instance.
+2. Keep `type` strictly for plugin/type lookup.
+3. Keep edge wiring explicit and readable (prefer named ports where supported).
+4. Keep one topology per file; no embedded multi-topology payloads.
+5. Keep these files committed (not temporary runtime artifacts).
+
 ### Phase A: Duplicate the 10 classic topologies from JSON
 
 1. Add a new unit test suite for config-driven topology parity.
-2. Build each topology from a JSON file using the production GraphBuilder path.
+2. Load each topology from the checked-in JSON files using the production GraphBuilder path.
 3. Execute each built graph through the normal executor lifecycle.
 4. Assert structural parity (node count, edge count) and runtime parity (completion semantics).
 
@@ -48,7 +81,7 @@ Topologies in scope:
 
 ### Test Harness Design
 
-1. Temporary JSON writer helper for each topology case.
+1. Topology-config resolver helper that maps a test case to a checked-in config file path.
 2. Config build helper based on GraphBuilder:
    - Create GraphCapability
    - Set node provider
@@ -86,6 +119,10 @@ Topologies in scope:
 4. A shared test helper now centralizes named-node creation so topology builders do not repeat the same `CreateNodeOrThrow` plus `SetName` pattern.
 5. Guardrail tests are in place and passing for both topology naming and JSON loader name resolution.
 6. The focused validation gates noted above have already been exercised successfully.
+7. Completed: 14 persistent topology JSON configs were created under `libgraph/test/config/topologies/` as review artifacts.
+8. Completed: config-driven parity now supports all 10 classic checked-in JSON topologies (including merge/diamond/interior-to-merge/parallel-merge/complex-network).
+9. Completed: producer topologies are now dynamically buildable and executable from checked-in JSON configs.
+10. Current parity status: all 14 checked-in JSON topology configs are supported in the config-driven parity suite.
 
 ## Additional Constraint: Node Type Must Not Be Used As Node Name
 
@@ -167,12 +204,13 @@ Conclusion:
 
 ## Proposed Execution Order
 
-1. Completed: document-backed parity tests for the 10 classic JSON topologies.
-2. Completed: name/type separation assertions in that suite.
-3. Completed: topology builder explicit naming updates.
-4. Completed: JsonDynamicGraphLoader name assignment from name/id.
-5. Completed: parity coverage for producer topologies.
-6. Completed: focused validation, full unit suite, and full integration suite.
+1. First step for review: create and commit the 14 persistent topology JSON config files under `libgraph/test/config/topologies/`.
+2. Add/adjust config-driven parity tests to consume these checked-in files via GraphBuilder.
+3. Add/keep name/type separation assertions in the parity suite.
+4. Keep topology builder explicit naming updates in place for fluent-builder parity comparisons.
+5. Keep JsonDynamicGraphLoader name assignment from `name`/`id` in place.
+6. Extend/confirm parity coverage for producer topologies against the checked-in JSON files.
+7. Run focused validation, then full unit suite, then full integration suite.
 
 ## Implementation Status (2026-06-05)
 
@@ -186,6 +224,7 @@ Conclusion:
    - `TopologiesSimple.TopologyNodesUseInstanceNamesNotTypes`
    - `JsonDynamicGraphLoaderExpectedTest.LoadNodesSafeUsesConfigNameOrIdForNodeNames`
 6. The provider-facing test helper was renamed from `GetFactory` to `GetProvider` to match the `INodeProvider`-first orchestration direction.
+7. Completed first step: persistent topology JSON config files (non-temporary) were added under `libgraph/test/config/topologies/` for reviewer approval before parity test wiring.
 
 ## Review Questions
 

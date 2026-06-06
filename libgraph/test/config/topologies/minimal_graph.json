@@ -1,0 +1,31 @@
+{
+  "name": "MinimalGraph",
+  "description": "Source -> Sink baseline topology.",
+  "num_threads": 2,
+  "nodes": [
+    {
+      "id": "source_1",
+      "type": "SourceTestNode",
+      "name": "source_1",
+      "node_config": {
+        "message_count": 10
+      }
+    },
+    {
+      "id": "sink_1",
+      "type": "SinkTestNode",
+      "name": "sink_1",
+      "node_config": {
+        "expected_message_count": 10
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source_1",
+      "source_port": 0,
+      "target_node_id": "sink_1",
+      "target_port": 0
+    }
+  ]
+}

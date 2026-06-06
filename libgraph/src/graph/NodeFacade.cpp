@@ -149,10 +149,6 @@ std::expected<RuntimePortHandle, RuntimePortLookupError> LookupPortHandle(
     PortDirection direction,
     NodeHandle handle,
     const NodeFacade* facade) {
-    if (metadata.empty()) {
-        return std::unexpected(RuntimePortLookupError::MetadataUnavailable);
-    }
-
     std::size_t port_id = 0;
     const bool parsed_as_id = [&]() {
         if (name_or_id.empty()) {
@@ -165,43 +161,74 @@ std::expected<RuntimePortHandle, RuntimePortLookupError> LookupPortHandle(
         return ec == std::errc{} && ptr == end;
     }();
 
-    for (const auto& port : metadata) {
-        const bool id_match = parsed_as_id && port.index == port_id;
-        const bool name_match = !parsed_as_id && name_or_id == port.port_name;
-        if (!id_match && !name_match) {
-            continue;
+    const auto parse_port_alias_to_id = [&]() -> std::optional<std::size_t> {
+        if (parsed_as_id) {
+            return port_id;
         }
 
+        if (name_or_id.empty()) {
+            return std::nullopt;
+        }
+
+        if (name_or_id == "In" || name_or_id == "Input" ||
+            name_or_id == "Out" || name_or_id == "Output" ||
+            name_or_id == "Data" || name_or_id == "State") {
+            return 0;
+        }
+
+        std::size_t parsed = 0;
+        const auto pos = name_or_id.find_last_not_of("0123456789");
+        if (pos == std::string_view::npos || pos + 1 >= name_or_id.size()) {
+            return std::nullopt;
+        }
+
+        const std::string_view suffix = name_or_id.substr(pos + 1);
+        auto [ptr, ec] = std::from_chars(suffix.data(), suffix.data() + suffix.size(), parsed);
+        if (ec == std::errc{} && ptr == suffix.data() + suffix.size()) {
+            return parsed;
+        }
+
+        return std::nullopt;
+    };
+
+    const auto try_create_runtime_port = [&](std::size_t requested_port_id)
+        -> std::shared_ptr<IPortFunction> {
+        if (!facade || !handle || !facade->DestroyRuntimePort) {
+            return nullptr;
+        }
+
+        void* runtime_port = nullptr;
+        if (direction == PortDirection::Input && facade->CreateInputRuntimePort) {
+            runtime_port = facade->CreateInputRuntimePort(handle, requested_port_id);
+        } else if (direction == PortDirection::Output && facade->CreateOutputRuntimePort) {
+            runtime_port = facade->CreateOutputRuntimePort(handle, requested_port_id);
+        }
+
+        if (!runtime_port) {
+            return nullptr;
+        }
+
+        auto destroy_runtime_port = facade->DestroyRuntimePort;
+        return std::shared_ptr<IPortFunction>(
+            static_cast<IPortFunction*>(runtime_port),
+            [destroy_runtime_port](IPortFunction* runtime_port_ptr) {
+                destroy_runtime_port(static_cast<void*>(runtime_port_ptr));
+            });
+    };
+
+    const auto build_handle_from_runtime_port = [&](std::size_t resolved_port_id,
+                                                    std::shared_ptr<IPortFunction> owned_port)
+        -> RuntimePortHandle {
         RuntimePortDescriptor descriptor{
-            .id = port.index,
-            .name = port.port_name,
+            .id = resolved_port_id,
+            .name = std::string(name_or_id),
             .direction = direction,
-            .payload_type = port.payload_type,
-            .transport_type = "runtime.descriptor",
+            .payload_type = std::string(owned_port ? owned_port->GetTypeName() : ""),
+            .transport_type = std::string(owned_port ? owned_port->GetTransportTypeName() : "runtime.descriptor"),
         };
 
-        std::shared_ptr<IPortFunction> owned_port;
-        if (facade && handle && facade->DestroyRuntimePort) {
-            void* runtime_port = nullptr;
-            if (direction == PortDirection::Input && facade->CreateInputRuntimePort) {
-                runtime_port = facade->CreateInputRuntimePort(handle, port.index);
-            } else if (direction == PortDirection::Output && facade->CreateOutputRuntimePort) {
-                runtime_port = facade->CreateOutputRuntimePort(handle, port.index);
-            }
-
-            if (runtime_port) {
-                auto destroy_runtime_port = facade->DestroyRuntimePort;
-                owned_port = std::shared_ptr<IPortFunction>(
-                    static_cast<IPortFunction*>(runtime_port),
-                    [destroy_runtime_port](IPortFunction* runtime_port_ptr) {
-                        destroy_runtime_port(static_cast<void*>(runtime_port_ptr));
-                    });
-                descriptor.transport_type = std::string(owned_port->GetTransportTypeName());
-            }
-        }
-
-        if (!owned_port) {
-            owned_port = std::make_shared<DescriptorPortFunction>(descriptor);
+        if (descriptor.name.empty()) {
+            descriptor.name = std::to_string(resolved_port_id);
         }
 
         return RuntimePortHandle{
@@ -210,6 +237,78 @@ std::expected<RuntimePortHandle, RuntimePortLookupError> LookupPortHandle(
             .owned_port = owned_port,
             .port = owned_port.get(),
         };
+    };
+
+    if (!metadata.empty()) {
+        for (const auto& port : metadata) {
+            const bool id_match = parsed_as_id && port.index == port_id;
+            const bool name_match = !parsed_as_id && name_or_id == port.port_name;
+            if (!id_match && !name_match) {
+                continue;
+            }
+
+            RuntimePortDescriptor descriptor{
+                .id = port.index,
+                .name = port.port_name,
+                .direction = direction,
+                .payload_type = port.payload_type,
+                .transport_type = "runtime.descriptor",
+            };
+
+            std::shared_ptr<IPortFunction> owned_port = try_create_runtime_port(port.index);
+            if (owned_port) {
+                descriptor.transport_type = std::string(owned_port->GetTransportTypeName());
+            } else {
+                owned_port = std::make_shared<DescriptorPortFunction>(descriptor);
+            }
+
+            return RuntimePortHandle{
+                .node_index = node_index,
+                .descriptor = std::move(descriptor),
+                .owned_port = owned_port,
+                .port = owned_port.get(),
+            };
+        }
+
+        if (const auto alias_id = parse_port_alias_to_id()) {
+            for (const auto& port : metadata) {
+                if (port.index != *alias_id) {
+                    continue;
+                }
+
+                RuntimePortDescriptor descriptor{
+                    .id = port.index,
+                    .name = port.port_name,
+                    .direction = direction,
+                    .payload_type = port.payload_type,
+                    .transport_type = "runtime.descriptor",
+                };
+
+                std::shared_ptr<IPortFunction> owned_port = try_create_runtime_port(port.index);
+                if (owned_port) {
+                    descriptor.transport_type = std::string(owned_port->GetTransportTypeName());
+                } else {
+                    owned_port = std::make_shared<DescriptorPortFunction>(descriptor);
+                }
+
+                return RuntimePortHandle{
+                    .node_index = node_index,
+                    .descriptor = std::move(descriptor),
+                    .owned_port = owned_port,
+                    .port = owned_port.get(),
+                };
+            }
+        }
+    }
+
+    if (const auto alias_id = parse_port_alias_to_id()) {
+        if (auto owned_port = try_create_runtime_port(*alias_id)) {
+            return build_handle_from_runtime_port(*alias_id, std::move(owned_port));
+        }
+    }
+
+    if (metadata.empty()) {
+        return std::unexpected(RuntimePortLookupError::MetadataUnavailable);
     }
 
     return std::unexpected(RuntimePortLookupError::PortNotFound);

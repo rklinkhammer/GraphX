@@ -205,6 +205,11 @@ IPortFunction* CreateInputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) {
                                                           &input->GetQueue());
     }
 
+    if (auto* input_common = dynamic_cast<IInputCommonFn<InPort>*>(inst->node.get())) {
+        return new PluginQueueBackedPortFunction<InPort>(PortDirection::Input,
+                                                          &input_common->GetQueue());
+    }
+
     if constexpr (requires { NodeT::NOutputs; }) {
         if constexpr (Index < NodeT::NOutputs) {
             using OutPort = typename NodeT::template OutputPortType<Index>;
@@ -224,6 +229,11 @@ IPortFunction* CreateOutputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) 
     if (auto* output = dynamic_cast<OutputFn<OutPort>*>(inst->node.get())) {
         return new PluginQueueBackedPortFunction<OutPort>(PortDirection::Output,
                                                            &output->GetQueue());
+    }
+
+    if (auto* output_common = dynamic_cast<IOutputFn<OutPort>*>(inst->node.get())) {
+        return new PluginQueueBackedPortFunction<OutPort>(PortDirection::Output,
+                                                           &output_common->GetQueue());
     }
 
     if constexpr (requires { NodeT::NInputs; }) {

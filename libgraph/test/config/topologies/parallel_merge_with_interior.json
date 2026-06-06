@@ -1,0 +1,67 @@
+{
+  "name": "ParallelMergeWithInterior",
+  "description": "Source1 direct plus Source2 through Interior into Merge -> Sink.",
+  "num_threads": 2,
+  "nodes": [
+    {
+      "id": "source_1",
+      "type": "SourceTestNode",
+      "name": "source_1",
+      "node_config": {
+        "message_count": 10
+      }
+    },
+    {
+      "id": "source_2",
+      "type": "SourceTestNode",
+      "name": "source_2",
+      "node_config": {
+        "message_count": 10
+      }
+    },
+    {
+      "id": "interior_1",
+      "type": "InteriorTestNode",
+      "name": "interior_1"
+    },
+    {
+      "id": "merge_1",
+      "type": "MergeTestNode",
+      "name": "merge_1"
+    },
+    {
+      "id": "sink_1",
+      "type": "SinkTestNode",
+      "name": "sink_1",
+      "node_config": {
+        "expected_message_count": 10
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source_1",
+      "source_port_name": "Data",
+      "target_node_id": "merge_1",
+      "target_port_name": "In0"
+    },
+    {
+      "source_node_id": "source_2",
+      "source_port_name": "Data",
+      "target_node_id": "interior_1",
+      "target_port_name": "Input"
+    },
+    {
+      "source_node_id": "interior_1",
+      "source_port_name": "Output",
+      "target_node_id": "merge_1",
+      "target_port_name": "In1"
+    },
+    {
+      "source_node_id": "merge_1",
+      "source_port_name": "Out",
+      "target_node_id": "sink_1",
+      "target_port_name": "State"
+    }
+  ]
+}
