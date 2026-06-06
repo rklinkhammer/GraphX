@@ -101,6 +101,10 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         ASSERT_NE(native_telemetry, nullptr);
         graph::gpu::metal::capabilities::NativeMetalTelemetryCapability::ResetForTesting();
 
+        auto native_kernel = std::dynamic_pointer_cast<
+            graph::gpu::metal::capabilities::NativeMetalKernelCapability>(kernel);
+        ASSERT_NE(native_kernel, nullptr);
+
         const auto transfer_before = native_telemetry->TransferSamples();
         const auto kernel_before = native_telemetry->KernelSamples();
         const auto error_before = native_telemetry->ErrorCount();
@@ -111,7 +115,7 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_EQ(native_telemetry->TransferSamples(), transfer_before + 3U);
 
         constexpr std::uint64_t kKernelId = 9001;
-        EXPECT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_noop_kernel"));
+        EXPECT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_identity_u8_inplace"));
 
         graph::gpu::accel::KernelTicket kernel_ticket{};
         kernel_ticket.backend = graph::gpu::accel::BackendKind::Metal;
@@ -122,11 +126,34 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         kernel_ticket.launch.block_x = 1;
         kernel_ticket.launch.block_y = 1;
         kernel_ticket.launch.block_z = 1;
-        kernel_ticket.arg_count = 0;
+        kernel_ticket.arg_count = 1;
         kernel_ticket.execution_queue_id = queue_id;
         kernel_ticket.completion_event = event_id;
 
-        EXPECT_TRUE(kernel->Launch(kernel_ticket, nullptr, 0));
+        graph::gpu::accel::DeviceBufferView* arg0 = &device_lease.device_view;
+        void* args[] = {arg0};
+        EXPECT_TRUE(kernel->Launch(kernel_ticket, args, 1));
+
+        constexpr std::uint64_t kSourceKernelId = 9002;
+        constexpr std::string_view kSourceKernelName = "graphx_source_identity";
+        constexpr std::string_view kSourceKernelText =
+            "#include <metal_stdlib>\n"
+            "using namespace metal;\n"
+            "kernel void graphx_source_identity(device uchar* data [[buffer(0)]], "
+            "uint gid [[thread_position_in_grid]]) { data[gid] = data[gid]; }\n";
+        EXPECT_TRUE(native_kernel->RegisterKernelFromSource(
+            kSourceKernelId, kSourceKernelName, kSourceKernelText));
+
+        graph::gpu::accel::KernelTicket source_ticket = kernel_ticket;
+        source_ticket.kernel_id = kSourceKernelId;
+        EXPECT_TRUE(kernel->Launch(source_ticket, args, 1));
+
+        constexpr std::uint64_t kPrefixedKernelId = 9003;
+        EXPECT_TRUE(kernel->RegisterKernel(kPrefixedKernelId, "builtin:graphx_prefixed_identity"));
+        graph::gpu::accel::KernelTicket prefixed_ticket = kernel_ticket;
+        prefixed_ticket.kernel_id = kPrefixedKernelId;
+        EXPECT_TRUE(kernel->Launch(prefixed_ticket, args, 1));
+
         telemetry->RecordKernel(kernel_ticket, 444);
         EXPECT_EQ(native_telemetry->KernelSamples(), kernel_before + 1U);
         telemetry->IncrementErrorCounter("phase-e-synthetic");
@@ -160,6 +187,8 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         context->DestroyCommandQueue(queue_id);
     } else {
         EXPECT_FALSE(using_native);
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
     }
 }
 

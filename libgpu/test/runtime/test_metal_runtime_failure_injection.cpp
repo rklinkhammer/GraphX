@@ -28,13 +28,18 @@ TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrack
     ASSERT_NE(telemetry, nullptr);
 
     if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable on this machine.";
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
     }
 
     auto native_telemetry = std::dynamic_pointer_cast<
         graph::gpu::metal::capabilities::NativeMetalTelemetryCapability>(telemetry);
     ASSERT_NE(native_telemetry, nullptr);
     graph::gpu::metal::capabilities::NativeMetalTelemetryCapability::ResetForTesting();
+
+    auto native_kernel = std::dynamic_pointer_cast<
+        graph::gpu::metal::capabilities::NativeMetalKernelCapability>(kernel);
+    ASSERT_NE(native_kernel, nullptr);
 
     ASSERT_TRUE(context->SelectDevice(0U));
     const auto queue_id = context->CreateCommandQueue();
@@ -82,9 +87,11 @@ TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrack
     // Invalid registration inputs and launch contracts must fail.
     EXPECT_FALSE(kernel->RegisterKernel(0U, "graphx_bad_kernel"));
     EXPECT_FALSE(kernel->RegisterKernel(7001U, "bad-kernel-name"));
+    EXPECT_FALSE(native_kernel->RegisterKernelFromMetallib(
+        7003U, "graphx_metallib_kernel", "/tmp/does-not-exist.metallib"));
 
     constexpr std::uint64_t kKernelId = 7002;
-    ASSERT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_failure_noop_kernel"));
+    ASSERT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_identity_u8_inplace"));
 
     graph::gpu::accel::KernelTicket kernel_ticket{};
     kernel_ticket.backend = graph::gpu::accel::BackendKind::Metal;

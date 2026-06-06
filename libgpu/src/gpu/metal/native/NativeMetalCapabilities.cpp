@@ -11,11 +11,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <optional>
+#include <utility>
 #include <string>
 #include <string_view>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -145,31 +149,51 @@ MTL::CommandQueue* AcquireQueue(std::uint64_t queue_id) {
     return it->second;
 }
 
-MTL::Buffer* AcquireDeviceBufferFromPointer(void* pointer) {
+struct BufferResolution {
+    MTL::Buffer* buffer{nullptr};
+    std::uint64_t offset{0};
+};
+
+BufferResolution AcquireDeviceBufferFromPointer(void* pointer) {
     if (pointer == nullptr) {
-        return nullptr;
+        return {};
     }
 
     auto& pool_state = MemoryPoolState();
     std::scoped_lock lock(pool_state.mutex);
 
-    const auto find_in = [pointer](const auto& allocations) -> MTL::Buffer* {
+    const auto find_in = [pointer](const auto& allocations) -> BufferResolution {
+        const auto* pointer_bytes = static_cast<const std::byte*>(pointer);
         for (const auto& [_, buffer] : allocations) {
-            if (buffer != nullptr && buffer->contents() == pointer) {
-                buffer->retain();
-                return buffer;
+            if (buffer == nullptr || buffer->contents() == nullptr) {
+                continue;
             }
+
+            const auto* base_bytes = static_cast<const std::byte*>(buffer->contents());
+            const auto buffer_length = static_cast<std::uint64_t>(buffer->length());
+            const auto* end_bytes = base_bytes + buffer_length;
+            if (pointer_bytes < base_bytes || pointer_bytes >= end_bytes) {
+                continue;
+            }
+
+            const auto offset = static_cast<std::uint64_t>(pointer_bytes - base_bytes);
+            if (offset >= buffer_length) {
+                continue;
+            }
+
+                buffer->retain();
+                return BufferResolution{buffer, offset};
         }
-        return nullptr;
+        return {};
     };
 
-    if (auto* buffer = find_in(pool_state.device_allocations); buffer != nullptr) {
-        return buffer;
+    if (auto resolved = find_in(pool_state.device_allocations); resolved.buffer != nullptr) {
+        return resolved;
     }
-    if (auto* buffer = find_in(pool_state.shared_allocations); buffer != nullptr) {
-        return buffer;
+    if (auto resolved = find_in(pool_state.shared_allocations); resolved.buffer != nullptr) {
+        return resolved;
     }
-    return nullptr;
+    return {};
 }
 
 std::uint64_t RegisterTransferCompletionEvent() {
@@ -200,9 +224,16 @@ std::uint64_t NextTransferId() {
 
 bool ExecuteBlitCopy(MTL::CommandQueue* queue,
                     MTL::Buffer* src,
+                    std::uint64_t src_offset,
                     MTL::Buffer* dst,
+                    std::uint64_t dst_offset,
                     std::uint64_t copy_bytes) {
     if (queue == nullptr || src == nullptr || dst == nullptr || copy_bytes == 0) {
+        return false;
+    }
+
+    if (src_offset + copy_bytes > static_cast<std::uint64_t>(src->length()) ||
+        dst_offset + copy_bytes > static_cast<std::uint64_t>(dst->length())) {
         return false;
     }
 
@@ -217,7 +248,7 @@ bool ExecuteBlitCopy(MTL::CommandQueue* queue,
         return false;
     }
 
-    blit->copyFromBuffer(src, 0, dst, 0, copy_bytes);
+    blit->copyFromBuffer(src, src_offset, dst, dst_offset, copy_bytes);
     blit->endEncoding();
     command_buffer->commit();
     command_buffer->waitUntilCompleted();
@@ -239,15 +270,251 @@ bool IsValidKernelName(std::string_view name) {
     return true;
 }
 
-std::string MakeNoopKernelSource(std::string_view kernel_name) {
+enum class BuiltinKernelKind : std::uint8_t {
+    Noop,
+    IdentityInplaceU8,
+    XorInplaceU8,
+    ReduceMetricsU8,
+};
+
+enum class KernelRegistrationMode : std::uint8_t {
+    Builtin,
+    Source,
+    Metallib,
+};
+
+struct KernelRegistrationSpec {
+    KernelRegistrationMode mode{KernelRegistrationMode::Builtin};
+    std::string function_name{};
+    std::string payload{};
+};
+
+bool StartsWith(std::string_view value, std::string_view prefix) {
+    return value.size() >= prefix.size() &&
+           value.substr(0, prefix.size()) == prefix;
+}
+
+NS::String* ToNSString(std::string_view value) {
+    std::string owned(value);
+    return NS::String::string(owned.c_str(), NS::UTF8StringEncoding);
+}
+
+std::optional<KernelRegistrationSpec> ParseKernelRegistration(std::string_view registration) {
+    constexpr std::string_view kBuiltinPrefix = "builtin:";
+    constexpr std::string_view kSourcePrefix = "source:";
+    constexpr std::string_view kMetallibPrefix = "metallib:";
+    constexpr std::string_view kDivider = "::";
+
+    if (StartsWith(registration, kBuiltinPrefix)) {
+        const auto function_name = registration.substr(kBuiltinPrefix.size());
+        if (!IsValidKernelName(function_name)) {
+            return std::nullopt;
+        }
+        return KernelRegistrationSpec{KernelRegistrationMode::Builtin, std::string(function_name), {}};
+    }
+
+    if (StartsWith(registration, kSourcePrefix)) {
+        const auto body = registration.substr(kSourcePrefix.size());
+        const auto divider_pos = body.find(kDivider);
+        if (divider_pos == std::string_view::npos) {
+            return std::nullopt;
+        }
+
+        const auto function_name = body.substr(0, divider_pos);
+        const auto source = body.substr(divider_pos + kDivider.size());
+        if (!IsValidKernelName(function_name) || source.empty()) {
+            return std::nullopt;
+        }
+
+        return KernelRegistrationSpec{KernelRegistrationMode::Source,
+                                      std::string(function_name),
+                                      std::string(source)};
+    }
+
+    if (StartsWith(registration, kMetallibPrefix)) {
+        const auto body = registration.substr(kMetallibPrefix.size());
+        const auto divider_pos = body.find(kDivider);
+        if (divider_pos == std::string_view::npos) {
+            return std::nullopt;
+        }
+
+        const auto function_name = body.substr(0, divider_pos);
+        const auto path = body.substr(divider_pos + kDivider.size());
+        if (!IsValidKernelName(function_name) || path.empty()) {
+            return std::nullopt;
+        }
+
+        return KernelRegistrationSpec{KernelRegistrationMode::Metallib,
+                                      std::string(function_name),
+                                      std::string(path)};
+    }
+
+    if (!IsValidKernelName(registration)) {
+        return std::nullopt;
+    }
+
+    return KernelRegistrationSpec{KernelRegistrationMode::Builtin, std::string(registration), {}};
+}
+
+BuiltinKernelKind ResolveBuiltinKernelKind(std::string_view kernel_name) {
+    if (kernel_name.find("xor") != std::string_view::npos ||
+        kernel_name.find("transform") != std::string_view::npos) {
+        return BuiltinKernelKind::XorInplaceU8;
+    }
+
+    if (kernel_name.find("identity") != std::string_view::npos ||
+        kernel_name.find("stress") != std::string_view::npos ||
+        kernel_name.find("lifecycle") != std::string_view::npos ||
+        kernel_name.find("failure") != std::string_view::npos) {
+        return BuiltinKernelKind::IdentityInplaceU8;
+    }
+
+    if (kernel_name.find("reduce") != std::string_view::npos ||
+        kernel_name.find("metrics") != std::string_view::npos ||
+        kernel_name.find("health") != std::string_view::npos) {
+        return BuiltinKernelKind::ReduceMetricsU8;
+    }
+
+    return BuiltinKernelKind::Noop;
+}
+
+std::string MakeKernelSource(std::string_view kernel_name, BuiltinKernelKind kind) {
     std::string source;
-    source.reserve(256 + kernel_name.size());
+    source.reserve(512 + kernel_name.size());
     source += "#include <metal_stdlib>\n";
     source += "using namespace metal;\n";
     source += "kernel void ";
     source += kernel_name;
-    source += "(uint3 gid [[thread_position_in_grid]]) { (void)gid; }\n";
+
+    switch (kind) {
+    case BuiltinKernelKind::XorInplaceU8:
+        source += "(device uchar* data [[buffer(0)]], uint gid [[thread_position_in_grid]]) {\n";
+        source += "    data[gid] = uchar(data[gid] ^ uchar(0xA5));\n";
+        source += "}\n";
+        break;
+    case BuiltinKernelKind::IdentityInplaceU8:
+        source += "(device uchar* data [[buffer(0)]], uint gid [[thread_position_in_grid]]) {\n";
+        source += "    data[gid] = data[gid];\n";
+        source += "}\n";
+        break;
+    case BuiltinKernelKind::ReduceMetricsU8:
+        source += "(const device uchar* data [[buffer(0)]], device uint* metrics [[buffer(1)]], "
+                  "uint3 gid [[thread_position_in_grid]], uint3 threads [[threads_per_grid]]) {\n";
+        source += "    if (gid.x != 0 || gid.y != 0 || gid.z != 0) { return; }\n";
+        source += "    const uint count = threads.x;\n";
+        source += "    if (count == 0) { metrics[0] = 0; metrics[1] = 0; return; }\n";
+        source += "    ulong sumsq = 0;\n";
+        source += "    uint peak = 0;\n";
+        source += "    for (uint i = 0; i < count; ++i) {\n";
+        source += "        const uint v = uint(data[i]);\n";
+        source += "        sumsq += ulong(v * v);\n";
+        source += "        if (v > peak) { peak = v; }\n";
+        source += "    }\n";
+        source += "    const float mean_sq = float(sumsq) / float(count);\n";
+        source += "    metrics[0] = uint(sqrt(mean_sq));\n";
+        source += "    metrics[1] = peak;\n";
+        source += "}\n";
+        break;
+    case BuiltinKernelKind::Noop:
+    default:
+        source += "(uint3 gid [[thread_position_in_grid]]) { (void)gid; }\n";
+        break;
+    }
+
     return source;
+}
+
+MTL::Library* BuildLibraryFromSource(MTL::Device* device, std::string_view source) {
+    if (device == nullptr || source.empty()) {
+        return nullptr;
+    }
+
+    auto* source_string = ToNSString(source);
+    if (source_string == nullptr) {
+        return nullptr;
+    }
+
+    NS::Error* error = nullptr;
+    auto* library = device->newLibrary(source_string, nullptr, &error);
+    if (library == nullptr || error != nullptr) {
+        if (library != nullptr) {
+            library->release();
+        }
+        return nullptr;
+    }
+
+    return library;
+}
+
+MTL::Library* LoadLibraryFromMetallibPath(MTL::Device* device, std::string_view metallib_path) {
+    if (device == nullptr || metallib_path.empty()) {
+        return nullptr;
+    }
+
+    auto* filepath = ToNSString(metallib_path);
+    if (filepath == nullptr) {
+        return nullptr;
+    }
+
+    NS::Error* error = nullptr;
+    auto* library = device->newLibrary(filepath, &error);
+    if (library == nullptr || error != nullptr) {
+        if (library != nullptr) {
+            library->release();
+        }
+        return nullptr;
+    }
+
+    return library;
+}
+
+bool CreateAndStoreKernelPipeline(std::uint64_t kernel_id,
+                                  std::string_view entry_label,
+                                  std::string_view function_name,
+                                  MTL::Device* device,
+                                  MTL::Library* library) {
+    if (kernel_id == 0 || device == nullptr || library == nullptr || !IsValidKernelName(function_name)) {
+        return false;
+    }
+
+    auto* function_name_ns = ToNSString(function_name);
+    if (function_name_ns == nullptr) {
+        library->release();
+        return false;
+    }
+
+    auto* function = library->newFunction(function_name_ns);
+    if (function == nullptr) {
+        library->release();
+        return false;
+    }
+
+    NS::Error* error = nullptr;
+    auto* pipeline = device->newComputePipelineState(function, &error);
+    if (pipeline == nullptr || error != nullptr) {
+        function->release();
+        library->release();
+        return false;
+    }
+
+    auto& kernel_state = KernelState();
+    std::scoped_lock kernel_lock(kernel_state.mutex);
+    auto it = kernel_state.kernels.find(kernel_id);
+    if (it != kernel_state.kernels.end()) {
+        if (it->second.pipeline != nullptr) {
+            it->second.pipeline->release();
+        }
+        if (it->second.function != nullptr) {
+            it->second.function->release();
+        }
+        if (it->second.library != nullptr) {
+            it->second.library->release();
+        }
+    }
+
+    kernel_state.kernels[kernel_id] = NativeMetalKernelState::KernelEntry{
+        std::string(entry_label), library, function, pipeline};
+    return true;
 }
 
 } // namespace
@@ -260,6 +527,36 @@ bool NativeMetalRuntimeAvailable() {
 
     device->release();
     return true;
+}
+
+std::string NativeMetalRuntimeDiagnostics() {
+    std::ostringstream diag;
+    auto* devices = MTL::CopyAllDevices();
+    if (devices == nullptr) {
+        return "Metal device enumeration failed (CopyAllDevices returned null).";
+    }
+
+    const auto device_count = static_cast<std::uint64_t>(devices->count());
+    diag << "enumerated_devices=" << device_count;
+
+    auto* default_device = MTL::CreateSystemDefaultDevice();
+    if (default_device == nullptr) {
+        devices->release();
+        diag << "; default_device=null";
+        diag << "; likely running in an environment without active GPU access";
+        return diag.str();
+    }
+
+    const auto* device_name_ns = default_device->name();
+    if (device_name_ns != nullptr && device_name_ns->utf8String() != nullptr) {
+        diag << "; default_device=" << device_name_ns->utf8String();
+    } else {
+        diag << "; default_device=<unnamed>";
+    }
+
+    default_device->release();
+    devices->release();
+    return diag.str();
 }
 
 bool NativeMetalContextCapability::SelectDevice(std::uint32_t device_id) {
@@ -537,7 +834,8 @@ bool NativeMetalTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView
         return false;
     }
 
-    auto* dst_buffer = AcquireDeviceBufferFromPointer(dst.device_ptr);
+    const auto dst_resolution = AcquireDeviceBufferFromPointer(dst.device_ptr);
+    auto* dst_buffer = dst_resolution.buffer;
     if (dst_buffer == nullptr) {
         queue->release();
         return false;
@@ -551,7 +849,7 @@ bool NativeMetalTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView
     }
 
     std::memcpy(staging->contents(), src.host_ptr, static_cast<std::size_t>(copy_bytes));
-    const bool copied = ExecuteBlitCopy(queue, staging, dst_buffer, copy_bytes);
+    const bool copied = ExecuteBlitCopy(queue, staging, 0, dst_buffer, dst_resolution.offset, copy_bytes);
     staging->release();
     dst_buffer->release();
     queue->release();
@@ -592,7 +890,8 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         return false;
     }
 
-    auto* src_buffer = AcquireDeviceBufferFromPointer(src.device_ptr);
+    const auto src_resolution = AcquireDeviceBufferFromPointer(src.device_ptr);
+    auto* src_buffer = src_resolution.buffer;
     if (src_buffer == nullptr) {
         queue->release();
         return false;
@@ -605,7 +904,7 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         return false;
     }
 
-    const bool copied = ExecuteBlitCopy(queue, src_buffer, staging, copy_bytes);
+    const bool copied = ExecuteBlitCopy(queue, src_buffer, src_resolution.offset, staging, 0, copy_bytes);
     if (copied) {
         std::memcpy(dst.host_ptr, staging->contents(), static_cast<std::size_t>(copy_bytes));
     }
@@ -649,8 +948,10 @@ bool NativeMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& sr
         return false;
     }
 
-    auto* src_buffer = AcquireDeviceBufferFromPointer(src.device_ptr);
-    auto* dst_buffer = AcquireDeviceBufferFromPointer(dst.device_ptr);
+    const auto src_resolution = AcquireDeviceBufferFromPointer(src.device_ptr);
+    const auto dst_resolution = AcquireDeviceBufferFromPointer(dst.device_ptr);
+    auto* src_buffer = src_resolution.buffer;
+    auto* dst_buffer = dst_resolution.buffer;
     if (src_buffer == nullptr || dst_buffer == nullptr) {
         if (src_buffer != nullptr) {
             src_buffer->release();
@@ -662,7 +963,13 @@ bool NativeMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& sr
         return false;
     }
 
-    const bool copied = ExecuteBlitCopy(queue, src_buffer, dst_buffer, copy_bytes);
+    const bool copied = ExecuteBlitCopy(
+        queue,
+        src_buffer,
+        src_resolution.offset,
+        dst_buffer,
+        dst_resolution.offset,
+        copy_bytes);
     src_buffer->release();
     dst_buffer->release();
     queue->release();
@@ -687,7 +994,26 @@ bool NativeMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& sr
 
 bool NativeMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
                                                  std::string_view kernel_name) {
-    if (kernel_id == 0 || !IsValidKernelName(kernel_name)) {
+    const auto spec = ParseKernelRegistration(kernel_name);
+    if (!spec.has_value()) {
+        return false;
+    }
+
+    switch (spec->mode) {
+    case KernelRegistrationMode::Builtin:
+        return RegisterKernelBuiltin(kernel_id, spec->function_name);
+    case KernelRegistrationMode::Source:
+        return RegisterKernelFromSource(kernel_id, spec->function_name, spec->payload);
+    case KernelRegistrationMode::Metallib:
+        return RegisterKernelFromMetallib(kernel_id, spec->function_name, spec->payload);
+    default:
+        return false;
+    }
+}
+
+bool NativeMetalKernelCapability::RegisterKernelBuiltin(std::uint64_t kernel_id,
+                                                        std::string_view function_name) {
+    if (kernel_id == 0 || !IsValidKernelName(function_name)) {
         return false;
     }
 
@@ -698,59 +1024,64 @@ bool NativeMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
         return false;
     }
 
-    auto source_text = MakeNoopKernelSource(kernel_name);
-    auto* source_string = NS::String::string(source_text.c_str(), NS::UTF8StringEncoding);
-    if (source_string == nullptr) {
+    const auto kernel_kind = ResolveBuiltinKernelKind(function_name);
+    const auto source_text = MakeKernelSource(function_name, kernel_kind);
+    auto* library = BuildLibraryFromSource(device, source_text);
+    if (library == nullptr) {
         return false;
     }
 
-    NS::Error* error = nullptr;
-    auto* library = device->newLibrary(source_string, nullptr, &error);
-    if (library == nullptr || error != nullptr) {
-        if (library != nullptr) {
-            library->release();
-        }
+    return CreateAndStoreKernelPipeline(kernel_id, function_name, function_name, device, library);
+}
+
+bool NativeMetalKernelCapability::RegisterKernelFromSource(std::uint64_t kernel_id,
+                                                           std::string_view function_name,
+                                                           std::string_view msl_source) {
+    if (kernel_id == 0 || !IsValidKernelName(function_name) || msl_source.empty()) {
         return false;
     }
 
-    auto* function_name = NS::String::string(std::string(kernel_name).c_str(), NS::UTF8StringEncoding);
-    if (function_name == nullptr) {
-        library->release();
+    auto& context_state = ContextState();
+    std::scoped_lock context_lock(context_state.mutex);
+    auto* device = EnsureActiveDeviceLocked(context_state);
+    if (device == nullptr) {
         return false;
     }
 
-    auto* function = library->newFunction(function_name);
-    if (function == nullptr) {
-        library->release();
+    auto* library = BuildLibraryFromSource(device, msl_source);
+    if (library == nullptr) {
         return false;
     }
 
-    error = nullptr;
-    auto* pipeline = device->newComputePipelineState(function, &error);
-    if (pipeline == nullptr || error != nullptr) {
-        function->release();
-        library->release();
+    std::string entry_label = "source:";
+    entry_label += function_name;
+    return CreateAndStoreKernelPipeline(kernel_id, entry_label, function_name, device, library);
+}
+
+bool NativeMetalKernelCapability::RegisterKernelFromMetallib(std::uint64_t kernel_id,
+                                                             std::string_view function_name,
+                                                             std::string_view metallib_path) {
+    if (kernel_id == 0 || !IsValidKernelName(function_name) || metallib_path.empty()) {
         return false;
     }
 
-    auto& kernel_state = KernelState();
-    std::scoped_lock kernel_lock(kernel_state.mutex);
-    auto it = kernel_state.kernels.find(kernel_id);
-    if (it != kernel_state.kernels.end()) {
-        if (it->second.pipeline != nullptr) {
-            it->second.pipeline->release();
-        }
-        if (it->second.function != nullptr) {
-            it->second.function->release();
-        }
-        if (it->second.library != nullptr) {
-            it->second.library->release();
-        }
+    auto& context_state = ContextState();
+    std::scoped_lock context_lock(context_state.mutex);
+    auto* device = EnsureActiveDeviceLocked(context_state);
+    if (device == nullptr) {
+        return false;
     }
 
-    kernel_state.kernels[kernel_id] = NativeMetalKernelState::KernelEntry{
-        std::string(kernel_name), library, function, pipeline};
-    return true;
+    auto* library = LoadLibraryFromMetallibPath(device, metallib_path);
+    if (library == nullptr) {
+        return false;
+    }
+
+    std::string entry_label = "metallib:";
+    entry_label += function_name;
+    entry_label += "::";
+    entry_label += metallib_path;
+    return CreateAndStoreKernelPipeline(kernel_id, entry_label, function_name, device, library);
 }
 
 bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
@@ -827,7 +1158,8 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
             return false;
         }
 
-        auto* buffer = AcquireDeviceBufferFromPointer(view->device_ptr);
+        const auto resolution = AcquireDeviceBufferFromPointer(view->device_ptr);
+        auto* buffer = resolution.buffer;
         if (buffer == nullptr) {
             for (auto* b : bound_buffers) {
                 b->release();
@@ -839,7 +1171,7 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
             return false;
         }
 
-        encoder->setBuffer(buffer, 0, static_cast<NS::UInteger>(i));
+        encoder->setBuffer(buffer, resolution.offset, static_cast<NS::UInteger>(i));
         bound_buffers.push_back(buffer);
     }
 

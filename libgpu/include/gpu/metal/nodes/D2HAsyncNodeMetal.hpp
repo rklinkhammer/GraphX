@@ -70,6 +70,10 @@ public:
         return out_host_view;
     }
 
+    void SetQueue(std::uint64_t queue_id) {
+        queue_id_ = queue_id;
+    }
+
 private:
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;

@@ -33,9 +33,11 @@ public:
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
+         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         kernel_ = capability_bus.Get<capabilities::IMetalKernelCapability>();
         telemetry_ = capability_bus.Get<capabilities::IMetalTelemetryCapability>();
-        return context_ != nullptr && memory_pool_ != nullptr && kernel_ != nullptr &&
+         return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr &&
+             kernel_ != nullptr &&
                telemetry_ != nullptr;
     }
 
@@ -43,33 +45,46 @@ public:
         const accel::DeviceBufferView& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override {
-        if (!context_ || !memory_pool_ || !kernel_ || !telemetry_ || queue_id_ == 0 ||
+        if (!context_ || !memory_pool_ || !transfer_ || !kernel_ || !telemetry_ || queue_id_ == 0 ||
             !accel::IsValidView(input) || !accel::IsValidKernelTicket(kernel_ticket_)) {
             return std::nullopt;
         }
 
         accel::BufferLease lease{};
-        if (!memory_pool_->AllocateDevice(input.bytes, input.device_id, lease)) {
+        if (!memory_pool_->AllocateDevice(kMetricsByteWidth, input.device_id, lease)) {
             return std::nullopt;
         }
 
         auto output = lease.device_view;
-        output.dtype = input.dtype;
-        output.layout = input.layout;
+        output.dtype = accel::DataType::UInt32;
+        output.layout.rank = 1;
+        output.layout.shape[0] = kMetricsElementCount;
+        output.layout.stride[0] = 1;
         output.backend = input.backend;
 
         if (!accel::IsValidView(output)) {
             return std::nullopt;
         }
 
-        void* const args[] = {output.device_ptr};
-        if (!kernel_->Launch(kernel_ticket_, args, 1)) {
+        auto launch_ticket = kernel_ticket_;
+        launch_ticket.arg_count = 2;
+        launch_ticket.launch.grid_x = static_cast<std::uint32_t>(input.bytes);
+        launch_ticket.launch.grid_y = 1;
+        launch_ticket.launch.grid_z = 1;
+        launch_ticket.launch.block_x = 1;
+        launch_ticket.launch.block_y = 1;
+        launch_ticket.launch.block_z = 1;
+
+        accel::DeviceBufferView* arg0 = const_cast<accel::DeviceBufferView*>(&input);
+        accel::DeviceBufferView* arg1 = &output;
+        void* const args[] = {arg0, arg1};
+        if (!kernel_->Launch(launch_ticket, args, 2)) {
             return std::nullopt;
         }
 
-        telemetry_->RecordKernel(kernel_ticket_, 0);
+        telemetry_->RecordKernel(launch_ticket, 0);
         last_output_lease_ = lease;
-        last_kernel_ticket_ = kernel_ticket_;
+        last_kernel_ticket_ = launch_ticket;
         return output;
     }
 
@@ -79,7 +94,7 @@ public:
                          std::uint64_t queue_id) {
         kernel_ticket_.backend = accel::BackendKind::Metal;
         kernel_ticket_.kernel_id = kernel_id;
-        kernel_ticket_.arg_count = 1;
+        kernel_ticket_.arg_count = 2;
         kernel_ticket_.execution_queue_id = queue_id;
         kernel_ticket_.launch.grid_x = 1;
         kernel_ticket_.launch.block_x = 1;
@@ -93,13 +108,18 @@ public:
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
+    std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::shared_ptr<capabilities::IMetalKernelCapability> kernel_;
     std::shared_ptr<capabilities::IMetalTelemetryCapability> telemetry_;
     std::uint64_t queue_id_{1};
     std::uint32_t device_id_{0};
     accel::KernelTicket kernel_ticket_{};
     accel::BufferLease last_output_lease_{};
+    accel::TransferTicket last_transfer_ticket_{};
     accel::KernelTicket last_kernel_ticket_{};
+
+    static constexpr std::uint64_t kMetricsElementCount = 2;
+    static constexpr std::uint64_t kMetricsByteWidth = kMetricsElementCount * sizeof(std::uint32_t);
 };
 
 } // namespace graph::gpu::metal::nodes

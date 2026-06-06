@@ -75,6 +75,7 @@ if(APPLE)
         list(APPEND _graphx_metal_cpp_hints "${GRAPHX_METAL_CPP_INCLUDE_DIR}")
     endif()
     list(APPEND _graphx_metal_cpp_hints
+        "${CMAKE_SOURCE_DIR}/libgpu/include/metal-cpp"
         "${CMAKE_SOURCE_DIR}/third_party/metal-cpp"
         "${CMAKE_SOURCE_DIR}/third_party/metal-cpp/include"
         "/opt/homebrew/include"

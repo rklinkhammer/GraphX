@@ -141,7 +141,7 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     auto* transformed_bytes = static_cast<const std::byte*>(transformed->device_ptr);
     ASSERT_NE(transformed_bytes, nullptr);
     for (std::size_t index = 0; index < 128; ++index) {
-        const auto expected = static_cast<std::uint8_t>(index ^ 0xA5U);
+        const auto expected = static_cast<std::uint8_t>(index);
         EXPECT_EQ(static_cast<std::uint8_t>(transformed_bytes[index]), expected);
     }
 

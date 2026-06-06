@@ -6,6 +6,8 @@
 
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 
+#include <string>
+
 namespace graph::gpu::metal::capabilities {
 
 // Native Metal capabilities currently delegate dataflow behavior to the
@@ -51,6 +53,20 @@ public:
 
 class NativeMetalKernelCapability final : public IMetalKernelCapability {
 public:
+    // Registers one of GraphX built-in kernels by function name.
+    bool RegisterKernelBuiltin(std::uint64_t kernel_id,
+                               std::string_view function_name);
+
+    // Registers an inline MSL kernel source and creates a pipeline for function_name.
+    bool RegisterKernelFromSource(std::uint64_t kernel_id,
+                                  std::string_view function_name,
+                                  std::string_view msl_source);
+
+    // Loads a precompiled .metallib from disk and creates a pipeline for function_name.
+    bool RegisterKernelFromMetallib(std::uint64_t kernel_id,
+                                    std::string_view function_name,
+                                    std::string_view metallib_path);
+
     bool RegisterKernel(std::uint64_t kernel_id,
                         std::string_view kernel_name) override;
 
@@ -89,5 +105,6 @@ public:
 };
 
 bool NativeMetalRuntimeAvailable();
+std::string NativeMetalRuntimeDiagnostics();
 
 } // namespace graph::gpu::metal::capabilities

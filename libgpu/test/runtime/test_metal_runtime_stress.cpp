@@ -29,7 +29,8 @@ TEST(MetalNativeRuntimeStressTest, RepeatedTransfersAndKernelLaunchesUpdateTelem
     ASSERT_NE(telemetry, nullptr);
 
     if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable on this machine.";
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
     }
 
     auto native_telemetry = std::dynamic_pointer_cast<
@@ -49,7 +50,7 @@ TEST(MetalNativeRuntimeStressTest, RepeatedTransfersAndKernelLaunchesUpdateTelem
     ASSERT_TRUE(memory_pool->AllocateShared(128U, 0U, shared_lease));
 
     constexpr std::uint64_t kKernelId = 9100;
-    ASSERT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_stress_noop_kernel"));
+    ASSERT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_identity_u8_inplace"));
 
     const auto transfer_before = native_telemetry->TransferSamples();
     const auto kernel_before = native_telemetry->KernelSamples();
@@ -146,7 +147,8 @@ TEST(MetalNativeRuntimeStressTest, ResourceLifecycleChurnRemainsStable) {
     ASSERT_NE(kernel, nullptr);
 
     if (!graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable()) {
-        GTEST_SKIP() << "Native Metal runtime unavailable on this machine.";
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
     }
 
     ASSERT_TRUE(context->SelectDevice(0U));
@@ -199,9 +201,9 @@ TEST(MetalNativeRuntimeStressTest, ResourceLifecycleChurnRemainsStable) {
         EXPECT_EQ(host_src, host_dst);
 
         const std::uint64_t kernel_id = 9200 + iter;
-        ASSERT_TRUE(kernel->RegisterKernel(kernel_id, "graphx_lifecycle_noop_kernel"));
+        ASSERT_TRUE(kernel->RegisterKernel(kernel_id, "graphx_identity_u8_inplace"));
         // Re-register same ID to ensure overwrite/replace path remains stable.
-        ASSERT_TRUE(kernel->RegisterKernel(kernel_id, "graphx_lifecycle_noop_kernel"));
+        ASSERT_TRUE(kernel->RegisterKernel(kernel_id, "graphx_identity_u8_inplace"));
 
         graph::gpu::accel::KernelTicket kernel_ticket{};
         kernel_ticket.backend = graph::gpu::accel::BackendKind::Metal;

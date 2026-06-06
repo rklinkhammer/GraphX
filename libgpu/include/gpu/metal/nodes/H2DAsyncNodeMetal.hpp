@@ -70,6 +70,11 @@ public:
         return out_device_view;
     }
 
+    void SetQueueAndDevice(std::uint64_t queue_id, std::uint32_t device_id) {
+        queue_id_ = queue_id;
+        device_id_ = device_id;
+    }
+
 private:
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;

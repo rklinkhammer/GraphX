@@ -21,6 +21,14 @@ Recommended: install headers into the repository-managed location first:
 
 This installs to third_party/metal-cpp, which CMake auto-detects.
 
+The configure-time search also checks:
+
+- libgpu/include/metal-cpp
+- third_party/metal-cpp
+- third_party/metal-cpp/include
+- /opt/homebrew/include
+- /usr/local/include
+
 Use the native preset:
 
 ```bash
@@ -53,6 +61,21 @@ ctest --preset test-libgpu-metal-runtime
 If CTest reports "No tests were found", native runtime is still disabled for
 that configure directory. Re-run configure and confirm it prints
 "GraphX Metal native runtime: ON".
+
+## Native Kernel Registration Modes
+
+`NativeMetalKernelCapability` now supports explicit registration methods:
+
+- `RegisterKernelBuiltin(kernel_id, function_name)`
+- `RegisterKernelFromSource(kernel_id, function_name, msl_source)`
+- `RegisterKernelFromMetallib(kernel_id, function_name, metallib_path)`
+
+The existing `RegisterKernel(kernel_id, kernel_name)` remains backward compatible
+and also accepts prefixed forms:
+
+- `builtin:<function_name>`
+- `source:<function_name>::<msl_source>`
+- `metallib:<function_name>::<absolute_or_relative_path_to_metallib>`
 
 ## Fallback Behavior
 
