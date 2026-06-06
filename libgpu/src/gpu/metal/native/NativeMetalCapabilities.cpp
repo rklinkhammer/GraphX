@@ -56,8 +56,15 @@ public:
     };
 
     struct TransferState {
+        struct PendingD2HCopy {
+            MTL::Buffer* staging{nullptr};
+            void* dst_host_ptr{nullptr};
+            std::uint64_t bytes{0};
+        };
+
         std::mutex mutex{};
         std::uint64_t next_transfer_id{1};
+        std::unordered_map<std::uint64_t, PendingD2HCopy> pending_d2h_copies{};
     };
 
     struct KernelState {
@@ -339,6 +346,85 @@ std::uint64_t NextTransferId() {
     auto& transfer_state = TransferState();
     std::scoped_lock lock(transfer_state.mutex);
     return transfer_state.next_transfer_id++;
+}
+
+bool ResolveAsyncD2HModeEnabled() {
+    const char* value = std::getenv("GRAPHX_METAL_ASYNC_D2H");
+    if (value == nullptr) {
+        return false;
+    }
+
+    std::string normalized(value);
+    std::transform(
+        normalized.begin(),
+        normalized.end(),
+        normalized.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return normalized == "1" || normalized == "true" || normalized == "on" ||
+           normalized == "yes";
+}
+
+void RegisterPendingD2HCopy(std::uint64_t completion_event,
+                            MTL::Buffer* staging,
+                            void* dst_host_ptr,
+                            std::uint64_t bytes) {
+    if (completion_event == 0 || staging == nullptr || dst_host_ptr == nullptr || bytes == 0) {
+        return;
+    }
+
+    auto& transfer_state = TransferState();
+    std::scoped_lock lock(transfer_state.mutex);
+    transfer_state.pending_d2h_copies[completion_event] =
+        NativeMetalTransferState::PendingD2HCopy{staging, dst_host_ptr, bytes};
+}
+
+void DropPendingD2HCopy(std::uint64_t completion_event) {
+    if (completion_event == 0) {
+        return;
+    }
+
+    auto& transfer_state = TransferState();
+    std::scoped_lock lock(transfer_state.mutex);
+    const auto it = transfer_state.pending_d2h_copies.find(completion_event);
+    if (it == transfer_state.pending_d2h_copies.end()) {
+        return;
+    }
+
+    if (it->second.staging != nullptr) {
+        it->second.staging->release();
+    }
+    transfer_state.pending_d2h_copies.erase(it);
+}
+
+void FinalizePendingD2HCopy(std::uint64_t completion_event) {
+    if (completion_event == 0) {
+        return;
+    }
+
+    NativeMetalTransferState::PendingD2HCopy pending_copy{};
+    {
+        auto& transfer_state = TransferState();
+        std::scoped_lock lock(transfer_state.mutex);
+        const auto it = transfer_state.pending_d2h_copies.find(completion_event);
+        if (it == transfer_state.pending_d2h_copies.end()) {
+            return;
+        }
+        pending_copy = it->second;
+        transfer_state.pending_d2h_copies.erase(it);
+    }
+
+    if (pending_copy.staging == nullptr || pending_copy.dst_host_ptr == nullptr || pending_copy.bytes == 0) {
+        if (pending_copy.staging != nullptr) {
+            pending_copy.staging->release();
+        }
+        return;
+    }
+
+    std::memcpy(
+        pending_copy.dst_host_ptr,
+        pending_copy.staging->contents(),
+        static_cast<std::size_t>(pending_copy.bytes));
+    pending_copy.staging->release();
 }
 
 MTL::SharedEvent* AcquireSharedEvent(std::uint64_t event_id) {
@@ -912,6 +998,8 @@ std::uint64_t NativeMetalContextCapability::CreateEvent() {
 
 void NativeMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    DropPendingD2HCopy(event_id);
+
     auto& state = ContextState();
     std::scoped_lock lock(state.mutex);
 
@@ -939,6 +1027,7 @@ bool NativeMetalContextCapability::IsEventComplete(std::uint64_t event_id) const
         std::scoped_lock lock(state.mutex);
 
         if (state.synthetic_events.contains(event_id)) {
+            FinalizePendingD2HCopy(event_id);
             return true;
         }
 
@@ -953,6 +1042,9 @@ bool NativeMetalContextCapability::IsEventComplete(std::uint64_t event_id) const
 
     const bool complete = event->signaledValue() >= 1;
     event->release();
+    if (complete) {
+        FinalizePendingD2HCopy(event_id);
+    }
     return complete;
 }
 
@@ -968,6 +1060,7 @@ bool NativeMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64
         std::scoped_lock lock(state.mutex);
 
         if (state.synthetic_events.contains(event_id)) {
+            FinalizePendingD2HCopy(event_id);
             return true;
         }
 
@@ -982,6 +1075,9 @@ bool NativeMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64
 
     const bool signaled = event->waitUntilSignaledValue(1, timeout_ms);
     event->release();
+    if (signaled) {
+        FinalizePendingD2HCopy(event_id);
+    }
     return signaled;
 }
 
@@ -1294,6 +1390,8 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         return false;
     }
 
+    const bool async_d2h_enabled = ResolveAsyncD2HModeEnabled();
+
     const bool copied = ExecuteBlitCopy(
         queue,
         src_buffer,
@@ -1302,8 +1400,14 @@ bool NativeMetalTransferCapability::EnqueueD2H(const accel::DeviceBufferView& sr
         0,
         copy_bytes,
         completion_event,
-        true);
-    if (copied) {
+        !async_d2h_enabled);
+
+    if (copied && async_d2h_enabled) {
+        staging->retain();
+        RegisterPendingD2HCopy(completion_event, staging, dst.host_ptr, copy_bytes);
+    }
+
+    if (copied && !async_d2h_enabled) {
         std::memcpy(dst.host_ptr, staging->contents(), static_cast<std::size_t>(copy_bytes));
     }
 
