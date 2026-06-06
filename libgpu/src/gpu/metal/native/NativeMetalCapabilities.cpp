@@ -336,7 +336,6 @@ bool ExecuteBlitCopy(MTL::CommandQueue* queue,
 
     auto* blit = command_buffer->blitCommandEncoder();
     if (blit == nullptr) {
-        command_buffer->release();
         return false;
     }
 
@@ -344,7 +343,6 @@ bool ExecuteBlitCopy(MTL::CommandQueue* queue,
     blit->endEncoding();
     command_buffer->commit();
     command_buffer->waitUntilCompleted();
-    command_buffer->release();
     return true;
 }
 
@@ -1364,7 +1362,6 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
 
     auto* encoder = command_buffer->computeCommandEncoder();
     if (encoder == nullptr) {
-        command_buffer->release();
         queue->release();
         pipeline->release();
         return false;
@@ -1380,7 +1377,6 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
                 b->release();
             }
             encoder->endEncoding();
-            command_buffer->release();
             queue->release();
             pipeline->release();
             return false;
@@ -1392,7 +1388,6 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
                 b->release();
             }
             encoder->endEncoding();
-            command_buffer->release();
             queue->release();
             pipeline->release();
             return false;
@@ -1405,7 +1400,6 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
                 b->release();
             }
             encoder->endEncoding();
-            command_buffer->release();
             queue->release();
             pipeline->release();
             return false;
@@ -1430,7 +1424,6 @@ bool NativeMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
         b->release();
     }
 
-    command_buffer->release();
     queue->release();
     pipeline->release();
     return true;

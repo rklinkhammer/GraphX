@@ -89,18 +89,8 @@ std::filesystem::path GetVibrationHealthPipelineJsonConfigPath() {
     return test_root / "config" / "topologies" / "metal_vibration_health_pipeline.json";
 }
 
-void RequireNativeMetalRuntimeOrSkip() {
-    const bool native_available = graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable();
-#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
-    ASSERT_TRUE(native_available)
-        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
-        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-#else
-    if (!native_available) {
-        GTEST_SKIP() << "Native Metal runtime unavailable: "
-                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
-    }
-#endif
+[[nodiscard]] bool NativeMetalRuntimeAvailableForTest() {
+    return graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable();
 }
 
 }  // namespace
@@ -111,7 +101,18 @@ TEST(MetalNativeRuntimeGraphPipelineTest, VibrationHealthPipelineRunsEndToEnd) {
     options.enable_metal = true;
     graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
 
-    RequireNativeMetalRuntimeOrSkip();
+    const bool native_available = NativeMetalRuntimeAvailableForTest();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+#endif
 
     auto context = bus.Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
     auto memory_pool = bus.Get<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>();
@@ -217,7 +218,18 @@ TEST(MetalNativeRuntimeGraphPipelineTest, VibrationHealthPipelineRunsEndToEnd) {
 
 TEST(MetalNativeRuntimeGraphPipelineTest,
      JsonLoadedVibrationHealthPipelineRunsEndToEnd) {
-    RequireNativeMetalRuntimeOrSkip();
+    const bool native_available = NativeMetalRuntimeAvailableForTest();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+#endif
 
     const auto config_path = GetVibrationHealthPipelineJsonConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
@@ -329,7 +341,18 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
 
 TEST(MetalNativeRuntimeGraphPipelineTest,
      JsonLoadedVibrationHealthPipelineRunsEndToEndWithGraphExecutor) {
-    RequireNativeMetalRuntimeOrSkip();
+    const bool native_available = NativeMetalRuntimeAvailableForTest();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+#endif
 
     const auto config_path = GetVibrationHealthPipelineJsonConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
@@ -394,7 +417,22 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
     ASSERT_NE(context, nullptr);
     ASSERT_TRUE(context->SelectDevice(0U));
 
-    // Companion coverage validates GraphExecutorBuilder/API wiring over the same JSON
-    // runtime contract. Full run/stop lifecycle remains covered by dedicated executor
-    // policy tests to avoid known Metal shutdown instability in this fixture.
+    const auto start_result = executor->Start();
+    ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
+
+    const auto run_result = executor->Run();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+
+    const auto stop_result = executor->Stop();
+    ASSERT_TRUE(stop_result.success) << stop_result.message << " " << stop_result.error_details;
+
+    const auto join_result = executor->Join();
+    ASSERT_TRUE(join_result.success) << join_result.message << " " << join_result.error_details;
+
+    EXPECT_TRUE(executor->IsCompletionSignaled());
+    EXPECT_EQ(nodes.egress->ConsumeCount(), 1U);
+
+    const auto last_view = nodes.egress->LastView();
+    EXPECT_NE(last_view.host_ptr, nullptr);
+    EXPECT_EQ(last_view.bytes, 8U);
 }
