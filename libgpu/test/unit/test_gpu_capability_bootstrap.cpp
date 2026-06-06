@@ -7,6 +7,8 @@
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "gpu/metal/nodes/D2HAsyncNodeMetal.hpp"
+#include "gpu/metal/nodes/H2DAsyncNodeMetal.hpp"
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
 #include "gpu/metal/capabilities/NativeMetalCapabilities.hpp"
 #endif
@@ -84,11 +86,46 @@ TEST(GpuCapabilityBootstrap, RegistersExpectedCapabilitiesFromFeatureFlags) {
     EXPECT_EQ(bus.Has<graph::gpu::sycl::capabilities::ISyclCollectiveCapability>(), expect_sycl);
 
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalContextCapability>(), expect_metal);
+    EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>(), expect_metal);
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(), expect_metal);
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalTransferCapability>(), expect_metal);
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalKernelCapability>(), expect_metal);
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(), expect_metal);
     EXPECT_EQ(bus.Has<graph::gpu::metal::capabilities::IMetalCollectiveCapability>(), expect_metal);
+}
+
+TEST(GpuCapabilityBootstrap, MetalNodesUseBootstrappedSharedQueue) {
+    graph::CapabilityBus bus;
+
+    graph::gpu::GpuCapabilityBootstrapOptions options{};
+    options.enable_cuda = false;
+    options.enable_sycl = false;
+    options.enable_metal = true;
+
+    graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
+
+#if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+    auto shared_queue = bus.Get<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>();
+    ASSERT_NE(shared_queue, nullptr);
+    const auto shared_queue_id = shared_queue->GetOrCreateQueueId();
+    ASSERT_NE(shared_queue_id, 0U);
+
+    graph::gpu::metal::nodes::H2DAsyncNodeMetal h2d;
+    graph::gpu::metal::nodes::D2HAsyncNodeMetal d2h;
+
+    ASSERT_TRUE(h2d.BindGpuCapabilities(bus));
+    ASSERT_TRUE(d2h.BindGpuCapabilities(bus));
+
+    const auto h2d_queue_id = h2d.GetParameters().TryGetInt("queue_id");
+    ASSERT_TRUE(h2d_queue_id.has_value());
+    EXPECT_EQ(static_cast<std::uint64_t>(h2d_queue_id.value()), shared_queue_id);
+
+    const auto d2h_queue_id = d2h.GetParameters().TryGetInt("queue_id");
+    ASSERT_TRUE(d2h_queue_id.has_value());
+    EXPECT_EQ(static_cast<std::uint64_t>(d2h_queue_id.value()), shared_queue_id);
+#else
+    GTEST_SKIP() << "Metal graph nodes are disabled in this build configuration.";
+#endif
 }
 
 TEST(GpuCapabilityBootstrap, DefaultSyclCapabilitiesSupportSmokeOperations) {
@@ -211,6 +248,7 @@ TEST(GpuCapabilityBootstrap, ExplicitDisablePreventsRegistration) {
     EXPECT_FALSE(bus.Has<graph::gpu::cuda::capabilities::ICudaContextCapability>());
     EXPECT_FALSE(bus.Has<graph::gpu::sycl::capabilities::ISyclContextCapability>());
     EXPECT_FALSE(bus.Has<graph::gpu::metal::capabilities::IMetalContextCapability>());
+    EXPECT_FALSE(bus.Has<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>());
 }
 
 TEST(GpuCapabilityBootstrap, StrictNativeMetalRequirementBehavior) {
