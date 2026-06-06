@@ -43,6 +43,18 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "GRAPHX_ENABLE_MODULE_PILOT": "ON"
       }
+    },
+    {
+      "name": "ninja-debug-metal-native",
+      "displayName": "Ninja Debug (Metal Native)",
+      "description": "Debug build with native Metal runtime requested via metal-cpp",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_METAL_GRAPH_NODES": "ON",
+        "ENABLE_METAL_NATIVE_RUNTIME": "ON",
+        "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
+      }
     }
   ],
   "buildPresets": [
@@ -63,6 +75,11 @@
       "targets": [
         "test_libgraph_unit"
       ]
+    },
+    {
+      "name": "build-debug-metal-native",
+      "displayName": "Build Debug (Metal Native)",
+      "configurePreset": "ninja-debug-metal-native"
     }
   ],
   "testPresets": [
@@ -76,6 +93,19 @@
       "filter": {
         "include": {
           "name": "libgraph_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libgpu-metal-runtime",
+      "displayName": "Run native Metal runtime tests",
+      "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgpu_metal_runtime"
         }
       }
     }

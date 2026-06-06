@@ -54,7 +54,14 @@ endif()
 
 if(GRAPHX_METAL_GRAPH_NODES_ENABLED)
     file(GLOB METAL_SOURCES CONFIGURE_DEPENDS "src/gpu/metal/*.cpp" "src/gpu/metal/**/*.cpp")
+    list(FILTER METAL_SOURCES EXCLUDE REGEX "/native/")
     list(APPEND SOURCES ${METAL_SOURCES})
+endif()
+
+if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
+    file(GLOB METAL_NATIVE_SOURCES CONFIGURE_DEPENDS
+        "src/gpu/metal/native/*.cpp")
+    list(APPEND SOURCES ${METAL_NATIVE_SOURCES})
 endif()
 
 # Only create library if sources found
@@ -65,6 +72,8 @@ if(SOURCES)
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
+        GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
+        GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>
         GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
         GRAPHX_GPU_STUB_BACKENDS=1
     )
@@ -75,6 +84,12 @@ if(SOURCES)
     target_include_directories(gpu PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
+
+    if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED AND GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
+        target_include_directories(gpu PRIVATE
+            ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}
+        )
+    endif()
     # Link with libgraph (required dependency)
     target_link_libraries(gpu PUBLIC
         graph
@@ -83,6 +98,14 @@ if(SOURCES)
         Eigen3::Eigen
         Threads::Threads
     )
+
+    if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
+        target_link_libraries(gpu PUBLIC
+            ${GRAPHX_METAL_FRAMEWORK}
+            ${GRAPHX_FOUNDATION_FRAMEWORK}
+            ${GRAPHX_QUARTZCORE_FRAMEWORK}
+        )
+    endif()
 
     # Keep warning/sanitizer options local for install-exported static library.
     if(MSVC)
@@ -106,6 +129,8 @@ else()
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
+        GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
+        GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>
         GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
         GRAPHX_GPU_STUB_BACKENDS=1
     )

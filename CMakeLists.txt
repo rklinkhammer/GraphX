@@ -4,6 +4,7 @@ project(gdashboard-workspace VERSION 1.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
+include(CheckIncludeFileCXX)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +34,15 @@ option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
 option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
 option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
 option(ENABLE_METAL_GRAPH_NODES "Enable Metal GPU graph nodes in libgpu" ON)
+option(ENABLE_METAL_NATIVE_RUNTIME "Enable native Metal runtime implementation on Apple" ON)
+set(GRAPHX_METAL_CPP_INCLUDE_DIR "" CACHE PATH
+    "Path to metal-cpp headers root containing Metal/Metal.hpp")
 option(MULTI_GPU_TESTS "Enable multi-GPU test lanes (when supported)" OFF)
+
+set(GRAPHX_GPU_TEST_HOOKS_ENABLED OFF)
+if(BUILD_TESTS)
+    set(GRAPHX_GPU_TEST_HOOKS_ENABLED ON)
+endif()
 
 find_package(CUDAToolkit QUIET)
 set(GRAPHX_HAS_CUDA_TOOLKIT OFF)
@@ -52,6 +61,52 @@ endif()
 set(GRAPHX_HAS_METAL_PLATFORM OFF)
 if(APPLE)
     set(GRAPHX_HAS_METAL_PLATFORM ON)
+endif()
+
+set(GRAPHX_HAS_METAL_FRAMEWORKS OFF)
+set(GRAPHX_HAS_METAL_CPP_HEADERS OFF)
+if(APPLE)
+    find_library(GRAPHX_METAL_FRAMEWORK Metal)
+    find_library(GRAPHX_FOUNDATION_FRAMEWORK Foundation)
+    find_library(GRAPHX_QUARTZCORE_FRAMEWORK QuartzCore)
+
+    set(_graphx_metal_cpp_hints "")
+    if(GRAPHX_METAL_CPP_INCLUDE_DIR)
+        list(APPEND _graphx_metal_cpp_hints "${GRAPHX_METAL_CPP_INCLUDE_DIR}")
+    endif()
+    list(APPEND _graphx_metal_cpp_hints
+        "${CMAKE_SOURCE_DIR}/third_party/metal-cpp"
+        "${CMAKE_SOURCE_DIR}/third_party/metal-cpp/include"
+        "/opt/homebrew/include"
+        "/usr/local/include")
+
+    unset(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED CACHE)
+    unset(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
+
+    find_path(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED
+        NAMES Metal/Metal.hpp
+        HINTS ${_graphx_metal_cpp_hints})
+
+    if(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
+        set(_graphx_prev_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+        set(CMAKE_REQUIRED_INCLUDES "${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}")
+        check_include_file_cxx("Metal/Metal.hpp" GRAPHX_HAS_METAL_HEADER)
+        check_include_file_cxx("Foundation/Foundation.hpp" GRAPHX_HAS_FOUNDATION_HEADER)
+        check_include_file_cxx("QuartzCore/QuartzCore.hpp" GRAPHX_HAS_QUARTZCORE_HEADER)
+        set(CMAKE_REQUIRED_INCLUDES "${_graphx_prev_required_includes}")
+    else()
+        set(GRAPHX_HAS_METAL_HEADER OFF)
+        set(GRAPHX_HAS_FOUNDATION_HEADER OFF)
+        set(GRAPHX_HAS_QUARTZCORE_HEADER OFF)
+    endif()
+
+    if(GRAPHX_METAL_FRAMEWORK AND GRAPHX_FOUNDATION_FRAMEWORK AND GRAPHX_QUARTZCORE_FRAMEWORK)
+        set(GRAPHX_HAS_METAL_FRAMEWORKS ON)
+    endif()
+
+    if(GRAPHX_HAS_METAL_HEADER AND GRAPHX_HAS_FOUNDATION_HEADER AND GRAPHX_HAS_QUARTZCORE_HEADER)
+        set(GRAPHX_HAS_METAL_CPP_HEADERS ON)
+    endif()
 endif()
 
 set(GRAPHX_CUDA_GRAPH_NODES_ENABLED OFF)
@@ -87,6 +142,18 @@ if(ENABLE_METAL_GRAPH_NODES)
     endif()
 endif()
 
+set(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED OFF)
+if(ENABLE_METAL_NATIVE_RUNTIME)
+    if(GRAPHX_METAL_GRAPH_NODES_ENABLED AND GRAPHX_HAS_METAL_FRAMEWORKS AND GRAPHX_HAS_METAL_CPP_HEADERS)
+        set(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED ON)
+    elseif(GRAPHX_METAL_GRAPH_NODES_ENABLED)
+        message(WARNING
+            "ENABLE_METAL_NATIVE_RUNTIME=ON but required metal-cpp headers and/or Apple frameworks were not found. "
+            "Set GRAPHX_METAL_CPP_INCLUDE_DIR to your metal-cpp include root if needed. "
+            "Falling back to simulated Metal capabilities.")
+    endif()
+endif()
+
 if(MULTI_GPU_TESTS AND NOT (GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED))
     message(WARNING
         "MULTI_GPU_TESTS=ON but no GPU backend is enabled. "
@@ -105,6 +172,8 @@ target_compile_definitions(graphx_project_options INTERFACE
     GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
+    GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
+    GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>
     GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
 )
 
@@ -122,6 +191,11 @@ endif()
 message(STATUS "GraphX CUDA graph nodes: ${GRAPHX_CUDA_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
+message(STATUS "GraphX Metal native runtime: ${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}")
+message(STATUS "GraphX GPU test hooks: ${GRAPHX_GPU_TEST_HOOKS_ENABLED}")
+if(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
+    message(STATUS "GraphX metal-cpp include dir: ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}")
+endif()
 message(STATUS "GraphX multi-GPU tests: ${MULTI_GPU_TESTS}")
 
 # Add projects

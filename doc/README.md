@@ -81,6 +81,8 @@ User-friendly guides and quick reference documentation:
 - **TestGraphTopologies_Executive_Summary.md** - Executive summary of test topologies
 - **TestGraphTopologies_Implementation_Report.md** - Implementation report for test topologies
 - **TestGraphTopologies_Quick_Start.md** - Quick start guide for test topologies
+- **metal-cpp-native-runtime.md** - Native Metal runtime setup via metal-cpp
+- **../scripts/install_metal_cpp.sh** - Helper script to install metal-cpp headers locally
 - **TOPOLOGY5_DEBUG_GUIDE.md** - Debugging guide for topology features
 
 ## Organization Principles

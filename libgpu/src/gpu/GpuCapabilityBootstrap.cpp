@@ -18,6 +18,9 @@
 
 #if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+#include "gpu/metal/capabilities/NativeMetalCapabilities.hpp"
+#endif
 #endif
 
 #include <memory>
@@ -105,29 +108,81 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 
 #if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     if (options.enable_metal) {
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+        const bool use_native_metal = metal::capabilities::NativeMetalRuntimeAvailable();
+#endif
+
         if (!bus.Has<metal::capabilities::IMetalContextCapability>()) {
             bus.Register<metal::capabilities::IMetalContextCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalContextCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalContextCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalContextCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalContextCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalContextCapability>());
+#endif
         }
         if (!bus.Has<metal::capabilities::IMetalMemoryPoolCapability>()) {
             bus.Register<metal::capabilities::IMetalMemoryPoolCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalMemoryPoolCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalMemoryPoolCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalMemoryPoolCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalMemoryPoolCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalMemoryPoolCapability>());
+#endif
         }
         if (!bus.Has<metal::capabilities::IMetalTransferCapability>()) {
             bus.Register<metal::capabilities::IMetalTransferCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalTransferCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalTransferCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalTransferCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalTransferCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalTransferCapability>());
+#endif
         }
         if (!bus.Has<metal::capabilities::IMetalKernelCapability>()) {
             bus.Register<metal::capabilities::IMetalKernelCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalKernelCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalKernelCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalKernelCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalKernelCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalKernelCapability>());
+#endif
         }
         if (!bus.Has<metal::capabilities::IMetalTelemetryCapability>()) {
             bus.Register<metal::capabilities::IMetalTelemetryCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalTelemetryCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalTelemetryCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalTelemetryCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalTelemetryCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalTelemetryCapability>());
+#endif
         }
         if (!bus.Has<metal::capabilities::IMetalCollectiveCapability>()) {
             bus.Register<metal::capabilities::IMetalCollectiveCapability>(
+#if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME
+                use_native_metal
+                    ? std::static_pointer_cast<metal::capabilities::IMetalCollectiveCapability>(
+                          std::make_shared<metal::capabilities::NativeMetalCollectiveCapability>())
+                    : std::static_pointer_cast<metal::capabilities::IMetalCollectiveCapability>(
+                          std::make_shared<metal::capabilities::DefaultMetalCollectiveCapability>()));
+#else
                 std::make_shared<metal::capabilities::DefaultMetalCollectiveCapability>());
+#endif
         }
     }
 #else
