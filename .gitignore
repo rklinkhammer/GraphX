@@ -1,6 +1,7 @@
 # Build directories
 */build/
 build/
+build2/*
 build-*/
 build-clean/
 */build-*/
