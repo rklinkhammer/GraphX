@@ -140,6 +140,14 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
                 std::make_shared<metal::capabilities::DefaultMetalContextCapability>());
 #endif
         }
+        if (!bus.Has<metal::capabilities::IMetalSharedQueueCapability>()) {
+            auto context = bus.Get<metal::capabilities::IMetalContextCapability>();
+            if (context != nullptr) {
+                bus.Register<metal::capabilities::IMetalSharedQueueCapability>(
+                    std::make_shared<metal::capabilities::MetalSharedQueueCapability>(
+                        std::move(context)));
+            }
+        }
         if (!bus.Has<metal::capabilities::IMetalMemoryPoolCapability>()) {
             bus.Register<metal::capabilities::IMetalMemoryPoolCapability>(
 #if GRAPHX_ENABLE_METAL_NATIVE_RUNTIME

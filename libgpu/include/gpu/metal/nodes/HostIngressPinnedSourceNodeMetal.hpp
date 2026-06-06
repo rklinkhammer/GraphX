@@ -6,12 +6,15 @@
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
+#include <vector>
 
 namespace graph::gpu::metal::nodes {
 
@@ -21,7 +24,9 @@ namespace graph::gpu::metal::nodes {
 
 class HostIngressPinnedSourceNodeMetal
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeMetal, accel::HostPinnedBufferView>,
-      public graph::IGpuCapabilityBinding {
+    public graph::IGpuCapabilityBinding,
+    public graph::IConfigurable,
+    public graph::IParameterized {
 public:
     HostIngressPinnedSourceNodeMetal() = default;
 
@@ -73,6 +78,45 @@ public:
 
     void StageNextBufferBytes(std::uint64_t bytes) {
         pending_bytes_ = bytes;
+    }
+
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("staged_bytes")) {
+            auto staged_bytes = cfg.TryGetInt("staged_bytes");
+            if (!staged_bytes) {
+                throw staged_bytes.error();
+            }
+            if (staged_bytes.value() < 0) {
+                throw std::invalid_argument("staged_bytes must be >= 0");
+            }
+            pending_bytes_ = static_cast<std::uint64_t>(staged_bytes.value());
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"staged_bytes", pending_bytes_},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "staged_bytes") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Number of host bytes to stage for next Produce() call."},
+            };
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"staged_bytes"};
     }
 
 private:

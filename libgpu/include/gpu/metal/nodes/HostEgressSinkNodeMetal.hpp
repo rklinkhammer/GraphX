@@ -5,10 +5,13 @@
 #pragma once
 
 #include "gpu/accel/types/AccelValidation.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <cstddef>
+#include <stdexcept>
+#include <vector>
 
 namespace graph::gpu::metal::nodes {
 
@@ -18,7 +21,9 @@ namespace graph::gpu::metal::nodes {
 
 class HostEgressSinkNodeMetal
     : public graph::NamedSinkNode<HostEgressSinkNodeMetal, accel::HostPinnedBufferView>,
-      public graph::CompletionCallbackProvider {
+    public graph::CompletionCallbackProvider,
+    public graph::IConfigurable,
+    public graph::IParameterized {
 public:
     HostEgressSinkNodeMetal() = default;
 
@@ -52,6 +57,45 @@ public:
 
     void SetExpectedMessageCount(std::size_t count) noexcept {
         expected_message_count_ = count;
+    }
+
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("expected_message_count")) {
+            auto expected_count = cfg.TryGetInt("expected_message_count");
+            if (!expected_count) {
+                throw expected_count.error();
+            }
+            if (expected_count.value() < 0) {
+                throw std::invalid_argument("expected_message_count must be >= 0");
+            }
+            expected_message_count_ = static_cast<std::size_t>(expected_count.value());
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"expected_message_count", expected_message_count_},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "expected_message_count") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Signals completion after consuming this many messages."},
+            };
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"expected_message_count"};
     }
 
 private:

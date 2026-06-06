@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace graph::gpu::metal::capabilities {
 
@@ -98,6 +100,45 @@ public:
                             accel::TransferTicket& out_ticket) = 0;
 };
 
+enum class MetalKernelSourceKind : std::uint8_t {
+    Builtin = 0,
+    InlineSource,
+    MetallibPath,
+};
+
+enum class MetalKernelArgKind : std::uint8_t {
+    DeviceBuffer = 0,
+};
+
+enum class MetalKernelArgAccess : std::uint8_t {
+    ReadOnly = 0,
+    WriteOnly,
+    ReadWrite,
+};
+
+struct MetalKernelArgDescriptor {
+    MetalKernelArgKind kind{MetalKernelArgKind::DeviceBuffer};
+    MetalKernelArgAccess access{MetalKernelArgAccess::ReadWrite};
+};
+
+struct MetalKernelDispatchDescriptor {
+    std::uint32_t default_grid_x{1};
+    std::uint32_t default_grid_y{1};
+    std::uint32_t default_grid_z{1};
+    std::uint32_t default_block_x{1};
+    std::uint32_t default_block_y{1};
+    std::uint32_t default_block_z{1};
+};
+
+struct MetalKernelDescriptor {
+    std::uint64_t kernel_id{0};
+    std::string function_name{};
+    MetalKernelSourceKind source_kind{MetalKernelSourceKind::Builtin};
+    std::string source_payload{};
+    std::vector<MetalKernelArgDescriptor> arg_layout{};
+    MetalKernelDispatchDescriptor dispatch{};
+};
+
 class IMetalKernelCapability {
 public:
     virtual ~IMetalKernelCapability() = default;
@@ -117,6 +158,13 @@ public:
     virtual bool Launch(const accel::KernelTicket& ticket,
                         void* const* args,
                         std::size_t arg_count) = 0;
+};
+
+class IMetalKernelDescriptorCapability {
+public:
+    virtual ~IMetalKernelDescriptorCapability() = default;
+
+    virtual bool RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) = 0;
 };
 
 class IMetalTelemetryCapability {

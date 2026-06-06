@@ -6,7 +6,10 @@
     {
       "id": "ingress",
       "type": "HostIngressPinnedSourceNodeMetal",
-      "name": "ingress"
+      "name": "ingress",
+      "node_config": {
+        "staged_bytes": 96
+      }
     },
     {
       "id": "h2d",
@@ -16,17 +19,53 @@
     {
       "id": "shard",
       "type": "DeviceShardNodeMetal",
-      "name": "shard"
+      "name": "shard",
+      "node_config": {
+        "shard_index": 1,
+        "shard_count": 3
+      }
     },
     {
       "id": "transform",
       "type": "DeviceTransformNodeMetal",
-      "name": "transform"
+      "name": "transform",
+      "node_config": {
+        "kernel_descriptor": {
+          "kernel_id": 10001,
+          "function_name": "graphx_transform_xor_u8_inplace",
+          "source_kind": "builtin",
+          "arg_layout": [
+            {
+              "kind": "device_buffer",
+              "access": "read_write"
+            }
+          ]
+        },
+        "device_id": 0
+      }
     },
     {
       "id": "reduce",
       "type": "DeviceReduceNodeMetal",
-      "name": "reduce"
+      "name": "reduce",
+      "node_config": {
+        "kernel_descriptor": {
+          "kernel_id": 10002,
+          "function_name": "graphx_reduce_health_metrics_u8",
+          "source_kind": "builtin",
+          "arg_layout": [
+            {
+              "kind": "device_buffer",
+              "access": "read_only"
+            },
+            {
+              "kind": "device_buffer",
+              "access": "write_only"
+            }
+          ]
+        },
+        "device_id": 0
+      }
     },
     {
       "id": "d2h",
@@ -36,7 +75,10 @@
     {
       "id": "egress",
       "type": "HostEgressSinkNodeMetal",
-      "name": "egress"
+      "name": "egress",
+      "node_config": {
+        "expected_message_count": 1
+      }
     }
   ],
   "edges": [

@@ -72,8 +72,11 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
-class DefaultMetalKernelCapability final : public IMetalKernelCapability {
+class DefaultMetalKernelCapability final : public IMetalKernelCapability,
+                                           public IMetalKernelDescriptorCapability {
 public:
+    bool RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) override;
+
     bool RegisterKernel(std::uint64_t kernel_id,
                         std::string_view kernel_name) override;
 
@@ -86,7 +89,7 @@ public:
                 std::size_t arg_count) override;
 
 private:
-    std::unordered_set<std::uint64_t> registered_kernels_{};
+    std::unordered_map<std::uint64_t, RegisteredKernelExecution> registered_kernels_{};
 };
 
 class DefaultMetalTelemetryCapability final : public IMetalTelemetryCapability {
