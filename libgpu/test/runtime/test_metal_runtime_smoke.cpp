@@ -85,6 +85,7 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         const auto event_id = context->CreateEvent();
         EXPECT_NE(queue_id, 0U);
         EXPECT_NE(event_id, 0U);
+        EXPECT_FALSE(context->IsEventComplete(event_id));
 
         graph::gpu::accel::BufferLease device_lease{};
         graph::gpu::accel::BufferLease shared_lease{};
@@ -127,6 +128,8 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_TRUE(transfer->EnqueueH2D(host_src_view, device_lease.device_view, queue_id, h2d_ticket));
         EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(h2d_ticket));
         EXPECT_EQ(device_lease.device_view.ready_event, h2d_ticket.completion_event);
+        EXPECT_TRUE(context->WaitEvent(h2d_ticket.completion_event, 2000U));
+        EXPECT_TRUE(context->IsEventComplete(h2d_ticket.completion_event));
 
         graph::gpu::accel::TransferTicket d2h_ticket{};
         EXPECT_TRUE(transfer->EnqueueD2H(device_lease.device_view, host_dst_view, queue_id, d2h_ticket));
@@ -175,6 +178,8 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         graph::gpu::accel::DeviceBufferView* arg0 = &device_lease.device_view;
         void* args[] = {arg0};
         EXPECT_TRUE(kernel->Launch(kernel_ticket, args, 1));
+        EXPECT_TRUE(context->WaitEvent(event_id, 2000U));
+        EXPECT_TRUE(context->IsEventComplete(event_id));
 
         constexpr std::uint64_t kSourceKernelId = 9002;
         constexpr std::string_view kSourceKernelName = "graphx_source_identity";

@@ -927,6 +927,64 @@ void NativeMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     state.synthetic_events.erase(event_id);
 }
 
+bool NativeMetalContextCapability::IsEventComplete(std::uint64_t event_id) const {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    if (event_id == 0) {
+        return false;
+    }
+
+    MTL::SharedEvent* event = nullptr;
+    {
+        auto& state = ContextState();
+        std::scoped_lock lock(state.mutex);
+
+        if (state.synthetic_events.contains(event_id)) {
+            return true;
+        }
+
+        const auto event_it = state.events.find(event_id);
+        if (event_it == state.events.end() || event_it->second == nullptr) {
+            return false;
+        }
+
+        event = event_it->second;
+        event->retain();
+    }
+
+    const bool complete = event->signaledValue() >= 1;
+    event->release();
+    return complete;
+}
+
+bool NativeMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    if (event_id == 0) {
+        return false;
+    }
+
+    MTL::SharedEvent* event = nullptr;
+    {
+        auto& state = ContextState();
+        std::scoped_lock lock(state.mutex);
+
+        if (state.synthetic_events.contains(event_id)) {
+            return true;
+        }
+
+        const auto event_it = state.events.find(event_id);
+        if (event_it == state.events.end() || event_it->second == nullptr) {
+            return false;
+        }
+
+        event = event_it->second;
+        event->retain();
+    }
+
+    const bool signaled = event->waitUntilSignaledValue(1, timeout_ms);
+    event->release();
+    return signaled;
+}
+
 bool NativeMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes,
                                                      std::uint32_t device_id,
                                                      accel::BufferLease& out_lease) {

@@ -33,11 +33,28 @@ void DefaultMetalContextCapability::DestroyCommandQueue(std::uint64_t queue_id) 
 std::uint64_t DefaultMetalContextCapability::CreateEvent() {
     const auto id = next_event_id_++;
     events_.insert(id);
+    completed_events_.erase(id);
     return id;
 }
 
 void DefaultMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     events_.erase(event_id);
+    completed_events_.erase(event_id);
+}
+
+bool DefaultMetalContextCapability::IsEventComplete(std::uint64_t event_id) const {
+    if (!events_.contains(event_id)) {
+        return false;
+    }
+    return completed_events_.contains(event_id);
+}
+
+bool DefaultMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64_t) {
+    if (!events_.contains(event_id)) {
+        return false;
+    }
+    completed_events_.insert(event_id);
+    return true;
 }
 
 bool DefaultMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,

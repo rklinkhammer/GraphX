@@ -6,6 +6,7 @@
 #include "graph/CapabilityBus.hpp"
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
+#include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #include "gpu/metal/nodes/DeviceShardNodeMetal.hpp"
 #include "gpu/metal/nodes/D2HAsyncNodeMetal.hpp"
@@ -240,6 +241,20 @@ TEST(GpuCapabilityBootstrap, DefaultSyclCapabilitiesSupportSmokeOperations) {
     EXPECT_TRUE(collective.AllReduce(collective_buffer, collective_ticket));
     EXPECT_TRUE(collective.AllGather(collective_buffer, d2d_dst, collective_ticket));
     EXPECT_TRUE(collective.ReduceScatter(collective_buffer, d2d_dst, collective_ticket));
+}
+
+TEST(GpuCapabilityBootstrap, DefaultMetalContextEventWaitSemantics) {
+    graph::gpu::metal::capabilities::DefaultMetalContextCapability context;
+
+    const auto event_id = context.CreateEvent();
+    ASSERT_NE(event_id, 0U);
+    EXPECT_FALSE(context.IsEventComplete(event_id));
+    EXPECT_TRUE(context.WaitEvent(event_id, 0U));
+    EXPECT_TRUE(context.IsEventComplete(event_id));
+
+    context.DestroyEvent(event_id);
+    EXPECT_FALSE(context.IsEventComplete(event_id));
+    EXPECT_FALSE(context.WaitEvent(event_id, 0U));
 }
 
 TEST(GpuCapabilityBootstrap, ExplicitDisablePreventsRegistration) {

@@ -28,6 +28,8 @@ public:
 
     virtual std::uint64_t CreateEvent() = 0;
     virtual void DestroyEvent(std::uint64_t event_id) = 0;
+    virtual bool IsEventComplete(std::uint64_t event_id) const = 0;
+    virtual bool WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) = 0;
 };
 
 class IMetalSharedQueueCapability {

@@ -24,6 +24,8 @@ public:
 
     std::uint64_t CreateEvent() override;
     void DestroyEvent(std::uint64_t event_id) override;
+    bool IsEventComplete(std::uint64_t event_id) const override;
+    bool WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) override;
 
 private:
     std::uint32_t current_device_id_{0};
@@ -31,6 +33,7 @@ private:
     std::uint64_t next_event_id_{1};
     std::unordered_set<std::uint64_t> queues_{};
     std::unordered_set<std::uint64_t> events_{};
+    std::unordered_set<std::uint64_t> completed_events_{};
 };
 
 class DefaultMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {

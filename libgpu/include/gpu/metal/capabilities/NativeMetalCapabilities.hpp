@@ -31,6 +31,8 @@ public:
     void DestroyCommandQueue(std::uint64_t queue_id) override;
     std::uint64_t CreateEvent() override;
     void DestroyEvent(std::uint64_t event_id) override;
+    bool IsEventComplete(std::uint64_t event_id) const override;
+    bool WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) override;
 
 private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
