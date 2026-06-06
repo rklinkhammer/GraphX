@@ -6,12 +6,15 @@
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
+#include <vector>
 
 namespace graph::gpu::metal::nodes {
 
@@ -24,7 +27,9 @@ class D2HAsyncNodeMetal
           graph::TypeList<accel::DeviceBufferView>,
           graph::TypeList<accel::HostPinnedBufferView>,
           D2HAsyncNodeMetal>,
-      public graph::IGpuCapabilityBinding {
+    public graph::IGpuCapabilityBinding,
+    public graph::IConfigurable,
+    public graph::IParameterized {
 public:
     D2HAsyncNodeMetal() = default;
     ~D2HAsyncNodeMetal() {
@@ -35,11 +40,18 @@ public:
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
+        shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         if (queue_id_ == 0 && context_ != nullptr) {
-            queue_id_ = context_->CreateCommandQueue();
-            owns_queue_ = queue_id_ != 0;
+            if (shared_queue_ != nullptr) {
+                queue_id_ = shared_queue_->GetOrCreateQueueId();
+                owns_queue_ = false;
+            }
+            if (queue_id_ == 0) {
+                queue_id_ = context_->CreateCommandQueue();
+                owns_queue_ = queue_id_ != 0;
+            }
         }
         return memory_pool_ != nullptr && transfer_ != nullptr && queue_id_ != 0;
     }
@@ -85,8 +97,48 @@ public:
         queue_id_ = queue_id;
     }
 
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("queue_id")) {
+            auto parsed_queue = cfg.TryGetInt("queue_id");
+            if (!parsed_queue) {
+                throw parsed_queue.error();
+            }
+            if (parsed_queue.value() < 0) {
+                throw std::invalid_argument("queue_id must be >= 0");
+            }
+            SetQueue(static_cast<std::uint64_t>(parsed_queue.value()));
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"queue_id", queue_id_},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "queue_id") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Optional command queue id. 0 means node-owned queue."},
+            };
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"queue_id"};
+    }
+
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
+    std::shared_ptr<capabilities::IMetalSharedQueueCapability> shared_queue_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::uint64_t queue_id_{0};

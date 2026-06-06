@@ -6,6 +6,7 @@
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -13,6 +14,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
+#include <vector>
 
 namespace graph::gpu::metal::nodes {
 
@@ -25,7 +28,9 @@ class DeviceShardNodeMetal
           graph::TypeList<accel::DeviceBufferView>,
           graph::TypeList<accel::DeviceBufferView>,
           DeviceShardNodeMetal>,
-      public graph::IGpuCapabilityBinding {
+    public graph::IGpuCapabilityBinding,
+    public graph::IConfigurable,
+    public graph::IParameterized {
 public:
     DeviceShardNodeMetal() = default;
     ~DeviceShardNodeMetal() {
@@ -36,11 +41,18 @@ public:
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
+        shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         if (queue_id_ == 0 && context_ != nullptr) {
-            queue_id_ = context_->CreateCommandQueue();
-            owns_queue_ = queue_id_ != 0;
+            if (shared_queue_ != nullptr) {
+                queue_id_ = shared_queue_->GetOrCreateQueueId();
+                owns_queue_ = false;
+            }
+            if (queue_id_ == 0) {
+                queue_id_ = context_->CreateCommandQueue();
+                owns_queue_ = queue_id_ != 0;
+            }
         }
         return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr && queue_id_ != 0;
     }
@@ -112,8 +124,84 @@ public:
         queue_id_ = queue_id;
     }
 
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("shard_index")) {
+            auto shard_index = cfg.TryGetInt("shard_index");
+            if (!shard_index) {
+                throw shard_index.error();
+            }
+            if (shard_index.value() < 0) {
+                throw std::invalid_argument("shard_index must be >= 0");
+            }
+            shard_index_ = static_cast<std::uint32_t>(shard_index.value());
+        }
+
+        if (cfg.Contains("shard_count")) {
+            auto shard_count = cfg.TryGetInt("shard_count");
+            if (!shard_count) {
+                throw shard_count.error();
+            }
+            if (shard_count.value() <= 0) {
+                throw std::invalid_argument("shard_count must be > 0");
+            }
+            shard_count_ = static_cast<std::uint32_t>(shard_count.value());
+        }
+
+        if (cfg.Contains("queue_id")) {
+            auto queue_id = cfg.TryGetInt("queue_id");
+            if (!queue_id) {
+                throw queue_id.error();
+            }
+            if (queue_id.value() < 0) {
+                throw std::invalid_argument("queue_id must be >= 0");
+            }
+            SetQueue(static_cast<std::uint64_t>(queue_id.value()));
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"shard_index", shard_index_},
+            {"shard_count", shard_count_},
+            {"queue_id", queue_id_},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "shard_index") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Shard index to extract from input tensor."},
+            };
+        } else if (param_name == "shard_count") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Total number of shards used for partitioning."},
+            };
+        } else if (param_name == "queue_id") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Optional command queue id. 0 means node-owned queue."},
+            };
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"shard_index", "shard_count", "queue_id"};
+    }
+
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
+    std::shared_ptr<capabilities::IMetalSharedQueueCapability> shared_queue_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::uint64_t queue_id_{0};

@@ -7,6 +7,7 @@
 #include "gpu/accel/types/AccelFormatting.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -14,7 +15,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace graph::gpu::metal::nodes {
 
@@ -27,7 +31,9 @@ class DeviceTransformNodeMetal
           graph::TypeList<accel::DeviceBufferView>,
           graph::TypeList<accel::DeviceBufferView>,
           DeviceTransformNodeMetal>,
-      public graph::IGpuCapabilityBinding {
+    public graph::IGpuCapabilityBinding,
+    public graph::IConfigurable,
+    public graph::IParameterized {
 public:
     DeviceTransformNodeMetal() = default;
     ~DeviceTransformNodeMetal() {
@@ -38,16 +44,28 @@ public:
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
+        shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
          transfer_ = capability_bus.Get<capabilities::IMetalTransferCapability>();
         kernel_ = capability_bus.Get<capabilities::IMetalKernelCapability>();
         telemetry_ = capability_bus.Get<capabilities::IMetalTelemetryCapability>();
         if (queue_id_ == 0 && context_ != nullptr) {
-            queue_id_ = context_->CreateCommandQueue();
-            owns_queue_ = queue_id_ != 0;
+            if (shared_queue_ != nullptr) {
+                queue_id_ = shared_queue_->GetOrCreateQueueId();
+                owns_queue_ = false;
+            }
+            if (queue_id_ == 0) {
+                queue_id_ = context_->CreateCommandQueue();
+                owns_queue_ = queue_id_ != 0;
+            }
             if (kernel_ticket_.execution_queue_id == 0) {
                 kernel_ticket_.execution_queue_id = queue_id_;
             }
+        }
+        if (kernel_ && has_pending_kernel_configuration_) {
+            const auto effective_queue = configured_queue_id_ == 0 ? queue_id_ : configured_queue_id_;
+            ConfigureKernel(configured_kernel_id_, configured_kernel_name_, configured_device_id_, effective_queue);
+            has_pending_kernel_configuration_ = false;
         }
          return context_ != nullptr && memory_pool_ != nullptr && transfer_ != nullptr &&
              kernel_ != nullptr && queue_id_ != 0 &&
@@ -104,6 +122,11 @@ public:
                          std::string_view kernel_name,
                          std::uint32_t device_id,
                          std::uint64_t queue_id) {
+        configured_kernel_id_ = kernel_id;
+        configured_kernel_name_ = std::string(kernel_name);
+        configured_device_id_ = device_id;
+        configured_queue_id_ = queue_id;
+
         kernel_ticket_.backend = accel::BackendKind::Metal;
         kernel_ticket_.kernel_id = kernel_id;
         kernel_ticket_.arg_count = kDefaultArgCount;
@@ -116,6 +139,91 @@ public:
             kernel_->RegisterKernel(kernel_id, kernel_name);
             PopulateRegisteredKernelExecution(kernel_ticket_);
         }
+    }
+
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("queue_id")) {
+            auto parsed_queue = cfg.TryGetInt("queue_id");
+            if (!parsed_queue) {
+                throw parsed_queue.error();
+            }
+            if (parsed_queue.value() < 0) {
+                throw std::invalid_argument("queue_id must be >= 0");
+            }
+            configured_queue_id_ = static_cast<std::uint64_t>(parsed_queue.value());
+        }
+
+        if (cfg.Contains("device_id")) {
+            auto parsed_device = cfg.TryGetInt("device_id");
+            if (!parsed_device) {
+                throw parsed_device.error();
+            }
+            if (parsed_device.value() < 0) {
+                throw std::invalid_argument("device_id must be >= 0");
+            }
+            configured_device_id_ = static_cast<std::uint32_t>(parsed_device.value());
+        }
+
+        if (cfg.Contains("kernel_id")) {
+            auto parsed_kernel_id = cfg.TryGetInt("kernel_id");
+            if (!parsed_kernel_id) {
+                throw parsed_kernel_id.error();
+            }
+            if (parsed_kernel_id.value() <= 0) {
+                throw std::invalid_argument("kernel_id must be > 0");
+            }
+            configured_kernel_id_ = static_cast<std::uint64_t>(parsed_kernel_id.value());
+        }
+
+        if (cfg.Contains("kernel_name")) {
+            auto parsed_kernel_name = cfg.TryGetString("kernel_name");
+            if (!parsed_kernel_name) {
+                throw parsed_kernel_name.error();
+            }
+            if (parsed_kernel_name.value().empty()) {
+                throw std::invalid_argument("kernel_name must be non-empty");
+            }
+            configured_kernel_name_ = parsed_kernel_name.value();
+        }
+
+        if (!configured_kernel_name_.empty() && configured_kernel_id_ != 0) {
+            has_pending_kernel_configuration_ = true;
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"queue_id", configured_queue_id_},
+            {"device_id", configured_device_id_},
+            {"kernel_id", configured_kernel_id_},
+            {"kernel_name", configured_kernel_name_},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "queue_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Optional command queue id. 0 means node-owned queue."}};
+        } else if (param_name == "device_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Target Metal device id for kernel execution."}};
+        } else if (param_name == "kernel_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Kernel registration id for transform operation."}};
+        } else if (param_name == "kernel_name") {
+            desc = {{"type", "string"}, {"required", false},
+                    {"description", "Kernel function name for transform operation."}};
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"queue_id", "device_id", "kernel_id", "kernel_name"};
     }
 
 private:
@@ -148,6 +256,7 @@ private:
     }
 
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
+    std::shared_ptr<capabilities::IMetalSharedQueueCapability> shared_queue_;
     std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
     std::shared_ptr<capabilities::IMetalTransferCapability> transfer_;
     std::shared_ptr<capabilities::IMetalKernelCapability> kernel_;
@@ -156,6 +265,11 @@ private:
     std::uint32_t device_id_{0};
     bool owns_queue_{false};
     accel::KernelTicket kernel_ticket_{};
+    std::uint64_t configured_kernel_id_{0};
+    std::string configured_kernel_name_{};
+    std::uint32_t configured_device_id_{0};
+    std::uint64_t configured_queue_id_{0};
+    bool has_pending_kernel_configuration_{false};
     accel::BufferLease last_output_lease_{};
     accel::TransferTicket last_transfer_ticket_{};
     accel::KernelTicket last_kernel_ticket_{};

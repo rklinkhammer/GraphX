@@ -8,6 +8,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <mutex>
 #include <string_view>
 
 namespace graph::gpu::metal::capabilities {
@@ -24,6 +26,43 @@ public:
 
     virtual std::uint64_t CreateEvent() = 0;
     virtual void DestroyEvent(std::uint64_t event_id) = 0;
+};
+
+class IMetalSharedQueueCapability {
+public:
+    virtual ~IMetalSharedQueueCapability() = default;
+
+    virtual std::uint64_t GetOrCreateQueueId() = 0;
+};
+
+class MetalSharedQueueCapability final : public IMetalSharedQueueCapability {
+public:
+    explicit MetalSharedQueueCapability(std::shared_ptr<IMetalContextCapability> context)
+        : context_(std::move(context)) {}
+
+    ~MetalSharedQueueCapability() override {
+        std::scoped_lock lock(mutex_);
+        if (queue_id_ != 0 && context_ != nullptr) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
+
+    std::uint64_t GetOrCreateQueueId() override {
+        std::scoped_lock lock(mutex_);
+        if (queue_id_ != 0) {
+            return queue_id_;
+        }
+        if (context_ == nullptr) {
+            return 0;
+        }
+        queue_id_ = context_->CreateCommandQueue();
+        return queue_id_;
+    }
+
+private:
+    std::shared_ptr<IMetalContextCapability> context_;
+    std::uint64_t queue_id_{0};
+    std::mutex mutex_;
 };
 
 class IMetalMemoryPoolCapability {

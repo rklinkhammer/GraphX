@@ -35,9 +35,16 @@ public:
 
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
+        shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
         if (queue_id_ == 0 && context_ != nullptr) {
-            queue_id_ = context_->CreateCommandQueue();
-            owns_queue_ = queue_id_ != 0;
+            if (shared_queue_ != nullptr) {
+                queue_id_ = shared_queue_->GetOrCreateQueueId();
+                owns_queue_ = false;
+            }
+            if (queue_id_ == 0) {
+                queue_id_ = context_->CreateCommandQueue();
+                owns_queue_ = queue_id_ != 0;
+            }
         }
         return context_ != nullptr && queue_id_ != 0;
     }
@@ -63,6 +70,7 @@ public:
 
 private:
     std::shared_ptr<capabilities::IMetalContextCapability> context_;
+    std::shared_ptr<capabilities::IMetalSharedQueueCapability> shared_queue_;
     std::uint64_t queue_id_{0};
     bool owns_queue_{false};
     std::uint64_t last_ready_event_{0};

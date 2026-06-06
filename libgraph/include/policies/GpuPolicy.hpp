@@ -23,6 +23,7 @@
 #pragma once
 
 #include <log4cxx/logger.h>
+#include <memory>
 
 #include "capabilities/GraphCapability.hpp"
 #include "graph/CapabilityContext.hpp"
@@ -31,6 +32,7 @@
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #endif
 
 namespace policies {
@@ -54,6 +56,16 @@ public:
         graph::gpu::RegisterDefaultGpuCapabilities(context.GetCapabilityBus(), options);
         LOG4CXX_TRACE(gpu_policy_logger,
               "GpuPolicy registered default GPU capabilities into CapabilityBus");
+
+        auto metal_context = context.GetCapabilityBus().Get<graph::gpu::metal::capabilities::IMetalContextCapability>();
+        if (metal_context != nullptr &&
+            !context.GetCapabilityBus().Has<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>()) {
+            context.GetCapabilityBus().Register<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>(
+                std::make_shared<graph::gpu::metal::capabilities::MetalSharedQueueCapability>(
+                    std::move(metal_context)));
+            LOG4CXX_TRACE(gpu_policy_logger,
+                          "GpuPolicy registered graph-level shared Metal queue capability");
+        }
     } else {
         LOG4CXX_TRACE(gpu_policy_logger,
               "GpuPolicy GPU bootstrap disabled by GraphCapability");
