@@ -1,44 +1,105 @@
-# GraphX SAR Example (PR1 Scaffold)
+# GraphX SAR PR1 Example
 
-This directory contains the initial scaffold for the GraphX SAR example package.
+This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX PR1.
 
-PR1 scope for this package:
+## PR1 Goals
 
-- Keep all SAR-specific implementation under `examples/SAR`
-- Use JSON topology as the main demonstration path
-- Keep deterministic synthetic data and CI-stable behavior
-- Introduce no more than four new SAR nodes in PR1
+1. Keep SAR-specific implementation under examples/SAR.
+2. Use JSON topology as the primary execution path.
+3. Keep deterministic synthetic behavior suitable for CI.
+4. Stay within the PR1 cap of four new SAR nodes:
+  - SyntheticApertureIqSourceNode
+  - AzimuthTileSplitNode
+  - SarBackprojectionTransformNode
+  - ImageTileMergeNode
 
-Current scaffold contents:
+## Architecture
 
-- `config/sar_stripmap_pr1.json`: starter topology placeholder
-- `src/main.cpp`: starter executable entrypoint
-- `CMakeLists.txt`: local build integration for the `sar_example` binary
+```mermaid
+flowchart LR
+   SRC[SyntheticApertureIqSourceNode]
+   SPLIT[AzimuthTileSplitNode]
+   H2D[H2DAsyncNode]
+   BP[SarBackprojectionTransformNode]
+   D2H[D2HAsyncNode]
+   MERGE[ImageTileMergeNode]
+   SINK[SarDiagnosticsSinkNode]
 
-Build toggle:
+   SRC --> SPLIT --> H2D --> BP --> D2H --> MERGE --> SINK
+```
 
-- Controlled by top-level CMake option: `GRAPHX_BUILD_EXAMPLES_SAR`
+Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
-## Implementation Dashboard
+## Build And Run
 
-| Phase | Scope | Status | Implementation |
-| --- | --- | --- | --- |
-| 3.1 | Synthetic source contract | Completed | `SyntheticApertureIqSourceNode` |
-| 3.2 | Azimuth tile split | Completed | `AzimuthTileSplitNode` |
-| 3.3 | Deterministic backprojection transform | Completed | `SarBackprojectionTransformNode` |
-| 3.4 | Image tile merge correctness + status emission | In progress (started) | `ImageTileMergeNode` |
+Build SAR example and tests:
 
-## Correlation To `plan/example3.md`
+```bash
+cmake --build --preset build-debug --target sar_example test_sar_example_unit
+```
 
-The current PR1 slice is correlated to the implementation-plan prompt in `plan/example3.md` as follows:
+Run example:
 
-1. PR1 cap of no more than 4 new SAR nodes:
-  Implemented: `SyntheticApertureIqSourceNode`, `AzimuthTileSplitNode`, `SarBackprojectionTransformNode`, `ImageTileMergeNode`.
-2. JSON topology as the primary demonstration path:
-  Implemented in `config/sar_stripmap_pr1.json` with end-to-end source/split/backprojection/merge wiring.
-3. Explicit EOS/watermark/tile correctness handling:
-  Implemented in `ImageTileMergeNode` via duplicate/missing/out-of-order/watermark tracking and completion gating.
-4. Deterministic CI-stable behavior:
-  Unit tests use deterministic synthetic messages and fixed assertions.
-5. Plugin/provider integration model:
-  `ImageTileMergeNode` includes plugin export and plugin-load validation test following existing SAR node patterns.
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_example
+```
+
+Run SAR tests:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit
+```
+
+## Deterministic Configuration Knobs
+
+JSON node_config fields define deterministic profile behavior.
+
+Primary knobs:
+
+1. Source stage:
+  - total_pulses
+  - samples_per_pulse
+2. Split/merge:
+  - tile_count
+  - expected_tiles
+3. Transform metadata:
+  - image_width
+  - queue_id
+  - kernel_id
+4. Backend metadata:
+  - backend
+  - backend_id
+
+All SAR nodes are initialized through standard IConfigurable using node_config.
+
+## Simulated Backend And Native Follow-Up
+
+PR1 targets a CI-safe simulated backend path and does not require native GPU runtime availability.
+
+Native backend tuning and specialization (CUDA/SYCL/Metal) are deferred follow-up work.
+
+## Benchmarking
+
+A dedicated benchmark executable is provided:
+
+```bash
+cmake --build --preset build-debug --target sar_benchmark
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
+```
+
+See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPORT.md.
+
+## PR1 Non-Goals
+
+1. Full-fidelity SAR math (motion compensation/autofocus/radiometric calibration).
+2. Framework-wide scheduler or architecture rewrites.
+3. Mandatory native backend requirement in CI.
+4. Multi-device dynamic load balancing.
+
+## Deferred PR2/PR3 Work
+
+1. Native backend-specialized kernels and transfer overlap tuning.
+2. Higher-fidelity SAR signal processing stages.
+3. Extended execution tracing and richer performance attribution.
+4. Multi-device heterogeneous routing and balancing.

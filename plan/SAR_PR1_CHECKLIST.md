@@ -5,14 +5,15 @@ Source plan: `plan/SAR.md`
 ## Status
 
 - [x] PR1 started
-- [ ] PR1 implementation complete
-- [ ] PR1 ready for review
+- [x] PR1 implementation complete
+- [x] PR1 ready for review
 - [ ] PR1 merged
 
 GitHub status snapshot (2026-06-07):
 
-- [x] PR #20 latest check run green (`Libgraph Unit/libgraph-unit`)
-- [x] SAR Phase 3.4 slice committed and pushed
+- [x] PR #22 opened for SAR PR1 follow-up commits
+- [x] SAR Phase 6 diagnostics and queue/backpressure metrics committed and pushed
+- [x] Strict `node_config` schema follow-up committed and pushed
 
 ## Scope Guardrails (Must Stay True)
 
@@ -109,6 +110,7 @@ Exit criteria:
 - [x] Add executable entrypoint `examples/SAR/src/main.cpp`
 - [x] Ensure plugin/provider bootstrap path is used
 - [x] Avoid direct plugin-loader coupling in graph construction code
+- [x] Initialize SAR nodes via standard `IConfigurable` + `node_config` path
 
 Exit criteria:
 
@@ -130,21 +132,22 @@ Exit criteria:
 Exit criteria:
 
 - [x] Metrics are deterministic enough for CI validation
-- [ ] No brittle hard performance thresholds required in CI
+- [x] No brittle hard performance thresholds required in CI
 
 ## Phase 7 - Tests
 
 ### Unit
 
 - [x] Add `examples/SAR/test/test_image_tile_merge_node.cpp`
+- [x] Add `examples/SAR/test/test_image_tile_merge.cpp`
 - [x] Add `examples/SAR/test/test_sar_diagnostics_contract.cpp`
 - [x] Add node-level determinism checks for source/split
 
 ### Integration
 
-- [ ] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
-- [ ] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
-- [ ] Validate simulated backend CI-safe execution
+- [x] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
+- [x] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
+- [x] Validate simulated backend CI-safe execution
 
 ### Merge correctness matrix
 
@@ -156,51 +159,58 @@ Exit criteria:
 
 Exit criteria:
 
-- [ ] New SAR unit/integration tests pass
-- [ ] Graph and baseline outputs match within declared tolerance
+- [x] New SAR unit/integration tests pass
+- [x] Graph and baseline outputs match within declared tolerance
 
 ## Phase 8 - Benchmark and Overhead Attribution
 
-- [ ] Implement non-graph baseline path for same synthetic dataset
-- [ ] Add warm-up and repeated measurement runs
-- [ ] Report median/min/max (+stddev when feasible)
-- [ ] Add CI-safe small profile
-- [ ] Add larger local profile
+- [x] Implement non-graph baseline path for same synthetic dataset
+- [x] Add warm-up and repeated measurement runs
+- [x] Report median/min/max (+stddev when feasible)
+- [x] Add CI-safe small profile
+- [x] Add larger local profile
 
 Overhead attribution categories:
 
-- [ ] Graph scheduling
-- [ ] Message allocation/copy
-- [ ] Queue wait/backpressure
-- [ ] Provider/plugin lookup
-- [ ] Diagnostics collection
-- [ ] Backend synchronization
+- [x] Graph scheduling
+- [x] Message allocation/copy
+- [x] Queue wait/backpressure
+- [x] Provider/plugin lookup
+- [x] Diagnostics collection
+- [x] Backend synchronization
 
 Exit criteria:
 
-- [ ] Benchmark report includes graph vs baseline comparison
-- [ ] Correctness is CI-gated; performance thresholds remain conservative
+- [x] Benchmark report includes graph vs baseline comparison
+- [x] Correctness is CI-gated; performance thresholds remain conservative
 
 ## Phase 9 - Documentation and PR Packaging
 
-- [ ] Update SAR README with architecture diagram and run instructions
-- [ ] Document deterministic configuration knobs (seed/counts/tile size)
-- [ ] Document simulated backend behavior and native backend follow-up path
-- [ ] Document PR1 non-goals and deferred PR2/PR3 work
-- [ ] Add short decision-log summary in PR description
+- [x] Update SAR README with architecture diagram and run instructions
+- [x] Document deterministic configuration knobs (seed/counts/tile size)
+- [x] Document simulated backend behavior and native backend follow-up path
+- [x] Document PR1 non-goals and deferred PR2/PR3 work
+- [x] Add short decision-log summary in PR description
 
 Exit criteria:
 
-- [ ] Reviewer can build, run, and validate SAR example from docs alone
+- [x] Reviewer can build, run, and validate SAR example from docs alone
+
+## Post-PR Follow-up (2026-06-07)
+
+- [x] SAR nodes expose `IConfigurable` and consume JSON `node_config` from topology
+- [x] SAR plugin descriptors publish `config_fields` for strict loader validation
+- [x] Unknown SAR `node_config` keys are rejected during graph load
+- [x] Regressions fixed for `JsonDynamicGraphLoaderExpectedTest` optional-config behavior
 
 ## Final PR1 Release Gate
 
-- [ ] All scope guardrails are still true
-- [ ] All new tests pass in CI-safe profile
-- [ ] JSON path is primary demonstrated path
-- [ ] Diagnostics contract implemented and validated
-- [ ] Graph vs baseline benchmark summary included
-- [ ] Deferred work clearly listed (PR2/PR3+)
+- [x] All scope guardrails are still true
+- [x] All new tests pass in CI-safe profile
+- [x] JSON path is primary demonstrated path
+- [x] Diagnostics contract implemented and validated
+- [x] Graph vs baseline benchmark summary included
+- [x] Deferred work clearly listed (PR2/PR3+)
 
 ## Deferred Backlog (Do Not Pull Into PR1)
 

@@ -1,0 +1,471 @@
+#include "graph/GraphExecutorBuilder.hpp"
+#include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "sar/AzimuthTileSplitNode.hpp"
+#include "sar/D2HAsyncNode.hpp"
+#include "sar/H2DAsyncNode.hpp"
+#include "sar/ImageTileMergeNode.hpp"
+#include "sar/SarBackprojectionTransformNode.hpp"
+#include "sar/SarDiagnosticsSinkNode.hpp"
+#include "sar/SyntheticApertureIqSourceNode.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
+#ifndef SAR_PLUGIN_OUTPUT_DIRECTORY
+#define SAR_PLUGIN_OUTPUT_DIRECTORY "./plugins"
+#endif
+
+namespace {
+
+using Clock = std::chrono::steady_clock;
+
+struct BenchmarkProfile {
+    std::string name;
+    std::uint32_t pulses;
+    std::uint32_t samples_per_pulse;
+    std::uint32_t tile_count;
+    int warmup_runs;
+    int measured_runs;
+};
+
+struct BenchmarkStats {
+    double min_ms{0.0};
+    double median_ms{0.0};
+    double max_ms{0.0};
+    double stddev_ms{0.0};
+};
+
+struct GraphRunResult {
+    double build_ms{0.0};
+    double execute_ms{0.0};
+    sar::SarDiagnosticsMessage diagnostics{};
+    std::uint64_t queue_backpressure_events{0};
+    std::uint64_t peak_queue_depth{0};
+};
+
+struct BaselineRunResult {
+    double execute_ms{0.0};
+    sar::SarDiagnosticsMessage diagnostics{};
+};
+
+std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
+    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    for (const auto& node : graph_manager->GetNodes()) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
+            continue;
+        }
+        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
+    }
+
+    return nullptr;
+}
+
+BenchmarkProfile ParseProfile(int argc, char** argv) {
+    BenchmarkProfile ci{
+        .name = "ci",
+        .pulses = 32,
+        .samples_per_pulse = 256,
+        .tile_count = 4,
+        .warmup_runs = 1,
+        .measured_runs = 5,
+    };
+
+    BenchmarkProfile local{
+        .name = "local",
+        .pulses = 128,
+        .samples_per_pulse = 1024,
+        .tile_count = 8,
+        .warmup_runs = 2,
+        .measured_runs = 10,
+    };
+
+    if (argc < 2) {
+        return ci;
+    }
+
+    const std::string mode = argv[1];
+    if (mode == "--profile=ci" || mode == "ci") {
+        return ci;
+    }
+    if (mode == "--profile=local" || mode == "local") {
+        return local;
+    }
+
+    throw std::invalid_argument("Unknown profile. Use ci/local or --profile=ci/--profile=local");
+}
+
+std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
+    nlohmann::json config = {
+        {"name", "sar_stripmap_pr1_benchmark"},
+        {"num_threads", 4},
+        {"nodes", nlohmann::json::array({
+            {
+                {"id", "src"},
+                {"type", "SyntheticApertureIqSourceNode"},
+                {"node_config", {
+                    {"stream_id", 0},
+                    {"total_pulses", profile.pulses},
+                    {"samples_per_pulse", profile.samples_per_pulse},
+                    {"backend_id", 0},
+                    {"backend", 0},
+                }},
+            },
+            {
+                {"id", "split"},
+                {"type", "AzimuthTileSplitNode"},
+                {"node_config", {
+                    {"tile_count", profile.tile_count},
+                    {"backend_id", 0},
+                    {"backend", 0},
+                }},
+            },
+            {
+                {"id", "h2d"},
+                {"type", "H2DAsyncNode"},
+                {"node_config", {
+                    {"override_backend", false},
+                    {"backend_id", 0},
+                    {"backend", 0},
+                }},
+            },
+            {
+                {"id", "bp"},
+                {"type", "SarBackprojectionTransformNode"},
+                {"node_config", {
+                    {"image_width", 16},
+                    {"backend_id", 0},
+                    {"queue_id", 0},
+                    {"kernel_id", 3301},
+                    {"backend", 1},
+                }},
+            },
+            {
+                {"id", "d2h"},
+                {"type", "D2HAsyncNode"},
+                {"node_config", {
+                    {"override_backend", false},
+                    {"backend_id", 0},
+                    {"backend", 0},
+                }},
+            },
+            {
+                {"id", "merge"},
+                {"type", "ImageTileMergeNode"},
+                {"node_config", {
+                    {"expected_tiles", profile.tile_count},
+                    {"require_watermark_before_complete", false},
+                    {"backend_id", 0},
+                    {"backend", 0},
+                }},
+            },
+            {
+                {"id", "sink"},
+                {"type", "SarDiagnosticsSinkNode"},
+                {"node_config", {
+                    {"completion_signal_enabled", true},
+                }},
+            },
+        })},
+        {"edges", nlohmann::json::array({
+            {{"source_node_id", "src"}, {"source_port", 0}, {"target_node_id", "split"}, {"target_port", 0}},
+            {{"source_node_id", "split"}, {"source_port", 0}, {"target_node_id", "h2d"}, {"target_port", 0}},
+            {{"source_node_id", "h2d"}, {"source_port", 0}, {"target_node_id", "bp"}, {"target_port", 0}},
+            {{"source_node_id", "bp"}, {"source_port", 0}, {"target_node_id", "d2h"}, {"target_port", 0}},
+            {{"source_node_id", "d2h"}, {"source_port", 0}, {"target_node_id", "merge"}, {"target_port", 0}},
+            {{"source_node_id", "merge"}, {"source_port", 0}, {"target_node_id", "sink"}, {"target_port", 0}},
+        })},
+    };
+
+    const auto path = std::filesystem::temp_directory_path() /
+                      ("sar_benchmark_" + profile.name + ".json");
+    std::ofstream out(path);
+    out << config.dump(2);
+    return path;
+}
+
+BenchmarkStats ComputeStats(const std::vector<double>& samples_ms) {
+    BenchmarkStats stats{};
+    if (samples_ms.empty()) {
+        return stats;
+    }
+
+    std::vector<double> sorted = samples_ms;
+    std::sort(sorted.begin(), sorted.end());
+    stats.min_ms = sorted.front();
+    stats.max_ms = sorted.back();
+    stats.median_ms = sorted[sorted.size() / 2];
+
+    const double mean = std::accumulate(sorted.begin(), sorted.end(), 0.0) /
+                        static_cast<double>(sorted.size());
+    double variance = 0.0;
+    for (const auto sample : sorted) {
+        const double delta = sample - mean;
+        variance += delta * delta;
+    }
+    variance /= static_cast<double>(sorted.size());
+    stats.stddev_ms = std::sqrt(variance);
+    return stats;
+}
+
+GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
+                            const std::filesystem::path& plugin_dir) {
+    GraphRunResult out{};
+
+    const auto build_start = Clock::now();
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(15))
+                        .Build();
+    const auto build_end = Clock::now();
+
+    if (!executor) {
+        throw std::runtime_error("Failed to build graph executor in benchmark");
+    }
+
+    out.build_ms = std::chrono::duration<double, std::milli>(build_end - build_start).count();
+
+    const auto exec_start = Clock::now();
+    const auto run = executor->Execute();
+    const auto exec_end = Clock::now();
+
+    if (!run.success) {
+        throw std::runtime_error("Graph execution failed in benchmark: " + run.message + " " + run.error_details);
+    }
+
+    out.execute_ms = std::chrono::duration<double, std::milli>(exec_end - exec_start).count();
+
+    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    if (!sink) {
+        throw std::runtime_error("Failed to resolve SarDiagnosticsSinkNode in benchmark");
+    }
+
+    const auto& metrics = executor->GetGraphManager()->GetMetrics();
+    sink->UpdateFromGraphMetrics(metrics);
+    out.diagnostics = sink->last_diagnostics();
+    out.queue_backpressure_events = metrics.backpressure_events.load(std::memory_order_relaxed);
+    out.peak_queue_depth = metrics.peak_queue_depth.load(std::memory_order_relaxed);
+    return out;
+}
+
+BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
+    BaselineRunResult out{};
+
+    sar::SyntheticApertureIqSourceConfig source_cfg{};
+    source_cfg.stream_id = 0;
+    source_cfg.total_pulses = profile.pulses;
+    source_cfg.samples_per_pulse = profile.samples_per_pulse;
+    source_cfg.backend_id = 0;
+    source_cfg.backend = sar::SarBackendKind::Host;
+
+    sar::AzimuthTileSplitConfig split_cfg{};
+    split_cfg.tile_count = profile.tile_count;
+    split_cfg.backend_id = 0;
+    split_cfg.backend = sar::SarBackendKind::Host;
+
+    sar::SarBackprojectionTransformConfig bp_cfg{};
+    bp_cfg.image_width = 16;
+    bp_cfg.backend_id = 0;
+    bp_cfg.queue_id = 0;
+    bp_cfg.kernel_id = 3301;
+    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+
+    sar::ImageTileMergeConfig merge_cfg{};
+    merge_cfg.expected_tiles = profile.tile_count;
+    merge_cfg.require_watermark_before_complete = false;
+    merge_cfg.backend_id = 0;
+    merge_cfg.backend = sar::SarBackendKind::Host;
+
+    sar::SyntheticApertureIqSourceNode src(source_cfg);
+    sar::AzimuthTileSplitNode split(split_cfg);
+    sar::H2DAsyncNode h2d;
+    sar::SarBackprojectionTransformNode bp(bp_cfg);
+    sar::D2HAsyncNode d2h;
+    sar::ImageTileMergeNode merge(merge_cfg);
+    sar::SarDiagnosticsSinkNode sink;
+
+    const auto start = Clock::now();
+    while (true) {
+        auto pulse = src.Produce(std::integral_constant<std::size_t, 0>{});
+        if (!pulse.has_value()) {
+            break;
+        }
+
+        auto range_tile = split.Transfer(
+            *pulse,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!range_tile) {
+            throw std::runtime_error("Baseline split failed");
+        }
+
+        auto h2d_tile = h2d.Transfer(
+            *range_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!h2d_tile) {
+            throw std::runtime_error("Baseline h2d failed");
+        }
+
+        auto image_tile = bp.Transfer(
+            *h2d_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!image_tile) {
+            throw std::runtime_error("Baseline backprojection failed");
+        }
+
+        auto d2h_tile = d2h.Transfer(
+            *image_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!d2h_tile) {
+            throw std::runtime_error("Baseline d2h failed");
+        }
+
+        auto status = merge.Transfer(
+            *d2h_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!status) {
+            throw std::runtime_error("Baseline merge failed");
+        }
+
+        if (!sink.Consume(*status, std::integral_constant<std::size_t, 0>{})) {
+            throw std::runtime_error("Baseline sink consume failed");
+        }
+    }
+    const auto end = Clock::now();
+
+    out.execute_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    out.diagnostics = sink.last_diagnostics();
+    return out;
+}
+
+void VerifyDeterministicParity(const GraphRunResult& graph,
+                               const BaselineRunResult& baseline) {
+    if (graph.diagnostics.pulses_processed != baseline.diagnostics.pulses_processed ||
+        graph.diagnostics.tiles_processed != baseline.diagnostics.tiles_processed ||
+        graph.diagnostics.bytes_h2d != baseline.diagnostics.bytes_h2d ||
+        graph.diagnostics.bytes_d2h != baseline.diagnostics.bytes_d2h ||
+        graph.diagnostics.kernel_dispatches != baseline.diagnostics.kernel_dispatches ||
+        graph.diagnostics.duplicate_tile_count != baseline.diagnostics.duplicate_tile_count ||
+        graph.diagnostics.missing_tile_count != baseline.diagnostics.missing_tile_count) {
+        throw std::runtime_error("Graph and baseline deterministic diagnostics parity failed");
+    }
+}
+
+void PrintSummary(const BenchmarkProfile& profile,
+                  const BenchmarkStats& graph_build,
+                  const BenchmarkStats& graph_exec,
+                  const BenchmarkStats& baseline_exec,
+                  const GraphRunResult& last_graph) {
+    const double scheduling_overhead_ms =
+        std::max(0.0, graph_exec.median_ms - baseline_exec.median_ms);
+
+    std::cout << "SAR benchmark profile: " << profile.name << "\n";
+    std::cout << "Dataset: pulses=" << profile.pulses
+              << ", samples_per_pulse=" << profile.samples_per_pulse
+              << ", tile_count=" << profile.tile_count << "\n";
+    std::cout << "Runs: warmup=" << profile.warmup_runs
+              << ", measured=" << profile.measured_runs << "\n\n";
+
+    std::cout << "Graph build time (ms): min=" << graph_build.min_ms
+              << ", median=" << graph_build.median_ms
+              << ", max=" << graph_build.max_ms
+              << ", stddev=" << graph_build.stddev_ms << "\n";
+
+    std::cout << "Graph execute time (ms): min=" << graph_exec.min_ms
+              << ", median=" << graph_exec.median_ms
+              << ", max=" << graph_exec.max_ms
+              << ", stddev=" << graph_exec.stddev_ms << "\n";
+
+    std::cout << "Baseline execute time (ms): min=" << baseline_exec.min_ms
+              << ", median=" << baseline_exec.median_ms
+              << ", max=" << baseline_exec.max_ms
+              << ", stddev=" << baseline_exec.stddev_ms << "\n\n";
+
+    std::cout << "Overhead attribution (deterministic proxies):\n";
+    std::cout << "- graph scheduling: " << scheduling_overhead_ms << " ms (median graph - median baseline)\n";
+    std::cout << "- message allocation/copy: bytes_h2d=" << last_graph.diagnostics.bytes_h2d
+              << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h << "\n";
+    std::cout << "- queue wait/backpressure: fanin_wait_ms=" << last_graph.diagnostics.fanin_wait_ms
+              << ", backpressure_events=" << last_graph.queue_backpressure_events
+              << ", peak_queue_depth=" << last_graph.peak_queue_depth << "\n";
+    std::cout << "- provider/plugin lookup: represented by graph build timing above\n";
+    std::cout << "- diagnostics collection: deterministic contract emission at sink (consume_count > 0)\n";
+    std::cout << "- backend synchronization: proxy e2e_latency_ms=" << last_graph.diagnostics.e2e_latency_ms << "\n";
+}
+
+} // namespace
+
+int main(int argc, char** argv) {
+    try {
+        const auto profile = ParseProfile(argc, argv);
+
+        const std::filesystem::path plugin_dir = SAR_PLUGIN_OUTPUT_DIRECTORY;
+        if (!std::filesystem::exists(plugin_dir)) {
+            std::cerr << "Plugin directory not found: " << plugin_dir << "\n";
+            return 1;
+        }
+
+        const auto config_path = WriteProfiledJsonConfig(profile);
+
+        for (int i = 0; i < profile.warmup_runs; ++i) {
+            (void)RunGraphOnce(config_path, plugin_dir);
+            (void)RunBaselineOnce(profile);
+        }
+
+        std::vector<double> graph_build_samples_ms;
+        std::vector<double> graph_exec_samples_ms;
+        std::vector<double> baseline_exec_samples_ms;
+        graph_build_samples_ms.reserve(profile.measured_runs);
+        graph_exec_samples_ms.reserve(profile.measured_runs);
+        baseline_exec_samples_ms.reserve(profile.measured_runs);
+
+        GraphRunResult last_graph{};
+        BaselineRunResult last_baseline{};
+
+        for (int i = 0; i < profile.measured_runs; ++i) {
+            last_graph = RunGraphOnce(config_path, plugin_dir);
+            last_baseline = RunBaselineOnce(profile);
+            VerifyDeterministicParity(last_graph, last_baseline);
+
+            graph_build_samples_ms.push_back(last_graph.build_ms);
+            graph_exec_samples_ms.push_back(last_graph.execute_ms);
+            baseline_exec_samples_ms.push_back(last_baseline.execute_ms);
+        }
+
+        const auto graph_build_stats = ComputeStats(graph_build_samples_ms);
+        const auto graph_exec_stats = ComputeStats(graph_exec_samples_ms);
+        const auto baseline_exec_stats = ComputeStats(baseline_exec_samples_ms);
+
+        PrintSummary(profile, graph_build_stats, graph_exec_stats, baseline_exec_stats, last_graph);
+
+        return 0;
+    } catch (const std::exception& ex) {
+        std::cerr << "Benchmark failed: " << ex.what() << "\n";
+        return 1;
+    }
+}
