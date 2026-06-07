@@ -1,7 +1,10 @@
+#include "sar/SarMessages.hpp"
+
 #include <filesystem>
 #include <iostream>
 
 int main(int argc, char** argv) {
+    [[maybe_unused]] const sar::SarMessageEnvelope contract_probe{};
     const char* defaultConfig = "examples/SAR/config/sar_stripmap_pr1.json";
     const char* configPath = (argc > 1) ? argv[1] : defaultConfig;
 
