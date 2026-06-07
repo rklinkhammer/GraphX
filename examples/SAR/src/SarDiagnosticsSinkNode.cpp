@@ -2,6 +2,50 @@
 
 namespace sar {
 
+void SarDiagnosticsSinkNode::Configure(const graph::JsonView& cfg) {
+    if (cfg.Contains("completion_signal_enabled")) {
+        auto value = cfg.TryGetBool("completion_signal_enabled");
+        if (!value) {
+            throw value.error();
+        }
+        completion_signal_enabled_ = value.value();
+    }
+}
+
+graph::JsonView SarDiagnosticsSinkNode::GetParameters() const {
+    parameters_cache_ = nlohmann::json::object();
+    parameters_cache_["completion_signal_enabled"] = completion_signal_enabled_;
+    return graph::JsonView(parameters_cache_);
+}
+
+graph::JsonView SarDiagnosticsSinkNode::GetParameterDescription(
+    const std::string& param_name) const {
+    parameter_description_cache_ = nlohmann::json::object();
+    for (const auto& field : Fields()) {
+        if (field.name == param_name) {
+            const auto type = field.type;
+            const char* type_name = "object";
+            switch (type) {
+                case graph::JsonType::String: type_name = "string"; break;
+                case graph::JsonType::Number: type_name = "number"; break;
+                case graph::JsonType::Integer: type_name = "integer"; break;
+                case graph::JsonType::Boolean: type_name = "boolean"; break;
+                case graph::JsonType::Object: type_name = "object"; break;
+                case graph::JsonType::Array: type_name = "array"; break;
+            }
+            parameter_description_cache_["type"] = type_name;
+            parameter_description_cache_["required"] = field.required;
+            parameter_description_cache_["description"] = field.description;
+            break;
+        }
+    }
+    return graph::JsonView(parameter_description_cache_);
+}
+
+std::vector<std::string> SarDiagnosticsSinkNode::GetParameterNames() const {
+    return {"completion_signal_enabled"};
+}
+
 bool SarDiagnosticsSinkNode::Consume(const SarMergeStatusMessage& value,
                                      std::integral_constant<std::size_t, 0>) {
     last_status_ = value;
@@ -48,6 +92,10 @@ void SarDiagnosticsSinkNode::UpdateFromGraphMetrics(const graph::GraphMetrics& m
 }
 
 void SarDiagnosticsSinkNode::SignalCompletion() {
+    if (!completion_signal_enabled_) {
+        return;
+    }
+
     if (!HasCallbackProvider()) {
         return;
     }
