@@ -1,8 +1,22 @@
 #include "sar/ImageTileMergeNode.hpp"
 
+#include "config/ConfigError.hpp"
+
 #include <algorithm>
 
 namespace sar {
+
+namespace {
+
+SarBackendKind ParseBackendKind(int raw_backend) {
+    if (raw_backend < static_cast<int>(SarBackendKind::Host) ||
+        raw_backend > static_cast<int>(SarBackendKind::NativeDevice)) {
+        throw graph::ConfigError("backend must be in range [0,2]");
+    }
+    return static_cast<SarBackendKind>(raw_backend);
+}
+
+} // namespace
 
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
     : config_(config) {}
@@ -38,7 +52,9 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         has_first_data_sequence_ = true;
     }
 
-    bytes_d2h_ += static_cast<std::uint64_t>(input.buffer.byte_count);
+    const auto transfer_bytes = static_cast<std::uint64_t>(input.buffer.byte_count);
+    bytes_h2d_ += transfer_bytes;
+    bytes_d2h_ += transfer_bytes;
     ++kernel_dispatches_;
 
     const auto [_, inserted] = seen_tiles_.insert(input.envelope.tile_id);
@@ -57,11 +73,99 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
     return BuildStatusMessage(input, SarFrameMarker::Data, false);
 }
 
+void ImageTileMergeNode::Configure(const graph::JsonView& cfg) {
+    auto config = config_;
+
+    if (cfg.Contains("expected_tiles")) {
+        auto value = cfg.TryGetInt("expected_tiles");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0) {
+            throw graph::ConfigError("expected_tiles must be > 0");
+        }
+        config.expected_tiles = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("require_watermark_before_complete")) {
+        auto value = cfg.TryGetBool("require_watermark_before_complete");
+        if (!value) {
+            throw value.error();
+        }
+        config.require_watermark_before_complete = value.value();
+    }
+
+    if (cfg.Contains("backend_id")) {
+        auto value = cfg.TryGetInt("backend_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("backend_id must be >= 0");
+        }
+        config.backend_id = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("backend")) {
+        auto value = cfg.TryGetInt("backend");
+        if (!value) {
+            throw value.error();
+        }
+        config.backend = ParseBackendKind(value.value());
+    }
+
+    SetConfig(config);
+}
+
+graph::JsonView ImageTileMergeNode::GetParameters() const {
+    parameters_cache_ = nlohmann::json::object();
+    parameters_cache_["expected_tiles"] = config_.expected_tiles;
+    parameters_cache_["require_watermark_before_complete"] =
+        config_.require_watermark_before_complete;
+    parameters_cache_["backend_id"] = config_.backend_id;
+    parameters_cache_["backend"] = static_cast<int>(config_.backend);
+    return graph::JsonView(parameters_cache_);
+}
+
+graph::JsonView ImageTileMergeNode::GetParameterDescription(
+    const std::string& param_name) const {
+    parameter_description_cache_ = nlohmann::json::object();
+    for (const auto& field : Fields()) {
+        if (field.name == param_name) {
+            const auto type = field.type;
+            const char* type_name = "object";
+            switch (type) {
+                case graph::JsonType::String: type_name = "string"; break;
+                case graph::JsonType::Number: type_name = "number"; break;
+                case graph::JsonType::Integer: type_name = "integer"; break;
+                case graph::JsonType::Boolean: type_name = "boolean"; break;
+                case graph::JsonType::Object: type_name = "object"; break;
+                case graph::JsonType::Array: type_name = "array"; break;
+            }
+            parameter_description_cache_["type"] = type_name;
+            parameter_description_cache_["required"] = field.required;
+            parameter_description_cache_["description"] = field.description;
+            break;
+        }
+    }
+    return graph::JsonView(parameter_description_cache_);
+}
+
+std::vector<std::string> ImageTileMergeNode::GetParameterNames() const {
+    return {
+        "expected_tiles",
+        "require_watermark_before_complete",
+        "backend_id",
+        "backend",
+    };
+}
+
 void ImageTileMergeNode::Reset() {
     seen_tiles_.clear();
     received_tiles_ = 0;
     duplicate_tiles_ = 0;
     out_of_order_tiles_ = 0;
+    bytes_h2d_ = 0;
     bytes_d2h_ = 0;
     kernel_dispatches_ = 0;
     last_tile_id_ = 0;
@@ -104,6 +208,7 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.duplicate_tiles = duplicate_tiles_;
     out.missing_tiles = missing_tiles;
     out.out_of_order_tiles = out_of_order_tiles_;
+    out.bytes_h2d = bytes_h2d_;
     out.bytes_d2h = bytes_d2h_;
     out.kernel_dispatches = kernel_dispatches_;
     out.watermark_seen = watermark_seen_;

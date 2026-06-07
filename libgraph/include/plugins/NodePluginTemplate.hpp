@@ -287,7 +287,7 @@ NodeDescriptor BuildDescriptorFromPluginInstance(
         metadata_service ? *metadata_service : GetDefaultNodeMetadataService();
     const INodeDescriptorProvider& provider = active_metadata_service.DescriptorProvider();
 
-    return provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+    auto descriptor = provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
         .seed = NodeDescriptorSeed{
             .name = inst->name,
             .type = inst->type,
@@ -300,6 +300,12 @@ NodeDescriptor BuildDescriptorFromPluginInstance(
         .input_ports = inst->node->GetInputPortMetadata(),
         .output_ports = inst->node->GetOutputPortMetadata(),
     });
+
+    if (descriptor.config_fields.empty()) {
+        descriptor.config_fields = BuildConfigFieldMetadataFromType<NodeType>();
+    }
+
+    return descriptor;
 }
 
 // ============================================================================

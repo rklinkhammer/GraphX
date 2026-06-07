@@ -1,8 +1,22 @@
 #include "sar/AzimuthTileSplitNode.hpp"
 
+#include "config/ConfigError.hpp"
+
 #include <algorithm>
 
 namespace sar {
+
+namespace {
+
+SarBackendKind ParseBackendKind(int raw_backend) {
+    if (raw_backend < static_cast<int>(SarBackendKind::Host) ||
+        raw_backend > static_cast<int>(SarBackendKind::NativeDevice)) {
+        throw graph::ConfigError("backend must be in range [0,2]");
+    }
+    return static_cast<SarBackendKind>(raw_backend);
+}
+
+} // namespace
 
 AzimuthTileSplitNode::AzimuthTileSplitNode(AzimuthTileSplitConfig config)
     : config_(config) {}
@@ -16,6 +30,82 @@ std::optional<SarRangeTileMessage> AzimuthTileSplitNode::Transfer(
     }
 
     return BuildDataTile(input);
+}
+
+void AzimuthTileSplitNode::Configure(const graph::JsonView& cfg) {
+    auto config = config_;
+
+    if (cfg.Contains("tile_count")) {
+        auto value = cfg.TryGetInt("tile_count");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0) {
+            throw graph::ConfigError("tile_count must be > 0");
+        }
+        config.tile_count = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("backend_id")) {
+        auto value = cfg.TryGetInt("backend_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("backend_id must be >= 0");
+        }
+        config.backend_id = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("backend")) {
+        auto value = cfg.TryGetInt("backend");
+        if (!value) {
+            throw value.error();
+        }
+        config.backend = ParseBackendKind(value.value());
+    }
+
+    SetConfig(config);
+}
+
+graph::JsonView AzimuthTileSplitNode::GetParameters() const {
+    parameters_cache_ = nlohmann::json::object();
+    parameters_cache_["tile_count"] = config_.tile_count;
+    parameters_cache_["backend_id"] = config_.backend_id;
+    parameters_cache_["backend"] = static_cast<int>(config_.backend);
+    return graph::JsonView(parameters_cache_);
+}
+
+graph::JsonView AzimuthTileSplitNode::GetParameterDescription(
+    const std::string& param_name) const {
+    parameter_description_cache_ = nlohmann::json::object();
+    for (const auto& field : Fields()) {
+        if (field.name == param_name) {
+            const auto type = field.type;
+            const char* type_name = "object";
+            switch (type) {
+                case graph::JsonType::String: type_name = "string"; break;
+                case graph::JsonType::Number: type_name = "number"; break;
+                case graph::JsonType::Integer: type_name = "integer"; break;
+                case graph::JsonType::Boolean: type_name = "boolean"; break;
+                case graph::JsonType::Object: type_name = "object"; break;
+                case graph::JsonType::Array: type_name = "array"; break;
+            }
+            parameter_description_cache_["type"] = type_name;
+            parameter_description_cache_["required"] = field.required;
+            parameter_description_cache_["description"] = field.description;
+            break;
+        }
+    }
+    return graph::JsonView(parameter_description_cache_);
+}
+
+std::vector<std::string> AzimuthTileSplitNode::GetParameterNames() const {
+    return {
+        "tile_count",
+        "backend_id",
+        "backend",
+    };
 }
 
 void AzimuthTileSplitNode::SetConfig(const AzimuthTileSplitConfig& config) {

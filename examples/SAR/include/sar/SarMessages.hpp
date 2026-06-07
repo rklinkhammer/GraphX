@@ -95,6 +95,7 @@ struct SarMergeStatusMessage {
     std::uint32_t duplicate_tiles{};
     std::uint32_t missing_tiles{};
     std::uint32_t out_of_order_tiles{};
+    std::uint64_t bytes_h2d{};
     std::uint64_t bytes_d2h{};
     std::uint64_t kernel_dispatches{};
     bool watermark_seen{false};
@@ -113,6 +114,8 @@ struct SarDiagnosticsMessage {
     std::uint64_t e2e_latency_ms{};
     std::uint64_t duplicate_tile_count{};
     std::uint64_t missing_tile_count{};
+    std::uint64_t queue_backpressure_events{};
+    std::uint64_t peak_queue_depth{};
 };
 
 } // namespace sar

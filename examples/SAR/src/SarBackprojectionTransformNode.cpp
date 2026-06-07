@@ -1,8 +1,22 @@
 #include "sar/SarBackprojectionTransformNode.hpp"
 
+#include "config/ConfigError.hpp"
+
 #include <algorithm>
 
 namespace sar {
+
+namespace {
+
+SarBackendKind ParseBackendKind(int raw_backend) {
+    if (raw_backend < static_cast<int>(SarBackendKind::Host) ||
+        raw_backend > static_cast<int>(SarBackendKind::NativeDevice)) {
+        throw graph::ConfigError("backend must be in range [0,2]");
+    }
+    return static_cast<SarBackendKind>(raw_backend);
+}
+
+} // namespace
 
 SarBackprojectionTransformNode::SarBackprojectionTransformNode(
     SarBackprojectionTransformConfig config)
@@ -17,6 +31,108 @@ std::optional<SarImageTileMessage> SarBackprojectionTransformNode::Transfer(
     }
 
     return BuildDataTile(input);
+}
+
+void SarBackprojectionTransformNode::Configure(const graph::JsonView& cfg) {
+    auto config = config_;
+
+    if (cfg.Contains("image_width")) {
+        auto value = cfg.TryGetInt("image_width");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0) {
+            throw graph::ConfigError("image_width must be > 0");
+        }
+        config.image_width = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("backend_id")) {
+        auto value = cfg.TryGetInt("backend_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("backend_id must be >= 0");
+        }
+        config.backend_id = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("queue_id")) {
+        auto value = cfg.TryGetInt("queue_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("queue_id must be >= 0");
+        }
+        config.queue_id = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("kernel_id")) {
+        auto value = cfg.TryGetInt("kernel_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("kernel_id must be >= 0");
+        }
+        config.kernel_id = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("backend")) {
+        auto value = cfg.TryGetInt("backend");
+        if (!value) {
+            throw value.error();
+        }
+        config.backend = ParseBackendKind(value.value());
+    }
+
+    SetConfig(config);
+}
+
+graph::JsonView SarBackprojectionTransformNode::GetParameters() const {
+    parameters_cache_ = nlohmann::json::object();
+    parameters_cache_["image_width"] = config_.image_width;
+    parameters_cache_["backend_id"] = config_.backend_id;
+    parameters_cache_["queue_id"] = config_.queue_id;
+    parameters_cache_["kernel_id"] = config_.kernel_id;
+    parameters_cache_["backend"] = static_cast<int>(config_.backend);
+    return graph::JsonView(parameters_cache_);
+}
+
+graph::JsonView SarBackprojectionTransformNode::GetParameterDescription(
+    const std::string& param_name) const {
+    parameter_description_cache_ = nlohmann::json::object();
+    for (const auto& field : Fields()) {
+        if (field.name == param_name) {
+            const auto type = field.type;
+            const char* type_name = "object";
+            switch (type) {
+                case graph::JsonType::String: type_name = "string"; break;
+                case graph::JsonType::Number: type_name = "number"; break;
+                case graph::JsonType::Integer: type_name = "integer"; break;
+                case graph::JsonType::Boolean: type_name = "boolean"; break;
+                case graph::JsonType::Object: type_name = "object"; break;
+                case graph::JsonType::Array: type_name = "array"; break;
+            }
+            parameter_description_cache_["type"] = type_name;
+            parameter_description_cache_["required"] = field.required;
+            parameter_description_cache_["description"] = field.description;
+            break;
+        }
+    }
+    return graph::JsonView(parameter_description_cache_);
+}
+
+std::vector<std::string> SarBackprojectionTransformNode::GetParameterNames() const {
+    return {
+        "image_width",
+        "backend_id",
+        "queue_id",
+        "kernel_id",
+        "backend",
+    };
 }
 
 void SarBackprojectionTransformNode::SetConfig(

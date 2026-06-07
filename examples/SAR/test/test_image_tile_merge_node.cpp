@@ -93,6 +93,7 @@ TEST(ImageTileMergeNodeTest, CompletesAtEndOfStreamWhenAllTilesArrive) {
     EXPECT_EQ(eos->duplicate_tiles, 0u);
     EXPECT_EQ(eos->missing_tiles, 0u);
     EXPECT_EQ(eos->out_of_order_tiles, 1u);
+    EXPECT_EQ(eos->bytes_h2d, 48u);
     EXPECT_EQ(eos->bytes_d2h, 48u);
     EXPECT_EQ(eos->kernel_dispatches, 3u);
     EXPECT_FALSE(eos->watermark_seen);
@@ -128,6 +129,7 @@ TEST(ImageTileMergeNodeTest, ReportsDuplicateAndMissingTiles) {
     EXPECT_EQ(eos->received_tiles, 2u);
     EXPECT_EQ(eos->duplicate_tiles, 1u);
     EXPECT_EQ(eos->missing_tiles, 2u);
+    EXPECT_EQ(eos->bytes_h2d, 48u);
     EXPECT_EQ(eos->bytes_d2h, 48u);
     EXPECT_EQ(eos->kernel_dispatches, 3u);
     EXPECT_FALSE(eos->complete);
@@ -151,6 +153,7 @@ TEST(ImageTileMergeNodeTest, RequiresWatermarkWhenConfigured) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(eos_without_watermark.has_value());
+    EXPECT_EQ(eos_without_watermark->bytes_h2d, 16u);
     EXPECT_EQ(eos_without_watermark->bytes_d2h, 16u);
     EXPECT_EQ(eos_without_watermark->kernel_dispatches, 1u);
     EXPECT_FALSE(eos_without_watermark->watermark_seen);
@@ -173,6 +176,7 @@ TEST(ImageTileMergeNodeTest, RequiresWatermarkWhenConfigured) {
 
     ASSERT_TRUE(watermark.has_value());
     ASSERT_TRUE(eos_with_watermark.has_value());
+    EXPECT_EQ(eos_with_watermark->bytes_h2d, 16u);
     EXPECT_EQ(eos_with_watermark->bytes_d2h, 16u);
     EXPECT_EQ(eos_with_watermark->kernel_dispatches, 1u);
     EXPECT_TRUE(eos_with_watermark->watermark_seen);
@@ -220,6 +224,7 @@ TEST(ImageTileMergeNodeTest, DynamicPluginLoadAndBehaviorValidation) {
     EXPECT_EQ(eos->expected_tiles, 2u);
     EXPECT_EQ(eos->received_tiles, 2u);
     EXPECT_EQ(eos->missing_tiles, 0u);
+    EXPECT_EQ(eos->bytes_h2d, 32u);
     EXPECT_EQ(eos->bytes_d2h, 32u);
     EXPECT_EQ(eos->kernel_dispatches, 2u);
     EXPECT_TRUE(eos->complete);

@@ -1,15 +1,43 @@
 #include "sar/SarMessages.hpp"
+#include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include "graph/GraphExecutorBuilder.hpp"
+#include "graph/NodeFacadeAdapterWrapper.hpp"
 
 #include <filesystem>
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 #ifndef SAR_PLUGIN_OUTPUT_DIRECTORY
 #define SAR_PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
+
+namespace {
+
+std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
+    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    const auto nodes = graph_manager->GetNodes();
+    for (const auto& node : nodes) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
+            continue;
+        }
+        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
+    }
+
+    return nullptr;
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
     [[maybe_unused]] const sar::SarMessageEnvelope contract_probe{};
@@ -65,6 +93,16 @@ int main(int argc, char** argv) {
         std::cout << "Completion signaled: "
                   << (executor->IsCompletionSignaled() ? "true" : "false")
                   << '\n';
+
+        auto sink = ResolveDiagnosticsSink(graph_manager);
+        if (sink) {
+            sink->UpdateFromGraphMetrics(graph_manager->GetMetrics());
+            const auto& diagnostics = sink->last_diagnostics();
+            std::cout << "Diagnostics queue_backpressure_events: "
+                      << diagnostics.queue_backpressure_events << '\n';
+            std::cout << "Diagnostics peak_queue_depth: "
+                      << diagnostics.peak_queue_depth << '\n';
+        }
     } catch (const std::exception& ex) {
         std::cerr << "Runtime exception: " << ex.what() << '\n';
         return 1;

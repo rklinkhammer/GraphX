@@ -4,31 +4,69 @@
   "nodes": [
     {
       "id": "src",
-      "type": "SyntheticApertureIqSourceNode"
+      "type": "SyntheticApertureIqSourceNode",
+      "node_config": {
+        "stream_id": 0,
+        "total_pulses": 32,
+        "samples_per_pulse": 256,
+        "backend_id": 0,
+        "backend": 0
+      }
     },
     {
       "id": "split",
-      "type": "AzimuthTileSplitNode"
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "backend_id": 0,
+        "backend": 0
+      }
     },
     {
       "id": "h2d",
-      "type": "H2DAsyncNode"
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
     },
     {
       "id": "bp",
-      "type": "SarBackprojectionTransformNode"
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 16,
+        "backend_id": 0,
+        "queue_id": 0,
+        "kernel_id": 3301,
+        "backend": 1
+      }
     },
     {
       "id": "d2h",
-      "type": "D2HAsyncNode"
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
     },
     {
       "id": "merge",
-      "type": "ImageTileMergeNode"
+      "type": "ImageTileMergeNode",
+      "node_config": {
+        "expected_tiles": 4,
+        "require_watermark_before_complete": false,
+        "backend_id": 0,
+        "backend": 0
+      }
     },
     {
       "id": "sink",
-      "type": "SarDiagnosticsSinkNode"
+      "type": "SarDiagnosticsSinkNode",
+      "node_config": {
+        "completion_signal_enabled": true
+      }
     }
   ],
   "edges": [
