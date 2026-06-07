@@ -8,6 +8,8 @@ if(TARGET log4cxx::log4cxx)
 endif()
 
 add_executable(test_sar_example_unit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/AzimuthTileSplitNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_azimuth_tile_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -26,6 +28,7 @@ target_link_libraries(test_sar_example_unit PRIVATE
     Threads::Threads
     graphx_project_options
 )
+add_dependencies(test_sar_example_unit azimuth_tile_split_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)
