@@ -65,8 +65,8 @@ Exit criteria:
 - [x] Emit explicit EOS
 
 ### 3.2 AzimuthTileSplitNode
-- [ ] Add header/source for `AzimuthTileSplitNode`
-- [ ] Implement explicit tile fan-out with stable tile IDs
+- [x] Add header/source for `AzimuthTileSplitNode`
+- [x] Implement explicit tile fan-out with stable tile IDs
 
 ### 3.3 SarBackprojectionTransformNode
 - [ ] Add header/source for `SarBackprojectionTransformNode`
