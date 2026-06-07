@@ -245,6 +245,7 @@ void SpectrumSinkNode<SampleT, N>::Clear() {
 
 template<typename SampleT, size_t N>
 void SpectrumSinkNode<SampleT, N>::Configure(const graph::JsonView& cfg) {
+    (void)cfg;
     try {
         // Simplified configuration (full JSON parsing deferred)
         LOG4CXX_INFO(log_, "SpectrumSinkNode configured from JSON");

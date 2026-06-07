@@ -162,10 +162,7 @@ public:
     /**
      * @brief Virtual destructor for safe polymorphism
      */
-    virtual ~NamedSourceNode() {
-        auto logger = log4cxx::Logger::getLogger("NamedSourceNode");
-        LOG4CXX_TRACE(logger, "Destroying NamedSourceNode");
-    }
+    virtual ~NamedSourceNode() = default;
 
     /**
      * @brief Stop all producer threads and cleanup resources

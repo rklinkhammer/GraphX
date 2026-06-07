@@ -40,9 +40,9 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 #include <dlfcn.h>
 #include <stdexcept>
-#include <regex>
 
 namespace graph {
 
@@ -770,16 +770,66 @@ std::string PluginInspector::ExtractVersionFromELF(const std::string& plugin_pat
         return "";
     }
 
-    // Look for semantic version markers embedded in comments/strings.
-    static const std::regex semver_with_patch(R"((?:^|[^0-9A-Za-z])v?(\d+\.\d+\.\d+)(?:[^0-9A-Za-z]|$))");
-    static const std::regex semver_two_part(R"((?:^|[^0-9A-Za-z])v?(\d+\.\d+)(?:[^0-9A-Za-z]|$))");
+    const auto is_ascii_alnum = [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) != 0;
+    };
 
-    std::smatch match;
-    if (std::regex_search(data, match, semver_with_patch)) {
-        return match[1].str();
+    auto parse_digits = [&](size_t pos, size_t* out_next) -> size_t {
+        size_t p = pos;
+        while (p < data.size() && std::isdigit(static_cast<unsigned char>(data[p])) != 0) {
+            ++p;
+        }
+        *out_next = p;
+        return p - pos;
+    };
+
+    std::string first_two_part;
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        const bool has_prefix_v = (data[i] == 'v' || data[i] == 'V');
+        if (has_prefix_v && (i + 1 >= data.size() || std::isdigit(static_cast<unsigned char>(data[i + 1])) == 0)) {
+            continue;
+        }
+
+        if (!has_prefix_v && std::isdigit(static_cast<unsigned char>(data[i])) == 0) {
+            continue;
+        }
+
+        if (i > 0 && (is_ascii_alnum(data[i - 1]) || data[i - 1] == '.')) {
+            continue;
+        }
+
+        size_t pos = has_prefix_v ? i + 1 : i;
+        size_t next = pos;
+        if (parse_digits(pos, &next) == 0 || next >= data.size() || data[next] != '.') {
+            continue;
+        }
+
+        pos = next + 1;
+        if (parse_digits(pos, &next) == 0) {
+            continue;
+        }
+
+        // Prefer major.minor.patch when available.
+        if (next < data.size() && data[next] == '.') {
+            size_t patch_start = next + 1;
+            size_t patch_next = patch_start;
+            if (parse_digits(patch_start, &patch_next) > 0) {
+                if (patch_next == data.size() || !is_ascii_alnum(data[patch_next])) {
+                    return data.substr(has_prefix_v ? i + 1 : i, patch_next - (has_prefix_v ? i + 1 : i));
+                }
+            }
+        }
+
+        // Remember first valid major.minor token as fallback.
+        if ((next == data.size() || (!is_ascii_alnum(data[next]) && data[next] != '.')) && first_two_part.empty()) {
+            const size_t start = has_prefix_v ? i + 1 : i;
+            first_two_part = data.substr(start, next - start);
+        }
     }
-    if (std::regex_search(data, match, semver_two_part)) {
-        return match[1].str();
+
+    if (!first_two_part.empty()) {
+        return first_two_part;
     }
 
     return "";

@@ -51,6 +51,7 @@
       "inherits": "ninja-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_GRAPH_NODES": "ON",
         "ENABLE_METAL_NATIVE_RUNTIME": "ON",
         "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"

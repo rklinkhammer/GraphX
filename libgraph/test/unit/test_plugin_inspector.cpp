@@ -130,6 +130,54 @@ TEST_F(PluginInspectorTest, DiscoverPluginsDefaultsVersionWhenNoMetadataFound) {
     EXPECT_EQ(plugins[0].version, "1.0.0");
 }
 
+TEST_F(PluginInspectorTest, DiscoverPluginsAcceptsUppercaseVPrefixedSemver) {
+    std::vector<char> payload = {
+        static_cast<char>(0x7f), 'E', 'L', 'F',
+        ' ', 'V', '4', '.', '5', '.', '6', ' '
+    };
+    CreatePluginFile("delta", payload);
+
+    graph::PluginInspector inspector(temp_dir_.string());
+    const auto plugins = inspector.DiscoverPlugins();
+
+    ASSERT_EQ(plugins.size(), 1u);
+    EXPECT_EQ(plugins[0].name, "delta");
+    EXPECT_EQ(plugins[0].version, "4.5.6");
+}
+
+TEST_F(PluginInspectorTest, DiscoverPluginsPrefersPatchVersionOverTwoPartVersion) {
+    std::vector<char> payload = {
+        static_cast<char>(0x7f), 'E', 'L', 'F',
+        ' ', '1', '.', '2', ' ',
+        'x', ' ',
+        'v', '3', '.', '4', '.', '5', ' '
+    };
+    CreatePluginFile("epsilon", payload);
+
+    graph::PluginInspector inspector(temp_dir_.string());
+    const auto plugins = inspector.DiscoverPlugins();
+
+    ASSERT_EQ(plugins.size(), 1u);
+    EXPECT_EQ(plugins[0].name, "epsilon");
+    EXPECT_EQ(plugins[0].version, "3.4.5");
+}
+
+TEST_F(PluginInspectorTest, DiscoverPluginsRejectsEmbeddedAlnumVersionTokens) {
+    std::vector<char> payload = {
+        static_cast<char>(0x7f), 'E', 'L', 'F',
+        'a', '1', '.', '2', '.', '3', ' ',
+        'v', '9', '.', '8', '.', '7', 'z'
+    };
+    CreatePluginFile("zeta", payload);
+
+    graph::PluginInspector inspector(temp_dir_.string());
+    const auto plugins = inspector.DiscoverPlugins();
+
+    ASSERT_EQ(plugins.size(), 1u);
+    EXPECT_EQ(plugins[0].name, "zeta");
+    EXPECT_EQ(plugins[0].version, "1.0.0");
+}
+
 TEST_F(PluginInspectorTest, InspectPluginDetectsMetricsCapabilityFromFacade) {
     graph::PluginInspector inspector(PLUGIN_OUTPUT_DIRECTORY);
 

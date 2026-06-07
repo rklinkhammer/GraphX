@@ -86,7 +86,7 @@ if(SOURCES)
     )
 
     if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED AND GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
-        target_include_directories(gpu PRIVATE
+        target_include_directories(gpu SYSTEM PRIVATE
             ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}
         )
     endif()

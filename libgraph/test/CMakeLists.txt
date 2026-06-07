@@ -70,7 +70,7 @@ if(INTEGRATION_TEST_SOURCES)
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_link_libraries(test_libgraph_integration PRIVATE graph gpu GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_libgraph_integration PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
     target_link_libraries(test_libgraph_integration PRIVATE graphx_project_options)
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
 endif()

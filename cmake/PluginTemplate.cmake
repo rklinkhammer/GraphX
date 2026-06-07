@@ -186,7 +186,7 @@ function(add_graphx_plugin)
     # Link libraries
     # ========================================================================
     set(default_plugin_dependencies log4cxx Threads::Threads)
-    if(NOT "dsp" IN_LIST PLUGIN_DEPENDENCIES)
+    if(NOT "dsp" IN_LIST PLUGIN_DEPENDENCIES AND NOT "gpu" IN_LIST PLUGIN_DEPENDENCIES)
         list(APPEND default_plugin_dependencies sensor)
     endif()
 

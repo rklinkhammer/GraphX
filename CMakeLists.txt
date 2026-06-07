@@ -230,6 +230,8 @@ add_subdirectory(libgpu)
 
 # Testing
 if(BUILD_TESTS)
+    # Ensure CTest dashboard metadata files are generated for clean ctest runs.
+    include(CTest)
     enable_testing()
     
     # Add per-project tests

@@ -164,10 +164,7 @@ public:
      * @brief Virtual destructor for safe polymorphism
      * Cleans up generator and notification queue
      */
-    virtual ~DataProducerWithNotification() {
-        auto logger = log4cxx::Logger::getLogger("DataProducerWithNotification");
-        LOG4CXX_TRACE(logger, "Destroying DataProducerWithNotification");
-    }
+    virtual ~DataProducerWithNotification() = default;
    
     /**
      * @brief Produce data samples on Port 0 (interval-based timed generation)
