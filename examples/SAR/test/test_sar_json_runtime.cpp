@@ -56,8 +56,8 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
 
     ASSERT_NE(executor, nullptr);
     ASSERT_NE(executor->GetGraphManager(), nullptr);
-    EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 7U);
-    EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 6U);
+    EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 8U);
+    EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 7U);
 
     const auto run_result = executor->Execute();
     EXPECT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;

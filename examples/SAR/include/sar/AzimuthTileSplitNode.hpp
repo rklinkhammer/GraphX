@@ -18,6 +18,7 @@ namespace sar {
 
 struct AzimuthTileSplitConfig {
     std::uint32_t tile_count{4};
+    std::uint32_t tile_id_offset{0};
     std::uint32_t backend_id{0};
     SarBackendKind backend{SarBackendKind::Host};
 };
@@ -43,7 +44,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 3> Fields() {
+    static constexpr std::array<graph::JsonField, 4> Fields() {
         return {{
             graph::JsonField{
                 .name = "tile_count",
@@ -54,6 +55,16 @@ public:
                 .default_value = "4",
                 .enum_values = std::nullopt,
                 .description = "Number of azimuth tiles"
+            },
+            graph::JsonField{
+                .name = "tile_id_offset",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "0",
+                .enum_values = std::nullopt,
+                .description = "Modulo offset applied to deterministic tile id selection"
             },
             graph::JsonField{
                 .name = "backend_id",
@@ -82,6 +93,7 @@ public:
     const AzimuthTileSplitConfig& GetConfig() const noexcept;
 
 private:
+    std::uint32_t ResolveTileId(const SarPulseBlockMessage& input) const;
     SarRangeTileMessage BuildDataTile(const SarPulseBlockMessage& input) const;
     SarRangeTileMessage BuildEndOfStreamTile(const SarPulseBlockMessage& input) const;
 

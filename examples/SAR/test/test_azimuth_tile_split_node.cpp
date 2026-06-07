@@ -55,6 +55,7 @@ sar::SarPulseBlockMessage MakePulse(
 TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
     sar::AzimuthTileSplitConfig cfg{};
     cfg.tile_count = 4;
+    cfg.tile_id_offset = 2;
     cfg.backend_id = 9;
     cfg.backend = sar::SarBackendKind::SimulatedDevice;
 
@@ -70,7 +71,7 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(out->envelope.sequence_id, 7u);
     EXPECT_EQ(out->envelope.tile_count, 4u);
-    EXPECT_EQ(out->envelope.tile_id, 3u);
+    EXPECT_EQ(out->envelope.tile_id, 1u);
     EXPECT_EQ(out->envelope.backend_id, 9u);
     EXPECT_EQ(out->envelope.backend, sar::SarBackendKind::SimulatedDevice);
     ASSERT_EQ(out->range_bins.size(), input.iq_samples.size());
@@ -82,6 +83,7 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
 TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
     sar::AzimuthTileSplitConfig cfg{};
     cfg.tile_count = 8;
+    cfg.tile_id_offset = 3;
     cfg.backend_id = 1;
     cfg.backend = sar::SarBackendKind::Host;
 
@@ -96,7 +98,7 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(out->envelope.tile_count, 8u);
-    EXPECT_EQ(out->envelope.tile_id, 2u);
+    EXPECT_EQ(out->envelope.tile_id, 5u);
     EXPECT_TRUE(out->range_bins.empty());
     EXPECT_EQ(out->buffer.byte_count, 0u);
 }
@@ -120,6 +122,7 @@ TEST(AzimuthTileSplitNodeTest, DynamicPluginLoadAndBehaviorValidation) {
 
     sar::AzimuthTileSplitConfig cfg{};
     cfg.tile_count = 5;
+    cfg.tile_id_offset = 2;
     cfg.backend_id = 4;
     cfg.backend = sar::SarBackendKind::SimulatedDevice;
     node->SetConfig(cfg);
@@ -132,7 +135,7 @@ TEST(AzimuthTileSplitNodeTest, DynamicPluginLoadAndBehaviorValidation) {
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(out->envelope.tile_count, 5u);
-    EXPECT_EQ(out->envelope.tile_id, 4u);
+    EXPECT_EQ(out->envelope.tile_id, 1u);
     EXPECT_EQ(out->range_bins.size(), 3u);
 }
 

@@ -4,6 +4,7 @@
 #include "sar/D2HAsyncNode.hpp"
 #include "sar/H2DAsyncNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
+#include "sar/RangeWindowNode.hpp"
 #include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
@@ -137,6 +138,14 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
                 }},
             },
             {
+                {"id", "window"},
+                {"type", "RangeWindowNode"},
+                {"node_config", {
+                    {"enabled", true},
+                    {"gain", 1.0f},
+                }},
+            },
+            {
                 {"id", "split"},
                 {"type", "AzimuthTileSplitNode"},
                 {"node_config", {
@@ -193,7 +202,8 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
             },
         })},
         {"edges", nlohmann::json::array({
-            {{"source_node_id", "src"}, {"source_port", 0}, {"target_node_id", "split"}, {"target_port", 0}},
+            {{"source_node_id", "src"}, {"source_port", 0}, {"target_node_id", "window"}, {"target_port", 0}},
+            {{"source_node_id", "window"}, {"source_port", 0}, {"target_node_id", "split"}, {"target_port", 0}},
             {{"source_node_id", "split"}, {"source_port", 0}, {"target_node_id", "h2d"}, {"target_port", 0}},
             {{"source_node_id", "h2d"}, {"source_port", 0}, {"target_node_id", "bp"}, {"target_port", 0}},
             {{"source_node_id", "bp"}, {"source_port", 0}, {"target_node_id", "d2h"}, {"target_port", 0}},
@@ -339,6 +349,7 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
     merge_cfg.backend = sar::SarBackendKind::Host;
 
     sar::SyntheticApertureIqSourceNode src(source_cfg);
+    sar::RangeWindowNode window;
     sar::AzimuthTileSplitNode split(split_cfg);
     sar::H2DAsyncNode h2d;
     sar::SarBackprojectionTransformNode bp(bp_cfg);
@@ -353,8 +364,16 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
             break;
         }
 
-        auto range_tile = split.Transfer(
+        auto windowed_pulse = window.Transfer(
             *pulse,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!windowed_pulse) {
+            throw std::runtime_error("Baseline range window failed");
+        }
+
+        auto range_tile = split.Transfer(
+            *windowed_pulse,
             std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
         if (!range_tile) {

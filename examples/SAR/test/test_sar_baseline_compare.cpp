@@ -6,6 +6,7 @@
 #include "sar/D2HAsyncNode.hpp"
 #include "sar/H2DAsyncNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
+#include "sar/RangeWindowNode.hpp"
 #include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
@@ -65,6 +66,7 @@ sar::SarDiagnosticsMessage RunBaselinePipeline() {
     merge_cfg.backend = sar::SarBackendKind::Host;
 
     sar::SyntheticApertureIqSourceNode src(source_cfg);
+    sar::RangeWindowNode window;
     sar::AzimuthTileSplitNode split(split_cfg);
     sar::H2DAsyncNode h2d;
     sar::SarBackprojectionTransformNode bp(bp_cfg);
@@ -78,8 +80,17 @@ sar::SarDiagnosticsMessage RunBaselinePipeline() {
             break;
         }
 
-        auto range_tile = split.Transfer(
+        auto windowed_pulse = window.Transfer(
             *pulse,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!windowed_pulse.has_value()) {
+            ADD_FAILURE() << "Baseline range window stage returned null";
+            return {};
+        }
+
+        auto range_tile = split.Transfer(
+            *windowed_pulse,
             std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
         if (!range_tile.has_value()) {

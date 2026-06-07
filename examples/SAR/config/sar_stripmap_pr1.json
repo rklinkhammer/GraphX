@@ -18,8 +18,17 @@
       "type": "AzimuthTileSplitNode",
       "node_config": {
         "tile_count": 4,
+        "tile_id_offset": 0,
         "backend_id": 0,
         "backend": 0
+      }
+    },
+    {
+      "id": "window",
+      "type": "RangeWindowNode",
+      "node_config": {
+        "enabled": true,
+        "gain": 1.0
       }
     },
     {
@@ -72,6 +81,12 @@
   "edges": [
     {
       "source_node_id": "src",
+      "source_port": 0,
+      "target_node_id": "window",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "window",
       "source_port": 0,
       "target_node_id": "split",
       "target_port": 0

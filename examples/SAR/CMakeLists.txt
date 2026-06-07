@@ -10,6 +10,7 @@ add_executable(sar_example
     src/D2HAsyncNode.cpp
     src/H2DAsyncNode.cpp
     src/ImageTileMergeNode.cpp
+    src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
     src/SarBackprojectionTransformNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
@@ -21,6 +22,7 @@ add_executable(sar_benchmark
     src/D2HAsyncNode.cpp
     src/H2DAsyncNode.cpp
     src/ImageTileMergeNode.cpp
+    src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
     src/SarBackprojectionTransformNode.cpp
     src/SyntheticApertureIqSourceNode.cpp

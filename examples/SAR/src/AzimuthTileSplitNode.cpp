@@ -57,6 +57,17 @@ void AzimuthTileSplitNode::Configure(const graph::JsonView& cfg) {
         config.backend_id = static_cast<std::uint32_t>(value.value());
     }
 
+    if (cfg.Contains("tile_id_offset")) {
+        auto value = cfg.TryGetInt("tile_id_offset");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0) {
+            throw graph::ConfigError("tile_id_offset must be >= 0");
+        }
+        config.tile_id_offset = static_cast<std::uint32_t>(value.value());
+    }
+
     if (cfg.Contains("backend")) {
         auto value = cfg.TryGetInt("backend");
         if (!value) {
@@ -71,6 +82,7 @@ void AzimuthTileSplitNode::Configure(const graph::JsonView& cfg) {
 graph::JsonView AzimuthTileSplitNode::GetParameters() const {
     parameters_cache_ = nlohmann::json::object();
     parameters_cache_["tile_count"] = config_.tile_count;
+    parameters_cache_["tile_id_offset"] = config_.tile_id_offset;
     parameters_cache_["backend_id"] = config_.backend_id;
     parameters_cache_["backend"] = static_cast<int>(config_.backend);
     return graph::JsonView(parameters_cache_);
@@ -103,6 +115,7 @@ graph::JsonView AzimuthTileSplitNode::GetParameterDescription(
 std::vector<std::string> AzimuthTileSplitNode::GetParameterNames() const {
     return {
         "tile_count",
+        "tile_id_offset",
         "backend_id",
         "backend",
     };
@@ -116,10 +129,17 @@ const AzimuthTileSplitConfig& AzimuthTileSplitNode::GetConfig() const noexcept {
     return config_;
 }
 
+std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarPulseBlockMessage& input) const {
+    const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
+    const auto sequence_tile =
+        static_cast<std::uint32_t>(input.envelope.sequence_id % tile_count);
+    return (sequence_tile + (config_.tile_id_offset % tile_count)) % tile_count;
+}
+
 SarRangeTileMessage AzimuthTileSplitNode::BuildDataTile(const SarPulseBlockMessage& input) const {
     SarRangeTileMessage out{};
     const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
-    const std::uint32_t tile_id = static_cast<std::uint32_t>(input.envelope.sequence_id % tile_count);
+    const std::uint32_t tile_id = ResolveTileId(input);
 
     out.envelope.sequence_id = input.envelope.sequence_id;
     out.envelope.stream_id = input.envelope.stream_id;
@@ -150,7 +170,7 @@ SarRangeTileMessage AzimuthTileSplitNode::BuildEndOfStreamTile(const SarPulseBlo
 
     out.envelope.sequence_id = input.envelope.sequence_id;
     out.envelope.stream_id = input.envelope.stream_id;
-    out.envelope.tile_id = static_cast<std::uint32_t>(input.envelope.sequence_id % tile_count);
+    out.envelope.tile_id = ResolveTileId(input);
     out.envelope.tile_count = tile_count;
     out.envelope.backend_id = config_.backend_id;
     out.envelope.backend = config_.backend;

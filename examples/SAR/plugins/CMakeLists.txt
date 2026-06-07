@@ -46,6 +46,19 @@ target_include_directories(azimuth_tile_split_node PRIVATE
 )
 
 add_graphx_plugin(
+    TARGET_NAME range_window_node
+    SOURCE_FILES
+        range_window_node_plugin.cpp
+        ../src/RangeWindowNode.cpp
+    DESCRIPTION "SAR deterministic range window node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(range_window_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME sar_backprojection_transform_node
     SOURCE_FILES
         sar_backprojection_transform_node_plugin.cpp

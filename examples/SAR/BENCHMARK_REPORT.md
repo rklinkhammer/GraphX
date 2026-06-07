@@ -1,16 +1,17 @@
-# SAR PR1 Benchmark Report
+# SAR Benchmark Report
 
 ## Scope
 
 This report compares the deterministic GraphX SAR JSON pipeline against a deterministic non-graph baseline path that executes the same stage sequence:
 
 1. SyntheticApertureIqSourceNode
-2. AzimuthTileSplitNode
-3. H2DAsyncNode
-4. SarBackprojectionTransformNode
-5. D2HAsyncNode
-6. ImageTileMergeNode
-7. SarDiagnosticsSinkNode
+2. RangeWindowNode
+3. AzimuthTileSplitNode
+4. H2DAsyncNode
+5. SarBackprojectionTransformNode
+6. D2HAsyncNode
+7. ImageTileMergeNode
+8. SarDiagnosticsSinkNode
 
 The benchmark is implemented in examples/SAR/src/sar_benchmark.cpp and emits:
 
@@ -70,6 +71,9 @@ Each measured run verifies deterministic diagnostics parity between graph and ba
 - missing_tile_count
 
 If parity fails, the benchmark exits non-zero.
+
+The direct baseline includes the same deterministic range-window stage as the graph topology,
+so reported overhead remains graph-specific rather than DSP-algorithm drift.
 
 ## Overhead Attribution Categories
 
