@@ -8,7 +8,6 @@ add_executable(sar_example
     src/main.cpp
     src/AzimuthTileSplitNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
-    src/AzimuthTileSplitNode.cpp
 )
 
 target_compile_features(sar_example PRIVATE cxx_std_26)
