@@ -31,6 +31,10 @@ sar::SarPulseBlockMessage MakePulse(
     sar::SarFrameMarker marker = sar::SarFrameMarker::Data) {
     sar::SarPulseBlockMessage msg{};
     msg.envelope.sequence_id = sequence_id;
+    msg.envelope.batch_id = 5;
+    msg.envelope.aperture_id = sequence_id;
+    msg.envelope.pulse_range_start = sequence_id;
+    msg.envelope.pulse_range_count = 1;
     msg.envelope.stream_id = 17;
     msg.envelope.backend_id = 2;
     msg.envelope.backend = sar::SarBackendKind::SimulatedDevice;
@@ -70,6 +74,10 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(out->envelope.sequence_id, 7u);
+    EXPECT_EQ(out->envelope.batch_id, input.envelope.batch_id);
+    EXPECT_EQ(out->envelope.aperture_id, input.envelope.aperture_id);
+    EXPECT_EQ(out->envelope.pulse_range_start, input.envelope.pulse_range_start);
+    EXPECT_EQ(out->envelope.pulse_range_count, input.envelope.pulse_range_count);
     EXPECT_EQ(out->envelope.tile_count, 4u);
     EXPECT_EQ(out->envelope.tile_id, 1u);
     EXPECT_EQ(out->envelope.backend_id, 9u);
@@ -97,6 +105,10 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
 
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(out->envelope.batch_id, eos_input.envelope.batch_id);
+    EXPECT_EQ(out->envelope.aperture_id, eos_input.envelope.aperture_id);
+    EXPECT_EQ(out->envelope.pulse_range_start, eos_input.envelope.pulse_range_start);
+    EXPECT_EQ(out->envelope.pulse_range_count, eos_input.envelope.pulse_range_count);
     EXPECT_EQ(out->envelope.tile_count, 8u);
     EXPECT_EQ(out->envelope.tile_id, 5u);
     EXPECT_TRUE(out->range_bins.empty());

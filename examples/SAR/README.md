@@ -122,6 +122,13 @@ Primary knobs:
 5. Backend metadata:
   - backend
   - backend_id
+6. PR2 tile identity metadata:
+  - batch_id
+  - aperture_id
+  - pulse_range_start
+  - pulse_range_count
+  - tile_id
+  - tile_count
 
 All SAR nodes are initialized through standard IConfigurable using node_config.
 
@@ -151,6 +158,7 @@ A dedicated benchmark executable is provided:
 cmake --build --preset build-debug --target sar_benchmark
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
 ```
 
 See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPORT.md.

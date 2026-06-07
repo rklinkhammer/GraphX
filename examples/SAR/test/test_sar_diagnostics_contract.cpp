@@ -31,7 +31,7 @@ sar::SarMergeStatusMessage MakeStatus(
     msg.received_tiles = received_tiles;
     msg.duplicate_tiles = duplicate_tiles;
     msg.missing_tiles = missing_tiles;
-    msg.out_of_order_tiles = 0;
+    msg.out_of_order_tiles = 2;
     msg.bytes_h2d = bytes_h2d;
     msg.bytes_d2h = bytes_d2h;
     msg.kernel_dispatches = kernel_dispatches;
@@ -68,6 +68,7 @@ TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromMergeStatus) {
     EXPECT_EQ(diag.e2e_latency_ms, 32u);
     EXPECT_EQ(diag.duplicate_tile_count, 28u);
     EXPECT_EQ(diag.missing_tile_count, 0u);
+    EXPECT_EQ(diag.out_of_order_completion_count, 2u);
     EXPECT_EQ(diag.queue_backpressure_events, 7u);
     EXPECT_EQ(diag.peak_queue_depth, 3u);
 }

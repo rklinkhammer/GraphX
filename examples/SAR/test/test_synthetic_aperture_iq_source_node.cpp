@@ -39,6 +39,10 @@ TEST(SyntheticApertureIqSourceNodeTest, EmitsDeterministicPulseBlocksThenEos) {
     ASSERT_TRUE(first.has_value());
     EXPECT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(first->envelope.sequence_id, 0u);
+    EXPECT_EQ(first->envelope.batch_id, cfg.stream_id);
+    EXPECT_EQ(first->envelope.aperture_id, 0u);
+    EXPECT_EQ(first->envelope.pulse_range_start, 0u);
+    EXPECT_EQ(first->envelope.pulse_range_count, 1u);
     EXPECT_EQ(first->envelope.stream_id, cfg.stream_id);
     EXPECT_EQ(first->envelope.backend_id, cfg.backend_id);
     EXPECT_EQ(first->envelope.backend, cfg.backend);
@@ -52,6 +56,10 @@ TEST(SyntheticApertureIqSourceNodeTest, EmitsDeterministicPulseBlocksThenEos) {
     ASSERT_TRUE(second.has_value());
     EXPECT_EQ(second->envelope.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(second->envelope.sequence_id, 1u);
+    EXPECT_EQ(second->envelope.batch_id, cfg.stream_id);
+    EXPECT_EQ(second->envelope.aperture_id, 1u);
+    EXPECT_EQ(second->envelope.pulse_range_start, 1u);
+    EXPECT_EQ(second->envelope.pulse_range_count, 1u);
     EXPECT_EQ(second->iq_samples.size(), cfg.samples_per_pulse);
     EXPECT_FLOAT_EQ(second->iq_samples[0].real(), 1.0f);
     EXPECT_FLOAT_EQ(second->iq_samples[0].imag(), 0.25f);
@@ -60,6 +68,10 @@ TEST(SyntheticApertureIqSourceNodeTest, EmitsDeterministicPulseBlocksThenEos) {
     ASSERT_TRUE(eos.has_value());
     EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(eos->envelope.sequence_id, 2u);
+    EXPECT_EQ(eos->envelope.batch_id, cfg.stream_id);
+    EXPECT_EQ(eos->envelope.aperture_id, 2u);
+    EXPECT_EQ(eos->envelope.pulse_range_start, 2u);
+    EXPECT_EQ(eos->envelope.pulse_range_count, 0u);
     EXPECT_TRUE(eos->iq_samples.empty());
     EXPECT_EQ(eos->buffer.byte_count, 0u);
 

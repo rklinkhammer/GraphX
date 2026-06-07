@@ -47,6 +47,10 @@ inline graph::gpu::accel::TensorLayout MakeAccelVectorLayout(std::uint64_t eleme
 
 struct SarMessageEnvelope {
     std::uint64_t sequence_id{};
+    std::uint64_t batch_id{};
+    std::uint64_t aperture_id{};
+    std::uint64_t pulse_range_start{};
+    std::uint32_t pulse_range_count{};
     std::uint32_t stream_id{};
     std::uint32_t tile_id{};
     std::uint32_t tile_count{};
@@ -151,6 +155,7 @@ struct SarDiagnosticsMessage {
     std::uint64_t e2e_latency_ms{};
     std::uint64_t duplicate_tile_count{};
     std::uint64_t missing_tile_count{};
+    std::uint64_t out_of_order_completion_count{};
     std::uint64_t queue_backpressure_events{};
     std::uint64_t peak_queue_depth{};
 };

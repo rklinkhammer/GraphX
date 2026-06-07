@@ -299,6 +299,12 @@ Test strategy aligns with patterns used in:
 3. Improve overlap and transfer/kernel pipelining.
 4. Add real transfer/kernel timing for native backends.
 
+PR2 closeout update:
+
+1. PR2 now carries explicit tile identity metadata (`batch_id`, `aperture_id`, `pulse_range_start`, `pulse_range_count`, `tile_id`, `tile_count`) through source/split/transform/merge diagnostics boundaries.
+2. Trace schema validation is now covered by automated tests (`SarTraceSchemaTest`) that execute `sar_benchmark --trace-out` and verify required diagnostics and queue fields.
+3. DeviceReduce accumulation was evaluated via feature-gated benchmark mode (`--evaluate-device-reduce`), with current CI evidence recommending defer-to-PR3 due insufficient deterministic speedup despite diagnostics parity.
+
 ### PR4/PR5
 
 1. Dynamic load balancing/work stealing.

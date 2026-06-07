@@ -155,10 +155,7 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildDataTile(
     const std::uint32_t sample_count = static_cast<std::uint32_t>(input.range_bins.size());
     const std::uint32_t height = (sample_count == 0u) ? 1u : ((sample_count + width - 1u) / width);
 
-    out.envelope.sequence_id = input.envelope.sequence_id;
-    out.envelope.stream_id = input.envelope.stream_id;
-    out.envelope.tile_id = input.envelope.tile_id;
-    out.envelope.tile_count = input.envelope.tile_count;
+    out.envelope = input.envelope;
     out.envelope.backend_id = config_.backend_id;
     out.envelope.backend = config_.backend;
     out.envelope.marker = SarFrameMarker::Data;
@@ -210,10 +207,7 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildEndOfStreamTile(
     const SarRangeTileMessage& input) const {
     SarImageTileMessage out{};
 
-    out.envelope.sequence_id = input.envelope.sequence_id;
-    out.envelope.stream_id = input.envelope.stream_id;
-    out.envelope.tile_id = input.envelope.tile_id;
-    out.envelope.tile_count = input.envelope.tile_count;
+    out.envelope = input.envelope;
     out.envelope.backend_id = config_.backend_id;
     out.envelope.backend = config_.backend;
     out.envelope.marker = SarFrameMarker::EndOfStream;

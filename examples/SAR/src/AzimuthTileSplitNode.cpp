@@ -158,8 +158,7 @@ SarRangeTileMessage AzimuthTileSplitNode::BuildDataTile(const SarPulseBlockMessa
     const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
     const std::uint32_t tile_id = ResolveTileId(input);
 
-    out.envelope.sequence_id = input.envelope.sequence_id;
-    out.envelope.stream_id = input.envelope.stream_id;
+    out.envelope = input.envelope;
     out.envelope.tile_id = tile_id;
     out.envelope.tile_count = tile_count;
     out.envelope.backend_id = config_.backend_id;
@@ -185,8 +184,7 @@ SarRangeTileMessage AzimuthTileSplitNode::BuildEndOfStreamTile(const SarPulseBlo
     SarRangeTileMessage out{};
     const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
 
-    out.envelope.sequence_id = input.envelope.sequence_id;
-    out.envelope.stream_id = input.envelope.stream_id;
+    out.envelope = input.envelope;
     out.envelope.tile_id = ResolveTileId(input);
     out.envelope.tile_count = tile_count;
     out.envelope.backend_id = config_.backend_id;

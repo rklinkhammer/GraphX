@@ -3,9 +3,9 @@
 Status:
 
 - [x] PR2 branch created
-- [ ] PR2 implementation complete
-- [ ] PR2 ready for review
-- [ ] PR2 merged
+- [x] PR2 implementation complete
+- [x] PR2 ready for review
+- [x] PR2 merged
 
 ## Scope (from plan/SAR.md)
 
@@ -13,14 +13,14 @@ Status:
 - [x] Add a DSP-significant RangeWindow or deterministic RangeCompression stage.
 - [x] Start unifying SAR backend metadata with existing `graph::gpu::accel` tickets/leases/views.
 - [x] Preserve example-local SAR package boundary; do not add SAR-specific libgpu node families.
-- [ ] Evaluate DeviceReduceNode accumulation showcase.
+- [x] Evaluate DeviceReduceNode accumulation showcase.
 - [x] Add optional trace export and deeper queue/backpressure diagnostics.
 - [x] Keep benchmark reporting split between graph run time and lifecycle teardown/join time.
 
 ## Phase A - True Tile Fan-Out
 
 - [x] Document current PR1 tile semantics (`tile_id = sequence_id % tile_count`) as deterministic but not true fan-out.
-- [ ] Define PR2 tile identity fields: `batch_id`, `aperture_id`, `tile_id`, `tile_count`, `pulse_range`.
+- [x] Define PR2 tile identity fields: `batch_id`, `aperture_id`, `tile_id`, `tile_count`, `pulse_range`.
 - [x] Change or extend `AzimuthTileSplitNode` so one pulse/aperture block can produce N independent tiles.
 - [x] Add a JSON topology that exposes branch-level parallelism:
   - `split -> h2d_tile0 -> bp_tile0 -> d2h_tile0 -> merge`
@@ -33,6 +33,7 @@ Implementation notes:
 - `SarPulseFanoutNode` uses the existing GraphX `SplitNode4` primitive and is dynamically loaded as an example-scoped SAR plugin.
 - `sar_stripmap_pr2_fanout.json` now exposes four branch lanes: `fanout -> split_tileN -> h2d_tileN -> bp_tileN -> d2h_tileN -> merge`.
 - `AzimuthTileSplitNode` now supports `fixed_tile_id` for branch-specific tile identity; default sequence-modulo behavior remains available for PR1 compatibility.
+- `SarMessageEnvelope` now carries PR2 tile identity fields: `batch_id`, `aperture_id`, `pulse_range_start`, and `pulse_range_count` in addition to `tile_id` and `tile_count`.
 - `ImageTileMergeNode` now has an opt-in `require_all_tile_eos_before_complete` policy so branch fan-in does not complete on the first branch EOS.
 
 Exit criteria:
@@ -90,15 +91,17 @@ Exit criteria:
 - [x] Add optional trace export toggle (off by default).
 - [x] Emit stage-level timing and transfer counters into trace output.
 - [x] Expand queue/backpressure diagnostics depth (without brittle thresholds).
-- [ ] Add DAG metrics for branch fan-in wait time, queue high-water marks, out-of-order completion count, and duplicate/missing tile detection.
+- [x] Add DAG metrics for branch fan-in wait time, queue high-water marks, out-of-order completion count, and duplicate/missing tile detection.
 - [x] Keep graph run time separate from lifecycle total/init/start/stop/join timing in benchmark output.
 - [x] Investigate high join teardown latency as lifecycle overhead, not SAR compute overhead.
-- [ ] Add tests for trace schema presence and diagnostics fields.
+- [x] Add tests for trace schema presence and diagnostics fields.
 
 Implementation notes:
 
 - `sar_benchmark` now accepts `--trace-out=<path>` / `--trace <path>`; trace export remains off by default.
 - Trace schema `graphx.sar.benchmark.trace.v1` records profile metadata, timing summaries, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
+- Trace diagnostics now include `out_of_order_completion_count` in addition to duplicate/missing tile counters.
+- `SarTraceSchemaTest` validates schema presence and required diagnostics/queue keys by executing `sar_benchmark --trace-out ...`.
 - Benchmark output and trace both keep graph run time separate from init/start/stop/join lifecycle timing; join remains labeled lifecycle teardown rather than SAR compute.
 
 Exit criteria:
@@ -109,14 +112,20 @@ Exit criteria:
 
 ## Phase E - DeviceReduceNode Evaluation
 
-- [ ] Prototype DeviceReduceNode accumulation path in SAR flow (feature-gated).
-- [ ] Compare behavior/perf against current merge/accumulation path.
-- [ ] Determine whether tile-shard accumulation belongs in DeviceReduce, ImageTileMerge, or a staged combination.
-- [ ] Document keep/defer decision with rationale.
+- [x] Prototype DeviceReduceNode accumulation path in SAR flow (feature-gated).
+- [x] Compare behavior/perf against current merge/accumulation path.
+- [x] Determine whether tile-shard accumulation belongs in DeviceReduce, ImageTileMerge, or a staged combination.
+- [x] Document keep/defer decision with rationale.
+
+Implementation notes:
+
+- `sar_benchmark` now supports `--evaluate-device-reduce` and executes a feature-gated DeviceReduce-prototype baseline accumulation path.
+- The evaluation compares prototype runtime and deterministic diagnostics parity against the existing merge-based baseline.
+- Current CI-profile decision is `defer-to-pr3`: parity holds, but speedup is below keep threshold and generic runtime DeviceReduce wiring for SAR remains incomplete.
 
 Exit criteria:
 
-- [ ] Decision recorded with evidence (keep in PR2 or defer to PR3).
+- [x] Decision recorded with evidence (keep in PR2 or defer to PR3).
 
 ## Validation Matrix
 
@@ -127,6 +136,7 @@ Exit criteria:
 - [x] Run: GPU metadata propagation tests.
 - [x] Run: trace-enabled smoke validation.
 - [x] Run: `sar_benchmark --profile=ci` and confirm run/lifecycle timing split.
+- [x] Run: `sar_benchmark --profile=ci --evaluate-device-reduce --trace-out ...` and capture keep/defer evidence.
 
 ## PR2 Deliverables
 
@@ -134,5 +144,23 @@ Exit criteria:
 - [x] GPU contract alignment notes and message metadata changes.
 - [x] Documentation updates in examples/SAR/README.md.
 - [x] Benchmark/trace notes updated.
-- [ ] Plan updates noting what remains PR3: native backend transforms, FFT-backed compression, multi-device routing, real transfer/kernel timing.
-- [ ] PR body includes risk, rollout, and evidence summary.
+- [x] Plan updates noting what remains PR3: native backend transforms, FFT-backed compression, multi-device routing, real transfer/kernel timing.
+- [x] PR body includes risk, rollout, and evidence summary.
+
+### Risk, Rollout, Evidence Summary
+
+Risk:
+
+- Fan-in ordering can vary run-to-run; tests assert bounded out-of-order metrics without brittle exact ordering assumptions.
+- Lifecycle join latency remains explicitly separated from graph run compute time to avoid attribution errors.
+
+Rollout:
+
+- PR2 keeps simulated backend defaults and feature-gates DeviceReduce evaluation behind `--evaluate-device-reduce`.
+- Existing PR1-compatible defaults remain in place for source/split/merge behavior.
+
+Evidence:
+
+- Full SAR test target passes (`test_sar_example_unit`) including fanout, baseline parity, metadata, projectile scenario, and trace-schema coverage.
+- Benchmark trace schema test validates required diagnostics and queue fields.
+- DeviceReduce prototype evaluation records diagnostics parity and captures defer-to-PR3 decision in benchmark output and trace.

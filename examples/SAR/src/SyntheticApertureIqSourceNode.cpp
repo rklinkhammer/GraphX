@@ -245,6 +245,10 @@ SarIqSample SyntheticApertureIqSourceNode::MakeSample(
 SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeDataMessage() const {
     SarPulseBlockMessage out{};
     out.envelope.sequence_id = next_sequence_id_;
+    out.envelope.batch_id = config_.stream_id;
+    out.envelope.aperture_id = next_sequence_id_;
+    out.envelope.pulse_range_start = next_sequence_id_;
+    out.envelope.pulse_range_count = 1;
     out.envelope.stream_id = config_.stream_id;
     out.envelope.tile_id = 0;
     out.envelope.tile_count = 1;
@@ -270,6 +274,10 @@ SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeDataMessage() const {
 SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeEndOfStreamMessage() const {
     SarPulseBlockMessage out{};
     out.envelope.sequence_id = next_sequence_id_;
+    out.envelope.batch_id = config_.stream_id;
+    out.envelope.aperture_id = next_sequence_id_;
+    out.envelope.pulse_range_start = next_sequence_id_;
+    out.envelope.pulse_range_count = 0;
     out.envelope.stream_id = config_.stream_id;
     out.envelope.tile_id = 0;
     out.envelope.tile_count = 1;

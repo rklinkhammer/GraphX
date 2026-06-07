@@ -62,9 +62,14 @@ Optional JSON trace export:
 
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --trace-out=/tmp/sar_trace.json
+
+# Feature-gated DeviceReduce prototype evaluation
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
 ```
 
 The trace uses schema `graphx.sar.benchmark.trace.v1` and records profile metadata, graph build/run/lifecycle timing summaries, baseline timing, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
+
+When `--evaluate-device-reduce` is enabled, trace output also includes `device_reduce_evaluation` with diagnostics parity, prototype runtime stats, and keep/defer decision rationale.
 
 ## Correctness Guard
 
@@ -94,6 +99,18 @@ The benchmark reports the following categories using deterministic, measurable p
 5. diagnostics collection: sink contract emission path
 6. backend synchronization: e2e_latency_ms proxy
 7. lifecycle teardown: init/start/stop/join/total timing reported separately from graph run time
+
+## Phase E Decision Evidence
+
+`--evaluate-device-reduce` runs a feature-gated DeviceReduce-prototype accumulation baseline and compares it against the existing merge-based baseline.
+
+Current CI-profile evidence:
+
+1. Diagnostics parity: true
+2. Prototype median speedup: below keep threshold
+3. Decision: defer to PR3
+
+Rationale: keep deterministic contract parity in PR2 while deferring generic runtime DeviceReduce wiring and native backend integration to PR3.
 
 ## CI Gate Guidance
 

@@ -82,6 +82,8 @@ void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarMergeStatusMessage& valu
     diagnostics_.e2e_latency_ms = value.fanin_wait_ms;
     diagnostics_.duplicate_tile_count = static_cast<std::uint64_t>(value.duplicate_tiles);
     diagnostics_.missing_tile_count = static_cast<std::uint64_t>(value.missing_tiles);
+    diagnostics_.out_of_order_completion_count =
+        static_cast<std::uint64_t>(value.out_of_order_tiles);
 }
 
 void SarDiagnosticsSinkNode::UpdateFromGraphMetrics(const graph::GraphMetrics& metrics) {

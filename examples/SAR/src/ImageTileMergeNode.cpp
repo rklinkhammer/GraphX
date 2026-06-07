@@ -215,9 +215,7 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
         (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
 
     SarMergeStatusMessage out{};
-    out.envelope.sequence_id = input.envelope.sequence_id;
-    out.envelope.stream_id = input.envelope.stream_id;
-    out.envelope.tile_id = input.envelope.tile_id;
+    out.envelope = input.envelope;
     out.envelope.tile_count = expected_tiles;
     out.envelope.backend_id = config_.backend_id;
     out.envelope.backend = config_.backend;

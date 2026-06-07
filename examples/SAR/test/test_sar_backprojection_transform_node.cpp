@@ -32,6 +32,10 @@ sar::SarRangeTileMessage MakeRangeTile(
     sar::SarFrameMarker marker = sar::SarFrameMarker::Data) {
     sar::SarRangeTileMessage msg{};
     msg.envelope.sequence_id = sequence_id;
+    msg.envelope.batch_id = 8;
+    msg.envelope.aperture_id = sequence_id;
+    msg.envelope.pulse_range_start = sequence_id;
+    msg.envelope.pulse_range_count = 1;
     msg.envelope.stream_id = 99;
     msg.envelope.tile_id = tile_id;
     msg.envelope.tile_count = 4;
@@ -76,6 +80,10 @@ TEST(SarBackprojectionTransformNodeTest, ProducesDeterministicImageTileWithDispa
     ASSERT_EQ(second->pixels.size(), input.range_bins.size());
 
     EXPECT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(first->envelope.batch_id, input.envelope.batch_id);
+    EXPECT_EQ(first->envelope.aperture_id, input.envelope.aperture_id);
+    EXPECT_EQ(first->envelope.pulse_range_start, input.envelope.pulse_range_start);
+    EXPECT_EQ(first->envelope.pulse_range_count, input.envelope.pulse_range_count);
     EXPECT_EQ(first->envelope.tile_id, 3u);
     EXPECT_EQ(first->envelope.tile_count, 4u);
     EXPECT_EQ(first->envelope.backend_id, 11u);
@@ -113,6 +121,10 @@ TEST(SarBackprojectionTransformNodeTest, PropagatesEndOfStreamWithoutPixelPayloa
 
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(out->envelope.batch_id, eos_input.envelope.batch_id);
+    EXPECT_EQ(out->envelope.aperture_id, eos_input.envelope.aperture_id);
+    EXPECT_EQ(out->envelope.pulse_range_start, eos_input.envelope.pulse_range_start);
+    EXPECT_EQ(out->envelope.pulse_range_count, eos_input.envelope.pulse_range_count);
     EXPECT_TRUE(out->pixels.empty());
     EXPECT_EQ(out->buffer.byte_count, 0u);
     EXPECT_EQ(out->dispatch.queue_id, 9u);

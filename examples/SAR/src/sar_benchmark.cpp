@@ -22,6 +22,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -46,6 +47,7 @@ struct BenchmarkProfile {
 struct BenchmarkOptions {
     BenchmarkProfile profile;
     std::optional<std::filesystem::path> trace_output_path{};
+    bool evaluate_device_reduce{false};
 };
 
 struct BenchmarkStats {
@@ -71,6 +73,15 @@ struct GraphRunResult {
 struct BaselineRunResult {
     double execute_ms{0.0};
     sar::SarDiagnosticsMessage diagnostics{};
+};
+
+struct DeviceReduceEvaluation {
+    bool enabled{false};
+    bool diagnostics_match{false};
+    BenchmarkStats prototype_exec_stats{};
+    BaselineRunResult last_prototype{};
+    std::string decision{"not-evaluated"};
+    std::string rationale{};
 };
 
 std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
@@ -143,8 +154,13 @@ BenchmarkOptions ParseOptions(int argc, char** argv) {
             continue;
         }
 
+        if (arg == "--evaluate-device-reduce") {
+            options.evaluate_device_reduce = true;
+            continue;
+        }
+
         throw std::invalid_argument(
-            "Unknown option. Use ci/local, --profile=ci/--profile=local, and optional --trace-out=<path>");
+            "Unknown option. Use ci/local, --profile=ci/--profile=local, optional --trace-out=<path>, and optional --evaluate-device-reduce");
     }
 
     return options;
@@ -452,6 +468,158 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
     return out;
 }
 
+BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkProfile& profile) {
+    BaselineRunResult out{};
+
+    sar::SyntheticApertureIqSourceConfig source_cfg{};
+    source_cfg.stream_id = 0;
+    source_cfg.total_pulses = profile.pulses;
+    source_cfg.samples_per_pulse = profile.samples_per_pulse;
+    source_cfg.backend_id = 0;
+    source_cfg.backend = sar::SarBackendKind::Host;
+
+    sar::AzimuthTileSplitConfig split_cfg{};
+    split_cfg.tile_count = profile.tile_count;
+    split_cfg.backend_id = 0;
+    split_cfg.backend = sar::SarBackendKind::Host;
+
+    sar::SarBackprojectionTransformConfig bp_cfg{};
+    bp_cfg.image_width = 16;
+    bp_cfg.backend_id = 0;
+    bp_cfg.queue_id = 0;
+    bp_cfg.kernel_id = 3301;
+    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+
+    sar::SyntheticApertureIqSourceNode src(source_cfg);
+    sar::RangeWindowNode window;
+    sar::AzimuthTileSplitNode split(split_cfg);
+    sar::H2DAsyncNode h2d;
+    sar::SarBackprojectionTransformNode bp(bp_cfg);
+    sar::D2HAsyncNode d2h;
+
+    std::unordered_set<std::uint32_t> seen_tiles;
+    std::uint32_t received_tiles = 0;
+    std::uint32_t duplicate_tiles = 0;
+    std::uint32_t out_of_order_tiles = 0;
+    std::uint32_t last_tile_id = 0;
+    bool has_last_tile = false;
+    std::uint64_t bytes_h2d = 0;
+    std::uint64_t bytes_d2h = 0;
+    std::uint64_t kernel_dispatches = 0;
+    std::uint64_t first_sequence = 0;
+    bool has_first_sequence = false;
+    std::uint64_t eos_sequence = 0;
+
+    const auto start = Clock::now();
+    while (true) {
+        auto pulse = src.Produce(std::integral_constant<std::size_t, 0>{});
+        if (!pulse.has_value()) {
+            break;
+        }
+
+        auto windowed_pulse = window.Transfer(
+            *pulse,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!windowed_pulse) {
+            throw std::runtime_error("DeviceReduce prototype range window failed");
+        }
+
+        auto range_tile = split.Transfer(
+            *windowed_pulse,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!range_tile) {
+            throw std::runtime_error("DeviceReduce prototype split failed");
+        }
+
+        if (range_tile->envelope.marker == sar::SarFrameMarker::EndOfStream) {
+            eos_sequence = range_tile->envelope.sequence_id;
+            break;
+        }
+
+        auto h2d_tile = h2d.Transfer(
+            *range_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!h2d_tile) {
+            throw std::runtime_error("DeviceReduce prototype h2d failed");
+        }
+
+        auto image_tile = bp.Transfer(
+            *h2d_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!image_tile) {
+            throw std::runtime_error("DeviceReduce prototype backprojection failed");
+        }
+
+        auto d2h_tile = d2h.Transfer(
+            *image_tile,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!d2h_tile) {
+            throw std::runtime_error("DeviceReduce prototype d2h failed");
+        }
+
+        if (!has_first_sequence) {
+            first_sequence = d2h_tile->envelope.sequence_id;
+            has_first_sequence = true;
+        }
+
+        bytes_h2d += d2h_tile->buffer.byte_count;
+        bytes_d2h += d2h_tile->buffer.byte_count;
+        ++kernel_dispatches;
+
+        const auto [_, inserted] = seen_tiles.insert(d2h_tile->envelope.tile_id);
+        if (!inserted) {
+            ++duplicate_tiles;
+        } else {
+            ++received_tiles;
+            if (has_last_tile && d2h_tile->envelope.tile_id < last_tile_id) {
+                ++out_of_order_tiles;
+            }
+            last_tile_id = d2h_tile->envelope.tile_id;
+            has_last_tile = true;
+        }
+    }
+    const auto end = Clock::now();
+
+    const auto expected_tiles = profile.tile_count;
+    const auto missing_tiles =
+        (received_tiles >= expected_tiles) ? 0u : (expected_tiles - received_tiles);
+
+    out.execute_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    out.diagnostics.envelope.sequence_id = eos_sequence;
+    out.diagnostics.envelope.stream_id = 0;
+    out.diagnostics.envelope.marker = sar::SarFrameMarker::EndOfStream;
+    out.diagnostics.pulses_processed = eos_sequence;
+    out.diagnostics.tiles_processed = received_tiles;
+    out.diagnostics.bytes_h2d = bytes_h2d;
+    out.diagnostics.bytes_d2h = bytes_d2h;
+    out.diagnostics.kernel_dispatches = kernel_dispatches;
+    out.diagnostics.fanin_wait_ms = has_first_sequence ? (eos_sequence - first_sequence) : 0;
+    out.diagnostics.e2e_latency_ms = out.diagnostics.fanin_wait_ms;
+    out.diagnostics.duplicate_tile_count = duplicate_tiles;
+    out.diagnostics.missing_tile_count = missing_tiles;
+    out.diagnostics.out_of_order_completion_count = out_of_order_tiles;
+    return out;
+}
+
+bool DiagnosticsEquivalent(const sar::SarDiagnosticsMessage& lhs,
+                           const sar::SarDiagnosticsMessage& rhs) {
+    return lhs.pulses_processed == rhs.pulses_processed &&
+           lhs.tiles_processed == rhs.tiles_processed &&
+           lhs.bytes_h2d == rhs.bytes_h2d &&
+           lhs.bytes_d2h == rhs.bytes_d2h &&
+           lhs.kernel_dispatches == rhs.kernel_dispatches &&
+           lhs.fanin_wait_ms == rhs.fanin_wait_ms &&
+           lhs.e2e_latency_ms == rhs.e2e_latency_ms &&
+           lhs.duplicate_tile_count == rhs.duplicate_tile_count &&
+           lhs.missing_tile_count == rhs.missing_tile_count &&
+           lhs.out_of_order_completion_count == rhs.out_of_order_completion_count;
+}
+
 void VerifyDeterministicParity(const GraphRunResult& graph,
                                const BaselineRunResult& baseline) {
     if (graph.diagnostics.pulses_processed != baseline.diagnostics.pulses_processed ||
@@ -460,7 +628,9 @@ void VerifyDeterministicParity(const GraphRunResult& graph,
         graph.diagnostics.bytes_d2h != baseline.diagnostics.bytes_d2h ||
         graph.diagnostics.kernel_dispatches != baseline.diagnostics.kernel_dispatches ||
         graph.diagnostics.duplicate_tile_count != baseline.diagnostics.duplicate_tile_count ||
-        graph.diagnostics.missing_tile_count != baseline.diagnostics.missing_tile_count) {
+        graph.diagnostics.missing_tile_count != baseline.diagnostics.missing_tile_count ||
+        graph.diagnostics.out_of_order_completion_count !=
+            baseline.diagnostics.out_of_order_completion_count) {
         throw std::runtime_error("Graph and baseline deterministic diagnostics parity failed");
     }
 }
@@ -470,7 +640,8 @@ void PrintSummary(const BenchmarkProfile& profile,
                   const BenchmarkStats& graph_run,
                   const BenchmarkStats& graph_lifecycle,
                   const BenchmarkStats& baseline_exec,
-                  const GraphRunResult& last_graph) {
+                  const GraphRunResult& last_graph,
+                  const DeviceReduceEvaluation& device_reduce_eval) {
     const double scheduling_overhead_ms =
         std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
 
@@ -513,10 +684,22 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h << "\n";
     std::cout << "- queue wait/backpressure: fanin_wait_ms=" << last_graph.diagnostics.fanin_wait_ms
               << ", backpressure_events=" << last_graph.queue_backpressure_events
-              << ", peak_queue_depth=" << last_graph.peak_queue_depth << "\n";
+              << ", peak_queue_depth=" << last_graph.peak_queue_depth
+              << ", out_of_order_completions="
+              << last_graph.diagnostics.out_of_order_completion_count << "\n";
     std::cout << "- provider/plugin lookup: represented by graph build timing above\n";
     std::cout << "- diagnostics collection: deterministic contract emission at sink (consume_count > 0)\n";
     std::cout << "- backend synchronization: proxy e2e_latency_ms=" << last_graph.diagnostics.e2e_latency_ms << "\n";
+
+    if (device_reduce_eval.enabled) {
+        std::cout << "\nDeviceReduce prototype evaluation:\n";
+        std::cout << "- prototype baseline execute median (ms): "
+                  << device_reduce_eval.prototype_exec_stats.median_ms << "\n";
+        std::cout << "- diagnostics parity with baseline: "
+                  << (device_reduce_eval.diagnostics_match ? "true" : "false") << "\n";
+        std::cout << "- decision: " << device_reduce_eval.decision << "\n";
+        std::cout << "- rationale: " << device_reduce_eval.rationale << "\n";
+    }
 }
 
 nlohmann::json StatsToJson(const BenchmarkStats& stats) {
@@ -534,7 +717,8 @@ void WriteTraceJson(const std::filesystem::path& path,
                     const BenchmarkStats& graph_run,
                     const BenchmarkStats& graph_lifecycle,
                     const BenchmarkStats& baseline_exec,
-                    const GraphRunResult& last_graph) {
+                    const GraphRunResult& last_graph,
+                    const DeviceReduceEvaluation& device_reduce_eval) {
     const auto parent = path.parent_path();
     if (!parent.empty()) {
         std::filesystem::create_directories(parent);
@@ -573,6 +757,7 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"e2e_latency_ms", last_graph.diagnostics.e2e_latency_ms},
             {"duplicate_tile_count", last_graph.diagnostics.duplicate_tile_count},
             {"missing_tile_count", last_graph.diagnostics.missing_tile_count},
+            {"out_of_order_completion_count", last_graph.diagnostics.out_of_order_completion_count},
         }},
         {"queue", {
             {"backpressure_events", last_graph.queue_backpressure_events},
@@ -583,6 +768,15 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"lifecycle_join_last", last_graph.join_ms},
         }},
     };
+
+    if (device_reduce_eval.enabled) {
+        trace["device_reduce_evaluation"] = {
+            {"diagnostics_match", device_reduce_eval.diagnostics_match},
+            {"prototype_baseline_execute_ms", StatsToJson(device_reduce_eval.prototype_exec_stats)},
+            {"decision", device_reduce_eval.decision},
+            {"rationale", device_reduce_eval.rationale},
+        };
+    }
 
     std::ofstream out(path);
     if (!out) {
@@ -622,6 +816,7 @@ int main(int argc, char** argv) {
 
         GraphRunResult last_graph{};
         BaselineRunResult last_baseline{};
+        DeviceReduceEvaluation device_reduce_eval{};
 
         for (int i = 0; i < profile.measured_runs; ++i) {
             last_graph = RunGraphOnce(config_path, plugin_dir);
@@ -639,13 +834,44 @@ int main(int argc, char** argv) {
         const auto graph_lifecycle_stats = ComputeStats(graph_lifecycle_samples_ms);
         const auto baseline_exec_stats = ComputeStats(baseline_exec_samples_ms);
 
+        if (options.evaluate_device_reduce) {
+            device_reduce_eval.enabled = true;
+
+            std::vector<double> device_reduce_samples_ms;
+            device_reduce_samples_ms.reserve(profile.measured_runs);
+            for (int i = 0; i < profile.measured_runs; ++i) {
+                device_reduce_eval.last_prototype = RunDeviceReducePrototypeBaselineOnce(profile);
+                device_reduce_samples_ms.push_back(device_reduce_eval.last_prototype.execute_ms);
+            }
+            device_reduce_eval.prototype_exec_stats = ComputeStats(device_reduce_samples_ms);
+            device_reduce_eval.diagnostics_match =
+                DiagnosticsEquivalent(device_reduce_eval.last_prototype.diagnostics, last_baseline.diagnostics);
+
+            const double speedup_ratio =
+                (baseline_exec_stats.median_ms <= 0.0)
+                    ? 1.0
+                    : (baseline_exec_stats.median_ms /
+                       std::max(0.0001, device_reduce_eval.prototype_exec_stats.median_ms));
+
+            if (device_reduce_eval.diagnostics_match && speedup_ratio > 1.15) {
+                device_reduce_eval.decision = "keep-for-pr2";
+                device_reduce_eval.rationale =
+                    "Prototype path preserved diagnostics and exceeded 15% median baseline speedup.";
+            } else {
+                device_reduce_eval.decision = "defer-to-pr3";
+                device_reduce_eval.rationale =
+                    "Prototype did not show sufficient deterministic gain and generic DeviceReduceNode is not yet available in GraphX runtime.";
+            }
+        }
+
         PrintSummary(
             profile,
             graph_build_stats,
             graph_run_stats,
             graph_lifecycle_stats,
             baseline_exec_stats,
-            last_graph);
+            last_graph,
+            device_reduce_eval);
 
         if (options.trace_output_path) {
             WriteTraceJson(
@@ -655,7 +881,8 @@ int main(int argc, char** argv) {
                 graph_run_stats,
                 graph_lifecycle_stats,
                 baseline_exec_stats,
-                last_graph);
+                last_graph,
+                device_reduce_eval);
             std::cout << "\nTrace written: " << options.trace_output_path->string() << "\n";
         }
 

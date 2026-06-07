@@ -101,6 +101,10 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
 
     const auto& status = sink->last_status();
     EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(status.envelope.batch_id, 0u);
+    EXPECT_EQ(status.envelope.aperture_id, 32u);
+    EXPECT_EQ(status.envelope.pulse_range_start, 32u);
+    EXPECT_EQ(status.envelope.pulse_range_count, 0u);
     EXPECT_TRUE(status.complete);
 
     const auto& diagnostics = sink->last_diagnostics();
@@ -112,4 +116,6 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
     EXPECT_EQ(diagnostics.kernel_dispatches, 128u);
     EXPECT_EQ(diagnostics.duplicate_tile_count, 124u);
     EXPECT_EQ(diagnostics.missing_tile_count, 0u);
+    EXPECT_GE(diagnostics.out_of_order_completion_count, 1u);
+    EXPECT_LE(diagnostics.out_of_order_completion_count, 3u);
 }
