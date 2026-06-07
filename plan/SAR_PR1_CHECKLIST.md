@@ -24,6 +24,9 @@ GitHub status snapshot:
 - [ ] Deterministic synthetic data path only (fixed seed + fixed counts)
 - [ ] No framework-wide rewrites
 - [ ] No mandatory native GPU requirement for CI
+- [x] Every SAR node has a direct unit test
+- [x] Every SAR node is dynamically loadable as a plugin
+- [x] Every SAR node has a dynamic-load test that validates node behavior
 
 ## Phase 1 - Example Scaffolding
 
