@@ -22,15 +22,24 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install ninja nlohmann-json eigen apache-log4cxx
+          brew install ninja nlohmann-json eigen log4cxx
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build nlohmann-json3-dev libeigen3-dev liblog4cxx-dev
+          sudo apt-get install -y \
+            ninja-build \
+            gcc-14 \
+            g++-14 \
+            nlohmann-json3-dev \
+            libeigen3-dev \
+            liblog4cxx-dev
 
       - name: Configure (Ninja preset, tests off)
+        env:
+          CC: ${{ runner.os == 'Linux' && 'gcc-14' || '' }}
+          CXX: ${{ runner.os == 'Linux' && 'g++-14' || '' }}
         run: |
           cmake --preset ninja-debug -DBUILD_TESTS=OFF
 
