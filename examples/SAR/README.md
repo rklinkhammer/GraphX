@@ -54,6 +54,23 @@ Run SAR tests:
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit
 ```
 
+## Viewer Helper
+
+The projectile scenario can generate PGM tiles in `sar_viz_output/` through `SarVisualizationSinkNode`.
+
+Use the terminal ASCII viewer helper:
+
+```bash
+./examples/SAR/tools/view_sar_tiles.sh --input sar_viz_output
+```
+
+Useful options:
+
+1. `--fps 8` to speed up playback.
+2. `--step 1` for full resolution in terminal output.
+3. `--loop 0` for continuous playback.
+4. `--list` to list discovered frame files.
+
 ## Deterministic Configuration Knobs
 
 JSON node_config fields define deterministic profile behavior.
