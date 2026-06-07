@@ -5,8 +5,8 @@ Source plan: `plan/SAR.md`
 ## Status
 
 - [x] PR1 started
-- [ ] PR1 implementation complete
-- [ ] PR1 ready for review
+- [x] PR1 implementation complete
+- [x] PR1 ready for review
 - [ ] PR1 merged
 
 GitHub status snapshot (2026-06-07):
@@ -132,7 +132,7 @@ Exit criteria:
 Exit criteria:
 
 - [x] Metrics are deterministic enough for CI validation
-- [ ] No brittle hard performance thresholds required in CI
+- [x] No brittle hard performance thresholds required in CI
 
 ## Phase 7 - Tests
 
@@ -164,37 +164,37 @@ Exit criteria:
 
 ## Phase 8 - Benchmark and Overhead Attribution
 
-- [ ] Implement non-graph baseline path for same synthetic dataset
-- [ ] Add warm-up and repeated measurement runs
-- [ ] Report median/min/max (+stddev when feasible)
-- [ ] Add CI-safe small profile
-- [ ] Add larger local profile
+- [x] Implement non-graph baseline path for same synthetic dataset
+- [x] Add warm-up and repeated measurement runs
+- [x] Report median/min/max (+stddev when feasible)
+- [x] Add CI-safe small profile
+- [x] Add larger local profile
 
 Overhead attribution categories:
 
-- [ ] Graph scheduling
-- [ ] Message allocation/copy
-- [ ] Queue wait/backpressure
-- [ ] Provider/plugin lookup
-- [ ] Diagnostics collection
-- [ ] Backend synchronization
+- [x] Graph scheduling
+- [x] Message allocation/copy
+- [x] Queue wait/backpressure
+- [x] Provider/plugin lookup
+- [x] Diagnostics collection
+- [x] Backend synchronization
 
 Exit criteria:
 
-- [ ] Benchmark report includes graph vs baseline comparison
-- [ ] Correctness is CI-gated; performance thresholds remain conservative
+- [x] Benchmark report includes graph vs baseline comparison
+- [x] Correctness is CI-gated; performance thresholds remain conservative
 
 ## Phase 9 - Documentation and PR Packaging
 
-- [ ] Update SAR README with architecture diagram and run instructions
-- [ ] Document deterministic configuration knobs (seed/counts/tile size)
-- [ ] Document simulated backend behavior and native backend follow-up path
-- [ ] Document PR1 non-goals and deferred PR2/PR3 work
-- [ ] Add short decision-log summary in PR description
+- [x] Update SAR README with architecture diagram and run instructions
+- [x] Document deterministic configuration knobs (seed/counts/tile size)
+- [x] Document simulated backend behavior and native backend follow-up path
+- [x] Document PR1 non-goals and deferred PR2/PR3 work
+- [x] Add short decision-log summary in PR description
 
 Exit criteria:
 
-- [ ] Reviewer can build, run, and validate SAR example from docs alone
+- [x] Reviewer can build, run, and validate SAR example from docs alone
 
 ## Post-PR Follow-up (2026-06-07)
 
@@ -205,12 +205,12 @@ Exit criteria:
 
 ## Final PR1 Release Gate
 
-- [ ] All scope guardrails are still true
-- [ ] All new tests pass in CI-safe profile
-- [ ] JSON path is primary demonstrated path
-- [ ] Diagnostics contract implemented and validated
-- [ ] Graph vs baseline benchmark summary included
-- [ ] Deferred work clearly listed (PR2/PR3+)
+- [x] All scope guardrails are still true
+- [x] All new tests pass in CI-safe profile
+- [x] JSON path is primary demonstrated path
+- [x] Diagnostics contract implemented and validated
+- [x] Graph vs baseline benchmark summary included
+- [x] Deferred work clearly listed (PR2/PR3+)
 
 ## Deferred Backlog (Do Not Pull Into PR1)
 
