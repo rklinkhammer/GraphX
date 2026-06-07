@@ -11,8 +11,9 @@ Source plan: `plan/SAR.md`
 
 GitHub status snapshot (2026-06-07):
 
-- [x] PR #20 latest check run green (`Libgraph Unit/libgraph-unit`)
-- [x] SAR Phase 3.4 slice committed and pushed
+- [x] PR #22 opened for SAR PR1 follow-up commits
+- [x] SAR Phase 6 diagnostics and queue/backpressure metrics committed and pushed
+- [x] Strict `node_config` schema follow-up committed and pushed
 
 ## Scope Guardrails (Must Stay True)
 
@@ -109,6 +110,7 @@ Exit criteria:
 - [x] Add executable entrypoint `examples/SAR/src/main.cpp`
 - [x] Ensure plugin/provider bootstrap path is used
 - [x] Avoid direct plugin-loader coupling in graph construction code
+- [x] Initialize SAR nodes via standard `IConfigurable` + `node_config` path
 
 Exit criteria:
 
@@ -144,7 +146,7 @@ Exit criteria:
 
 - [ ] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
 - [ ] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
-- [ ] Validate simulated backend CI-safe execution
+- [x] Validate simulated backend CI-safe execution
 
 ### Merge correctness matrix
 
@@ -192,6 +194,13 @@ Exit criteria:
 Exit criteria:
 
 - [ ] Reviewer can build, run, and validate SAR example from docs alone
+
+## Post-PR Follow-up (2026-06-07)
+
+- [x] SAR nodes expose `IConfigurable` and consume JSON `node_config` from topology
+- [x] SAR plugin descriptors publish `config_fields` for strict loader validation
+- [x] Unknown SAR `node_config` keys are rejected during graph load
+- [x] Regressions fixed for `JsonDynamicGraphLoaderExpectedTest` optional-config behavior
 
 ## Final PR1 Release Gate
 
