@@ -14,6 +14,46 @@ This plan intentionally reuses existing GraphX patterns rather than introducing 
 
 ---
 
+## Current Implementation Notes
+
+The current SAR example has a working CI-safe benchmark and JSON runtime path. Recent benchmark analysis clarified two important operational details:
+
+1. SAR plugins should be loaded from an example-scoped plugin directory, not the global build plugin directory. Loading from the global directory can register generic names such as `H2DAsyncNode` and `D2HAsyncNode` more than once when CUDA/GPU and SAR plugins coexist.
+2. Benchmark output must separate graph run time from graph lifecycle teardown. The full `Execute()` lifecycle includes `Join()` teardown, which can dominate the reported time and obscure the actual SAR graph run-loop overhead.
+
+Current benchmark interpretation:
+
+- Graph build time measures provider/bootstrap/plugin lookup and JSON graph construction.
+- Graph run time is the comparable GraphX execution metric against the direct non-graph baseline.
+- Graph lifecycle total time includes init/start/run/stop/join and should be reported separately.
+- Join teardown time is currently a notable follow-up area, not SAR algorithm compute time.
+
+These findings should be treated as PR1/PR2 planning constraints: benchmark reports must not attribute lifecycle teardown to SAR algorithm or graph scheduling overhead without labeling it separately.
+
+Implementation review also confirms the current PR1 vertical slice is credible and aligned with the intended `examples/SAR` boundary:
+
+```text
+SyntheticApertureIqSource
+-> AzimuthTileSplit
+-> H2DAsync
+-> SarBackprojectionTransform
+-> D2HAsync
+-> ImageTileMerge
+-> SarDiagnosticsSink
+```
+
+Strong PR1 choices already present:
+
+1. SAR-specific implementation is isolated under `examples/SAR`.
+2. SAR messages carry explicit metadata instead of assuming graph edges move bytes.
+3. Local SAR H2D/D2H nodes provide a CI-safe simulated async-transfer lane.
+4. `ImageTileMergeNode` is correctly treated as the key fan-in/correctness node.
+5. The benchmark compares GraphX against a direct non-graph baseline and reports repeated-run statistics.
+
+Main PR2 design concern: current tile semantics are deterministic but symbolic. `AzimuthTileSplitNode` assigns tile IDs using pulse modulo behavior, which distributes pulses across tile IDs but does not yet create true graph-visible fan-out. PR2 should evolve toward one pulse/aperture block producing multiple independent range/azimuth/image tiles.
+
+---
+
 ## 1) Recommended First PR Scope
 
 PR1 objective: architecture-correct, deterministic, CI-stable SAR vertical slice under `examples/SAR`, not full SAR mathematical fidelity.
@@ -29,6 +69,9 @@ PR1 objective: architecture-correct, deterministic, CI-stable SAR vertical slice
    - `ImageTileMergeNode` (new)
 4. Reuse existing GPU async transfer/device node patterns (H2D/device transform/D2H style) where available.
 5. Add correctness + diagnostics tests and a non-graph baseline comparison harness for overhead attribution.
+6. Isolate SAR plugins from the global plugin directory to avoid type-name collisions with GPU/test plugins.
+
+PR1 currently also includes example-local simulated H2D/D2H and diagnostics/visualization support. Those are acceptable as example-package implementation details, but they should not become SAR-specific libgpu abstractions.
 
 ### PR1 explicit non-goals
 
@@ -90,6 +133,8 @@ Potential reusable extraction (deferred unless justified): tiny generic metadata
 
 Why SAR differs from vibration-health pipeline: SAR emphasizes tile independence, explicit async transfer boundaries, fan-in merge correctness under out-of-order completion, and graph-vs-baseline overhead attribution for image formation stages.
 
+PR2 correction to the node model: make tile fan-out real at the graph level. The current `AzimuthTileSplitNode` tile assignment is deterministic and useful for PR1, but PR2 should move toward one pulse block or aperture block emitting N independent tiles that can traverse distinct graph branches.
+
 ---
 
 ## 4) Message/Buffer Types Needed
@@ -113,6 +158,13 @@ Define message contracts in `examples/SAR/include/sar/SarMessages.hpp`.
 
 Buffer lifetime labels (PR1 diagnostics-level, not framework state machine):
 `Allocated -> HostFilled -> ReadyForTransfer -> TransferInFlight -> DeviceReady -> KernelRunning -> KernelComplete -> TransferBack -> HostReady -> Consumed -> Released`.
+
+PR2 message-contract direction:
+
+1. Unify SAR backend metadata with existing `graph::gpu::accel` contracts where possible.
+2. Prefer wrapping or referencing existing GPU types such as `BackendKind`, `BufferLease`, `DeviceBufferView`, `HostPinnedBufferView`, `TransferTicket`, and `KernelTicket`.
+3. Avoid growing parallel SAR-only equivalents (`SarBackendKind`, `SarBufferDescriptor`, `SarTransferTicketMessage`, `SarDispatchMetadata`) beyond what is needed for PR1 compatibility.
+4. Add better tile identity: `batch_id`, `aperture_id`, `tile_id`, `tile_count`, `pulse_range`, and backend/device/queue metadata.
 
 ---
 
@@ -143,6 +195,16 @@ Buffer lifetime labels (PR1 diagnostics-level, not framework state machine):
 ```
 
 Programmatic graph construction is allowed only for focused tests/helpers.
+
+PR2 topology direction: make fan-out/fan-in visible in JSON rather than only in tile metadata.
+
+```text
+split -> h2d_tile0 -> bp_tile0 -> d2h_tile0 \
+split -> h2d_tile1 -> bp_tile1 -> d2h_tile1 -> merge
+split -> h2d_tile2 -> bp_tile2 -> d2h_tile2 /
+```
+
+This should demonstrate executor-level branch parallelism and give `ImageTileMergeNode` real out-of-order fan-in behavior to validate.
 
 ---
 
@@ -208,6 +270,8 @@ Test strategy aligns with patterns used in:
 3. Register SAR example nodes through existing plugin/provider bootstrap flow.
 4. Keep graph construction code dependent on provider interfaces, not direct plugin loader details.
 5. No framework-wide CMake rewrites in PR1.
+6. SAR plugin output should be example-scoped, for example `${CMAKE_BINARY_DIR}/examples/SAR/plugins`.
+7. SAR executables and tests should use the example-scoped SAR plugin directory by default.
 
 ---
 
@@ -221,14 +285,19 @@ Test strategy aligns with patterns used in:
 
 ### PR2
 
-1. Replace deterministic placeholder math with stronger matched-filter/backprojection fidelity.
-2. Add optional trace export and deeper queue/backpressure diagnostics.
-3. Evaluate DeviceReduceNode accumulation showcase.
+1. Replace symbolic pulse-modulo tile assignment with real graph-visible fan-out branches.
+2. Add a DSP-significant stage: prefer `RangeWindowNode` or deterministic direct `RangeCompressionNode` before backprojection.
+3. Start unifying SAR messages with existing `graph::gpu::accel` tickets, leases, and views.
+4. Evaluate DeviceReduceNode accumulation showcase.
+5. Add optional trace export and deeper queue/backpressure diagnostics.
+6. Investigate graph lifecycle teardown/join latency separately from SAR algorithm runtime.
 
 ### PR3
 
 1. Native backend kernel path (CUDA/SYCL/Metal as available).
-2. Improve overlap and transfer/kernel pipelining.
+2. FFT-backed range compression using libdsp or backend FFT libraries where appropriate.
+3. Improve overlap and transfer/kernel pipelining.
+4. Add real transfer/kernel timing for native backends.
 
 ### PR4/PR5
 
@@ -287,9 +356,12 @@ No item is rejected; deferred items are outside reviewable PR1 scope.
 ### Metrics to report
 
 1. End-to-end wall time.
-2. Stage-level timings (source, compression/window/FFT if present, transfer, kernel, merge).
-3. Throughput (samples/s, pulses/s, tiles/s).
-4. Transfer totals and effective bandwidth.
+2. Graph build time.
+3. Graph run time.
+4. Graph lifecycle total time with init/start/run/stop/join split.
+5. Stage-level timings (source, compression/window/FFT if present, transfer, kernel, merge).
+6. Throughput (samples/s, pulses/s, tiles/s).
+7. Transfer totals and effective bandwidth.
 
 ### Overhead attribution categories
 
@@ -299,6 +371,7 @@ No item is rejected; deferred items are outside reviewable PR1 scope.
 4. Provider/plugin lookup overhead.
 5. Diagnostics collection overhead.
 6. Backend synchronization overhead.
+7. Lifecycle teardown/join overhead (reported separately from graph run overhead).
 
 ### Measurement methodology
 
@@ -379,9 +452,12 @@ This separation keeps DSP concerns independent from device execution concerns.
 | --- | --- | --- | --- | --- |
 | PR1 SAR mode | Stripmap synthetic scenario | Spotlight-first | simpler deterministic geometry for CI | less algorithm breadth initially |
 | Primary work granularity | Image tile as kernel work unit | global mutable image object | best fit for fan-out/fan-in and async device stages | merge complexity |
-| Parallelization boundary | Graph branch parallelism | node-owned internal pools | aligns with GraphX model and testability | potential overhead at small sizes |
+| PR1 tile semantics | deterministic pulse-modulo tile IDs | random/stochastic assignment | stable diagnostics and CI behavior | PR2 must add true fan-out |
+| Parallelization boundary | Graph branch parallelism | node-owned internal pools | aligns with GraphX model and testability | current PR1 topology is still mostly linear |
 | GPU boundary strategy | Reuse existing H2D/device/D2H style | new SAR-specific libgpu node family | minimizes framework churn in PR1 | later extraction may be needed |
 | Device stage representation | Example-local backprojection transform wrapper | immediate libgpu core extension | keeps SAR-specific semantics in example boundary | duplicate logic risk until generalized |
+| GPU metadata direction | wrap/reference `graph::gpu::accel` contracts | maintain parallel SAR-only backend model | avoids duplicate backend abstractions | migration from PR1 message fields |
+| PR2 DSP stage | deterministic RangeWindow/RangeCompression | jump directly to full FFT SAR | adds meaningful DSP without destabilizing CI | FFT acceleration deferred |
 | Build integration | examples/SAR behind option, on by default locally | test-only fixture | preserves package boundary and publishable example shape | CI matrix growth |
 | Benchmark scope | graph vs non-graph mandatory | graph-only timing | required for overhead attribution | baseline maintenance burden |
 | Determinism strategy | fixed synthetic seeds/counts + CI-safe profile | performance-only stochastic runs | stable CI and reproducible diagnostics | may under-represent real-world variance |
