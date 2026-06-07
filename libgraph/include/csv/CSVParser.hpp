@@ -292,19 +292,6 @@ std::expected<sensors::SensorPayload, ParsingError> ParseRowUnifiedExpected(
     const std::vector<std::string>& row_values,
     const csv::CSVNodeConfig& config);
 
-/**
- * @brief Parse row in consolidated format with error handling (C++26)
- *
- * See ParseAccelerometerRowExpected() for usage examples.
- *
- * @param row_values CSV column values
- * @param config CSV configuration
- * @return SensorPayload on success, ParsingError on failure
- */
-std::expected<sensors::SensorPayload, ParsingError> ParseRowConsolidatedExpected(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config);
-
 // ========== PHASE 1: Generalized CSV Parsing Infrastructure ==========
 
 /**

@@ -384,10 +384,4 @@ std::expected<sensors::SensorPayload, ParsingError> ParseRowUnifiedExpected(
     return std::unexpected(ParsingError::UnknownError);
 }
 
-std::expected<sensors::SensorPayload, ParsingError> ParseRowConsolidatedExpected(
-    const std::vector<std::string>& row_values,
-    const csv::CSVNodeConfig& config) {
-    return ParseRowUnifiedExpected(row_values, config);
-}
-
 }  // namespace csv

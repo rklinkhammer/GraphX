@@ -6,9 +6,7 @@ Backwards compatibility is not required for this project. New APIs are the sourc
 
 ## True Compatibility Shims in Production Code
 
-1. `graph::config::JsonDynamicGraphLoader` name fallback behavior
-   - Previously left node names at the plugin default, which could match node type.
-   - Updated to assign `node_config.name` or `node_config.id`.
+1. None remaining.
 
 ## Test-Only Compatibility Aliases and Adapters
 
@@ -31,7 +29,17 @@ Backwards compatibility is not required for this project. New APIs are the sourc
 6. `TestMetricsSubscriber::GetEvents()`: removed.
 7. `JsonViewAdapter` legacy test adapter: removed.
 8. `NodeFactoryRegistry` public creation layer: removed; `NodeFactory` owns provider-backed creation directly.
+9. `FactoryManager` legacy bootstrap path: removed; `NodeProviderBootstrap` is the only provider bootstrap boundary.
+10. `NodeFactory` plugin-directory loading path: removed; plugin loading belongs to `NodeProviderBootstrap`.
+11. `csv::ParseRowConsolidatedExpected(...)` alias: removed; `csv::ParseRowUnifiedExpected(...)` is the single row parser entry point.
+
+## Current Non-Compatibility Behaviors
+
+1. `JsonDynamicGraphLoader` assigns node instance names from `node_config.name` when present, otherwise `node_config.id`.
+   - `NodeConfig::name` is optional.
+   - The `id` fallback is the current naming rule, not a backwards-compatibility shim.
+   - `node_config.type` remains only for dynamic loading and type-level behavior.
 
 ## Next Cleanup Steps
 
-1. Re-audit for any remaining shim-style aliases after the compatibility sweep.
+1. Continue the Track 3 `GraphBuilder`/policy setup audit.

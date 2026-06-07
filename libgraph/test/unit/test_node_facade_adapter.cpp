@@ -19,7 +19,7 @@ public:
             request.parameterized,
             std::move(request.input_ports),
             std::move(request.output_ports));
-        descriptor.name = "compat_descriptor_provider";
+        descriptor.name = "metadata_service_descriptor_provider";
         return descriptor;
     }
 };
@@ -85,7 +85,7 @@ TEST(NodeFacadeAdapterTest, MetadataServiceCtorInjectsDescriptorProvider) {
     auto adapter = MakeAdapterWithMetadataService(&metadata_service);
 
     const auto descriptor = adapter.GetDescriptor();
-    EXPECT_EQ(descriptor.name, "compat_descriptor_provider");
+    EXPECT_EQ(descriptor.name, "metadata_service_descriptor_provider");
 }
 
 }  // namespace

@@ -187,7 +187,7 @@ public:
 
 private:
     /**
-     * Register all available plugin nodes in the unified registry
+     * Register all available plugin nodes in the provider creation map
      *
      * Called by Initialize() to register plugin-based nodes.
      * For each node type in the plugin registry, creates a factory
@@ -196,7 +196,7 @@ private:
     void RegisterPluginNodes();
 
     /**
-     * Register all built-in static nodes in the unified registry
+     * Register all built-in static nodes in the provider creation map
      *
      * Called by Initialize() to register statically-compiled nodes.
      * Each static node is wrapped via StaticNodeAdapter to provide
