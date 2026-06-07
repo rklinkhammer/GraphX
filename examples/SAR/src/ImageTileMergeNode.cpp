@@ -37,13 +37,22 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
     }
 
     if (input.envelope.marker == SarFrameMarker::EndOfStream) {
+        if (config_.require_all_tile_eos_before_complete) {
+            eos_tiles_.insert(input.envelope.tile_id);
+        }
         const std::uint32_t missing_tiles =
             (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
+        const bool all_required_eos_seen =
+            !config_.require_all_tile_eos_before_complete ||
+            (eos_tiles_.size() >= expected_tiles);
         const bool complete =
             (missing_tiles == 0u) &&
-            (!config_.require_watermark_before_complete || watermark_seen_);
+            (!config_.require_watermark_before_complete || watermark_seen_) &&
+            all_required_eos_seen;
 
-        completion_emitted_ = true;
+        if (complete) {
+            completion_emitted_ = true;
+        }
         return BuildStatusMessage(input, SarFrameMarker::EndOfStream, complete);
     }
 
@@ -95,6 +104,14 @@ void ImageTileMergeNode::Configure(const graph::JsonView& cfg) {
         config.require_watermark_before_complete = value.value();
     }
 
+    if (cfg.Contains("require_all_tile_eos_before_complete")) {
+        auto value = cfg.TryGetBool("require_all_tile_eos_before_complete");
+        if (!value) {
+            throw value.error();
+        }
+        config.require_all_tile_eos_before_complete = value.value();
+    }
+
     if (cfg.Contains("backend_id")) {
         auto value = cfg.TryGetInt("backend_id");
         if (!value) {
@@ -122,6 +139,8 @@ graph::JsonView ImageTileMergeNode::GetParameters() const {
     parameters_cache_["expected_tiles"] = config_.expected_tiles;
     parameters_cache_["require_watermark_before_complete"] =
         config_.require_watermark_before_complete;
+    parameters_cache_["require_all_tile_eos_before_complete"] =
+        config_.require_all_tile_eos_before_complete;
     parameters_cache_["backend_id"] = config_.backend_id;
     parameters_cache_["backend"] = static_cast<int>(config_.backend);
     return graph::JsonView(parameters_cache_);
@@ -155,6 +174,7 @@ std::vector<std::string> ImageTileMergeNode::GetParameterNames() const {
     return {
         "expected_tiles",
         "require_watermark_before_complete",
+        "require_all_tile_eos_before_complete",
         "backend_id",
         "backend",
     };
@@ -162,6 +182,7 @@ std::vector<std::string> ImageTileMergeNode::GetParameterNames() const {
 
 void ImageTileMergeNode::Reset() {
     seen_tiles_.clear();
+    eos_tiles_.clear();
     received_tiles_ = 0;
     duplicate_tiles_ = 0;
     out_of_order_tiles_ = 0;

@@ -20,6 +20,7 @@ namespace sar {
 struct ImageTileMergeConfig {
     std::uint32_t expected_tiles{4};
     bool require_watermark_before_complete{false};
+    bool require_all_tile_eos_before_complete{false};
     std::uint32_t backend_id{0};
     SarBackendKind backend{SarBackendKind::Host};
 };
@@ -45,7 +46,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 4> Fields() {
+    static constexpr std::array<graph::JsonField, 5> Fields() {
         return {{
             graph::JsonField{
                 .name = "expected_tiles",
@@ -66,6 +67,16 @@ public:
                 .default_value = "false",
                 .enum_values = std::nullopt,
                 .description = "Require watermark marker before end-of-stream completion"
+            },
+            graph::JsonField{
+                .name = "require_all_tile_eos_before_complete",
+                .type = graph::JsonType::Boolean,
+                .required = false,
+                .min = std::nullopt,
+                .max = std::nullopt,
+                .default_value = "false",
+                .enum_values = std::nullopt,
+                .description = "Require end-of-stream markers from all tile branches before completion"
             },
             graph::JsonField{
                 .name = "backend_id",
@@ -105,6 +116,7 @@ private:
     ImageTileMergeConfig config_{};
 
     std::unordered_set<std::uint32_t> seen_tiles_{};
+    std::unordered_set<std::uint32_t> eos_tiles_{};
     std::uint32_t received_tiles_{0};
     std::uint32_t duplicate_tiles_{0};
     std::uint32_t out_of_order_tiles_{0};

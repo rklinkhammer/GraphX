@@ -9,8 +9,8 @@ Status:
 
 ## Scope (from plan/SAR.md)
 
-- [ ] Replace PR1 pulse-modulo tile assignment with real graph-visible fan-out branches.
-- [ ] Add a DSP-significant RangeWindow or deterministic RangeCompression stage.
+- [x] Replace PR1 pulse-modulo tile assignment with real graph-visible fan-out branches.
+- [x] Add a DSP-significant RangeWindow or deterministic RangeCompression stage.
 - [ ] Start unifying SAR backend metadata with existing `graph::gpu::accel` tickets/leases/views.
 - [ ] Preserve example-local SAR package boundary; do not add SAR-specific libgpu node families.
 - [ ] Evaluate DeviceReduceNode accumulation showcase.
@@ -19,35 +19,42 @@ Status:
 
 ## Phase A - True Tile Fan-Out
 
-- [ ] Document current PR1 tile semantics (`tile_id = sequence_id % tile_count`) as deterministic but not true fan-out.
+- [x] Document current PR1 tile semantics (`tile_id = sequence_id % tile_count`) as deterministic but not true fan-out.
 - [ ] Define PR2 tile identity fields: `batch_id`, `aperture_id`, `tile_id`, `tile_count`, `pulse_range`.
-- [ ] Change or extend `AzimuthTileSplitNode` so one pulse/aperture block can produce N independent tiles.
-- [ ] Add a JSON topology that exposes branch-level parallelism:
+- [x] Change or extend `AzimuthTileSplitNode` so one pulse/aperture block can produce N independent tiles.
+- [x] Add a JSON topology that exposes branch-level parallelism:
   - `split -> h2d_tile0 -> bp_tile0 -> d2h_tile0 -> merge`
   - `split -> h2d_tile1 -> bp_tile1 -> d2h_tile1 -> merge`
   - more branches as supported by CI profile.
-- [ ] Add tests for true fan-out count, unique tile IDs, out-of-order branch completion, and merge correctness.
+- [x] Add tests for true fan-out count, unique tile IDs, out-of-order branch completion, and merge correctness.
+
+Implementation notes:
+
+- `SarPulseFanoutNode` uses the existing GraphX `SplitNode4` primitive and is dynamically loaded as an example-scoped SAR plugin.
+- `sar_stripmap_pr2_fanout.json` now exposes four branch lanes: `fanout -> split_tileN -> h2d_tileN -> bp_tileN -> d2h_tileN -> merge`.
+- `AzimuthTileSplitNode` now supports `fixed_tile_id` for branch-specific tile identity; default sequence-modulo behavior remains available for PR1 compatibility.
+- `ImageTileMergeNode` now has an opt-in `require_all_tile_eos_before_complete` policy so branch fan-in does not complete on the first branch EOS.
 
 Exit criteria:
 
-- [ ] JSON topology visibly contains multiple tile branches.
-- [ ] `ImageTileMergeNode` receives independently produced branch outputs, not only pulse-modulo tile IDs.
+- [x] JSON topology visibly contains multiple tile branches.
+- [x] `ImageTileMergeNode` receives independently produced branch outputs, not only pulse-modulo tile IDs.
 - [ ] Baseline and graph outputs match within explicit tolerance for PR2 fan-out dataset.
-- [ ] CI-safe profile remains deterministic and stable.
+- [x] CI-safe profile remains deterministic and stable.
 
 ## Phase B - DSP-Significant Stage
 
-- [ ] Choose `RangeWindowNode` or deterministic direct `RangeCompressionNode` for PR2.
-- [ ] Prefer direct matched filtering first; defer FFT-backed implementation unless reuse from `libdsp` is low-risk.
-- [ ] Define deterministic reference dataset and tolerance envelope.
-- [ ] Add/update unit tests validating numeric stability and tolerances.
-- [ ] Update graph and non-graph baseline to include the same DSP stage.
+- [x] Choose `RangeWindowNode` or deterministic direct `RangeCompressionNode` for PR2.
+- [x] Prefer direct matched filtering first; defer FFT-backed implementation unless reuse from `libdsp` is low-risk.
+- [x] Define deterministic reference dataset and tolerance envelope.
+- [x] Add/update unit tests validating numeric stability and tolerances.
+- [x] Update graph and non-graph baseline to include the same DSP stage.
 
 Exit criteria:
 
-- [ ] PR2 pipeline has a meaningful DSP stage before backprojection.
-- [ ] Graph and baseline both execute the same DSP math path.
-- [ ] CI-safe profile remains deterministic and stable.
+- [x] PR2 pipeline has a meaningful DSP stage before backprojection.
+- [x] Graph and baseline both execute the same DSP math path.
+- [x] CI-safe profile remains deterministic and stable.
 
 ## Phase C - GPU Contract Alignment
 
@@ -97,17 +104,17 @@ Exit criteria:
 
 ## Validation Matrix
 
-- [ ] Build: SAR example + SAR tests + benchmark target.
-- [ ] Run: focused SAR unit/integration tests.
+- [x] Build: SAR example + SAR tests + benchmark target.
+- [x] Run: focused SAR unit/integration tests.
 - [ ] Run: graph-vs-baseline tolerance comparisons for PR2 dataset.
-- [ ] Run: graph-visible fan-out JSON topology validation.
+- [x] Run: graph-visible fan-out JSON topology validation.
 - [ ] Run: GPU metadata propagation tests.
 - [ ] Run: trace-enabled smoke validation.
-- [ ] Run: `sar_benchmark --profile=ci` and confirm run/lifecycle timing split.
+- [x] Run: `sar_benchmark --profile=ci` and confirm run/lifecycle timing split.
 
 ## PR2 Deliverables
 
-- [ ] Code + tests for true fan-out and DSP-stage improvements.
+- [x] Code + tests for true fan-out and DSP-stage improvements.
 - [ ] GPU contract alignment notes and message metadata changes.
 - [ ] Documentation updates in examples/SAR/README.md.
 - [ ] Benchmark/trace notes updated.

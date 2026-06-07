@@ -24,6 +24,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_compare.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_backprojection_transform_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
@@ -38,6 +39,7 @@ target_include_directories(test_sar_example_unit PRIVATE
 target_compile_definitions(test_sar_example_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
+    SAR_PR2_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr2_fanout.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
@@ -52,6 +54,7 @@ add_dependencies(test_sar_example_unit d2h_async_node)
 add_dependencies(test_sar_example_unit h2d_async_node)
 add_dependencies(test_sar_example_unit image_tile_merge_node)
 add_dependencies(test_sar_example_unit range_window_node)
+add_dependencies(test_sar_example_unit sar_pulse_fanout_node)
 add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
 add_dependencies(test_sar_example_unit sar_visualization_sink_node)
 add_dependencies(test_sar_example_unit sar_backprojection_transform_node)

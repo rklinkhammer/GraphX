@@ -11,6 +11,7 @@ This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for
 5. Keep new SAR stages dynamically loadable through the standard plugin/provider path:
   - SyntheticApertureIqSourceNode
   - RangeWindowNode
+  - SarPulseFanoutNode
   - AzimuthTileSplitNode
   - SarBackprojectionTransformNode
   - ImageTileMergeNode
@@ -36,6 +37,17 @@ Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
 The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
+
+PR2 graph-visible fan-out topology: examples/SAR/config/sar_stripmap_pr2_fanout.json
+
+The PR2 topology uses `SarPulseFanoutNode` to expose four branch lanes:
+
+```text
+fanout -> split_tile0 -> h2d_tile0 -> bp_tile0 -> d2h_tile0 \
+fanout -> split_tile1 -> h2d_tile1 -> bp_tile1 -> d2h_tile1  \
+fanout -> split_tile2 -> h2d_tile2 -> bp_tile2 -> d2h_tile2  / -> merge -> sink
+fanout -> split_tile3 -> h2d_tile3 -> bp_tile3 -> d2h_tile3 /
+```
 
 ## Build And Run
 
@@ -100,7 +112,9 @@ Primary knobs:
 3. Split/merge:
   - tile_count
   - tile_id_offset
+  - fixed_tile_id
   - expected_tiles
+  - require_all_tile_eos_before_complete
 4. Transform metadata:
   - image_width
   - queue_id
@@ -151,5 +165,5 @@ See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPOR
 1. Native backend-specialized kernels and transfer overlap tuning.
 2. Range-compression or FFT-backed SAR signal processing stages.
 3. Extended execution tracing and richer performance attribution.
-4. Graph-visible multi-branch fan-out/fan-in topology.
+4. PR2 fan-out graph-vs-baseline comparison harness.
 5. Multi-device heterogeneous routing and balancing.

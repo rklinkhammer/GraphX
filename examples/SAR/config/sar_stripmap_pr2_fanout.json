@@ -1,0 +1,234 @@
+{
+  "name": "sar_stripmap_pr2_fanout",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "src",
+      "type": "SyntheticApertureIqSourceNode",
+      "node_config": {
+        "stream_id": 0,
+        "total_pulses": 32,
+        "samples_per_pulse": 256,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "window",
+      "type": "RangeWindowNode",
+      "node_config": {
+        "enabled": true,
+        "gain": 1.0
+      }
+    },
+    {
+      "id": "fanout",
+      "type": "SarPulseFanoutNode"
+    },
+    {
+      "id": "split_tile0",
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "fixed_tile_id": 0,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "split_tile1",
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "fixed_tile_id": 1,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "split_tile2",
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "fixed_tile_id": 2,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "split_tile3",
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "fixed_tile_id": 3,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "h2d_tile0",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "h2d_tile1",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "h2d_tile2",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "h2d_tile3",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "bp_tile0",
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 16,
+        "backend_id": 0,
+        "queue_id": 0,
+        "kernel_id": 3301,
+        "backend": 1
+      }
+    },
+    {
+      "id": "bp_tile1",
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 16,
+        "backend_id": 0,
+        "queue_id": 1,
+        "kernel_id": 3301,
+        "backend": 1
+      }
+    },
+    {
+      "id": "bp_tile2",
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 16,
+        "backend_id": 0,
+        "queue_id": 2,
+        "kernel_id": 3301,
+        "backend": 1
+      }
+    },
+    {
+      "id": "bp_tile3",
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 16,
+        "backend_id": 0,
+        "queue_id": 3,
+        "kernel_id": 3301,
+        "backend": 1
+      }
+    },
+    {
+      "id": "d2h_tile0",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "d2h_tile1",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "d2h_tile2",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "d2h_tile3",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "merge",
+      "type": "ImageTileMergeNode",
+      "node_config": {
+        "expected_tiles": 4,
+        "require_watermark_before_complete": false,
+        "require_all_tile_eos_before_complete": true,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "sink",
+      "type": "SarDiagnosticsSinkNode",
+      "node_config": {
+        "completion_signal_enabled": true
+      }
+    }
+  ],
+  "edges": [
+    {"source_node_id": "src", "source_port": 0, "target_node_id": "window", "target_port": 0},
+    {"source_node_id": "window", "source_port": 0, "target_node_id": "fanout", "target_port": 0},
+
+    {"source_node_id": "fanout", "source_port": 0, "target_node_id": "split_tile0", "target_port": 0},
+    {"source_node_id": "fanout", "source_port": 1, "target_node_id": "split_tile1", "target_port": 0},
+    {"source_node_id": "fanout", "source_port": 2, "target_node_id": "split_tile2", "target_port": 0},
+    {"source_node_id": "fanout", "source_port": 3, "target_node_id": "split_tile3", "target_port": 0},
+
+    {"source_node_id": "split_tile0", "source_port": 0, "target_node_id": "h2d_tile0", "target_port": 0},
+    {"source_node_id": "split_tile1", "source_port": 0, "target_node_id": "h2d_tile1", "target_port": 0},
+    {"source_node_id": "split_tile2", "source_port": 0, "target_node_id": "h2d_tile2", "target_port": 0},
+    {"source_node_id": "split_tile3", "source_port": 0, "target_node_id": "h2d_tile3", "target_port": 0},
+
+    {"source_node_id": "h2d_tile0", "source_port": 0, "target_node_id": "bp_tile0", "target_port": 0},
+    {"source_node_id": "h2d_tile1", "source_port": 0, "target_node_id": "bp_tile1", "target_port": 0},
+    {"source_node_id": "h2d_tile2", "source_port": 0, "target_node_id": "bp_tile2", "target_port": 0},
+    {"source_node_id": "h2d_tile3", "source_port": 0, "target_node_id": "bp_tile3", "target_port": 0},
+
+    {"source_node_id": "bp_tile0", "source_port": 0, "target_node_id": "d2h_tile0", "target_port": 0},
+    {"source_node_id": "bp_tile1", "source_port": 0, "target_node_id": "d2h_tile1", "target_port": 0},
+    {"source_node_id": "bp_tile2", "source_port": 0, "target_node_id": "d2h_tile2", "target_port": 0},
+    {"source_node_id": "bp_tile3", "source_port": 0, "target_node_id": "d2h_tile3", "target_port": 0},
+
+    {"source_node_id": "d2h_tile0", "source_port": 0, "target_node_id": "merge", "target_port": 0},
+    {"source_node_id": "d2h_tile1", "source_port": 0, "target_node_id": "merge", "target_port": 0},
+    {"source_node_id": "d2h_tile2", "source_port": 0, "target_node_id": "merge", "target_port": 0},
+    {"source_node_id": "d2h_tile3", "source_port": 0, "target_node_id": "merge", "target_port": 0},
+
+    {"source_node_id": "merge", "source_port": 0, "target_node_id": "sink", "target_port": 0}
+  ]
+}

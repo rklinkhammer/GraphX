@@ -68,6 +68,17 @@ void AzimuthTileSplitNode::Configure(const graph::JsonView& cfg) {
         config.tile_id_offset = static_cast<std::uint32_t>(value.value());
     }
 
+    if (cfg.Contains("fixed_tile_id")) {
+        auto value = cfg.TryGetInt("fixed_tile_id");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < -1) {
+            throw graph::ConfigError("fixed_tile_id must be >= -1");
+        }
+        config.fixed_tile_id = value.value();
+    }
+
     if (cfg.Contains("backend")) {
         auto value = cfg.TryGetInt("backend");
         if (!value) {
@@ -83,6 +94,7 @@ graph::JsonView AzimuthTileSplitNode::GetParameters() const {
     parameters_cache_ = nlohmann::json::object();
     parameters_cache_["tile_count"] = config_.tile_count;
     parameters_cache_["tile_id_offset"] = config_.tile_id_offset;
+    parameters_cache_["fixed_tile_id"] = config_.fixed_tile_id;
     parameters_cache_["backend_id"] = config_.backend_id;
     parameters_cache_["backend"] = static_cast<int>(config_.backend);
     return graph::JsonView(parameters_cache_);
@@ -116,6 +128,7 @@ std::vector<std::string> AzimuthTileSplitNode::GetParameterNames() const {
     return {
         "tile_count",
         "tile_id_offset",
+        "fixed_tile_id",
         "backend_id",
         "backend",
     };
@@ -131,6 +144,10 @@ const AzimuthTileSplitConfig& AzimuthTileSplitNode::GetConfig() const noexcept {
 
 std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarPulseBlockMessage& input) const {
     const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
+    if (config_.fixed_tile_id >= 0) {
+        return static_cast<std::uint32_t>(config_.fixed_tile_id) % tile_count;
+    }
+
     const auto sequence_tile =
         static_cast<std::uint32_t>(input.envelope.sequence_id % tile_count);
     return (sequence_tile + (config_.tile_id_offset % tile_count)) % tile_count;

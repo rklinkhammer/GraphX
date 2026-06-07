@@ -19,6 +19,7 @@ namespace sar {
 struct AzimuthTileSplitConfig {
     std::uint32_t tile_count{4};
     std::uint32_t tile_id_offset{0};
+    int fixed_tile_id{-1};
     std::uint32_t backend_id{0};
     SarBackendKind backend{SarBackendKind::Host};
 };
@@ -44,7 +45,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 4> Fields() {
+    static constexpr std::array<graph::JsonField, 5> Fields() {
         return {{
             graph::JsonField{
                 .name = "tile_count",
@@ -65,6 +66,16 @@ public:
                 .default_value = "0",
                 .enum_values = std::nullopt,
                 .description = "Modulo offset applied to deterministic tile id selection"
+            },
+            graph::JsonField{
+                .name = "fixed_tile_id",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = -1.0,
+                .max = std::nullopt,
+                .default_value = "-1",
+                .enum_values = std::nullopt,
+                .description = "Fixed tile id for graph-visible branch fan-out; -1 preserves sequence modulo behavior"
             },
             graph::JsonField{
                 .name = "backend_id",
