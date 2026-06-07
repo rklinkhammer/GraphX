@@ -61,6 +61,72 @@ Architectural decisions to make explicit:
 9. Mathematical fidelity: simulated deterministic transforms in PR1 vs real SAR math deferred to later PRs.
 10. Build integration: whether examples/SAR builds by default, behind an option, or only in tests.
 
+Recommended implementation strategies for key algorithms:
+1. Synthetic raw-data generation:
+   - Use a deterministic point-scatterer scene and synthetic platform path.
+   - Generate complex baseband IQ pulse/range samples with fixed seed, fixed pulse count, fixed samples-per-pulse, and explicit sample-rate/carrier/chirp metadata.
+   - Keep the generator simple enough for CI: one to three point targets, small aperture, and bounded packet counts.
+   - Emit sequence IDs and geometry metadata so downstream nodes can verify ordering and tile coverage.
+2. Range compression / matched filtering:
+   - For PR1, implement deterministic matched filtering as either direct complex convolution or FFT-based convolution over small fixed windows.
+   - Prefer an FFT-based path if it can reuse existing DSP FFT infrastructure; otherwise document why a direct convolution is better for the first vertical slice.
+   - Make the matched-filter reference chirp explicit and deterministic.
+   - Record per-pulse processing time, input samples, output samples, and effective samples/second.
+3. Windowing and FFT:
+   - Reuse existing DSP window/FFT patterns where possible.
+   - Keep FFT size fixed for PR1 so tests can use stable tolerances and known output sizes.
+   - Include a plan for later replacement with FFTW, vDSP, or backend-specific FFT acceleration only if it belongs outside examples/SAR.
+4. Image formation:
+   - Use backprojection as the conceptual algorithm because it maps clearly to image tiles and GPU kernels.
+   - In PR1, a deterministic simulated backprojection kernel is acceptable if it preserves the same buffer shape, tile metadata, and accumulation semantics that real backprojection would need.
+   - Defer high-fidelity range interpolation, motion compensation, polar formatting, autofocus, and radiometric calibration to PR2/PR3.
+5. Parallel decomposition:
+   - Split work by pulse block, range tile, azimuth tile, or image tile and represent the split with graph branches.
+   - Avoid hiding the primary parallelism inside one node; internal threading can be a later optimization.
+   - Include a fan-in merge stage that validates all expected tile IDs arrived exactly once.
+6. GPU/device processing:
+   - Reuse existing async H2D/device/D2H node patterns for PR1.
+   - If a SAR-specific device stage is needed, make it operate on a generic tile buffer plus metadata instead of a monolithic SAR object.
+   - Preserve explicit kernel descriptor metadata, bytes transferred, dispatch count, device ID/backend, and synchronization points.
+7. Baseline non-graph implementation:
+   - Implement or require a single-process non-graph baseline that runs the same synthetic dataset and same algorithmic steps without GraphX scheduling, plugin dispatch, or graph message queues.
+   - Use the same data sizes, same deterministic scene, same math path, and same backend mode as the graph version.
+   - Report graph overhead as absolute time and percentage overhead for end-to-end runtime and for stage-level timings where comparable.
+
+Performance and benchmark requirements:
+1. Include performance measurements for key DSP metrics:
+   - IQ samples generated per second
+   - pulses processed per second
+   - range-compression time per pulse/tile
+   - FFT/window time per pulse/tile if FFT is used
+   - image-tile accumulation time
+   - CPU time per graph node and end-to-end latency
+   - queue depth/backpressure observations where available
+2. Include performance measurements for key GPU metrics:
+   - H2D bytes, D2H bytes, and effective transfer bandwidth
+   - kernel dispatch count
+   - kernel execution time or simulated-kernel stage time
+   - device-buffer allocation/reuse count
+   - synchronization/wait time
+   - device occupancy/proxy utilization only if a native backend can report it reliably
+3. Include graph-overhead comparison:
+   - Compare GraphX implementation against a non-graph baseline implementation of the same SAR algorithm.
+   - Report wall-clock end-to-end time, per-stage time, throughput, and memory-transfer totals for both paths.
+   - Attribute overhead categories: graph scheduling, message allocation/copy, queueing/backpressure, plugin/provider lookup, and diagnostics collection.
+   - Require warm-up runs and repeated measured runs; report median, min/max, and standard deviation or a simpler CI-stable summary.
+   - Make benchmark sizes configurable but include a small CI-safe profile and a larger local profile.
+4. Benchmark correctness constraints:
+   - The graph and non-graph baseline must consume identical deterministic synthetic input.
+   - The final image/tile output must match within explicit tolerances.
+   - Performance tests should not be brittle CI gates unless thresholds are relative and conservative; correctness and metric presence should be CI-gated.
+
+Algorithm and measurement references to consult:
+1. SAR image-formation survey: "A Review of Synthetic-Aperture Radar Image Formation Algorithms and Implementations: A Computational Perspective" (Remote Sensing, 2022).
+2. SAR fundamentals/tutorial: DLR/IEEE GRSS SAR tutorial PDF.
+3. Backprojection background: Sandia-style backprojection/image-formation reports and filtered backprojection introductions.
+4. FFT implementation/performance background: FFTW manual and FFTW3 design paper for planner/cache/SIMD considerations.
+5. GPU timing/bandwidth measurement: CUDA events and CUDA best-practices guidance for elapsed time and effective bandwidth.
+
 Deliverables requested:
 1. Recommended first PR scope
 2. Proposed file layout
@@ -89,4 +155,7 @@ Also require:
 8. Include explicit non-goals for PR1 and what is deferred to PR2/PR3.
 9. Place all example-specific files under examples/SAR and include that directory in the proposed file layout.
 10. Include a decision log table with: decision, selected option, rejected alternatives, reason, and follow-up risk.
+11. Include a benchmark plan comparing GraphX against a non-graph baseline for the same synthetic SAR algorithm and dataset.
+12. Include required DSP/GPU performance metrics, measurement methodology, CI-safe profile, and local larger-profile benchmark.
+13. Include references for selected SAR image-formation algorithm, DSP/FFT approach, and GPU timing methodology.
 ```
