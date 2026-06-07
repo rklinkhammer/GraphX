@@ -50,12 +50,11 @@ examples/SAR/
   config/
     sar_stripmap_pr1.json
   include/sar/
-    SarMessages.hpp
-    nodes/
       SyntheticApertureIqSourceNode.hpp
       AzimuthTileSplitNode.hpp
       SarBackprojectionTransformNode.hpp
       ImageTileMergeNode.hpp
+      SarMessages.hpp
   src/
     main.cpp
     SyntheticApertureIqSourceNode.cpp
@@ -63,10 +62,13 @@ examples/SAR/
     SarBackprojectionTransformNode.cpp
     ImageTileMergeNode.cpp
   test/
-    test_sar_json_pipeline.cpp
-    test_image_tile_merge.cpp
-    test_sar_baseline_compare.cpp
-    test_sar_diagnostics_contract.cpp
+      test_synthetic_aperture_iq_source_node.cpp
+      test_azimuth_tile_split_node.cpp
+      test_sar_backprojection_transform_node.cpp
+      test_image_tile_merge_node.cpp
+      test_sar_json_pipeline.cpp
+      test_sar_baseline_compare.cpp
+      test_sar_diagnostics_contract.cpp
 ```
 
 Potential reusable extraction (deferred unless justified): tiny generic metadata helpers in libgraph/libgpu only if reuse is demonstrated by more than SAR.
@@ -76,14 +78,14 @@ Potential reusable extraction (deferred unless justified): tiny generic metadata
 ## 3) Node List and Responsibilities (PR1 cap: 4 new nodes)
 
 | Node | Reused/New | Proposed Path | Message Contract (in/out) | PR1 Tests | Deferred Follow-up |
-|---|---|---|---|---|---|
-| SyntheticApertureIqSourceNode | New | examples/SAR/include/sar/nodes/SyntheticApertureIqSourceNode.hpp | out: `SarPulseBlockMessage` with deterministic sequence ids, pulse range, geometry/meta, EOS | deterministic output, EOS correctness, fixed counts | richer scene models/noise/motion error |
+| --- | --- | --- | --- | --- | --- |
+| SyntheticApertureIqSourceNode | New | examples/SAR/include/sar/SyntheticApertureIqSourceNode.hpp | out: `SarPulseBlockMessage` with deterministic sequence ids, pulse range, geometry/meta, EOS | deterministic output, EOS correctness, fixed counts | richer scene models/noise/motion error |
 | RangeWindow/RangeCompression stage | Reuse existing DSP pattern or example-local deterministic placeholder | wired from existing GraphX DSP style | in: `SarPulseBlockMessage`; out: `SarRangeTileMessage` | sample count invariants, deterministic transform output | real matched filter fidelity and accelerated FFT |
-| AzimuthTileSplitNode | New | examples/SAR/include/sar/nodes/AzimuthTileSplitNode.hpp | in: `SarRangeTileMessage`; out: independent `SarRangeTileMessage` branches tagged by tile ids | tile fan-out count, metadata completeness | adaptive tiling/scheduling |
+| AzimuthTileSplitNode | New | examples/SAR/include/sar/AzimuthTileSplitNode.hpp | in: `SarRangeTileMessage`; out: independent `SarRangeTileMessage` branches tagged by tile ids | tile fan-out count, metadata completeness | adaptive tiling/scheduling |
 | H2D async transfer | Reused | existing GPU async transfer pattern | in: host tile msg + lease metadata; out: transfer ticket + device-ready tile | bytes moved/transfer ticket counters | backend-specific tuning |
-| SarBackprojectionTransformNode | New | examples/SAR/include/sar/nodes/SarBackprojectionTransformNode.hpp | in: device tile + kernel descriptor meta; out: device image tile | dispatch count, deterministic tile output | native backend kernels |
+| SarBackprojectionTransformNode | New | examples/SAR/include/sar/SarBackprojectionTransformNode.hpp | in: device tile + kernel descriptor meta; out: device image tile | dispatch count, deterministic tile output | native backend kernels |
 | D2H async transfer | Reused | existing GPU async transfer pattern | in: device tile; out: host `SarImageTileMessage` + completion metadata | D2H bytes counters | overlap/stream tuning |
-| ImageTileMergeNode | New | examples/SAR/include/sar/nodes/ImageTileMergeNode.hpp | in: `SarImageTileMessage` + EOS/watermark; out: final merged image + `SarMergeStatusMessage` | duplicate/missing/out-of-order/EOS matrix | partial preview/sliding aperture |
+| ImageTileMergeNode | New | examples/SAR/include/sar/ImageTileMergeNode.hpp | in: `SarImageTileMessage` + EOS/watermark; out: final merged image + `SarMergeStatusMessage` | duplicate/missing/out-of-order/EOS matrix | partial preview/sliding aperture |
 | Detection/Metrics sink | Reuse existing sink pattern or small example sink | examples/SAR/src/main.cpp wiring | in: merged image + diagnostics bundle | metrics presence/tolerance checks | richer observability/export |
 
 Why SAR differs from vibration-health pipeline: SAR emphasizes tile independence, explicit async transfer boundaries, fan-in merge correctness under out-of-order completion, and graph-vs-baseline overhead attribution for image formation stages.
@@ -156,6 +158,7 @@ Programmatic graph construction is allowed only for focused tests/helpers.
 8. Metrics sink emits deterministic counters and latency figures.
 
 Required diagnostics in PR1:
+
 - pulses processed
 - bytes H2D / D2H
 - tiles processed
@@ -190,6 +193,7 @@ Required diagnostics in PR1:
 3. Simulated backend CI-safe run (no native GPU dependency).
 
 Test strategy aligns with patterns used in:
+
 - [libgraph/test/unit/test_sdr_graph.cpp](../libgraph/test/unit/test_sdr_graph.cpp)
 - [libgraph/test/unit/test_json_dynamic_graph_loader.cpp](../libgraph/test/unit/test_json_dynamic_graph_loader.cpp)
 - [libgpu/test/unit/test_gpu_topologies.cpp](../libgpu/test/unit/test_gpu_topologies.cpp)
@@ -249,7 +253,7 @@ Test strategy aligns with patterns used in:
 ## 11) External-Review Relevance Table (17 items)
 
 | # | Topic | Classification | PR1 handling |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Control plane vs data plane | PR1 requirement | Edges carry tokens/metadata; transfer nodes/capabilities perform byte movement |
 | 2 | Sequence and watermark contracts | PR1 requirement | Add sequence/tile/watermark metadata and merge validations |
 | 3 | Explicit end-of-stream | PR1 requirement | Use explicit EOS/completion messages |
@@ -372,7 +376,7 @@ This separation keeps DSP concerns independent from device execution concerns.
 ## Architectural Decision Log
 
 | Decision | Selected option | Rejected alternatives | Reason | Follow-up risk |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | PR1 SAR mode | Stripmap synthetic scenario | Spotlight-first | simpler deterministic geometry for CI | less algorithm breadth initially |
 | Primary work granularity | Image tile as kernel work unit | global mutable image object | best fit for fan-out/fan-in and async device stages | merge complexity |
 | Parallelization boundary | Graph branch parallelism | node-owned internal pools | aligns with GraphX model and testability | potential overhead at small sizes |

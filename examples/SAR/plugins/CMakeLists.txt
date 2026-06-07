@@ -5,6 +5,32 @@ include(${CMAKE_SOURCE_DIR}/cmake/PluginTemplate.cmake)
 add_graphx_plugins_directory()
 
 add_graphx_plugin(
+    TARGET_NAME h2d_async_node
+    SOURCE_FILES
+        h2d_async_node_plugin.cpp
+        ../src/H2DAsyncNode.cpp
+    DESCRIPTION "SAR host-to-device async transfer stage"
+    DEPENDENCIES graph
+)
+
+target_include_directories(h2d_async_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
+    TARGET_NAME d2h_async_node
+    SOURCE_FILES
+        d2h_async_node_plugin.cpp
+        ../src/D2HAsyncNode.cpp
+    DESCRIPTION "SAR device-to-host async transfer stage"
+    DEPENDENCIES graph
+)
+
+target_include_directories(d2h_async_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME azimuth_tile_split_node
     SOURCE_FILES
         azimuth_tile_split_node_plugin.cpp
@@ -27,6 +53,32 @@ add_graphx_plugin(
 )
 
 target_include_directories(sar_backprojection_transform_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
+    TARGET_NAME sar_diagnostics_sink_node
+    SOURCE_FILES
+        sar_diagnostics_sink_node_plugin.cpp
+        ../src/SarDiagnosticsSinkNode.cpp
+    DESCRIPTION "SAR diagnostics sink node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(sar_diagnostics_sink_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
+    TARGET_NAME image_tile_merge_node
+    SOURCE_FILES
+        image_tile_merge_node_plugin.cpp
+        ../src/ImageTileMergeNode.cpp
+    DESCRIPTION "SAR image tile merge node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(image_tile_merge_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 

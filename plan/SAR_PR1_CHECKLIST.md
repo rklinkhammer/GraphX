@@ -9,21 +9,19 @@ Source plan: `plan/SAR.md`
 - [ ] PR1 ready for review
 - [ ] PR1 merged
 
-GitHub status snapshot:
+GitHub status snapshot (2026-06-07):
 
-- [x] Issue #1 closed
-- [x] Issue #2 merged via PR #12
-- [x] Issue #3 merged via PR #14
-- [x] Phase 3.1 active on issue #4
+- [x] PR #20 latest check run green (`Libgraph Unit/libgraph-unit`)
+- [x] SAR Phase 3.4 slice committed and pushed
 
 ## Scope Guardrails (Must Stay True)
 
-- [ ] Keep all SAR-specific implementation under `examples/SAR`
-- [ ] Keep PR1 to no more than 4 new SAR nodes
-- [ ] JSON-loaded topology is the primary demo path
-- [ ] Deterministic synthetic data path only (fixed seed + fixed counts)
-- [ ] No framework-wide rewrites
-- [ ] No mandatory native GPU requirement for CI
+- [x] Keep all SAR-specific implementation under `examples/SAR`
+- [x] Keep PR1 to no more than 4 new SAR nodes
+- [ ] JSON-loaded topology is the primary demo path (topology exists; runtime JSON execution path still pending)
+- [x] Deterministic synthetic data path only (fixed seed + fixed counts)
+- [x] No framework-wide rewrites
+- [x] No mandatory native GPU requirement for CI
 - [x] Every SAR node has a direct unit test
 - [x] Every SAR node is dynamically loadable as a plugin
 - [x] Every SAR node has a dynamic-load test that validates node behavior
@@ -37,6 +35,7 @@ GitHub status snapshot:
 - [x] Wire example target(s) into root build
 
 Exit criteria:
+
 - [x] Example targets configure and build cleanly
 - [x] SAR example can be toggled on/off via CMake option
 
@@ -54,59 +53,67 @@ Exit criteria:
 - [x] Include required sequence/tile/backend metadata fields
 
 Exit criteria:
+
 - [x] Message contracts compile
 - [x] Metadata fields cover sequence/tile IDs and device/backend diagnostics
 
 ## Phase 3 - New Nodes (PR1 Cap: 4)
 
 ### 3.1 SyntheticApertureIqSourceNode
+
 - [x] Add header/source for `SyntheticApertureIqSourceNode`
 - [x] Emit deterministic pulse blocks
 - [x] Emit explicit EOS
 
 ### 3.2 AzimuthTileSplitNode
+
 - [x] Add header/source for `AzimuthTileSplitNode`
 - [x] Implement explicit tile fan-out with stable tile IDs
 
 ### 3.3 SarBackprojectionTransformNode
-- [ ] Add header/source for `SarBackprojectionTransformNode`
-- [ ] Implement deterministic simulated backprojection semantics
-- [ ] Preserve generic device-transform style metadata
+
+- [x] Add header/source for `SarBackprojectionTransformNode`
+- [x] Implement deterministic simulated backprojection semantics
+- [x] Preserve generic device-transform style metadata
 
 ### 3.4 ImageTileMergeNode
-- [ ] Add header/source for `ImageTileMergeNode`
-- [ ] Validate expected tile count
-- [ ] Detect duplicates
-- [ ] Detect missing tiles
-- [ ] Handle out-of-order completion
-- [ ] Handle EOS/watermark correctly
+
+- [x] Add header/source for `ImageTileMergeNode`
+- [x] Validate expected tile count
+- [x] Detect duplicates
+- [x] Detect missing tiles
+- [x] Handle out-of-order completion
+- [x] Handle EOS/watermark correctly
 
 Exit criteria:
-- [ ] Exactly 4 new SAR nodes introduced (or fewer)
-- [ ] No SAR-specific libgpu framework expansion in PR1
+
+- [x] Exactly 4 new SAR nodes introduced (or fewer)
+- [x] No SAR-specific libgpu framework expansion in PR1
 
 ## Phase 4 - Reused GPU Async Path Wiring
 
 - [ ] Reuse existing H2D async transfer pattern
 - [ ] Reuse existing device transform stage pattern
 - [ ] Reuse existing D2H async transfer pattern
-- [ ] Keep byte movement explicit at transfer boundaries
-- [ ] Keep control/data-plane separation explicit in messages and docs
+- [x] Keep byte movement explicit at transfer boundaries
+- [x] Keep control/data-plane separation explicit in messages and docs
 
 Exit criteria:
-- [ ] End-to-end run works on CI-safe simulated backend path
-- [ ] H2D/D2H bytes and dispatch counters are emitted
+
+- [x] End-to-end run works on CI-safe simulated backend path
+- [ ] H2D/D2H bytes and dispatch counters are emitted (D2H + dispatch currently emitted via `SarMergeStatusMessage`; H2D still pending)
 
 ## Phase 5 - JSON Topology + Runtime Entry
 
-- [ ] Implement SAR topology in `sar_stripmap_pr1.json`
-- [ ] Add executable entrypoint `examples/SAR/src/main.cpp`
-- [ ] Ensure plugin/provider bootstrap path is used
-- [ ] Avoid direct plugin-loader coupling in graph construction code
+- [x] Implement SAR topology in `sar_stripmap_pr1.json`
+- [x] Add executable entrypoint `examples/SAR/src/main.cpp`
+- [x] Ensure plugin/provider bootstrap path is used
+- [x] Avoid direct plugin-loader coupling in graph construction code
 
 Exit criteria:
-- [ ] JSON topology loads and executes from example app
-- [ ] Topology shows explicit fan-out/fan-in stages
+
+- [x] JSON topology loads and executes from example app
+- [x] Topology shows explicit fan-out/fan-in stages
 
 ## Phase 6 - Diagnostics and Metrics Contract
 
@@ -121,29 +128,34 @@ Exit criteria:
 - [ ] Emit queue/backpressure data where already available
 
 Exit criteria:
+
 - [ ] Metrics are deterministic enough for CI validation
 - [ ] No brittle hard performance thresholds required in CI
 
 ## Phase 7 - Tests
 
 ### Unit
-- [ ] Add `examples/SAR/test/test_image_tile_merge.cpp`
+
+- [x] Add `examples/SAR/test/test_image_tile_merge_node.cpp`
 - [ ] Add `examples/SAR/test/test_sar_diagnostics_contract.cpp`
-- [ ] Add node-level determinism checks for source/split
+- [x] Add node-level determinism checks for source/split
 
 ### Integration
+
 - [ ] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
 - [ ] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
 - [ ] Validate simulated backend CI-safe execution
 
 ### Merge correctness matrix
-- [ ] Happy path: all tiles exactly once
-- [ ] Duplicate tile case
-- [ ] Missing tile case
-- [ ] Out-of-order completion case
-- [ ] EOS/watermark completion behavior
+
+- [x] Happy path: all tiles exactly once
+- [x] Duplicate tile case
+- [x] Missing tile case
+- [x] Out-of-order completion case
+- [x] EOS/watermark completion behavior
 
 Exit criteria:
+
 - [ ] New SAR unit/integration tests pass
 - [ ] Graph and baseline outputs match within declared tolerance
 
@@ -156,6 +168,7 @@ Exit criteria:
 - [ ] Add larger local profile
 
 Overhead attribution categories:
+
 - [ ] Graph scheduling
 - [ ] Message allocation/copy
 - [ ] Queue wait/backpressure
@@ -164,6 +177,7 @@ Overhead attribution categories:
 - [ ] Backend synchronization
 
 Exit criteria:
+
 - [ ] Benchmark report includes graph vs baseline comparison
 - [ ] Correctness is CI-gated; performance thresholds remain conservative
 
@@ -176,6 +190,7 @@ Exit criteria:
 - [ ] Add short decision-log summary in PR description
 
 Exit criteria:
+
 - [ ] Reviewer can build, run, and validate SAR example from docs alone
 
 ## Final PR1 Release Gate

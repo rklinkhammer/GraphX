@@ -1,6 +1,72 @@
 {
   "name": "sar_stripmap_pr1",
   "num_threads": 4,
-  "nodes": [],
-  "edges": []
+  "nodes": [
+    {
+      "id": "src",
+      "type": "SyntheticApertureIqSourceNode"
+    },
+    {
+      "id": "split",
+      "type": "AzimuthTileSplitNode"
+    },
+    {
+      "id": "h2d",
+      "type": "H2DAsyncNode"
+    },
+    {
+      "id": "bp",
+      "type": "SarBackprojectionTransformNode"
+    },
+    {
+      "id": "d2h",
+      "type": "D2HAsyncNode"
+    },
+    {
+      "id": "merge",
+      "type": "ImageTileMergeNode"
+    },
+    {
+      "id": "sink",
+      "type": "SarDiagnosticsSinkNode"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "src",
+      "source_port": 0,
+      "target_node_id": "split",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "split",
+      "source_port": 0,
+      "target_node_id": "h2d",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "h2d",
+      "source_port": 0,
+      "target_node_id": "bp",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "bp",
+      "source_port": 0,
+      "target_node_id": "d2h",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "merge",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "merge",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
 }

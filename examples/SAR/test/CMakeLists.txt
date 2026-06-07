@@ -10,8 +10,14 @@ endif()
 add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AzimuthTileSplitNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_azimuth_tile_split_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/D2HAsyncNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/H2DAsyncNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ImageTileMergeNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_backprojection_transform_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -22,15 +28,21 @@ target_include_directories(test_sar_example_unit PRIVATE
 )
 target_compile_definitions(test_sar_example_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
+    gpu
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads
     graphx_project_options
 )
 add_dependencies(test_sar_example_unit azimuth_tile_split_node)
+add_dependencies(test_sar_example_unit d2h_async_node)
+add_dependencies(test_sar_example_unit h2d_async_node)
+add_dependencies(test_sar_example_unit image_tile_merge_node)
+add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
 add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 
