@@ -30,6 +30,7 @@ endif()
 # Build options
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
+option(GRAPHX_BUILD_EXAMPLES_SAR "Build the SAR example package under examples/SAR" ON)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
 option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
 option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
@@ -227,6 +228,10 @@ add_subdirectory(libgraph)
 add_subdirectory(libsensor)
 add_subdirectory(libdsp)
 add_subdirectory(libgpu)
+
+if(GRAPHX_BUILD_EXAMPLES_SAR)
+    add_subdirectory(examples/SAR)
+endif()
 
 # Testing
 if(BUILD_TESTS)
