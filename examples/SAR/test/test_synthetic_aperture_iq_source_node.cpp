@@ -155,4 +155,35 @@ TEST(SyntheticApertureIqSourceNodeTest, DynamicPluginLoadAndBehaviorValidation) 
     EXPECT_FALSE(after.has_value());
 }
 
+TEST(SyntheticApertureIqSourceNodeTest, MovingTargetScenarioIncreasesReturnMagnitude) {
+    sar::SyntheticApertureIqSourceConfig cfg{};
+    cfg.stream_id = 3;
+    cfg.total_pulses = 3;
+    cfg.samples_per_pulse = 1;
+    cfg.backend_id = 0;
+    cfg.backend = sar::SarBackendKind::Host;
+    cfg.moving_target_enabled = true;
+    cfg.target_initial_range_m = 1500.0f;
+    cfg.target_closing_velocity_mps = 300.0f;
+    cfg.pulse_interval_s = 0.01f;
+    cfg.target_reflectivity = 4.0f;
+
+    sar::SyntheticApertureIqSourceNode node(cfg);
+
+    auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
+    auto second = node.Produce(std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(first.has_value());
+    ASSERT_TRUE(second.has_value());
+    ASSERT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
+    ASSERT_EQ(second->envelope.marker, sar::SarFrameMarker::Data);
+    ASSERT_FALSE(first->iq_samples.empty());
+    ASSERT_FALSE(second->iq_samples.empty());
+
+    const float first_magnitude = std::abs(first->iq_samples[0]);
+    const float second_magnitude = std::abs(second->iq_samples[0]);
+
+    EXPECT_GT(second_magnitude, first_magnitude);
+}
+
 } // namespace

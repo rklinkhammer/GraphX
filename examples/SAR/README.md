@@ -30,6 +30,10 @@ flowchart LR
 
 Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
+Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
+
+The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
+
 ## Build And Run
 
 Build SAR example and tests:
@@ -49,6 +53,34 @@ Run SAR tests:
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit
 ```
+
+## Viewer Helper
+
+The projectile scenario can generate PGM tiles in `sar_viz_output/` through `SarVisualizationSinkNode`.
+
+Use the terminal ASCII viewer helper:
+
+```bash
+./examples/SAR/tools/view_sar_tiles.sh --input sar_viz_output
+```
+
+Useful options:
+
+1. `--fps 8` to speed up playback.
+2. `--step 1` for full resolution in terminal output.
+3. `--loop 0` for continuous playback.
+4. `--list` to list discovered frame files.
+5. `--no-clear` to avoid screen clearing while troubleshooting frame output.
+
+Native grayscale helper (macOS):
+
+```bash
+./examples/SAR/tools/view_sar_tiles_native.sh --open-dir
+./examples/SAR/tools/view_sar_tiles_native.sh --open-first
+./examples/SAR/tools/view_sar_tiles_native.sh --convert-png --open-png-dir
+```
+
+This helper opens PGM images in Preview/Finder directly and can convert all frames to PNG using `sips`.
 
 ## Deterministic Configuration Knobs
 
@@ -71,6 +103,16 @@ Primary knobs:
   - backend_id
 
 All SAR nodes are initialized through standard IConfigurable using node_config.
+
+Projectile-approach demo knobs (source node):
+
+1. moving_target_enabled
+2. target_initial_range_m
+3. target_closing_velocity_mps
+4. pulse_interval_s
+5. target_reflectivity
+
+This scenario models deterministic closing-range behavior and is intended as an architectural demo input profile rather than a full-fidelity radar physics model.
 
 ## Simulated Backend And Native Follow-Up
 

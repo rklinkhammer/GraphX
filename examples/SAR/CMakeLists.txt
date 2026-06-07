@@ -29,13 +29,13 @@ add_executable(sar_benchmark
 target_compile_features(sar_example PRIVATE cxx_std_26)
 target_link_libraries(sar_example PRIVATE graph gpu log4cxx)
 target_compile_definitions(sar_example PRIVATE
-    SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
 )
 
 target_compile_features(sar_benchmark PRIVATE cxx_std_26)
 target_link_libraries(sar_benchmark PRIVATE graph gpu log4cxx)
 target_compile_definitions(sar_benchmark PRIVATE
-    SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
 )
 
 target_include_directories(sar_example PRIVATE

@@ -225,6 +225,9 @@ BuildResult GraphBuilder::Build() {
         
         LOG4CXX_TRACE(logger_, "Wired " << edge_configs.size() << " edges");
         
+        node_count_ = nodes.size();
+        edge_count_ = edge_configs.size();
+
         // Step 6: Validate topology (optional)
         LOG4CXX_TRACE(logger_, "Step 6: Validating graph topology");
         if (!ValidateTopology()) {
@@ -237,11 +240,7 @@ BuildResult GraphBuilder::Build() {
             LOG4CXX_ERROR(logger_, "Build failed at topology validation");
             return result;
         }
-        
-        // Build successful
-        node_count_ = nodes.size();
-        edge_count_ = edge_configs.size();
-        
+
         LOG4CXX_TRACE(logger_, "Graph build completed successfully: " 
                              << node_count_ << " nodes, " << edge_count_ << " edges");
         

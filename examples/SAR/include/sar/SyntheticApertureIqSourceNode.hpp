@@ -22,6 +22,11 @@ struct SyntheticApertureIqSourceConfig {
     std::uint32_t samples_per_pulse{256};
     std::uint32_t backend_id{0};
     SarBackendKind backend{SarBackendKind::Host};
+    bool moving_target_enabled{false};
+    float target_initial_range_m{2000.0f};
+    float target_closing_velocity_mps{250.0f};
+    float pulse_interval_s{0.001f};
+    float target_reflectivity{1.0f};
 };
 
 class SyntheticApertureIqSourceNode
@@ -40,7 +45,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 5> Fields() {
+    static constexpr std::array<graph::JsonField, 10> Fields() {
         return {{
             graph::JsonField{
                 .name = "stream_id",
@@ -91,6 +96,56 @@ public:
                 .default_value = "0",
                 .enum_values = std::nullopt,
                 .description = "Backend kind enum: 0=Host, 1=SimulatedDevice, 2=NativeDevice"
+            },
+            graph::JsonField{
+                .name = "moving_target_enabled",
+                .type = graph::JsonType::Boolean,
+                .required = false,
+                .min = std::nullopt,
+                .max = std::nullopt,
+                .default_value = "false",
+                .enum_values = std::nullopt,
+                .description = "Enable deterministic moving-target synthesis profile"
+            },
+            graph::JsonField{
+                .name = "target_initial_range_m",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 1.0,
+                .max = std::nullopt,
+                .default_value = "2000.0",
+                .enum_values = std::nullopt,
+                .description = "Initial target range in meters"
+            },
+            graph::JsonField{
+                .name = "target_closing_velocity_mps",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "250.0",
+                .enum_values = std::nullopt,
+                .description = "Target closing velocity in meters per second"
+            },
+            graph::JsonField{
+                .name = "pulse_interval_s",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.000001,
+                .max = std::nullopt,
+                .default_value = "0.001",
+                .enum_values = std::nullopt,
+                .description = "Pulse interval in seconds"
+            },
+            graph::JsonField{
+                .name = "target_reflectivity",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "1.0",
+                .enum_values = std::nullopt,
+                .description = "Deterministic target reflectivity scale"
             }
         }};
     }
@@ -100,7 +155,7 @@ public:
     const SyntheticApertureIqSourceConfig& GetConfig() const noexcept;
 
 private:
-    static SarIqSample MakeSample(std::uint64_t sequence_id, std::uint32_t sample_index);
+    SarIqSample MakeSample(std::uint64_t sequence_id, std::uint32_t sample_index) const;
 
     SarPulseBlockMessage MakeDataMessage() const;
     SarPulseBlockMessage MakeEndOfStreamMessage() const;

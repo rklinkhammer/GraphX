@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.23)
 
 include(${CMAKE_SOURCE_DIR}/cmake/PluginTemplate.cmake)
 
-add_graphx_plugins_directory()
+set(SAR_PLUGIN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples/SAR/plugins")
+
+add_graphx_plugins_directory(OUTPUT_DIR ${SAR_PLUGIN_OUTPUT_DIRECTORY})
 
 add_graphx_plugin(
     TARGET_NAME h2d_async_node
@@ -66,6 +68,19 @@ add_graphx_plugin(
 )
 
 target_include_directories(sar_diagnostics_sink_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
+    TARGET_NAME sar_visualization_sink_node
+    SOURCE_FILES
+        sar_visualization_sink_node_plugin.cpp
+        ../src/SarVisualizationSinkNode.cpp
+    DESCRIPTION "SAR visualization sink node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(sar_visualization_sink_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 
