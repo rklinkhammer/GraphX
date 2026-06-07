@@ -72,6 +72,16 @@ Useful options:
 4. `--list` to list discovered frame files.
 5. `--no-clear` to avoid screen clearing while troubleshooting frame output.
 
+Native grayscale helper (macOS):
+
+```bash
+./examples/SAR/tools/view_sar_tiles_native.sh --open-dir
+./examples/SAR/tools/view_sar_tiles_native.sh --open-first
+./examples/SAR/tools/view_sar_tiles_native.sh --convert-png --open-png-dir
+```
+
+This helper opens PGM images in Preview/Finder directly and can convert all frames to PNG using `sips`.
+
 ## Deterministic Configuration Knobs
 
 JSON node_config fields define deterministic profile behavior.
