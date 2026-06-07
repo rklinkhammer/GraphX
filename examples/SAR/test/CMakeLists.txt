@@ -1,0 +1,31 @@
+find_package(GTest REQUIRED)
+find_package(Threads REQUIRED)
+find_package(log4cxx REQUIRED)
+
+set(SAR_LOG4CXX_LIB log4cxx)
+if(TARGET log4cxx::log4cxx)
+    set(SAR_LOG4CXX_LIB log4cxx::log4cxx)
+endif()
+
+add_executable(test_sar_example_unit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/AzimuthTileSplitNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_azimuth_tile_split_node.cpp
+)
+
+target_compile_features(test_sar_example_unit PRIVATE cxx_std_26)
+target_include_directories(test_sar_example_unit PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+target_compile_definitions(test_sar_example_unit PRIVATE
+    PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+)
+target_link_libraries(test_sar_example_unit PRIVATE
+    graph
+    ${SAR_LOG4CXX_LIB}
+    GTest::gtest_main
+    Threads::Threads
+    graphx_project_options
+)
+add_dependencies(test_sar_example_unit azimuth_tile_split_node)
+
+add_test(NAME sar_example_unit COMMAND test_sar_example_unit)

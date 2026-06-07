@@ -17,6 +17,9 @@ Source plan: `plan/SAR.md`
 - [ ] Deterministic synthetic data path only (fixed seed + fixed counts)
 - [ ] No framework-wide rewrites
 - [ ] No mandatory native GPU requirement for CI
+- [x] Every SAR node has a direct unit test
+- [x] Every SAR node is dynamically loadable as a plugin
+- [x] Every SAR node has a dynamic-load test that validates node behavior
 
 ## Phase 1 - Example Scaffolding
 
@@ -55,8 +58,8 @@ Exit criteria:
 - [ ] Emit explicit EOS
 
 ### 3.2 AzimuthTileSplitNode
-- [ ] Add header/source for `AzimuthTileSplitNode`
-- [ ] Implement explicit tile fan-out with stable tile IDs
+- [x] Add header/source for `AzimuthTileSplitNode`
+- [x] Implement explicit tile fan-out with stable tile IDs
 
 ### 3.3 SarBackprojectionTransformNode
 - [ ] Add header/source for `SarBackprojectionTransformNode`

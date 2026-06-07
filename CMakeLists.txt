@@ -242,6 +242,10 @@ if(BUILD_TESTS)
     # Add per-project tests
     add_subdirectory(libgraph/test)
     add_subdirectory(libgpu/test)
+    if(GRAPHX_BUILD_EXAMPLES_SAR)
+        add_subdirectory(examples/SAR/plugins)
+        add_subdirectory(examples/SAR/test)
+    endif()
      
     # Summary target
     add_custom_target(test-summary
