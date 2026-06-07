@@ -28,7 +28,6 @@ target_link_libraries(test_sar_example_unit PRIVATE
     Threads::Threads
     graphx_project_options
 )
-<<<<<<< HEAD
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit azimuth_tile_split_node)
 
