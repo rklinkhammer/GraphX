@@ -18,6 +18,19 @@ target_include_directories(azimuth_tile_split_node PRIVATE
 )
 
 add_graphx_plugin(
+    TARGET_NAME sar_backprojection_transform_node
+    SOURCE_FILES
+        sar_backprojection_transform_node_plugin.cpp
+        ../src/SarBackprojectionTransformNode.cpp
+    DESCRIPTION "SAR backprojection transform node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(sar_backprojection_transform_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME synthetic_aperture_iq_source_node
     SOURCE_FILES
         synthetic_aperture_iq_source_node_plugin.cpp

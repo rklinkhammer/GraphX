@@ -109,6 +109,14 @@ consteval std::string_view ExtractTypeNameFromFunction() {
     std::size_t name_start = start + key.size();
     std::size_t name_end = fn.find(']', name_start);
 
+    // GCC appends alias metadata like
+    // "; std::string_view = std::basic_string_view<char>" before the closing bracket.
+    // Keep only the actual T name segment.
+    const std::size_t alias_start = fn.find(';', name_start);
+    if (alias_start != std::string_view::npos && alias_start < name_end) {
+        name_end = alias_start;
+    }
+
     if (name_end == std::string_view::npos) {
         return "UnknownType";
     }

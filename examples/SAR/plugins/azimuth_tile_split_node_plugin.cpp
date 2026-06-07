@@ -7,9 +7,7 @@ using namespace graph;
 
 namespace {
 
-struct AzimuthTileSplitNodePolicy : PluginPolicy<sar::AzimuthTileSplitNode> {
-    static constexpr const char* Description = "SAR azimuth tile split node";
-};
+struct AzimuthTileSplitNodePolicy : PluginPolicy<sar::AzimuthTileSplitNode> {};
 
 using Glue = PluginGlue<sar::AzimuthTileSplitNode, AzimuthTileSplitNodePolicy>;
 static const NodeFacade azimuth_tile_split_node_facade = Glue::MakeFacade();

@@ -71,9 +71,18 @@ struct SarTransferTicketMessage {
     std::uint64_t byte_count{};
 };
 
+struct SarDispatchMetadata {
+    std::uint32_t queue_id{};
+    std::uint32_t kernel_id{};
+    std::uint32_t dispatch_width{};
+    std::uint32_t dispatch_height{};
+    std::uint32_t dispatch_depth{1};
+};
+
 struct SarImageTileMessage {
     SarMessageEnvelope envelope{};
     SarBufferDescriptor buffer{};
+    SarDispatchMetadata dispatch{};
     std::uint32_t width{};
     std::uint32_t height{};
     std::vector<float> pixels{};
