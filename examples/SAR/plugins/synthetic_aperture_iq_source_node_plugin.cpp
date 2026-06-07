@@ -7,9 +7,7 @@ using namespace graph;
 
 namespace {
 
-struct SyntheticApertureIqSourceNodePolicy : PluginPolicy<sar::SyntheticApertureIqSourceNode> {
-    static constexpr const char* Description = "SAR synthetic aperture IQ source node";
-};
+struct SyntheticApertureIqSourceNodePolicy : PluginPolicy<sar::SyntheticApertureIqSourceNode> {};
 
 using Glue = PluginGlue<sar::SyntheticApertureIqSourceNode, SyntheticApertureIqSourceNodePolicy>;
 static const NodeFacade synthetic_aperture_iq_source_node_facade = Glue::MakeFacade();
