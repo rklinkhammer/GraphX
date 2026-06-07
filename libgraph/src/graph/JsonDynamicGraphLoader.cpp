@@ -166,9 +166,15 @@ std::expected<void, app::error::ConfigError> ValidateNodeConfigAgainstDescriptor
         }
 
         // Strict field-level validation is applied when config_fields is non-empty.
-        // For configurable nodes that do not publish config_fields yet, defer
-        // field validation to the node's IConfigurable::Configure implementation.
+        // For configurable nodes that publish an empty config_fields list, only
+        // an empty object is accepted; non-empty objects are rejected as unknown
+        // node_config keys.
         if (supports_configuration && !has_config_fields) {
+            if (!node_config.node_config.empty()) {
+                LOG4CXX_ERROR(logger_, "Node '" << node_config.id
+                              << "' has unknown node_config fields: descriptor declares no config_fields");
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
             return {};
         }
 
