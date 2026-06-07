@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -40,6 +41,11 @@ struct BenchmarkProfile {
     std::uint32_t tile_count;
     int warmup_runs;
     int measured_runs;
+};
+
+struct BenchmarkOptions {
+    BenchmarkProfile profile;
+    std::optional<std::filesystem::path> trace_output_path{};
 };
 
 struct BenchmarkStats {
@@ -87,7 +93,7 @@ std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
     return nullptr;
 }
 
-BenchmarkProfile ParseProfile(int argc, char** argv) {
+BenchmarkOptions ParseOptions(int argc, char** argv) {
     BenchmarkProfile ci{
         .name = "ci",
         .pulses = 32,
@@ -106,19 +112,42 @@ BenchmarkProfile ParseProfile(int argc, char** argv) {
         .measured_runs = 10,
     };
 
-    if (argc < 2) {
-        return ci;
+    BenchmarkOptions options{.profile = ci};
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--profile=ci" || arg == "ci") {
+            options.profile = ci;
+            continue;
+        }
+        if (arg == "--profile=local" || arg == "local") {
+            options.profile = local;
+            continue;
+        }
+
+        const std::string trace_out_prefix = "--trace-out=";
+        const std::string trace_prefix = "--trace=";
+        if (arg.rfind(trace_out_prefix, 0) == 0) {
+            options.trace_output_path = arg.substr(trace_out_prefix.size());
+            continue;
+        }
+        if (arg.rfind(trace_prefix, 0) == 0) {
+            options.trace_output_path = arg.substr(trace_prefix.size());
+            continue;
+        }
+        if (arg == "--trace-out" || arg == "--trace") {
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("--trace-out requires a path argument");
+            }
+            options.trace_output_path = argv[++i];
+            continue;
+        }
+
+        throw std::invalid_argument(
+            "Unknown option. Use ci/local, --profile=ci/--profile=local, and optional --trace-out=<path>");
     }
 
-    const std::string mode = argv[1];
-    if (mode == "--profile=ci" || mode == "ci") {
-        return ci;
-    }
-    if (mode == "--profile=local" || mode == "local") {
-        return local;
-    }
-
-    throw std::invalid_argument("Unknown profile. Use ci/local or --profile=ci/--profile=local");
+    return options;
 }
 
 std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
@@ -490,11 +519,84 @@ void PrintSummary(const BenchmarkProfile& profile,
     std::cout << "- backend synchronization: proxy e2e_latency_ms=" << last_graph.diagnostics.e2e_latency_ms << "\n";
 }
 
+nlohmann::json StatsToJson(const BenchmarkStats& stats) {
+    return {
+        {"min_ms", stats.min_ms},
+        {"median_ms", stats.median_ms},
+        {"max_ms", stats.max_ms},
+        {"stddev_ms", stats.stddev_ms},
+    };
+}
+
+void WriteTraceJson(const std::filesystem::path& path,
+                    const BenchmarkProfile& profile,
+                    const BenchmarkStats& graph_build,
+                    const BenchmarkStats& graph_run,
+                    const BenchmarkStats& graph_lifecycle,
+                    const BenchmarkStats& baseline_exec,
+                    const GraphRunResult& last_graph) {
+    const auto parent = path.parent_path();
+    if (!parent.empty()) {
+        std::filesystem::create_directories(parent);
+    }
+
+    nlohmann::json trace = {
+        {"schema", "graphx.sar.benchmark.trace.v1"},
+        {"profile", {
+            {"name", profile.name},
+            {"pulses", profile.pulses},
+            {"samples_per_pulse", profile.samples_per_pulse},
+            {"tile_count", profile.tile_count},
+            {"warmup_runs", profile.warmup_runs},
+            {"measured_runs", profile.measured_runs},
+        }},
+        {"timing_ms", {
+            {"graph_build", StatsToJson(graph_build)},
+            {"graph_run", StatsToJson(graph_run)},
+            {"graph_lifecycle_total", StatsToJson(graph_lifecycle)},
+            {"baseline_execute", StatsToJson(baseline_exec)},
+        }},
+        {"last_lifecycle_ms", {
+            {"init", last_graph.init_ms},
+            {"start", last_graph.start_ms},
+            {"stop", last_graph.stop_ms},
+            {"join", last_graph.join_ms},
+            {"total", last_graph.lifecycle_total_ms},
+        }},
+        {"diagnostics", {
+            {"pulses_processed", last_graph.diagnostics.pulses_processed},
+            {"tiles_processed", last_graph.diagnostics.tiles_processed},
+            {"bytes_h2d", last_graph.diagnostics.bytes_h2d},
+            {"bytes_d2h", last_graph.diagnostics.bytes_d2h},
+            {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
+            {"fanin_wait_ms", last_graph.diagnostics.fanin_wait_ms},
+            {"e2e_latency_ms", last_graph.diagnostics.e2e_latency_ms},
+            {"duplicate_tile_count", last_graph.diagnostics.duplicate_tile_count},
+            {"missing_tile_count", last_graph.diagnostics.missing_tile_count},
+        }},
+        {"queue", {
+            {"backpressure_events", last_graph.queue_backpressure_events},
+            {"peak_queue_depth", last_graph.peak_queue_depth},
+        }},
+        {"overhead_ms", {
+            {"graph_run_minus_baseline_median", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
+            {"lifecycle_join_last", last_graph.join_ms},
+        }},
+    };
+
+    std::ofstream out(path);
+    if (!out) {
+        throw std::runtime_error("Failed to open trace output path: " + path.string());
+    }
+    out << trace.dump(2) << "\n";
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     try {
-        const auto profile = ParseProfile(argc, argv);
+        const auto options = ParseOptions(argc, argv);
+        const auto& profile = options.profile;
 
         const std::filesystem::path plugin_dir = SAR_PLUGIN_OUTPUT_DIRECTORY;
         if (!std::filesystem::exists(plugin_dir)) {
@@ -544,6 +646,18 @@ int main(int argc, char** argv) {
             graph_lifecycle_stats,
             baseline_exec_stats,
             last_graph);
+
+        if (options.trace_output_path) {
+            WriteTraceJson(
+                *options.trace_output_path,
+                profile,
+                graph_build_stats,
+                graph_run_stats,
+                graph_lifecycle_stats,
+                baseline_exec_stats,
+                last_graph);
+            std::cout << "\nTrace written: " << options.trace_output_path->string() << "\n";
+        }
 
         return 0;
     } catch (const std::exception& ex) {

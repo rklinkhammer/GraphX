@@ -58,6 +58,14 @@ Run larger local profile:
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
 ```
 
+Optional JSON trace export:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --trace-out=/tmp/sar_trace.json
+```
+
+The trace uses schema `graphx.sar.benchmark.trace.v1` and records profile metadata, graph build/run/lifecycle timing summaries, baseline timing, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
+
 ## Correctness Guard
 
 Each measured run verifies deterministic diagnostics parity between graph and baseline:
@@ -79,12 +87,13 @@ so reported overhead remains graph-specific rather than DSP-algorithm drift.
 
 The benchmark reports the following categories using deterministic, measurable proxies:
 
-1. graph scheduling: median(graph_execute_ms) - median(baseline_execute_ms)
+1. graph scheduling/run loop: median(graph_run_ms) - median(baseline_execute_ms)
 2. message allocation/copy: bytes_h2d/bytes_d2h totals
 3. queue wait/backpressure: fanin_wait_ms, backpressure_events, peak_queue_depth
 4. provider/plugin lookup: graph build-time summary
 5. diagnostics collection: sink contract emission path
 6. backend synchronization: e2e_latency_ms proxy
+7. lifecycle teardown: init/start/stop/join/total timing reported separately from graph run time
 
 ## CI Gate Guidance
 
