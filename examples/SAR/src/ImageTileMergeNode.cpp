@@ -38,6 +38,9 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         has_first_data_sequence_ = true;
     }
 
+    bytes_d2h_ += static_cast<std::uint64_t>(input.buffer.byte_count);
+    ++kernel_dispatches_;
+
     const auto [_, inserted] = seen_tiles_.insert(input.envelope.tile_id);
     if (!inserted) {
         ++duplicate_tiles_;
@@ -59,6 +62,8 @@ void ImageTileMergeNode::Reset() {
     received_tiles_ = 0;
     duplicate_tiles_ = 0;
     out_of_order_tiles_ = 0;
+    bytes_d2h_ = 0;
+    kernel_dispatches_ = 0;
     last_tile_id_ = 0;
     has_last_tile_ = false;
     watermark_seen_ = false;
@@ -99,6 +104,8 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.duplicate_tiles = duplicate_tiles_;
     out.missing_tiles = missing_tiles;
     out.out_of_order_tiles = out_of_order_tiles_;
+    out.bytes_d2h = bytes_d2h_;
+    out.kernel_dispatches = kernel_dispatches_;
     out.watermark_seen = watermark_seen_;
     out.complete = complete;
 

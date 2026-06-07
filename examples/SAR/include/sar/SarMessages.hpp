@@ -95,6 +95,8 @@ struct SarMergeStatusMessage {
     std::uint32_t duplicate_tiles{};
     std::uint32_t missing_tiles{};
     std::uint32_t out_of_order_tiles{};
+    std::uint64_t bytes_d2h{};
+    std::uint64_t kernel_dispatches{};
     bool watermark_seen{false};
     std::uint64_t fanin_wait_ms{};
     bool complete{false};

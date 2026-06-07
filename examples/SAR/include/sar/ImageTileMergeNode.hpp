@@ -50,6 +50,8 @@ private:
     std::uint32_t received_tiles_{0};
     std::uint32_t duplicate_tiles_{0};
     std::uint32_t out_of_order_tiles_{0};
+    std::uint64_t bytes_d2h_{0};
+    std::uint64_t kernel_dispatches_{0};
     std::uint32_t last_tile_id_{0};
     bool has_last_tile_{false};
     bool watermark_seen_{false};

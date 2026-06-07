@@ -95,25 +95,25 @@ Exit criteria:
 - [ ] Reuse existing H2D async transfer pattern
 - [ ] Reuse existing device transform stage pattern
 - [ ] Reuse existing D2H async transfer pattern
-- [ ] Keep byte movement explicit at transfer boundaries
-- [ ] Keep control/data-plane separation explicit in messages and docs
+- [x] Keep byte movement explicit at transfer boundaries
+- [x] Keep control/data-plane separation explicit in messages and docs
 
 Exit criteria:
 
-- [ ] End-to-end run works on CI-safe simulated backend path
-- [ ] H2D/D2H bytes and dispatch counters are emitted
+- [x] End-to-end run works on CI-safe simulated backend path
+- [ ] H2D/D2H bytes and dispatch counters are emitted (D2H + dispatch currently emitted via `SarMergeStatusMessage`; H2D still pending)
 
 ## Phase 5 - JSON Topology + Runtime Entry
 
-- [ ] Implement SAR topology in `sar_stripmap_pr1.json`
+- [x] Implement SAR topology in `sar_stripmap_pr1.json`
 - [x] Add executable entrypoint `examples/SAR/src/main.cpp`
-- [ ] Ensure plugin/provider bootstrap path is used
-- [ ] Avoid direct plugin-loader coupling in graph construction code
+- [x] Ensure plugin/provider bootstrap path is used
+- [x] Avoid direct plugin-loader coupling in graph construction code
 
 Exit criteria:
 
-- [ ] JSON topology loads and executes from example app
-- [ ] Topology shows explicit fan-out/fan-in stages
+- [x] JSON topology loads and executes from example app
+- [x] Topology shows explicit fan-out/fan-in stages
 
 ## Phase 6 - Diagnostics and Metrics Contract
 

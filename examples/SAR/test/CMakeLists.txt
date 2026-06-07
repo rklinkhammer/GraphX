@@ -14,6 +14,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_backprojection_transform_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -24,9 +25,11 @@ target_include_directories(test_sar_example_unit PRIVATE
 )
 target_compile_definitions(test_sar_example_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
+    gpu
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

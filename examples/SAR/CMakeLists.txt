@@ -13,7 +13,10 @@ add_executable(sar_example
 )
 
 target_compile_features(sar_example PRIVATE cxx_std_26)
-target_link_libraries(sar_example PRIVATE graph log4cxx)
+target_link_libraries(sar_example PRIVATE graph gpu log4cxx)
+target_compile_definitions(sar_example PRIVATE
+    SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+)
 
 target_include_directories(sar_example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
