@@ -139,13 +139,14 @@ Exit criteria:
 ### Unit
 
 - [x] Add `examples/SAR/test/test_image_tile_merge_node.cpp`
+- [x] Add `examples/SAR/test/test_image_tile_merge.cpp`
 - [x] Add `examples/SAR/test/test_sar_diagnostics_contract.cpp`
 - [x] Add node-level determinism checks for source/split
 
 ### Integration
 
-- [ ] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
-- [ ] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
+- [x] Add `examples/SAR/test/test_sar_json_pipeline.cpp`
+- [x] Add `examples/SAR/test/test_sar_baseline_compare.cpp`
 - [x] Validate simulated backend CI-safe execution
 
 ### Merge correctness matrix
@@ -158,8 +159,8 @@ Exit criteria:
 
 Exit criteria:
 
-- [ ] New SAR unit/integration tests pass
-- [ ] Graph and baseline outputs match within declared tolerance
+- [x] New SAR unit/integration tests pass
+- [x] Graph and baseline outputs match within declared tolerance
 
 ## Phase 8 - Benchmark and Overhead Attribution
 
