@@ -108,7 +108,7 @@ TEST(SarBackprojectionTransformNodeTest, PropagatesEndOfStreamWithoutPixelPayloa
     cfg.backend_id = 5;
     cfg.queue_id = 9;
     cfg.kernel_id = 7001;
-    cfg.backend = sar::SarBackendKind::Host;
+    cfg.backend = sar::SarBackendKind::SimulatedDevice;
 
     sar::SarBackprojectionTransformNode node(cfg);
     const sar::SarRangeTileMessage eos_input =
@@ -131,6 +131,10 @@ TEST(SarBackprojectionTransformNodeTest, PropagatesEndOfStreamWithoutPixelPayloa
     EXPECT_EQ(out->dispatch.kernel_id, 7001u);
     EXPECT_EQ(out->dispatch.dispatch_width, 8u);
     EXPECT_EQ(out->dispatch.dispatch_height, 1u);
+    EXPECT_TRUE(out->gpu.has_kernel_ticket);
+    EXPECT_EQ(out->gpu.kernel_ticket.kernel_id, 7001u);
+    EXPECT_EQ(out->gpu.kernel_ticket.execution_queue_id, 10u);
+    EXPECT_EQ(out->gpu.kernel_ticket.arg_count, 0u);
 }
 
 TEST(SarBackprojectionTransformNodeTest, DynamicPluginLoadAndBehaviorValidation) {

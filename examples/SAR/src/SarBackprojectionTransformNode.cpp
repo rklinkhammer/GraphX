@@ -238,6 +238,23 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildEndOfStreamTile(
     out.kernel_exec_time_us = input.kernel_exec_time_us;
     out.transfer_d2h_time_us = input.transfer_d2h_time_us;
 
+    const std::uint32_t width = ResolveImageWidth();
+    out.gpu.kernel_ticket.backend = ToAccelBackendKind(config_.backend);
+    out.gpu.kernel_ticket.kernel_id = config_.kernel_id;
+    out.gpu.kernel_ticket.launch.grid_x = width;
+    out.gpu.kernel_ticket.launch.grid_y = 1;
+    out.gpu.kernel_ticket.launch.grid_z = 1;
+    out.gpu.kernel_ticket.launch.block_x = 1;
+    out.gpu.kernel_ticket.launch.block_y = 1;
+    out.gpu.kernel_ticket.launch.block_z = 1;
+    out.gpu.kernel_ticket.arg_count = 0;
+    out.gpu.kernel_ticket.execution_queue_id =
+        static_cast<std::uint64_t>(config_.queue_id) + 1u;
+    out.gpu.kernel_ticket.completion_event =
+        ((input.envelope.sequence_id + 1u) * 100u) + input.envelope.tile_id + 1u;
+    out.gpu.has_kernel_ticket =
+        out.gpu.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
+
     out.width = ResolveImageWidth();
     out.height = 1;
 
