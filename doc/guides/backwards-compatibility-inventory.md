@@ -28,9 +28,9 @@ Backwards compatibility is not required for this project. New APIs are the sourc
 5. `GraphCapability::GetNodeFactory()`: removed.
 6. `TestMetricsSubscriber::GetEvents()`: removed.
 7. `JsonViewAdapter` legacy test adapter: removed.
-8. `NodeFactoryRegistry` public creation layer: removed; `NodeFactory` owns provider-backed creation directly.
+8. `NodeFactoryRegistry` public creation layer: removed; `RegisteredNodeProvider` owns provider-backed creation directly.
 9. `FactoryManager` legacy bootstrap path: removed; `NodeProviderBootstrap` is the only provider bootstrap boundary.
-10. `NodeFactory` plugin-directory loading path: removed; plugin loading belongs to `NodeProviderBootstrap`.
+10. Legacy `NodeFactory` plugin-directory loading path: removed; plugin loading belongs to `NodeProviderBootstrap`.
 11. `csv::ParseRowConsolidatedExpected(...)` alias: removed; `csv::ParseRowUnifiedExpected(...)` is the single row parser entry point.
 
 ## Current Non-Compatibility Behaviors

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "graph/NodeFactory.hpp"
+#include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/GraphManager.hpp"
@@ -20,19 +20,19 @@ TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
         // Plugins may not be fully available, but registration may have worked
     }
     
-    // Create factory
-    std::shared_ptr<graph::INodeProvider> factory = std::make_shared<graph::NodeFactory>(registry);
+    // Create provider
+    std::shared_ptr<graph::INodeProvider> provider = std::make_shared<graph::RegisteredNodeProvider>(registry);
     
     // Build Topology3 exactly as the test does
     EXPECT_NO_THROW({
         auto graph = std::make_shared<graph::GraphManager>();
         
         auto source_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateNodeOrThrow(factory, "SourceTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(provider, "SourceTestNode"));
         auto interior_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateNodeOrThrow(factory, "InteriorTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(provider, "InteriorTestNode"));
         auto sink_adapter = std::make_shared<graph::NodeFacadeAdapter>(
-            test::PluginInfrastructure::CreateNodeOrThrow(factory, "SinkTestNode"));
+            test::PluginInfrastructure::CreateNodeOrThrow(provider, "SinkTestNode"));
         
         auto sourcex = std::make_shared<graph::NodeFacadeAdapterWrapper>(source_adapter);
         auto interiorx = std::make_shared<graph::NodeFacadeAdapterWrapper>(interior_adapter);

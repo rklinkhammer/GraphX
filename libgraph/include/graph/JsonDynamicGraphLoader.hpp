@@ -35,7 +35,7 @@
  *
  * Usage:
  * @code
- * auto provider = std::make_shared<NodeFactory>(registry);
+ * auto provider = std::make_shared<RegisteredNodeProvider>(registry);
  * auto nodes = JsonDynamicGraphLoader::LoadNodesSafe("config.json", provider);
  * auto edges = JsonDynamicGraphLoader::LoadEdgesSafe("config.json");
  * 

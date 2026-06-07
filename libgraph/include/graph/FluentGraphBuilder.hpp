@@ -66,7 +66,7 @@ namespace graph {
  * @code
  * using namespace graph;
  *
- * auto graph = FluentGraphBuilder<graph::NodeFactory>()
+ * auto graph = FluentGraphBuilder<graph::RegisteredNodeProvider>()
  *     .AddNode<DataInjectionAccelerometerNode>("accel")
  *     .AddNode<FlightFSMNode>("fsm")
  *     .AddNode<AltitudeFusionNode>("altitude")
@@ -76,12 +76,12 @@ namespace graph {
  * @endcode
  *
  * Template Parameters:
- * - NodeFactory: Factory class for creating node instances
+ * - RegisteredNodeProvider: Provider class for creating node instances
  *
  * The builder accumulates node specifications and edge connections,
  * then creates the final GraphManager with all connections wired.
  */
-template <typename NodeFactoryType = void>
+template <typename NodeProviderType = void>
 class FluentGraphBuilder {
 public:
     /**
@@ -110,10 +110,10 @@ public:
     // ========================================================================
 
     /// @brief Construct a new fluent builder
-    /// @param factory Optional node factory (uses default if not provided)
+    /// @param provider Optional node provider (uses default if not provided)
     explicit FluentGraphBuilder(
-        std::shared_ptr<NodeFactoryType> factory = nullptr)
-        : factory_(factory) {
+        std::shared_ptr<NodeProviderType> provider = nullptr)
+        : provider_(provider) {
     }
 
     /// @brief Destructor
@@ -341,8 +341,8 @@ private:
     /// List of edge specifications
     std::vector<EdgeSpec> edges_;
 
-    /// Optional node factory (for future extensibility)
-    std::shared_ptr<NodeFactoryType> factory_;
+    /// Optional node provider (for future extensibility)
+    std::shared_ptr<NodeProviderType> provider_;
 };
 
 }  // namespace graph

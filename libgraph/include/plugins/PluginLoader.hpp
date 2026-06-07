@@ -185,7 +185,7 @@ public:
 
     /// @brief Destructor - releases loader bookkeeping without unloading libraries
     ///
-    /// PluginRegistry and NodeFactory may still hold function/facade pointers into
+    /// PluginRegistry and RegisteredNodeProvider may still hold function/facade pointers into
     /// loaded libraries during shutdown. Use UnloadPlugin() for explicit unload.
     ~PluginLoader();
 };

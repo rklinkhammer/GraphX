@@ -2,7 +2,7 @@
  * @file PluginInfrastructure.hpp
  * @brief Plugin loading and management infrastructure for test topologies
  *
- * Provides centralized plugin factory management and edge creation helpers
+ * Provides centralized plugin provider management and edge creation helpers
  * for building test topologies with dynamically loaded nodes.
  *
  * @author Test Suite
@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <log4cxx/logger.h>
 #include "graph/GraphManager.hpp"
-#include "graph/NodeFactory.hpp"
+#include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "plugins/PluginRegistry.hpp"
@@ -32,7 +32,7 @@ namespace test {
  * @class PluginInfrastructure
  * @brief Manages plugin loading and provides helpers for topology builders
  *
- * Singleton pattern for factory initialization and templated edge creation
+ * Singleton pattern for provider initialization and templated edge creation
  * utilities for connecting dynamically loaded nodes.
  */
 class PluginInfrastructure {
@@ -41,8 +41,8 @@ public:
      * @brief Get or initialize the node provider with all plugins loaded
      * @return Shared pointer to initialized node provider
      */
-        static std::shared_ptr<graph::INodeProvider> GetProvider() {
-            static auto* factory = new std::shared_ptr<graph::INodeProvider>();
+    static std::shared_ptr<graph::INodeProvider> GetProvider() {
+        static auto* provider = new std::shared_ptr<graph::INodeProvider>();
         static auto* loader = new std::shared_ptr<graph::PluginLoader>();
         static bool initialized = false;
         
@@ -56,17 +56,17 @@ public:
                 // Plugins may not be available in test environment
             }
             
-            *factory = std::make_shared<graph::NodeFactory>(registry);
+            *provider = std::make_shared<graph::RegisteredNodeProvider>(registry);
             initialized = true;
         }
         
-        return *factory;
+        return *provider;
     }
 
     static graph::NodeFacadeAdapter CreateNodeOrThrow(
-        const std::shared_ptr<graph::INodeProvider>& factory,
+        const std::shared_ptr<graph::INodeProvider>& provider,
         const std::string& type_name) {
-        auto node = factory->CreateNodeExpected(type_name);
+        auto node = provider->CreateNodeExpected(type_name);
         if (!node) {
             throw std::runtime_error("Failed to create test node: " + type_name);
         }
@@ -74,11 +74,11 @@ public:
     }
 
     static std::shared_ptr<graph::NodeFacadeAdapter> CreateNamedNodeOrThrow(
-        const std::shared_ptr<graph::INodeProvider>& factory,
+        const std::shared_ptr<graph::INodeProvider>& provider,
         const std::string& type_name,
         const std::string& node_name) {
         auto node = std::make_shared<graph::NodeFacadeAdapter>(
-            CreateNodeOrThrow(factory, type_name));
+            CreateNodeOrThrow(provider, type_name));
         node->SetName(node_name);
         return node;
     }

@@ -105,7 +105,7 @@ These guides explain key GraphX concepts:
 ### Example 3: Load a Plugin
 1. Understand [PLUGIN_SYSTEM_TEST_ANALYSIS.md](../architecture/PLUGIN_SYSTEM_TEST_ANALYSIS.md)
 2. See [MULTI_PLUGIN_DIRECTORY_ANALYSIS.md](../architecture/MULTI_PLUGIN_DIRECTORY_ANALYSIS.md)
-3. Use NodeFactory to load dynamic nodes
+3. Use NodeProviderBootstrap to load plugins and expose a provider
 4. Verify with test suites
 
 ## Performance Tips

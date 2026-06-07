@@ -51,7 +51,7 @@ namespace graph {
  * }
  * 
  * // Usage
- * auto node = factory.CreateNodeExpected("MyNode");
+ * auto node = provider.CreateNodeExpected("MyNode");
  * if (auto* configurable = dynamic_cast<IConfigurable*>(node.get())) {
  *     configurable->Configure(json_view);
  * }

@@ -248,13 +248,13 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
 
     try {
         // Step 2: Create NodeProviderBootstrap and load plugins
-        LOG4CXX_TRACE(g_logger, "Step 2: Creating factory and loading plugins");
+        LOG4CXX_TRACE(g_logger, "Step 2: Bootstrapping node provider and loading plugins");
         auto provider_bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(plugin_directory_);
         if (!provider_bootstrap) {
-            throw std::runtime_error("Failed to create factory and load plugins");
+            throw std::runtime_error("Failed to bootstrap node provider and load plugins");
         }
         auto node_provider = provider_bootstrap->provider;
-        LOG4CXX_TRACE(g_logger, "Factory created and plugins loaded from: " << plugin_directory_);
+        LOG4CXX_TRACE(g_logger, "Node provider bootstrapped and plugins loaded from: " << plugin_directory_);
         LOG4CXX_TRACE(g_logger, "Provider bootstrap diagnostics: discovered="
                      << provider_bootstrap->diagnostics.discovered_count
                      << ", loaded=" << provider_bootstrap->diagnostics.loaded_count

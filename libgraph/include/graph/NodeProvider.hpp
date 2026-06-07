@@ -24,7 +24,7 @@ enum class NodeCreationError {
  * Single node-creation/query contract for graph construction.
  *
  * This separates graph-building code from the concrete mix of plugin registry,
- * static registry, loaders, and factory helpers behind the creation path.
+ * static registry, loaders, and provider helpers behind the creation path.
  */
 class INodeProvider {
 public:

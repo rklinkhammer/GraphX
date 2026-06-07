@@ -45,12 +45,12 @@ namespace app {
  * Purpose: Centralized management of plugin loading and provider creation.
  * 
  * Design:
- * - Static factory creation (no instances needed)
+ * - Static bootstrap entry point (no instances needed)
  * - Returns ProviderBootstrapResult (provider handle + diagnostics + lifetime)
  * - Graceful error handling (logs failures but doesn't crash on missing plugins)
  * - Query methods for discovering available node types
  * 
- * Thread Safety: Single-threaded use only (factory creation must happen before graph build)
+ * Thread Safety: Single-threaded use only (provider creation must happen before graph build)
  * 
  * PluginLoader does not dlclose loaded plugin handles during normal destruction,
  * so the returned loader primarily preserves plugin bookkeeping for callers that
@@ -60,7 +60,7 @@ namespace app {
  * @code
  * auto bootstrap = NodeProviderBootstrap::CreateProviderExpected("./plugins");
  * if (!bootstrap) {
- *   std::cerr << "Failed to create factory\n";
+ *   std::cerr << "Failed to create provider\n";
  *   return 1;
  * }
  * 
@@ -77,17 +77,17 @@ namespace app {
  * 
  * // Keep bootstrap lifetime alive in AppContext
  * context.provider_bootstrap = bootstrap->lifetime;
- * context.factory = provider;
+ * context.provider = provider;
  * @endcode
  */
 class NodeProviderBootstrap {
 public:
-  enum class FactoryError {
+  enum class ProviderBootstrapError {
     InvalidPluginDirectory = 1,
     RegistryCreationFailed = 2,
     LoaderCreationFailed = 3,
-    FactoryCreationFailed = 4,
-    NullFactory = 5,
+    ProviderCreationFailed = 4,
+    NullProvider = 5,
     QueryFailed = 6,
     Unknown = 99,
   };
@@ -119,13 +119,13 @@ public:
    * 1. Create PluginRegistry (for tracking loaded plugins)
    * 2. Create PluginLoader with registry and plugin directory
    * 3. Load plugins from directory (logs failures but continues)
-  * 4. Create NodeFactory with registry
+  * 4. Create RegisteredNodeProvider with registry
   * 5. Return ProviderBootstrapResult
    * 
    * Error Handling:
-   * - Missing plugin directory: Creates empty factory (logs warning)
+   * - Missing plugin directory: Creates empty provider (logs warning)
    * - Plugin load failure: Logs error but continues (graceful degradation)
-   * - Empty plugin directory: Creates factory with no plugins (not an error)
+   * - Empty plugin directory: Creates provider with no plugins (not an error)
   * - Returns error on critical failure
    * 
    * @param plugin_directory Path to directory containing .so/.dll plugin files
@@ -136,15 +136,15 @@ public:
    * @code
   * auto bootstrap = NodeProviderBootstrap::CreateProviderExpected("./plugins");
   * if (!bootstrap) {
-   *   std::cerr << "Factory creation failed\n";
+   *   std::cerr << "Provider creation failed\n";
    *   return false;
    * }
    * 
   * app_context.provider_bootstrap = bootstrap->lifetime;
-  * app_context.factory = bootstrap->provider;  // provider handle
+  * app_context.provider = bootstrap->provider;  // provider handle
    * @endcode
    */
-  [[nodiscard]] static std::expected<ProviderBootstrapResult, FactoryError>
+  [[nodiscard]] static std::expected<ProviderBootstrapResult, ProviderBootstrapError>
   CreateProviderExpected(const std::string& plugin_directory) noexcept;
   
   /**
@@ -165,7 +165,7 @@ public:
    * }
    * @endcode
    */
-  [[nodiscard]] static std::expected<std::vector<std::string>, FactoryError>
+  [[nodiscard]] static std::expected<std::vector<std::string>, ProviderBootstrapError>
   GetAvailableNodeTypesExpected(
       const std::shared_ptr<graph::INodeProvider>& provider) noexcept;
   
@@ -190,7 +190,7 @@ public:
    * }
    * @endcode
    */
-  [[nodiscard]] static std::expected<bool, FactoryError>
+  [[nodiscard]] static std::expected<bool, ProviderBootstrapError>
   IsNodeTypeAvailableExpected(
       const std::shared_ptr<graph::INodeProvider>& provider,
       const std::string& type_name) noexcept;

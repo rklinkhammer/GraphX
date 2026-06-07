@@ -407,9 +407,9 @@ TEST_F(PluginLoaderTest, CreateNodeExpectedReportsMissingType) {
     EXPECT_EQ(result.error(), graph::PluginRegistry::PluginRegistryError::TypeNotRegistered);
 }
 
-TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedCreatesEmptyFactoryForMissingDirectory) {
+TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedCreatesEmptyProviderForMissingDirectory) {
     auto result = app::NodeProviderBootstrap::CreateProviderExpected(
-        "/tmp/graphx_factory_manager_missing_plugin_dir_for_expected_test"
+        "/tmp/graphx_provider_bootstrap_missing_plugin_dir_for_expected_test"
     );
 
     ASSERT_TRUE(result);
@@ -441,17 +441,17 @@ TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedRejectsFilePath) {
     auto result = app::NodeProviderBootstrap::CreateProviderExpected(plugin_file);
 
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error(), app::NodeProviderBootstrap::FactoryError::InvalidPluginDirectory);
+    EXPECT_EQ(result.error(), app::NodeProviderBootstrap::ProviderBootstrapError::InvalidPluginDirectory);
 }
 
-TEST(NodeProviderBootstrapExpectedTest, QueryExpectedReportsNullFactory) {
+TEST(NodeProviderBootstrapExpectedTest, QueryExpectedReportsNullProvider) {
     auto types = app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(nullptr);
     ASSERT_FALSE(types);
-    EXPECT_EQ(types.error(), app::NodeProviderBootstrap::FactoryError::NullFactory);
+    EXPECT_EQ(types.error(), app::NodeProviderBootstrap::ProviderBootstrapError::NullProvider);
 
     auto available = app::NodeProviderBootstrap::IsNodeTypeAvailableExpected(nullptr, "TestNode");
     ASSERT_FALSE(available);
-    EXPECT_EQ(available.error(), app::NodeProviderBootstrap::FactoryError::NullFactory);
+    EXPECT_EQ(available.error(), app::NodeProviderBootstrap::ProviderBootstrapError::NullProvider);
 }
 
 TEST(NodeProviderBootstrapExpectedTest, QueryExpectedUsesNodeProviderInterface) {

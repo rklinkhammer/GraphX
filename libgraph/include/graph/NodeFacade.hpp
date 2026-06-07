@@ -647,7 +647,7 @@ public:
      *
      * Example:
      * @code
-    *   auto adapter = factory.CreateNodeExpected("DataInjectionAccelerometerNode");
+    *   auto adapter = provider.CreateNodeExpected("DataInjectionAccelerometerNode");
      *   auto facade_adapter = std::make_shared<NodeFacadeAdapter>(std::move(adapter).value());
      *   
      *   // Extract the underlying typed node

@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 #include <optional>
-#include "graph/NodeFactory.hpp"
+#include "graph/RegisteredNodeProvider.hpp"
 #include "graph/Message.hpp"
 #include "test/AdvancedTestNodes.hpp"
 

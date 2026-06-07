@@ -203,9 +203,9 @@ concept StorableInMessage =
  * - Can be used in graph construction
  *
  * Note: Relaxed constraints to accommodate nodes with special move semantics.
- * Runtime type checking and factory patterns provide additional safety.
+ * Runtime type checking and provider patterns provide additional safety.
  *
- * Usage: Constrain NodeFactory::CreateNode<GraphNode T>
+ * Usage: Constrain RegisteredNodeProvider::CreateNodeExpected<GraphNode T>
  */
 template<typename T>
 concept GraphNode = std::destructible<T>;

@@ -60,9 +60,9 @@ Adjacent layers overlap responsibilities and increase lifecycle branching.
 
 #### Current Status
 - `NodeFactoryRegistry` has been removed as a public layer.
-- `NodeFactory` now owns the provider-backed creation map directly.
+- `RegisteredNodeProvider` now owns the provider-backed creation map directly.
 - `NodeProviderBootstrap::CreateProviderExpected(...)` is the authoritative bootstrap boundary and returns `ProviderBootstrapResult` with provider, diagnostics, and lifetime bookkeeping.
-- `GraphExecutorBuilder` consumes provider bootstrap directly and no longer relies on legacy factory bundle compatibility surfaces.
+- `GraphExecutorBuilder` consumes provider bootstrap directly and no longer relies on legacy bundle compatibility surfaces.
 - Remaining Track 3 cleanup: retire residual compatibility seams and complete `GraphBuilder`/policy setup audit.
 
 #### Scope
@@ -70,7 +70,7 @@ Adjacent layers overlap responsibilities and increase lifecycle branching.
 - Keep native and plugin nodes on one registration and creation path.
 
 #### Key Files
-- libgraph/include/graph/NodeFactory.hpp
+- libgraph/include/graph/RegisteredNodeProvider.hpp
 - libgraph/include/plugins/PluginRegistry.hpp
 - libgraph/include/graph/NodeProviderBootstrap.hpp
 - libgraph/include/graph/GraphBuilder.hpp

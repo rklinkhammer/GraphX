@@ -1,8 +1,8 @@
 /**
  * @file AdvancedTestNodes.hpp
- * @brief Simple test nodes for NodeFactory testing
+ * @brief Simple test nodes for registered-provider testing
  *
- * Provides various node types for comprehensive factory testing.
+ * Provides various node types for comprehensive provider testing.
  *
  * @author Test Suite
  */
@@ -378,7 +378,7 @@ namespace test {
     
     /**
      * @class SinkTestNode
-     * @brief Sink node for factory testing with completion callback and JSON configuration support
+     * @brief Sink node for provider testing with completion callback and JSON configuration support
      * 
      * Implements ICompletionCallback to signal graph completion when a threshold
      * of messages has been consumed. This enables CompletionPolicy to automatically

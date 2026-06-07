@@ -325,7 +325,7 @@ PluginLoader::~PluginLoader() {
     LOG4CXX_TRACE(logger_, "PluginLoader destructor: releasing bookkeeping for "
                   << plugin_handles_.size() << " plugin handles");
 
-    // Do not dlclose() here. PluginRegistry/NodeFactory can retain function and
+    // Do not dlclose() here. PluginRegistry/RegisteredNodeProvider can retain function and
     // facade pointers into these libraries through shutdown, and plugin-level
     // static destructors can also depend on process-wide logging state. Explicit
     // unloading remains available through UnloadPlugin().

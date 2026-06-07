@@ -23,7 +23,7 @@
 #include "graph/NodeProviderBootstrap.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
-#include "graph/NodeFactory.hpp"
+#include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
@@ -40,7 +40,7 @@ namespace app {
 static log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("NodeProviderBootstrap");
 
 // ============================================================================
-std::expected<NodeProviderBootstrap::ProviderBootstrapResult, NodeProviderBootstrap::FactoryError>
+std::expected<NodeProviderBootstrap::ProviderBootstrapResult, NodeProviderBootstrap::ProviderBootstrapError>
 NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_directory) noexcept {
     LOG4CXX_TRACE(logger_, "Bootstrapping node provider with plugin directory: "
                           << plugin_directory);
@@ -54,7 +54,7 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
     if (fs_error) {
         LOG4CXX_ERROR(logger_, "Unable to inspect plugin directory: "
                              << plugin_directory << " - " << fs_error.message());
-        return std::unexpected(FactoryError::InvalidPluginDirectory);
+        return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
     }
 
     if (!plugin_directory_exists) {
@@ -64,11 +64,11 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
         if (fs_error) {
             LOG4CXX_ERROR(logger_, "Unable to inspect plugin path: "
                                  << plugin_directory << " - " << fs_error.message());
-            return std::unexpected(FactoryError::InvalidPluginDirectory);
+            return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
         }
         LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: "
                              << plugin_directory);
-        return std::unexpected(FactoryError::InvalidPluginDirectory);
+        return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
     }
 
     // Step 2: Create PluginRegistry
@@ -78,10 +78,10 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
         LOG4CXX_TRACE(logger_, "Created PluginRegistry successfully");
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginRegistry: " << e.what());
-        return std::unexpected(FactoryError::RegistryCreationFailed);
+        return std::unexpected(ProviderBootstrapError::RegistryCreationFailed);
     } catch (...) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginRegistry: unknown error");
-        return std::unexpected(FactoryError::Unknown);
+        return std::unexpected(ProviderBootstrapError::Unknown);
     }
 
     // Step 3: Create PluginLoader with registry
@@ -91,10 +91,10 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
         LOG4CXX_TRACE(logger_, "Created PluginLoader successfully");
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: " << e.what());
-        return std::unexpected(FactoryError::LoaderCreationFailed);
+        return std::unexpected(ProviderBootstrapError::LoaderCreationFailed);
     } catch (...) {
         LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: unknown error");
-        return std::unexpected(FactoryError::Unknown);
+        return std::unexpected(ProviderBootstrapError::Unknown);
     }
 
     // Step 4: Scan and load plugins from directory
@@ -135,22 +135,22 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
     diagnostics.scan_duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - scan_start);
 
-    // Step 5: Create NodeFactory with loaded registry
+    // Step 5: Create RegisteredNodeProvider with loaded registry
     const auto init_start = std::chrono::steady_clock::now();
-    std::shared_ptr<graph::NodeFactory> factory;
+    std::shared_ptr<graph::RegisteredNodeProvider> provider;
     try {
-        factory = std::make_shared<graph::NodeFactory>(registry);
-        LOG4CXX_TRACE(logger_, "Created NodeFactory successfully");
+        provider = std::make_shared<graph::RegisteredNodeProvider>(registry);
+        LOG4CXX_TRACE(logger_, "Created RegisteredNodeProvider successfully");
 
-        factory->Initialize();
-        LOG4CXX_TRACE(logger_, "Initialized NodeFactory with plugins");
+        provider->Initialize();
+        LOG4CXX_TRACE(logger_, "Initialized RegisteredNodeProvider with plugins");
     } catch (const std::exception& e) {
-        LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: "
+        LOG4CXX_ERROR(logger_, "Failed to create or initialize RegisteredNodeProvider: "
                              << e.what());
-        return std::unexpected(FactoryError::FactoryCreationFailed);
+        return std::unexpected(ProviderBootstrapError::ProviderCreationFailed);
     } catch (...) {
-        LOG4CXX_ERROR(logger_, "Failed to create or initialize NodeFactory: unknown error");
-        return std::unexpected(FactoryError::Unknown);
+        LOG4CXX_ERROR(logger_, "Failed to create or initialize RegisteredNodeProvider: unknown error");
+        return std::unexpected(ProviderBootstrapError::Unknown);
     }
     diagnostics.init_duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - init_start);
@@ -166,17 +166,17 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
                          << ", scan_ms=" << diagnostics.scan_duration.count()
                          << ", init_ms=" << diagnostics.init_duration.count());
 
-    return ProviderBootstrapResult{.provider = factory, .diagnostics = diagnostics, .lifetime = lifetime};
+    return ProviderBootstrapResult{.provider = provider, .diagnostics = diagnostics, .lifetime = lifetime};
 }
 
 // ============================================================================
-std::expected<std::vector<std::string>, NodeProviderBootstrap::FactoryError>
+std::expected<std::vector<std::string>, NodeProviderBootstrap::ProviderBootstrapError>
 NodeProviderBootstrap::GetAvailableNodeTypesExpected(
     const std::shared_ptr<graph::INodeProvider>& provider) noexcept {
     
     if (!provider) {
         LOG4CXX_ERROR(logger_, "GetAvailableNodeTypes called with null provider");
-        return std::unexpected(FactoryError::NullFactory);
+        return std::unexpected(ProviderBootstrapError::NullProvider);
     }
     
     LOG4CXX_TRACE(logger_, "Querying available node types from provider");
@@ -198,22 +198,22 @@ NodeProviderBootstrap::GetAvailableNodeTypesExpected(
         return node_types;
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to get available node types: " << e.what());
-        return std::unexpected(FactoryError::QueryFailed);
+        return std::unexpected(ProviderBootstrapError::QueryFailed);
     } catch (...) {
         LOG4CXX_ERROR(logger_, "Failed to get available node types: unknown error");
-        return std::unexpected(FactoryError::Unknown);
+        return std::unexpected(ProviderBootstrapError::Unknown);
     }
 }
 
 // ============================================================================
-std::expected<bool, NodeProviderBootstrap::FactoryError>
+std::expected<bool, NodeProviderBootstrap::ProviderBootstrapError>
 NodeProviderBootstrap::IsNodeTypeAvailableExpected(
     const std::shared_ptr<graph::INodeProvider>& provider,
     const std::string& type_name) noexcept {
     
     if (!provider) {
         LOG4CXX_ERROR(logger_, "IsNodeTypeAvailable called with null provider");
-        return std::unexpected(FactoryError::NullFactory);
+        return std::unexpected(ProviderBootstrapError::NullProvider);
     }
     
     if (type_name.empty()) {
@@ -236,10 +236,10 @@ NodeProviderBootstrap::IsNodeTypeAvailableExpected(
     } catch (const std::exception& e) {
         LOG4CXX_ERROR(logger_, "Failed to check node type availability: " 
                              << e.what());
-        return std::unexpected(FactoryError::QueryFailed);
+        return std::unexpected(ProviderBootstrapError::QueryFailed);
     } catch (...) {
         LOG4CXX_ERROR(logger_, "Failed to check node type availability: unknown error");
-        return std::unexpected(FactoryError::Unknown);
+        return std::unexpected(ProviderBootstrapError::Unknown);
     }
 }
 
