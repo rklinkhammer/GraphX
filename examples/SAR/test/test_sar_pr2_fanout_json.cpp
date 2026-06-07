@@ -94,11 +94,14 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
 
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
-    ASSERT_TRUE(executor->IsCompletionSignaled());
 
     auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
+
+    const auto& status = sink->last_status();
+    EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(status.complete);
 
     const auto& diagnostics = sink->last_diagnostics();
     EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
