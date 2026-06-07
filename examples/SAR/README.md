@@ -70,6 +70,7 @@ Useful options:
 2. `--step 1` for full resolution in terminal output.
 3. `--loop 0` for continuous playback.
 4. `--list` to list discovered frame files.
+5. `--no-clear` to avoid screen clearing while troubleshooting frame output.
 
 ## Deterministic Configuration Knobs
 

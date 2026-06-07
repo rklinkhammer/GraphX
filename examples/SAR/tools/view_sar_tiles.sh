@@ -12,12 +12,14 @@ Options:
   -f, --fps N         Frames per second (default: 4)
   -s, --step N        Pixel stride for downsampling (default: 2)
   -l, --loop N        Number of playback loops (default: 1, use 0 for infinite)
+  --no-clear          Do not clear terminal between frames
   --list              List frames and exit
   -h, --help          Show this help text
 
 Examples:
   ./examples/SAR/tools/view_sar_tiles.sh
   ./examples/SAR/tools/view_sar_tiles.sh --input sar_viz_output --fps 8 --step 1
+  ./examples/SAR/tools/view_sar_tiles.sh --no-clear --fps 2
   ./examples/SAR/tools/view_sar_tiles.sh --loop 0
 EOF
 }
@@ -27,6 +29,7 @@ fps=4
 step=2
 loop_count=1
 list_only=false
+no_clear=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,6 +48,10 @@ while [[ $# -gt 0 ]]; do
     -l|--loop)
       loop_count="$2"
       shift 2
+      ;;
+    --no-clear)
+      no_clear=true
+      shift
       ;;
     --list)
       list_only=true
@@ -89,7 +96,7 @@ if [[ ${#frames[@]} -eq 0 ]]; then
   exit 1
 fi
 
-IFS=$'\n' read -r -d '' -a frames < <(printf '%s\n' "${frames[@]}" | sort && printf '\0')
+IFS=$'\n' read -r -d '' -a frames < <(printf '%s\n' "${frames[@]}" | sort -V && printf '\0')
 
 if [[ "$list_only" == true ]]; then
   printf '%s\n' "${frames[@]}"
@@ -153,7 +160,9 @@ render_frame() {
 loop_idx=0
 while [[ "$loop_count" -eq 0 || "$loop_idx" -lt "$loop_count" ]]; do
   for frame in "${frames[@]}"; do
-    clear
+    if [[ "$no_clear" != true ]]; then
+      clear
+    fi
     echo "SAR Tile Viewer"
     echo "Frame: $(basename "$frame")"
     echo "Input: $input_dir"
