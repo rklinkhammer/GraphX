@@ -223,6 +223,7 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.envelope.backend = config_.backend;
     out.envelope.marker = marker;
     out.envelope.synthetic = input.envelope.synthetic;
+    out.gpu = input.gpu;
 
     out.expected_tiles = expected_tiles;
     out.received_tiles = received_tiles_;

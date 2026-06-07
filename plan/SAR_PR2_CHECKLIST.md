@@ -11,8 +11,8 @@ Status:
 
 - [x] Replace PR1 pulse-modulo tile assignment with real graph-visible fan-out branches.
 - [x] Add a DSP-significant RangeWindow or deterministic RangeCompression stage.
-- [ ] Start unifying SAR backend metadata with existing `graph::gpu::accel` tickets/leases/views.
-- [ ] Preserve example-local SAR package boundary; do not add SAR-specific libgpu node families.
+- [x] Start unifying SAR backend metadata with existing `graph::gpu::accel` tickets/leases/views.
+- [x] Preserve example-local SAR package boundary; do not add SAR-specific libgpu node families.
 - [ ] Evaluate DeviceReduceNode accumulation showcase.
 - [ ] Add optional trace export and deeper queue/backpressure diagnostics.
 - [ ] Keep benchmark reporting split between graph run time and lifecycle teardown/join time.
@@ -58,22 +58,32 @@ Exit criteria:
 
 ## Phase C - GPU Contract Alignment
 
-- [ ] Audit existing `graph::gpu::accel` types:
+- [x] Audit existing `graph::gpu::accel` types:
   - `BackendKind`
   - `BufferLease`
   - `DeviceBufferView`
   - `HostPinnedBufferView`
   - `TransferTicket`
   - `KernelTicket`
-- [ ] Decide which SAR message fields should wrap/reference existing GPU contracts.
-- [ ] Avoid expanding parallel SAR-only backend abstractions unless needed for example compatibility.
-- [ ] Update SAR messages or adapters so range/image tile messages can carry real GPU lease/view/ticket metadata.
-- [ ] Add tests that validate metadata propagation across H2D, transform, D2H, and merge.
+- [x] Decide which SAR message fields should wrap/reference existing GPU contracts.
+- [x] Avoid expanding parallel SAR-only backend abstractions unless needed for example compatibility.
+- [x] Update SAR messages or adapters so range/image tile messages can carry real GPU lease/view/ticket metadata.
+- [x] Add tests that validate metadata propagation across H2D, transform, D2H, and merge.
+
+Implementation notes:
+
+- `SarGpuMetadata` now wraps `graph::gpu::accel::BufferLease`, `DeviceBufferView`, `HostPinnedBufferView`, `TransferTicket`, and `KernelTicket`.
+- `SarRangeTileMessage`, `SarImageTileMessage`, and `SarMergeStatusMessage` carry optional accel metadata.
+- `H2DAsyncNode` creates simulated accel host/device views, a lease, and H2D transfer ticket for device-like SAR backends.
+- `SarBackprojectionTransformNode` preserves buffer metadata and attaches a kernel ticket.
+- `D2HAsyncNode` emits host-view and D2H transfer ticket metadata.
+- `ImageTileMergeNode` preserves the latest tile accel metadata in merge status output.
+- Existing `SarBackendKind`, `SarBufferDescriptor`, and `SarDispatchMetadata` are retained for PR1/PR2 compatibility and JSON stability; PR3 can replace or further narrow them once native backend payloads are active.
 
 Exit criteria:
 
-- [ ] Decision recorded for each SAR backend metadata type: keep, wrap existing GPU type, or replace later.
-- [ ] PR2 SAR messages can interoperate with the existing GPU capability model at the metadata boundary.
+- [x] Decision recorded for each SAR backend metadata type: keep, wrap existing GPU type, or replace later.
+- [x] PR2 SAR messages can interoperate with the existing GPU capability model at the metadata boundary.
 
 ## Phase D - Trace Export and Diagnostics Depth
 
@@ -108,15 +118,15 @@ Exit criteria:
 - [x] Run: focused SAR unit/integration tests.
 - [ ] Run: graph-vs-baseline tolerance comparisons for PR2 dataset.
 - [x] Run: graph-visible fan-out JSON topology validation.
-- [ ] Run: GPU metadata propagation tests.
+- [x] Run: GPU metadata propagation tests.
 - [ ] Run: trace-enabled smoke validation.
 - [x] Run: `sar_benchmark --profile=ci` and confirm run/lifecycle timing split.
 
 ## PR2 Deliverables
 
 - [x] Code + tests for true fan-out and DSP-stage improvements.
-- [ ] GPU contract alignment notes and message metadata changes.
-- [ ] Documentation updates in examples/SAR/README.md.
+- [x] GPU contract alignment notes and message metadata changes.
+- [x] Documentation updates in examples/SAR/README.md.
 - [ ] Benchmark/trace notes updated.
 - [ ] Plan updates noting what remains PR3: native backend transforms, FFT-backed compression, multi-device routing, real transfer/kernel timing.
 - [ ] PR body includes risk, rollout, and evidence summary.

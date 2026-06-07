@@ -28,6 +28,50 @@ std::optional<SarImageTileMessage> D2HAsyncNode::Transfer(
         out.buffer.device_index = config_.backend_id;
         out.buffer.backend = config_.backend;
     }
+
+    const auto accel_backend = ToAccelBackendKind(out.envelope.backend);
+    if (accel_backend != graph::gpu::accel::BackendKind::Unknown && !out.pixels.empty()) {
+        const auto element_count = static_cast<std::uint64_t>(out.pixels.size());
+        const auto byte_count = static_cast<std::uint64_t>(out.buffer.byte_count);
+        const auto layout = MakeAccelVectorLayout(element_count);
+
+        out.gpu.host_view.backend = accel_backend;
+        out.gpu.host_view.host_ptr = out.pixels.data();
+        out.gpu.host_view.bytes = byte_count;
+        out.gpu.host_view.dtype = graph::gpu::accel::DataType::Float32;
+        out.gpu.host_view.layout = layout;
+        out.gpu.host_view.allocator_id = 2;
+        out.gpu.has_host_view = true;
+
+        if (!out.gpu.has_device_view) {
+            out.gpu.device_view.backend = accel_backend;
+            out.gpu.device_view.device_ptr = reinterpret_cast<void*>(
+                static_cast<std::uintptr_t>(((out.buffer.buffer_id + 1u) << 8u) |
+                                            (static_cast<std::uint64_t>(out.envelope.tile_id) + 1u)));
+            out.gpu.device_view.bytes = byte_count;
+            out.gpu.device_view.dtype = graph::gpu::accel::DataType::Float32;
+            out.gpu.device_view.layout = layout;
+            out.gpu.device_view.device_id = out.envelope.backend_id;
+            out.gpu.device_view.execution_queue_id =
+                static_cast<std::uint64_t>(out.envelope.backend_id) + 1u;
+            out.gpu.device_view.ready_event =
+                ((out.envelope.sequence_id + 1u) * 10u) + out.envelope.tile_id + 1u;
+            out.gpu.has_device_view = true;
+        }
+
+        out.gpu.transfer_ticket.backend = accel_backend;
+        out.gpu.transfer_ticket.transfer_id =
+            ((out.envelope.sequence_id + 1u) * 2000u) + out.envelope.tile_id + 1u;
+        out.gpu.transfer_ticket.execution_queue_id =
+            (out.gpu.device_view.execution_queue_id == 0u)
+                ? (static_cast<std::uint64_t>(out.envelope.backend_id) + 1u)
+                : out.gpu.device_view.execution_queue_id;
+        out.gpu.transfer_ticket.completion_event =
+            ((out.envelope.sequence_id + 1u) * 20u) + out.envelope.tile_id + 1u;
+        out.gpu.transfer_ticket.src_device = out.gpu.device_view;
+        out.gpu.transfer_ticket.dst_host = out.gpu.host_view;
+        out.gpu.has_transfer_ticket = true;
+    }
     return out;
 }
 

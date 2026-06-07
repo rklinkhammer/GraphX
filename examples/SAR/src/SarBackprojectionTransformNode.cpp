@@ -175,6 +175,22 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildDataTile(
     out.dispatch.dispatch_width = width;
     out.dispatch.dispatch_height = height;
     out.dispatch.dispatch_depth = 1;
+    out.gpu = input.gpu;
+    out.gpu.kernel_ticket.backend = ToAccelBackendKind(config_.backend);
+    out.gpu.kernel_ticket.kernel_id = config_.kernel_id;
+    out.gpu.kernel_ticket.launch.grid_x = width;
+    out.gpu.kernel_ticket.launch.grid_y = height;
+    out.gpu.kernel_ticket.launch.grid_z = 1;
+    out.gpu.kernel_ticket.launch.block_x = 1;
+    out.gpu.kernel_ticket.launch.block_y = 1;
+    out.gpu.kernel_ticket.launch.block_z = 1;
+    out.gpu.kernel_ticket.arg_count = input.gpu.has_device_view ? 1u : 0u;
+    out.gpu.kernel_ticket.execution_queue_id =
+        static_cast<std::uint64_t>(config_.queue_id) + 1u;
+    out.gpu.kernel_ticket.completion_event =
+        ((input.envelope.sequence_id + 1u) * 100u) + input.envelope.tile_id + 1u;
+    out.gpu.has_kernel_ticket =
+        out.gpu.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
 
     out.width = width;
     out.height = height;
@@ -214,6 +230,7 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildEndOfStreamTile(
     out.dispatch.dispatch_width = ResolveImageWidth();
     out.dispatch.dispatch_height = 1;
     out.dispatch.dispatch_depth = 1;
+    out.gpu = input.gpu;
 
     out.width = ResolveImageWidth();
     out.height = 1;

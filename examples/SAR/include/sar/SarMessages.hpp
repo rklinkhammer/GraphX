@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gpu/accel/types/AccelTypes.hpp"
+
 #include <complex>
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +26,25 @@ enum class SarTransferDirection : std::uint8_t {
     DeviceToHost,
 };
 
+inline graph::gpu::accel::BackendKind ToAccelBackendKind(SarBackendKind backend) noexcept {
+    switch (backend) {
+        case SarBackendKind::SimulatedDevice:
+        case SarBackendKind::NativeDevice:
+            return graph::gpu::accel::BackendKind::Metal;
+        case SarBackendKind::Host:
+            return graph::gpu::accel::BackendKind::Unknown;
+    }
+    return graph::gpu::accel::BackendKind::Unknown;
+}
+
+inline graph::gpu::accel::TensorLayout MakeAccelVectorLayout(std::uint64_t element_count) noexcept {
+    graph::gpu::accel::TensorLayout layout{};
+    layout.rank = 1;
+    layout.shape[0] = element_count;
+    layout.stride[0] = 1;
+    return layout;
+}
+
 struct SarMessageEnvelope {
     std::uint64_t sequence_id{};
     std::uint32_t stream_id{};
@@ -43,6 +64,19 @@ struct SarBufferDescriptor {
     SarTransferDirection direction{SarTransferDirection::HostToDevice};
 };
 
+struct SarGpuMetadata {
+    graph::gpu::accel::BufferLease lease{};
+    graph::gpu::accel::DeviceBufferView device_view{};
+    graph::gpu::accel::HostPinnedBufferView host_view{};
+    graph::gpu::accel::TransferTicket transfer_ticket{};
+    graph::gpu::accel::KernelTicket kernel_ticket{};
+    bool has_lease{false};
+    bool has_device_view{false};
+    bool has_host_view{false};
+    bool has_transfer_ticket{false};
+    bool has_kernel_ticket{false};
+};
+
 using SarIqSample = std::complex<float>;
 
 struct SarPulseBlockMessage {
@@ -54,6 +88,7 @@ struct SarPulseBlockMessage {
 struct SarRangeTileMessage {
     SarMessageEnvelope envelope{};
     SarBufferDescriptor buffer{};
+    SarGpuMetadata gpu{};
     std::vector<float> range_bins{};
 };
 
@@ -83,6 +118,7 @@ struct SarImageTileMessage {
     SarMessageEnvelope envelope{};
     SarBufferDescriptor buffer{};
     SarDispatchMetadata dispatch{};
+    SarGpuMetadata gpu{};
     std::uint32_t width{};
     std::uint32_t height{};
     std::vector<float> pixels{};
@@ -90,6 +126,7 @@ struct SarImageTileMessage {
 
 struct SarMergeStatusMessage {
     SarMessageEnvelope envelope{};
+    SarGpuMetadata gpu{};
     std::uint32_t expected_tiles{};
     std::uint32_t received_tiles{};
     std::uint32_t duplicate_tiles{};

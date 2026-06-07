@@ -12,7 +12,7 @@ add_graphx_plugin(
         h2d_async_node_plugin.cpp
         ../src/H2DAsyncNode.cpp
     DESCRIPTION "SAR host-to-device async transfer stage"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(h2d_async_node PRIVATE
@@ -25,7 +25,7 @@ add_graphx_plugin(
         d2h_async_node_plugin.cpp
         ../src/D2HAsyncNode.cpp
     DESCRIPTION "SAR device-to-host async transfer stage"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(d2h_async_node PRIVATE
@@ -38,7 +38,7 @@ add_graphx_plugin(
         azimuth_tile_split_node_plugin.cpp
         ../src/AzimuthTileSplitNode.cpp
     DESCRIPTION "SAR azimuth tile split node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(azimuth_tile_split_node PRIVATE
@@ -51,7 +51,7 @@ add_graphx_plugin(
         range_window_node_plugin.cpp
         ../src/RangeWindowNode.cpp
     DESCRIPTION "SAR deterministic range window node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(range_window_node PRIVATE
@@ -63,7 +63,7 @@ add_graphx_plugin(
     SOURCE_FILES
         sar_pulse_fanout_node_plugin.cpp
     DESCRIPTION "SAR pulse fan-out node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_pulse_fanout_node PRIVATE
@@ -76,7 +76,7 @@ add_graphx_plugin(
         sar_backprojection_transform_node_plugin.cpp
         ../src/SarBackprojectionTransformNode.cpp
     DESCRIPTION "SAR backprojection transform node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_backprojection_transform_node PRIVATE
@@ -89,7 +89,7 @@ add_graphx_plugin(
         sar_diagnostics_sink_node_plugin.cpp
         ../src/SarDiagnosticsSinkNode.cpp
     DESCRIPTION "SAR diagnostics sink node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_diagnostics_sink_node PRIVATE
@@ -102,7 +102,7 @@ add_graphx_plugin(
         sar_visualization_sink_node_plugin.cpp
         ../src/SarVisualizationSinkNode.cpp
     DESCRIPTION "SAR visualization sink node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_visualization_sink_node PRIVATE
@@ -115,7 +115,7 @@ add_graphx_plugin(
         image_tile_merge_node_plugin.cpp
         ../src/ImageTileMergeNode.cpp
     DESCRIPTION "SAR image tile merge node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(image_tile_merge_node PRIVATE
@@ -128,7 +128,7 @@ add_graphx_plugin(
         synthetic_aperture_iq_source_node_plugin.cpp
         ../src/SyntheticApertureIqSourceNode.cpp
     DESCRIPTION "SAR synthetic aperture IQ source node"
-    DEPENDENCIES graph
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(synthetic_aperture_iq_source_node PRIVATE

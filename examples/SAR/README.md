@@ -139,6 +139,8 @@ This scenario models deterministic closing-range behavior and is intended as an 
 
 The current example targets a CI-safe simulated backend path and does not require native GPU runtime availability.
 
+SAR tile messages also carry optional `graph::gpu::accel` metadata at the backend boundary. The simulated H2D, backprojection, D2H, and merge stages propagate accel leases, host/device views, transfer tickets, and kernel tickets so the example exercises the same metadata contracts used by libgpu without adding SAR-specific libgpu node families.
+
 Native backend tuning and specialization (CUDA/SYCL/Metal) are deferred follow-up work.
 
 ## Benchmarking

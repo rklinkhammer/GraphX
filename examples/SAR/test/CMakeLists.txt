@@ -19,6 +19,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_range_window_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_diagnostics_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_gpu_metadata_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarVisualizationSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_visualization_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
