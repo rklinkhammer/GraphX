@@ -40,6 +40,20 @@
 
 namespace graph::message {
 
+#if defined(__clang__)
+#if __has_warning("-Wconstant-evaluated")
+#define GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH \
+    _Pragma("clang diagnostic push") \
+    _Pragma("clang diagnostic ignored \"-Wconstant-evaluated\"")
+#else
+#define GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH _Pragma("clang diagnostic push")
+#endif
+#define GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP _Pragma("clang diagnostic pop")
+#else
+#define GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
+#define GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
+#endif
+
 // Policy struct for configuring Message storage
 template <size_t Size = 32, size_t Align = 16>
 struct MessageStoragePolicy {
@@ -204,8 +218,7 @@ public:
     // Note: Counts are only available at runtime; compile-time evaluation returns 0
     // Note: The runtime check using std::is_constant_evaluated() ensures that
     //       metric methods work correctly when called from constexpr contexts
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconstant-evaluated"
+GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
     static constexpr size_t message_creation_count() noexcept {
         if (!std::is_constant_evaluated()) {
             return s_creation_count.load(std::memory_order_relaxed);
@@ -233,7 +246,7 @@ public:
         }
         return 0;
     }
-#pragma GCC diagnostic pop
+GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
 
     /// @brief Create empty message storage
     /// @note This constructor supports constexpr context.
@@ -450,8 +463,7 @@ public:
     static constexpr size_t SSO_ALIGN = StoragePolicy::SSO_ALIGN;
 
     // cppcheck-suppress unusedFunction
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconstant-evaluated"
+GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
     static constexpr size_t heap_allocation_count() { // cppcheck-suppress unusedFunction
         if (!std::is_constant_evaluated()) {
             return MessageStorage<DefaultMessagePolicy>::s_alloc_count.load(std::memory_order_relaxed);
@@ -466,7 +478,7 @@ public:
         }
         return 0;
     }
-#pragma GCC diagnostic pop
+GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
 
     constexpr Message() noexcept = default;
     
