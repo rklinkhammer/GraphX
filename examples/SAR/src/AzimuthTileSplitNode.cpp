@@ -16,12 +16,50 @@ SarBackendKind ParseBackendKind(int raw_backend) {
     return static_cast<SarBackendKind>(raw_backend);
 }
 
+std::uint64_t EncodeAccelToken(const SarPulseBlockMessage& input,
+                               std::uint32_t tile_id,
+                               std::size_t byte_count,
+                               SarFrameMarker marker) {
+    const auto marker_bits = static_cast<std::uint64_t>(marker) & 0x3u;
+    const auto tile_bits = static_cast<std::uint64_t>(tile_id) & 0xFFFu;
+    const auto sequence_bits = static_cast<std::uint64_t>(input.envelope.sequence_id) & 0xFFFFFFu;
+    const auto byte_bits = static_cast<std::uint64_t>(byte_count) & 0xFFFFu;
+    const auto stream_bits = static_cast<std::uint64_t>(input.envelope.stream_id) & 0x3FFu;
+
+    return marker_bits |
+           (tile_bits << 2u) |
+           (sequence_bits << 14u) |
+           (byte_bits << 38u) |
+           (stream_bits << 54u);
+}
+
+graph::gpu::accel::HostPinnedBufferView BuildHostView(const SarPulseBlockMessage& input,
+                                                      std::uint32_t tile_id,
+                                                      std::size_t token_byte_count,
+                                                      std::size_t view_byte_count,
+                                                      SarFrameMarker marker,
+                                                      const AzimuthTileSplitConfig& config) {
+    graph::gpu::accel::HostPinnedBufferView out{};
+    const auto backend = ToAccelBackendKind(config.backend);
+    out.backend =
+        (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
+                                                              : backend;
+    out.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(
+        EncodeAccelToken(input, tile_id, token_byte_count, marker)));
+    out.bytes = static_cast<std::uint64_t>(view_byte_count);
+    out.dtype = graph::gpu::accel::DataType::Float32;
+    out.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
+        std::max<std::size_t>(1u, view_byte_count / sizeof(float))));
+    out.allocator_id = static_cast<std::uint64_t>(config.backend_id) + 1u;
+    return out;
+}
+
 } // namespace
 
 AzimuthTileSplitNode::AzimuthTileSplitNode(AzimuthTileSplitConfig config)
     : config_(config) {}
 
-std::optional<SarRangeTileMessage> AzimuthTileSplitNode::Transfer(
+std::optional<graph::gpu::accel::HostPinnedBufferView> AzimuthTileSplitNode::Transfer(
     const SarPulseBlockMessage& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
@@ -153,52 +191,25 @@ std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarPulseBlockMessage& in
     return (sequence_tile + (config_.tile_id_offset % tile_count)) % tile_count;
 }
 
-SarRangeTileMessage AzimuthTileSplitNode::BuildDataTile(const SarPulseBlockMessage& input) const {
-    SarRangeTileMessage out{};
-    const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
+graph::gpu::accel::HostPinnedBufferView AzimuthTileSplitNode::BuildDataTile(
+    const SarPulseBlockMessage& input) const {
     const std::uint32_t tile_id = ResolveTileId(input);
+    const std::size_t byte_count =
+        (input.iq_samples.empty() ? 0u : input.iq_samples.size() * sizeof(float));
 
-    out.envelope = input.envelope;
-    out.envelope.tile_id = tile_id;
-    out.envelope.tile_count = tile_count;
-    out.envelope.backend_id = config_.backend_id;
-    out.envelope.backend = config_.backend;
-    out.envelope.marker = SarFrameMarker::Data;
-    out.envelope.synthetic = input.envelope.synthetic;
-
-    out.buffer.buffer_id = input.buffer.buffer_id;
-    out.buffer.byte_count = input.iq_samples.size() * sizeof(float);
-    out.buffer.device_index = config_.backend_id;
-    out.buffer.backend = config_.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-
-    out.range_bins.reserve(input.iq_samples.size());
-    for (const SarIqSample& sample : input.iq_samples) {
-        out.range_bins.push_back(sample.real());
-    }
-
-    return out;
+    return BuildHostView(input, tile_id, byte_count, byte_count, SarFrameMarker::Data, config_);
 }
 
-SarRangeTileMessage AzimuthTileSplitNode::BuildEndOfStreamTile(const SarPulseBlockMessage& input) const {
-    SarRangeTileMessage out{};
-    const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
-
-    out.envelope = input.envelope;
-    out.envelope.tile_id = ResolveTileId(input);
-    out.envelope.tile_count = tile_count;
-    out.envelope.backend_id = config_.backend_id;
-    out.envelope.backend = config_.backend;
-    out.envelope.marker = SarFrameMarker::EndOfStream;
-    out.envelope.synthetic = input.envelope.synthetic;
-
-    out.buffer.buffer_id = input.buffer.buffer_id;
-    out.buffer.byte_count = 0;
-    out.buffer.device_index = config_.backend_id;
-    out.buffer.backend = config_.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-
-    return out;
+graph::gpu::accel::HostPinnedBufferView AzimuthTileSplitNode::BuildEndOfStreamTile(
+    const SarPulseBlockMessage& input) const {
+    const auto tile_id = ResolveTileId(input);
+    return BuildHostView(
+        input,
+        tile_id,
+        0u,
+        sizeof(float),
+        SarFrameMarker::EndOfStream,
+        config_);
 }
 
 } // namespace sar

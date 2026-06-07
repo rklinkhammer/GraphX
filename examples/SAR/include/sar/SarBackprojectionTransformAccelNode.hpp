@@ -3,7 +3,6 @@
 #include "sar/SarMessages.hpp"
 
 #include "config/Config.hpp"
-#include "gpu/accel/types/AccelTypes.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -17,27 +16,27 @@
 
 namespace sar {
 
-struct AzimuthTileSplitConfig {
-    std::uint32_t tile_count{4};
-    std::uint32_t tile_id_offset{0};
-    int fixed_tile_id{-1};
+struct SarBackprojectionTransformAccelConfig {
+    std::uint32_t image_width{16};
     std::uint32_t backend_id{0};
-    SarBackendKind backend{SarBackendKind::Host};
+    std::uint64_t queue_id{0};
+    std::uint64_t kernel_id{3301};
+    SarBackendKind backend{SarBackendKind::SimulatedDevice};
 };
 
-class AzimuthTileSplitNode
+class SarBackprojectionTransformAccelNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarPulseBlockMessage>,
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
-          AzimuthTileSplitNode>,
-    public graph::IConfigurable,
-    public graph::IParameterized {
+          graph::TypeList<graph::gpu::accel::DeviceBufferView>,
+          graph::TypeList<graph::gpu::accel::DeviceBufferView>,
+          SarBackprojectionTransformAccelNode>,
+      public graph::IConfigurable,
+      public graph::IParameterized {
 public:
-    AzimuthTileSplitNode() = default;
-    explicit AzimuthTileSplitNode(AzimuthTileSplitConfig config);
+    SarBackprojectionTransformAccelNode() = default;
+    explicit SarBackprojectionTransformAccelNode(SarBackprojectionTransformAccelConfig config);
 
-    std::optional<graph::gpu::accel::HostPinnedBufferView> Transfer(
-        const SarPulseBlockMessage& input,
+    std::optional<graph::gpu::accel::DeviceBufferView> Transfer(
+        const graph::gpu::accel::DeviceBufferView& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -49,34 +48,14 @@ public:
     static constexpr std::array<graph::JsonField, 5> Fields() {
         return {{
             graph::JsonField{
-                .name = "tile_count",
+                .name = "image_width",
                 .type = graph::JsonType::Integer,
                 .required = false,
                 .min = 1.0,
                 .max = std::nullopt,
-                .default_value = "4",
+                .default_value = "16",
                 .enum_values = std::nullopt,
-                .description = "Number of azimuth tiles"
-            },
-            graph::JsonField{
-                .name = "tile_id_offset",
-                .type = graph::JsonType::Integer,
-                .required = false,
-                .min = 0.0,
-                .max = std::nullopt,
-                .default_value = "0",
-                .enum_values = std::nullopt,
-                .description = "Modulo offset applied to deterministic tile id selection"
-            },
-            graph::JsonField{
-                .name = "fixed_tile_id",
-                .type = graph::JsonType::Integer,
-                .required = false,
-                .min = -1.0,
-                .max = std::nullopt,
-                .default_value = "-1",
-                .enum_values = std::nullopt,
-                .description = "Fixed tile id for graph-visible branch fan-out; -1 preserves sequence modulo behavior"
+                .description = "Dispatch width hint for kernel launch metadata"
             },
             graph::JsonField{
                 .name = "backend_id",
@@ -89,27 +68,47 @@ public:
                 .description = "Backend device index"
             },
             graph::JsonField{
+                .name = "queue_id",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "0",
+                .enum_values = std::nullopt,
+                .description = "Execution queue identifier. 0 selects backend_id + 1"
+            },
+            graph::JsonField{
+                .name = "kernel_id",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = 1.0,
+                .max = std::nullopt,
+                .default_value = "3301",
+                .enum_values = std::nullopt,
+                .description = "Kernel identifier"
+            },
+            graph::JsonField{
                 .name = "backend",
                 .type = graph::JsonType::Integer,
                 .required = false,
                 .min = 0.0,
                 .max = 2.0,
-                .default_value = "0",
+                .default_value = "1",
                 .enum_values = std::nullopt,
                 .description = "Backend kind enum: 0=Host, 1=SimulatedDevice, 2=NativeDevice"
             }
         }};
     }
 
-    void SetConfig(const AzimuthTileSplitConfig& config);
-    const AzimuthTileSplitConfig& GetConfig() const noexcept;
+    void SetConfig(const SarBackprojectionTransformAccelConfig& config);
+    const SarBackprojectionTransformAccelConfig& GetConfig() const noexcept;
+
+    const graph::gpu::accel::KernelTicket& last_kernel_ticket() const noexcept;
 
 private:
-    std::uint32_t ResolveTileId(const SarPulseBlockMessage& input) const;
-    graph::gpu::accel::HostPinnedBufferView BuildDataTile(const SarPulseBlockMessage& input) const;
-    graph::gpu::accel::HostPinnedBufferView BuildEndOfStreamTile(const SarPulseBlockMessage& input) const;
-
-    AzimuthTileSplitConfig config_{};
+    SarBackprojectionTransformAccelConfig config_{};
+    std::uint64_t kernel_sequence_{0};
+    graph::gpu::accel::KernelTicket last_kernel_ticket_{};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
 };

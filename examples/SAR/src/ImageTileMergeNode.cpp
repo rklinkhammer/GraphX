@@ -1,6 +1,7 @@
 #include "sar/ImageTileMergeNode.hpp"
 
 #include "config/ConfigError.hpp"
+#include "gpu/accel/types/AccelValidation.hpp"
 
 #include <algorithm>
 
@@ -16,29 +17,70 @@ SarBackendKind ParseBackendKind(int raw_backend) {
     return static_cast<SarBackendKind>(raw_backend);
 }
 
+SarFrameMarker DecodeMarker(std::uint64_t token) {
+    return static_cast<SarFrameMarker>(token & 0x3u);
+}
+
+std::uint32_t DecodeTileId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
+}
+
+std::uint64_t DecodeSequenceId(std::uint64_t token) {
+    return (token >> 14u) & 0xFFFFFFu;
+}
+
+std::size_t DecodeByteCount(std::uint64_t token) {
+    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
+}
+
+std::uint32_t DecodeStreamId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 54u) & 0x3FFu);
+}
+
 } // namespace
 
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
     : config_(config) {}
 
 std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
-    const SarImageTileMessage& input,
+    const graph::gpu::accel::HostPinnedBufferView& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
+    if (!graph::gpu::accel::IsValidView(input)) {
+        return std::nullopt;
+    }
+
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(input.host_ptr));
+    const auto marker = DecodeMarker(token);
+    const auto tile_id = DecodeTileId(token);
+    const auto sequence_id = DecodeSequenceId(token);
+    const auto stream_id = DecodeStreamId(token);
+    const auto token_byte_count = DecodeByteCount(token);
+    const auto effective_byte_count = (marker == SarFrameMarker::Data)
+                                          ? std::max<std::size_t>(token_byte_count, static_cast<std::size_t>(input.bytes))
+                                          : 0u;
+
     if (completion_emitted_) {
         return std::nullopt;
     }
 
     const std::uint32_t expected_tiles = ResolveExpectedTiles();
 
-    if (input.envelope.marker == SarFrameMarker::Watermark) {
+    if (marker == SarFrameMarker::Watermark) {
         watermark_seen_ = true;
-        return BuildStatusMessage(input, SarFrameMarker::Watermark, false);
+        return BuildStatusMessage(
+            input,
+            sequence_id,
+            tile_id,
+            stream_id,
+            effective_byte_count,
+            SarFrameMarker::Watermark,
+            false);
     }
 
-    if (input.envelope.marker == SarFrameMarker::EndOfStream) {
+    if (marker == SarFrameMarker::EndOfStream) {
         if (config_.require_all_tile_eos_before_complete) {
-            eos_tiles_.insert(input.envelope.tile_id);
+            eos_tiles_.insert(tile_id);
         }
         const std::uint32_t missing_tiles =
             (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
@@ -53,36 +95,50 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         if (complete) {
             completion_emitted_ = true;
         }
-        return BuildStatusMessage(input, SarFrameMarker::EndOfStream, complete);
+        return BuildStatusMessage(
+            input,
+            sequence_id,
+            tile_id,
+            stream_id,
+            effective_byte_count,
+            SarFrameMarker::EndOfStream,
+            complete);
     }
 
     if (!has_first_data_sequence_) {
-        first_data_sequence_ = input.envelope.sequence_id;
+        first_data_sequence_ = sequence_id;
         has_first_data_sequence_ = true;
     }
 
-    const auto transfer_bytes = static_cast<std::uint64_t>(input.buffer.byte_count);
+    const auto transfer_bytes = static_cast<std::uint64_t>(effective_byte_count);
     bytes_h2d_ += transfer_bytes;
     bytes_d2h_ += transfer_bytes;
     ++kernel_dispatches_;
-    transfer_h2d_time_us_ += input.transfer_h2d_time_us;
-    kernel_exec_time_us_ += input.kernel_exec_time_us;
-    transfer_d2h_time_us_ += input.transfer_d2h_time_us;
+    transfer_h2d_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
+    kernel_exec_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
+    transfer_d2h_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
 
-    const auto [_, inserted] = seen_tiles_.insert(input.envelope.tile_id);
+    const auto [_, inserted] = seen_tiles_.insert(tile_id);
     if (!inserted) {
         ++duplicate_tiles_;
     } else {
         ++received_tiles_;
 
-        if (has_last_tile_ && input.envelope.tile_id < last_tile_id_) {
+        if (has_last_tile_ && tile_id < last_tile_id_) {
             ++out_of_order_tiles_;
         }
-        last_tile_id_ = input.envelope.tile_id;
+        last_tile_id_ = tile_id;
         has_last_tile_ = true;
     }
 
-    return BuildStatusMessage(input, SarFrameMarker::Data, false);
+    return BuildStatusMessage(
+        input,
+        sequence_id,
+        tile_id,
+        stream_id,
+        effective_byte_count,
+        SarFrameMarker::Data,
+        false);
 }
 
 void ImageTileMergeNode::Configure(const graph::JsonView& cfg) {
@@ -213,7 +269,11 @@ const ImageTileMergeConfig& ImageTileMergeNode::GetConfig() const noexcept {
 }
 
 SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
-    const SarImageTileMessage& input,
+    const graph::gpu::accel::HostPinnedBufferView& input,
+    std::uint64_t sequence_id,
+    std::uint32_t tile_id,
+    std::uint32_t stream_id,
+    std::size_t byte_count,
     SarFrameMarker marker,
     bool complete) const {
     const std::uint32_t expected_tiles = ResolveExpectedTiles();
@@ -221,13 +281,35 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
         (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
 
     SarMergeStatusMessage out{};
-    out.envelope = input.envelope;
+    out.envelope.sequence_id = sequence_id;
+    out.envelope.batch_id = stream_id;
+    out.envelope.aperture_id = sequence_id;
+    out.envelope.pulse_range_start = sequence_id;
+    out.envelope.pulse_range_count = (marker == SarFrameMarker::Data) ? 1u : 0u;
+    out.envelope.stream_id = stream_id;
+    out.envelope.tile_id = tile_id;
     out.envelope.tile_count = expected_tiles;
     out.envelope.backend_id = config_.backend_id;
     out.envelope.backend = config_.backend;
     out.envelope.marker = marker;
-    out.envelope.synthetic = input.envelope.synthetic;
-    out.gpu = input.gpu;
+    out.envelope.synthetic = true;
+
+    out.gpu.host_view = input;
+    out.gpu.has_host_view = true;
+    out.gpu.transfer_ticket.backend = input.backend;
+    out.gpu.transfer_ticket.transfer_id = sequence_id;
+    out.gpu.transfer_ticket.execution_queue_id = static_cast<std::uint64_t>(config_.backend_id) + 1u;
+    out.gpu.transfer_ticket.completion_event = sequence_id;
+    out.gpu.transfer_ticket.dst_host = input;
+    out.gpu.has_transfer_ticket = true;
+
+    out.gpu.kernel_ticket.backend = ToAccelBackendKind(config_.backend);
+    out.gpu.kernel_ticket.kernel_id = static_cast<std::uint64_t>(config_.backend_id) + 3301u;
+    out.gpu.kernel_ticket.execution_queue_id = static_cast<std::uint64_t>(config_.backend_id) + 1u;
+    out.gpu.kernel_ticket.completion_event = sequence_id;
+    out.gpu.kernel_ticket.arg_count = 1;
+    out.gpu.has_kernel_ticket =
+        out.gpu.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
 
     out.expected_tiles = expected_tiles;
     out.received_tiles = received_tiles_;
@@ -243,8 +325,16 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.watermark_seen = watermark_seen_;
     out.complete = complete;
 
-    if (has_first_data_sequence_ && input.envelope.sequence_id >= first_data_sequence_) {
-        out.fanin_wait_ms = input.envelope.sequence_id - first_data_sequence_;
+    if (has_first_data_sequence_ && sequence_id >= first_data_sequence_) {
+        out.fanin_wait_ms = sequence_id - first_data_sequence_;
+    }
+
+    if (marker != SarFrameMarker::Data) {
+        out.bytes_h2d = bytes_h2d_;
+        out.bytes_d2h = bytes_d2h_;
+    } else if (byte_count == 0u) {
+        out.bytes_h2d = bytes_h2d_;
+        out.bytes_d2h = bytes_d2h_;
     }
 
     return out;

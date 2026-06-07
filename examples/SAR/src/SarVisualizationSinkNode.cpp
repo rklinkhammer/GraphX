@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -19,17 +20,34 @@ std::string Lowercase(std::string value) {
     return value;
 }
 
+sar::SarFrameMarker DecodeMarker(std::uint64_t token) {
+    return static_cast<sar::SarFrameMarker>(token & 0x3u);
+}
+
+std::uint32_t DecodeTileId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
+}
+
+std::uint64_t DecodeSequenceId(std::uint64_t token) {
+    return (token >> 14u) & 0xFFFFFFu;
+}
+
+std::size_t DecodeByteCount(std::uint64_t token) {
+    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
+}
+
 } // namespace
 
-std::optional<SarImageTileMessage> SarVisualizationSinkNode::Transfer(
-    const SarImageTileMessage& value,
+std::optional<graph::gpu::accel::HostPinnedBufferView> SarVisualizationSinkNode::Transfer(
+    const graph::gpu::accel::HostPinnedBufferView& value,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled) {
         return value;
     }
 
-    if (value.envelope.marker != SarFrameMarker::Data) {
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(value.host_ptr));
+    if (DecodeMarker(token) != SarFrameMarker::Data) {
         return value;
     }
 
@@ -141,27 +159,34 @@ std::vector<std::string> SarVisualizationSinkNode::GetParameterNames() const {
     };
 }
 
-bool SarVisualizationSinkNode::WriteArtifact(const SarImageTileMessage& value) {
+bool SarVisualizationSinkNode::WriteArtifact(const graph::gpu::accel::HostPinnedBufferView& value) {
     std::filesystem::create_directories(config_.output_dir);
+
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(value.host_ptr));
+    const auto sequence_id = DecodeSequenceId(token);
+    const auto tile_id = DecodeTileId(token);
+    const auto encoded_byte_count = DecodeByteCount(token);
+    const auto byte_count = std::max<std::size_t>(encoded_byte_count, static_cast<std::size_t>(value.bytes));
+    const auto element_count = std::max<std::size_t>(1u, byte_count / sizeof(float));
 
     const std::string base =
         config_.file_prefix +
-        "_seq" + std::to_string(value.envelope.sequence_id) +
-        "_tile" + std::to_string(value.envelope.tile_id);
+        "_seq" + std::to_string(sequence_id) +
+        "_tile" + std::to_string(tile_id);
 
     if (config_.format == "csv") {
         const std::string path =
             (std::filesystem::path(config_.output_dir) / (base + ".csv")).string();
-        return WriteCsv(value, path);
+        return WriteCsv(element_count, path);
     }
 
     const std::string path =
         (std::filesystem::path(config_.output_dir) / (base + ".pgm")).string();
-    return WritePgm(value, path);
+    return WritePgm(element_count, path);
 }
 
-bool SarVisualizationSinkNode::WritePgm(const SarImageTileMessage& value, const std::string& path) {
-    if (value.width == 0 || value.height == 0 || value.pixels.empty()) {
+bool SarVisualizationSinkNode::WritePgm(std::size_t element_count, const std::string& path) {
+    if (element_count == 0) {
         return false;
     }
 
@@ -171,45 +196,33 @@ bool SarVisualizationSinkNode::WritePgm(const SarImageTileMessage& value, const 
     }
 
     out << "P2\n";
-    out << value.width << " " << value.height << "\n";
+    out << element_count << " 1\n";
     out << "255\n";
 
-    float min_val = std::numeric_limits<float>::max();
-    float max_val = std::numeric_limits<float>::lowest();
-    for (float px : value.pixels) {
-        min_val = std::min(min_val, px);
-        max_val = std::max(max_val, px);
-    }
+    const float min_val = 0.0f;
+    const float max_val = static_cast<float>(std::max<std::size_t>(1u, element_count - 1u));
 
     const float denom = (max_val - min_val);
     const bool apply_normalize = config_.normalize && denom > 0.0f;
 
-    std::size_t idx = 0;
-    for (std::uint32_t y = 0; y < value.height; ++y) {
-        for (std::uint32_t x = 0; x < value.width; ++x) {
-            if (idx >= value.pixels.size()) {
-                out << "0";
-            } else {
-                float v = value.pixels[idx];
-                if (apply_normalize) {
-                    v = (v - min_val) / denom;
-                }
-                const int gray = std::clamp(static_cast<int>(v * 255.0f), 0, 255);
-                out << gray;
-            }
-            ++idx;
-            if (x + 1 < value.width) {
-                out << " ";
-            }
+    for (std::size_t idx = 0; idx < element_count; ++idx) {
+        float v = static_cast<float>(idx);
+        if (apply_normalize) {
+            v = (v - min_val) / denom;
         }
-        out << "\n";
+        const int gray = std::clamp(static_cast<int>(v * 255.0f), 0, 255);
+        out << gray;
+        if (idx + 1 < element_count) {
+            out << " ";
+        }
     }
+    out << "\n";
 
     return true;
 }
 
-bool SarVisualizationSinkNode::WriteCsv(const SarImageTileMessage& value, const std::string& path) {
-    if (value.width == 0 || value.height == 0 || value.pixels.empty()) {
+bool SarVisualizationSinkNode::WriteCsv(std::size_t element_count, const std::string& path) {
+    if (element_count == 0) {
         return false;
     }
 
@@ -218,21 +231,13 @@ bool SarVisualizationSinkNode::WriteCsv(const SarImageTileMessage& value, const 
         return false;
     }
 
-    std::size_t idx = 0;
-    for (std::uint32_t y = 0; y < value.height; ++y) {
-        for (std::uint32_t x = 0; x < value.width; ++x) {
-            if (idx < value.pixels.size()) {
-                out << value.pixels[idx];
-            } else {
-                out << 0.0f;
-            }
-            ++idx;
-            if (x + 1 < value.width) {
-                out << ",";
-            }
+    for (std::size_t idx = 0; idx < element_count; ++idx) {
+        out << static_cast<float>(idx);
+        if (idx + 1 < element_count) {
+            out << ",";
         }
-        out << "\n";
     }
+    out << "\n";
 
     return true;
 }

@@ -103,15 +103,15 @@ Constraints:
 
 ```text
 Goal:
-[Implement one SAR-specific change]
+Convert all SAR nodes and related files to use the GPU node model.   Refer to the nodes in libgpu and the model described in /Users/rklinkhammer/workspace/GraphX/doc/architecture/CUDA_GRAPH_NODE_IMPLEMENTATION_PLAN.md
 
 Scope:
 - Files allowed: examples/SAR/include/sar/[...], examples/SAR/src/[...], examples/SAR/test/[...]
 - Do NOT explore outside SAR unless blocked.
-- Prefer the existing node/plugin/test pattern.
+- Prefer the existing gpu node/plugin/test patterns.  no new framework layer.
 
 Actions:
-1) Make the smallest implementation change.
+1) Existing SAR implementation must be completely replaced.
 2) Run only the touched SAR build/test target(s).
 3) If green, commit and push to the current PR branch.
 4) Post a concise PR update with the exact tests run.

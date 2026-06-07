@@ -81,8 +81,12 @@ std::shared_ptr<sar::SarVisualizationSinkNode> ResolveVisualizationNode(
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
 
+#ifndef SAR_PROJECTILE_JSON_CONFIG_PATH
+#define SAR_PROJECTILE_JSON_CONFIG_PATH "examples/SAR/config/sar_projectile_approach_pr1.json"
+#endif
+
 TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
-    const std::filesystem::path config_path{"examples/SAR/config/sar_projectile_approach_pr1.json"};
+    const std::filesystem::path config_path{SAR_PROJECTILE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
     const std::filesystem::path viz_dir{"sar_viz_output"};

@@ -2,6 +2,8 @@
 
 #include "sar/AzimuthTileSplitNode.hpp"
 
+#include "gpu/accel/types/AccelTypes.hpp"
+
 #include "graph/NodeFacade.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
@@ -24,6 +26,26 @@ constexpr const char* kSharedLibraryExtension = ".so";
 
 std::string AzimuthTileSplitPluginFilename() {
     return std::string("libazimuth_tile_split_node") + kSharedLibraryExtension;
+}
+
+sar::SarFrameMarker DecodeMarker(std::uint64_t token) {
+    return static_cast<sar::SarFrameMarker>(token & 0x3u);
+}
+
+std::uint32_t DecodeTileId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
+}
+
+std::uint64_t DecodeSequenceId(std::uint64_t token) {
+    return (token >> 14u) & 0xFFFFFFu;
+}
+
+std::size_t DecodeByteCount(std::uint64_t token) {
+    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
+}
+
+std::uint32_t DecodeStreamId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 54u) & 0x3FFu);
 }
 
 sar::SarPulseBlockMessage MakePulse(
@@ -56,7 +78,7 @@ sar::SarPulseBlockMessage MakePulse(
     return msg;
 }
 
-TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
+TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndEmitsAccelToken) {
     sar::AzimuthTileSplitConfig cfg{};
     cfg.tile_count = 4;
     cfg.tile_id_offset = 2;
@@ -72,20 +94,16 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndCopiesRangeBins) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(out->envelope.sequence_id, 7u);
-    EXPECT_EQ(out->envelope.batch_id, input.envelope.batch_id);
-    EXPECT_EQ(out->envelope.aperture_id, input.envelope.aperture_id);
-    EXPECT_EQ(out->envelope.pulse_range_start, input.envelope.pulse_range_start);
-    EXPECT_EQ(out->envelope.pulse_range_count, input.envelope.pulse_range_count);
-    EXPECT_EQ(out->envelope.tile_count, 4u);
-    EXPECT_EQ(out->envelope.tile_id, 1u);
-    EXPECT_EQ(out->envelope.backend_id, 9u);
-    EXPECT_EQ(out->envelope.backend, sar::SarBackendKind::SimulatedDevice);
-    ASSERT_EQ(out->range_bins.size(), input.iq_samples.size());
-    EXPECT_FLOAT_EQ(out->range_bins[0], 1.0f);
-    EXPECT_FLOAT_EQ(out->range_bins[1], 2.0f);
-    EXPECT_FLOAT_EQ(out->range_bins[2], 3.0f);
+    EXPECT_EQ(out->dtype, graph::gpu::accel::DataType::Float32);
+    EXPECT_EQ(out->bytes, static_cast<std::uint64_t>(input.iq_samples.size() * sizeof(float)));
+    EXPECT_EQ(out->allocator_id, 10u);
+
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(out->host_ptr));
+    EXPECT_EQ(DecodeMarker(token), sar::SarFrameMarker::Data);
+    EXPECT_EQ(DecodeSequenceId(token), 7u);
+    EXPECT_EQ(DecodeTileId(token), 1u);
+    EXPECT_EQ(DecodeStreamId(token), input.envelope.stream_id);
+    EXPECT_EQ(DecodeByteCount(token), input.iq_samples.size() * sizeof(float));
 }
 
 TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
@@ -104,15 +122,14 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(out->envelope.batch_id, eos_input.envelope.batch_id);
-    EXPECT_EQ(out->envelope.aperture_id, eos_input.envelope.aperture_id);
-    EXPECT_EQ(out->envelope.pulse_range_start, eos_input.envelope.pulse_range_start);
-    EXPECT_EQ(out->envelope.pulse_range_count, eos_input.envelope.pulse_range_count);
-    EXPECT_EQ(out->envelope.tile_count, 8u);
-    EXPECT_EQ(out->envelope.tile_id, 5u);
-    EXPECT_TRUE(out->range_bins.empty());
-    EXPECT_EQ(out->buffer.byte_count, 0u);
+    EXPECT_EQ(out->bytes, static_cast<std::uint64_t>(sizeof(float)));
+
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(out->host_ptr));
+    EXPECT_EQ(DecodeMarker(token), sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(DecodeSequenceId(token), 10u);
+    EXPECT_EQ(DecodeTileId(token), 5u);
+    EXPECT_EQ(DecodeStreamId(token), eos_input.envelope.stream_id);
+    EXPECT_EQ(DecodeByteCount(token), 0u);
 }
 
 TEST(AzimuthTileSplitNodeTest, DynamicPluginLoadAndBehaviorValidation) {
@@ -145,10 +162,10 @@ TEST(AzimuthTileSplitNodeTest, DynamicPluginLoadAndBehaviorValidation) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(out->envelope.tile_count, 5u);
-    EXPECT_EQ(out->envelope.tile_id, 1u);
-    EXPECT_EQ(out->range_bins.size(), 3u);
+    EXPECT_EQ(out->bytes, 12u);
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(out->host_ptr));
+    EXPECT_EQ(DecodeMarker(token), sar::SarFrameMarker::Data);
+    EXPECT_EQ(DecodeTileId(token), 1u);
 }
 
 } // namespace

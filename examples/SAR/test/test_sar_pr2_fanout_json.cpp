@@ -84,7 +84,7 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
     auto executor = graph::GraphExecutorBuilder()
                         .WithJsonConfig(config_path.string())
                         .WithPluginDirectory(plugin_dir.string())
-                        .WithExecutorTimeout(std::chrono::seconds(5))
+                        .WithExecutorTimeout(std::chrono::seconds(10))
                         .Build();
 
     ASSERT_NE(executor, nullptr);

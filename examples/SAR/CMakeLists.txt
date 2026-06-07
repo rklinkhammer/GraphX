@@ -7,26 +7,26 @@ find_package(log4cxx REQUIRED)
 add_executable(sar_example
     src/main.cpp
     src/AzimuthTileSplitNode.cpp
-    src/D2HAsyncNode.cpp
-    src/H2DAsyncNode.cpp
+    src/D2HAsyncAccelNode.cpp
+    src/H2DAsyncAccelNode.cpp
     src/ImageTileMergeNode.cpp
     src/RangeCompressionNode.cpp
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
-    src/SarBackprojectionTransformNode.cpp
+    src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )
 
 add_executable(sar_benchmark
     src/sar_benchmark.cpp
     src/AzimuthTileSplitNode.cpp
-    src/D2HAsyncNode.cpp
-    src/H2DAsyncNode.cpp
+    src/D2HAsyncAccelNode.cpp
+    src/H2DAsyncAccelNode.cpp
     src/ImageTileMergeNode.cpp
     src/RangeCompressionNode.cpp
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
-    src/SarBackprojectionTransformNode.cpp
+    src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )
 
