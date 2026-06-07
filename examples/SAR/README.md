@@ -32,6 +32,8 @@ Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
+The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
+
 ## Build And Run
 
 Build SAR example and tests:

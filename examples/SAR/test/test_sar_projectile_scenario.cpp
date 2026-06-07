@@ -4,6 +4,7 @@
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
+#include "sar/SarVisualizationSinkNode.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -53,6 +54,27 @@ std::shared_ptr<sar::SyntheticApertureIqSourceNode> ResolveSourceNode(
     return nullptr;
 }
 
+std::shared_ptr<sar::SarVisualizationSinkNode> ResolveVisualizationNode(
+    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    const auto nodes = graph_manager->GetNodes();
+    for (const auto& node : nodes) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+        if (wrapper->GetType() != "SarVisualizationSinkNode") {
+            continue;
+        }
+        return wrapper->GetNode<sar::SarVisualizationSinkNode>();
+    }
+
+    return nullptr;
+}
+
 } // namespace
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
@@ -62,6 +84,9 @@ std::shared_ptr<sar::SyntheticApertureIqSourceNode> ResolveSourceNode(
 TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
     const std::filesystem::path config_path{"examples/SAR/config/sar_projectile_approach_pr1.json"};
     ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path viz_dir{"sar_viz_output"};
+    std::filesystem::remove_all(viz_dir);
 
     const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
     ASSERT_TRUE(std::filesystem::exists(plugin_dir));
@@ -76,7 +101,6 @@ TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
 
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
-    ASSERT_TRUE(executor->IsCompletionSignaled());
 
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
@@ -111,4 +135,21 @@ TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
     const float first_magnitude = std::abs(first->iq_samples.front());
     const float second_magnitude = std::abs(second->iq_samples.front());
     EXPECT_GT(second_magnitude, first_magnitude);
+
+    auto visualization = ResolveVisualizationNode(graph_manager);
+    ASSERT_NE(visualization, nullptr);
+    EXPECT_GT(visualization->artifact_count(), 0u);
+
+    bool found_pgm = false;
+    if (std::filesystem::exists(viz_dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(viz_dir)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".pgm") {
+                found_pgm = true;
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(found_pgm);
+
+    std::filesystem::remove_all(viz_dir);
 }

@@ -17,6 +17,8 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_diagnostics_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarVisualizationSinkNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_visualization_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_compare.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
@@ -48,6 +50,7 @@ add_dependencies(test_sar_example_unit d2h_async_node)
 add_dependencies(test_sar_example_unit h2d_async_node)
 add_dependencies(test_sar_example_unit image_tile_merge_node)
 add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
+add_dependencies(test_sar_example_unit sar_visualization_sink_node)
 add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 

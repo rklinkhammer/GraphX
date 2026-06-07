@@ -70,6 +70,19 @@ target_include_directories(sar_diagnostics_sink_node PRIVATE
 )
 
 add_graphx_plugin(
+    TARGET_NAME sar_visualization_sink_node
+    SOURCE_FILES
+        sar_visualization_sink_node_plugin.cpp
+        ../src/SarVisualizationSinkNode.cpp
+    DESCRIPTION "SAR visualization sink node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(sar_visualization_sink_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME image_tile_merge_node
     SOURCE_FILES
         image_tile_merge_node_plugin.cpp

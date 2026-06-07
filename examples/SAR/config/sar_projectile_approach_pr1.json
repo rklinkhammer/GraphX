@@ -72,6 +72,17 @@
       "node_config": {
         "completion_signal_enabled": true
       }
+    },
+    {
+      "id": "viz",
+      "type": "SarVisualizationSinkNode",
+      "node_config": {
+        "enabled": true,
+        "output_dir": "sar_viz_output",
+        "format": "pgm",
+        "normalize": true,
+        "file_prefix": "projectile"
+      }
     }
   ],
   "edges": [
@@ -101,6 +112,12 @@
     },
     {
       "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "viz",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "viz",
       "source_port": 0,
       "target_node_id": "merge",
       "target_port": 0
