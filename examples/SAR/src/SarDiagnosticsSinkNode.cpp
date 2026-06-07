@@ -78,6 +78,9 @@ void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarMergeStatusMessage& valu
     diagnostics_.bytes_h2d = value.bytes_h2d;
     diagnostics_.bytes_d2h = value.bytes_d2h;
     diagnostics_.kernel_dispatches = value.kernel_dispatches;
+    diagnostics_.transfer_h2d_time_us = value.transfer_h2d_time_us;
+    diagnostics_.kernel_exec_time_us = value.kernel_exec_time_us;
+    diagnostics_.transfer_d2h_time_us = value.transfer_d2h_time_us;
     diagnostics_.fanin_wait_ms = value.fanin_wait_ms;
     diagnostics_.e2e_latency_ms = value.fanin_wait_ms;
     diagnostics_.duplicate_tile_count = static_cast<std::uint64_t>(value.duplicate_tiles);

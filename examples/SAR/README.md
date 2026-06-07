@@ -11,6 +11,7 @@ This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for
 5. Keep new SAR stages dynamically loadable through the standard plugin/provider path:
   - SyntheticApertureIqSourceNode
   - RangeWindowNode
+  - RangeCompressionNode
   - SarPulseFanoutNode
   - AzimuthTileSplitNode
   - SarBackprojectionTransformNode
@@ -150,6 +151,8 @@ SAR tile messages also carry optional `graph::gpu::accel` metadata at the backen
 
 Native backend tuning and specialization (CUDA/SYCL/Metal) are deferred follow-up work.
 
+PR3 kickoff adds feature-gated native backend benchmarking mode and real transfer/kernel timing telemetry while keeping CI defaults on the simulated backend path.
+
 ## Benchmarking
 
 A dedicated benchmark executable is provided:
@@ -158,6 +161,8 @@ A dedicated benchmark executable is provided:
 cmake --build --preset build-debug --target sar_benchmark
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_pr3_native_trace.json
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
 ```
 

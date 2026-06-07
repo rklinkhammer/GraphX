@@ -15,6 +15,8 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ImageTileMergeNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/RangeCompressionNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_range_compression_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/RangeWindowNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_range_window_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
@@ -47,6 +49,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
     gpu
+    dsp
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads
@@ -57,6 +60,7 @@ add_dependencies(test_sar_example_unit d2h_async_node)
 add_dependencies(test_sar_example_unit h2d_async_node)
 add_dependencies(test_sar_example_unit image_tile_merge_node)
 add_dependencies(test_sar_example_unit range_window_node)
+add_dependencies(test_sar_example_unit range_compression_node)
 add_dependencies(test_sar_example_unit sar_pulse_fanout_node)
 add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
 add_dependencies(test_sar_example_unit sar_visualization_sink_node)

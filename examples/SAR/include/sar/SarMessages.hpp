@@ -93,6 +93,9 @@ struct SarRangeTileMessage {
     SarMessageEnvelope envelope{};
     SarBufferDescriptor buffer{};
     SarGpuMetadata gpu{};
+    std::uint64_t transfer_h2d_time_us{};
+    std::uint64_t kernel_exec_time_us{};
+    std::uint64_t transfer_d2h_time_us{};
     std::vector<float> range_bins{};
 };
 
@@ -123,6 +126,9 @@ struct SarImageTileMessage {
     SarBufferDescriptor buffer{};
     SarDispatchMetadata dispatch{};
     SarGpuMetadata gpu{};
+    std::uint64_t transfer_h2d_time_us{};
+    std::uint64_t kernel_exec_time_us{};
+    std::uint64_t transfer_d2h_time_us{};
     std::uint32_t width{};
     std::uint32_t height{};
     std::vector<float> pixels{};
@@ -139,6 +145,9 @@ struct SarMergeStatusMessage {
     std::uint64_t bytes_h2d{};
     std::uint64_t bytes_d2h{};
     std::uint64_t kernel_dispatches{};
+    std::uint64_t transfer_h2d_time_us{};
+    std::uint64_t kernel_exec_time_us{};
+    std::uint64_t transfer_d2h_time_us{};
     bool watermark_seen{false};
     std::uint64_t fanin_wait_ms{};
     bool complete{false};
@@ -151,6 +160,9 @@ struct SarDiagnosticsMessage {
     std::uint64_t bytes_h2d{};
     std::uint64_t bytes_d2h{};
     std::uint64_t kernel_dispatches{};
+    std::uint64_t transfer_h2d_time_us{};
+    std::uint64_t kernel_exec_time_us{};
+    std::uint64_t transfer_d2h_time_us{};
     std::uint64_t fanin_wait_ms{};
     std::uint64_t e2e_latency_ms{};
     std::uint64_t duplicate_tile_count{};

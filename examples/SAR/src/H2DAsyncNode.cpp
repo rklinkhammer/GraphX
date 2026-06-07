@@ -2,6 +2,8 @@
 
 #include "config/ConfigError.hpp"
 
+#include <chrono>
+
 namespace sar {
 
 namespace {
@@ -27,6 +29,7 @@ std::optional<SarRangeTileMessage> H2DAsyncNode::Transfer(
     const SarRangeTileMessage& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
+    const auto stage_start = std::chrono::steady_clock::now();
     SarRangeTileMessage out = input;
     out.buffer.direction = SarTransferDirection::HostToDevice;
     if (config_.override_backend) {
@@ -76,6 +79,14 @@ std::optional<SarRangeTileMessage> H2DAsyncNode::Transfer(
         out.gpu.transfer_ticket.src_host = out.gpu.host_view;
         out.gpu.transfer_ticket.dst_device = out.gpu.device_view;
         out.gpu.has_transfer_ticket = true;
+    }
+
+    if (input.envelope.marker == SarFrameMarker::Data) {
+        const auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                    std::chrono::steady_clock::now() - stage_start)
+                                    .count();
+        out.transfer_h2d_time_us += static_cast<std::uint64_t>(
+            (elapsed_us <= 0) ? 1 : elapsed_us);
     }
     return out;
 }

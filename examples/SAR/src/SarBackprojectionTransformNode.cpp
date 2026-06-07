@@ -3,6 +3,7 @@
 #include "config/ConfigError.hpp"
 
 #include <algorithm>
+#include <chrono>
 
 namespace sar {
 
@@ -29,8 +30,13 @@ std::optional<SarImageTileMessage> SarBackprojectionTransformNode::Transfer(
     if (input.envelope.marker == SarFrameMarker::EndOfStream) {
         return BuildEndOfStreamTile(input);
     }
-
-    return BuildDataTile(input);
+    const auto stage_start = std::chrono::steady_clock::now();
+    auto out = BuildDataTile(input);
+    const auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                std::chrono::steady_clock::now() - stage_start)
+                                .count();
+    out.kernel_exec_time_us += static_cast<std::uint64_t>((elapsed_us <= 0) ? 1 : elapsed_us);
+    return out;
 }
 
 void SarBackprojectionTransformNode::Configure(const graph::JsonView& cfg) {
@@ -173,6 +179,9 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildDataTile(
     out.dispatch.dispatch_height = height;
     out.dispatch.dispatch_depth = 1;
     out.gpu = input.gpu;
+    out.transfer_h2d_time_us = input.transfer_h2d_time_us;
+    out.kernel_exec_time_us = input.kernel_exec_time_us;
+    out.transfer_d2h_time_us = input.transfer_d2h_time_us;
     out.gpu.kernel_ticket.backend = ToAccelBackendKind(config_.backend);
     out.gpu.kernel_ticket.kernel_id = config_.kernel_id;
     out.gpu.kernel_ticket.launch.grid_x = width;
@@ -225,6 +234,9 @@ SarImageTileMessage SarBackprojectionTransformNode::BuildEndOfStreamTile(
     out.dispatch.dispatch_height = 1;
     out.dispatch.dispatch_depth = 1;
     out.gpu = input.gpu;
+    out.transfer_h2d_time_us = input.transfer_h2d_time_us;
+    out.kernel_exec_time_us = input.kernel_exec_time_us;
+    out.transfer_d2h_time_us = input.transfer_d2h_time_us;
 
     out.width = ResolveImageWidth();
     out.height = 1;

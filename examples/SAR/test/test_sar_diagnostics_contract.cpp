@@ -35,6 +35,9 @@ sar::SarMergeStatusMessage MakeStatus(
     msg.bytes_h2d = bytes_h2d;
     msg.bytes_d2h = bytes_d2h;
     msg.kernel_dispatches = kernel_dispatches;
+    msg.transfer_h2d_time_us = 11;
+    msg.kernel_exec_time_us = 22;
+    msg.transfer_d2h_time_us = 33;
     msg.watermark_seen = false;
     msg.fanin_wait_ms = fanin_wait_ms;
     msg.complete = complete;
@@ -64,6 +67,9 @@ TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromMergeStatus) {
     EXPECT_EQ(diag.bytes_h2d, 32768u);
     EXPECT_EQ(diag.bytes_d2h, 32768u);
     EXPECT_EQ(diag.kernel_dispatches, 32u);
+    EXPECT_EQ(diag.transfer_h2d_time_us, 11u);
+    EXPECT_EQ(diag.kernel_exec_time_us, 22u);
+    EXPECT_EQ(diag.transfer_d2h_time_us, 33u);
     EXPECT_EQ(diag.fanin_wait_ms, 32u);
     EXPECT_EQ(diag.e2e_latency_ms, 32u);
     EXPECT_EQ(diag.duplicate_tile_count, 28u);

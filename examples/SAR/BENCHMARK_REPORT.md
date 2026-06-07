@@ -5,7 +5,7 @@
 This report compares the deterministic GraphX SAR JSON pipeline against a deterministic non-graph baseline path that executes the same stage sequence:
 
 1. SyntheticApertureIqSourceNode
-2. RangeWindowNode
+2. RangeWindowNode or RangeCompressionNode (PR3 selectable stage)
 3. AzimuthTileSplitNode
 4. H2DAsyncNode
 5. SarBackprojectionTransformNode
@@ -65,9 +65,14 @@ Optional JSON trace export:
 
 # Feature-gated DeviceReduce prototype evaluation
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
+
+# PR3 native + FFT-backed range compression profile
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_pr3_native_trace.json
 ```
 
 The trace uses schema `graphx.sar.benchmark.trace.v1` and records profile metadata, graph build/run/lifecycle timing summaries, baseline timing, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
+
+PR3 traces also include selected `range_stage` and `native_backend` flags in the profile payload and expose measured transfer/kernel timing counters.
 
 When `--evaluate-device-reduce` is enabled, trace output also includes `device_reduce_evaluation` with diagnostics parity, prototype runtime stats, and keep/defer decision rationale.
 
@@ -99,6 +104,7 @@ The benchmark reports the following categories using deterministic, measurable p
 5. diagnostics collection: sink contract emission path
 6. backend synchronization: e2e_latency_ms proxy
 7. lifecycle teardown: init/start/stop/join/total timing reported separately from graph run time
+8. native timing telemetry: transfer_h2d_time_us, kernel_exec_time_us, transfer_d2h_time_us
 
 ## Phase E Decision Evidence
 

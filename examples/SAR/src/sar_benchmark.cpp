@@ -4,6 +4,7 @@
 #include "sar/D2HAsyncNode.hpp"
 #include "sar/H2DAsyncNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
+#include "sar/RangeCompressionNode.hpp"
 #include "sar/RangeWindowNode.hpp"
 #include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
@@ -44,10 +45,17 @@ struct BenchmarkProfile {
     int measured_runs;
 };
 
+enum class RangeStageKind : std::uint8_t {
+    Window,
+    Compression,
+};
+
 struct BenchmarkOptions {
     BenchmarkProfile profile;
     std::optional<std::filesystem::path> trace_output_path{};
     bool evaluate_device_reduce{false};
+    bool native_backend{false};
+    RangeStageKind range_stage{RangeStageKind::Window};
 };
 
 struct BenchmarkStats {
@@ -159,14 +167,56 @@ BenchmarkOptions ParseOptions(int argc, char** argv) {
             continue;
         }
 
+        const std::string range_stage_prefix = "--range-stage=";
+        if (arg.rfind(range_stage_prefix, 0) == 0) {
+            const auto value = arg.substr(range_stage_prefix.size());
+            if (value == "window") {
+                options.range_stage = RangeStageKind::Window;
+                continue;
+            }
+            if (value == "compression") {
+                options.range_stage = RangeStageKind::Compression;
+                continue;
+            }
+            throw std::invalid_argument("--range-stage must be window or compression");
+        }
+
+        if (arg == "--range-stage") {
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("--range-stage requires value window|compression");
+            }
+            const std::string value = argv[++i];
+            if (value == "window") {
+                options.range_stage = RangeStageKind::Window;
+                continue;
+            }
+            if (value == "compression") {
+                options.range_stage = RangeStageKind::Compression;
+                continue;
+            }
+            throw std::invalid_argument("--range-stage must be window or compression");
+        }
+
+        if (arg == "--native-backend") {
+            options.native_backend = true;
+            continue;
+        }
+
         throw std::invalid_argument(
-            "Unknown option. Use ci/local, --profile=ci/--profile=local, optional --trace-out=<path>, and optional --evaluate-device-reduce");
+            "Unknown option. Use ci/local, --profile=ci/--profile=local, optional --trace-out=<path>, optional --evaluate-device-reduce, optional --range-stage=window|compression, and optional --native-backend");
     }
 
     return options;
 }
 
-std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
+std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
+    const auto& profile = options.profile;
+    const bool use_native_backend = options.native_backend;
+    const int transfer_backend = use_native_backend ? 2 : 0;
+    const int transform_backend = use_native_backend ? 2 : 1;
+    const char* range_stage_type =
+        (options.range_stage == RangeStageKind::Compression) ? "RangeCompressionNode" : "RangeWindowNode";
+
     nlohmann::json config = {
         {"name", "sar_stripmap_pr1_benchmark"},
         {"num_threads", 4},
@@ -183,8 +233,8 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
                 }},
             },
             {
-                {"id", "window"},
-                {"type", "RangeWindowNode"},
+                {"id", "range_stage"},
+                {"type", range_stage_type},
                 {"node_config", {
                     {"enabled", true},
                     {"gain", 1.0f},
@@ -203,9 +253,9 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
                 {"id", "h2d"},
                 {"type", "H2DAsyncNode"},
                 {"node_config", {
-                    {"override_backend", false},
+                    {"override_backend", use_native_backend},
                     {"backend_id", 0},
-                    {"backend", 0},
+                    {"backend", transfer_backend},
                 }},
             },
             {
@@ -216,16 +266,16 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
                     {"backend_id", 0},
                     {"queue_id", 0},
                     {"kernel_id", 3301},
-                    {"backend", 1},
+                    {"backend", transform_backend},
                 }},
             },
             {
                 {"id", "d2h"},
                 {"type", "D2HAsyncNode"},
                 {"node_config", {
-                    {"override_backend", false},
+                    {"override_backend", use_native_backend},
                     {"backend_id", 0},
-                    {"backend", 0},
+                    {"backend", transfer_backend},
                 }},
             },
             {
@@ -247,8 +297,8 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkProfile& profile) {
             },
         })},
         {"edges", nlohmann::json::array({
-            {{"source_node_id", "src"}, {"source_port", 0}, {"target_node_id", "window"}, {"target_port", 0}},
-            {{"source_node_id", "window"}, {"source_port", 0}, {"target_node_id", "split"}, {"target_port", 0}},
+            {{"source_node_id", "src"}, {"source_port", 0}, {"target_node_id", "range_stage"}, {"target_port", 0}},
+            {{"source_node_id", "range_stage"}, {"source_port", 0}, {"target_node_id", "split"}, {"target_port", 0}},
             {{"source_node_id", "split"}, {"source_port", 0}, {"target_node_id", "h2d"}, {"target_port", 0}},
             {{"source_node_id", "h2d"}, {"source_port", 0}, {"target_node_id", "bp"}, {"target_port", 0}},
             {{"source_node_id", "bp"}, {"source_port", 0}, {"target_node_id", "d2h"}, {"target_port", 0}},
@@ -365,8 +415,9 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
     return out;
 }
 
-BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
+BaselineRunResult RunBaselineOnce(const BenchmarkOptions& options) {
     BaselineRunResult out{};
+    const auto& profile = options.profile;
 
     sar::SyntheticApertureIqSourceConfig source_cfg{};
     source_cfg.stream_id = 0;
@@ -385,7 +436,9 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
     bp_cfg.kernel_id = 3301;
-    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    bp_cfg.backend = options.native_backend
+                         ? sar::SarBackendKind::NativeDevice
+                         : sar::SarBackendKind::SimulatedDevice;
 
     sar::ImageTileMergeConfig merge_cfg{};
     merge_cfg.expected_tiles = profile.tile_count;
@@ -395,6 +448,7 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
 
     sar::SyntheticApertureIqSourceNode src(source_cfg);
     sar::RangeWindowNode window;
+    sar::RangeCompressionNode compression;
     sar::AzimuthTileSplitNode split(split_cfg);
     sar::H2DAsyncNode h2d;
     sar::SarBackprojectionTransformNode bp(bp_cfg);
@@ -409,12 +463,23 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
             break;
         }
 
-        auto windowed_pulse = window.Transfer(
-            *pulse,
-            std::integral_constant<std::size_t, 0>{},
-            std::integral_constant<std::size_t, 0>{});
-        if (!windowed_pulse) {
-            throw std::runtime_error("Baseline range window failed");
+        std::optional<sar::SarPulseBlockMessage> windowed_pulse;
+        if (options.range_stage == RangeStageKind::Compression) {
+            windowed_pulse = compression.Transfer(
+                *pulse,
+                std::integral_constant<std::size_t, 0>{},
+                std::integral_constant<std::size_t, 0>{});
+            if (!windowed_pulse) {
+                throw std::runtime_error("Baseline range compression failed");
+            }
+        } else {
+            windowed_pulse = window.Transfer(
+                *pulse,
+                std::integral_constant<std::size_t, 0>{},
+                std::integral_constant<std::size_t, 0>{});
+            if (!windowed_pulse) {
+                throw std::runtime_error("Baseline range window failed");
+            }
         }
 
         auto range_tile = split.Transfer(
@@ -468,8 +533,9 @@ BaselineRunResult RunBaselineOnce(const BenchmarkProfile& profile) {
     return out;
 }
 
-BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkProfile& profile) {
+BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& options) {
     BaselineRunResult out{};
+    const auto& profile = options.profile;
 
     sar::SyntheticApertureIqSourceConfig source_cfg{};
     source_cfg.stream_id = 0;
@@ -488,10 +554,13 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkProfile& p
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
     bp_cfg.kernel_id = 3301;
-    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    bp_cfg.backend = options.native_backend
+                         ? sar::SarBackendKind::NativeDevice
+                         : sar::SarBackendKind::SimulatedDevice;
 
     sar::SyntheticApertureIqSourceNode src(source_cfg);
     sar::RangeWindowNode window;
+    sar::RangeCompressionNode compression;
     sar::AzimuthTileSplitNode split(split_cfg);
     sar::H2DAsyncNode h2d;
     sar::SarBackprojectionTransformNode bp(bp_cfg);
@@ -517,12 +586,23 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkProfile& p
             break;
         }
 
-        auto windowed_pulse = window.Transfer(
-            *pulse,
-            std::integral_constant<std::size_t, 0>{},
-            std::integral_constant<std::size_t, 0>{});
-        if (!windowed_pulse) {
-            throw std::runtime_error("DeviceReduce prototype range window failed");
+        std::optional<sar::SarPulseBlockMessage> windowed_pulse;
+        if (options.range_stage == RangeStageKind::Compression) {
+            windowed_pulse = compression.Transfer(
+                *pulse,
+                std::integral_constant<std::size_t, 0>{},
+                std::integral_constant<std::size_t, 0>{});
+            if (!windowed_pulse) {
+                throw std::runtime_error("DeviceReduce prototype range compression failed");
+            }
+        } else {
+            windowed_pulse = window.Transfer(
+                *pulse,
+                std::integral_constant<std::size_t, 0>{},
+                std::integral_constant<std::size_t, 0>{});
+            if (!windowed_pulse) {
+                throw std::runtime_error("DeviceReduce prototype range window failed");
+            }
         }
 
         auto range_tile = split.Transfer(
@@ -641,7 +721,8 @@ void PrintSummary(const BenchmarkProfile& profile,
                   const BenchmarkStats& graph_lifecycle,
                   const BenchmarkStats& baseline_exec,
                   const GraphRunResult& last_graph,
-                  const DeviceReduceEvaluation& device_reduce_eval) {
+                  const DeviceReduceEvaluation& device_reduce_eval,
+                  const BenchmarkOptions& options) {
     const double scheduling_overhead_ms =
         std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
 
@@ -651,6 +732,10 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", tile_count=" << profile.tile_count << "\n";
     std::cout << "Runs: warmup=" << profile.warmup_runs
               << ", measured=" << profile.measured_runs << "\n\n";
+    std::cout << "Range stage: "
+              << (options.range_stage == RangeStageKind::Compression ? "compression" : "window")
+              << " | Native backend mode: "
+              << (options.native_backend ? "enabled" : "disabled") << "\n\n";
 
     std::cout << "Graph build time (ms): min=" << graph_build.min_ms
               << ", median=" << graph_build.median_ms
@@ -682,6 +767,9 @@ void PrintSummary(const BenchmarkProfile& profile,
               << " ms, total=" << last_graph.lifecycle_total_ms << " ms\n";
     std::cout << "- message allocation/copy: bytes_h2d=" << last_graph.diagnostics.bytes_h2d
               << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h << "\n";
+    std::cout << "- transfer/kernel timing (us): h2d=" << last_graph.diagnostics.transfer_h2d_time_us
+              << ", kernel=" << last_graph.diagnostics.kernel_exec_time_us
+              << ", d2h=" << last_graph.diagnostics.transfer_d2h_time_us << "\n";
     std::cout << "- queue wait/backpressure: fanin_wait_ms=" << last_graph.diagnostics.fanin_wait_ms
               << ", backpressure_events=" << last_graph.queue_backpressure_events
               << ", peak_queue_depth=" << last_graph.peak_queue_depth
@@ -712,13 +800,14 @@ nlohmann::json StatsToJson(const BenchmarkStats& stats) {
 }
 
 void WriteTraceJson(const std::filesystem::path& path,
-                    const BenchmarkProfile& profile,
+                    const BenchmarkOptions& options,
                     const BenchmarkStats& graph_build,
                     const BenchmarkStats& graph_run,
                     const BenchmarkStats& graph_lifecycle,
                     const BenchmarkStats& baseline_exec,
                     const GraphRunResult& last_graph,
                     const DeviceReduceEvaluation& device_reduce_eval) {
+    const auto& profile = options.profile;
     const auto parent = path.parent_path();
     if (!parent.empty()) {
         std::filesystem::create_directories(parent);
@@ -733,6 +822,8 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"tile_count", profile.tile_count},
             {"warmup_runs", profile.warmup_runs},
             {"measured_runs", profile.measured_runs},
+            {"range_stage", options.range_stage == RangeStageKind::Compression ? "compression" : "window"},
+            {"native_backend", options.native_backend},
         }},
         {"timing_ms", {
             {"graph_build", StatsToJson(graph_build)},
@@ -753,6 +844,9 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"bytes_h2d", last_graph.diagnostics.bytes_h2d},
             {"bytes_d2h", last_graph.diagnostics.bytes_d2h},
             {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
+            {"transfer_h2d_time_us", last_graph.diagnostics.transfer_h2d_time_us},
+            {"kernel_exec_time_us", last_graph.diagnostics.kernel_exec_time_us},
+            {"transfer_d2h_time_us", last_graph.diagnostics.transfer_d2h_time_us},
             {"fanin_wait_ms", last_graph.diagnostics.fanin_wait_ms},
             {"e2e_latency_ms", last_graph.diagnostics.e2e_latency_ms},
             {"duplicate_tile_count", last_graph.diagnostics.duplicate_tile_count},
@@ -798,11 +892,11 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        const auto config_path = WriteProfiledJsonConfig(profile);
+        const auto config_path = WriteProfiledJsonConfig(options);
 
         for (int i = 0; i < profile.warmup_runs; ++i) {
             (void)RunGraphOnce(config_path, plugin_dir);
-            (void)RunBaselineOnce(profile);
+            (void)RunBaselineOnce(options);
         }
 
         std::vector<double> graph_build_samples_ms;
@@ -820,7 +914,7 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < profile.measured_runs; ++i) {
             last_graph = RunGraphOnce(config_path, plugin_dir);
-            last_baseline = RunBaselineOnce(profile);
+            last_baseline = RunBaselineOnce(options);
             VerifyDeterministicParity(last_graph, last_baseline);
 
             graph_build_samples_ms.push_back(last_graph.build_ms);
@@ -840,7 +934,7 @@ int main(int argc, char** argv) {
             std::vector<double> device_reduce_samples_ms;
             device_reduce_samples_ms.reserve(profile.measured_runs);
             for (int i = 0; i < profile.measured_runs; ++i) {
-                device_reduce_eval.last_prototype = RunDeviceReducePrototypeBaselineOnce(profile);
+                device_reduce_eval.last_prototype = RunDeviceReducePrototypeBaselineOnce(options);
                 device_reduce_samples_ms.push_back(device_reduce_eval.last_prototype.execute_ms);
             }
             device_reduce_eval.prototype_exec_stats = ComputeStats(device_reduce_samples_ms);
@@ -871,12 +965,13 @@ int main(int argc, char** argv) {
             graph_lifecycle_stats,
             baseline_exec_stats,
             last_graph,
-            device_reduce_eval);
+            device_reduce_eval,
+            options);
 
         if (options.trace_output_path) {
             WriteTraceJson(
                 *options.trace_output_path,
-                profile,
+                options,
                 graph_build_stats,
                 graph_run_stats,
                 graph_lifecycle_stats,

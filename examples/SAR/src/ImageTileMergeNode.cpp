@@ -65,6 +65,9 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
     bytes_h2d_ += transfer_bytes;
     bytes_d2h_ += transfer_bytes;
     ++kernel_dispatches_;
+    transfer_h2d_time_us_ += input.transfer_h2d_time_us;
+    kernel_exec_time_us_ += input.kernel_exec_time_us;
+    transfer_d2h_time_us_ += input.transfer_d2h_time_us;
 
     const auto [_, inserted] = seen_tiles_.insert(input.envelope.tile_id);
     if (!inserted) {
@@ -189,6 +192,9 @@ void ImageTileMergeNode::Reset() {
     bytes_h2d_ = 0;
     bytes_d2h_ = 0;
     kernel_dispatches_ = 0;
+    transfer_h2d_time_us_ = 0;
+    kernel_exec_time_us_ = 0;
+    transfer_d2h_time_us_ = 0;
     last_tile_id_ = 0;
     has_last_tile_ = false;
     watermark_seen_ = false;
@@ -231,6 +237,9 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.bytes_h2d = bytes_h2d_;
     out.bytes_d2h = bytes_d2h_;
     out.kernel_dispatches = kernel_dispatches_;
+    out.transfer_h2d_time_us = transfer_h2d_time_us_;
+    out.kernel_exec_time_us = kernel_exec_time_us_;
+    out.transfer_d2h_time_us = transfer_d2h_time_us_;
     out.watermark_seen = watermark_seen_;
     out.complete = complete;
 

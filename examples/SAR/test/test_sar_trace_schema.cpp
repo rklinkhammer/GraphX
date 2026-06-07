@@ -58,6 +58,9 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     ASSERT_TRUE(trace.contains("timing_ms"));
     ASSERT_TRUE(trace.at("timing_ms").contains("graph_run"));
     ASSERT_TRUE(trace.at("timing_ms").contains("graph_lifecycle_total"));
+    ASSERT_TRUE(trace.contains("profile"));
+    EXPECT_TRUE(trace.at("profile").contains("range_stage"));
+    EXPECT_TRUE(trace.at("profile").contains("native_backend"));
 
     ASSERT_TRUE(trace.contains("diagnostics"));
     const auto& diagnostics = trace.at("diagnostics");
@@ -66,6 +69,9 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(diagnostics.contains("bytes_h2d"));
     EXPECT_TRUE(diagnostics.contains("bytes_d2h"));
     EXPECT_TRUE(diagnostics.contains("kernel_dispatches"));
+    EXPECT_TRUE(diagnostics.contains("transfer_h2d_time_us"));
+    EXPECT_TRUE(diagnostics.contains("kernel_exec_time_us"));
+    EXPECT_TRUE(diagnostics.contains("transfer_d2h_time_us"));
     EXPECT_TRUE(diagnostics.contains("fanin_wait_ms"));
     EXPECT_TRUE(diagnostics.contains("duplicate_tile_count"));
     EXPECT_TRUE(diagnostics.contains("missing_tile_count"));
