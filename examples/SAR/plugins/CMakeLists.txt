@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.23)
 
 include(${CMAKE_SOURCE_DIR}/cmake/PluginTemplate.cmake)
 
-add_graphx_plugins_directory()
+set(SAR_PLUGIN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples/SAR/plugins")
+
+add_graphx_plugins_directory(OUTPUT_DIR ${SAR_PLUGIN_OUTPUT_DIRECTORY})
 
 add_graphx_plugin(
     TARGET_NAME h2d_async_node

@@ -34,7 +34,7 @@ target_include_directories(test_sar_example_unit PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 target_compile_definitions(test_sar_example_unit PRIVATE
-    PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE

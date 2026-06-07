@@ -85,7 +85,7 @@ find_package(Threads REQUIRED)
 #
 #   OUTPUT_DIRECTORY (optional)
 #       - Override the default plugin output directory
-#       - Default: ${CMAKE_BINARY_DIR}/plugins
+#       - Default: GRAPHX_PLUGIN_OUTPUT_DIRECTORY when set, otherwise ${CMAKE_BINARY_DIR}/plugins
 #
 #   CXX_STANDARD (optional)
 #       - C++ standard to use (cxx_std_XX)
@@ -136,6 +136,10 @@ function(add_graphx_plugin)
     # Set defaults
     if(NOT PLUGIN_DESCRIPTION)
         set(PLUGIN_DESCRIPTION "GraphX plugin")
+    endif()
+
+    if(NOT PLUGIN_OUTPUT_DIRECTORY AND GRAPHX_PLUGIN_OUTPUT_DIRECTORY)
+        set(PLUGIN_OUTPUT_DIRECTORY ${GRAPHX_PLUGIN_OUTPUT_DIRECTORY})
     endif()
 
     if(NOT PLUGIN_OUTPUT_DIRECTORY)

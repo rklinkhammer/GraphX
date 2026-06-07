@@ -50,7 +50,12 @@ struct BenchmarkStats {
 
 struct GraphRunResult {
     double build_ms{0.0};
-    double execute_ms{0.0};
+    double run_ms{0.0};
+    double lifecycle_total_ms{0.0};
+    double init_ms{0.0};
+    double start_ms{0.0};
+    double stop_ms{0.0};
+    double join_ms{0.0};
     sar::SarDiagnosticsMessage diagnostics{};
     std::uint64_t queue_backpressure_events{0};
     std::uint64_t peak_queue_depth{0};
@@ -246,15 +251,51 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
 
     out.build_ms = std::chrono::duration<double, std::milli>(build_end - build_start).count();
 
-    const auto exec_start = Clock::now();
-    const auto run = executor->Execute();
-    const auto exec_end = Clock::now();
+    const auto lifecycle_start = Clock::now();
+
+    const auto init_start = Clock::now();
+    const auto init = executor->Init();
+    const auto init_end = Clock::now();
+    if (!init.success) {
+        throw std::runtime_error("Graph init failed in benchmark: " + init.message + " " + init.error_details);
+    }
+    out.init_ms = std::chrono::duration<double, std::milli>(init_end - init_start).count();
+
+    const auto start_start = Clock::now();
+    const auto start = executor->Start();
+    const auto start_end = Clock::now();
+    if (!start.success) {
+        throw std::runtime_error("Graph start failed in benchmark: " + start.message + " " + start.error_details);
+    }
+    out.start_ms = std::chrono::duration<double, std::milli>(start_end - start_start).count();
+
+    const auto run_start = Clock::now();
+    const auto run = executor->Run();
+    const auto run_end = Clock::now();
 
     if (!run.success) {
         throw std::runtime_error("Graph execution failed in benchmark: " + run.message + " " + run.error_details);
     }
+    out.run_ms = std::chrono::duration<double, std::milli>(run_end - run_start).count();
 
-    out.execute_ms = std::chrono::duration<double, std::milli>(exec_end - exec_start).count();
+    const auto stop_start = Clock::now();
+    const auto stop = executor->Stop();
+    const auto stop_end = Clock::now();
+    if (!stop.success) {
+        throw std::runtime_error("Graph stop failed in benchmark: " + stop.message + " " + stop.error_details);
+    }
+    out.stop_ms = std::chrono::duration<double, std::milli>(stop_end - stop_start).count();
+
+    const auto join_start = Clock::now();
+    const auto join = executor->Join();
+    const auto join_end = Clock::now();
+    if (!join.success) {
+        throw std::runtime_error("Graph join failed in benchmark: " + join.message + " " + join.error_details);
+    }
+
+    out.join_ms = std::chrono::duration<double, std::milli>(join_end - join_start).count();
+    out.lifecycle_total_ms =
+        std::chrono::duration<double, std::milli>(join_end - lifecycle_start).count();
 
     auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     if (!sink) {
@@ -378,11 +419,12 @@ void VerifyDeterministicParity(const GraphRunResult& graph,
 
 void PrintSummary(const BenchmarkProfile& profile,
                   const BenchmarkStats& graph_build,
-                  const BenchmarkStats& graph_exec,
+                  const BenchmarkStats& graph_run,
+                  const BenchmarkStats& graph_lifecycle,
                   const BenchmarkStats& baseline_exec,
                   const GraphRunResult& last_graph) {
     const double scheduling_overhead_ms =
-        std::max(0.0, graph_exec.median_ms - baseline_exec.median_ms);
+        std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
 
     std::cout << "SAR benchmark profile: " << profile.name << "\n";
     std::cout << "Dataset: pulses=" << profile.pulses
@@ -396,10 +438,15 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", max=" << graph_build.max_ms
               << ", stddev=" << graph_build.stddev_ms << "\n";
 
-    std::cout << "Graph execute time (ms): min=" << graph_exec.min_ms
-              << ", median=" << graph_exec.median_ms
-              << ", max=" << graph_exec.max_ms
-              << ", stddev=" << graph_exec.stddev_ms << "\n";
+    std::cout << "Graph run time (ms): min=" << graph_run.min_ms
+              << ", median=" << graph_run.median_ms
+              << ", max=" << graph_run.max_ms
+              << ", stddev=" << graph_run.stddev_ms << "\n";
+
+    std::cout << "Graph lifecycle total time (ms): min=" << graph_lifecycle.min_ms
+              << ", median=" << graph_lifecycle.median_ms
+              << ", max=" << graph_lifecycle.max_ms
+              << ", stddev=" << graph_lifecycle.stddev_ms << "\n";
 
     std::cout << "Baseline execute time (ms): min=" << baseline_exec.min_ms
               << ", median=" << baseline_exec.median_ms
@@ -407,7 +454,13 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", stddev=" << baseline_exec.stddev_ms << "\n\n";
 
     std::cout << "Overhead attribution (deterministic proxies):\n";
-    std::cout << "- graph scheduling: " << scheduling_overhead_ms << " ms (median graph - median baseline)\n";
+    std::cout << "- graph scheduling/run loop: " << scheduling_overhead_ms
+              << " ms (median graph run - median baseline)\n";
+    std::cout << "- graph lifecycle teardown: init=" << last_graph.init_ms
+              << " ms, start=" << last_graph.start_ms
+              << " ms, stop=" << last_graph.stop_ms
+              << " ms, join=" << last_graph.join_ms
+              << " ms, total=" << last_graph.lifecycle_total_ms << " ms\n";
     std::cout << "- message allocation/copy: bytes_h2d=" << last_graph.diagnostics.bytes_h2d
               << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h << "\n";
     std::cout << "- queue wait/backpressure: fanin_wait_ms=" << last_graph.diagnostics.fanin_wait_ms
@@ -438,10 +491,12 @@ int main(int argc, char** argv) {
         }
 
         std::vector<double> graph_build_samples_ms;
-        std::vector<double> graph_exec_samples_ms;
+        std::vector<double> graph_run_samples_ms;
+        std::vector<double> graph_lifecycle_samples_ms;
         std::vector<double> baseline_exec_samples_ms;
         graph_build_samples_ms.reserve(profile.measured_runs);
-        graph_exec_samples_ms.reserve(profile.measured_runs);
+        graph_run_samples_ms.reserve(profile.measured_runs);
+        graph_lifecycle_samples_ms.reserve(profile.measured_runs);
         baseline_exec_samples_ms.reserve(profile.measured_runs);
 
         GraphRunResult last_graph{};
@@ -453,15 +508,23 @@ int main(int argc, char** argv) {
             VerifyDeterministicParity(last_graph, last_baseline);
 
             graph_build_samples_ms.push_back(last_graph.build_ms);
-            graph_exec_samples_ms.push_back(last_graph.execute_ms);
+            graph_run_samples_ms.push_back(last_graph.run_ms);
+            graph_lifecycle_samples_ms.push_back(last_graph.lifecycle_total_ms);
             baseline_exec_samples_ms.push_back(last_baseline.execute_ms);
         }
 
         const auto graph_build_stats = ComputeStats(graph_build_samples_ms);
-        const auto graph_exec_stats = ComputeStats(graph_exec_samples_ms);
+        const auto graph_run_stats = ComputeStats(graph_run_samples_ms);
+        const auto graph_lifecycle_stats = ComputeStats(graph_lifecycle_samples_ms);
         const auto baseline_exec_stats = ComputeStats(baseline_exec_samples_ms);
 
-        PrintSummary(profile, graph_build_stats, graph_exec_stats, baseline_exec_stats, last_graph);
+        PrintSummary(
+            profile,
+            graph_build_stats,
+            graph_run_stats,
+            graph_lifecycle_stats,
+            baseline_exec_stats,
+            last_graph);
 
         return 0;
     } catch (const std::exception& ex) {
