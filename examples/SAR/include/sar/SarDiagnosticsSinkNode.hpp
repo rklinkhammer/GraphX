@@ -2,6 +2,7 @@
 
 #include "sar/SarMessages.hpp"
 
+#include "graph/GraphMetrics.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -29,6 +30,8 @@ public:
     [[nodiscard]] const SarDiagnosticsMessage& last_diagnostics() const noexcept {
         return diagnostics_;
     }
+
+    void UpdateFromGraphMetrics(const graph::GraphMetrics& metrics);
 
 private:
     void UpdateDiagnostics(const SarMergeStatusMessage& value);

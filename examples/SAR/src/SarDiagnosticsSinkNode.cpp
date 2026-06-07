@@ -40,6 +40,13 @@ void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarMergeStatusMessage& valu
     diagnostics_.missing_tile_count = static_cast<std::uint64_t>(value.missing_tiles);
 }
 
+void SarDiagnosticsSinkNode::UpdateFromGraphMetrics(const graph::GraphMetrics& metrics) {
+    diagnostics_.queue_backpressure_events =
+        metrics.backpressure_events.load(std::memory_order_relaxed);
+    diagnostics_.peak_queue_depth =
+        metrics.peak_queue_depth.load(std::memory_order_relaxed);
+}
+
 void SarDiagnosticsSinkNode::SignalCompletion() {
     if (!HasCallbackProvider()) {
         return;

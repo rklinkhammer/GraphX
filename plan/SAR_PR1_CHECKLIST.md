@@ -125,7 +125,7 @@ Exit criteria:
 - [x] Emit `fanin_wait_ms`
 - [x] Emit `e2e_latency_ms`
 - [x] Emit duplicate/missing tile counts
-- [ ] Emit queue/backpressure data where already available
+- [x] Emit queue/backpressure data where already available
 
 Exit criteria:
 

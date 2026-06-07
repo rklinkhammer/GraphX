@@ -114,6 +114,8 @@ struct SarDiagnosticsMessage {
     std::uint64_t e2e_latency_ms{};
     std::uint64_t duplicate_tile_count{};
     std::uint64_t missing_tile_count{};
+    std::uint64_t queue_backpressure_events{};
+    std::uint64_t peak_queue_depth{};
 };
 
 } // namespace sar

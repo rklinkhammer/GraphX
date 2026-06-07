@@ -44,6 +44,11 @@ sar::SarMergeStatusMessage MakeStatus(
 TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromMergeStatus) {
     sar::SarDiagnosticsSinkNode sink;
 
+    graph::GraphMetrics graph_metrics{};
+    graph_metrics.backpressure_events.store(7u, std::memory_order_relaxed);
+    graph_metrics.peak_queue_depth.store(3u, std::memory_order_relaxed);
+    sink.UpdateFromGraphMetrics(graph_metrics);
+
     ASSERT_TRUE(sink.Consume(
         MakeStatus(0, sar::SarFrameMarker::Data, false, 1, 0, 3, 1024, 1024, 1, 0),
         std::integral_constant<std::size_t, 0>{}));
@@ -63,6 +68,8 @@ TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromMergeStatus) {
     EXPECT_EQ(diag.e2e_latency_ms, 32u);
     EXPECT_EQ(diag.duplicate_tile_count, 28u);
     EXPECT_EQ(diag.missing_tile_count, 0u);
+    EXPECT_EQ(diag.queue_backpressure_events, 7u);
+    EXPECT_EQ(diag.peak_queue_depth, 3u);
 }
 
 TEST(SarDiagnosticsContractTest, SignalsCompletionOnCompleteEndOfStream) {

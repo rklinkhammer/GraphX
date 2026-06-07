@@ -65,6 +65,7 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
 
     auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_GT(sink->consume_count(), 0u);
 
     const auto& diagnostics = sink->last_diagnostics();
@@ -78,4 +79,10 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
     EXPECT_EQ(diagnostics.e2e_latency_ms, 32u);
     EXPECT_EQ(diagnostics.duplicate_tile_count, 28u);
     EXPECT_EQ(diagnostics.missing_tile_count, 0u);
+    EXPECT_EQ(
+        diagnostics.queue_backpressure_events,
+        executor->GetGraphManager()->GetMetrics().backpressure_events.load(std::memory_order_relaxed));
+    EXPECT_EQ(
+        diagnostics.peak_queue_depth,
+        executor->GetGraphManager()->GetMetrics().peak_queue_depth.load(std::memory_order_relaxed));
 }
