@@ -27,6 +27,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_compare.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr3_metal_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
@@ -44,6 +45,8 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
     SAR_PR2_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr2_fanout.json"
+    SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_window.json"
+    SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_compression.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
 )
 target_link_libraries(test_sar_example_unit PRIVATE

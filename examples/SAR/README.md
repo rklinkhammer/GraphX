@@ -41,6 +41,11 @@ The projectile scenario also wires a visualization sink node (`SarVisualizationS
 
 PR2 graph-visible fan-out topology: examples/SAR/config/sar_stripmap_pr2_fanout.json
 
+PR3 Metal-oriented SAR topologies:
+
+1. examples/SAR/config/sar_stripmap_pr3_metal_window.json
+2. examples/SAR/config/sar_stripmap_pr3_metal_compression.json
+
 The PR2 topology uses `SarPulseFanoutNode` to expose four branch lanes:
 
 ```text
@@ -147,11 +152,13 @@ This scenario models deterministic closing-range behavior and is intended as an 
 
 The current example targets a CI-safe simulated backend path and does not require native GPU runtime availability.
 
-SAR tile messages also carry optional `graph::gpu::accel` metadata at the backend boundary. The simulated H2D, backprojection, D2H, and merge stages propagate accel leases, host/device views, transfer tickets, and kernel tickets so the example exercises the same metadata contracts used by libgpu without adding SAR-specific libgpu node families.
+SAR tile messages also carry optional `graph::gpu::accel` metadata at the backend boundary. The simulated H2D, backprojection, D2H, and merge stages propagate accel leases, host/device views, transfer tickets, and kernel tickets so the example exercises the same metadata contracts used by libgpu while keeping the SAR graph itself generic.
 
-Native backend tuning and specialization (CUDA/SYCL/Metal) are deferred follow-up work.
+Native backend tuning and specialization (CUDA/SYCL/Metal) remain follow-up work for backend-specific kernel implementations.
 
 PR3 kickoff adds feature-gated native backend benchmarking mode and real transfer/kernel timing telemetry while keeping CI defaults on the simulated backend path.
+
+PR3 follow-up adds Metal-oriented JSON SAR presets as a backend validation path, not as the default public SAR node surface.
 
 ## Benchmarking
 
@@ -178,7 +185,7 @@ See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPOR
 ## Deferred Work
 
 1. Native backend-specialized kernels and transfer overlap tuning.
-2. Range-compression or FFT-backed SAR signal processing stages.
+2. Backend-specialized implementation details for Metal/CUDA/SYCL execution stages beyond the shared SAR node path.
 3. Extended execution tracing and richer performance attribution.
 4. PR2 fan-out graph-vs-baseline comparison harness.
 5. Multi-device heterogeneous routing and balancing.

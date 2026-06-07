@@ -36,6 +36,18 @@ Out of scope (initial phase):
 5. Backend parity: CUDA, SYCL, and Metal keep equivalent graph-facing contracts
 6. Incremental adoption: no breakage to existing CPU-only nodes and pipelines
 
+## Architecture Contract (Normative)
+
+1. Edges carry tokens, context, metadata, leases, and tickets.
+2. Edges do not imply byte movement.
+3. Nodes transform messages and declare intent.
+4. Nodes do not secretly own the data plane.
+5. Capabilities perform backend work.
+6. GPU behavior belongs behind CUDA/SYCL/Metal/simulated capability boundaries.
+7. SAR is an example package, not a new framework layer.
+8. SAR-specific types stay under `examples/SAR` unless promoted deliberately.
+9. PR1 must demonstrate the architecture, not perfect SAR math.
+
 ## Existing GraphX Hooks Used
 
 1. Capability registration and lookup: libgraph/include/graph/CapabilityBus.hpp

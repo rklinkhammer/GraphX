@@ -460,8 +460,8 @@ This separation keeps DSP concerns independent from device execution concerns.
 | Primary work granularity | Image tile as kernel work unit | global mutable image object | best fit for fan-out/fan-in and async device stages | merge complexity |
 | PR1 tile semantics | deterministic pulse-modulo tile IDs | random/stochastic assignment | stable diagnostics and CI behavior | PR2 must add true fan-out |
 | Parallelization boundary | Graph branch parallelism | node-owned internal pools | aligns with GraphX model and testability | current PR1 topology is still mostly linear |
-| GPU boundary strategy | Reuse existing H2D/device/D2H style | new SAR-specific libgpu node family | minimizes framework churn in PR1 | later extraction may be needed |
-| Device stage representation | Example-local backprojection transform wrapper | immediate libgpu core extension | keeps SAR-specific semantics in example boundary | duplicate logic risk until generalized |
+| GPU boundary strategy | Generic SAR nodes with GPU underpinnings | full SAR graph surface built from Metal-specific nodes | keeps SAR graph portable while still allowing backend execution paths | requires explicit adapter seam and backend policy |
+| Device stage representation | Example-local SAR wrappers over backend capabilities | immediate libgpu core extension of SAR semantics | keeps SAR-specific semantics in `examples/SAR` while backend nodes stay reusable | duplicate logic risk until generalized |
 | GPU metadata direction | wrap/reference `graph::gpu::accel` contracts | maintain parallel SAR-only backend model | avoids duplicate backend abstractions | migration from PR1 message fields |
 | PR2 DSP stage | deterministic RangeWindow/RangeCompression | jump directly to full FFT SAR | adds meaningful DSP without destabilizing CI | FFT acceleration deferred |
 | Build integration | examples/SAR behind option, on by default locally | test-only fixture | preserves package boundary and publishable example shape | CI matrix growth |
@@ -491,3 +491,415 @@ This separation keeps DSP concerns independent from device execution concerns.
 7. Add CI-safe profile configuration and docs.
 
 This yields a complete, reviewable vertical slice aligned with existing GraphX architecture and your PR1 constraints.
+
+---
+
+## 16) PR3 Metal Node Gap Analysis (2026-06-07)
+
+This analysis compares SAR pipeline stages and message contracts against currently available Metal node families.
+
+### Current state in SAR PR3 JSON presets
+
+Current files:
+
+1. `examples/SAR/config/sar_stripmap_pr3_metal_window.json`
+2. `examples/SAR/config/sar_stripmap_pr3_metal_compression.json`
+
+These files currently use SAR example node types (`SyntheticApertureIqSourceNode`, `RangeWindowNode`/`RangeCompressionNode`, `AzimuthTileSplitNode`, `H2DAsyncNode`, `SarBackprojectionTransformNode`, `D2HAsyncNode`, `ImageTileMergeNode`, `SarDiagnosticsSinkNode`) with `backend=2` metadata overrides.
+
+They do not currently instantiate Metal node plugin types such as `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, `DeviceTransformNodeMetal`, or `HostIngressPinnedSourceNodeMetal`.
+
+### Available Metal node types today (libgpu)
+
+From `libgpu/plugins/metal_*.cpp` and `libgpu/include/gpu/metal/nodes/*.hpp`:
+
+1. `HostIngressPinnedSourceNodeMetal` (source, emits `accel::HostPinnedBufferView`)
+2. `H2DAsyncNodeMetal` (`HostPinnedBufferView -> DeviceBufferView`)
+3. `DeviceShardNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
+4. `DeviceTransformNodeMetal` (`DeviceBufferView -> DeviceBufferView`, kernel descriptor driven)
+5. `DeviceReduceNodeMetal` (`DeviceBufferView -> DeviceBufferView`, kernel descriptor driven)
+6. `D2HAsyncNodeMetal` (`DeviceBufferView -> HostPinnedBufferView`)
+7. `HostEgressSinkNodeMetal` (sink, consumes `HostPinnedBufferView`)
+8. `QueueSyncNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
+9. `LeaseReleaseNodeMetal` (sink, consumes `accel::BufferLease`)
+10. `PeerCopyNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
+11. `CollectiveReduceNodeMetal` (present but runtime marked unsupported)
+
+### Contract mismatch summary (core blocker)
+
+SAR core stages operate on typed SAR envelopes:
+
+1. `SarPulseBlockMessage`
+2. `SarRangeTileMessage`
+3. `SarImageTileMessage`
+4. `SarMergeStatusMessage`
+5. `SarDiagnosticsMessage`
+
+Metal nodes operate on accel view primitives:
+
+1. `accel::HostPinnedBufferView`
+2. `accel::DeviceBufferView`
+3. `accel::BufferLease` (for release)
+
+Result: direct substitution of SAR nodes with Metal nodes is not currently type-compatible at graph edges.
+
+### Stage-by-stage compatibility matrix
+
+| SAR stage | Current SAR node type | Closest Metal node type(s) | Direct replacement possible now | Gap category |
+| --- | --- | --- | --- | --- |
+| Source IQ generation | `SyntheticApertureIqSourceNode` (`SarPulseBlockMessage`) | `HostIngressPinnedSourceNodeMetal` | No | Message contract + payload generation mismatch |
+| Range window/compression | `RangeWindowNode` / `RangeCompressionNode` (`SarPulseBlockMessage -> SarRangeTileMessage`) | `DeviceTransformNodeMetal` (kernel) | No | Missing host/device marshaling + SAR kernel contract |
+| Tile split/fanout | `AzimuthTileSplitNode` (`SarRangeTileMessage`) | `DeviceShardNodeMetal` | Partial only | Different semantics (tile metadata vs raw byte shard) |
+| H2D boundary | `H2DAsyncNode` (`SarRangeTileMessage -> SarRangeTileMessage`) | `H2DAsyncNodeMetal` | No | Edge type mismatch |
+| Backprojection kernel | `SarBackprojectionTransformNode` (`SarRangeTileMessage -> SarImageTileMessage`) | `DeviceTransformNodeMetal` | No | Missing SAR-specific kernel interface + marshaling |
+| D2H boundary | `D2HAsyncNode` (`SarImageTileMessage -> SarImageTileMessage`) | `D2HAsyncNodeMetal` | No | Edge type mismatch |
+| Tile merge | `ImageTileMergeNode` (`SarImageTileMessage -> SarMergeStatusMessage`) | `DeviceReduceNodeMetal` (not semantic equivalent) | No | Missing merge semantics/watermark/EOS logic |
+| Diagnostics sink | `SarDiagnosticsSinkNode` (`SarMergeStatusMessage`) | `HostEgressSinkNodeMetal` | No | Message semantic mismatch |
+
+### Existing Metal kernel capability status
+
+Native Metal capability supports builtin/inline/metallib registration via descriptor, but builtin kernel source generation currently resolves only generic families:
+
+1. XOR inplace byte transform
+2. identity inplace byte transform
+3. reduce-to-metrics over byte buffer
+
+No SAR-specific Metal kernel functions are currently represented in native builtin generation.
+
+### New Metal kernel work items needed for SAR
+
+The following kernel-level work is required for true SAR Metal execution path beyond metadata-only backend tags:
+
+1. `graphx_sar_range_window_f32` (or equivalent): deterministic windowing over complex/float SAR range vectors.
+2. `graphx_sar_range_compression_fft_*` path:
+   - Either explicit FFT kernel path plus matched-filter multiply kernels, or
+   - Integration path to backend FFT capability (if introduced) with adapter kernels for pre/post layout transforms.
+3. `graphx_sar_backprojection_tile_f32` (core PR3 target): tile backprojection kernel with explicit geometry parameter contract.
+4. Optional merge-side kernels for future GPU merge/reduction acceleration (`graphx_sar_tile_accumulate_*`) if merge leaves host path.
+
+Important: this can be implemented either as new SAR-specialized Metal node wrappers or by reusing `DeviceTransformNodeMetal`/`DeviceReduceNodeMetal` plus new kernel descriptors and SAR adapter nodes.
+
+### New node/adaptor work items needed (non-kernel)
+
+Even with new kernels, adapter nodes are required unless SAR message contracts are refactored:
+
+1. `SarPulseToHostPinnedBufferNodeMetalAdapter`
+2. `SarRangeTileToHostPinnedBufferNodeMetalAdapter`
+3. `HostPinnedBufferToSarRangeTileNodeMetalAdapter`
+4. `DeviceBufferToSarImageTileNodeMetalAdapter`
+5. Optional lease lifecycle adapters for explicit `LeaseReleaseNodeMetal` integration.
+
+Alternative: migrate SAR graph edges to accel views in PR3 and carry SAR metadata sidecar separately.
+
+### Architectural decisions that must be made before implementation
+
+The following issues are open and require user/maintainer direction:
+
+1. **Edge contract strategy**
+   - Option A: Keep SAR message types on edges, add adapter nodes around Metal primitives.
+   - Option B: Move SAR graph to accel view edges, represent SAR metadata as sidecar/context objects.
+2. **Kernel packaging strategy**
+   - Option A: register kernels as builtin names resolved by native runtime source generation.
+   - Option B: register SAR kernels via `inline_source` descriptors from JSON.
+   - Option C: load a versioned `.metallib` artifact with stable entry points.
+3. **Ownership boundary for SAR+Metal nodes**
+   - Option A: keep SAR-specific wrappers under `examples/SAR`.
+   - Option B: promote reusable SAR-metal wrappers into `libgpu`.
+4. **Merge location**
+   - Option A: keep `ImageTileMergeNode` host-side for deterministic diagnostics.
+   - Option B: introduce device-side partial merge/reduce and host finalization.
+5. **Queue/device policy**
+   - Option A: single shared queue for PR3 determinism.
+   - Option B: per-stage queues with explicit `QueueSyncNodeMetal` boundaries.
+6. **Test/CI policy for native Metal**
+   - Option A: skip when native unavailable (`GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=OFF`).
+   - Option B: require native runtime for PR3 completion gate.
+
+### Required user input (do not proceed without decision)
+
+Implementation should stop at this analysis gate until the following are selected:
+
+1. Choose edge contract strategy (A or B from item 1 above).
+2. Choose kernel packaging strategy (A/B/C from item 2 above).
+3. Choose ownership boundary (`examples/SAR` vs `libgpu`) for new SAR-metal adapters.
+4. Confirm whether PR3 acceptance requires true Metal node types in JSON (`*Metal` nodes) or allows hybrid SAR+Metal adapter topology.
+5. Confirm whether native runtime availability is a hard requirement for PR3 completion.
+
+### Boundary decision for SAR GPU usage
+
+Selected boundary:
+
+1. SAR example graphs should remain generic and portable at the application layer.
+2. GPU-specific behavior belongs in backend-capability nodes, adapters, and native runtime plumbing.
+3. Metal-specific node families in `libgpu` are valid backend/runtime constructs, but they should not become the default public SAR graph surface.
+4. The SAR/Metal seam should stay at message translation and capability binding, not at the core SAR algorithm contract.
+
+Practical interpretation:
+
+1. `examples/SAR` owns SAR algorithm nodes, SAR messages, and SAR topology definitions.
+2. `libgpu` owns the reusable Metal node families and the GPU capability runtime.
+3. Any SAR-to-Metal integration should be deliberate and adapter-based, not a wholesale replacement of SAR nodes with `*Metal` nodes.
+
+---
+
+## 17) Re-evaluation: Token-Edge Model with Implicit Backend Node Substitution
+
+This section re-evaluates the SAR GPU strategy using the viewpoint:
+
+1. Edges remain token/control-plane contracts, not raw payload copies.
+2. JSON config uses generic node intents (for example `H2DAsyncNode`).
+3. Runtime/build resolution selects backend-specific node implementation (`H2DAsyncNodeMetal`, `H2DAsyncNodeCuda`, `H2DAsyncNodeSycl`) based on available GPU support and policy.
+
+This model is consistent with `doc/architecture/CUDA_GRAPH_NODE_IMPLEMENTATION_PLAN.md`, especially:
+
+1. thin layers,
+2. tokenized movement,
+3. backend parity,
+4. tri-lane completion (stub + backend lane + backend lane).
+
+### What changes vs previous SAR analysis
+
+Previous analysis assumed static node type names in JSON were the final implementation type. Under implicit substitution, JSON node names become *capability intents* and concrete class selection happens later.
+
+Implication:
+
+1. `H2DAsyncNode` in a SAR JSON can validly map to `H2DAsyncNodeMetal` on macOS native-metal execution,
+2. while mapping to CUDA/SYCL/stub variants on other configured lanes,
+3. without changing topology shape.
+
+### Feasibility requirements for implicit substitution
+
+To make this safe, the resolver must enforce strict compatibility:
+
+1. **Port contract compatibility**
+   - all backend variants for a generic intent must expose equivalent graph-facing port contracts.
+2. **Configuration contract compatibility**
+   - shared generic fields must be accepted by all variants,
+   - backend-specific extensions must be namespaced or optional.
+3. **Deterministic selection policy**
+   - explicit order: requested backend > available native runtime > fallback/stub.
+4. **Capability-bus validation before graph start**
+   - mapping must fail early if the selected backend node cannot bind required capabilities.
+
+### Proposed resolver boundary
+
+Introduce a graph-load substitution layer (name illustrative):
+
+1. `NodeIntentResolver` resolves intent type -> concrete type before instantiation.
+2. `BackendSelectionPolicy` determines target backend per graph/profile.
+3. `NodeVariantRegistry` provides allowed variants per intent.
+
+Example registry mapping (conceptual):
+
+1. `H2DAsyncNode` -> `{H2DAsyncNodeCuda, H2DAsyncNodeSycl, H2DAsyncNodeMetal, H2DAsyncNodeStub}`
+2. `D2HAsyncNode` -> `{D2HAsyncNodeCuda, D2HAsyncNodeSycl, D2HAsyncNodeMetal, D2HAsyncNodeStub}`
+3. `DeviceTransformNode` -> `{DeviceTransformNodeCuda, DeviceTransformNodeSycl, DeviceTransformNodeMetal, DeviceTransformNodeStub}`
+
+### Updated SAR-specific interpretation
+
+For SAR, keep domain nodes explicit where they encode SAR semantics:
+
+1. `SyntheticApertureIqSourceNode`
+2. `RangeWindowNode` / `RangeCompressionNode`
+3. `AzimuthTileSplitNode`
+4. `SarBackprojectionTransformNode`
+5. `ImageTileMergeNode`
+6. `SarDiagnosticsSinkNode`
+
+For backend boundary intents, prefer generic names with resolver substitution:
+
+1. `H2DAsyncNode`
+2. `D2HAsyncNode`
+3. optional generic kernel/transform intents where practical.
+
+This preserves SAR topology readability while still enabling true backend node execution.
+
+### Architectural risks in this model
+
+1. **Semantic drift risk**
+   - backend variants may diverge in behavior despite matching signatures.
+2. **Config drift risk**
+   - intent-level config fields can drift from variant-specific requirements.
+3. **Observability risk**
+   - debugging becomes harder if the resolved concrete node is not surfaced in diagnostics.
+
+Mitigations:
+
+1. emit resolved node type map at graph build time,
+2. require conformance tests per intent across CUDA/SYCL/Metal/stub lanes,
+3. enforce parity checks in CI for intent contracts.
+
+### Recommended decision under this viewpoint
+
+Adopt a mixed model:
+
+1. Domain algorithm nodes remain explicit and generic to the problem domain (SAR).
+2. Backend-boundary nodes use generic intent names resolved implicitly to backend-specific nodes.
+3. Backend-specific node families remain first-class implementations in `libgpu`, but become an implementation target of resolver policy instead of the default JSON surface.
+
+### Open implementation decisions for this model
+
+1. Where substitution happens:
+   - JSON pre-processing,
+   - GraphBuilder node-resolution phase,
+   - provider-level aliasing.
+2. How backend preference is expressed:
+   - graph-level field (for example `execution_backend: metal|cuda|sycl|stub`),
+   - CLI/preset,
+   - capability discovery default.
+3. How to represent backend-specific config extensions without breaking intent-level portability.
+
+### Resolver Contract (Normative)
+
+The resolver contract for generic-intent node substitution is defined as follows.
+
+#### Core architecture contract
+
+1. Edges carry tokens, context, metadata, leases, and tickets.
+2. Edges do not imply byte movement.
+3. Nodes transform messages and declare intent.
+4. Nodes do not secretly own the data plane.
+5. Capabilities perform backend work.
+6. GPU behavior belongs behind CUDA/SYCL/Metal/simulated capability boundaries.
+7. SAR is an example package, not a new framework layer.
+8. SAR-specific types stay under `examples/SAR` unless promoted deliberately.
+9. PR1 must demonstrate the architecture, not perfect SAR math.
+
+#### Intent resolution inputs
+
+1. Graph-level backend preference: `execution_backend` in `{auto, metal, cuda, sycl, stub}`.
+2. Optional per-node override: `backend_override` in `{metal, cuda, sycl, stub}`.
+3. Runtime capability discovery via capability bus.
+4. Build-time backend gates (for example backend enable flags).
+
+#### Intent resolution precedence
+
+1. If `backend_override` is set, use that backend or fail fast.
+2. Else if graph-level `execution_backend` is not `auto`, use it or fail fast.
+3. Else use deterministic auto policy: metal on macOS with native capability, otherwise cuda, otherwise sycl, otherwise stub.
+4. If no compatible variant exists, graph build fails before execution starts.
+
+#### Contract parity requirements
+
+1. All variants for one intent must expose equivalent graph-facing port contracts.
+2. Shared intent config fields must parse identically across variants.
+3. Backend-specific fields must be optional and namespaced to avoid portability breakage.
+4. Capability binding failures must be surfaced as build/init errors, not runtime silent fallback.
+
+#### Required observability
+
+1. Graph build must emit an intent-resolution map: `intent_type -> concrete_type -> selected_backend`.
+2. Diagnostics must include fallback reason when non-requested variant is selected.
+3. Test artifacts must record lane identity (stub/cuda/sycl/metal) for every intent conformance run.
+
+### Resolver JSON Schema (Implementation-Ready)
+
+The following schema defines portable resolver controls for generic-intent node substitution.
+
+#### Graph-level fields
+
+1. `execution_backend`
+   - Type: string
+   - Allowed: `auto`, `metal`, `cuda`, `sycl`, `stub`
+   - Default: `auto`
+   - Meaning: preferred backend family for all eligible generic-intent nodes.
+2. `backend_fallback_policy`
+   - Type: string
+   - Allowed: `strict`, `allow_fallback`
+   - Default: `strict`
+   - Meaning:
+     - `strict`: fail graph build/init if requested backend variant is unavailable.
+     - `allow_fallback`: use precedence fallback and report downgrade reason.
+3. `resolver_diagnostics`
+   - Type: boolean
+   - Default: `true`
+   - Meaning: emit resolved node mapping and fallback annotations in build diagnostics.
+
+#### Node-level fields (optional)
+
+1. `backend_override`
+   - Type: string
+   - Allowed: `metal`, `cuda`, `sycl`, `stub`, `inherit`
+   - Default: `inherit`
+   - Meaning: per-node backend selection override.
+2. `backend_fallback_policy`
+   - Type: string
+   - Allowed: `inherit`, `strict`, `allow_fallback`
+   - Default: `inherit`
+   - Meaning: optional per-node fallback behavior.
+3. `backend_variant`
+   - Type: string
+   - Allowed: concrete variant type name (for example `H2DAsyncNodeMetal`)
+   - Default: omitted
+   - Meaning: explicit variant pinning for debugging or backend-validation scenarios.
+
+#### Generic-intent portability rule
+
+For portable SAR topologies, nodes should specify generic intent types (for example `H2DAsyncNode`, `D2HAsyncNode`).
+
+Concrete `*Metal`, `*Cuda`, or `*Sycl` node types are allowed only when:
+
+1. validating backend-specific runtime behavior,
+2. reproducing backend-specific defects,
+3. or intentionally creating backend-only test topologies.
+
+#### Resolution algorithm (normative)
+
+1. Parse graph-level resolver fields.
+2. For each node:
+   - determine effective backend preference from `backend_override` or graph-level `execution_backend`.
+   - determine effective fallback policy from node-level override or graph-level policy.
+3. Resolve node type:
+   - if `backend_variant` is provided, attempt exact variant bind.
+   - else if node type is generic intent, select variant by precedence.
+   - else treat node type as concrete and validate availability.
+4. Validate capability binding contract for selected variant.
+5. Record resolution result and any fallback reason.
+6. Fail before execution start when `strict` policy is violated.
+
+#### Precedence for `allow_fallback`
+
+When effective backend is `auto` or requested backend is unavailable under `allow_fallback`, the resolver chooses:
+
+1. `metal` (macOS with native Metal capability),
+2. `cuda`,
+3. `sycl`,
+4. `stub`.
+
+This order may be overridden by explicit build/profile policy, but must remain deterministic and reported.
+
+#### Error behavior
+
+1. Unknown resolver field value: graph build error with field path and allowed values.
+2. Unknown generic intent type: graph build error.
+3. Requested backend unavailable under `strict`: graph init error with missing capability details.
+4. Selected variant capability bind failure: graph init error.
+5. Port-contract mismatch between intent and variant: graph build error.
+
+#### Minimal schema example
+
+```json
+{
+  "name": "sar_stripmap_generic_resolved",
+  "execution_backend": "metal",
+  "backend_fallback_policy": "allow_fallback",
+  "resolver_diagnostics": true,
+  "nodes": [
+    {
+      "id": "h2d",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "backend_override": "inherit",
+        "backend_fallback_policy": "inherit"
+      }
+    },
+    {
+      "id": "d2h",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "backend_override": "metal"
+      }
+    }
+  ]
+}
+```
