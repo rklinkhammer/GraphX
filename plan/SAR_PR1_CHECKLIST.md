@@ -4,10 +4,17 @@ Source plan: `plan/SAR.md`
 
 ## Status
 
-- [ ] PR1 started
+- [x] PR1 started
 - [ ] PR1 implementation complete
 - [ ] PR1 ready for review
 - [ ] PR1 merged
+
+GitHub status snapshot:
+
+- [x] Issue #1 closed
+- [x] Issue #2 merged via PR #12
+- [x] Issue #3 merged via PR #14
+- [x] Phase 3.1 active on issue #4
 
 ## Scope Guardrails (Must Stay True)
 
@@ -20,39 +27,39 @@ Source plan: `plan/SAR.md`
 
 ## Phase 1 - Example Scaffolding
 
-- [ ] Create `examples/SAR/CMakeLists.txt`
-- [ ] Create `examples/SAR/README.md`
-- [ ] Create `examples/SAR/config/sar_stripmap_pr1.json`
-- [ ] Add optional build flag (for example `GRAPHX_BUILD_EXAMPLES_SAR`)
-- [ ] Wire example target(s) into root build
+- [x] Create `examples/SAR/CMakeLists.txt`
+- [x] Create `examples/SAR/README.md`
+- [x] Create `examples/SAR/config/sar_stripmap_pr1.json`
+- [x] Add optional build flag (for example `GRAPHX_BUILD_EXAMPLES_SAR`)
+- [x] Wire example target(s) into root build
 
 Exit criteria:
-- [ ] Example targets configure and build cleanly
-- [ ] SAR example can be toggled on/off via CMake option
+- [x] Example targets configure and build cleanly
+- [x] SAR example can be toggled on/off via CMake option
 
 ## Phase 2 - Message Contracts
 
-- [ ] Add `examples/SAR/include/sar/SarMessages.hpp`
-- [ ] Define `SarPulseBlockMessage`
-- [ ] Define `SarRangeTileMessage`
-- [ ] Define `SarDeviceLeaseMessage`
-- [ ] Define `SarTransferTicketMessage`
-- [ ] Define `SarImageTileMessage`
-- [ ] Define `SarMergeStatusMessage`
-- [ ] Define `SarDiagnosticsMessage`
-- [ ] Include EOS/watermark semantics
-- [ ] Include required sequence/tile/backend metadata fields
+- [x] Add `examples/SAR/include/sar/SarMessages.hpp`
+- [x] Define `SarPulseBlockMessage`
+- [x] Define `SarRangeTileMessage`
+- [x] Define `SarDeviceLeaseMessage`
+- [x] Define `SarTransferTicketMessage`
+- [x] Define `SarImageTileMessage`
+- [x] Define `SarMergeStatusMessage`
+- [x] Define `SarDiagnosticsMessage`
+- [x] Include EOS/watermark semantics
+- [x] Include required sequence/tile/backend metadata fields
 
 Exit criteria:
-- [ ] Message contracts compile
-- [ ] Metadata fields cover sequence/tile IDs and device/backend diagnostics
+- [x] Message contracts compile
+- [x] Metadata fields cover sequence/tile IDs and device/backend diagnostics
 
 ## Phase 3 - New Nodes (PR1 Cap: 4)
 
 ### 3.1 SyntheticApertureIqSourceNode
-- [ ] Add header/source for `SyntheticApertureIqSourceNode`
-- [ ] Emit deterministic pulse blocks
-- [ ] Emit explicit EOS
+- [x] Add header/source for `SyntheticApertureIqSourceNode`
+- [x] Emit deterministic pulse blocks
+- [x] Emit explicit EOS
 
 ### 3.2 AzimuthTileSplitNode
 - [ ] Add header/source for `AzimuthTileSplitNode`
