@@ -7,6 +7,7 @@ find_package(log4cxx REQUIRED)
 add_executable(sar_example
     src/main.cpp
     src/AzimuthTileSplitNode.cpp
+    src/ImageTileMergeNode.cpp
     src/SarBackprojectionTransformNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )

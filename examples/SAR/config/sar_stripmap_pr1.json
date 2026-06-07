@@ -1,6 +1,42 @@
 {
   "name": "sar_stripmap_pr1",
   "num_threads": 4,
-  "nodes": [],
-  "edges": []
+  "nodes": [
+    {
+      "id": "src",
+      "type": "SyntheticApertureIqSourceNode"
+    },
+    {
+      "id": "split",
+      "type": "AzimuthTileSplitNode"
+    },
+    {
+      "id": "bp",
+      "type": "SarBackprojectionTransformNode"
+    },
+    {
+      "id": "merge",
+      "type": "ImageTileMergeNode"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "src",
+      "source_port": 0,
+      "target_node_id": "split",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "split",
+      "source_port": 0,
+      "target_node_id": "bp",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "bp",
+      "source_port": 0,
+      "target_node_id": "merge",
+      "target_port": 0
+    }
+  ]
 }

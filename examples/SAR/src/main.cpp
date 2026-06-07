@@ -16,6 +16,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << "Scaffold ready. PR1 node pipeline wiring is pending." << '\n';
+    std::cout << "Scaffold ready. Phase 3.4 image-tile merge wiring is now included in the JSON topology." << '\n';
     return 0;
 }

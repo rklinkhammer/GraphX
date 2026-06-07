@@ -282,3 +282,24 @@ Also require:
 14. Do not propose framework-wide rewrites as PR1 scope. If an external-review issue implies broader GraphX architecture work, classify it as deferred and define the smallest PR1-compatible interface or diagnostic hook.
 15. Stop adding general GraphX abstractions unless they are needed to express DSP decomposition, GPU execution semantics, DAG correctness, measurement/scalability, or long-term heterogeneous execution.
 ```
+
+## Implementation Correlation Log
+
+This section maps concrete repository changes to the implementation requirements in this plan prompt.
+
+### Phase 3.4 Start: ImageTileMerge Vertical Slice
+
+| Plan requirement | Status | Implementation evidence |
+| --- | --- | --- |
+| PR1 max 4 new nodes | In progress, within cap | Existing: `SyntheticApertureIqSourceNode`, `AzimuthTileSplitNode`, `SarBackprojectionTransformNode`; New in Phase 3.4: `ImageTileMergeNode` |
+| Keep example-specific code under `examples/SAR` | Satisfied | New files live under `examples/SAR/include/sar`, `examples/SAR/src`, `examples/SAR/plugins`, `examples/SAR/test` |
+| Treat ImageTileMerge as core correctness node | Started | `ImageTileMergeNode` tracks expected/received, duplicate, missing, out-of-order, watermark, EOS completion |
+| Explicit EOS/watermark handling | Started | Merge completion only emitted on EOS; optional watermark requirement supported by config |
+| Deterministic CI-stable behavior | Started | Added deterministic unit tests for merge correctness and plugin-load validation |
+| JSON topology as primary path | Started | `examples/SAR/config/sar_stripmap_pr1.json` now wires src -> split -> backprojection -> merge |
+| Plugin/provider boundary pattern reuse | Satisfied | Added `image_tile_merge_node_plugin.cpp` using `NodePluginTemplate` and plugin tests via `PluginRegistry`/`PluginLoader` |
+| Build/test integration | Satisfied | Added merge node source to SAR executable and unit tests; added plugin target and test dependency wiring |
+
+### Dashboard Update Correlation
+
+The SAR package dashboard is maintained in `examples/SAR/README.md` under `Implementation Dashboard` and currently marks Phase 3.4 as started with explicit links to the new merge-node implementation.

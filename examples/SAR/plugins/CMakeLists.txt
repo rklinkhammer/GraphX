@@ -31,6 +31,19 @@ target_include_directories(sar_backprojection_transform_node PRIVATE
 )
 
 add_graphx_plugin(
+    TARGET_NAME image_tile_merge_node
+    SOURCE_FILES
+        image_tile_merge_node_plugin.cpp
+        ../src/ImageTileMergeNode.cpp
+    DESCRIPTION "SAR image tile merge node"
+    DEPENDENCIES graph
+)
+
+target_include_directories(image_tile_merge_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME synthetic_aperture_iq_source_node
     SOURCE_FILES
         synthetic_aperture_iq_source_node_plugin.cpp
