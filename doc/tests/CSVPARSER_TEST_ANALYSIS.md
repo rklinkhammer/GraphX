@@ -32,7 +32,6 @@ Safe CSV parsing, validation, and sensor-specific data extraction using modern C
 | | `ParseBarometricRow()` | `(values, config) → payload` | `optional<SensorPayload>` |
 | | `ParseMagnetometerRow()` | `(values, config) → payload` | `optional<SensorPayload>` |
 | **Format Dispatch** | `ParseRowUnified()` | `(values, config) → payload` | `optional<SensorPayload>` |
-| | `ParseRowConsolidated()` | `(values, config) → payload` | `optional<SensorPayload>` |
 | **Validation** | `ValidateCSVRow()` | `(values, config) → valid` | `bool` |
 | **C++26 Expected** | `ParseAccelerometerRowExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
 | | `ParseGyroscopeRowExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
@@ -40,7 +39,6 @@ Safe CSV parsing, validation, and sensor-specific data extraction using modern C
 | | `ParseBarometricRowExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
 | | `ParseMagnetometerRowExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
 | | `ParseRowUnifiedExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
-| | `ParseRowConsolidatedExpected()` | `(values, config) → payload/error` | `expected<SensorPayload, ParsingError>` |
 
 #### 1.2 Supporting Types
 
@@ -226,11 +224,6 @@ Safe CSV parsing, validation, and sensor-specific data extraction using modern C
 - ✅ Returns correct SensorPayload type
 - ❌ Unknown sensor type → nullopt
 
-**ParseRowConsolidated()**:
-- ✅ Consolidated format dispatch
-- ✅ Uses data_type column
-- ✅ Multiple sensor types in file
-
 **Total: 12-15 tests**
 
 #### 2.7 Validation Tests (10-12 tests)
@@ -270,9 +263,6 @@ Safe CSV parsing, validation, and sensor-specific data extraction using modern C
 **ParseRowUnifiedExpected() (9-11 tests)**:
 - ✅ Unified format with expected error handling
 - ✅ Correct dispatch with error handling
-
-**ParseRowConsolidatedExpected() (9-11 tests)**:
-- ✅ Consolidated format with expected error handling
 
 **Total: 45-55 tests**
 
@@ -426,15 +416,12 @@ timestamp,"sensor_name,with,comma",value
 
 **Impact**: Cannot parse CSV files with quoted fields.
 
-### Issue 3: Format Detection in Consolidated Files (MEDIUM)
-**Problem**: `ParseRowConsolidated()` doesn't actually parse the data_type column per row.
+### Issue 3: Consolidated Dispatch API Removed (RESOLVED)
+**Status**: `ParseRowConsolidated()` / `ParseRowConsolidatedExpected()` are no longer part of the public parser API.
 
-**Current**: Dispatches based on config, not actual data_type value  
-**Expected**: Each row could have different sensor type
+**Current**: `ParseRowUnifiedExpected()` is the single row parser entry point.
 
-**Recommendation**: Implement per-row type detection for true consolidated support.
-
-**Impact**: Consolidated files must have all rows of same type.
+**Recommendation**: Keep this document aligned with the unified-only API surface and avoid reintroducing consolidated aliases.
 
 ### Issue 4: No File Size Validation (MEDIUM)
 **Problem**: `ReadCSVFile()` reads entire file into memory without checks.
