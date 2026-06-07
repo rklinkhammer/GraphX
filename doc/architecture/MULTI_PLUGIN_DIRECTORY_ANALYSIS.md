@@ -427,34 +427,28 @@ TEST(NodeFactoryMultiDirectory, AddMultipleDirectories) {
 }
 
 TEST(NodeFactoryMultiDirectory, LoadFromMultipleDirectories) {
-    auto factory = std::make_shared<NodeFactory>();
-    factory->AddPluginDirectory(PLUGIN_DIR1);
-    factory->AddPluginDirectory(PLUGIN_DIR2);
-    factory->LoadAllPluginsFromDirectories();
+    auto bootstrap = NodeProviderBootstrap::CreateProviderExpected(PLUGIN_DIR1);
+    ASSERT_TRUE(bootstrap.has_value());
+    auto factory = bootstrap->provider;
     
     // Verify plugins from both directories loaded
     EXPECT_TRUE(factory->IsNodeTypeAvailable("PluginFromDir1"));
     EXPECT_TRUE(factory->IsNodeTypeAvailable("PluginFromDir2"));
 }
 
-TEST(NodeFactoryMultiDirectory, DuplicatePluginNameResolution) {
-    // If both directories have "MyPlugin", first one wins
-    auto factory = std::make_shared<NodeFactory>();
-    factory->AddPluginDirectory(PLUGIN_DIR1);  // Has MyPlugin
-    factory->AddPluginDirectory(PLUGIN_DIR2);  // Also has MyPlugin
-    factory->LoadAllPluginsFromDirectories();
+TEST(NodeProviderBootstrap, NodeTypeAvailabilityQuery) {
+    auto bootstrap = NodeProviderBootstrap::CreateProviderExpected(PLUGIN_DIR1);
+    ASSERT_TRUE(bootstrap.has_value());
     
-    // Verify MyPlugin from DIR1 is registered (first match wins)
-    auto info = factory->GetPluginRegistry()->GetNodeTypeInfo("MyPlugin");
-    EXPECT_EQ(info->plugin_path, /* DIR1 path */);
+    auto available = NodeProviderBootstrap::IsNodeTypeAvailableExpected(
+        bootstrap->provider, "MyPlugin");
+    ASSERT_TRUE(available.has_value());
+    EXPECT_TRUE(*available);
 }
 
-TEST(NodeFactoryMultiDirectory, DirectoryBasedSinglePath) {
-    auto plugin_registry = std::make_shared<PluginRegistry>();
-    auto factory = std::make_shared<NodeFactory>(plugin_registry);
-    factory->AddPluginDirectory("./plugins");
-    factory->LoadAllPluginsFromDirectories();
-    factory->Initialize();
+TEST(NodeProviderBootstrap, SingleDirectoryBootstrapPath) {
+    auto bootstrap = NodeProviderBootstrap::CreateProviderExpected("./plugins");
+    ASSERT_TRUE(bootstrap.has_value());
 }
 ```
 

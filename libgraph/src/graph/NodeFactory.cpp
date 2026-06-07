@@ -22,7 +22,6 @@
 
 #include "graph/NodeFactory.hpp"
 #include "plugins/PluginRegistry.hpp"
-#include "plugins/PluginLoader.hpp"
 #include "graph/StaticNodeAdapter.hpp"
 #include <algorithm>
 #include <log4cxx/logger.h>
@@ -171,7 +170,7 @@ void NodeFactory::RegisterPluginNodes() {
     // The registry contains all types from all loaders
     auto plugin_types = plugin_registry_->GetRegisteredNodeTypes();
     LOG4CXX_TRACE(logger_, "Registering " << plugin_types.size() 
-                 << " plugin node types from " << loaders_.size() << " loaders");
+                 << " plugin node types");
     
     // For each plugin type, register a factory function
     for (const auto& type_name : plugin_types) {
@@ -227,83 +226,6 @@ void NodeFactory::RegisterStaticNodes() {
     // NodeFacadeAdapter being a move-only type.
 
     LOG4CXX_TRACE(logger_, "Finished registering static nodes");
-}
-
-std::expected<void, NodeFactory::PluginDirectoryError>
-NodeFactory::AddPluginDirectoryExpected(const std::string& directory_path) noexcept {
-    LOG4CXX_TRACE(logger_, "Adding plugin directory: " << directory_path);
-    
-    if (directory_path.empty()) {
-        LOG4CXX_ERROR(logger_, "Cannot add empty directory path");
-        return std::unexpected(PluginDirectoryError::EmptyPath);
-    }
-    
-    // First directory becomes the primary registry/loader if not already set
-    if (!plugin_registry_) {
-        LOG4CXX_TRACE(logger_, "Creating default PluginRegistry for first directory");
-        try {
-            plugin_registry_ = std::make_shared<PluginRegistry>();
-        } catch (...) {
-            LOG4CXX_ERROR(logger_, "Failed to create default PluginRegistry");
-            return std::unexpected(PluginDirectoryError::RegistryCreationFailed);
-        }
-    }
-    
-    // Create a new loader for this directory
-    try {
-        loaders_.push_back(std::make_shared<PluginLoader>(directory_path, plugin_registry_));
-    } catch (...) {
-        LOG4CXX_ERROR(logger_, "Failed to create PluginLoader for directory: " << directory_path);
-        return std::unexpected(PluginDirectoryError::LoaderCreationFailed);
-    }
-    
-    LOG4CXX_TRACE(logger_, "Added plugin directory (total directories: " 
-                 << loaders_.size() << ")");
-    return {};
-}
-
-std::expected<void, NodeFactory::PluginDirectoryError>
-NodeFactory::LoadAllPluginsFromDirectoriesExpected() noexcept {
-    LOG4CXX_TRACE(logger_, "Loading plugins from " << loaders_.size() 
-                 << " registered directories");
-    
-    if (loaders_.empty()) {
-        LOG4CXX_ERROR(logger_, "No plugin directories have been added");
-        return std::unexpected(PluginDirectoryError::NoDirectoriesRegistered);
-    }
-    
-    if (!plugin_registry_) {
-        LOG4CXX_ERROR(logger_, "PluginRegistry not initialized");
-        return std::unexpected(PluginDirectoryError::PluginRegistryMissing);
-    }
-    
-    size_t total_loaded = 0;
-    size_t total_failed = 0;
-    
-    for (size_t i = 0; i < loaders_.size(); ++i) {
-        auto& loader = loaders_[i];
-        LOG4CXX_TRACE(logger_, "Loading plugins from directory " << (i + 1) 
-                     << " of " << loaders_.size());
-        
-        auto loaded = loader->LoadAllPluginsSafe();
-        if (!loaded) {
-            LOG4CXX_WARN(logger_, "Failed to load plugins from directory " << (i + 1));
-            total_failed++;
-            continue;
-        }
-
-        total_loaded += *loaded;
-        
-        LOG4CXX_TRACE(logger_, "Directory " << (i + 1) << " loaded " 
-                     << *loaded << " plugin files");
-    }
-    
-    LOG4CXX_TRACE(logger_, "Plugin loading complete: " << total_loaded 
-                 << " loaded, " << total_failed << " directories failed");
-
-    node_factories_.clear();
-    initialized_ = false;
-    return {};
 }
 
 }  // namespace graph

@@ -41,7 +41,6 @@ namespace nodes {
     class INode;
 }
 class PluginRegistry;
-class PluginLoader;
 struct NodeFacade;
 
 /**
@@ -65,21 +64,11 @@ private:
     using NodeFactoryFunction = std::function<NodeFacadeAdapter()>;
 
     std::shared_ptr<PluginRegistry> plugin_registry_;
-    std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Deprecated: bootstrap concerns kept for compatibility
     std::map<std::string, NodeFactoryFunction> node_factories_;
     bool initialized_;
 
 public:
     using NodeCreationError = graph::NodeCreationError;
-
-    enum class PluginDirectoryError {
-        EmptyPath = 1,
-        RegistryCreationFailed = 2,
-        LoaderCreationFailed = 3,
-        NoDirectoriesRegistered = 4,
-        PluginRegistryMissing = 5,
-        Unknown = 99,
-    };
 
     /**
      * Constructor with optional plugin registry
@@ -195,82 +184,6 @@ public:
     bool IsInitialized() const {
         return initialized_;
     }
-
-    /**
-     * Set the plugin registry (for late initialization)
-     *
-     * @param registry Shared pointer to PluginRegistry
-     */
-    void SetPluginRegistry(std::shared_ptr<PluginRegistry> registry) {
-        plugin_registry_ = registry;
-        node_factories_.clear();
-        initialized_ = false;
-    }
-
-    /**
-     * Get the plugin registry
-     *
-     * @return Shared pointer to PluginRegistry, or nullptr if not set
-     */
-    std::shared_ptr<PluginRegistry> GetPluginRegistry() const {
-        return plugin_registry_;
-    }
-
-    /**
-     * Add a plugin directory to the factory's search path
-     *
-     * Enables multi-directory plugin loading. Each directory is managed by a separate
-     * PluginLoader instance, but all plugins register with the shared PluginRegistry.
-     *
-     * Can be called before Initialize() to set up multiple directories, or after
-     * to dynamically add new plugin sources at runtime.
-     *
-     * @param directory_path Path to a directory containing .so/.dylib plugin files
-     *
-     * Example:
-     * @code
-     * auto factory = std::make_shared<NodeFactory>();
-     * factory->AddPluginDirectoryExpected("/usr/local/lib/graphx/plugins");
-     * factory->AddPluginDirectoryExpected("./plugins");
-     * factory->AddPluginDirectoryExpected("./test_plugins");
-     * factory->LoadAllPluginsFromDirectoriesExpected();
-     * @endcode
-     *
-     * @note Does not immediately load plugins; call LoadAllPluginsFromDirectoriesExpected()
-     * @note Multiple directories are searched in registration order
-     * @note If the same plugin name exists in multiple directories, first match wins
-    * @deprecated Bootstrap directories via NodeProviderBootstrap::CreateProviderExpected().
-     * @see LoadAllPluginsFromDirectoriesExpected()
-     */
-    [[nodiscard]] std::expected<void, PluginDirectoryError>
-    AddPluginDirectoryExpected(const std::string& directory_path) noexcept;
-
-    /**
-     * Load all plugins from all registered directories
-     *
-     * Scans each directory added via AddPluginDirectoryExpected() and loads all .so/.dylib files.
-     * Plugins from all directories register with the shared PluginRegistry.
-     *
-     * If a specific directory doesn't exist or fails to load, logs a warning but
-     * continues with other directories.
-     *
-     * Must have called AddPluginDirectoryExpected() at least once before calling this method.
-     *
-     * Example:
-     * @code
-     * auto factory = std::make_shared<NodeFactory>();
-     * factory->AddPluginDirectoryExpected(DIR1);
-     * factory->AddPluginDirectoryExpected(DIR2);
-     * factory->AddPluginDirectoryExpected(DIR3);
-     * factory->LoadAllPluginsFromDirectoriesExpected();
-     * factory->Initialize();
-     * @endcode
-     *
-    * @deprecated Bootstrap plugin loading via NodeProviderBootstrap::CreateProviderExpected().
-     * @see AddPluginDirectoryExpected()
-     */
-    [[nodiscard]] std::expected<void, PluginDirectoryError>
-    LoadAllPluginsFromDirectoriesExpected() noexcept;
 
 private:
     /**
