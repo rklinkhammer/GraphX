@@ -39,7 +39,7 @@ Exit criteria:
 
 - [x] JSON topology visibly contains multiple tile branches.
 - [x] `ImageTileMergeNode` receives independently produced branch outputs, not only pulse-modulo tile IDs.
-- [ ] Baseline and graph outputs match within explicit tolerance for PR2 fan-out dataset.
+- [x] Baseline and graph outputs match within explicit tolerance for PR2 fan-out dataset.
 - [x] CI-safe profile remains deterministic and stable.
 
 ## Phase B - DSP-Significant Stage
@@ -116,7 +116,7 @@ Exit criteria:
 
 - [x] Build: SAR example + SAR tests + benchmark target.
 - [x] Run: focused SAR unit/integration tests.
-- [ ] Run: graph-vs-baseline tolerance comparisons for PR2 dataset.
+- [x] Run: graph-vs-baseline tolerance comparisons for PR2 dataset.
 - [x] Run: graph-visible fan-out JSON topology validation.
 - [x] Run: GPU metadata propagation tests.
 - [ ] Run: trace-enabled smoke validation.
