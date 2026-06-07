@@ -25,6 +25,8 @@ file(GLOB SOURCES CONFIGURE_DEPENDS "src/dsp/*.cpp")
 # Only create library if sources found
 if(SOURCES)
     add_library(dsp STATIC ${SOURCES})
+    # dsp is linked into shared plugin modules, so compile objects as PIC.
+    set_target_properties(dsp PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_compile_definitions(dsp PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
     target_include_directories(dsp PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

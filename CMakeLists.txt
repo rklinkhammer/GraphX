@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(GRAPHX_ENABLE_MODULE_PILOT "Enable the experimental C++ module pilot" OFF)
 option(GRAPHX_REQUIRE_NINJA "Require Ninja generator for all GraphX configurations" ON)
@@ -30,6 +31,7 @@ endif()
 # Build options
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
+option(GRAPHX_BUILD_EXAMPLES_SAR "Build the SAR example package under examples/SAR" ON)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
 option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
 option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
@@ -228,6 +230,10 @@ add_subdirectory(libsensor)
 add_subdirectory(libdsp)
 add_subdirectory(libgpu)
 
+if(GRAPHX_BUILD_EXAMPLES_SAR)
+    add_subdirectory(examples/SAR)
+endif()
+
 # Testing
 if(BUILD_TESTS)
     # Ensure CTest dashboard metadata files are generated for clean ctest runs.
@@ -237,6 +243,10 @@ if(BUILD_TESTS)
     # Add per-project tests
     add_subdirectory(libgraph/test)
     add_subdirectory(libgpu/test)
+    if(GRAPHX_BUILD_EXAMPLES_SAR)
+        add_subdirectory(examples/SAR/plugins)
+        add_subdirectory(examples/SAR/test)
+    endif()
      
     # Summary target
     add_custom_target(test-summary

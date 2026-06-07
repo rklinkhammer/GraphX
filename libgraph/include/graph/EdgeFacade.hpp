@@ -183,7 +183,7 @@
 #include <iostream>
 #include <cstddef>
 #include <cstdint>
-#include <boost/assert.hpp>
+#include <cassert>
 
 #include "graph/GraphMetrics.hpp"
 #include "graph/Nodes.hpp"
@@ -438,7 +438,7 @@ public:
     /// Constructor
     explicit EdgeFacadeAdapter(IEdgeBase* edge) 
         : edge_(edge) {
-        BOOST_ASSERT(edge_ != nullptr);
+        assert(edge_ != nullptr);
     }
     
     /// Convenience reference version
@@ -539,4 +539,3 @@ public:
 };
 
 }  // namespace graph
-
