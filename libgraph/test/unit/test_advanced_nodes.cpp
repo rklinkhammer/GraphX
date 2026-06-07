@@ -47,6 +47,7 @@ protected:
     void TearDown() override {
         if (node_) {
             node_->Stop();
+            node_->Join();
             node_.reset();
         }
     }
@@ -69,6 +70,7 @@ protected:
     void TearDown() override {
         if (node_) {
             node_->Stop();
+            node_->Join();
             node_.reset();
         }
     }
@@ -91,6 +93,7 @@ protected:
     void TearDown() override {
         if (node_) {
             node_->Stop();
+            node_->Join();
             node_.reset();
         }
     }

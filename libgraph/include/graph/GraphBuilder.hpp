@@ -136,7 +136,7 @@ struct BuildResult {
 /// @see GraphCapability
 /// @see BuildResult
 /// @see graph::GraphManager
-/// @see graph::FactoryManager
+/// @see app::NodeProviderBootstrap
 class GraphBuilder {
 public:
     // ========================================================================

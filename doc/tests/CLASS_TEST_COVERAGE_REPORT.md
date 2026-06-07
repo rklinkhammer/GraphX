@@ -66,7 +66,7 @@ Test Suites:              33 test suites (↑ from 24)
 | **CommandRegistry** | graph/CommandRegistry.hpp | ❌ | ⚠️ | Command discovery and lookup |
 | **BuiltinCommands** | ui/BuiltinCommands.hpp | ❌ | ❌ | System-provided commands |
 | **AdaptiveCapacityMonitor** | graph/AdaptiveCapacityMonitor.hpp | ❌ | ❌ | Queue capacity adaptation |
-| **FactoryManager** | graph/FactoryManager.hpp | ❌ | ❌ | Node/component factory registry |
+| **NodeProviderBootstrap** | graph/NodeProviderBootstrap.hpp | ❌ | ❌ | Node/component factory registry |
 | **NodeFactory** | graph/NodeFactory.hpp | ✅ | ✅ | Generic node creation (32 tests: 23 compile-time + 9 dynamic) |
 | **NodeFactoryRegistry** | graph/NodeFactoryRegistry.hpp | ❌ | ❌ | Factory discovery system |
 | **PooledMessage** | graph/PooledMessage.hpp | ❌ | ❌ | Message pooling allocator |

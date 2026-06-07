@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "graph/JsonDynamicGraphLoader.hpp"
-#include "graph/FactoryManager.hpp"
+#include "graph/NodeProviderBootstrap.hpp"
 #include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFactory.hpp"
 #include "config/SchemaGenerator.hpp"
@@ -192,11 +192,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownPortConfigKe
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -221,13 +221,13 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsPortConfigEvenWhenS
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     StubLoaderMetadataService metadata_service;
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
         path.string(),
-        factory_bundle->factory,
+        factory_bundle->provider,
       &metadata_service);
 
     std::filesystem::remove(path);
@@ -261,11 +261,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeUsesConfigNameOrIdForNodeN
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -295,11 +295,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNonObjectNodeConfig
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -324,11 +324,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNodeConfigForNonCon
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -350,11 +350,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsOmittedNodeConfigFo
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -377,11 +377,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsNullNodeConfigForNo
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -409,11 +409,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedNonConfigurabl
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -441,11 +441,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedMissingRequire
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -468,11 +468,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMissingRequiredNode
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -497,11 +497,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsWrongTypeNodeConfig
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -526,11 +526,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsValidTypedNodeConfi
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -560,11 +560,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownTypedNodeCon
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -587,11 +587,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNullTypedNodeConfig
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -614,11 +614,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMissingRequiredSink
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -643,11 +643,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsWrongTypeSinkNodeCo
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -672,11 +672,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsValidTypedSinkNodeC
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -702,11 +702,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownTypedSinkNod
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -729,11 +729,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsNullTypedSinkNodeCo
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -756,11 +756,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsNullNodeConfigWitho
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -785,11 +785,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsUnknownObjectForOpt
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -830,11 +830,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeAcceptsMixedNodeConfigCate
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_TRUE(result) << "error=" << static_cast<int>(result.error());
@@ -871,11 +871,11 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedCategoriesWhen
     }
     )json");
 
-    auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+    auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
     ASSERT_TRUE(factory_bundle);
 
     const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-        path.string(), factory_bundle->factory);
+        path.string(), factory_bundle->provider);
 
     std::filesystem::remove(path);
     ASSERT_FALSE(result);
@@ -957,7 +957,7 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedCategoriesWhen
         },
       };
 
-      auto factory_bundle = app::FactoryManager::CreateFactoryExpected(PLUGIN_OUTPUT_DIRECTORY);
+      auto factory_bundle = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
       ASSERT_TRUE(factory_bundle);
 
       for (const auto& test_case : cases) {
@@ -973,7 +973,7 @@ TEST(JsonDynamicGraphLoaderExpectedTest, LoadNodesSafeRejectsMixedCategoriesWhen
 
         const auto path = WriteTempGraphConfig(config);
         const auto result = graph::config::JsonDynamicGraphLoader::LoadNodesSafe(
-          path.string(), factory_bundle->factory);
+          path.string(), factory_bundle->provider);
         std::filesystem::remove(path);
 
         if (test_case.expect_success) {

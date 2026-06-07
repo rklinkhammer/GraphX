@@ -276,7 +276,7 @@ public:
         } else {
             // Heap path: Allocate on heap for large or non-trivial types
             // First try to allocate from pool if size warrants it
-            if constexpr (sizeof(T) > 32) {  // Only pool larger messages
+            if constexpr (sizeof(T) > 32 && sizeof(T) <= 64) {  // Pool only sizes that fit current fixed 64-byte buffers
                 auto* pool = graph::MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
                 if (pool) {
                     void* pooled_buffer = pool->AcquireBuffer();
@@ -329,7 +329,7 @@ private:
                 ptr->~T();  // Call destructor explicitly
 
                 // Try to return to pool for large types
-                if constexpr (sizeof(T) > 32) {
+                if constexpr (sizeof(T) > 32 && sizeof(T) <= 64) {
                     if (!std::is_constant_evaluated()) {
                         auto* pool = graph::MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
                         if (pool) {
@@ -362,7 +362,7 @@ private:
                 const T* src_ptr = static_cast<const T*>(src.heap_ptr_);
 
                 // Try pooled allocation for large types
-                if constexpr (sizeof(T) > 32) {
+                if constexpr (sizeof(T) > 32 && sizeof(T) <= 64) {
                     if (!std::is_constant_evaluated()) {
                         auto* pool = graph::MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
                         if (pool) {
@@ -377,8 +377,13 @@ private:
                     }
                 }
 
-                // Fallback to direct allocation
-                dst.heap_ptr_ = new T(*src_ptr);
+                // Fallback to direct allocation using malloc + placement new.
+                // This matches destroy() using std::free and avoids alloc/free mismatch.
+                void* buffer = std::malloc(sizeof(T));
+                if (!buffer) {
+                    std::abort();
+                }
+                dst.heap_ptr_ = new (buffer) T(*src_ptr);
                 if (!std::is_constant_evaluated()) {
                     s_alloc_count.fetch_add(1, std::memory_order_relaxed);
                     s_alloc_bytes.fetch_add(sizeof(T), std::memory_order_relaxed);

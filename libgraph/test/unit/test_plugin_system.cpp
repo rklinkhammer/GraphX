@@ -34,7 +34,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "graph/FactoryManager.hpp"
+#include "graph/NodeProviderBootstrap.hpp"
 #include "graph/NodeProvider.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"
@@ -407,62 +407,66 @@ TEST_F(PluginLoaderTest, CreateNodeExpectedReportsMissingType) {
     EXPECT_EQ(result.error(), graph::PluginRegistry::PluginRegistryError::TypeNotRegistered);
 }
 
-TEST(FactoryManagerExpectedTest, CreateFactoryExpectedCreatesEmptyFactoryForMissingDirectory) {
-    auto result = app::FactoryManager::CreateFactoryExpected(
+TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedCreatesEmptyFactoryForMissingDirectory) {
+    auto result = app::NodeProviderBootstrap::CreateProviderExpected(
         "/tmp/graphx_factory_manager_missing_plugin_dir_for_expected_test"
     );
 
     ASSERT_TRUE(result);
-    EXPECT_NE(result->factory, nullptr);
-    EXPECT_NE(result->loader, nullptr);
+    EXPECT_NE(result->provider, nullptr);
+    ASSERT_NE(result->lifetime, nullptr);
+    EXPECT_NE(result->lifetime->loader, nullptr);
 }
 
-TEST(FactoryManagerExpectedTest, CreateProviderExpectedReportsDiagnosticsAndLifetime) {
-    auto result = app::FactoryManager::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
+TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedReportsDiagnosticsAndLifetime) {
+    auto result = app::NodeProviderBootstrap::CreateProviderExpected(PLUGIN_OUTPUT_DIRECTORY);
 
     ASSERT_TRUE(result);
     EXPECT_NE(result->provider, nullptr);
     EXPECT_NE(result->lifetime, nullptr);
     EXPECT_NE(result->lifetime->plugin_registry, nullptr);
     EXPECT_NE(result->lifetime->loader, nullptr);
+    EXPECT_EQ(result->diagnostics.plugin_directory, PLUGIN_OUTPUT_DIRECTORY);
     EXPECT_GE(result->diagnostics.discovered_count, result->diagnostics.loaded_count);
+    EXPECT_EQ(result->diagnostics.discovered_count,
+              result->diagnostics.loaded_count + result->diagnostics.failed_count);
     EXPECT_GE(result->diagnostics.scan_duration.count(), 0);
     EXPECT_GE(result->diagnostics.init_duration.count(), 0);
 }
 
-TEST(FactoryManagerExpectedTest, CreateFactoryExpectedRejectsFilePath) {
+TEST(NodeProviderBootstrapExpectedTest, CreateProviderExpectedRejectsFilePath) {
     const std::string plugin_file =
         std::string(PLUGIN_OUTPUT_DIRECTORY) + "/" + TestNodePluginFilename();
 
-    auto result = app::FactoryManager::CreateFactoryExpected(plugin_file);
+    auto result = app::NodeProviderBootstrap::CreateProviderExpected(plugin_file);
 
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error(), app::FactoryManager::FactoryError::InvalidPluginDirectory);
+    EXPECT_EQ(result.error(), app::NodeProviderBootstrap::FactoryError::InvalidPluginDirectory);
 }
 
-TEST(FactoryManagerExpectedTest, QueryExpectedReportsNullFactory) {
-    auto types = app::FactoryManager::GetAvailableNodeTypesExpected(nullptr);
+TEST(NodeProviderBootstrapExpectedTest, QueryExpectedReportsNullFactory) {
+    auto types = app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(nullptr);
     ASSERT_FALSE(types);
-    EXPECT_EQ(types.error(), app::FactoryManager::FactoryError::NullFactory);
+    EXPECT_EQ(types.error(), app::NodeProviderBootstrap::FactoryError::NullFactory);
 
-    auto available = app::FactoryManager::IsNodeTypeAvailableExpected(nullptr, "TestNode");
+    auto available = app::NodeProviderBootstrap::IsNodeTypeAvailableExpected(nullptr, "TestNode");
     ASSERT_FALSE(available);
-    EXPECT_EQ(available.error(), app::FactoryManager::FactoryError::NullFactory);
+    EXPECT_EQ(available.error(), app::NodeProviderBootstrap::FactoryError::NullFactory);
 }
 
-TEST(FactoryManagerExpectedTest, QueryExpectedUsesNodeProviderInterface) {
+TEST(NodeProviderBootstrapExpectedTest, QueryExpectedUsesNodeProviderInterface) {
     std::shared_ptr<graph::INodeProvider> provider = std::make_shared<MockNodeProvider>();
 
-    auto types = app::FactoryManager::GetAvailableNodeTypesExpected(provider);
+    auto types = app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(provider);
     ASSERT_TRUE(types);
     ASSERT_EQ(types->size(), 1u);
     EXPECT_EQ(types->front(), "MockNode");
 
-    auto available = app::FactoryManager::IsNodeTypeAvailableExpected(provider, "MockNode");
+    auto available = app::NodeProviderBootstrap::IsNodeTypeAvailableExpected(provider, "MockNode");
     ASSERT_TRUE(available);
     EXPECT_TRUE(*available);
 
-    auto missing = app::FactoryManager::IsNodeTypeAvailableExpected(provider, "MissingNode");
+    auto missing = app::NodeProviderBootstrap::IsNodeTypeAvailableExpected(provider, "MissingNode");
     ASSERT_TRUE(missing);
     EXPECT_FALSE(*missing);
 }

@@ -35,7 +35,7 @@
 #include "policies/CommandPolicy.hpp"
 #include "policies/GpuPolicy.hpp"
 #include "capabilities/GraphCapability.hpp"
-#include "graph/FactoryManager.hpp"
+#include "graph/NodeProviderBootstrap.hpp"
 #include "graph/GraphBuilder.hpp"
 #include "capabilities/GraphCapability.hpp"
 #include <log4cxx/logger.h>
@@ -247,9 +247,9 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     LOG4CXX_TRACE(g_logger, "  verbose_logging: " << (verbose_logging_ ? "enabled" : "disabled"));
 
     try {
-         // Step 2: Create FactoryManager and load plugins
+        // Step 2: Create NodeProviderBootstrap and load plugins
         LOG4CXX_TRACE(g_logger, "Step 2: Creating factory and loading plugins");
-        auto provider_bootstrap = app::FactoryManager::CreateProviderExpected(plugin_directory_);
+        auto provider_bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(plugin_directory_);
         if (!provider_bootstrap) {
             throw std::runtime_error("Failed to create factory and load plugins");
         }

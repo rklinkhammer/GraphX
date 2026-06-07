@@ -307,10 +307,10 @@ TEST_F(ThreadPoolTest, DestructorSafety) {
         (void)pool.StartExpected();
 
         // Queue some tasks but don't manually stop/join
-        std::atomic<int> counter(0);
+        auto counter = std::make_shared<std::atomic<int>>(0);
         for (int i = 0; i < 20; ++i) {
-            auto task = [&counter]() {
-                counter.fetch_add(1);
+            auto task = [counter]() {
+                counter->fetch_add(1);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             };
             (void)pool.QueueTask(task);

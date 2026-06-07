@@ -255,7 +255,7 @@ This document provides a complete inventory of all classes across the GraphX pro
 | `PluginRegistry` | [plugins/PluginRegistry.hpp](libgraph/include/plugins/PluginRegistry.hpp) | ❌ No | ❌ No | Registry for loaded plugins; tracks metadata and instances |
 | `NodeFactory` | [graph/NodeFactory.hpp](libgraph/include/graph/NodeFactory.hpp) | ❌ No | ❌ No | Factory for creating node instances from plugin classes |
 | `NodeFactoryRegistry` | [graph/NodeFactoryRegistry.hpp](libgraph/include/graph/NodeFactoryRegistry.hpp) | ❌ No | ❌ No | Registry of available node factories from all plugins |
-| `FactoryManager` | [graph/FactoryManager.hpp](libgraph/include/graph/FactoryManager.hpp) | ❌ No | ❌ No | Coordinates plugin loading, registration, and node factory creation |
+| `NodeProviderBootstrap` | [graph/NodeProviderBootstrap.hpp](libgraph/include/graph/NodeProviderBootstrap.hpp) | ❌ No | ❌ No | Coordinates plugin loading, registration, and node factory creation |
 | `NodeFacade` | [graph/NodeFacade.hpp](libgraph/include/graph/NodeFacade.hpp) | ❌ No | ❌ No | Struct wrapper for plugin node metadata and constructors |
 | `NodePluginInstance` | [graph/NodeFacade.hpp](libgraph/include/graph/NodeFacade.hpp) | ❌ No | ❌ No | Instance metadata for a plugin-provided node class |
 | `INodeFacade` | [graph/NodeFacade.hpp](libgraph/include/graph/NodeFacade.hpp) | ❌ No | ❌ No | Abstract interface for type-erased node creation |

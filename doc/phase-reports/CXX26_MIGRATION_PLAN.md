@@ -268,7 +268,7 @@ Inventory notes:
 - [libgraph/include/core/ReflectionHelper.hpp](/Users/rklinkhammer/workspace/GraphX/libgraph/include/core/ReflectionHelper.hpp#L147) still derives type metadata from current type traits rather than a finalized reflection source.
 - [libgraph/include/core/PluginReflection.hpp](/Users/rklinkhammer/workspace/GraphX/libgraph/include/core/PluginReflection.hpp#L141) still exposes plugin metadata as a reflection-ready compatibility layer.
 - Duplicate descriptions still appear in [libgraph/test/plugins/CMakeLists.txt](/Users/rklinkhammer/workspace/GraphX/libgraph/test/plugins/CMakeLists.txt#L16) and the plugin sources themselves, for example [int_producer_plugin.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/test/plugins/int_producer_plugin.cpp#L42) and [double_producer_plugin.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/test/plugins/double_producer_plugin.cpp#L42), where the target descriptions and `plugin_get_info()` strings repeat the same human-readable node text.
-- Runtime registration still flows through [FactoryManager.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/FactoryManager.cpp#L40) and [NodeFactory.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/NodeFactory.cpp#L217), then into [PluginLoader.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/plugins/PluginLoader.cpp#L218) and `PluginRegistry::RegisterNodeType()`, which is the remaining path to replace with compile-time descriptors for built-in nodes.
+- Runtime registration still flows through [NodeProviderBootstrap.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/NodeProviderBootstrap.cpp#L40) and [NodeFactory.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/NodeFactory.cpp#L217), then into [PluginLoader.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/plugins/PluginLoader.cpp#L218) and `PluginRegistry::RegisterNodeType()`, which is the remaining path to replace with compile-time descriptors for built-in nodes.
 
 ### 3. Make Reflection Canonical
 - [x] Move port and node metadata generation into reflection-based helpers.
@@ -301,7 +301,7 @@ Progress note:
 Progress note:
 - The first module pilot is the stable `libgraph` port-metadata layer, centered on [PortTypes.hpp](/Users/rklinkhammer/workspace/GraphX/libgraph/include/graph/PortTypes.hpp) and the module interface unit [graph.port_metadata.ixx](/Users/rklinkhammer/workspace/GraphX/libgraph/modules/graph.port_metadata.ixx).
 - The pilot is opt-in through `GRAPHX_ENABLE_MODULE_PILOT` and builds in a separate Ninja/LLVM tree, which keeps the default Unix Makefiles build unchanged.
-- Plugin-facing code such as [NodeFacade.hpp](/Users/rklinkhammer/workspace/GraphX/libgraph/include/graph/NodeFacade.hpp), [FactoryManager.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/FactoryManager.cpp), and [PluginLoader.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/plugins/PluginLoader.cpp) stays out of the first module pass so the ABI boundary remains unchanged.
+- Plugin-facing code such as [NodeFacade.hpp](/Users/rklinkhammer/workspace/GraphX/libgraph/include/graph/NodeFacade.hpp), [NodeProviderBootstrap.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/graph/NodeProviderBootstrap.cpp), and [PluginLoader.cpp](/Users/rklinkhammer/workspace/GraphX/libgraph/src/plugins/PluginLoader.cpp) stays out of the first module pass so the ABI boundary remains unchanged.
 
 ### 7. Remove Compatibility Shims
 - [x] Delete dual-path APIs after the C++26 path is verified.

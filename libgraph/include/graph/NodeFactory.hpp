@@ -65,7 +65,7 @@ private:
     using NodeFactoryFunction = std::function<NodeFacadeAdapter()>;
 
     std::shared_ptr<PluginRegistry> plugin_registry_;
-    std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Multi-directory support
+    std::vector<std::shared_ptr<PluginLoader>> loaders_;  // Deprecated: bootstrap concerns kept for compatibility
     std::map<std::string, NodeFactoryFunction> node_factories_;
     bool initialized_;
 
@@ -239,6 +239,7 @@ public:
      * @note Does not immediately load plugins; call LoadAllPluginsFromDirectoriesExpected()
      * @note Multiple directories are searched in registration order
      * @note If the same plugin name exists in multiple directories, first match wins
+    * @deprecated Bootstrap directories via NodeProviderBootstrap::CreateProviderExpected().
      * @see LoadAllPluginsFromDirectoriesExpected()
      */
     [[nodiscard]] std::expected<void, PluginDirectoryError>
@@ -265,6 +266,7 @@ public:
      * factory->Initialize();
      * @endcode
      *
+    * @deprecated Bootstrap plugin loading via NodeProviderBootstrap::CreateProviderExpected().
      * @see AddPluginDirectoryExpected()
      */
     [[nodiscard]] std::expected<void, PluginDirectoryError>
