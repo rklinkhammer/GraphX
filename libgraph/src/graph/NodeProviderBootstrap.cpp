@@ -97,43 +97,23 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
         return std::unexpected(ProviderBootstrapError::Unknown);
     }
 
-    // Step 4: Scan and load plugins from directory
-    const auto scan_start = std::chrono::steady_clock::now();
+    // Step 4: Load plugins from directory and capture loader diagnostics
     if (plugin_directory_exists) {
-        for (const auto& entry : std::filesystem::directory_iterator(plugin_directory, fs_error)) {
-            if (fs_error) {
-                LOG4CXX_WARN(logger_, "Plugin directory iteration warning for "
-                                      << plugin_directory << ": " << fs_error.message());
-                break;
-            }
-
-            if (!entry.is_regular_file()) {
-                continue;
-            }
-
-            const auto ext = entry.path().extension().string();
-            if (ext == ".so" || ext == ".dylib" || ext == ".dll") {
-                ++diagnostics.discovered_count;
-            }
-        }
-
         auto loaded = loader->LoadAllPluginsSafe();
         if (loaded) {
-            diagnostics.loaded_count = *loaded;
+            diagnostics.discovered_count = loaded->discovered_count;
+            diagnostics.loaded_count = loaded->loaded_count;
+            diagnostics.failed_count = loaded->failed_count;
+            diagnostics.scan_duration = loaded->load_duration;
         } else {
             LOG4CXX_WARN(logger_, "Plugin loading encountered errors: "
                                   << app::error::ErrorMessage(loaded.error())
                                   << ". Some plugins may not be available.");
         }
-        diagnostics.failed_count = diagnostics.discovered_count >= diagnostics.loaded_count
-            ? diagnostics.discovered_count - diagnostics.loaded_count
-            : 0;
     } else {
         LOG4CXX_WARN(logger_, "Plugin directory does not exist, skipping plugin loading: "
                             << plugin_directory);
     }
-    diagnostics.scan_duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - scan_start);
 
     // Step 5: Create RegisteredNodeProvider with loaded registry
     const auto init_start = std::chrono::steady_clock::now();

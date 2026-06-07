@@ -32,6 +32,7 @@
 #include <vector>
 #include <memory>
 #include <expected>
+#include <chrono>
 #include <log4cxx/logger.h>
 
 namespace graph {
@@ -82,6 +83,13 @@ private:
     std::string GetCurrentABITag() const;
 
 public:
+    struct PluginLoadSummary {
+        std::size_t discovered_count{0};
+        std::size_t loaded_count{0};
+        std::size_t failed_count{0};
+        std::chrono::milliseconds load_duration{0};
+    };
+
     // ========================================================================
     // Lifecycle Management
     // ========================================================================
@@ -126,22 +134,23 @@ public:
     LoadPluginSafe(const std::string& plugin_filename) noexcept;
 
     /// @brief Load all plugins from the plugin directory safely
-    /// @return expected with count of successfully loaded plugins on success,
+    /// @return expected with structured plugin load summary on success,
     ///         PluginLoadError on failure (returns directory not found error)
     ///
     /// Individual plugin failures are logged as warnings but don't affect the overall
     /// operation.
     ///
     /// Returns:
-    /// - Success: size_t count of plugins successfully loaded
+    /// - Success: PluginLoadSummary with discovered/loaded/failed counters and duration
     /// - Failure: PluginLoadError if directory doesn't exist
     ///
     /// Example:
     /// @code
     /// auto result = loader.LoadAllPluginsSafe();
     /// if (result) {
-    ///     size_t count = result.value();
-    ///     LOG_INFO("Loaded " << count << " plugins");
+    ///     auto summary = result.value();
+    ///     LOG_INFO("Loaded " << summary.loaded_count
+    ///              << " of " << summary.discovered_count << " plugins");
     /// } else {
     ///     LOG_ERROR("Failed to load plugins: "
     ///               << app::error::ErrorMessage(result.error()));
@@ -150,7 +159,7 @@ public:
     ///
     /// @note Individual plugin errors are logged at WARN level but don't fail overall
     /// @note All plugin loading is logged via log4cxx (TRACE and ERROR levels)
-    [[nodiscard]] std::expected<size_t, app::error::PluginLoadError>
+    [[nodiscard]] std::expected<PluginLoadSummary, app::error::PluginLoadError>
     LoadAllPluginsSafe() noexcept;
 
     // ========================================================================

@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
+#include <chrono>
 #include <log4cxx/logger.h>
 
 namespace fs = std::filesystem;
@@ -273,7 +274,7 @@ PluginLoader::LoadPluginSafe(const std::string& plugin_filename) noexcept {
     }
 }
 
-std::expected<size_t, app::error::PluginLoadError>
+std::expected<PluginLoader::PluginLoadSummary, app::error::PluginLoadError>
 PluginLoader::LoadAllPluginsSafe() noexcept {
     try {
         if (!fs::exists(plugin_directory_)) {
@@ -284,30 +285,35 @@ PluginLoader::LoadAllPluginsSafe() noexcept {
         
         LOG4CXX_TRACE(logger_, "LoadAllPluginsSafe: Loading plugins from " 
                       << plugin_directory_);
-        
-        size_t loaded_count = 0;
-        size_t failed_count = 0;
-        
+
+        const auto load_start = std::chrono::steady_clock::now();
+        PluginLoadSummary summary{};
+
         for (const auto& entry : fs::directory_iterator(plugin_directory_)) {
-            if (entry.path().extension() == ".so" ||
-                entry.path().extension() == ".dylib") {
+            const auto ext = entry.path().extension().string();
+            if (ext == ".so" || ext == ".dylib" || ext == ".dll") {
+                ++summary.discovered_count;
 
                 auto result = LoadPluginSafe(entry.path().filename().string());
                 if (result) {
-                    loaded_count++;
+                    ++summary.loaded_count;
                 } else {
                     LOG4CXX_WARN(logger_, "LoadAllPluginsSafe: Failed to load plugin "
                                  << entry.path().filename() << " - "
                                  << app::error::ErrorMessage(result.error()));
-                    failed_count++;
+                    ++summary.failed_count;
                 }
             }
         }
+
+        summary.load_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - load_start);
         
         LOG4CXX_TRACE(logger_, "LoadAllPluginsSafe: Complete - "
-                      << loaded_count << " loaded, " << failed_count << " failed");
+                      << summary.loaded_count << " loaded, "
+                      << summary.failed_count << " failed");
         
-        return loaded_count;
+        return summary;
         
     } catch (const std::filesystem::filesystem_error& e) {
         LOG4CXX_ERROR(logger_, "LoadAllPluginsSafe filesystem error: " << e.what());
