@@ -23,6 +23,13 @@ void* MakeSyntheticDevicePointer(const SarRangeTileMessage& msg) noexcept {
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
 }
 
+void* MakeSyntheticHostPointer(const SarRangeTileMessage& msg) noexcept {
+    const auto token =
+        ((msg.buffer.buffer_id + 1u) << 16u) |
+        ((static_cast<std::uint64_t>(msg.envelope.sequence_id) + 1u) & 0xFFFFu);
+    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
+}
+
 } // namespace
 
 std::optional<SarRangeTileMessage> H2DAsyncNode::Transfer(
@@ -46,7 +53,8 @@ std::optional<SarRangeTileMessage> H2DAsyncNode::Transfer(
         const auto layout = MakeAccelVectorLayout(element_count);
 
         out.gpu.host_view.backend = accel_backend;
-        out.gpu.host_view.host_ptr = out.range_bins.data();
+        // Edges carry token/context metadata; host_ptr is a synthetic token handle.
+        out.gpu.host_view.host_ptr = MakeSyntheticHostPointer(out);
         out.gpu.host_view.bytes = byte_count;
         out.gpu.host_view.dtype = graph::gpu::accel::DataType::Float32;
         out.gpu.host_view.layout = layout;

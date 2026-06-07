@@ -53,6 +53,7 @@ TEST(SarGpuMetadataContractTest, PropagatesAccelMetadataAcrossDeviceStagesAndMer
     EXPECT_TRUE(graph::gpu::accel::IsValidView(device_tile->gpu.device_view));
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(device_tile->gpu.lease));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(device_tile->gpu.transfer_ticket));
+    EXPECT_NE(device_tile->gpu.host_view.host_ptr, device_tile->range_bins.data());
 
     sar::SarBackprojectionTransformConfig bp_cfg{};
     bp_cfg.image_width = 2;
@@ -96,6 +97,7 @@ TEST(SarGpuMetadataContractTest, PropagatesAccelMetadataAcrossDeviceStagesAndMer
     EXPECT_TRUE(graph::gpu::accel::IsValidView(host_tile->gpu.device_view));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(host_tile->gpu.transfer_ticket));
     EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(host_tile->gpu.kernel_ticket));
+    EXPECT_NE(host_tile->gpu.host_view.host_ptr, host_tile->pixels.data());
 
     sar::ImageTileMergeConfig merge_cfg{};
     merge_cfg.expected_tiles = 1;
