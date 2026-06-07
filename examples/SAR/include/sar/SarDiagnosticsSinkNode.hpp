@@ -26,11 +26,17 @@ public:
         return last_status_;
     }
 
+    [[nodiscard]] const SarDiagnosticsMessage& last_diagnostics() const noexcept {
+        return diagnostics_;
+    }
+
 private:
+    void UpdateDiagnostics(const SarMergeStatusMessage& value);
     void SignalCompletion();
 
     std::size_t consume_count_{0};
     SarMergeStatusMessage last_status_{};
+    SarDiagnosticsMessage diagnostics_{};
 };
 
 } // namespace sar

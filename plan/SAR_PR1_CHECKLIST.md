@@ -18,7 +18,7 @@ GitHub status snapshot (2026-06-07):
 
 - [x] Keep all SAR-specific implementation under `examples/SAR`
 - [x] Keep PR1 to no more than 4 new SAR nodes
-- [ ] JSON-loaded topology is the primary demo path (topology exists; runtime JSON execution path still pending)
+- [x] JSON-loaded topology is the primary demo path
 - [x] Deterministic synthetic data path only (fixed seed + fixed counts)
 - [x] No framework-wide rewrites
 - [x] No mandatory native GPU requirement for CI
@@ -92,16 +92,16 @@ Exit criteria:
 
 ## Phase 4 - Reused GPU Async Path Wiring
 
-- [ ] Reuse existing H2D async transfer pattern
-- [ ] Reuse existing device transform stage pattern
-- [ ] Reuse existing D2H async transfer pattern
+- [x] Reuse existing H2D async transfer pattern
+- [x] Reuse existing device transform stage pattern
+- [x] Reuse existing D2H async transfer pattern
 - [x] Keep byte movement explicit at transfer boundaries
 - [x] Keep control/data-plane separation explicit in messages and docs
 
 Exit criteria:
 
 - [x] End-to-end run works on CI-safe simulated backend path
-- [ ] H2D/D2H bytes and dispatch counters are emitted (D2H + dispatch currently emitted via `SarMergeStatusMessage`; H2D still pending)
+- [x] H2D/D2H bytes and dispatch counters are emitted
 
 ## Phase 5 - JSON Topology + Runtime Entry
 
@@ -117,19 +117,19 @@ Exit criteria:
 
 ## Phase 6 - Diagnostics and Metrics Contract
 
-- [ ] Emit `pulses_processed`
-- [ ] Emit `tiles_processed`
-- [ ] Emit `bytes_h2d`
-- [ ] Emit `bytes_d2h`
-- [ ] Emit `kernel_dispatches`
-- [ ] Emit `fanin_wait_ms`
-- [ ] Emit `e2e_latency_ms`
-- [ ] Emit duplicate/missing tile counts
+- [x] Emit `pulses_processed`
+- [x] Emit `tiles_processed`
+- [x] Emit `bytes_h2d`
+- [x] Emit `bytes_d2h`
+- [x] Emit `kernel_dispatches`
+- [x] Emit `fanin_wait_ms`
+- [x] Emit `e2e_latency_ms`
+- [x] Emit duplicate/missing tile counts
 - [ ] Emit queue/backpressure data where already available
 
 Exit criteria:
 
-- [ ] Metrics are deterministic enough for CI validation
+- [x] Metrics are deterministic enough for CI validation
 - [ ] No brittle hard performance thresholds required in CI
 
 ## Phase 7 - Tests
@@ -137,7 +137,7 @@ Exit criteria:
 ### Unit
 
 - [x] Add `examples/SAR/test/test_image_tile_merge_node.cpp`
-- [ ] Add `examples/SAR/test/test_sar_diagnostics_contract.cpp`
+- [x] Add `examples/SAR/test/test_sar_diagnostics_contract.cpp`
 - [x] Add node-level determinism checks for source/split
 
 ### Integration

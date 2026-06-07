@@ -15,6 +15,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ImageTileMergeNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_image_tile_merge_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_diagnostics_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_backprojection_transform_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
