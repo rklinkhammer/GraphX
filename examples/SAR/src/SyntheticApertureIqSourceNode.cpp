@@ -2,6 +2,9 @@
 
 #include "config/ConfigError.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace sar {
 
 namespace {
@@ -91,6 +94,58 @@ void SyntheticApertureIqSourceNode::Configure(const graph::JsonView& cfg) {
         config.backend = ParseBackendKind(value.value());
     }
 
+    if (cfg.Contains("moving_target_enabled")) {
+        auto value = cfg.TryGetBool("moving_target_enabled");
+        if (!value) {
+            throw value.error();
+        }
+        config.moving_target_enabled = value.value();
+    }
+
+    if (cfg.Contains("target_initial_range_m")) {
+        auto value = cfg.TryGetFloat("target_initial_range_m");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0.0f) {
+            throw graph::ConfigError("target_initial_range_m must be > 0");
+        }
+        config.target_initial_range_m = value.value();
+    }
+
+    if (cfg.Contains("target_closing_velocity_mps")) {
+        auto value = cfg.TryGetFloat("target_closing_velocity_mps");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0.0f) {
+            throw graph::ConfigError("target_closing_velocity_mps must be >= 0");
+        }
+        config.target_closing_velocity_mps = value.value();
+    }
+
+    if (cfg.Contains("pulse_interval_s")) {
+        auto value = cfg.TryGetFloat("pulse_interval_s");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0.0f) {
+            throw graph::ConfigError("pulse_interval_s must be > 0");
+        }
+        config.pulse_interval_s = value.value();
+    }
+
+    if (cfg.Contains("target_reflectivity")) {
+        auto value = cfg.TryGetFloat("target_reflectivity");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0.0f) {
+            throw graph::ConfigError("target_reflectivity must be >= 0");
+        }
+        config.target_reflectivity = value.value();
+    }
+
     SetConfig(config);
 }
 
@@ -101,6 +156,11 @@ graph::JsonView SyntheticApertureIqSourceNode::GetParameters() const {
     parameters_cache_["samples_per_pulse"] = config_.samples_per_pulse;
     parameters_cache_["backend_id"] = config_.backend_id;
     parameters_cache_["backend"] = static_cast<int>(config_.backend);
+    parameters_cache_["moving_target_enabled"] = config_.moving_target_enabled;
+    parameters_cache_["target_initial_range_m"] = config_.target_initial_range_m;
+    parameters_cache_["target_closing_velocity_mps"] = config_.target_closing_velocity_mps;
+    parameters_cache_["pulse_interval_s"] = config_.pulse_interval_s;
+    parameters_cache_["target_reflectivity"] = config_.target_reflectivity;
     return graph::JsonView(parameters_cache_);
 }
 
@@ -135,6 +195,11 @@ std::vector<std::string> SyntheticApertureIqSourceNode::GetParameterNames() cons
         "samples_per_pulse",
         "backend_id",
         "backend",
+        "moving_target_enabled",
+        "target_initial_range_m",
+        "target_closing_velocity_mps",
+        "pulse_interval_s",
+        "target_reflectivity",
     };
 }
 
@@ -154,10 +219,27 @@ const SyntheticApertureIqSourceConfig& SyntheticApertureIqSourceNode::GetConfig(
 
 SarIqSample SyntheticApertureIqSourceNode::MakeSample(
     std::uint64_t sequence_id,
-    std::uint32_t sample_index) {
+    std::uint32_t sample_index) const {
     const float seq = static_cast<float>(sequence_id);
     const float idx = static_cast<float>(sample_index);
-    return SarIqSample(seq + (idx * 0.001f), (seq * 0.25f) - (idx * 0.0015f));
+
+    float real = seq + (idx * 0.001f);
+    float imag = (seq * 0.25f) - (idx * 0.0015f);
+
+    if (config_.moving_target_enabled) {
+        const float pulse_time_s = seq * config_.pulse_interval_s;
+        const float range_m = std::max(
+            1.0f,
+            config_.target_initial_range_m - (config_.target_closing_velocity_mps * pulse_time_s));
+        const float normalized_range = config_.target_initial_range_m / range_m;
+        const float amp = 1.0f + ((normalized_range - 1.0f) * config_.target_reflectivity);
+        const float phase = (range_m * 0.0005f) + (idx * 0.01f);
+
+        real += amp * std::cos(phase);
+        imag += 0.5f * amp * std::sin(phase);
+    }
+
+    return SarIqSample(real, imag);
 }
 
 SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeDataMessage() const {

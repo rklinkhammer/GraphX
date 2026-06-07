@@ -30,6 +30,8 @@ flowchart LR
 
 Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
+Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
+
 ## Build And Run
 
 Build SAR example and tests:
@@ -71,6 +73,16 @@ Primary knobs:
   - backend_id
 
 All SAR nodes are initialized through standard IConfigurable using node_config.
+
+Projectile-approach demo knobs (source node):
+
+1. moving_target_enabled
+2. target_initial_range_m
+3. target_closing_velocity_mps
+4. pulse_interval_s
+5. target_reflectivity
+
+This scenario models deterministic closing-range behavior and is intended as an architectural demo input profile rather than a full-fidelity radar physics model.
 
 ## Simulated Backend And Native Follow-Up
 
