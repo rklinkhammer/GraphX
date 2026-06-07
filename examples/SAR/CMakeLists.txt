@@ -7,6 +7,7 @@ find_package(log4cxx REQUIRED)
 add_executable(sar_example
     src/main.cpp
     src/AzimuthTileSplitNode.cpp
+    src/SyntheticApertureIqSourceNode.cpp
 )
 
 target_compile_features(sar_example PRIVATE cxx_std_26)
