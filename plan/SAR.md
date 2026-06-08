@@ -54,6 +54,12 @@ Main PR2 design concern: current tile semantics are deterministic but symbolic. 
 
 Accel-token conversion update: the current SAR graph-processing direction is that graph edges carry `graph::gpu::accel` views, leases, tickets, and lightweight SAR sidecar metadata. Historical `SarPulseBlockMessage`, `SarRangeTileMessage`, `SarImageTileMessage`, `SarDeviceLeaseMessage`, and `SarTransferTicketMessage` language should be treated as PR1 compatibility vocabulary or wrapper internals only. New PR3 topology, resolver, benchmark, and trace work must not reintroduce raw SAR payload-message edges between transfer/kernel stages.
 
+Post-PR4 execution invariant: `examples/SAR/src/main.cpp` is the canonical SAR example entrypoint and must remain driven by `GraphExecutorBuilder` plus JSON topology/config files. All user-facing SAR examples, benchmarks, and integration paths must preserve the GraphExecutor + JSON execution path as the primary runtime contract.
+
+Direct/programmatic SAR execution is allowed only for CPU reference baselines, parity checks, graph-overhead attribution, and focused unit tests. It must not become the primary example path or replace JSON-driven graph execution in demos, benchmarks, or validation flows.
+
+Every future SAR update must explicitly consider whether `examples/SAR/config/*.json`, plugin loading, dynamic node registration, edge contracts, accel-token flow, backend resolver behavior, and GraphExecutor execution tests need to change. New or modified SAR nodes must remain usable from JSON config and dynamically loadable through the SAR plugin path unless the change is explicitly limited to non-runtime test/reference code.
+
 ---
 
 ## 1) Recommended First PR Scope
