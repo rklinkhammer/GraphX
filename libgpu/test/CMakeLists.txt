@@ -44,6 +44,7 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
             metal_d2h_async_node
             metal_host_egress_sink_node
             metal_lease_release_node
+            metal_device_kernel_node
         )
     endif()
     add_test(NAME libgpu_stub_unit COMMAND test_libgpu_stub_unit)

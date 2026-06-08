@@ -1,0 +1,405 @@
+// MIT License
+//
+// Copyright (c) 2026 GraphX Contributors
+
+#pragma once
+
+#include "gpu/accel/types/AccelFormatting.hpp"
+#include "gpu/accel/types/AccelValidation.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "gpu/metal/capabilities/MetalKernelDescriptorParsing.hpp"
+#include "graph/IConfigurable.hpp"
+#include "graph/IGpuCapabilityBinding.hpp"
+#include "graph/NamedNodes.hpp"
+
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace graph::gpu::metal::nodes {
+
+// General descriptor-driven kernel boundary for one device input and one
+// device output. Domain-specific nodes should configure the kernel descriptor
+// and preserve their own sidecars outside this accel-token primitive.
+class DeviceKernelNodeMetal
+    : public graph::NamedInteriorNode<
+          graph::TypeList<accel::DeviceBufferView>,
+          graph::TypeList<accel::DeviceBufferView>,
+          DeviceKernelNodeMetal>,
+      public graph::IGpuCapabilityBinding,
+      public graph::IConfigurable,
+      public graph::IParameterized {
+public:
+    DeviceKernelNodeMetal() = default;
+    ~DeviceKernelNodeMetal() override {
+        if (owns_queue_ && context_ && queue_id_ != 0) {
+            context_->DestroyCommandQueue(queue_id_);
+        }
+    }
+
+    bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
+        context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
+        shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
+        memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
+        kernel_ = capability_bus.Get<capabilities::IMetalKernelCapability>();
+        kernel_descriptor_capability_ =
+            std::dynamic_pointer_cast<capabilities::IMetalKernelDescriptorCapability>(kernel_);
+        telemetry_ = capability_bus.Get<capabilities::IMetalTelemetryCapability>();
+
+        if (queue_id_ == 0 && context_ != nullptr) {
+            if (shared_queue_ != nullptr) {
+                queue_id_ = shared_queue_->GetOrCreateQueueId();
+                owns_queue_ = false;
+            }
+            if (queue_id_ == 0) {
+                queue_id_ = context_->CreateCommandQueue();
+                owns_queue_ = queue_id_ != 0;
+            }
+            if (kernel_ticket_.execution_queue_id == 0) {
+                kernel_ticket_.execution_queue_id = queue_id_;
+            }
+        }
+
+        if (kernel_ && has_pending_kernel_configuration_) {
+            const auto effective_queue = configured_queue_id_ == 0 ? queue_id_ : configured_queue_id_;
+            if (has_typed_kernel_descriptor_) {
+                ConfigureKernelDescriptor(configured_kernel_descriptor_, configured_device_id_, effective_queue);
+            } else {
+                ConfigureKernel(configured_kernel_id_, configured_kernel_name_, configured_device_id_, effective_queue);
+            }
+            has_pending_kernel_configuration_ = false;
+        }
+
+        return context_ != nullptr && memory_pool_ != nullptr && kernel_ != nullptr &&
+               telemetry_ != nullptr && queue_id_ != 0;
+    }
+
+    std::optional<accel::DeviceBufferView> Transfer(
+        const accel::DeviceBufferView& input,
+        std::integral_constant<std::size_t, 0>,
+        std::integral_constant<std::size_t, 0>) override {
+        if (!context_ || !memory_pool_ || !kernel_ || !telemetry_ || queue_id_ == 0 ||
+            !accel::IsValidView(input) || !accel::IsValidKernelTicket(kernel_ticket_)) {
+            return std::nullopt;
+        }
+
+        const auto output_bytes = configured_output_bytes_ == 0 ? input.bytes : configured_output_bytes_;
+        if (output_bytes == 0) {
+            return std::nullopt;
+        }
+
+        accel::BufferLease lease{};
+        if (!memory_pool_->AllocateDevice(output_bytes, configured_device_id_, lease)) {
+            return std::nullopt;
+        }
+
+        auto output = lease.device_view;
+        output.backend = input.backend;
+        output.dtype = configured_output_dtype_.value_or(input.dtype);
+        output.layout = configured_output_layout_.value_or(input.layout);
+        output.bytes = output_bytes;
+        output.device_id = configured_device_id_;
+        output.execution_queue_id = kernel_ticket_.execution_queue_id;
+
+        if (output.layout.rank == 0) {
+            output.layout.rank = 1;
+            output.layout.shape[0] = output_bytes;
+            output.layout.stride[0] = 1;
+        }
+
+        if (!accel::IsValidView(output)) {
+            return std::nullopt;
+        }
+
+        auto launch_ticket = kernel_ticket_;
+        if (!PopulateRegisteredKernelExecution(launch_ticket)) {
+            ApplyFallbackLaunchDefaults(launch_ticket.launch);
+        }
+        if (launch_ticket.arg_count == 0) {
+            launch_ticket.arg_count = DefaultArgCount();
+        }
+        launch_ticket.completion_event = ++kernel_sequence_;
+
+        if (launch_ticket.arg_count == 1) {
+            accel::DeviceBufferView* arg0 = &output;
+            void* const args[] = {arg0};
+            if (!kernel_->Launch(launch_ticket, args, 1)) {
+                return std::nullopt;
+            }
+        } else if (launch_ticket.arg_count == 2) {
+            auto input_arg = input;
+            accel::DeviceBufferView* arg0 = &input_arg;
+            accel::DeviceBufferView* arg1 = &output;
+            void* const args[] = {arg0, arg1};
+            if (!kernel_->Launch(launch_ticket, args, 2)) {
+                return std::nullopt;
+            }
+        } else {
+            return std::nullopt;
+        }
+
+        telemetry_->RecordKernel(launch_ticket, 0);
+        output.ready_event = launch_ticket.completion_event;
+        last_output_lease_ = lease;
+        last_kernel_ticket_ = launch_ticket;
+        return output;
+    }
+
+    void ConfigureKernel(std::uint64_t kernel_id,
+                         std::string_view kernel_name,
+                         std::uint32_t device_id,
+                         std::uint64_t queue_id) {
+        capabilities::MetalKernelDescriptor descriptor{};
+        descriptor.kernel_id = kernel_id;
+        descriptor.function_name = std::string(kernel_name);
+        descriptor.source_kind = capabilities::MetalKernelSourceKind::Builtin;
+        descriptor.arg_layout = {
+            capabilities::MetalKernelArgDescriptor{capabilities::MetalKernelArgKind::DeviceBuffer,
+                                                   capabilities::MetalKernelArgAccess::ReadOnly},
+            capabilities::MetalKernelArgDescriptor{capabilities::MetalKernelArgKind::DeviceBuffer,
+                                                   capabilities::MetalKernelArgAccess::WriteOnly},
+        };
+        ConfigureKernelDescriptor(descriptor, device_id, queue_id);
+    }
+
+    void ConfigureKernelDescriptor(const capabilities::MetalKernelDescriptor& descriptor,
+                                   std::uint32_t device_id,
+                                   std::uint64_t queue_id) {
+        configured_kernel_descriptor_ = descriptor;
+        has_typed_kernel_descriptor_ = true;
+        configured_kernel_id_ = descriptor.kernel_id;
+        configured_kernel_name_ = descriptor.function_name;
+        configured_device_id_ = device_id;
+        configured_queue_id_ = queue_id;
+
+        kernel_ticket_.backend = accel::BackendKind::Metal;
+        kernel_ticket_.kernel_id = descriptor.kernel_id;
+        kernel_ticket_.arg_count = descriptor.arg_layout.empty()
+            ? DefaultArgCount()
+            : static_cast<std::uint32_t>(descriptor.arg_layout.size());
+        kernel_ticket_.execution_queue_id = queue_id;
+        kernel_ticket_.completion_event = ++kernel_sequence_;
+        ApplyFallbackLaunchDefaults(kernel_ticket_.launch);
+        owns_queue_ = false;
+        queue_id_ = queue_id;
+        device_id_ = device_id;
+
+        if (kernel_) {
+            if (kernel_descriptor_capability_) {
+                kernel_descriptor_capability_->RegisterKernelDescriptor(descriptor);
+            } else {
+                kernel_->RegisterKernel(descriptor.kernel_id, descriptor.function_name);
+            }
+            PopulateRegisteredKernelExecution(kernel_ticket_);
+        }
+    }
+
+    void Configure(const graph::JsonView& cfg) override {
+        if (cfg.Contains("kernel_descriptor")) {
+            auto descriptor_obj = cfg.TryGetObject("kernel_descriptor");
+            if (!descriptor_obj) {
+                throw descriptor_obj.error();
+            }
+            const auto descriptor = capabilities::ParseMetalKernelDescriptor(descriptor_obj.value());
+
+            configured_kernel_descriptor_ = descriptor;
+            configured_kernel_id_ = descriptor.kernel_id;
+            configured_kernel_name_ = descriptor.function_name;
+            has_typed_kernel_descriptor_ = true;
+            has_pending_kernel_configuration_ = true;
+        }
+
+        if (cfg.Contains("queue_id")) {
+            auto parsed_queue = cfg.TryGetInt("queue_id");
+            if (!parsed_queue) {
+                throw parsed_queue.error();
+            }
+            if (parsed_queue.value() < 0) {
+                throw std::invalid_argument("queue_id must be >= 0");
+            }
+            configured_queue_id_ = static_cast<std::uint64_t>(parsed_queue.value());
+        }
+
+        if (cfg.Contains("device_id")) {
+            auto parsed_device = cfg.TryGetInt("device_id");
+            if (!parsed_device) {
+                throw parsed_device.error();
+            }
+            if (parsed_device.value() < 0) {
+                throw std::invalid_argument("device_id must be >= 0");
+            }
+            configured_device_id_ = static_cast<std::uint32_t>(parsed_device.value());
+        }
+
+        if (cfg.Contains("kernel_id")) {
+            auto parsed_kernel_id = cfg.TryGetInt("kernel_id");
+            if (!parsed_kernel_id) {
+                throw parsed_kernel_id.error();
+            }
+            if (parsed_kernel_id.value() <= 0) {
+                throw std::invalid_argument("kernel_id must be > 0");
+            }
+            configured_kernel_id_ = static_cast<std::uint64_t>(parsed_kernel_id.value());
+        }
+
+        if (cfg.Contains("kernel_name")) {
+            auto parsed_kernel_name = cfg.TryGetString("kernel_name");
+            if (!parsed_kernel_name) {
+                throw parsed_kernel_name.error();
+            }
+            if (parsed_kernel_name.value().empty()) {
+                throw std::invalid_argument("kernel_name must be non-empty");
+            }
+            configured_kernel_name_ = parsed_kernel_name.value();
+        }
+
+        if (cfg.Contains("output_bytes")) {
+            auto parsed_output_bytes = cfg.TryGetInt("output_bytes");
+            if (!parsed_output_bytes) {
+                throw parsed_output_bytes.error();
+            }
+            if (parsed_output_bytes.value() < 0) {
+                throw std::invalid_argument("output_bytes must be >= 0");
+            }
+            configured_output_bytes_ = static_cast<std::uint64_t>(parsed_output_bytes.value());
+        }
+
+        if (!configured_kernel_name_.empty() && configured_kernel_id_ != 0) {
+            has_pending_kernel_configuration_ = true;
+        }
+    }
+
+    [[nodiscard]] graph::JsonView GetParameters() const override {
+        static thread_local nlohmann::json params;
+        params = {
+            {"queue_id", configured_queue_id_},
+            {"device_id", configured_device_id_},
+            {"kernel_id", configured_kernel_id_},
+            {"kernel_name", configured_kernel_name_},
+            {"output_bytes", configured_output_bytes_},
+            {"kernel_descriptor", {
+                {"kernel_id", configured_kernel_descriptor_.kernel_id},
+                {"function_name", configured_kernel_descriptor_.function_name},
+                {"source_kind", SourceKindToString(configured_kernel_descriptor_.source_kind)},
+                {"arg_count", configured_kernel_descriptor_.arg_layout.size()},
+            }},
+        };
+        return graph::JsonView(params);
+    }
+
+    [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
+        static thread_local nlohmann::json desc;
+        if (param_name == "queue_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Optional command queue id. 0 means node-owned queue."}};
+        } else if (param_name == "device_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Target Metal device id for output allocation and kernel execution."}};
+        } else if (param_name == "kernel_id") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Kernel registration id for device kernel operation."}};
+        } else if (param_name == "kernel_name") {
+            desc = {{"type", "string"}, {"required", false},
+                    {"description", "Kernel function name for device kernel operation."}};
+        } else if (param_name == "kernel_descriptor") {
+            desc = {{"type", "object"}, {"required", false},
+                    {"description", "Typed kernel descriptor with source, dispatch and argument layout."}};
+        } else if (param_name == "output_bytes") {
+            desc = {{"type", "integer"}, {"required", false},
+                    {"description", "Output allocation size in bytes. 0 reuses input byte size."}};
+        } else {
+            desc = nlohmann::json::object();
+        }
+        return graph::JsonView(desc);
+    }
+
+    [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+        return {"queue_id", "device_id", "kernel_id", "kernel_name", "kernel_descriptor", "output_bytes"};
+    }
+
+    void SetOutputBytes(std::uint64_t output_bytes) noexcept {
+        configured_output_bytes_ = output_bytes;
+    }
+
+    [[nodiscard]] const accel::BufferLease& last_output_lease() const noexcept {
+        return last_output_lease_;
+    }
+
+    [[nodiscard]] const accel::KernelTicket& last_kernel_ticket() const noexcept {
+        return last_kernel_ticket_;
+    }
+
+private:
+    static constexpr std::uint32_t DefaultArgCount() noexcept {
+        return 2;
+    }
+
+    static void ApplyFallbackLaunchDefaults(accel::KernelLaunchConfig& launch) {
+        launch.grid_x = 1;
+        launch.grid_y = 1;
+        launch.grid_z = 1;
+        launch.block_x = 1;
+        launch.block_y = 1;
+        launch.block_z = 1;
+    }
+
+    static const char* SourceKindToString(capabilities::MetalKernelSourceKind source_kind) noexcept {
+        switch (source_kind) {
+            case capabilities::MetalKernelSourceKind::Builtin:
+                return "builtin";
+            case capabilities::MetalKernelSourceKind::InlineSource:
+                return "inline_source";
+            case capabilities::MetalKernelSourceKind::MetallibPath:
+                return "metallib_path";
+        }
+        return "builtin";
+    }
+
+    bool PopulateRegisteredKernelExecution(accel::KernelTicket& ticket) const {
+        if (!kernel_) {
+            return false;
+        }
+
+        capabilities::IMetalKernelCapability::RegisteredKernelExecution execution{};
+        if (!kernel_->TryGetRegisteredKernelExecution(ticket.kernel_id, execution)) {
+            return false;
+        }
+
+        ticket.launch = execution.dispatch;
+        if (execution.arg_count != 0) {
+            ticket.arg_count = execution.arg_count;
+        }
+        return true;
+    }
+
+    std::shared_ptr<capabilities::IMetalContextCapability> context_;
+    std::shared_ptr<capabilities::IMetalSharedQueueCapability> shared_queue_;
+    std::shared_ptr<capabilities::IMetalMemoryPoolCapability> memory_pool_;
+    std::shared_ptr<capabilities::IMetalKernelCapability> kernel_;
+    std::shared_ptr<capabilities::IMetalKernelDescriptorCapability> kernel_descriptor_capability_;
+    std::shared_ptr<capabilities::IMetalTelemetryCapability> telemetry_;
+    std::uint64_t queue_id_{0};
+    std::uint32_t device_id_{0};
+    bool owns_queue_{false};
+    accel::KernelTicket kernel_ticket_{};
+    std::uint64_t configured_kernel_id_{0};
+    std::string configured_kernel_name_{};
+    capabilities::MetalKernelDescriptor configured_kernel_descriptor_{};
+    std::uint32_t configured_device_id_{0};
+    std::uint64_t configured_queue_id_{0};
+    std::uint64_t configured_output_bytes_{0};
+    std::optional<accel::DataType> configured_output_dtype_{};
+    std::optional<accel::TensorLayout> configured_output_layout_{};
+    bool has_typed_kernel_descriptor_{false};
+    bool has_pending_kernel_configuration_{false};
+    std::uint64_t kernel_sequence_{0};
+    accel::BufferLease last_output_lease_{};
+    accel::KernelTicket last_kernel_ticket_{};
+};
+
+} // namespace graph::gpu::metal::nodes

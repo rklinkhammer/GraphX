@@ -8,6 +8,7 @@
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
 #include "gpu/metal/nodes/CollectiveReduceNodeMetal.hpp"
+#include "gpu/metal/nodes/DeviceKernelNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceReduceNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceShardNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceTransformNodeMetal.hpp"
@@ -179,6 +180,67 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
                                                      std::integral_constant<std::size_t, 0>{},
                                                      std::integral_constant<std::size_t, 0>{});
     EXPECT_FALSE(collectively_reduced.has_value());
+}
+
+TEST(GpuMetalNodeBaseline, DeviceKernelNodeAllocatesConfiguredOutputAndLaunchesDescriptor) {
+    graph::CapabilityBus bus;
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+
+    graph::gpu::metal::nodes::DeviceKernelNodeMetal device_kernel;
+    ASSERT_TRUE(device_kernel.BindGpuCapabilities(bus));
+
+    graph::gpu::metal::capabilities::MetalKernelDescriptor descriptor{};
+    descriptor.kernel_id = 81U;
+    descriptor.function_name = "graphx_test_device_kernel";
+    descriptor.source_kind = graph::gpu::metal::capabilities::MetalKernelSourceKind::Builtin;
+    descriptor.arg_layout = {
+        graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
+            graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
+            graph::gpu::metal::capabilities::MetalKernelArgAccess::ReadOnly},
+        graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
+            graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
+            graph::gpu::metal::capabilities::MetalKernelArgAccess::WriteOnly},
+    };
+    descriptor.dispatch.default_grid_x = 16U;
+    descriptor.dispatch.default_block_x = 1U;
+    device_kernel.ConfigureKernelDescriptor(descriptor, 0U, 3U);
+    device_kernel.SetOutputBytes(64U);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
+    auto input = input_lease.device_view;
+    input.backend = graph::gpu::accel::BackendKind::Metal;
+    input.dtype = graph::gpu::accel::DataType::UInt8;
+    input.layout.rank = 1;
+    input.layout.shape[0] = 128;
+    input.layout.stride[0] = 1;
+    input.device_id = 0;
+    input.execution_queue_id = 3U;
+    input.ready_event = 11U;
+
+    auto output = device_kernel.Transfer(input,
+                                         std::integral_constant<std::size_t, 0>{},
+                                         std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_EQ(output->backend, graph::gpu::accel::BackendKind::Metal);
+    EXPECT_EQ(output->bytes, 64U);
+    EXPECT_EQ(output->execution_queue_id, 3U);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(*output));
+    EXPECT_TRUE(graph::gpu::accel::IsValidLease(device_kernel.last_output_lease()));
+    EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(device_kernel.last_kernel_ticket()));
+    EXPECT_EQ(device_kernel.last_kernel_ticket().kernel_id, 81U);
+    EXPECT_EQ(device_kernel.last_kernel_ticket().arg_count, 2U);
+    EXPECT_EQ(device_kernel.last_kernel_ticket().launch.grid_x, 16U);
+    EXPECT_EQ(telemetry->KernelSamples(), 1U);
 }
 
 TEST(GpuMetalNodeBaseline, DeviceShardNodeCopiesSelectedShardSliceAndUpdatesShape) {

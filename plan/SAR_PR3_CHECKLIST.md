@@ -28,6 +28,7 @@ Status:
 - Trace schema now emits range-stage/native flags and timing telemetry fields.
 - Current SAR graph-processing direction uses accel-token edge contracts (`HostPinnedBufferView`, `DeviceBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`) with SAR metadata sidecars.
 - Historical SAR payload messages are compatibility/wrapper vocabulary only and should not be used as native PR3 transfer/kernel edge contracts.
+- Added general `DeviceKernelNodeMetal` as the preferred libgpu boundary for one device input tile -> one device output tile SAR kernels. Remaining SAR work is kernel descriptor/source plus SAR sidecar adapter/parity tests.
 
 ## Validation Matrix
 

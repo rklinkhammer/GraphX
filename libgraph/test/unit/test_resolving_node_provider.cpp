@@ -110,6 +110,20 @@ TEST(ResolvingNodeProviderTest, ResolvesGenericDeviceTransformToMetalVariant) {
     EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
 }
 
+TEST(ResolvingNodeProviderTest, ResolvesGenericDeviceKernelToMetalVariant) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"DeviceKernelNodeMetal"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal"));
+
+    const auto resolved = provider.ResolveNodeType("DeviceKernelNode");
+
+    ASSERT_TRUE(resolved);
+    EXPECT_EQ(resolved->concrete_type, "DeviceKernelNodeMetal");
+    EXPECT_EQ(resolved->selected_backend, "metal");
+    EXPECT_EQ(resolved->input_token_type, "DeviceBufferView");
+    EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
+}
+
 TEST(ResolvingNodeProviderTest, ResolvesSyclD2HVariantWhenRequested) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"D2HAsyncNodeSycl"});

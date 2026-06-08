@@ -521,13 +521,14 @@ From `libgpu/plugins/metal_*.cpp` and `libgpu/include/gpu/metal/nodes/*.hpp`:
 2. `H2DAsyncNodeMetal` (`HostPinnedBufferView -> DeviceBufferView`)
 3. `DeviceShardNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
 4. `DeviceTransformNodeMetal` (`DeviceBufferView -> DeviceBufferView`, kernel descriptor driven)
-5. `DeviceReduceNodeMetal` (`DeviceBufferView -> DeviceBufferView`, kernel descriptor driven)
-6. `D2HAsyncNodeMetal` (`DeviceBufferView -> HostPinnedBufferView`)
-7. `HostEgressSinkNodeMetal` (sink, consumes `HostPinnedBufferView`)
-8. `QueueSyncNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
-9. `LeaseReleaseNodeMetal` (sink, consumes `accel::BufferLease`)
-10. `PeerCopyNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
-11. `CollectiveReduceNodeMetal` (present but runtime marked unsupported)
+5. `DeviceKernelNodeMetal` (`DeviceBufferView -> DeviceBufferView`, descriptor-driven input/output kernel boundary)
+6. `DeviceReduceNodeMetal` (`DeviceBufferView -> DeviceBufferView`, kernel descriptor driven)
+7. `D2HAsyncNodeMetal` (`DeviceBufferView -> HostPinnedBufferView`)
+8. `HostEgressSinkNodeMetal` (sink, consumes `HostPinnedBufferView`)
+9. `QueueSyncNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
+10. `LeaseReleaseNodeMetal` (sink, consumes `accel::BufferLease`)
+11. `PeerCopyNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
+12. `CollectiveReduceNodeMetal` (present but runtime marked unsupported)
 
 ### Post-conversion contract summary
 
@@ -552,7 +553,7 @@ Remaining blockers are no longer raw edge type mismatch. They are resolver polic
 | Range window/compression | `RangeWindowNode` / `RangeCompressionNode` (host token -> host/range token) | `DeviceTransformNodeMetal` (kernel) | Partial | Need SAR range-window/compression kernel descriptors and host/device staging policy |
 | Tile split/fanout | `AzimuthTileSplitNode` (token + tile sidecar fan-out) | `DeviceShardNodeMetal` | Partial | `DeviceShardNodeMetal` shards bytes; SAR split also owns tile identity and aperture semantics |
 | H2D boundary | `H2DAsyncNode` (`HostPinnedBufferView` -> `DeviceBufferView`) | `H2DAsyncNodeMetal` | Yes, with resolver | Must preserve SAR sidecar and emit resolved concrete node diagnostics |
-| Backprojection kernel | `SarBackprojectionTransformNode` (`DeviceBufferView` -> `DeviceBufferView`) | `DeviceTransformNodeMetal` | Partial | Need SAR backprojection kernel descriptor, geometry parameter binding, and parity tests |
+| Backprojection kernel | `SarBackprojectionTransformNode` (`DeviceBufferView` -> `DeviceBufferView`) | `DeviceKernelNodeMetal` / `DeviceTransformNodeMetal` | Partial | Generic input/output Metal kernel boundary now exists; still need SAR backprojection kernel descriptor/source, geometry parameter binding, sidecar adapter, and parity tests |
 | D2H boundary | `D2HAsyncNode` (`DeviceBufferView` -> `HostPinnedBufferView`) | `D2HAsyncNodeMetal` | Yes, with resolver | Must preserve SAR sidecar and timing counters |
 | Tile merge | `ImageTileMergeNode` (host token + merge sidecars) | `DeviceReduceNodeMetal` (not semantic equivalent) | Partial/future | DeviceReduce may accelerate accumulation, but host merge still owns watermark/EOS/diagnostics semantics |
 | Diagnostics sink | `SarDiagnosticsSinkNode` (status/diagnostics sidecar) | `HostEgressSinkNodeMetal` | Partial | Need token lifecycle/trace export parity with SAR diagnostics |
@@ -578,7 +579,7 @@ The following kernel-level work is required for true SAR Metal execution path be
 3. `graphx_sar_backprojection_tile_f32` (core PR3 target): tile backprojection kernel with explicit geometry parameter contract.
 4. Optional merge-side kernels for future GPU merge/reduction acceleration (`graphx_sar_tile_accumulate_*`) if merge leaves host path.
 
-Important: this can be implemented either as new SAR-specialized Metal node wrappers or by reusing `DeviceTransformNodeMetal`/`DeviceReduceNodeMetal` plus new kernel descriptors and SAR adapter nodes.
+Important: this can be implemented either as new SAR-specialized Metal node wrappers or by reusing `DeviceKernelNodeMetal`/`DeviceTransformNodeMetal`/`DeviceReduceNodeMetal` plus new kernel descriptors and SAR adapter nodes. Prefer `DeviceKernelNodeMetal` for SAR backprojection because it explicitly models one input device tile and one allocated output device tile.
 
 ### New node/adaptor work items needed (non-kernel)
 
@@ -586,7 +587,7 @@ The selected direction is accel-token graph edges with SAR metadata sidecars. Ad
 
 Required non-kernel work:
 
-1. Preserve SAR sidecars through H2D/D2H/transform/reduce resolver substitution.
+1. Preserve SAR sidecars through H2D/D2H/kernel/transform/reduce resolver substitution.
 2. Validate topology schemas reject legacy payload-envelope edges in PR3 native/resolved presets unless an explicit compatibility adapter is present.
 3. Emit graph-build diagnostics for generic intent -> concrete backend variant resolution.
 4. Include lease release/lifecycle integration where `LeaseReleaseNodeMetal` or equivalent backend capability is selected.

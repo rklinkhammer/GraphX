@@ -60,6 +60,16 @@ const std::map<std::string, IntentContract>& IntentContracts() {
             },
         },
         {
+            "DeviceKernelNode",
+            IntentContract{
+                .input_token_type = "DeviceBufferView",
+                .output_token_type = "DeviceBufferView",
+                .variants = {
+                    {"metal", "DeviceKernelNodeMetal"},
+                },
+            },
+        },
+        {
             "DeviceReduceNode",
             IntentContract{
                 .input_token_type = "DeviceBufferView",

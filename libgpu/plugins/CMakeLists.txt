@@ -196,6 +196,17 @@ target_include_directories(metal_device_transform_node PRIVATE
 )
 
 add_graphx_plugin(
+	TARGET_NAME metal_device_kernel_node
+	SOURCE_FILE metal_device_kernel_node_plugin.cpp
+	DESCRIPTION "Metal descriptor-driven device kernel node"
+	DEPENDENCIES gpu
+)
+target_include_directories(metal_device_kernel_node PRIVATE
+	${CMAKE_SOURCE_DIR}/libgpu/include
+	${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
 	TARGET_NAME metal_device_reduce_node
 	SOURCE_FILE metal_device_reduce_node_plugin.cpp
 	DESCRIPTION "Metal device reduce node"
