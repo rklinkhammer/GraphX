@@ -59,6 +59,23 @@ TEST(ResolvingNodeProviderTest, ResolvesMetalH2DVariantWhenAvailable) {
     EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
 }
 
+TEST(ResolvingNodeProviderTest, AutoBackendPrefersMetalWhenAvailable) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"H2DAsyncNode", "H2DAsyncNodeMetal"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("auto"));
+
+    const auto resolved = provider.ResolveNodeType("H2DAsyncNode");
+
+    ASSERT_TRUE(resolved);
+    EXPECT_EQ(resolved->intent_type, "H2DAsyncNode");
+    EXPECT_EQ(resolved->concrete_type, "H2DAsyncNodeMetal");
+    EXPECT_EQ(resolved->selected_backend, "metal");
+    EXPECT_FALSE(resolved->fallback_used);
+    EXPECT_EQ(resolved->fallback_reason, "");
+    EXPECT_EQ(resolved->input_token_type, "HostPinnedBufferView");
+    EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
+}
+
 TEST(ResolvingNodeProviderTest, FallsBackToGenericStubWhenRequestedVariantUnavailable) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"H2DAsyncNode"});
@@ -71,6 +88,24 @@ TEST(ResolvingNodeProviderTest, FallsBackToGenericStubWhenRequestedVariantUnavai
     EXPECT_EQ(resolved->selected_backend, "stub");
     EXPECT_TRUE(resolved->fallback_used);
     EXPECT_EQ(resolved->fallback_reason, "requested-backend-unavailable");
+}
+
+TEST(ResolvingNodeProviderTest, CreateNodeExpectedRecordsResolutionDiagnostics) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"H2DAsyncNode", "H2DAsyncNodeMetal"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("auto"));
+
+    const auto created = provider.CreateNodeExpected("H2DAsyncNode");
+    EXPECT_FALSE(created.has_value());
+
+    ASSERT_EQ(provider.diagnostics().size(), 1u);
+    const auto& diagnostic = provider.diagnostics().front();
+    EXPECT_EQ(diagnostic.intent_type, "H2DAsyncNode");
+    EXPECT_EQ(diagnostic.concrete_type, "H2DAsyncNodeMetal");
+    EXPECT_EQ(diagnostic.selected_backend, "metal");
+    EXPECT_EQ(diagnostic.input_token_type, "HostPinnedBufferView");
+    EXPECT_EQ(diagnostic.output_token_type, "DeviceBufferView");
+    EXPECT_FALSE(diagnostic.fallback_used);
 }
 
 TEST(ResolvingNodeProviderTest, StrictRequestedBackendRejectsFallbackOnlyIntent) {

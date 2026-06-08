@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 namespace {
 
@@ -107,6 +108,49 @@ TEST(SarVisualizationSinkNodeTest, DisabledModeDoesNotWriteArtifacts) {
     ASSERT_TRUE(out.has_value());
     EXPECT_EQ(node.artifact_count(), 0u);
     EXPECT_FALSE(std::filesystem::exists(output_dir / "tile_seq1_tile0.csv"));
+
+    std::filesystem::remove_all(output_dir);
+}
+
+TEST(SarVisualizationSinkNodeTest, ArtifactOutputIsDeterministicForRepeatedInputs) {
+    const auto output_dir =
+        std::filesystem::temp_directory_path() / "graphx_sar_viz_test_deterministic";
+    std::filesystem::remove_all(output_dir);
+
+    sar::SarVisualizationSinkNode node;
+    nlohmann::json cfg_json = {
+        {"enabled", true},
+        {"output_dir", output_dir.string()},
+        {"format", "csv"},
+        {"normalize", false},
+        {"file_prefix", "tile"},
+    };
+    node.Configure(graph::JsonView(cfg_json));
+
+    const auto msg = MakeView(9, 3, sar::SarFrameMarker::Data, 8u, 1u);
+
+    auto first = node.Transfer(
+        msg,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(first.has_value());
+
+    auto second = node.Transfer(
+        msg,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(second.has_value());
+
+    EXPECT_EQ(node.artifact_count(), 2u);
+
+    const auto output_path = output_dir / "tile_seq9_tile3.csv";
+    ASSERT_TRUE(std::filesystem::exists(output_path));
+
+    std::ifstream in(output_path);
+    ASSERT_TRUE(in.is_open());
+    std::ostringstream contents;
+    contents << in.rdbuf();
+    EXPECT_EQ(contents.str(), "0,1\n");
 
     std::filesystem::remove_all(output_dir);
 }

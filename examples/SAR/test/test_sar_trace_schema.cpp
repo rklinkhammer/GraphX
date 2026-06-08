@@ -118,6 +118,13 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_GT(cost_buckets.at("kernel_dispatches").get<std::uint64_t>(), 0u);
     EXPECT_EQ(cost_buckets.at("matched_filter_vector_length").get<std::uint32_t>(), 16u);
 
+    ASSERT_TRUE(trace.contains("overhead_ms"));
+    const auto& overhead_ms = trace.at("overhead_ms");
+    EXPECT_TRUE(overhead_ms.contains("graph_run_minus_baseline_median"));
+    EXPECT_TRUE(overhead_ms.contains("lifecycle_join_last"));
+    EXPECT_GE(overhead_ms.at("graph_run_minus_baseline_median").get<double>(), 0.0);
+    EXPECT_GE(overhead_ms.at("lifecycle_join_last").get<double>(), 0.0);
+
     ASSERT_TRUE(trace.contains("pr5_accuracy_fidelity"));
     const auto& pr5 = trace.at("pr5_accuracy_fidelity");
     ASSERT_TRUE(pr5.contains("matched_filter_reference"));

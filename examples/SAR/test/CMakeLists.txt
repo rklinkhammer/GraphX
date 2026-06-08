@@ -30,6 +30,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr3_metal_json.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_token_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp

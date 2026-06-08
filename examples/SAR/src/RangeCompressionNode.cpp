@@ -218,6 +218,14 @@ void RangeCompressionNode::Configure(const graph::JsonView& cfg) {
         config.range_spacing_m = value.value();
     }
 
+    if (config.mode == RangeCompressionMode::MatchedFilter) {
+        if (!cfg.Contains("sample_rate_hz") || !cfg.Contains("bandwidth_hz") ||
+            !cfg.Contains("chirp_duration_s") || !cfg.Contains("range_spacing_m")) {
+            throw graph::ConfigError(
+                "matched_filter mode requires sample_rate_hz, bandwidth_hz, chirp_duration_s, and range_spacing_m");
+        }
+    }
+
     SetConfig(config);
 }
 

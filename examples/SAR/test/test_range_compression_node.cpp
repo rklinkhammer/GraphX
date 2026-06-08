@@ -187,6 +187,43 @@ TEST(RangeCompressionNodeTest, ConfigureEnablesMatchedFilterModeFromJson) {
     EXPECT_DOUBLE_EQ(cfg.bandwidth_hz, 4000000.0);
 }
 
+TEST(RangeCompressionNodeTest, ConfigureRejectsIncompleteMatchedFilterModeFromJson) {
+    sar::RangeCompressionNode node;
+    nlohmann::json cfg_json = {
+        {"enabled", true},
+        {"mode", "matched_filter"},
+        {"gain", 1.0},
+    };
+
+    EXPECT_THROW(node.Configure(graph::JsonView(cfg_json)), graph::ConfigError);
+}
+
+TEST(RangeCompressionNodeTest, DefaultModeRemainsFftMagnitudeWhenModeIsOmitted) {
+    sar::RangeCompressionNode node;
+    nlohmann::json cfg_json = {
+        {"enabled", true},
+        {"gain", 1.0},
+        {"sample_rate_hz", 48000.0},
+    };
+
+    node.Configure(graph::JsonView(cfg_json));
+
+    const auto& cfg = node.GetConfig();
+    EXPECT_EQ(cfg.mode, sar::RangeCompressionMode::FftMagnitude);
+    EXPECT_EQ(cfg.output, sar::RangeCompressionOutput::Magnitude);
+
+    const auto input = MakePulse(256u);
+    auto out = node.Transfer(
+        input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(out.has_value());
+    ASSERT_EQ(out->iq_samples.size(), input.iq_samples.size());
+    EXPECT_EQ(out->iq_samples[0].imag(), 0.0f);
+    EXPECT_GE(out->iq_samples[0].real(), 0.0f);
+}
+
 TEST(RangeCompressionNodeTest, DynamicPluginLoadAndBehaviorValidation) {
     auto registry = std::make_shared<graph::PluginRegistry>();
     graph::PluginLoader loader(PLUGIN_OUTPUT_DIRECTORY, registry);

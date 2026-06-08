@@ -3,6 +3,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "sar/RangeCompressionNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <chrono>
@@ -31,6 +32,27 @@ std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
             continue;
         }
         return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<sar::RangeCompressionNode> ResolveRangeCompressionNode(
+    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    const auto nodes = graph_manager->GetNodes();
+    for (const auto& node : nodes) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+        if (wrapper->GetType() != "RangeCompressionNode") {
+            continue;
+        }
+        return wrapper->GetNode<sar::RangeCompressionNode>();
     }
 
     return nullptr;
@@ -213,7 +235,28 @@ TEST(SarPr3MetalJsonTest, MetalFanoutPresetUsesAccelTokenResolverMetadata) {
 }
 
 TEST(SarPr3MetalJsonTest, ExecutesPr6MatchedFilterPipeline) {
-    ValidateMetalSarConfig(std::filesystem::path{SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH});
+    const std::filesystem::path config_path{SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH};
+    ValidateMetalSarConfig(config_path);
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(10))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr);
+    ASSERT_NE(executor->GetGraphManager(), nullptr);
+
+    auto compression = ResolveRangeCompressionNode(executor->GetGraphManager());
+    ASSERT_NE(compression, nullptr);
+    EXPECT_EQ(compression->GetConfig().mode, sar::RangeCompressionMode::MatchedFilter);
+    EXPECT_EQ(compression->GetConfig().output, sar::RangeCompressionOutput::Magnitude);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 }
 
 TEST(SarPr3MetalJsonTest, Pr6MatchedFilterPresetUsesAccelTokenResolverMetadata) {
