@@ -50,6 +50,27 @@ struct ErrorMetrics {
     double relative_l2{};
 };
 
+struct ChirpReferenceConfig {
+    std::uint32_t sample_count{16};
+    double sample_rate_hz{16.0e6};
+    double bandwidth_hz{4.0e6};
+    double chirp_duration_s{1.0e-6};
+    double carrier_hz{9.6e9};
+    double range_origin_m{0.0};
+    double range_spacing_m{0.25};
+    double wavelength_m{0.03};
+};
+
+struct ImageQualityMetrics {
+    PeakMetric peak{};
+    double peak_location_error_pixels{};
+    double impulse_response_width_pixels{};
+    double peak_sidelobe_ratio_db{};
+    double integrated_sidelobe_ratio_db{};
+    double dynamic_range_db{};
+    std::uint64_t image_hash{};
+};
+
 struct BackprojectionAdapterConfig {
     std::uint32_t tap_count{8};
     double delay_step{0.5};
@@ -226,6 +247,95 @@ inline ErrorMetrics CompareImages(const Image& actual, const Image& expected) {
     };
 }
 
+inline void ValidateChirpReferenceConfig(const ChirpReferenceConfig& config) {
+    if (config.sample_count == 0) {
+        throw std::invalid_argument("SAR chirp reference sample count must be non-zero");
+    }
+    if (config.sample_rate_hz <= 0.0 || config.bandwidth_hz <= 0.0 ||
+        config.chirp_duration_s <= 0.0 || config.range_spacing_m <= 0.0 ||
+        config.wavelength_m <= 0.0) {
+        throw std::invalid_argument("SAR chirp reference frequency, duration, spacing, and wavelength must be positive");
+    }
+}
+
+inline std::vector<std::complex<double>> GenerateLinearFmChirp(
+    const ChirpReferenceConfig& config) {
+    ValidateChirpReferenceConfig(config);
+
+    constexpr double kPi = 3.141592653589793238462643383279502884;
+    const double chirp_rate = config.bandwidth_hz / config.chirp_duration_s;
+    const double center_time = 0.5 * config.chirp_duration_s;
+
+    std::vector<std::complex<double>> chirp(config.sample_count);
+    for (std::uint32_t i = 0; i < config.sample_count; ++i) {
+        const double t = static_cast<double>(i) / config.sample_rate_hz;
+        const double centered_t = t - center_time;
+        const double phase_rad = kPi * chirp_rate * centered_t * centered_t;
+        chirp[i] = {std::cos(phase_rad), std::sin(phase_rad)};
+    }
+    return chirp;
+}
+
+inline std::vector<std::complex<double>> GenerateDelayedEcho(
+    const std::vector<std::complex<double>>& reference_chirp,
+    std::uint32_t delay_samples,
+    double reflectivity = 1.0) {
+    if (reference_chirp.empty()) {
+        throw std::invalid_argument("SAR delayed echo reference chirp must be non-empty");
+    }
+
+    std::vector<std::complex<double>> echo(reference_chirp.size(), {0.0, 0.0});
+    for (std::size_t i = 0; i < reference_chirp.size(); ++i) {
+        const auto out_index = i + delay_samples;
+        if (out_index >= echo.size()) {
+            break;
+        }
+        echo[out_index] += reference_chirp[i] * reflectivity;
+    }
+    return echo;
+}
+
+inline std::vector<std::complex<double>> MatchedFilterRangeCompress(
+    const std::vector<std::complex<double>>& received,
+    const std::vector<std::complex<double>>& reference_chirp) {
+    if (received.empty() || reference_chirp.empty()) {
+        throw std::invalid_argument("SAR matched filter inputs must be non-empty");
+    }
+    if (received.size() != reference_chirp.size()) {
+        throw std::invalid_argument("SAR matched filter inputs must have matching sample counts");
+    }
+
+    std::vector<std::complex<double>> compressed(received.size(), {0.0, 0.0});
+    for (std::size_t delay = 0; delay < received.size(); ++delay) {
+        std::complex<double> accum{0.0, 0.0};
+        for (std::size_t i = 0; i + delay < received.size(); ++i) {
+            accum += received[i + delay] * std::conj(reference_chirp[i]);
+        }
+        compressed[delay] = accum;
+    }
+    return compressed;
+}
+
+inline Image MagnitudeImage(std::uint32_t width,
+                            std::uint32_t height,
+                            const std::vector<std::complex<double>>& samples) {
+    if (width == 0 || height == 0) {
+        throw std::invalid_argument("SAR magnitude image dimensions must be non-zero");
+    }
+    if (samples.size() != static_cast<std::size_t>(width) * height) {
+        throw std::invalid_argument("SAR magnitude image sample count must match dimensions");
+    }
+
+    Image image{};
+    image.width = width;
+    image.height = height;
+    image.pixels.reserve(samples.size());
+    for (const auto& sample : samples) {
+        image.pixels.push_back(static_cast<float>(std::abs(sample)));
+    }
+    return image;
+}
+
 inline std::vector<float> RunBackprojectionAdapterReference(
     const std::vector<float>& range_tile,
     const BackprojectionAdapterConfig& config) {
@@ -308,6 +418,74 @@ inline std::uint64_t QuantizedImageHash(const Image& image, double scale = 1.0e6
         mix(static_cast<std::uint64_t>(quantized));
     }
     return hash;
+}
+
+inline ImageQualityMetrics MeasureImageQuality(const Image& image,
+                                               std::uint32_t expected_peak_x,
+                                               std::uint32_t expected_peak_y) {
+    if (image.width == 0 || image.height == 0 || image.pixels.empty()) {
+        throw std::invalid_argument("SAR image quality metrics require a non-empty image");
+    }
+    if (expected_peak_x >= image.width || expected_peak_y >= image.height) {
+        throw std::invalid_argument("SAR expected peak location must be inside the image");
+    }
+
+    constexpr double kEpsilon = 1.0e-12;
+    const auto peak = FindPeak(image);
+    const double dx = static_cast<double>(peak.x) - static_cast<double>(expected_peak_x);
+    const double dy = static_cast<double>(peak.y) - static_cast<double>(expected_peak_y);
+
+    double max_sidelobe = 0.0;
+    double sidelobe_energy = 0.0;
+    double mainlobe_energy = 0.0;
+    float min_positive = std::numeric_limits<float>::max();
+    for (std::uint32_t y = 0; y < image.height; ++y) {
+        for (std::uint32_t x = 0; x < image.width; ++x) {
+            const auto index = static_cast<std::size_t>(y) * image.width + x;
+            const double value = static_cast<double>(image.pixels[index]);
+            const double energy = value * value;
+            const bool in_mainlobe =
+                std::abs(static_cast<int>(x) - static_cast<int>(peak.x)) <= 1 &&
+                std::abs(static_cast<int>(y) - static_cast<int>(peak.y)) <= 1;
+            if (in_mainlobe) {
+                mainlobe_energy += energy;
+            } else {
+                max_sidelobe = std::max(max_sidelobe, std::abs(value));
+                sidelobe_energy += energy;
+            }
+            if (image.pixels[index] > 0.0f) {
+                min_positive = std::min(min_positive, image.pixels[index]);
+            }
+        }
+    }
+
+    std::uint32_t response_width = 0;
+    const double half_power = static_cast<double>(peak.value) * 0.5;
+    const auto peak_row_offset = static_cast<std::size_t>(peak.y) * image.width;
+    for (std::uint32_t x = 0; x < image.width; ++x) {
+        if (static_cast<double>(image.pixels[peak_row_offset + x]) >= half_power) {
+            ++response_width;
+        }
+    }
+
+    const double peak_value = std::max(static_cast<double>(peak.value), kEpsilon);
+    const double pslr = 20.0 * std::log10(std::max(max_sidelobe, kEpsilon) / peak_value);
+    const double islr = 10.0 * std::log10(
+        std::max(sidelobe_energy, kEpsilon) / std::max(mainlobe_energy, kEpsilon));
+    const double min_value = min_positive == std::numeric_limits<float>::max()
+                                 ? kEpsilon
+                                 : static_cast<double>(min_positive);
+    const double dynamic_range = 20.0 * std::log10(peak_value / std::max(min_value, kEpsilon));
+
+    return ImageQualityMetrics{
+        .peak = peak,
+        .peak_location_error_pixels = std::sqrt((dx * dx) + (dy * dy)),
+        .impulse_response_width_pixels = static_cast<double>(response_width),
+        .peak_sidelobe_ratio_db = pslr,
+        .integrated_sidelobe_ratio_db = islr,
+        .dynamic_range_db = dynamic_range,
+        .image_hash = QuantizedImageHash(image),
+    };
 }
 
 } // namespace sar::reference

@@ -2,6 +2,8 @@
 
 #include "sar/SarCpuReference.hpp"
 
+#include <cmath>
+#include <complex>
 #include <cstdint>
 #include <vector>
 
@@ -87,6 +89,77 @@ TEST(SarCpuReferenceTest, ImageComparisonReportsParityMetrics) {
     EXPECT_NEAR(perturbed.l_inf, 0.125, 1.0e-12);
     EXPECT_GT(perturbed.rms, 0.0);
     EXPECT_GT(perturbed.relative_l2, 0.0);
+}
+
+TEST(SarCpuReferenceTest, MatchedFilterKnownVectorFindsDelayedEcho) {
+    sar::reference::ChirpReferenceConfig cfg{};
+    cfg.sample_count = 16;
+    cfg.sample_rate_hz = 16.0e6;
+    cfg.bandwidth_hz = 4.0e6;
+    cfg.chirp_duration_s = 1.0e-6;
+    cfg.range_origin_m = 0.0;
+    cfg.range_spacing_m = 0.25;
+
+    const auto chirp = sar::reference::GenerateLinearFmChirp(cfg);
+    const auto echo = sar::reference::GenerateDelayedEcho(chirp, 3u, 0.75);
+    const auto compressed = sar::reference::MatchedFilterRangeCompress(echo, chirp);
+    const auto image = sar::reference::MagnitudeImage(16u, 1u, compressed);
+    const auto metrics = sar::reference::MeasureImageQuality(image, 3u, 0u);
+
+    EXPECT_EQ(metrics.peak.x, 3u);
+    EXPECT_EQ(metrics.peak.y, 0u);
+    EXPECT_NEAR(metrics.peak.value, 9.75f, 1.0e-5f);
+    EXPECT_DOUBLE_EQ(metrics.peak_location_error_pixels, 0.0);
+    EXPECT_GE(metrics.dynamic_range_db, 15.0);
+    EXPECT_LT(metrics.peak_sidelobe_ratio_db, 0.0);
+    EXPECT_NE(metrics.image_hash, 0u);
+}
+
+TEST(SarCpuReferenceTest, ImageQualityMetricsTrackOffGridPointTarget) {
+    const auto geometry = TinyPointTargetGeometry();
+    const sar::reference::PointTarget target{
+        .x_m = 0.25,
+        .y_m = 0.0,
+        .reflectivity = 1.0,
+    };
+
+    const auto phase_history = sar::reference::GeneratePointTargetPhaseHistory(geometry, target);
+    const auto image = sar::reference::BackprojectNearestRange(geometry, phase_history);
+    const auto metrics = sar::reference::MeasureImageQuality(image, 4u, 4u);
+
+    EXPECT_LE(metrics.peak_location_error_pixels, 1.0);
+    EXPECT_GT(metrics.peak.value, 0.25f);
+    EXPECT_GE(metrics.impulse_response_width_pixels, 1.0);
+    EXPECT_NE(metrics.image_hash, 0u);
+}
+
+TEST(SarCpuReferenceTest, TwoPointTargetFixtureHasStableRelativePeaks) {
+    const auto geometry = TinyPointTargetGeometry();
+    const std::vector<sar::reference::PointTarget> targets{
+        sar::reference::PointTarget{.x_m = 0.0, .y_m = 0.0, .reflectivity = 1.0},
+        sar::reference::PointTarget{.x_m = 1.0, .y_m = 0.0, .reflectivity = 0.5},
+    };
+
+    std::vector<std::complex<double>> phase_history(
+        static_cast<std::size_t>(geometry.pulse_count) * geometry.range_bin_count,
+        {0.0, 0.0});
+    for (const auto& target : targets) {
+        const auto target_history =
+            sar::reference::GeneratePointTargetPhaseHistory(geometry, target);
+        ASSERT_EQ(target_history.size(), phase_history.size());
+        for (std::size_t i = 0; i < phase_history.size(); ++i) {
+            phase_history[i] += target_history[i];
+        }
+    }
+
+    const auto image = sar::reference::BackprojectNearestRange(geometry, phase_history);
+    const auto metrics = sar::reference::MeasureImageQuality(image, 4u, 4u);
+
+    EXPECT_EQ(metrics.peak.x, 4u);
+    EXPECT_EQ(metrics.peak.y, 4u);
+    EXPECT_GT(metrics.peak.value, 1.0f);
+    EXPECT_LT(metrics.peak_sidelobe_ratio_db, 0.0);
+    EXPECT_NE(metrics.image_hash, 0u);
 }
 
 TEST(SarCpuReferenceTest, BackprojectionAdapterReferenceMatchesNativeMetalWhenAvailable) {

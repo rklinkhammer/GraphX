@@ -7,6 +7,7 @@
 #include "sar/RangeCompressionNode.hpp"
 #include "sar/RangeWindowNode.hpp"
 #include "sar/SarBackprojectionTransformNode.hpp"
+#include "sar/SarCpuReference.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
 
@@ -100,6 +101,22 @@ struct DeviceReduceEvaluation {
     BaselineRunResult last_prototype{};
     std::string decision{"not-evaluated"};
     std::string rationale{};
+};
+
+struct Pr5ReferenceMetrics {
+    double range_compression_reference_ms{0.0};
+    double image_metric_ms{0.0};
+    std::uint32_t matched_filter_vector_length{0};
+    std::uint32_t matched_filter_peak_bin{0};
+    float matched_filter_peak_value{0.0f};
+    double peak_location_error_pixels{0.0};
+    double impulse_response_width_pixels{0.0};
+    double peak_sidelobe_ratio_db{0.0};
+    double integrated_sidelobe_ratio_db{0.0};
+    double dynamic_range_db{0.0};
+    std::uint64_t image_hash{0};
+    double graph_direct_peak_delta_pixels{0.0};
+    double graph_direct_peak_value_delta{0.0};
 };
 
 sar::SarFrameMarker DecodeMarker(std::uint64_t token) {
@@ -416,6 +433,50 @@ BenchmarkStats ComputeStats(const std::vector<double>& samples_ms) {
     variance /= static_cast<double>(sorted.size());
     stats.stddev_ms = std::sqrt(variance);
     return stats;
+}
+
+Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
+    Pr5ReferenceMetrics out{};
+
+    sar::reference::ChirpReferenceConfig cfg{};
+    cfg.sample_count = 16;
+    cfg.sample_rate_hz = 16.0e6;
+    cfg.bandwidth_hz = 4.0e6;
+    cfg.chirp_duration_s = 1.0e-6;
+    cfg.range_origin_m = 0.0;
+    cfg.range_spacing_m = 0.25;
+
+    const auto chirp = sar::reference::GenerateLinearFmChirp(cfg);
+    const auto echo = sar::reference::GenerateDelayedEcho(chirp, 3u, 0.75);
+
+    const auto reference_start = Clock::now();
+    const auto compressed = sar::reference::MatchedFilterRangeCompress(echo, chirp);
+    const auto reference_end = Clock::now();
+
+    const auto metrics_start = Clock::now();
+    const auto image = sar::reference::MagnitudeImage(16u, 1u, compressed);
+    const auto metrics = sar::reference::MeasureImageQuality(image, 3u, 0u);
+    const auto metrics_end = Clock::now();
+
+    out.range_compression_reference_ms =
+        std::chrono::duration<double, std::milli>(reference_end - reference_start).count();
+    out.image_metric_ms =
+        std::chrono::duration<double, std::milli>(metrics_end - metrics_start).count();
+    out.matched_filter_vector_length = cfg.sample_count;
+    out.matched_filter_peak_bin = metrics.peak.x;
+    out.matched_filter_peak_value = metrics.peak.value;
+    out.peak_location_error_pixels = metrics.peak_location_error_pixels;
+    out.impulse_response_width_pixels = metrics.impulse_response_width_pixels;
+    out.peak_sidelobe_ratio_db = metrics.peak_sidelobe_ratio_db;
+    out.integrated_sidelobe_ratio_db = metrics.integrated_sidelobe_ratio_db;
+    out.dynamic_range_db = metrics.dynamic_range_db;
+    out.image_hash = metrics.image_hash;
+
+    // The current graph path reports diagnostics rather than image samples; keep the
+    // parity fields explicit and zero for the deterministic shared reference fixture.
+    out.graph_direct_peak_delta_pixels = 0.0;
+    out.graph_direct_peak_value_delta = 0.0;
+    return out;
 }
 
 GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
@@ -876,6 +937,7 @@ void PrintSummary(const BenchmarkProfile& profile,
                   const BenchmarkStats& baseline_exec,
                   const GraphRunResult& last_graph,
                   const DeviceReduceEvaluation& device_reduce_eval,
+                  const Pr5ReferenceMetrics& pr5_reference,
                   const BenchmarkOptions& options) {
     const double scheduling_overhead_ms =
         std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
@@ -941,6 +1003,13 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", kernel_dispatches=" << last_graph.diagnostics.kernel_dispatches
               << ", graph_overhead_ms=" << scheduling_overhead_ms
               << ", diagnostics_contract=sink-status\n";
+    std::cout << "- PR5 accuracy/fidelity: matched_filter_peak_bin="
+              << pr5_reference.matched_filter_peak_bin
+              << ", peak_error_px=" << pr5_reference.peak_location_error_pixels
+              << ", pslr_db=" << pr5_reference.peak_sidelobe_ratio_db
+              << ", islr_db=" << pr5_reference.integrated_sidelobe_ratio_db
+              << ", dynamic_range_db=" << pr5_reference.dynamic_range_db
+              << ", image_hash=" << pr5_reference.image_hash << "\n";
 
     if (device_reduce_eval.enabled) {
         std::cout << "\nDeviceReduce prototype evaluation:\n";
@@ -1029,7 +1098,8 @@ void WriteTraceJson(const std::filesystem::path& path,
                     const BenchmarkStats& graph_lifecycle,
                     const BenchmarkStats& baseline_exec,
                     const GraphRunResult& last_graph,
-                    const DeviceReduceEvaluation& device_reduce_eval) {
+                    const DeviceReduceEvaluation& device_reduce_eval,
+                    const Pr5ReferenceMetrics& pr5_reference) {
     const auto& profile = options.profile;
     const auto parent = path.parent_path();
     if (!parent.empty()) {
@@ -1145,6 +1215,35 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
                 {"graph_overhead_ms", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
                 {"diagnostics_contract", "sink-status"},
+                {"range_compression_reference_ms", pr5_reference.range_compression_reference_ms},
+                {"matched_filter_vector_length", pr5_reference.matched_filter_vector_length},
+                {"image_metric_ms", pr5_reference.image_metric_ms},
+                {"graph_direct_peak_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
+            }},
+        }},
+        {"pr5_accuracy_fidelity", {
+            {"matched_filter_reference", {
+                {"sample_rate_hz", 16.0e6},
+                {"bandwidth_hz", 4.0e6},
+                {"chirp_duration_s", 1.0e-6},
+                {"vector_length", pr5_reference.matched_filter_vector_length},
+                {"peak_bin", pr5_reference.matched_filter_peak_bin},
+                {"peak_value", pr5_reference.matched_filter_peak_value},
+                {"reference_time_ms", pr5_reference.range_compression_reference_ms},
+            }},
+            {"image_metrics", {
+                {"peak_location_error_pixels", pr5_reference.peak_location_error_pixels},
+                {"impulse_response_width_pixels", pr5_reference.impulse_response_width_pixels},
+                {"peak_sidelobe_ratio_db", pr5_reference.peak_sidelobe_ratio_db},
+                {"integrated_sidelobe_ratio_db", pr5_reference.integrated_sidelobe_ratio_db},
+                {"dynamic_range_db", pr5_reference.dynamic_range_db},
+                {"image_hash", pr5_reference.image_hash},
+                {"metric_time_ms", pr5_reference.image_metric_ms},
+            }},
+            {"graph_direct_metric_deltas", {
+                {"peak_location_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
+                {"peak_value_delta", pr5_reference.graph_direct_peak_value_delta},
+                {"basis", "deterministic CPU reference fixture; runtime graph currently emits diagnostics rather than image samples"},
             }},
         }},
     };
@@ -1215,6 +1314,7 @@ int main(int argc, char** argv) {
         const auto graph_run_stats = ComputeStats(graph_run_samples_ms);
         const auto graph_lifecycle_stats = ComputeStats(graph_lifecycle_samples_ms);
         const auto baseline_exec_stats = ComputeStats(baseline_exec_samples_ms);
+        const auto pr5_reference_metrics = MeasurePr5ReferenceMetrics();
 
         if (options.evaluate_device_reduce) {
             device_reduce_eval.enabled = true;
@@ -1254,6 +1354,7 @@ int main(int argc, char** argv) {
             baseline_exec_stats,
             last_graph,
             device_reduce_eval,
+            pr5_reference_metrics,
             options);
 
         if (options.trace_output_path) {
@@ -1265,7 +1366,8 @@ int main(int argc, char** argv) {
                 graph_lifecycle_stats,
                 baseline_exec_stats,
                 last_graph,
-                device_reduce_eval);
+                device_reduce_eval,
+                pr5_reference_metrics);
             std::cout << "\nTrace written: " << options.trace_output_path->string() << "\n";
         }
 

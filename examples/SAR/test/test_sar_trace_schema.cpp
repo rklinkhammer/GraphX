@@ -108,9 +108,35 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(cost_buckets.contains("kernel_dispatches"));
     EXPECT_TRUE(cost_buckets.contains("graph_overhead_ms"));
     EXPECT_TRUE(cost_buckets.contains("diagnostics_contract"));
+    EXPECT_TRUE(cost_buckets.contains("range_compression_reference_ms"));
+    EXPECT_TRUE(cost_buckets.contains("matched_filter_vector_length"));
+    EXPECT_TRUE(cost_buckets.contains("image_metric_ms"));
+    EXPECT_TRUE(cost_buckets.contains("graph_direct_peak_delta_pixels"));
     EXPECT_EQ(cost_buckets.at("dsp_range_stage").get<std::string>(), "compression");
     EXPECT_GT(cost_buckets.at("transfer_payload_bytes").get<std::uint64_t>(), 0u);
     EXPECT_GT(cost_buckets.at("kernel_dispatches").get<std::uint64_t>(), 0u);
+    EXPECT_EQ(cost_buckets.at("matched_filter_vector_length").get<std::uint32_t>(), 16u);
+
+    ASSERT_TRUE(trace.contains("pr5_accuracy_fidelity"));
+    const auto& pr5 = trace.at("pr5_accuracy_fidelity");
+    ASSERT_TRUE(pr5.contains("matched_filter_reference"));
+    ASSERT_TRUE(pr5.contains("image_metrics"));
+    ASSERT_TRUE(pr5.contains("graph_direct_metric_deltas"));
+
+    const auto& matched_filter = pr5.at("matched_filter_reference");
+    EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), 16u);
+    EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), 3u);
+    EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), 9.75, 1.0e-5);
+    EXPECT_GE(matched_filter.at("reference_time_ms").get<double>(), 0.0);
+
+    const auto& image_metrics = pr5.at("image_metrics");
+    EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), 0.0);
+    EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), 15.0);
+    EXPECT_NE(image_metrics.at("image_hash").get<std::uint64_t>(), 0u);
+
+    const auto& metric_deltas = pr5.at("graph_direct_metric_deltas");
+    EXPECT_DOUBLE_EQ(metric_deltas.at("peak_location_delta_pixels").get<double>(), 0.0);
+    EXPECT_DOUBLE_EQ(metric_deltas.at("peak_value_delta").get<double>(), 0.0);
 
     ASSERT_TRUE(trace.contains("execution_outcome"));
     const auto& execution_outcome = trace.at("execution_outcome");
