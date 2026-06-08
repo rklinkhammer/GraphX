@@ -72,6 +72,46 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
 }
 
+void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(10))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr);
+    ASSERT_NE(executor->GetGraphManager(), nullptr);
+    EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 21U);
+    EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 23U);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+
+    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
+
+    const auto& diagnostics = sink->last_diagnostics();
+    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.pulses_processed, 32u);
+    EXPECT_EQ(diagnostics.tiles_processed, 4u);
+    EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
+    EXPECT_EQ(diagnostics.bytes_h2d, 131072u);
+    EXPECT_EQ(diagnostics.kernel_dispatches, 128u);
+    EXPECT_EQ(diagnostics.duplicate_tile_count, 124u);
+    EXPECT_EQ(diagnostics.missing_tile_count, 0u);
+    EXPECT_GE(diagnostics.out_of_order_completion_count, 0u);
+    EXPECT_LE(diagnostics.out_of_order_completion_count, 3u);
+    EXPECT_GT(diagnostics.transfer_h2d_time_us, 0u);
+    EXPECT_GT(diagnostics.kernel_exec_time_us, 0u);
+    EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
+}
+
 void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path) {
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -140,6 +180,10 @@ void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path
 #define SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr3_metal_compression.json"
 #endif
 
+#ifndef SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH
+#define SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr3_metal_fanout.json"
+#endif
+
 TEST(SarPr3MetalJsonTest, ExecutesMetalWindowPipeline) {
     ValidateMetalSarConfig(std::filesystem::path{SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH});
 }
@@ -154,4 +198,12 @@ TEST(SarPr3MetalJsonTest, MetalWindowPresetUsesAccelTokenResolverMetadata) {
 
 TEST(SarPr3MetalJsonTest, MetalCompressionPresetUsesAccelTokenResolverMetadata) {
     ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, ExecutesMetalFanoutPipeline) {
+    ValidateMetalSarFanoutConfig(std::filesystem::path{SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, MetalFanoutPresetUsesAccelTokenResolverMetadata) {
+    ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH});
 }

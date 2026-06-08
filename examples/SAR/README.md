@@ -45,6 +45,7 @@ PR3 Metal-oriented SAR topologies:
 
 1. examples/SAR/config/sar_stripmap_pr3_metal_window.json
 2. examples/SAR/config/sar_stripmap_pr3_metal_compression.json
+3. examples/SAR/config/sar_stripmap_pr3_metal_fanout.json
 
 The PR2 topology uses `SarPulseFanoutNode` to expose four branch lanes:
 

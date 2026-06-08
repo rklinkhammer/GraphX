@@ -3,8 +3,8 @@
 Status:
 
 - [x] PR3 started
-- [ ] PR3 implementation complete
-- [ ] PR3 ready for review
+- [x] PR3 implementation complete
+- [x] PR3 ready for review
 - [ ] PR3 merged
 
 ## Scope (from plan/SAR.md)
@@ -28,8 +28,9 @@ Status:
 - Trace schema now emits range-stage/native flags and timing telemetry fields.
 - Current SAR graph-processing direction uses accel-token edge contracts (`HostPinnedBufferView`, `DeviceBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`) with SAR metadata sidecars.
 - Historical SAR payload messages are compatibility/wrapper vocabulary only and should not be used as native PR3 transfer/kernel edge contracts.
-- Added general `DeviceKernelNodeMetal` as the preferred libgpu boundary for one device input tile -> one device output tile SAR kernels. Remaining SAR work is kernel descriptor/source plus SAR sidecar adapter/parity tests.
+- Added general `DeviceKernelNodeMetal` as the preferred libgpu boundary for one device input tile -> one device output tile SAR kernels.
 - `SarBackprojectionTransformNode` now binds GPU capabilities in native-device mode, delegates to `DeviceKernelNodeMetal`, and preserves SAR sidecar identity for downstream merge.
+- `SarBackprojectionTransformNode` native kernel path now uses a descriptor-driven inline Metal kernel with configurable shaping parameters (`tap_count`, `delay_step`, `phase_tap_scale`, `phase_aperture_scale`).
 
 ## Validation Matrix
 
@@ -40,7 +41,8 @@ Status:
 
 ## Remaining PR3 Follow-Up
 
-- [ ] Replace simulated native path with backend-specific kernel execution (Metal/CUDA/SYCL) where runtime is available.
+- [x] Replace simulated native path with backend-specific kernel execution (Metal lane complete for native runtime environments).
+- [ ] Extend backend-specific native kernel execution parity to CUDA/SYCL lanes when those runtimes are available in scope.
 - [x] Add FFT-backed range compression into JSON scenario presets beyond benchmark-generated topologies.
 - [x] Add Metal-focused SAR JSON presets for window and compression pipeline execution.
 - [x] Convert SAR Metal/native presets from backend-tagged SAR payload semantics to generic-intent accel-token topology semantics.

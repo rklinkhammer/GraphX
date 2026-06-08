@@ -931,3 +931,43 @@ This order may be overridden by explicit build/profile policy, but must remain d
   ]
 }
 ```
+
+## PR3 Completion Summary (2026-06-07)
+
+PR3 implementation scope is complete for the Metal-native lane and ready for review.
+
+Completed in this phase:
+
+1. Native backprojection execution path delegates through `DeviceKernelNodeMetal` in `SarBackprojectionTransformNode` and executes descriptor-driven inline Metal kernels.
+2. Backprojection kernel behavior progressed from placeholder copy semantics to interpolation-based accumulation with configurable shaping controls:
+   - `tap_count`
+   - `delay_step`
+   - `phase_tap_scale`
+   - `phase_aperture_scale`
+3. Accel-token contract migration and sidecar propagation requirements are satisfied for PR3 topologies and tests.
+4. Trace and benchmark evidence now includes resolved backend lane, token lifecycle fields, kernel tickets, and execution-outcome telemetry.
+5. SAR PR3 validation targets (`sar_example_unit`, trace schema checks, and benchmark smoke path) are passing in the native-metal build profile.
+
+Explicitly deferred beyond this PR3 closeout:
+
+1. CUDA/SYCL native SAR kernel parity is not part of this finalized PR3 merge scope and remains future follow-up dependent on runtime availability and backend lane priorities.
+
+Acceptance posture:
+
+1. PR3 is complete for the resolver-driven, accel-token SAR architecture with native Metal kernel execution evidence.
+2. Remaining backend expansion work is incremental and does not block PR3 review/merge.
+
+## Post-PR3 Executive Recommendation
+
+The best next PR is to add a deterministic CPU reference SAR correctness harness before further GPU expansion.
+
+Rationale:
+
+- PR3 has strengthened the GraphX architecture path with accel-token contracts, resolver-driven backend selection, and benchmark overhead attribution.
+- The remaining highest-risk area is SAR mathematical correctness.
+- Native GPU/Metal work should be gated by CPU scalar references, deterministic fixtures, and numeric parity tolerances.
+- Future GPU kernels must prove parity against CPU reference output, not against another GPU path.
+
+Non-goal:
+
+- Do not add more native GPU kernels until point-target correctness, CPU reference parity, and graph/direct baseline parity are in place.

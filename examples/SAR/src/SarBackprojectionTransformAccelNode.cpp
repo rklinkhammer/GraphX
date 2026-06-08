@@ -5,6 +5,7 @@
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
 #include <algorithm>
+#include <sstream>
 
 namespace sar {
 
@@ -32,15 +33,44 @@ graph::gpu::metal::capabilities::MetalKernelDescriptor MakeBackprojectionDescrip
     descriptor.kernel_id = config.kernel_id;
     descriptor.function_name = "graphx_sar_backprojection_tile_f32";
     descriptor.source_kind = graph::gpu::metal::capabilities::MetalKernelSourceKind::InlineSource;
-    descriptor.source_payload =
-        "#include <metal_stdlib>\n"
-        "using namespace metal;\n"
-        "kernel void graphx_sar_backprojection_tile_f32(\n"
-        "    const device float* range_tile [[buffer(0)]],\n"
-        "    device float* image_tile [[buffer(1)]],\n"
-        "    uint gid [[thread_position_in_grid]]) {\n"
-        "    image_tile[gid] = range_tile[gid];\n"
-        "}\n";
+    const auto tap_count = std::max<std::uint32_t>(1u, config.tap_count);
+
+    std::ostringstream src;
+    src << "#include <metal_stdlib>\n"
+        << "using namespace metal;\n"
+        << "kernel void graphx_sar_backprojection_tile_f32(\n"
+        << "    const device float* range_tile [[buffer(0)]],\n"
+        << "    device float* image_tile [[buffer(1)]],\n"
+        << "    uint gid [[thread_position_in_grid]],\n"
+        << "    uint3 grid_size [[threads_per_grid]]) {\n"
+        << "    constexpr uint kTapCount = " << tap_count << "u;\n"
+        << "    constexpr float kDelayStep = " << config.delay_step << "f;\n"
+        << "    constexpr float kPhaseTapScale = " << config.phase_tap_scale << "f;\n"
+        << "    constexpr float kPhaseApertureScale = " << config.phase_aperture_scale << "f;\n"
+        << "    constexpr float kPi = 3.14159265358979323846f;\n"
+        << "    constexpr float kInvTapCount = 1.0f / static_cast<float>(kTapCount);\n"
+        << "    const uint sample_count = max(static_cast<uint>(1), static_cast<uint>(grid_size.x));\n"
+        << "    if (gid >= sample_count) {\n"
+        << "        return;\n"
+        << "    }\n"
+        << "    const float aperture_norm = static_cast<float>(gid) / static_cast<float>(sample_count);\n"
+        << "    float accum = 0.0f;\n"
+        << "    for (uint tap = 0; tap < kTapCount; ++tap) {\n"
+        << "        const float delay = static_cast<float>(gid) + kDelayStep * static_cast<float>(tap);\n"
+        << "        const float sample_pos = clamp(delay, 0.0f, static_cast<float>(sample_count - 1u));\n"
+        << "        const uint idx0 = static_cast<uint>(floor(sample_pos));\n"
+        << "        const uint idx1 = min(sample_count - 1u, idx0 + 1u);\n"
+        << "        const float frac = sample_pos - static_cast<float>(idx0);\n"
+        << "        const float sample = mix(range_tile[idx0], range_tile[idx1], frac);\n"
+        << "        const float aperture_weight = 0.5f - 0.5f * cos(2.0f * kPi * ((static_cast<float>(tap) + 0.5f) * kInvTapCount));\n"
+        << "        const float phase = (kPhaseTapScale * static_cast<float>(tap) + kPhaseApertureScale * aperture_norm) * kPi;\n"
+        << "        const float phasor = cos(phase) + 0.5f * sin(phase);\n"
+        << "        const float weight = aperture_weight * phasor;\n"
+        << "        accum += sample * weight;\n"
+        << "    }\n"
+        << "    image_tile[gid] = accum * kInvTapCount;\n"
+        << "}\n";
+    descriptor.source_payload = src.str();
     descriptor.arg_layout = {
         graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
             graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
@@ -114,7 +144,7 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     last_kernel_ticket_.launch.block_x = 1;
     last_kernel_ticket_.launch.block_y = 1;
     last_kernel_ticket_.launch.block_z = 1;
-    last_kernel_ticket_.arg_count = 1;
+    last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
     last_kernel_ticket_.completion_event = kernel_sequence_;
 
@@ -183,6 +213,50 @@ void SarBackprojectionTransformAccelNode::Configure(const graph::JsonView& cfg) 
         config.kernel_id = static_cast<std::uint64_t>(value.value());
     }
 
+    if (cfg.Contains("tap_count")) {
+        auto value = cfg.TryGetInt("tap_count");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0) {
+            throw graph::ConfigError("tap_count must be > 0");
+        }
+        config.tap_count = static_cast<std::uint32_t>(value.value());
+    }
+
+    if (cfg.Contains("delay_step")) {
+        auto value = cfg.TryGetFloat("delay_step");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0.0f) {
+            throw graph::ConfigError("delay_step must be >= 0");
+        }
+        config.delay_step = value.value();
+    }
+
+    if (cfg.Contains("phase_tap_scale")) {
+        auto value = cfg.TryGetFloat("phase_tap_scale");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0.0f) {
+            throw graph::ConfigError("phase_tap_scale must be >= 0");
+        }
+        config.phase_tap_scale = value.value();
+    }
+
+    if (cfg.Contains("phase_aperture_scale")) {
+        auto value = cfg.TryGetFloat("phase_aperture_scale");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() < 0.0f) {
+            throw graph::ConfigError("phase_aperture_scale must be >= 0");
+        }
+        config.phase_aperture_scale = value.value();
+    }
+
     if (cfg.Contains("backend")) {
         auto value = cfg.TryGetInt("backend");
         if (!value) {
@@ -200,6 +274,10 @@ graph::JsonView SarBackprojectionTransformAccelNode::GetParameters() const {
     parameters_cache_["backend_id"] = config_.backend_id;
     parameters_cache_["queue_id"] = config_.queue_id;
     parameters_cache_["kernel_id"] = config_.kernel_id;
+    parameters_cache_["tap_count"] = config_.tap_count;
+    parameters_cache_["delay_step"] = config_.delay_step;
+    parameters_cache_["phase_tap_scale"] = config_.phase_tap_scale;
+    parameters_cache_["phase_aperture_scale"] = config_.phase_aperture_scale;
     parameters_cache_["backend"] = static_cast<int>(config_.backend);
     return graph::JsonView(parameters_cache_);
 }
@@ -233,6 +311,10 @@ std::vector<std::string> SarBackprojectionTransformAccelNode::GetParameterNames(
         "backend_id",
         "queue_id",
         "kernel_id",
+        "tap_count",
+        "delay_step",
+        "phase_tap_scale",
+        "phase_aperture_scale",
         "backend",
     };
 }

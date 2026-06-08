@@ -147,3 +147,16 @@ add_graphx_plugin(
 target_include_directories(synthetic_aperture_iq_source_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME gotcha_replay_source_node
+    SOURCE_FILES
+        gotcha_replay_source_node_plugin.cpp
+        ../src/GotchaReplaySourceNode.cpp
+    DESCRIPTION "SAR Gotcha replay source node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(gotcha_replay_source_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)

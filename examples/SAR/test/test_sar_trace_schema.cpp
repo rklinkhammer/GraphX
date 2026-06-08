@@ -100,6 +100,33 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(overhead.at("payload_copy_attribution")
                     .get<std::string>()
                     .find("graph edges carry accel tokens") != std::string::npos);
+    ASSERT_TRUE(overhead.contains("cost_buckets"));
+    const auto& cost_buckets = overhead.at("cost_buckets");
+    EXPECT_TRUE(cost_buckets.contains("algorithm_baseline_ms"));
+    EXPECT_TRUE(cost_buckets.contains("dsp_range_stage"));
+    EXPECT_TRUE(cost_buckets.contains("transfer_payload_bytes"));
+    EXPECT_TRUE(cost_buckets.contains("kernel_dispatches"));
+    EXPECT_TRUE(cost_buckets.contains("graph_overhead_ms"));
+    EXPECT_TRUE(cost_buckets.contains("diagnostics_contract"));
+    EXPECT_EQ(cost_buckets.at("dsp_range_stage").get<std::string>(), "compression");
+    EXPECT_GT(cost_buckets.at("transfer_payload_bytes").get<std::uint64_t>(), 0u);
+    EXPECT_GT(cost_buckets.at("kernel_dispatches").get<std::uint64_t>(), 0u);
+
+    ASSERT_TRUE(trace.contains("execution_outcome"));
+    const auto& execution_outcome = trace.at("execution_outcome");
+    EXPECT_TRUE(execution_outcome.contains("completion_signaled"));
+    EXPECT_TRUE(execution_outcome.contains("run_timeout_proxy"));
+    EXPECT_TRUE(execution_outcome.contains("run_exit_mode"));
+    EXPECT_TRUE(execution_outcome.contains("run_elapsed_ms"));
+    ASSERT_TRUE(execution_outcome.at("completion_signaled").get<bool>())
+        << "benchmark did not complete normally; run_exit_mode="
+        << execution_outcome.at("run_exit_mode").get<std::string>()
+        << ", run_timeout_proxy="
+        << (execution_outcome.at("run_timeout_proxy").get<bool>() ? "true" : "false")
+        << ", run_elapsed_ms="
+        << execution_outcome.at("run_elapsed_ms").get<double>();
+    EXPECT_FALSE(execution_outcome.at("run_timeout_proxy").get<bool>());
+    EXPECT_EQ(execution_outcome.at("run_exit_mode").get<std::string>(), "completion_signaled");
 
     ASSERT_TRUE(trace.contains("token_lifecycle"));
     const auto& tokens = trace.at("token_lifecycle");
@@ -127,6 +154,27 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
         EXPECT_TRUE(node.contains("input_token_type"));
         EXPECT_TRUE(node.contains("output_token_type"));
     }
+
+    ASSERT_TRUE(trace.contains("native_execution_evidence"));
+    const auto& native = trace.at("native_execution_evidence");
+    EXPECT_TRUE(native.contains("requested_native_backend"));
+    EXPECT_TRUE(native.contains("resolved_execution_backend"));
+    EXPECT_TRUE(native.contains("backprojection_concrete_type"));
+    EXPECT_TRUE(native.contains("backprojection_native_kernel_bound"));
+    EXPECT_TRUE(native.contains("backprojection_native_kernel_executed"));
+    EXPECT_TRUE(native.contains("kernel_ticket_backend"));
+    EXPECT_TRUE(native.contains("kernel_ticket_id"));
+    EXPECT_TRUE(native.contains("kernel_ticket_queue_id"));
+    EXPECT_TRUE(native.contains("kernel_ticket_arg_count"));
+
+    EXPECT_TRUE(native.at("requested_native_backend").get<bool>());
+    EXPECT_EQ(native.at("resolved_execution_backend").get<std::string>(), "metal");
+    EXPECT_EQ(native.at("kernel_ticket_backend").get<std::string>(), "metal");
+    EXPECT_TRUE(native.at("backprojection_native_kernel_bound").get<bool>());
+    EXPECT_TRUE(native.at("backprojection_native_kernel_executed").get<bool>());
+    EXPECT_GE(native.at("kernel_ticket_arg_count").get<std::uint64_t>(), 1u);
+    EXPECT_GT(native.at("kernel_ticket_id").get<std::uint64_t>(), 0u);
+    EXPECT_GT(native.at("kernel_ticket_queue_id").get<std::uint64_t>(), 0u);
 }
 
 } // namespace

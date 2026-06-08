@@ -25,6 +25,9 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_visualization_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformAccelNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_nodes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_cpu_reference.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/GotchaReplaySourceNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr3_metal_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
@@ -45,6 +48,8 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR2_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr2_fanout.json"
     SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_window.json"
     SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_compression.json"
+    SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_fanout.json"
+    SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach_pr1.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
 )
@@ -68,5 +73,6 @@ add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
 add_dependencies(test_sar_example_unit sar_visualization_sink_node)
 add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
+add_dependencies(test_sar_example_unit gotcha_replay_source_node)
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)

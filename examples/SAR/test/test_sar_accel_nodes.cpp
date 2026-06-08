@@ -171,6 +171,75 @@ TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreserv
     EXPECT_EQ(telemetry->KernelSamples(), 1u);
 }
 
+TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingParameters) {
+    graph::CapabilityBus bus;
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
+    auto input = input_lease.device_view;
+    input.backend = graph::gpu::accel::BackendKind::Metal;
+    input.dtype = graph::gpu::accel::DataType::Float32;
+    input.layout.rank = 1;
+    input.layout.shape[0] = 32;
+    input.layout.stride[0] = 1;
+    input.device_id = 0;
+    input.execution_queue_id = 9;
+    input.ready_event = 0x55AAu;
+
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
+    bp_cfg.image_width = 32;
+    bp_cfg.backend_id = 0;
+    bp_cfg.queue_id = 9;
+    bp_cfg.kernel_id = 9901;
+    bp_cfg.tap_count = 12;
+    bp_cfg.delay_step = 0.75f;
+    bp_cfg.phase_tap_scale = 0.5f;
+    bp_cfg.phase_aperture_scale = 0.3f;
+    bp_cfg.backend = sar::SarBackendKind::NativeDevice;
+
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+    ASSERT_TRUE(bp.BindGpuCapabilities(bus));
+    EXPECT_TRUE(bp.native_kernel_bound());
+
+    const auto params = bp.GetParameters();
+    auto tap_count = params.TryGetInt("tap_count");
+    ASSERT_TRUE(tap_count.has_value());
+    EXPECT_EQ(tap_count.value(), 12);
+    auto delay_step = params.TryGetFloat("delay_step");
+    ASSERT_TRUE(delay_step.has_value());
+    EXPECT_FLOAT_EQ(delay_step.value(), 0.75f);
+    auto phase_tap_scale = params.TryGetFloat("phase_tap_scale");
+    ASSERT_TRUE(phase_tap_scale.has_value());
+    EXPECT_FLOAT_EQ(phase_tap_scale.value(), 0.5f);
+    auto phase_aperture_scale = params.TryGetFloat("phase_aperture_scale");
+    ASSERT_TRUE(phase_aperture_scale.has_value());
+    EXPECT_FLOAT_EQ(phase_aperture_scale.value(), 0.3f);
+
+    auto output = bp.Transfer(
+        input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(*output));
+    EXPECT_EQ(output->bytes, input.bytes);
+    EXPECT_EQ(output->ready_event, input.ready_event);
+    EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
+    EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 9901u);
+    EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);
+    EXPECT_EQ(bp.last_kernel_ticket().execution_queue_id, 9u);
+    EXPECT_EQ(telemetry->KernelSamples(), 1u);
+}
+
 TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge) {
     sar::AzimuthTileSplitConfig split_cfg{};
     split_cfg.tile_count = 4;

@@ -23,6 +23,10 @@ struct SarBackprojectionTransformAccelConfig {
     std::uint32_t backend_id{0};
     std::uint64_t queue_id{0};
     std::uint64_t kernel_id{3301};
+    std::uint32_t tap_count{8};
+    float delay_step{0.5f};
+    float phase_tap_scale{0.35f};
+    float phase_aperture_scale{0.2f};
     SarBackendKind backend{SarBackendKind::SimulatedDevice};
 };
 
@@ -49,7 +53,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 5> Fields() {
+    static constexpr std::array<graph::JsonField, 9> Fields() {
         return {{
             graph::JsonField{
                 .name = "image_width",
@@ -90,6 +94,46 @@ public:
                 .default_value = "3301",
                 .enum_values = std::nullopt,
                 .description = "Kernel identifier"
+            },
+            graph::JsonField{
+                .name = "tap_count",
+                .type = graph::JsonType::Integer,
+                .required = false,
+                .min = 1.0,
+                .max = 64.0,
+                .default_value = "8",
+                .enum_values = std::nullopt,
+                .description = "Backprojection accumulation tap count"
+            },
+            graph::JsonField{
+                .name = "delay_step",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "0.5",
+                .enum_values = std::nullopt,
+                .description = "Fractional sample delay step per tap"
+            },
+            graph::JsonField{
+                .name = "phase_tap_scale",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "0.35",
+                .enum_values = std::nullopt,
+                .description = "Tap index phase scaling factor"
+            },
+            graph::JsonField{
+                .name = "phase_aperture_scale",
+                .type = graph::JsonType::Number,
+                .required = false,
+                .min = 0.0,
+                .max = std::nullopt,
+                .default_value = "0.2",
+                .enum_values = std::nullopt,
+                .description = "Aperture-normalized phase scaling factor"
             },
             graph::JsonField{
                 .name = "backend",
