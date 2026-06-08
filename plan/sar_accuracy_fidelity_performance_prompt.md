@@ -24,11 +24,14 @@ Important current architectural context:
 
 - The SAR example lives under `examples/SAR`.
 - SAR PR3 uses resolver-driven generic node intents and accel-token edge contracts.
+- SAR PR5 adds CPU reference matched-filter utilities, deterministic image-quality metrics, and benchmark trace fields for SAR accuracy/fidelity evidence.
+- `examples/SAR/src/main.cpp` is the canonical SAR example entrypoint and must remain driven by `GraphExecutorBuilder` plus JSON topology/config files.
 - Graph edges must carry `graph::gpu::accel` tokens/views/tickets plus lightweight SAR sidecar identity, not raw SAR payload-envelope messages across transfer/kernel boundaries.
 - Historical `SarPulseBlockMessage`, `SarRangeTileMessage`, `SarImageTileMessage`, `SarDeviceLeaseMessage`, and `SarTransferTicketMessage` names are compatibility or adapter vocabulary only unless they wrap/reference accel tokens.
 - `DeviceKernelNodeMetal` exists as the preferred general Metal boundary for one device input tile to one device output tile.
 - `SarBackprojectionTransformNode` may delegate to `DeviceKernelNodeMetal` in native-device mode while preserving SAR sidecar identity.
 - `H2DAsyncNode` and `D2HAsyncNode` should resolve to backend-specific variants through the provider/resolver path where available.
+- When Metal is available, portable SAR JSON should continue to express generic intents while resolver/capability policy automatically substitutes compatible CPU/stub/generic nodes with Metal concrete nodes where token contracts, sidecar preservation, and CPU-reference parity are proven.
 
 Primary objective:
 
@@ -63,6 +66,8 @@ Inspect at minimum:
 - `libgraph/src/graph/GraphConfigParser.cpp`
 - `plan/SAR.md`
 - `plan/SAR_PR3_CHECKLIST.md`
+- `plan/SAR_PR4_CHECKLIST.md`
+- `plan/SAR_PR5_CHECKLIST.md`
 
 If a named file does not exist, record it as missing, then continue through repository search rather than assuming the expected design exists.
 
@@ -82,6 +87,8 @@ Answer these questions explicitly:
 8. Which nodes can use `DeviceKernelNodeMetal` directly, and which need SAR-specific adapters?
 9. What should remain in `examples/SAR`, and what, if anything, should be promoted to `libgpu`, `libdsp`, or `libgraph`?
 10. What would make the SAR example credible to a SAR/domain reviewer rather than only a GraphX architecture reviewer?
+11. When Metal is available, which generic SAR/GraphX node intents should be automatically substituted with existing Metal nodes, and which must remain SAR-specific adapters?
+12. Which new Metal nodes or kernel descriptors need to be developed for corresponding SAR nodes, and are they general `libgpu` nodes or SAR-specific example adapters?
 
 ## Mathematical Correctness Audit
 
@@ -287,6 +294,66 @@ Separate the following costs in the measurement plan:
 - Diagnostics cost.
 
 Do not recommend an optimization unless it identifies the bottleneck it addresses and the measurement that will prove it helped.
+
+## Mandatory Metal Auto-Substitution and Node Gap Audit
+
+This audit is required whenever the prompt is run.
+
+Analyze whether GraphX automatically substitutes generic CPU/stub/SAR node intents with Metal-backed concrete implementations when Metal is available. Do not assume substitution works; inspect the resolver/provider code, JSON configs, available plugin registrations, runtime capability checks, tests, and benchmark trace evidence.
+
+Report all of the following:
+
+1. Resolver behavior:
+   - where generic intent resolution occurs,
+   - how `execution_backend`, `backend_fallback_policy`, and `resolver_diagnostics` are interpreted,
+   - whether Metal is selected automatically when available,
+   - whether fallback to stub/CPU is explicit and observable,
+   - whether resolver diagnostics report intent type, concrete type, selected backend, fallback reason, input token type, and output token type.
+2. JSON behavior:
+   - which SAR JSON presets use generic portable node intents,
+   - which presets request `execution_backend: "metal"`,
+   - which presets still rely on direct concrete node types or backend metadata as a substitute for resolver selection,
+   - whether `examples/SAR/src/main.cpp` and benchmarks exercise the JSON/GraphExecutor path.
+3. Existing direct substitutions:
+   - `H2DAsyncNode` -> `H2DAsyncNodeMetal`,
+   - `D2HAsyncNode` -> `D2HAsyncNodeMetal`,
+   - `DeviceKernelNode` -> `DeviceKernelNodeMetal`,
+   - `DeviceTransformNode` -> `DeviceTransformNodeMetal`,
+   - `DeviceReduceNode` -> `DeviceReduceNodeMetal`,
+   - any other generic intents observed in code.
+4. SAR adapter substitutions:
+   - whether `SarBackprojectionTransformNode` delegates to `DeviceKernelNodeMetal` when native Metal is available,
+   - whether sidecar metadata survives the adapter boundary,
+   - whether CPU-reference parity is tested for the native Metal adapter path,
+   - whether `RangeWindowNode`, `RangeCompressionNode`, `AzimuthTileSplitNode`, `ImageTileMergeNode`, `SarVisualizationSinkNode`, and `SarDiagnosticsSinkNode` have a valid Metal substitution story or must remain SAR-specific CPU/adapter nodes.
+5. Required SAR-to-Metal node matrix:
+   - SAR node,
+   - current contract,
+   - closest existing Metal node,
+   - direct replacement viability,
+   - required new Metal node or kernel descriptor,
+   - ownership classification: general `libgpu`, reusable `libdsp`, SAR-specific adapter under `examples/SAR`, or no Metal node needed,
+   - required tests,
+   - risk of breaking accel-token sidecar semantics.
+6. New Metal development candidates:
+   - identify all possible Metal nodes or kernel descriptors needed for corresponding SAR nodes,
+   - classify each as general or SAR-specific,
+   - explain why it cannot already be expressed by `DeviceKernelNodeMetal`, `DeviceTransformNodeMetal`, `DeviceReduceNodeMetal`, `DeviceShardNodeMetal`, `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, `QueueSyncNodeMetal`, or `HostIngress/Egress` nodes,
+   - define CPU-reference parity requirements before implementation.
+7. Acceptance criteria for automatic Metal substitution:
+   - GraphExecutor/JSON path selects Metal when available and requested or permitted by auto policy,
+   - fallback behavior is deterministic and reported,
+   - trace output records resolved concrete types and token types,
+   - sidecar identity is preserved,
+   - graph/direct parity and CPU-vs-Metal parity are within explicit tolerances,
+   - no portable SAR JSON preset must name concrete `*Metal` nodes unless it is a backend-specific validation topology.
+
+If automatic Metal substitution is incomplete, classify each gap as:
+
+- Blocker.
+- Next-PR required fix.
+- Follow-up.
+- Documentation mismatch.
 
 ## Display and Inspection Mechanisms
 
@@ -496,7 +563,15 @@ Produce the following sections:
    - Resolver gaps.
    - Benchmark/trace gaps.
 
-9. Measurement and performance-attribution plan
+9. Metal auto-substitution and SAR-to-Metal node gap plan
+   - Existing automatic substitutions.
+   - Missing automatic substitutions.
+   - SAR node to existing Metal node matrix.
+   - New Metal nodes or kernel descriptors required.
+   - General `libgpu` vs SAR-specific adapter classification.
+   - Required resolver, JSON, trace, sidecar, and CPU-reference parity tests.
+
+10. Measurement and performance-attribution plan
    - Accuracy metrics.
    - Fidelity metrics.
    - GPU/DSP performance metrics.
@@ -505,12 +580,12 @@ Produce the following sections:
    - Baseline comparison method.
    - Required bottleneck evidence before each optimization.
 
-10. Deterministic validation and CI tier plan
+11. Deterministic validation and CI tier plan
    - Tier 1 through Tier 6 tests.
    - CI vs local-only split.
    - Seeds, tolerances, image metrics, and metadata hashes.
 
-11. Concrete next PR proposal
+12. Concrete next PR proposal
    - Title.
    - Scope.
    - Files to touch.

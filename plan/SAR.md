@@ -977,3 +977,56 @@ Rationale:
 Non-goal:
 
 - Do not add more native GPU kernels until point-target correctness, CPU reference parity, and graph/direct baseline parity are in place.
+
+## PR5 Completion Summary
+
+PR5 implementation scope is complete for the matched-filter reference and image-quality metric lane.
+
+Completed in this phase:
+
+1. Added CPU reference utilities for deterministic linear-FM chirp generation, delayed echo generation, matched-filter range compression, magnitude image conversion, and image-quality measurement under `examples/SAR`.
+2. Added deterministic PR5 validation coverage for:
+   - matched-filter known-vector peak detection,
+   - off-grid point-target image-quality behavior,
+   - two-point target relative peak behavior,
+   - existing CPU-vs-native-Metal adapter parity.
+3. Extended SAR benchmark trace output with PR5 accuracy/fidelity fields while preserving PR4 overhead attribution:
+   - matched-filter vector length,
+   - matched-filter peak bin/value,
+   - peak location error,
+   - impulse-response width,
+   - peak sidelobe ratio,
+   - integrated sidelobe ratio,
+   - dynamic range,
+   - deterministic image hash,
+   - image metric timing,
+   - graph/direct metric-delta placeholders.
+4. Preserved the post-PR4 execution invariant: user-facing SAR execution remains driven by `GraphExecutorBuilder` plus JSON config/topology files, with direct execution limited to CPU reference, parity, graph-overhead attribution, and focused unit tests.
+5. Preserved accel-token architecture: no raw SAR payload contracts were introduced across transfer/kernel graph edges, and benchmark trace output continues to distinguish transfer payload bytes from graph token movement.
+
+Validation evidence:
+
+1. `cmake --build build-ninja/ninja-debug --target test_sar_example_unit sar_benchmark`
+2. `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit` passed 50/50 tests.
+3. `./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --trace-out /tmp/graphx_sar_pr5_trace.json` completed and emitted PR5 accuracy/fidelity metrics.
+
+Explicitly deferred beyond PR5:
+
+1. No new GPU/Metal kernels were added in PR5.
+2. Runtime `RangeCompressionNode` behavior remains compatible with existing JSON presets; PR5 establishes the CPU reference target and trace contract before replacing production DSP behavior.
+3. Full image-sample graph/direct parity remains a future follow-up because the current user-facing graph path reports diagnostics and token lifecycle evidence rather than materialized image samples.
+4. Raw AFRL Gotcha `.mat` ingestion and large external datasets remain out of CI scope until a normalized tiny fixture path is defined.
+
+## Post-PR5 Executive Recommendation
+
+The best next PR is to connect the PR5 matched-filter reference contract to the runtime SAR range-compression path and tighten graph/direct parity from diagnostics-level equivalence toward image/algorithm metric equivalence.
+
+Rationale:
+
+- PR4 and PR5 now provide CPU reference foundations, deterministic fixtures, image metrics, and benchmark trace evidence.
+- The remaining highest-leverage fidelity gap is that the production `RangeCompressionNode` still behaves as FFT magnitude extraction rather than matched-filter SAR range compression.
+- Metal expansion should now be considered through automatic resolver substitution of generic CPU/SAR intents to Metal-capable implementations when Metal is available, but only where token contracts, sidecar preservation, and CPU-reference parity are proven.
+
+Next Metal planning requirement:
+
+- Future SAR updates must analyze which SAR nodes can be automatically substituted by existing Metal nodes when Metal is available, and which new general or SAR-specific Metal nodes/kernel descriptors would be required. Portable JSON should continue to express generic intents; backend-specific concrete nodes should be selected by resolver/capability policy and reported in diagnostics.
