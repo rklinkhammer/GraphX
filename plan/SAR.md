@@ -60,6 +60,8 @@ Direct/programmatic SAR execution is allowed only for CPU reference baselines, p
 
 Every future SAR update must explicitly consider whether `examples/SAR/config/*.json`, plugin loading, dynamic node registration, edge contracts, accel-token flow, backend resolver behavior, and GraphExecutor execution tests need to change. New or modified SAR nodes must remain usable from JSON config and dynamically loadable through the SAR plugin path unless the change is explicitly limited to non-runtime test/reference code.
 
+Ownership guidance: when a Metal implementation is SAR-specific rather than reusable, it may remain as a node or adapter under `examples/SAR`. Reserve `libgpu` for generic Metal nodes, runtime helpers, or kernels that clearly apply beyond the SAR example boundary.
+
 ---
 
 ## 1) Recommended First PR Scope
@@ -1030,3 +1032,85 @@ Rationale:
 Next Metal planning requirement:
 
 - Future SAR updates must analyze which SAR nodes can be automatically substituted by existing Metal nodes when Metal is available, and which new general or SAR-specific Metal nodes/kernel descriptors would be required. Portable JSON should continue to express generic intents; backend-specific concrete nodes should be selected by resolver/capability policy and reported in diagnostics.
+
+## PR6 Metal Auto-Substitution Audit
+
+PR6 reviewed automatic Metal substitution against the current SAR graph path.
+
+Current resolver behavior:
+
+1. Generic-intent resolver policy exists for backend boundary families such as `H2DAsyncNode`, `D2HAsyncNode`, `DeviceTransformNode`, `DeviceKernelNode`, `DeviceReduceNode`, and `QueueSyncNode`.
+2. Resolver policy can select Metal concrete types when the requested or automatic backend policy is `metal` and the corresponding concrete node type is available from the provider.
+3. Fallback behavior is explicit through `backend_fallback_policy` and resolver diagnostics.
+4. Current SAR user-facing JSON remains portable and uses generic SAR/example node names rather than concrete `*Metal` names.
+5. The SAR example plugin path is example-scoped. It proves SAR plugin dynamic loading and the SAR backprojection adapter's native Metal delegation, but it does not by itself prove that every generic transfer intent is substituted with libgpu `*Metal` plugin nodes unless those concrete libgpu plugins are also available to the provider/bootstrap path.
+
+PR6 substitution status:
+
+| SAR stage | Current SAR node | Closest existing Metal node | Direct replacement viability | New Metal work needed | Ownership |
+| --- | --- | --- | --- | --- | --- |
+| Synthetic source | `SyntheticApertureIqSourceNode` | `HostIngressPinnedSourceNodeMetal` | No direct replacement | none for PR6; source owns SAR scene/sidecar generation | SAR-specific example node |
+| Gotcha replay source | `GotchaReplaySourceNode` | `HostIngressPinnedSourceNodeMetal` | No direct replacement | normalized fixture/device-ingress adapter later | SAR-specific example node |
+| Range window | `RangeWindowNode` | `DeviceTransformNodeMetal` | Partial/future | window kernel descriptor if moving stage to device | likely reusable `libdsp`/adapter |
+| Range compression | `RangeCompressionNode` | `DeviceTransformNodeMetal` or `DeviceKernelNodeMetal` | Partial/future | matched-filter/FFT kernel descriptor after CPU parity | reusable `libdsp` primitive or SAR adapter |
+| Pulse fanout | `SarPulseFanoutNode` | none | No direct replacement | none; graph fanout is topology/control-plane behavior | no Metal node needed |
+| Azimuth tile split | `AzimuthTileSplitNode` | `DeviceShardNodeMetal` | Partial/future | sidecar-aware tile identity adapter if sharding moves device-side | SAR-specific adapter |
+| H2D transfer | `H2DAsyncNode` | `H2DAsyncNodeMetal` | Viable when concrete Metal plugin is available | provider/bootstrap coverage for SAR example plugin path | general `libgpu` node |
+| Backprojection | `SarBackprojectionTransformNode` | `DeviceKernelNodeMetal` | Implemented as adapter delegation | fuller SAR geometry kernel later, after CPU parity | SAR adapter over general `libgpu` node |
+| D2H transfer | `D2HAsyncNode` | `D2HAsyncNodeMetal` | Viable when concrete Metal plugin is available | provider/bootstrap coverage for SAR example plugin path | general `libgpu` node |
+| Tile merge | `ImageTileMergeNode` | `DeviceReduceNodeMetal` | Partial/future | device reduce/accumulation experiment after image parity | SAR-specific merge semantics plus possible general reduce |
+| Visualization sink | `SarVisualizationSinkNode` | `HostEgressSinkNodeMetal` | Partial/future | real image-buffer egress if graph materializes image samples | SAR-specific display adapter |
+| Diagnostics sink | `SarDiagnosticsSinkNode` | `HostEgressSinkNodeMetal` | No direct replacement | none; diagnostics are SAR sidecar/control-plane data | SAR-specific example node |
+
+PR6 conclusion:
+
+1. Automatic Metal substitution is complete enough for generic resolver infrastructure and native backprojection adapter evidence.
+2. Automatic Metal substitution is not yet complete as a blanket SAR pipeline guarantee because SAR source, range/DSP, split/fanout, merge, visualization, and diagnostics stages carry SAR-specific semantics beyond generic Metal buffer movement.
+3. Future Metal work should prioritize provider/bootstrap coverage for generic transfer substitutions, then device-side matched-filter/range-compression kernel descriptors only after runtime CPU/reference parity is stable.
+4. Portable SAR JSON should continue to express generic intents and SAR-stage names. Concrete `*Metal` names should remain diagnostics output or backend-specific validation topology details.
+
+## PR6 Completion Summary
+
+PR6 implementation scope is complete for runtime matched-filter compression and the required Metal substitution audit.
+
+Completed in this phase:
+
+1. Added JSON-selectable runtime range-compression modes:
+   - `fft_magnitude` remains the backward-compatible default,
+   - `matched_filter` executes the PR5 CPU-reference-aligned matched-filter path.
+2. Added runtime matched-filter configuration:
+   - `mode`,
+   - `output`,
+   - `sample_rate_hz`,
+   - `bandwidth_hz`,
+   - `chirp_duration_s`,
+   - `range_origin_m`,
+   - `range_spacing_m`,
+   - `gain`.
+3. Added a PR6 JSON preset: `examples/SAR/config/sar_stripmap_pr6_matched_filter.json`.
+4. Added runtime tests comparing `RangeCompressionNode` matched-filter output against the PR5 CPU reference.
+5. Extended SAR benchmark generation and trace output with PR6 runtime matched-filter evidence:
+   - runtime compression mode,
+   - runtime matched-filter timing,
+   - reference timing,
+   - runtime-vs-reference L-infinity/RMS/relative-L2 error,
+   - parity status.
+6. Preserved GraphExecutor/JSON execution as the user-facing path and kept direct execution limited to reference/parity/benchmark attribution.
+7. Preserved accel-token architecture and added no new GPU/Metal kernels.
+
+Validation evidence:
+
+1. `cmake --build build-ninja/ninja-debug --target test_sar_example_unit sar_benchmark`
+2. `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit` passed 54/54 tests.
+3. Focused PR6 test pass:
+   - `RangeCompressionNodeTest.*`
+   - PR6 matched-filter JSON execution,
+   - PR6 matched-filter resolver metadata,
+   - SAR trace schema.
+4. `./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --trace-out /tmp/graphx_sar_pr6_trace.json` completed and emitted PR6 runtime matched-filter parity metrics.
+
+Explicitly deferred beyond PR6:
+
+1. Full image-sample graph/direct parity remains future work because the current public graph path still reports diagnostics and token lifecycle evidence rather than materialized image samples.
+2. Device-side matched-filter/range-compression Metal kernels remain future work and require CPU-reference parity gates before implementation.
+3. Provider/bootstrap changes that make libgpu Metal transfer plugins automatically available inside the SAR example plugin path remain a follow-up if blanket H2D/D2H `*Metal` substitution is required.

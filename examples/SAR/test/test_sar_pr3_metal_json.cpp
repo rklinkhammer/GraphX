@@ -184,6 +184,10 @@ void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path
 #define SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr3_metal_fanout.json"
 #endif
 
+#ifndef SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH
+#define SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr6_matched_filter.json"
+#endif
+
 TEST(SarPr3MetalJsonTest, ExecutesMetalWindowPipeline) {
     ValidateMetalSarConfig(std::filesystem::path{SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH});
 }
@@ -206,4 +210,12 @@ TEST(SarPr3MetalJsonTest, ExecutesMetalFanoutPipeline) {
 
 TEST(SarPr3MetalJsonTest, MetalFanoutPresetUsesAccelTokenResolverMetadata) {
     ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, ExecutesPr6MatchedFilterPipeline) {
+    ValidateMetalSarConfig(std::filesystem::path{SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, Pr6MatchedFilterPresetUsesAccelTokenResolverMetadata) {
+    ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH});
 }

@@ -3,10 +3,12 @@
 #include "config/ConfigError.hpp"
 #include "dsp/FFTManager.hpp"
 #include "dsp/IqPacket.hpp"
+#include "sar/SarCpuReference.hpp"
 
 #include <algorithm>
 #include <array>
 #include <complex>
+#include <string>
 
 namespace sar {
 
@@ -67,6 +69,46 @@ SarPulseBlockMessage CompressFallback(const SarPulseBlockMessage& input,
     return out;
 }
 
+RangeCompressionMode ParseMode(const std::string& value) {
+    if (value == "fft_magnitude") {
+        return RangeCompressionMode::FftMagnitude;
+    }
+    if (value == "matched_filter") {
+        return RangeCompressionMode::MatchedFilter;
+    }
+    throw graph::ConfigError("mode must be one of: fft_magnitude, matched_filter");
+}
+
+RangeCompressionOutput ParseOutput(const std::string& value) {
+    if (value == "magnitude") {
+        return RangeCompressionOutput::Magnitude;
+    }
+    if (value == "complex") {
+        return RangeCompressionOutput::Complex;
+    }
+    throw graph::ConfigError("output must be one of: magnitude, complex");
+}
+
+std::string ModeToString(RangeCompressionMode mode) {
+    switch (mode) {
+        case RangeCompressionMode::FftMagnitude:
+            return "fft_magnitude";
+        case RangeCompressionMode::MatchedFilter:
+            return "matched_filter";
+    }
+    return "fft_magnitude";
+}
+
+std::string OutputToString(RangeCompressionOutput output) {
+    switch (output) {
+        case RangeCompressionOutput::Magnitude:
+            return "magnitude";
+        case RangeCompressionOutput::Complex:
+            return "complex";
+    }
+    return "magnitude";
+}
+
 } // namespace
 
 RangeCompressionNode::RangeCompressionNode(RangeCompressionConfig config)
@@ -80,6 +122,9 @@ std::optional<SarPulseBlockMessage> RangeCompressionNode::Transfer(
         return input;
     }
 
+    if (config_.mode == RangeCompressionMode::MatchedFilter) {
+        return CompressWithMatchedFilter(input);
+    }
     return CompressWithFft(input);
 }
 
@@ -116,6 +161,63 @@ void RangeCompressionNode::Configure(const graph::JsonView& cfg) {
         config.sample_rate_hz = value.value();
     }
 
+    if (cfg.Contains("mode")) {
+        auto value = cfg.TryGetString("mode");
+        if (!value) {
+            throw value.error();
+        }
+        config.mode = ParseMode(value.value());
+    }
+
+    if (cfg.Contains("output")) {
+        auto value = cfg.TryGetString("output");
+        if (!value) {
+            throw value.error();
+        }
+        config.output = ParseOutput(value.value());
+    }
+
+    if (cfg.Contains("bandwidth_hz")) {
+        auto value = cfg.TryGetFloat("bandwidth_hz");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0.0f) {
+            throw graph::ConfigError("bandwidth_hz must be > 0");
+        }
+        config.bandwidth_hz = value.value();
+    }
+
+    if (cfg.Contains("chirp_duration_s")) {
+        auto value = cfg.TryGetFloat("chirp_duration_s");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0.0f) {
+            throw graph::ConfigError("chirp_duration_s must be > 0");
+        }
+        config.chirp_duration_s = value.value();
+    }
+
+    if (cfg.Contains("range_origin_m")) {
+        auto value = cfg.TryGetFloat("range_origin_m");
+        if (!value) {
+            throw value.error();
+        }
+        config.range_origin_m = value.value();
+    }
+
+    if (cfg.Contains("range_spacing_m")) {
+        auto value = cfg.TryGetFloat("range_spacing_m");
+        if (!value) {
+            throw value.error();
+        }
+        if (value.value() <= 0.0f) {
+            throw graph::ConfigError("range_spacing_m must be > 0");
+        }
+        config.range_spacing_m = value.value();
+    }
+
     SetConfig(config);
 }
 
@@ -124,6 +226,12 @@ graph::JsonView RangeCompressionNode::GetParameters() const {
     parameters_cache_["enabled"] = config_.enabled;
     parameters_cache_["gain"] = config_.gain;
     parameters_cache_["sample_rate_hz"] = config_.sample_rate_hz;
+    parameters_cache_["mode"] = ModeToString(config_.mode);
+    parameters_cache_["output"] = OutputToString(config_.output);
+    parameters_cache_["bandwidth_hz"] = config_.bandwidth_hz;
+    parameters_cache_["chirp_duration_s"] = config_.chirp_duration_s;
+    parameters_cache_["range_origin_m"] = config_.range_origin_m;
+    parameters_cache_["range_spacing_m"] = config_.range_spacing_m;
     return graph::JsonView(parameters_cache_);
 }
 
@@ -156,6 +264,12 @@ std::vector<std::string> RangeCompressionNode::GetParameterNames() const {
         "enabled",
         "gain",
         "sample_rate_hz",
+        "mode",
+        "output",
+        "bandwidth_hz",
+        "chirp_duration_s",
+        "range_origin_m",
+        "range_spacing_m",
     };
 }
 
@@ -181,6 +295,42 @@ SarPulseBlockMessage RangeCompressionNode::CompressWithFft(const SarPulseBlockMe
 
     // Fall back to deterministic magnitude-only compression for unsupported FFT sizes.
     return CompressFallback(input, config_);
+}
+
+SarPulseBlockMessage RangeCompressionNode::CompressWithMatchedFilter(
+    const SarPulseBlockMessage& input) const {
+    sar::reference::ChirpReferenceConfig reference_config{};
+    reference_config.sample_count = static_cast<std::uint32_t>(input.iq_samples.size());
+    reference_config.sample_rate_hz = config_.sample_rate_hz;
+    reference_config.bandwidth_hz = config_.bandwidth_hz;
+    reference_config.chirp_duration_s = config_.chirp_duration_s;
+    reference_config.range_origin_m = config_.range_origin_m;
+    reference_config.range_spacing_m = config_.range_spacing_m;
+
+    const auto reference_chirp = sar::reference::GenerateLinearFmChirp(reference_config);
+    std::vector<std::complex<double>> received;
+    received.reserve(input.iq_samples.size());
+    for (const auto& sample : input.iq_samples) {
+        received.emplace_back(static_cast<double>(sample.real()), static_cast<double>(sample.imag()));
+    }
+
+    const auto compressed =
+        sar::reference::MatchedFilterRangeCompress(received, reference_chirp);
+
+    SarPulseBlockMessage out = input;
+    out.iq_samples.assign(input.iq_samples.size(), SarIqSample(0.0f, 0.0f));
+    for (std::size_t i = 0; i < compressed.size(); ++i) {
+        if (config_.output == RangeCompressionOutput::Complex) {
+            out.iq_samples[i] = SarIqSample(
+                static_cast<float>(compressed[i].real() * config_.gain),
+                static_cast<float>(compressed[i].imag() * config_.gain));
+        } else {
+            out.iq_samples[i] =
+                SarIqSample(static_cast<float>(std::abs(compressed[i]) * config_.gain), 0.0f);
+        }
+    }
+    out.buffer.byte_count = out.iq_samples.size() * sizeof(SarIqSample);
+    return out;
 }
 
 } // namespace sar

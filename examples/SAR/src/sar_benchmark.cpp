@@ -105,10 +105,15 @@ struct DeviceReduceEvaluation {
 
 struct Pr5ReferenceMetrics {
     double range_compression_reference_ms{0.0};
+    double range_compression_runtime_ms{0.0};
     double image_metric_ms{0.0};
     std::uint32_t matched_filter_vector_length{0};
+    std::string runtime_compression_mode{"matched_filter"};
     std::uint32_t matched_filter_peak_bin{0};
     float matched_filter_peak_value{0.0f};
+    double runtime_reference_l_inf{0.0};
+    double runtime_reference_rms{0.0};
+    double runtime_reference_relative_l2{0.0};
     double peak_location_error_pixels{0.0};
     double impulse_response_width_pixels{0.0};
     double peak_sidelobe_ratio_db{0.0};
@@ -313,7 +318,13 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
         {"gain", 1.0f},
     };
     if (use_range_compression) {
-        range_stage_config["sample_rate_hz"] = 48000.0f;
+        range_stage_config["sample_rate_hz"] = 16000000.0f;
+        range_stage_config["mode"] = "matched_filter";
+        range_stage_config["output"] = "magnitude";
+        range_stage_config["bandwidth_hz"] = 4000000.0f;
+        range_stage_config["chirp_duration_s"] = 0.000001f;
+        range_stage_config["range_origin_m"] = 0.0f;
+        range_stage_config["range_spacing_m"] = 0.25f;
     }
 
     nlohmann::json config = {
@@ -463,6 +474,7 @@ Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
     out.image_metric_ms =
         std::chrono::duration<double, std::milli>(metrics_end - metrics_start).count();
     out.matched_filter_vector_length = cfg.sample_count;
+    out.runtime_compression_mode = "matched_filter";
     out.matched_filter_peak_bin = metrics.peak.x;
     out.matched_filter_peak_value = metrics.peak.value;
     out.peak_location_error_pixels = metrics.peak_location_error_pixels;
@@ -471,6 +483,51 @@ Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
     out.integrated_sidelobe_ratio_db = metrics.integrated_sidelobe_ratio_db;
     out.dynamic_range_db = metrics.dynamic_range_db;
     out.image_hash = metrics.image_hash;
+
+    sar::SarPulseBlockMessage runtime_input{};
+    runtime_input.envelope.sequence_id = 0;
+    runtime_input.envelope.marker = sar::SarFrameMarker::Data;
+    runtime_input.buffer.byte_count = echo.size() * sizeof(sar::SarIqSample);
+    runtime_input.iq_samples.reserve(echo.size());
+    for (const auto& sample : echo) {
+        runtime_input.iq_samples.emplace_back(
+            static_cast<float>(sample.real()),
+            static_cast<float>(sample.imag()));
+    }
+
+    sar::RangeCompressionConfig runtime_config{};
+    runtime_config.mode = sar::RangeCompressionMode::MatchedFilter;
+    runtime_config.output = sar::RangeCompressionOutput::Magnitude;
+    runtime_config.gain = 1.0f;
+    runtime_config.sample_rate_hz = cfg.sample_rate_hz;
+    runtime_config.bandwidth_hz = cfg.bandwidth_hz;
+    runtime_config.chirp_duration_s = cfg.chirp_duration_s;
+    runtime_config.range_origin_m = cfg.range_origin_m;
+    runtime_config.range_spacing_m = cfg.range_spacing_m;
+    sar::RangeCompressionNode runtime_node(runtime_config);
+
+    const auto runtime_start = Clock::now();
+    const auto runtime_output = runtime_node.Transfer(
+        runtime_input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    const auto runtime_end = Clock::now();
+    out.range_compression_runtime_ms =
+        std::chrono::duration<double, std::milli>(runtime_end - runtime_start).count();
+
+    if (runtime_output) {
+        sar::reference::Image runtime_image{};
+        runtime_image.width = 16u;
+        runtime_image.height = 1u;
+        runtime_image.pixels.reserve(runtime_output->iq_samples.size());
+        for (const auto& sample : runtime_output->iq_samples) {
+            runtime_image.pixels.push_back(sample.real());
+        }
+        const auto runtime_error = sar::reference::CompareImages(runtime_image, image);
+        out.runtime_reference_l_inf = runtime_error.l_inf;
+        out.runtime_reference_rms = runtime_error.rms;
+        out.runtime_reference_relative_l2 = runtime_error.relative_l2;
+    }
 
     // The current graph path reports diagnostics rather than image samples; keep the
     // parity fields explicit and zero for the deterministic shared reference fixture.
@@ -1010,6 +1067,13 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", islr_db=" << pr5_reference.integrated_sidelobe_ratio_db
               << ", dynamic_range_db=" << pr5_reference.dynamic_range_db
               << ", image_hash=" << pr5_reference.image_hash << "\n";
+    std::cout << "- PR6 runtime matched filter: mode="
+              << pr5_reference.runtime_compression_mode
+              << ", runtime_ms=" << pr5_reference.range_compression_runtime_ms
+              << ", reference_ms=" << pr5_reference.range_compression_reference_ms
+              << ", l_inf=" << pr5_reference.runtime_reference_l_inf
+              << ", rms=" << pr5_reference.runtime_reference_rms
+              << ", relative_l2=" << pr5_reference.runtime_reference_relative_l2 << "\n";
 
     if (device_reduce_eval.enabled) {
         std::cout << "\nDeviceReduce prototype evaluation:\n";
@@ -1216,6 +1280,7 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"graph_overhead_ms", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
                 {"diagnostics_contract", "sink-status"},
                 {"range_compression_reference_ms", pr5_reference.range_compression_reference_ms},
+                {"range_compression_runtime_ms", pr5_reference.range_compression_runtime_ms},
                 {"matched_filter_vector_length", pr5_reference.matched_filter_vector_length},
                 {"image_metric_ms", pr5_reference.image_metric_ms},
                 {"graph_direct_peak_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
@@ -1230,6 +1295,18 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"peak_bin", pr5_reference.matched_filter_peak_bin},
                 {"peak_value", pr5_reference.matched_filter_peak_value},
                 {"reference_time_ms", pr5_reference.range_compression_reference_ms},
+            }},
+            {"runtime_matched_filter", {
+                {"mode", pr5_reference.runtime_compression_mode},
+                {"sample_rate_hz", 16.0e6},
+                {"bandwidth_hz", 4.0e6},
+                {"chirp_duration_s", 1.0e-6},
+                {"output", "magnitude"},
+                {"runtime_time_ms", pr5_reference.range_compression_runtime_ms},
+                {"reference_l_inf", pr5_reference.runtime_reference_l_inf},
+                {"reference_rms", pr5_reference.runtime_reference_rms},
+                {"reference_relative_l2", pr5_reference.runtime_reference_relative_l2},
+                {"parity_status", pr5_reference.runtime_reference_l_inf < 1.0e-4 ? "pass" : "fail"},
             }},
             {"image_metrics", {
                 {"peak_location_error_pixels", pr5_reference.peak_location_error_pixels},

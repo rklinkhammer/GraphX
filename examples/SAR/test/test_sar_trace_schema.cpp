@@ -109,6 +109,7 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(cost_buckets.contains("graph_overhead_ms"));
     EXPECT_TRUE(cost_buckets.contains("diagnostics_contract"));
     EXPECT_TRUE(cost_buckets.contains("range_compression_reference_ms"));
+    EXPECT_TRUE(cost_buckets.contains("range_compression_runtime_ms"));
     EXPECT_TRUE(cost_buckets.contains("matched_filter_vector_length"));
     EXPECT_TRUE(cost_buckets.contains("image_metric_ms"));
     EXPECT_TRUE(cost_buckets.contains("graph_direct_peak_delta_pixels"));
@@ -120,6 +121,7 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     ASSERT_TRUE(trace.contains("pr5_accuracy_fidelity"));
     const auto& pr5 = trace.at("pr5_accuracy_fidelity");
     ASSERT_TRUE(pr5.contains("matched_filter_reference"));
+    ASSERT_TRUE(pr5.contains("runtime_matched_filter"));
     ASSERT_TRUE(pr5.contains("image_metrics"));
     ASSERT_TRUE(pr5.contains("graph_direct_metric_deltas"));
 
@@ -128,6 +130,14 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), 3u);
     EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), 9.75, 1.0e-5);
     EXPECT_GE(matched_filter.at("reference_time_ms").get<double>(), 0.0);
+
+    const auto& runtime_filter = pr5.at("runtime_matched_filter");
+    EXPECT_EQ(runtime_filter.at("mode").get<std::string>(), "matched_filter");
+    EXPECT_EQ(runtime_filter.at("output").get<std::string>(), "magnitude");
+    EXPECT_GE(runtime_filter.at("runtime_time_ms").get<double>(), 0.0);
+    EXPECT_LT(runtime_filter.at("reference_l_inf").get<double>(), 1.0e-4);
+    EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), 1.0e-5);
+    EXPECT_EQ(runtime_filter.at("parity_status").get<std::string>(), "pass");
 
     const auto& image_metrics = pr5.at("image_metrics");
     EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), 0.0);
