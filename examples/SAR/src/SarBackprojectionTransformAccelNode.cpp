@@ -2,6 +2,9 @@
 
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+
+#include <algorithm>
 
 namespace sar {
 
@@ -23,6 +26,38 @@ void* MakeSyntheticDevicePointer(const graph::gpu::accel::DeviceBufferView& inpu
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
 }
 
+graph::gpu::metal::capabilities::MetalKernelDescriptor MakeBackprojectionDescriptor(
+    const SarBackprojectionTransformAccelConfig& config) {
+    graph::gpu::metal::capabilities::MetalKernelDescriptor descriptor{};
+    descriptor.kernel_id = config.kernel_id;
+    descriptor.function_name = "graphx_sar_backprojection_tile_f32";
+    descriptor.source_kind = graph::gpu::metal::capabilities::MetalKernelSourceKind::InlineSource;
+    descriptor.source_payload =
+        "#include <metal_stdlib>\n"
+        "using namespace metal;\n"
+        "kernel void graphx_sar_backprojection_tile_f32(\n"
+        "    const device float* range_tile [[buffer(0)]],\n"
+        "    device float* image_tile [[buffer(1)]],\n"
+        "    uint gid [[thread_position_in_grid]]) {\n"
+        "    image_tile[gid] = range_tile[gid];\n"
+        "}\n";
+    descriptor.arg_layout = {
+        graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
+            graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
+            graph::gpu::metal::capabilities::MetalKernelArgAccess::ReadOnly},
+        graph::gpu::metal::capabilities::MetalKernelArgDescriptor{
+            graph::gpu::metal::capabilities::MetalKernelArgKind::DeviceBuffer,
+            graph::gpu::metal::capabilities::MetalKernelArgAccess::WriteOnly},
+    };
+    descriptor.dispatch.default_grid_x = std::max(1u, config.image_width);
+    descriptor.dispatch.default_grid_y = 1;
+    descriptor.dispatch.default_grid_z = 1;
+    descriptor.dispatch.default_block_x = 1;
+    descriptor.dispatch.default_block_y = 1;
+    descriptor.dispatch.default_block_z = 1;
+    return descriptor;
+}
+
 } // namespace
 
 SarBackprojectionTransformAccelNode::SarBackprojectionTransformAccelNode(
@@ -40,6 +75,21 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     const auto accel_backend = ToAccelBackendKind(config_.backend);
     if (accel_backend == graph::gpu::accel::BackendKind::Unknown) {
         return std::nullopt;
+    }
+
+    if (config_.backend == SarBackendKind::NativeDevice && native_kernel_bound_) {
+        native_kernel_node_.SetOutputBytes(input.bytes);
+        auto native_output = native_kernel_node_.Transfer(
+            input,
+            std::integral_constant<std::size_t, 0>{},
+            std::integral_constant<std::size_t, 0>{});
+        if (!native_output) {
+            return std::nullopt;
+        }
+
+        native_output->ready_event = input.ready_event;
+        last_kernel_ticket_ = native_kernel_node_.last_kernel_ticket();
+        return native_output;
     }
 
     ++kernel_sequence_;
@@ -76,6 +126,14 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     }
 
     return output;
+}
+
+bool SarBackprojectionTransformAccelNode::BindGpuCapabilities(graph::CapabilityBus& capability_bus) {
+    native_kernel_bound_ = native_kernel_node_.BindGpuCapabilities(capability_bus);
+    if (native_kernel_bound_) {
+        ConfigureNativeKernel();
+    }
+    return native_kernel_bound_;
 }
 
 void SarBackprojectionTransformAccelNode::Configure(const graph::JsonView& cfg) {
@@ -182,6 +240,9 @@ std::vector<std::string> SarBackprojectionTransformAccelNode::GetParameterNames(
 void SarBackprojectionTransformAccelNode::SetConfig(
     const SarBackprojectionTransformAccelConfig& config) {
     config_ = config;
+    if (native_kernel_bound_) {
+        ConfigureNativeKernel();
+    }
 }
 
 const SarBackprojectionTransformAccelConfig& SarBackprojectionTransformAccelNode::GetConfig() const noexcept {
@@ -190,6 +251,20 @@ const SarBackprojectionTransformAccelConfig& SarBackprojectionTransformAccelNode
 
 const graph::gpu::accel::KernelTicket& SarBackprojectionTransformAccelNode::last_kernel_ticket() const noexcept {
     return last_kernel_ticket_;
+}
+
+bool SarBackprojectionTransformAccelNode::native_kernel_bound() const noexcept {
+    return native_kernel_bound_;
+}
+
+void SarBackprojectionTransformAccelNode::ConfigureNativeKernel() {
+    const auto queue_id =
+        (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
+                                 : config_.queue_id;
+    native_kernel_node_.ConfigureKernelDescriptor(
+        MakeBackprojectionDescriptor(config_),
+        config_.backend_id,
+        queue_id);
 }
 
 } // namespace sar

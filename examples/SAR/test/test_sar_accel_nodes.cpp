@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "gpu/accel/types/AccelValidation.hpp"
+#include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
+#include "graph/CapabilityBus.hpp"
 #include "sar/AzimuthTileSplitNode.hpp"
 #include "sar/D2HAsyncAccelNode.hpp"
 #include "sar/H2DAsyncAccelNode.hpp"
@@ -117,6 +119,56 @@ TEST(SarAccelNodesTest, H2DRejectsUnknownBackendWhenNotOverridden) {
         std::integral_constant<std::size_t, 0>{});
 
     EXPECT_FALSE(out.has_value());
+}
+
+TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreservesSidecarToken) {
+    graph::CapabilityBus bus;
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(64, 0, input_lease));
+    auto input = input_lease.device_view;
+    input.backend = graph::gpu::accel::BackendKind::Metal;
+    input.dtype = graph::gpu::accel::DataType::Float32;
+    input.layout.rank = 1;
+    input.layout.shape[0] = 16;
+    input.layout.stride[0] = 1;
+    input.device_id = 0;
+    input.execution_queue_id = 5;
+    input.ready_event = 0xCAFEu;
+
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
+    bp_cfg.image_width = 16;
+    bp_cfg.backend_id = 0;
+    bp_cfg.queue_id = 5;
+    bp_cfg.kernel_id = 8801;
+    bp_cfg.backend = sar::SarBackendKind::NativeDevice;
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+    ASSERT_TRUE(bp.BindGpuCapabilities(bus));
+    EXPECT_TRUE(bp.native_kernel_bound());
+
+    auto output = bp.Transfer(
+        input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(*output));
+    EXPECT_EQ(output->bytes, input.bytes);
+    EXPECT_EQ(output->ready_event, input.ready_event);
+    EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
+    EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 8801u);
+    EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);
+    EXPECT_EQ(bp.last_kernel_ticket().execution_queue_id, 5u);
+    EXPECT_EQ(telemetry->KernelSamples(), 1u);
 }
 
 TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge) {
