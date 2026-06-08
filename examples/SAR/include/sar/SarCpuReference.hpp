@@ -50,6 +50,13 @@ struct ErrorMetrics {
     double relative_l2{};
 };
 
+struct BackprojectionAdapterConfig {
+    std::uint32_t tap_count{8};
+    double delay_step{0.5};
+    double phase_tap_scale{0.35};
+    double phase_aperture_scale{0.2};
+};
+
 inline void ValidateGeometry(const Geometry& geometry) {
     if (geometry.pulse_count == 0 || geometry.range_bin_count == 0 ||
         geometry.image_width == 0 || geometry.image_height == 0) {
@@ -217,6 +224,73 @@ inline ErrorMetrics CompareImages(const Image& actual, const Image& expected) {
         .rms = std::sqrt(sum_sq / count),
         .relative_l2 = expected_sum_sq == 0.0 ? 0.0 : std::sqrt(sum_sq / expected_sum_sq),
     };
+}
+
+inline std::vector<float> RunBackprojectionAdapterReference(
+    const std::vector<float>& range_tile,
+    const BackprojectionAdapterConfig& config) {
+    if (range_tile.empty()) {
+        throw std::invalid_argument("SAR adapter reference input must be non-empty");
+    }
+    if (config.tap_count == 0) {
+        throw std::invalid_argument("SAR adapter reference tap count must be non-zero");
+    }
+
+    constexpr double kPi = 3.141592653589793238462643383279502884;
+    const auto sample_count = range_tile.size();
+    const double inv_tap_count = 1.0 / static_cast<double>(config.tap_count);
+
+    std::vector<float> output(sample_count, 0.0f);
+    for (std::size_t gid = 0; gid < sample_count; ++gid) {
+        const double aperture_norm =
+            static_cast<double>(gid) / static_cast<double>(sample_count);
+        double accum = 0.0;
+
+        for (std::uint32_t tap = 0; tap < config.tap_count; ++tap) {
+            const double delay =
+                static_cast<double>(gid) + (config.delay_step * static_cast<double>(tap));
+            const double sample_pos = std::clamp(
+                delay,
+                0.0,
+                static_cast<double>(sample_count - 1u));
+            const auto idx0 = static_cast<std::size_t>(std::floor(sample_pos));
+            const auto idx1 = std::min(sample_count - 1u, idx0 + 1u);
+            const double frac = sample_pos - static_cast<double>(idx0);
+            const double sample =
+                (static_cast<double>(range_tile[idx0]) * (1.0 - frac)) +
+                (static_cast<double>(range_tile[idx1]) * frac);
+            const double aperture_weight =
+                0.5 - (0.5 * std::cos(2.0 * kPi *
+                                      ((static_cast<double>(tap) + 0.5) * inv_tap_count)));
+            const double phase =
+                ((config.phase_tap_scale * static_cast<double>(tap)) +
+                 (config.phase_aperture_scale * aperture_norm)) *
+                kPi;
+            const double phasor = std::cos(phase) + (0.5 * std::sin(phase));
+            accum += sample * aperture_weight * phasor;
+        }
+
+        output[gid] = static_cast<float>(accum * inv_tap_count);
+    }
+
+    return output;
+}
+
+inline ErrorMetrics CompareVectors(const std::vector<float>& actual,
+                                   const std::vector<float>& expected) {
+    if (actual.size() != expected.size()) {
+        throw std::invalid_argument("SAR vector sizes must match for comparison");
+    }
+    Image actual_image{};
+    actual_image.width = static_cast<std::uint32_t>(actual.size());
+    actual_image.height = 1;
+    actual_image.pixels = actual;
+
+    Image expected_image{};
+    expected_image.width = static_cast<std::uint32_t>(expected.size());
+    expected_image.height = 1;
+    expected_image.pixels = expected;
+    return CompareImages(actual_image, expected_image);
 }
 
 inline std::uint64_t QuantizedImageHash(const Image& image, double scale = 1.0e6) {

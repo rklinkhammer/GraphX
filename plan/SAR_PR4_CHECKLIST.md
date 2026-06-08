@@ -22,7 +22,7 @@ Add a deterministic SAR correctness foundation before expanding native GPU/Metal
   - [x] kernel dispatches
   - [x] graph overhead
   - [x] diagnostics contract
-- [ ] Add CPU-vs-Metal parity once native Metal output values are exposed through a testable data path.
+- [x] Add CPU-vs-Metal parity for the existing SAR Metal adapter kernel output path.
 
 ## Non-Goals
 
@@ -35,6 +35,7 @@ Add a deterministic SAR correctness foundation before expanding native GPU/Metal
 
 - [x] `test_sar_example_unit` passes.
 - [x] `sar_benchmark --profile=ci --range-stage=compression --trace-out <file>` emits PR4 cost buckets.
+- [x] `sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out <file>` executes native Metal SAR backprojection and emits native execution evidence.
 - [x] Accel-token topology validation still rejects legacy payload contracts.
 - [x] Benchmark output separates GraphX overhead from SAR algorithm/baseline cost.
 
