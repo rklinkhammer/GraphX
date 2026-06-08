@@ -28,6 +28,7 @@
 #include "graph/GraphConfig.hpp"
 #include "graph/NodeFacade.hpp"  // Full definition needed for nodes_ vector
 #include "graph/ExecutionState.hpp"
+#include "graph/ResolvingNodeProvider.hpp"
 #include "capabilities/GraphCapability.hpp"
 #include <memory>
 #include <vector>
@@ -84,6 +85,9 @@ struct BuildResult {
     
     /// Edge descriptions: "source:port → dest:port" format
     std::vector<std::string> edge_descriptions;
+
+    /// Generic intent resolver diagnostics emitted during node creation.
+    std::vector<graph::NodeResolutionDiagnostic> resolver_diagnostics;
 };
 
 // ============================================================================

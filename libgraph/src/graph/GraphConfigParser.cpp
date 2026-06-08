@@ -49,6 +49,15 @@ bool IsOneOf(std::string_view value, std::initializer_list<std::string_view> all
     return std::find(allowed.begin(), allowed.end(), value) != allowed.end();
 }
 
+bool IsLegacySarPayloadContract(const std::string& payload_contract) {
+    return IsOneOf(payload_contract,
+                   {"SarPulseBlockMessage",
+                    "SarRangeTileMessage",
+                    "SarImageTileMessage",
+                    "SarDeviceLeaseMessage",
+                    "SarTransferTicketMessage"});
+}
+
 } // namespace
 
 // Helper: Check if string matches valid node ID pattern (alphanumeric, underscore, hyphen)
@@ -317,6 +326,13 @@ GraphConfigParser::ParseEdgeSafe(const json& edge_json) noexcept {
             edge_config.backpressure_enabled = true;
         }
 
+        if (edge_json.contains("payload_contract")) {
+            if (!edge_json["payload_contract"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            edge_config.payload_contract = edge_json["payload_contract"].get<std::string>();
+        }
+
         return edge_config;
     } catch (const std::invalid_argument&) {
         return std::unexpected(app::error::ConfigError::TypeMismatch);
@@ -544,6 +560,14 @@ ValidationResult GraphConfigParser::Validate(const GraphConfig& config) {
         if (!edge_valid) {
             result.valid = false;
             result.errors.push_back("Edge validation failed");
+        }
+
+        if (config.resolver.edge_contract == "accel-token" &&
+            IsLegacySarPayloadContract(edge_config.payload_contract)) {
+            result.valid = false;
+            result.errors.push_back(
+                "Legacy SAR payload contract is not allowed on accel-token edge: " +
+                edge_config.payload_contract);
         }
         
         // Check that source and target nodes exist

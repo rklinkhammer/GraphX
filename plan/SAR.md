@@ -601,21 +601,45 @@ Resolved:
 2. **Ownership boundary for SAR+Metal integration**
    - Selected: `examples/SAR` owns SAR graph contracts and metadata sidecars; `libgpu` owns reusable backend runtime nodes and accel token types.
 
-Still open or requiring implementation:
+Resolved PR3 decisions:
 
 1. **Kernel packaging strategy**
-   - Option A: register kernels as builtin names resolved by native runtime source generation.
-   - Option B: register SAR kernels via `inline_source` descriptors from JSON.
-   - Option C: load a versioned `.metallib` artifact with stable entry points.
+   - Selected for PR3: register SAR kernels through explicit kernel descriptors with inline-source support when the native runtime is available.
+   - Defer versioned `.metallib` artifacts until the SAR kernel ABI and geometry parameter block stabilize.
+   - Builtin names remain acceptable only for reusable generic kernels already owned by `libgpu`; SAR-specific kernels should not be hidden behind generic builtin names until they have reusable value outside `examples/SAR`.
 2. **Merge location**
-   - Option A: keep `ImageTileMergeNode` host-side for deterministic diagnostics.
-   - Option B: introduce device-side partial merge/reduce and host finalization.
+   - Selected for PR3: keep `ImageTileMergeNode` host-side for deterministic diagnostics, watermark/EOS handling, and graph-vs-baseline parity.
+   - Device-side partial merge/reduce remains a future optimization experiment after native kernel parity is established.
 3. **Queue/device policy**
-   - Option A: single shared queue for PR3 determinism.
-   - Option B: per-stage queues with explicit `QueueSyncNodeMetal` boundaries.
+   - Selected for PR3: use a single backend queue by default for deterministic CI/local behavior.
+   - Explicit `QueueSyncNodeMetal` or equivalent queue-boundary nodes may be introduced only when measuring transfer/kernel overlap; trace output must then report queue id, transfer time, kernel time, and overlap utilization.
 4. **Test/CI policy for native Metal**
-   - Option A: skip when native unavailable (`GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=OFF`).
-   - Option B: require native runtime for PR3 completion gate.
+   - Selected for PR3: CI correctness gates must pass with the accel-token/stub lane and skip native runtime checks when unavailable.
+   - Local native acceptance uses `GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON`; when enabled on macOS with Metal runtime available, native SAR kernel tests must fail fast if kernels cannot compile/bind.
+   - PR3 documentation and checklists must not describe the simulated native flag as true backend SAR compute until a native SAR kernel is present.
+
+Remaining implementation gate:
+
+1. Replace the simulated native SAR compute path with backend-specific SAR kernel execution where runtime is available. Existing Metal support has generic transform/reduce kernels, but no SAR range-compression or backprojection kernel entry points yet.
+
+### PR3 performance and attribution policy
+
+1. CI performance gates verify metric presence and deterministic graph-vs-baseline parity, not absolute GPU speed.
+2. Local native performance gates should report:
+   - graph build time,
+   - graph run time,
+   - graph lifecycle teardown time,
+   - baseline execute time,
+   - transfer payload bytes,
+   - transfer and kernel timing,
+   - queue/backpressure counters,
+   - overlap utilization when multiple queues or explicit sync nodes are enabled.
+3. Benchmark overhead attribution must treat H2D/D2H byte counters as transfer-stage payload counters only. Accel-token graph edges carry tokens and SAR sidecars, so token-edge payload copy attribution is zero unless a compatibility adapter explicitly copies payload bytes.
+4. Suggested local representative thresholds after native kernels are available:
+   - diagnostics parity with the non-graph baseline is required,
+   - graph run median should be reported separately from lifecycle total,
+   - graph scheduling overhead should be tracked as `median(graph_run) - median(baseline_execute)`,
+   - native profile thresholds should be set per machine/backend after collecting at least three local baseline runs.
 
 ### Required PR3 testing after token conversion
 

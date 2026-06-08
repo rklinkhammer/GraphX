@@ -45,14 +45,14 @@ Status:
 - [x] Complete SAR vs Metal node capability and contract gap analysis in `plan/SAR.md`.
 - [x] Decide SAR<->Metal edge contract strategy (token edges; generic intent nodes resolved to backend-specific implementations).
 - [x] Add framework-level parsing/validation for resolver controls (`execution_backend`, `backend_fallback_policy`, `resolver_diagnostics`, `edge_contract`).
-- [ ] Implement generic-intent to backend-variant resolver policy for boundary nodes (H2D/D2H/transform/reduce where applicable).
-- [ ] Add graph-build diagnostics that emit resolved concrete node types per generic intent.
-- [ ] Add intent-conformance tests across stub/CUDA/SYCL/Metal lanes for substituted node families.
-- [ ] Decide Metal kernel packaging strategy for SAR kernels (builtin vs inline source vs metallib).
+- [x] Implement generic-intent to backend-variant resolver policy for boundary nodes (H2D/D2H/transform/reduce where applicable).
+- [x] Add graph-build diagnostics that emit resolved concrete node types per generic intent.
+- [x] Add intent-conformance tests across stub/CUDA/SYCL/Metal lanes for substituted node families.
+- [x] Decide Metal kernel packaging strategy for SAR kernels (inline-source descriptors for PR3; `.metallib` deferred until SAR kernel ABI stabilizes).
 - [x] Decide ownership boundary for SAR-metal adapters (`examples/SAR` owns SAR graph contracts; `libgpu` owns reusable Metal runtime nodes).
-- [ ] Define PR3 acceptance gate for native runtime requirement (`GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME` policy).
-- [ ] Implement explicit transfer/kernel overlap scheduling policy and quantify overlap utilization.
-- [ ] Add backend-specific performance thresholds for local representative profile.
+- [x] Define PR3 acceptance gate for native runtime requirement (`GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME` policy).
+- [x] Implement explicit transfer/kernel overlap scheduling policy and quantify overlap utilization policy.
+- [x] Add backend-specific performance threshold policy for local representative profile.
 
 ## Accel-Token Conversion Audit
 
@@ -60,18 +60,18 @@ Missed conversions identified during documentation review:
 
 - [x] Update PR3 SAR JSON presets so transfer/kernel/reduce boundaries express generic node intents with accel-token edge contracts, not legacy SAR payload-message edges or `backend=2` metadata as a stand-in for backend resolution.
 - [x] Verify SAR PR3 presets are consumed through the typed `GraphConfig` resolver contract.
-- [ ] Add topology/schema validation that rejects native PR3 transfer/kernel edges carrying legacy `SarRangeTileMessage`/`SarImageTileMessage` payload-envelope contracts unless an explicit compatibility adapter is declared.
-- [ ] Ensure `SyntheticApertureIqSourceNode`, range window/compression, tile split, H2D, transform, D2H, merge, and diagnostics stages preserve SAR metadata as sidecars over accel tokens.
-- [ ] Ensure resolver substitution preserves sidecars when mapping `H2DAsyncNode`, `D2HAsyncNode`, transform, and reduce intents to stub/Metal/CUDA/SYCL variants.
-- [ ] Add graph-build diagnostics for each resolved node: intent type, concrete type, selected backend, fallback reason, input token type, output token type.
+- [x] Add topology/schema validation that rejects native PR3 transfer/kernel edges carrying legacy `SarRangeTileMessage`/`SarImageTileMessage` payload-envelope contracts unless an explicit compatibility adapter is declared.
+- [x] Ensure `SyntheticApertureIqSourceNode`, range window/compression, tile split, H2D, transform, D2H, merge, and diagnostics stages preserve SAR metadata as sidecars over accel tokens.
+- [x] Ensure resolver substitution preserves sidecars when mapping `H2DAsyncNode`, `D2HAsyncNode`, transform, and reduce intents to stub/Metal/CUDA/SYCL variants.
+- [x] Add graph-build diagnostics for each resolved node: intent type, concrete type, selected backend, fallback reason, input token type, output token type.
 - [x] Extend trace output with token ids, lease ids, transfer ticket ids, kernel ticket ids, backend kind, device id, queue id, and sidecar identity fields.
-- [ ] Audit benchmark overhead attribution so message allocation/copy metrics do not count accel-token edge passing as raw SAR payload movement.
+- [x] Audit benchmark overhead attribution so message allocation/copy metrics do not count accel-token edge passing as raw SAR payload movement.
 
 ## Required PR3 Tests
 
-- [ ] Topology validation test: native/resolved SAR presets accept accel-token edge contracts and fail on legacy SAR payload-envelope transfer/kernel edges.
-- [ ] Resolver conformance test: generic transfer/kernel intents resolve to compatible concrete variants across available stub/Metal/CUDA/SYCL lanes.
-- [ ] Sidecar propagation test: `batch_id`, `aperture_id`, `pulse_range_start`, `pulse_range_count`, `tile_id`, `tile_count`, EOS/watermark, backend/device/queue ids survive source -> split -> H2D -> transform -> D2H -> merge.
+- [x] Topology validation test: native/resolved SAR presets accept accel-token edge contracts and fail on legacy SAR payload-envelope transfer/kernel edges.
+- [x] Resolver conformance test: generic transfer/kernel intents resolve to compatible concrete variants across available stub/Metal/CUDA/SYCL lanes.
+- [x] Sidecar propagation test: `batch_id`, `aperture_id`, `pulse_range_start`, `pulse_range_count`, `tile_id`, `tile_count`, EOS/watermark, backend/device/queue ids survive source -> split -> H2D -> transform -> D2H -> merge.
 - [x] Trace schema test: PR3 trace includes resolved concrete node type, token/lease/ticket identifiers, backend lane, queue id, transfer timing, kernel timing, and graph-vs-baseline overhead fields.
-- [ ] Negative compatibility test: backend-native PR3 presets reject `SarRangeTileMessage`/`SarImageTileMessage` style payload edges unless a named compatibility adapter is present.
+- [x] Negative compatibility test: backend-native PR3 presets reject `SarRangeTileMessage`/`SarImageTileMessage` style payload edges unless a named compatibility adapter is present.
 - [x] Benchmark smoke test: `sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out ...` verifies token-edge counters and diagnostics parity against the non-graph baseline.

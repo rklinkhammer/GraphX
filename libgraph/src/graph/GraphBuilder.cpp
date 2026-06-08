@@ -26,6 +26,7 @@
 #include "graph/GraphConfigParser.hpp"
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/NodeProvider.hpp"
+#include "graph/ResolvingNodeProvider.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "plugins/NodePluginTemplate.hpp"
@@ -174,9 +175,23 @@ BuildResult GraphBuilder::Build() {
         // Step 2: Load graph configuration
         LOG4CXX_TRACE(logger_, "Step 2: Loading graph configuration");
         const auto& json_path = capability_->GetJsonConfigPath();
+        auto parsed_config_for_resolver = graph::config::GraphConfigParser::ParseFileSafe(json_path);
+        if (!parsed_config_for_resolver) {
+            BuildResult result;
+            result.success = false;
+            result.error_message = "Failed to parse graph configuration for resolver";
+            result.graph = nullptr;
+            result.node_count = 0;
+            result.edge_count = 0;
+            return result;
+        }
+
+        auto resolving_provider = std::make_shared<graph::ResolvingNodeProvider>(
+            capability_->GetNodeProvider(),
+            parsed_config_for_resolver->resolver);
         auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
             json_path,
-            capability_->GetNodeProvider());
+            resolving_provider);
         if (!graph_config) {
             BuildResult result;
             result.success = false;
@@ -262,6 +277,17 @@ BuildResult GraphBuilder::Build() {
                                      edge.target_node_id + ":" +
                                      std::to_string(edge.target_port);
             result.edge_descriptions.push_back(description);
+        }
+
+        result.resolver_diagnostics = resolving_provider->diagnostics();
+        for (const auto& diagnostic : result.resolver_diagnostics) {
+            LOG4CXX_TRACE(logger_, "Resolver: intent=" << diagnostic.intent_type
+                         << ", concrete=" << diagnostic.concrete_type
+                         << ", backend=" << diagnostic.selected_backend
+                         << ", fallback=" << (diagnostic.fallback_used ? "true" : "false")
+                         << ", input=" << diagnostic.input_token_type
+                         << ", output=" << diagnostic.output_token_type
+                         << ", reason=" << diagnostic.fallback_reason);
         }
         
         return result;

@@ -798,8 +798,9 @@ void PrintSummary(const BenchmarkProfile& profile,
               << " ms, stop=" << last_graph.stop_ms
               << " ms, join=" << last_graph.join_ms
               << " ms, total=" << last_graph.lifecycle_total_ms << " ms\n";
-    std::cout << "- message allocation/copy: bytes_h2d=" << last_graph.diagnostics.bytes_h2d
-              << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h << "\n";
+    std::cout << "- accel-token movement: bytes_h2d=" << last_graph.diagnostics.bytes_h2d
+              << ", bytes_d2h=" << last_graph.diagnostics.bytes_d2h
+              << " (transfer payload counters; graph edges carry tokens/sidecars)\n";
     std::cout << "- transfer/kernel timing (us): h2d=" << last_graph.diagnostics.transfer_h2d_time_us
               << ", kernel=" << last_graph.diagnostics.kernel_exec_time_us
               << ", d2h=" << last_graph.diagnostics.transfer_d2h_time_us << "\n";
@@ -983,6 +984,13 @@ void WriteTraceJson(const std::filesystem::path& path,
         {"overhead_ms", {
             {"graph_run_minus_baseline_median", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
             {"lifecycle_join_last", last_graph.join_ms},
+        }},
+        {"overhead_attribution", {
+            {"edge_contract", "accel-token"},
+            {"token_edge_payload_copies", 0},
+            {"transfer_payload_bytes_h2d", last_graph.diagnostics.bytes_h2d},
+            {"transfer_payload_bytes_d2h", last_graph.diagnostics.bytes_d2h},
+            {"payload_copy_attribution", "transfer-stage counters only; graph edges carry accel tokens and SAR sidecars"},
         }},
     };
 

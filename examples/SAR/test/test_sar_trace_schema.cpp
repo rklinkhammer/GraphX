@@ -91,6 +91,16 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(queue.contains("backpressure_events"));
     EXPECT_TRUE(queue.contains("peak_queue_depth"));
 
+    ASSERT_TRUE(trace.contains("overhead_attribution"));
+    const auto& overhead = trace.at("overhead_attribution");
+    EXPECT_EQ(overhead.at("edge_contract").get<std::string>(), "accel-token");
+    EXPECT_EQ(overhead.at("token_edge_payload_copies").get<int>(), 0);
+    EXPECT_TRUE(overhead.contains("transfer_payload_bytes_h2d"));
+    EXPECT_TRUE(overhead.contains("transfer_payload_bytes_d2h"));
+    EXPECT_TRUE(overhead.at("payload_copy_attribution")
+                    .get<std::string>()
+                    .find("graph edges carry accel tokens") != std::string::npos);
+
     ASSERT_TRUE(trace.contains("token_lifecycle"));
     const auto& tokens = trace.at("token_lifecycle");
     EXPECT_TRUE(tokens.at("has_host_view").get<bool>());

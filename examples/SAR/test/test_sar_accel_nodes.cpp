@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include "gpu/accel/types/AccelValidation.hpp"
+#include "sar/AzimuthTileSplitNode.hpp"
 #include "sar/D2HAsyncAccelNode.hpp"
 #include "sar/H2DAsyncAccelNode.hpp"
+#include "sar/ImageTileMergeNode.hpp"
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
 
 #include <cstddef>
@@ -20,6 +22,27 @@ graph::gpu::accel::HostPinnedBufferView MakeHostView() {
     view.layout.stride[0] = 1;
     view.allocator_id = 7;
     return view;
+}
+
+sar::SarPulseBlockMessage MakePulseForTokenSidecar() {
+    sar::SarPulseBlockMessage msg{};
+    msg.envelope.sequence_id = 9;
+    msg.envelope.batch_id = 5;
+    msg.envelope.aperture_id = 9;
+    msg.envelope.pulse_range_start = 9;
+    msg.envelope.pulse_range_count = 1;
+    msg.envelope.stream_id = 23;
+    msg.envelope.tile_count = 4;
+    msg.envelope.backend = sar::SarBackendKind::SimulatedDevice;
+    msg.envelope.marker = sar::SarFrameMarker::Data;
+    msg.iq_samples = {
+        sar::SarIqSample(1.0f, 0.0f),
+        sar::SarIqSample(2.0f, 0.0f),
+        sar::SarIqSample(3.0f, 0.0f),
+        sar::SarIqSample(4.0f, 0.0f),
+    };
+    msg.buffer.byte_count = msg.iq_samples.size() * sizeof(sar::SarIqSample);
+    return msg;
 }
 
 } // namespace
@@ -94,4 +117,83 @@ TEST(SarAccelNodesTest, H2DRejectsUnknownBackendWhenNotOverridden) {
         std::integral_constant<std::size_t, 0>{});
 
     EXPECT_FALSE(out.has_value());
+}
+
+TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge) {
+    sar::AzimuthTileSplitConfig split_cfg{};
+    split_cfg.tile_count = 4;
+    split_cfg.fixed_tile_id = 2;
+    split_cfg.backend_id = 3;
+    split_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::AzimuthTileSplitNode split(split_cfg);
+
+    auto host_tile = split.Transfer(
+        MakePulseForTokenSidecar(),
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_tile.has_value());
+
+    sar::H2DAsyncAccelConfig h2d_cfg{};
+    h2d_cfg.override_backend = true;
+    h2d_cfg.backend_id = 3;
+    h2d_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::H2DAsyncAccelNode h2d;
+    h2d.SetConfig(h2d_cfg);
+
+    auto device_tile = h2d.Transfer(
+        *host_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_tile.has_value());
+
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
+    bp_cfg.backend_id = 3;
+    bp_cfg.kernel_id = 4402;
+    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+
+    auto device_image = bp.Transfer(
+        *device_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_image.has_value());
+
+    sar::D2HAsyncAccelConfig d2h_cfg{};
+    d2h_cfg.override_backend = true;
+    d2h_cfg.backend_id = 3;
+    d2h_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::D2HAsyncAccelNode d2h;
+    d2h.SetConfig(d2h_cfg);
+
+    auto final_host_tile = d2h.Transfer(
+        *device_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(final_host_tile.has_value());
+
+    sar::ImageTileMergeConfig merge_cfg{};
+    merge_cfg.expected_tiles = 4;
+    merge_cfg.backend_id = 3;
+    merge_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::ImageTileMergeNode merge(merge_cfg);
+
+    auto status = merge.Transfer(
+        *final_host_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(status.has_value());
+    EXPECT_EQ(status->envelope.sequence_id, 9u);
+    EXPECT_EQ(status->envelope.batch_id, 23u);
+    EXPECT_EQ(status->envelope.aperture_id, 9u);
+    EXPECT_EQ(status->envelope.pulse_range_start, 9u);
+    EXPECT_EQ(status->envelope.pulse_range_count, 1u);
+    EXPECT_EQ(status->envelope.stream_id, 23u);
+    EXPECT_EQ(status->envelope.tile_id, 2u);
+    EXPECT_EQ(status->envelope.tile_count, 4u);
+    EXPECT_EQ(status->bytes_h2d, 16u);
+    EXPECT_EQ(status->bytes_d2h, 16u);
+    EXPECT_TRUE(status->gpu.has_host_view);
+    EXPECT_TRUE(status->gpu.has_transfer_ticket);
+    EXPECT_TRUE(status->gpu.has_kernel_ticket);
 }

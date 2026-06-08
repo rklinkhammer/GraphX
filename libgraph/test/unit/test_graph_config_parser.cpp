@@ -145,6 +145,49 @@ TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownEdgeContract) {
     EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
 
+TEST(GraphConfigParserExpectedTest, ParseSafePreservesDeclaredPayloadContract) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "payload_contract_graph",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [{
+        "source_node_id": "source_1",
+        "source_port": 0,
+        "target_node_id": "sink_1",
+        "target_port": 0,
+        "payload_contract": "HostPinnedBufferView"
+      }]
+    })");
+
+    ASSERT_TRUE(result);
+    ASSERT_EQ(result->edges.size(), 1u);
+    EXPECT_EQ(result->edges[0].payload_contract, "HostPinnedBufferView");
+}
+
+TEST(GraphConfigParserExpectedTest, ValidateRejectsLegacySarPayloadContractForAccelTokenGraph) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "legacy_payload_contract_graph",
+      "edge_contract": "accel-token",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [{
+        "source_node_id": "source_1",
+        "source_port": 0,
+        "target_node_id": "sink_1",
+        "target_port": 0,
+        "payload_contract": "SarRangeTileMessage"
+      }]
+    })");
+
+    ASSERT_TRUE(result);
+    const auto validation = graph::config::GraphConfigParser::Validate(result.value());
+    EXPECT_FALSE(validation.valid);
+}
+
   TEST(GraphConfigParserExpectedTest, ParseSafeParsesNamedPorts) {
     const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
       "name": "named_ports_graph",

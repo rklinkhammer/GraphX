@@ -125,6 +125,9 @@ struct EdgeConfig {
     
     /// Enable backpressure handling (default: true)
     bool backpressure_enabled = true;
+
+    /// Optional declared payload/edge contract for schema validation.
+    std::string payload_contract;
     
     /// Description (optional)
     std::string description;
