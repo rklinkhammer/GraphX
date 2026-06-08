@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "graph/GraphExecutorBuilder.hpp"
+#include "graph/GraphConfigParser.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
@@ -88,6 +89,13 @@ void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path
     EXPECT_TRUE(config.at("resolver_diagnostics").get<bool>());
     ASSERT_TRUE(config.contains("edge_contract"));
     EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+    const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(config_path.string());
+    ASSERT_TRUE(parsed);
+    EXPECT_EQ(parsed->resolver.execution_backend, "metal");
+    EXPECT_EQ(parsed->resolver.backend_fallback_policy, "allow_fallback");
+    EXPECT_TRUE(parsed->resolver.resolver_diagnostics);
+    EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
     const std::set<std::string> generic_intents{
         "H2DAsyncNode",

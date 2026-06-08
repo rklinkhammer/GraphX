@@ -26,9 +26,11 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <initializer_list>
 #include <regex>
 #include <thread>
 #include <set>
+#include <string_view>
 #include <nlohmann/json.hpp>
 #include <log4cxx/logger.h>
 #include "config/JsonUtilities.hpp"
@@ -40,6 +42,14 @@ using json = nlohmann::json;
 
 static log4cxx::LoggerPtr logger_ = 
     log4cxx::Logger::getLogger("graph.config");
+
+namespace {
+
+bool IsOneOf(std::string_view value, std::initializer_list<std::string_view> allowed) {
+    return std::find(allowed.begin(), allowed.end(), value) != allowed.end();
+}
+
+} // namespace
 
 // Helper: Check if string matches valid node ID pattern (alphanumeric, underscore, hyphen)
 bool GraphConfigParser::IsValidNodeId(const std::string& id) {
@@ -349,6 +359,45 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
                 return std::unexpected(app::error::ConfigError::TypeMismatch);
             }
             config.description = json_data["description"].get<std::string>();
+        }
+
+        if (json_data.contains("execution_backend")) {
+            if (!json_data["execution_backend"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.resolver.execution_backend = json_data["execution_backend"].get<std::string>();
+            if (!IsOneOf(config.resolver.execution_backend, {"auto", "metal", "cuda", "sycl", "stub"})) {
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+        }
+
+        if (json_data.contains("backend_fallback_policy")) {
+            if (!json_data["backend_fallback_policy"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.resolver.backend_fallback_policy =
+                json_data["backend_fallback_policy"].get<std::string>();
+            if (!IsOneOf(config.resolver.backend_fallback_policy, {"strict", "allow_fallback"})) {
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
+        }
+
+        if (json_data.contains("resolver_diagnostics")) {
+            if (!json_data["resolver_diagnostics"].is_boolean()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.resolver.resolver_diagnostics = json_data["resolver_diagnostics"].get<bool>();
+        }
+
+        if (json_data.contains("edge_contract")) {
+            if (!json_data["edge_contract"].is_string()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+            config.resolver.edge_contract = json_data["edge_contract"].get<std::string>();
+            if (!config.resolver.edge_contract.empty() &&
+                !IsOneOf(config.resolver.edge_contract, {"accel-token"})) {
+                return std::unexpected(app::error::ConfigError::ValidationFailed);
+            }
         }
 
         if (json_data.contains("num_threads")) {

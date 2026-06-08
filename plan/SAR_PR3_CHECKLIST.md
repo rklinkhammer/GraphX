@@ -44,6 +44,7 @@ Status:
 - [x] Convert SAR Metal/native presets from backend-tagged SAR payload semantics to generic-intent accel-token topology semantics.
 - [x] Complete SAR vs Metal node capability and contract gap analysis in `plan/SAR.md`.
 - [x] Decide SAR<->Metal edge contract strategy (token edges; generic intent nodes resolved to backend-specific implementations).
+- [x] Add framework-level parsing/validation for resolver controls (`execution_backend`, `backend_fallback_policy`, `resolver_diagnostics`, `edge_contract`).
 - [ ] Implement generic-intent to backend-variant resolver policy for boundary nodes (H2D/D2H/transform/reduce where applicable).
 - [ ] Add graph-build diagnostics that emit resolved concrete node types per generic intent.
 - [ ] Add intent-conformance tests across stub/CUDA/SYCL/Metal lanes for substituted node families.
@@ -57,7 +58,8 @@ Status:
 
 Missed conversions identified during documentation review:
 
-- [ ] Update PR3 SAR JSON presets so transfer/kernel/reduce boundaries express generic node intents with accel-token edge contracts, not legacy SAR payload-message edges or `backend=2` metadata as a stand-in for backend resolution.
+- [x] Update PR3 SAR JSON presets so transfer/kernel/reduce boundaries express generic node intents with accel-token edge contracts, not legacy SAR payload-message edges or `backend=2` metadata as a stand-in for backend resolution.
+- [x] Verify SAR PR3 presets are consumed through the typed `GraphConfig` resolver contract.
 - [ ] Add topology/schema validation that rejects native PR3 transfer/kernel edges carrying legacy `SarRangeTileMessage`/`SarImageTileMessage` payload-envelope contracts unless an explicit compatibility adapter is declared.
 - [ ] Ensure `SyntheticApertureIqSourceNode`, range window/compression, tile split, H2D, transform, D2H, merge, and diagnostics stages preserve SAR metadata as sidecars over accel tokens.
 - [ ] Ensure resolver substitution preserves sidecars when mapping `H2DAsyncNode`, `D2HAsyncNode`, transform, and reduce intents to stub/Metal/CUDA/SYCL variants.

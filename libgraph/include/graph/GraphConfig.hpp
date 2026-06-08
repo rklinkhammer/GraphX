@@ -163,6 +163,14 @@ struct GraphConfig {
     
     /// Number of threads for ThreadPool (0 = auto-detect)
     std::size_t num_threads = 0;
+
+    /// Backend intent resolver controls for portable graph topologies.
+    struct ResolverConfig {
+        std::string execution_backend{"auto"};
+        std::string backend_fallback_policy{"strict"};
+        bool resolver_diagnostics{true};
+        std::string edge_contract{};
+    } resolver;
     
     /// Deadlock detection configuration
     struct DeadlockDetectionConfig {
@@ -231,4 +239,3 @@ struct ValidationResult {
 };
 
 }  // namespace graph::config
-

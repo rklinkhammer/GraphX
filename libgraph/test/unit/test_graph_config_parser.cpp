@@ -61,6 +61,90 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesValidGraphConfig) {
     EXPECT_EQ(result->edges[0].buffer_size, 64u);
 }
 
+TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverControls) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "resolver_graph",
+      "execution_backend": "metal",
+      "backend_fallback_policy": "allow_fallback",
+      "resolver_diagnostics": true,
+      "edge_contract": "accel-token",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"},
+        {"id": "sink_1", "type": "SinkTestNode"}
+      ],
+      "edges": [{
+        "source_node_id": "source_1",
+        "source_port": 0,
+        "target_node_id": "sink_1",
+        "target_port": 0
+      }]
+    })");
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(result->resolver.execution_backend, "metal");
+    EXPECT_EQ(result->resolver.backend_fallback_policy, "allow_fallback");
+    EXPECT_TRUE(result->resolver.resolver_diagnostics);
+    EXPECT_EQ(result->resolver.edge_contract, "accel-token");
+}
+
+TEST(GraphConfigParserExpectedTest, ParseSafeAppliesResolverDefaults) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "resolver_defaults_graph",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(result->resolver.execution_backend, "auto");
+    EXPECT_EQ(result->resolver.backend_fallback_policy, "strict");
+    EXPECT_TRUE(result->resolver.resolver_diagnostics);
+    EXPECT_TRUE(result->resolver.edge_contract.empty());
+}
+
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownExecutionBackend) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "bad_backend_graph",
+      "execution_backend": "vulkan",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownFallbackPolicy) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "bad_fallback_graph",
+      "backend_fallback_policy": "maybe",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownEdgeContract) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "bad_edge_contract_graph",
+      "edge_contract": "payload-copy",
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
   TEST(GraphConfigParserExpectedTest, ParseSafeParsesNamedPorts) {
     const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
       "name": "named_ports_graph",
