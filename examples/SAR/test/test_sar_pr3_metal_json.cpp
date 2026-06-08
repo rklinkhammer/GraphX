@@ -6,7 +6,11 @@
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <memory>
+#include <set>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -67,6 +71,53 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
 }
 
+void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path) {
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    std::ifstream in(config_path);
+    ASSERT_TRUE(in.good());
+
+    nlohmann::json config;
+    in >> config;
+
+    ASSERT_TRUE(config.contains("execution_backend"));
+    EXPECT_EQ(config.at("execution_backend").get<std::string>(), "metal");
+    ASSERT_TRUE(config.contains("backend_fallback_policy"));
+    EXPECT_EQ(config.at("backend_fallback_policy").get<std::string>(), "allow_fallback");
+    ASSERT_TRUE(config.contains("resolver_diagnostics"));
+    EXPECT_TRUE(config.at("resolver_diagnostics").get<bool>());
+    ASSERT_TRUE(config.contains("edge_contract"));
+    EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+    const std::set<std::string> generic_intents{
+        "H2DAsyncNode",
+        "SarBackprojectionTransformNode",
+        "D2HAsyncNode",
+    };
+    std::set<std::string> seen_intents;
+
+    ASSERT_TRUE(config.contains("nodes"));
+    for (const auto& node : config.at("nodes")) {
+        ASSERT_TRUE(node.contains("type"));
+        const auto type = node.at("type").get<std::string>();
+        EXPECT_FALSE(type.ends_with("Metal")) << "portable PR3 presets should use generic intents";
+        if (generic_intents.contains(type)) {
+            seen_intents.insert(type);
+        }
+
+        if (!node.contains("node_config") || !node.at("node_config").is_object()) {
+            continue;
+        }
+        const auto& node_config = node.at("node_config");
+        if (node_config.contains("backend")) {
+            EXPECT_NE(node_config.at("backend").get<int>(), 2)
+                << "backend=2 must not stand in for resolver-selected accel-token variants";
+        }
+    }
+
+    EXPECT_EQ(seen_intents, generic_intents);
+}
+
 } // namespace
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
@@ -87,4 +138,12 @@ TEST(SarPr3MetalJsonTest, ExecutesMetalWindowPipeline) {
 
 TEST(SarPr3MetalJsonTest, ExecutesMetalCompressionPipeline) {
     ValidateMetalSarConfig(std::filesystem::path{SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, MetalWindowPresetUsesAccelTokenResolverMetadata) {
+    ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH});
+}
+
+TEST(SarPr3MetalJsonTest, MetalCompressionPresetUsesAccelTokenResolverMetadata) {
+    ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH});
 }

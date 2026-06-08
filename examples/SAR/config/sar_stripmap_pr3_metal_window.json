@@ -1,5 +1,9 @@
 {
   "name": "sar_stripmap_pr3_metal_window",
+  "execution_backend": "metal",
+  "backend_fallback_policy": "allow_fallback",
+  "resolver_diagnostics": true,
+  "edge_contract": "accel-token",
   "num_threads": 4,
   "nodes": [
     {
@@ -27,17 +31,15 @@
       "node_config": {
         "tile_count": 4,
         "tile_id_offset": 0,
-        "backend_id": 0,
-        "backend": 2
+        "backend_id": 0
       }
     },
     {
       "id": "h2d",
       "type": "H2DAsyncNode",
       "node_config": {
-        "override_backend": true,
-        "backend_id": 0,
-        "backend": 2
+        "override_backend": false,
+        "backend_id": 0
       }
     },
     {
@@ -47,17 +49,15 @@
         "image_width": 16,
         "backend_id": 0,
         "queue_id": 0,
-        "kernel_id": 3301,
-        "backend": 2
+        "kernel_id": 3301
       }
     },
     {
       "id": "d2h",
       "type": "D2HAsyncNode",
       "node_config": {
-        "override_backend": true,
-        "backend_id": 0,
-        "backend": 2
+        "override_backend": false,
+        "backend_id": 0
       }
     },
     {
@@ -67,7 +67,7 @@
         "expected_tiles": 4,
         "require_watermark_before_complete": false,
         "backend_id": 0,
-        "backend": 2
+        "backend": 1
       }
     },
     {

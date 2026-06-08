@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -40,7 +41,8 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
 
     const std::string command =
         QuoteArg(benchmark_path.string()) +
-        " --profile=ci --trace-out " + QuoteArg(trace_path.string());
+        " --profile=ci --range-stage=compression --native-backend --trace-out " +
+        QuoteArg(trace_path.string());
     const int exit_code = std::system(command.c_str());
     ASSERT_EQ(exit_code, 0) << "Command failed: " << command;
 
@@ -61,6 +63,13 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     ASSERT_TRUE(trace.contains("profile"));
     EXPECT_TRUE(trace.at("profile").contains("range_stage"));
     EXPECT_TRUE(trace.at("profile").contains("native_backend"));
+    EXPECT_TRUE(trace.at("profile").contains("execution_backend"));
+    EXPECT_TRUE(trace.at("profile").contains("backend_fallback_policy"));
+    EXPECT_TRUE(trace.at("profile").contains("edge_contract"));
+    EXPECT_EQ(trace.at("profile").at("range_stage").get<std::string>(), "compression");
+    EXPECT_TRUE(trace.at("profile").at("native_backend").get<bool>());
+    EXPECT_EQ(trace.at("profile").at("execution_backend").get<std::string>(), "metal");
+    EXPECT_EQ(trace.at("profile").at("edge_contract").get<std::string>(), "accel-token");
 
     ASSERT_TRUE(trace.contains("diagnostics"));
     const auto& diagnostics = trace.at("diagnostics");
@@ -81,6 +90,33 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     const auto& queue = trace.at("queue");
     EXPECT_TRUE(queue.contains("backpressure_events"));
     EXPECT_TRUE(queue.contains("peak_queue_depth"));
+
+    ASSERT_TRUE(trace.contains("token_lifecycle"));
+    const auto& tokens = trace.at("token_lifecycle");
+    EXPECT_TRUE(tokens.at("has_host_view").get<bool>());
+    EXPECT_TRUE(tokens.at("has_transfer_ticket").get<bool>());
+    EXPECT_TRUE(tokens.at("has_kernel_ticket").get<bool>());
+    EXPECT_TRUE(tokens.contains("host_view"));
+    EXPECT_TRUE(tokens.contains("device_view"));
+    EXPECT_TRUE(tokens.contains("lease"));
+    EXPECT_TRUE(tokens.contains("transfer_ticket"));
+    EXPECT_TRUE(tokens.contains("kernel_ticket"));
+    EXPECT_GT(tokens.at("host_view").at("host_ptr_token").get<std::uint64_t>(), 0u);
+    EXPECT_GT(tokens.at("transfer_ticket").at("transfer_id").get<std::uint64_t>(), 0u);
+    EXPECT_GT(tokens.at("kernel_ticket").at("kernel_id").get<std::uint64_t>(), 0u);
+    EXPECT_GT(tokens.at("kernel_ticket").at("queue_id").get<std::uint64_t>(), 0u);
+
+    ASSERT_TRUE(trace.contains("resolved_nodes"));
+    ASSERT_TRUE(trace.at("resolved_nodes").is_array());
+    EXPECT_GE(trace.at("resolved_nodes").size(), 3u);
+    for (const auto& node : trace.at("resolved_nodes")) {
+        EXPECT_TRUE(node.contains("intent_type"));
+        EXPECT_TRUE(node.contains("concrete_type"));
+        EXPECT_TRUE(node.contains("selected_backend"));
+        EXPECT_TRUE(node.contains("fallback_reason"));
+        EXPECT_TRUE(node.contains("input_token_type"));
+        EXPECT_TRUE(node.contains("output_token_type"));
+    }
 }
 
 } // namespace

@@ -45,12 +45,14 @@ SyntheticApertureIqSource
 Strong PR1 choices already present:
 
 1. SAR-specific implementation is isolated under `examples/SAR`.
-2. SAR messages carry explicit metadata instead of assuming graph edges move bytes.
+2. SAR graph edges carry accel tokens plus SAR metadata sidecars instead of raw SAR payload envelopes.
 3. Local SAR H2D/D2H nodes provide a CI-safe simulated async-transfer lane.
 4. `ImageTileMergeNode` is correctly treated as the key fan-in/correctness node.
 5. The benchmark compares GraphX against a direct non-graph baseline and reports repeated-run statistics.
 
 Main PR2 design concern: current tile semantics are deterministic but symbolic. `AzimuthTileSplitNode` assigns tile IDs using pulse modulo behavior, which distributes pulses across tile IDs but does not yet create true graph-visible fan-out. PR2 should evolve toward one pulse/aperture block producing multiple independent range/azimuth/image tiles.
+
+Accel-token conversion update: the current SAR graph-processing direction is that graph edges carry `graph::gpu::accel` views, leases, tickets, and lightweight SAR sidecar metadata. Historical `SarPulseBlockMessage`, `SarRangeTileMessage`, `SarImageTileMessage`, `SarDeviceLeaseMessage`, and `SarTransferTicketMessage` language should be treated as PR1 compatibility vocabulary or wrapper internals only. New PR3 topology, resolver, benchmark, and trace work must not reintroduce raw SAR payload-message edges between transfer/kernel stages.
 
 ---
 
@@ -120,16 +122,16 @@ Potential reusable extraction (deferred unless justified): tiny generic metadata
 
 ## 3) Node List and Responsibilities (PR1 cap: 4 new nodes)
 
-| Node | Reused/New | Proposed Path | Message Contract (in/out) | PR1 Tests | Deferred Follow-up |
+| Node | Reused/New | Proposed Path | Edge/token contract (in/out) | PR1 Tests | Deferred Follow-up |
 | --- | --- | --- | --- | --- | --- |
-| SyntheticApertureIqSourceNode | New | examples/SAR/include/sar/SyntheticApertureIqSourceNode.hpp | out: `SarPulseBlockMessage` with deterministic sequence ids, pulse range, geometry/meta, EOS | deterministic output, EOS correctness, fixed counts | richer scene models/noise/motion error |
-| RangeWindow/RangeCompression stage | Reuse existing DSP pattern or example-local deterministic placeholder | wired from existing GraphX DSP style | in: `SarPulseBlockMessage`; out: `SarRangeTileMessage` | sample count invariants, deterministic transform output | real matched filter fidelity and accelerated FFT |
-| AzimuthTileSplitNode | New | examples/SAR/include/sar/AzimuthTileSplitNode.hpp | in: `SarRangeTileMessage`; out: independent `SarRangeTileMessage` branches tagged by tile ids | tile fan-out count, metadata completeness | adaptive tiling/scheduling |
-| H2D async transfer | Reused | existing GPU async transfer pattern | in: host tile msg + lease metadata; out: transfer ticket + device-ready tile | bytes moved/transfer ticket counters | backend-specific tuning |
-| SarBackprojectionTransformNode | New | examples/SAR/include/sar/SarBackprojectionTransformNode.hpp | in: device tile + kernel descriptor meta; out: device image tile | dispatch count, deterministic tile output | native backend kernels |
-| D2H async transfer | Reused | existing GPU async transfer pattern | in: device tile; out: host `SarImageTileMessage` + completion metadata | D2H bytes counters | overlap/stream tuning |
-| ImageTileMergeNode | New | examples/SAR/include/sar/ImageTileMergeNode.hpp | in: `SarImageTileMessage` + EOS/watermark; out: final merged image + `SarMergeStatusMessage` | duplicate/missing/out-of-order/EOS matrix | partial preview/sliding aperture |
-| Detection/Metrics sink | Reuse existing sink pattern or small example sink | examples/SAR/src/main.cpp wiring | in: merged image + diagnostics bundle | metrics presence/tolerance checks | richer observability/export |
+| SyntheticApertureIqSourceNode | New | examples/SAR/include/sar/SyntheticApertureIqSourceNode.hpp | out: host accel token (`HostPinnedBufferView` or compatible stub token) plus SAR pulse sidecar: sequence ids, pulse range, geometry/meta, EOS | deterministic output, EOS correctness, fixed counts | richer scene models/noise/motion error |
+| RangeWindow/RangeCompression stage | Reuse existing DSP pattern or example-local deterministic placeholder | wired from existing GraphX DSP style | in: host accel token plus pulse sidecar; out: host range-tile token plus SAR tile sidecar | sample count invariants, deterministic transform output | real matched filter fidelity and accelerated FFT |
+| AzimuthTileSplitNode | New | examples/SAR/include/sar/AzimuthTileSplitNode.hpp | in: host range token plus tile sidecar; out: independent branch tokens with `batch_id`/`aperture_id`/`tile_id` sidecars | tile fan-out count, metadata completeness | adaptive tiling/scheduling |
+| H2D async transfer | Reused | existing GPU async transfer pattern | in: `HostPinnedBufferView`/lease token plus SAR tile sidecar; out: `TransferTicket` + `DeviceBufferView` token plus same sidecar | bytes moved/transfer ticket counters | backend-specific tuning |
+| SarBackprojectionTransformNode | New | examples/SAR/include/sar/SarBackprojectionTransformNode.hpp | in: `DeviceBufferView` token plus kernel descriptor/SAR tile sidecar; out: device image token plus `KernelTicket` and SAR image sidecar | dispatch count, deterministic tile output | native backend kernels |
+| D2H async transfer | Reused | existing GPU async transfer pattern | in: device image token plus SAR sidecar; out: `TransferTicket` + `HostPinnedBufferView` token plus SAR image sidecar | D2H bytes counters | overlap/stream tuning |
+| ImageTileMergeNode | New | examples/SAR/include/sar/ImageTileMergeNode.hpp | in: host image tokens plus SAR tile sidecars and EOS/watermark; out: final host token/status sidecar plus merge diagnostics | duplicate/missing/out-of-order/EOS matrix | partial preview/sliding aperture |
+| Detection/Metrics sink | Reuse existing sink pattern or small example sink | examples/SAR/src/main.cpp wiring | in: final token/status sidecar plus diagnostics bundle | metrics presence/tolerance checks | richer observability/export |
 
 Why SAR differs from vibration-health pipeline: SAR emphasizes tile independence, explicit async transfer boundaries, fan-in merge correctness under out-of-order completion, and graph-vs-baseline overhead attribution for image formation stages.
 
@@ -137,34 +139,36 @@ PR2 correction to the node model: make tile fan-out real at the graph level. The
 
 ---
 
-## 4) Message/Buffer Types Needed
+## 4) Edge Token and Metadata Types Needed
 
-Define message contracts in `examples/SAR/include/sar/SarMessages.hpp`.
+Define SAR metadata sidecars in `examples/SAR/include/sar/SarMessages.hpp`, but keep graph data movement represented by `graph::gpu::accel` token contracts.
 
-1. `SarPulseBlockMessage`
-   - `sequence_id`, `pulse_start`, `pulse_count`, `samples_per_pulse`, `sample_rate_hz`, `carrier_hz`, `chirp_meta`, `platform_geometry_meta`, `eos`.
-2. `SarRangeTileMessage`
-   - `tile_id`, `range_block_id`, `azimuth_block_id`, `pulse_range`, `batch_id`, `expected_tile_count`, `timestamp_ns`, `backend`, `device_id`, `queue_id`, payload buffer/view.
-3. `SarDeviceLeaseMessage`
-   - `lease_id`, `backend`, `device_id`, `queue_id`, `bytes`, lifecycle state label.
-4. `SarTransferTicketMessage`
-   - `ticket_id`, `transfer_direction`, `bytes`, `enqueue_ts_ns`, `complete_ts_ns`, `backend`, `device_id`, `queue_id`.
-5. `SarImageTileMessage`
-   - `tile_id`, `image_tile_dims`, `pulse_range`, `sequence_id`, `batch_id`, completion flag + payload.
-6. `SarMergeStatusMessage`
-   - `expected_tiles`, `received_tiles`, `duplicate_tiles`, `missing_tiles`, `out_of_order_count`, `watermark_seen`, `merge_complete`.
-7. `SarDiagnosticsMessage`
-   - `pulses_processed`, `tiles_processed`, `bytes_h2d`, `bytes_d2h`, `kernel_dispatches`, `fanin_wait_ms`, `e2e_latency_ms`, queue/backpressure counters where available.
+1. Accel edge tokens
+   - `graph::gpu::accel::HostPinnedBufferView` for host-resident pulse/range/image buffers.
+   - `graph::gpu::accel::DeviceBufferView` for device-resident range/image buffers.
+   - `graph::gpu::accel::BufferLease` for lifetime ownership and release accounting.
+   - `graph::gpu::accel::TransferTicket` for H2D/D2H enqueue/completion metadata.
+   - `graph::gpu::accel::KernelTicket` for transform/reduce dispatch metadata.
+2. SAR identity sidecar
+   - `sequence_id`, `batch_id`, `aperture_id`, `pulse_range_start`, `pulse_range_count`, `tile_id`, `tile_count`, `range_block_id`, `azimuth_block_id`, frame/EOS markers.
+3. SAR signal/geometry sidecar
+   - `samples_per_pulse`, `sample_rate_hz`, `carrier_hz`, chirp metadata, image tile dimensions, platform/scene geometry metadata, deterministic seed/profile fields.
+4. SAR diagnostics/status sidecar
+   - `pulses_processed`, `tiles_processed`, `bytes_h2d`, `bytes_d2h`, `kernel_dispatches`, `fanin_wait_ms`, `e2e_latency_ms`, transfer/kernel timing, queue/backpressure counters, merge completeness counters.
+5. Compatibility wrappers
+   - Historical `SarPulseBlockMessage`, `SarRangeTileMessage`, `SarImageTileMessage`, `SarDeviceLeaseMessage`, and `SarTransferTicketMessage` names may remain as adapter/test vocabulary only when they wrap or reference accel tokens.
+   - PR3 native/resolved topologies must not use those historical SAR payload wrappers as transfer/kernel edge contracts.
 
 Buffer lifetime labels (PR1 diagnostics-level, not framework state machine):
 `Allocated -> HostFilled -> ReadyForTransfer -> TransferInFlight -> DeviceReady -> KernelRunning -> KernelComplete -> TransferBack -> HostReady -> Consumed -> Released`.
 
-PR2 message-contract direction:
+PR2/PR3 token-contract direction:
 
 1. Unify SAR backend metadata with existing `graph::gpu::accel` contracts where possible.
 2. Prefer wrapping or referencing existing GPU types such as `BackendKind`, `BufferLease`, `DeviceBufferView`, `HostPinnedBufferView`, `TransferTicket`, and `KernelTicket`.
-3. Avoid growing parallel SAR-only equivalents (`SarBackendKind`, `SarBufferDescriptor`, `SarTransferTicketMessage`, `SarDispatchMetadata`) beyond what is needed for PR1 compatibility.
+3. Avoid growing parallel SAR-only equivalents (`SarBackendKind`, `SarBufferDescriptor`, `SarTransferTicketMessage`, `SarDispatchMetadata`) beyond what is needed for PR1 compatibility adapters.
 4. Add better tile identity: `batch_id`, `aperture_id`, `tile_id`, `tile_count`, `pulse_range`, and backend/device/queue metadata.
+5. Preserve SAR sidecars across resolver substitution so stub, Metal, CUDA, and SYCL variants expose equivalent graph-facing contracts.
 
 ---
 
@@ -210,14 +214,14 @@ This should demonstrate executor-level branch parallelism and give `ImageTileMer
 
 ## 6) Execution and Diagnostics Flow
 
-1. Source emits deterministic pulse blocks with sequence ids and explicit EOS.
-2. Optional deterministic range window/compression stage normalizes sample shape.
-3. `AzimuthTileSplitNode` exposes CPU-visible DAG width via independent tile branches.
-4. H2D transfer stage transitions host buffer ownership to device lease/ticket semantics.
-5. `SarBackprojectionTransformNode` runs per-tile work unit (simulated deterministic kernel in PR1).
-6. D2H returns host image tiles with completion metadata.
-7. `ImageTileMergeNode` validates tile completeness/uniqueness/watermark behavior.
-8. Metrics sink emits deterministic counters and latency figures.
+1. Source creates deterministic host-resident pulse buffers and emits host accel tokens with sequence ids and explicit EOS sidecars.
+2. Optional deterministic range window/compression stage normalizes sample shape while preserving the host token plus SAR sidecar contract.
+3. `AzimuthTileSplitNode` exposes CPU-visible DAG width via independent tile token branches.
+4. H2D transfer stage consumes host tokens and emits device tokens plus `TransferTicket` metadata.
+5. `SarBackprojectionTransformNode` runs per-tile work unit against a device token and emits device image token plus `KernelTicket` metadata.
+6. D2H consumes device image tokens and returns host image tokens with completion sidecars.
+7. `ImageTileMergeNode` validates tile completeness/uniqueness/watermark behavior from SAR sidecars while consuming host image tokens.
+8. Metrics sink emits deterministic counters, token lifecycle data, and latency figures.
 
 Required diagnostics in PR1:
 
@@ -496,7 +500,7 @@ This yields a complete, reviewable vertical slice aligned with existing GraphX a
 
 ## 16) PR3 Metal Node Gap Analysis (2026-06-07)
 
-This analysis compares SAR pipeline stages and message contracts against currently available Metal node families.
+This analysis compares SAR pipeline stages and accel-token edge contracts against currently available Metal node families.
 
 ### Current state in SAR PR3 JSON presets
 
@@ -505,9 +509,9 @@ Current files:
 1. `examples/SAR/config/sar_stripmap_pr3_metal_window.json`
 2. `examples/SAR/config/sar_stripmap_pr3_metal_compression.json`
 
-These files currently use SAR example node types (`SyntheticApertureIqSourceNode`, `RangeWindowNode`/`RangeCompressionNode`, `AzimuthTileSplitNode`, `H2DAsyncNode`, `SarBackprojectionTransformNode`, `D2HAsyncNode`, `ImageTileMergeNode`, `SarDiagnosticsSinkNode`) with `backend=2` metadata overrides.
+These files should use portable SAR example node types (`SyntheticApertureIqSourceNode`, `RangeWindowNode`/`RangeCompressionNode`, `AzimuthTileSplitNode`, `H2DAsyncNode`, `SarBackprojectionTransformNode`, `D2HAsyncNode`, `ImageTileMergeNode`, `SarDiagnosticsSinkNode`) as generic intents plus `execution_backend`/resolver policy.
 
-They do not currently instantiate Metal node plugin types such as `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, `DeviceTransformNodeMetal`, or `HostIngressPinnedSourceNodeMetal`.
+They should not rely on backend-only SAR payload wrappers or `backend=2` metadata tags as a substitute for resolver-selected accel-token variants. Concrete Metal node plugin types such as `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, and `DeviceTransformNodeMetal` may appear in backend-specific validation topologies, but portable SAR presets should remain generic-intent JSON and report the resolved concrete types in graph-build diagnostics.
 
 ### Available Metal node types today (libgpu)
 
@@ -525,36 +529,33 @@ From `libgpu/plugins/metal_*.cpp` and `libgpu/include/gpu/metal/nodes/*.hpp`:
 10. `PeerCopyNodeMetal` (`DeviceBufferView -> DeviceBufferView`)
 11. `CollectiveReduceNodeMetal` (present but runtime marked unsupported)
 
-### Contract mismatch summary (core blocker)
+### Post-conversion contract summary
 
-SAR core stages operate on typed SAR envelopes:
-
-1. `SarPulseBlockMessage`
-2. `SarRangeTileMessage`
-3. `SarImageTileMessage`
-4. `SarMergeStatusMessage`
-5. `SarDiagnosticsMessage`
-
-Metal nodes operate on accel view primitives:
+SAR graph edges now operate on accel tokens plus SAR sidecar metadata:
 
 1. `accel::HostPinnedBufferView`
 2. `accel::DeviceBufferView`
-3. `accel::BufferLease` (for release)
+3. `accel::BufferLease`
+4. `accel::TransferTicket`
+5. `accel::KernelTicket`
+6. SAR sidecars for sequence, aperture, tile identity, geometry, EOS/watermark, and diagnostics
 
-Result: direct substitution of SAR nodes with Metal nodes is not currently type-compatible at graph edges.
+This removes the old H2D/D2H edge type blocker. Direct substitution is now viable for transfer and generic device-transform boundaries when the resolver proves port-contract parity and preserves SAR sidecars.
+
+Remaining blockers are no longer raw edge type mismatch. They are resolver policy, SAR kernel descriptor coverage, sidecar propagation, native runtime availability, and trace/diagnostic parity.
 
 ### Stage-by-stage compatibility matrix
 
-| SAR stage | Current SAR node type | Closest Metal node type(s) | Direct replacement possible now | Gap category |
+| SAR stage | Current SAR node type | Closest Metal node type(s) | Token-edge replacement status | Remaining gap category |
 | --- | --- | --- | --- | --- |
-| Source IQ generation | `SyntheticApertureIqSourceNode` (`SarPulseBlockMessage`) | `HostIngressPinnedSourceNodeMetal` | No | Message contract + payload generation mismatch |
-| Range window/compression | `RangeWindowNode` / `RangeCompressionNode` (`SarPulseBlockMessage -> SarRangeTileMessage`) | `DeviceTransformNodeMetal` (kernel) | No | Missing host/device marshaling + SAR kernel contract |
-| Tile split/fanout | `AzimuthTileSplitNode` (`SarRangeTileMessage`) | `DeviceShardNodeMetal` | Partial only | Different semantics (tile metadata vs raw byte shard) |
-| H2D boundary | `H2DAsyncNode` (`SarRangeTileMessage -> SarRangeTileMessage`) | `H2DAsyncNodeMetal` | No | Edge type mismatch |
-| Backprojection kernel | `SarBackprojectionTransformNode` (`SarRangeTileMessage -> SarImageTileMessage`) | `DeviceTransformNodeMetal` | No | Missing SAR-specific kernel interface + marshaling |
-| D2H boundary | `D2HAsyncNode` (`SarImageTileMessage -> SarImageTileMessage`) | `D2HAsyncNodeMetal` | No | Edge type mismatch |
-| Tile merge | `ImageTileMergeNode` (`SarImageTileMessage -> SarMergeStatusMessage`) | `DeviceReduceNodeMetal` (not semantic equivalent) | No | Missing merge semantics/watermark/EOS logic |
-| Diagnostics sink | `SarDiagnosticsSinkNode` (`SarMergeStatusMessage`) | `HostEgressSinkNodeMetal` | No | Message semantic mismatch |
+| Source IQ generation | `SyntheticApertureIqSourceNode` (host token + pulse sidecar) | `HostIngressPinnedSourceNodeMetal` | Partial | Source must generate SAR-specific deterministic samples and sidecars; Metal ingress can provide host token mechanics |
+| Range window/compression | `RangeWindowNode` / `RangeCompressionNode` (host token -> host/range token) | `DeviceTransformNodeMetal` (kernel) | Partial | Need SAR range-window/compression kernel descriptors and host/device staging policy |
+| Tile split/fanout | `AzimuthTileSplitNode` (token + tile sidecar fan-out) | `DeviceShardNodeMetal` | Partial | `DeviceShardNodeMetal` shards bytes; SAR split also owns tile identity and aperture semantics |
+| H2D boundary | `H2DAsyncNode` (`HostPinnedBufferView` -> `DeviceBufferView`) | `H2DAsyncNodeMetal` | Yes, with resolver | Must preserve SAR sidecar and emit resolved concrete node diagnostics |
+| Backprojection kernel | `SarBackprojectionTransformNode` (`DeviceBufferView` -> `DeviceBufferView`) | `DeviceTransformNodeMetal` | Partial | Need SAR backprojection kernel descriptor, geometry parameter binding, and parity tests |
+| D2H boundary | `D2HAsyncNode` (`DeviceBufferView` -> `HostPinnedBufferView`) | `D2HAsyncNodeMetal` | Yes, with resolver | Must preserve SAR sidecar and timing counters |
+| Tile merge | `ImageTileMergeNode` (host token + merge sidecars) | `DeviceReduceNodeMetal` (not semantic equivalent) | Partial/future | DeviceReduce may accelerate accumulation, but host merge still owns watermark/EOS/diagnostics semantics |
+| Diagnostics sink | `SarDiagnosticsSinkNode` (status/diagnostics sidecar) | `HostEgressSinkNodeMetal` | Partial | Need token lifecycle/trace export parity with SAR diagnostics |
 
 ### Existing Metal kernel capability status
 
@@ -581,49 +582,51 @@ Important: this can be implemented either as new SAR-specialized Metal node wrap
 
 ### New node/adaptor work items needed (non-kernel)
 
-Even with new kernels, adapter nodes are required unless SAR message contracts are refactored:
+The selected direction is accel-token graph edges with SAR metadata sidecars. Adapter work should therefore be limited to token/sidecar bridging, legacy test shims, and capability binding, not payload-envelope translation.
 
-1. `SarPulseToHostPinnedBufferNodeMetalAdapter`
-2. `SarRangeTileToHostPinnedBufferNodeMetalAdapter`
-3. `HostPinnedBufferToSarRangeTileNodeMetalAdapter`
-4. `DeviceBufferToSarImageTileNodeMetalAdapter`
-5. Optional lease lifecycle adapters for explicit `LeaseReleaseNodeMetal` integration.
+Required non-kernel work:
 
-Alternative: migrate SAR graph edges to accel views in PR3 and carry SAR metadata sidecar separately.
+1. Preserve SAR sidecars through H2D/D2H/transform/reduce resolver substitution.
+2. Validate topology schemas reject legacy payload-envelope edges in PR3 native/resolved presets unless an explicit compatibility adapter is present.
+3. Emit graph-build diagnostics for generic intent -> concrete backend variant resolution.
+4. Include lease release/lifecycle integration where `LeaseReleaseNodeMetal` or equivalent backend capability is selected.
+5. Keep any remaining `SarPulseBlockMessage`/`SarRangeTileMessage`/`SarImageTileMessage` wrappers out of native transfer/kernel edge contracts.
 
-### Architectural decisions that must be made before implementation
+### Architectural decisions and remaining implementation gates
 
-The following issues are open and require user/maintainer direction:
+Resolved:
 
 1. **Edge contract strategy**
-   - Option A: Keep SAR message types on edges, add adapter nodes around Metal primitives.
-   - Option B: Move SAR graph to accel view edges, represent SAR metadata as sidecar/context objects.
-2. **Kernel packaging strategy**
+   - Selected: move SAR graph to accel view/token edges and represent SAR metadata as sidecar/context objects.
+2. **Ownership boundary for SAR+Metal integration**
+   - Selected: `examples/SAR` owns SAR graph contracts and metadata sidecars; `libgpu` owns reusable backend runtime nodes and accel token types.
+
+Still open or requiring implementation:
+
+1. **Kernel packaging strategy**
    - Option A: register kernels as builtin names resolved by native runtime source generation.
    - Option B: register SAR kernels via `inline_source` descriptors from JSON.
    - Option C: load a versioned `.metallib` artifact with stable entry points.
-3. **Ownership boundary for SAR+Metal nodes**
-   - Option A: keep SAR-specific wrappers under `examples/SAR`.
-   - Option B: promote reusable SAR-metal wrappers into `libgpu`.
-4. **Merge location**
+2. **Merge location**
    - Option A: keep `ImageTileMergeNode` host-side for deterministic diagnostics.
    - Option B: introduce device-side partial merge/reduce and host finalization.
-5. **Queue/device policy**
+3. **Queue/device policy**
    - Option A: single shared queue for PR3 determinism.
    - Option B: per-stage queues with explicit `QueueSyncNodeMetal` boundaries.
-6. **Test/CI policy for native Metal**
+4. **Test/CI policy for native Metal**
    - Option A: skip when native unavailable (`GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=OFF`).
    - Option B: require native runtime for PR3 completion gate.
 
-### Required user input (do not proceed without decision)
+### Required PR3 testing after token conversion
 
-Implementation should stop at this analysis gate until the following are selected:
+1. Topology validation: PR3 native/resolved presets use accel-token edge contracts and fail fast on legacy SAR payload-envelope edges.
+2. Resolver conformance: generic `H2DAsyncNode`, `D2HAsyncNode`, transform, and reduce intents resolve to compatible stub/Metal/CUDA/SYCL variants where available.
+3. Sidecar propagation: `batch_id`, `aperture_id`, `pulse_range_start`, `pulse_range_count`, `tile_id`, `tile_count`, EOS/watermark, backend/device/queue ids survive source -> split -> H2D -> transform -> D2H -> merge.
+4. Trace schema: emitted traces include token ids, lease ids, transfer ticket ids, kernel ticket ids, resolved concrete node types, backend lane, queue id, and timing counters.
+5. Negative compatibility: backend-native PR3 presets must reject `SarRangeTileMessage`/`SarImageTileMessage` style payload edges unless an explicit compatibility adapter is declared.
+6. Benchmark parity: `sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out ...` reports token-edge counters and graph-vs-baseline overhead without attributing raw payload copies to graph edges.
 
-1. Choose edge contract strategy (A or B from item 1 above).
-2. Choose kernel packaging strategy (A/B/C from item 2 above).
-3. Choose ownership boundary (`examples/SAR` vs `libgpu`) for new SAR-metal adapters.
-4. Confirm whether PR3 acceptance requires true Metal node types in JSON (`*Metal` nodes) or allows hybrid SAR+Metal adapter topology.
-5. Confirm whether native runtime availability is a hard requirement for PR3 completion.
+Implementation should not mark PR3 complete until these tests are present or intentionally deferred with maintainer sign-off.
 
 ### Boundary decision for SAR GPU usage
 
@@ -632,13 +635,13 @@ Selected boundary:
 1. SAR example graphs should remain generic and portable at the application layer.
 2. GPU-specific behavior belongs in backend-capability nodes, adapters, and native runtime plumbing.
 3. Metal-specific node families in `libgpu` are valid backend/runtime constructs, but they should not become the default public SAR graph surface.
-4. The SAR/Metal seam should stay at message translation and capability binding, not at the core SAR algorithm contract.
+4. The SAR/Metal seam should stay at accel-token sidecar propagation and capability binding, not at the core SAR algorithm contract.
 
 Practical interpretation:
 
-1. `examples/SAR` owns SAR algorithm nodes, SAR messages, and SAR topology definitions.
+1. `examples/SAR` owns SAR algorithm nodes, SAR metadata sidecars, and SAR topology definitions.
 2. `libgpu` owns the reusable Metal node families and the GPU capability runtime.
-3. Any SAR-to-Metal integration should be deliberate and adapter-based, not a wholesale replacement of SAR nodes with `*Metal` nodes.
+3. Any SAR-to-Metal integration should be deliberate and resolver/capability-based, not a wholesale replacement of SAR nodes with `*Metal` nodes in portable presets.
 
 ---
 

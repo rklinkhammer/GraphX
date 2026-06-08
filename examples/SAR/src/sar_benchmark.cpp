@@ -74,6 +74,7 @@ struct GraphRunResult {
     double stop_ms{0.0};
     double join_ms{0.0};
     sar::SarDiagnosticsMessage diagnostics{};
+    sar::SarMergeStatusMessage last_status{};
     std::uint64_t queue_backpressure_events{0};
     std::uint64_t peak_queue_depth{0};
 };
@@ -230,11 +231,16 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
     const bool use_native_backend = options.native_backend;
     const int transfer_backend = use_native_backend ? 2 : 0;
     const int transform_backend = use_native_backend ? 2 : 1;
+    const char* execution_backend = use_native_backend ? "metal" : "stub";
     const char* range_stage_type =
         (options.range_stage == RangeStageKind::Compression) ? "RangeCompressionNode" : "RangeWindowNode";
 
     nlohmann::json config = {
         {"name", "sar_stripmap_pr1_benchmark"},
+        {"execution_backend", execution_backend},
+        {"backend_fallback_policy", "allow_fallback"},
+        {"resolver_diagnostics", true},
+        {"edge_contract", "accel-token"},
         {"num_threads", 4},
         {"nodes", nlohmann::json::array({
             {
@@ -301,7 +307,7 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
                     {"expected_tiles", profile.tile_count},
                     {"require_watermark_before_complete", false},
                     {"backend_id", 0},
-                    {"backend", 0},
+                    {"backend", transform_backend},
                 }},
             },
             {
@@ -426,6 +432,7 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
     const auto& metrics = executor->GetGraphManager()->GetMetrics();
     sink->UpdateFromGraphMetrics(metrics);
     out.diagnostics = sink->last_diagnostics();
+    out.last_status = sink->last_status();
     out.queue_backpressure_events = metrics.backpressure_events.load(std::memory_order_relaxed);
     out.peak_queue_depth = metrics.peak_queue_depth.load(std::memory_order_relaxed);
     return out;
@@ -825,6 +832,66 @@ nlohmann::json StatsToJson(const BenchmarkStats& stats) {
     };
 }
 
+std::string BackendKindToString(graph::gpu::accel::BackendKind backend) {
+    switch (backend) {
+        case graph::gpu::accel::BackendKind::CUDA:
+            return "cuda";
+        case graph::gpu::accel::BackendKind::SYCL:
+            return "sycl";
+        case graph::gpu::accel::BackendKind::Metal:
+            return "metal";
+        case graph::gpu::accel::BackendKind::Unknown:
+            return "unknown";
+    }
+    return "unknown";
+}
+
+std::uint64_t PointerToken(const void* ptr) {
+    return static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr));
+}
+
+nlohmann::json GpuMetadataToJson(const sar::SarGpuMetadata& gpu) {
+    return {
+        {"has_lease", gpu.has_lease},
+        {"has_host_view", gpu.has_host_view},
+        {"has_device_view", gpu.has_device_view},
+        {"has_transfer_ticket", gpu.has_transfer_ticket},
+        {"has_kernel_ticket", gpu.has_kernel_ticket},
+        {"lease", {
+            {"pool_id", gpu.lease.pool_id},
+            {"allocation_id", gpu.lease.allocation_id},
+            {"release_policy", static_cast<int>(gpu.lease.release_policy)},
+        }},
+        {"host_view", {
+            {"backend", BackendKindToString(gpu.host_view.backend)},
+            {"host_ptr_token", PointerToken(gpu.host_view.host_ptr)},
+            {"bytes", gpu.host_view.bytes},
+            {"allocator_id", gpu.host_view.allocator_id},
+        }},
+        {"device_view", {
+            {"backend", BackendKindToString(gpu.device_view.backend)},
+            {"device_ptr_token", PointerToken(gpu.device_view.device_ptr)},
+            {"bytes", gpu.device_view.bytes},
+            {"device_id", gpu.device_view.device_id},
+            {"queue_id", gpu.device_view.execution_queue_id},
+            {"ready_event", gpu.device_view.ready_event},
+        }},
+        {"transfer_ticket", {
+            {"backend", BackendKindToString(gpu.transfer_ticket.backend)},
+            {"transfer_id", gpu.transfer_ticket.transfer_id},
+            {"queue_id", gpu.transfer_ticket.execution_queue_id},
+            {"completion_event", gpu.transfer_ticket.completion_event},
+        }},
+        {"kernel_ticket", {
+            {"backend", BackendKindToString(gpu.kernel_ticket.backend)},
+            {"kernel_id", gpu.kernel_ticket.kernel_id},
+            {"queue_id", gpu.kernel_ticket.execution_queue_id},
+            {"completion_event", gpu.kernel_ticket.completion_event},
+            {"arg_count", gpu.kernel_ticket.arg_count},
+        }},
+    };
+}
+
 void WriteTraceJson(const std::filesystem::path& path,
                     const BenchmarkOptions& options,
                     const BenchmarkStats& graph_build,
@@ -850,6 +917,9 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"measured_runs", profile.measured_runs},
             {"range_stage", options.range_stage == RangeStageKind::Compression ? "compression" : "window"},
             {"native_backend", options.native_backend},
+            {"execution_backend", options.native_backend ? "metal" : "stub"},
+            {"backend_fallback_policy", "allow_fallback"},
+            {"edge_contract", "accel-token"},
         }},
         {"timing_ms", {
             {"graph_build", StatsToJson(graph_build)},
@@ -883,6 +953,33 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"backpressure_events", last_graph.queue_backpressure_events},
             {"peak_queue_depth", last_graph.peak_queue_depth},
         }},
+        {"token_lifecycle", GpuMetadataToJson(last_graph.last_status.gpu)},
+        {"resolved_nodes", nlohmann::json::array({
+            {
+                {"intent_type", "H2DAsyncNode"},
+                {"concrete_type", "H2DAsyncNode"},
+                {"selected_backend", options.native_backend ? "metal" : "stub"},
+                {"fallback_reason", options.native_backend ? "resolver-not-yet-bound-native-capability" : "ci-stub-profile"},
+                {"input_token_type", "HostPinnedBufferView"},
+                {"output_token_type", "DeviceBufferView"},
+            },
+            {
+                {"intent_type", "SarBackprojectionTransformNode"},
+                {"concrete_type", "SarBackprojectionTransformNode"},
+                {"selected_backend", options.native_backend ? "metal" : "stub"},
+                {"fallback_reason", options.native_backend ? "resolver-not-yet-bound-native-capability" : "ci-stub-profile"},
+                {"input_token_type", "DeviceBufferView"},
+                {"output_token_type", "DeviceBufferView"},
+            },
+            {
+                {"intent_type", "D2HAsyncNode"},
+                {"concrete_type", "D2HAsyncNode"},
+                {"selected_backend", options.native_backend ? "metal" : "stub"},
+                {"fallback_reason", options.native_backend ? "resolver-not-yet-bound-native-capability" : "ci-stub-profile"},
+                {"input_token_type", "DeviceBufferView"},
+                {"output_token_type", "HostPinnedBufferView"},
+            },
+        })},
         {"overhead_ms", {
             {"graph_run_minus_baseline_median", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
             {"lifecycle_join_last", last_graph.join_ms},
