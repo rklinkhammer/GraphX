@@ -434,7 +434,7 @@ Check:
   - Definitive topology is the single canonical SAR GPU runtime path.
   - Full CTest lane passes.
   - Benchmark attribution policy remains intact.
-  
+
 Output:
 - Pass/fail.
 - Blocking issues.
@@ -444,33 +444,112 @@ Output:
 
 ======
 
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
 - SAR_SIMPLIFIER_REPORT.md
 - SAR_PR_ROADMAP.md
-- implemented PR5 diff
+- SAR_VERIFIER_PR*.md
 
 Task:
-Verify whether PR5 actually satisfies its acceptance criteria.
 
 Check:
-- Definitive topology executes with tokenized SAR GPU stages.
-- Strict-metal and fallback resolver tests pass.
-- Resolver diagnostics prove concrete selection and sidecar continuity.
 
-- No encoded host_ptr identity remains.
-- No encoded ready_event identity remains.
-- No global sidecar store remains as primary path.
-- SAR sidecar is carried explicitly.
-- Generic GPU nodes remain SAR-unaware.
-- Tests cover sidecar preservation.
-- Deleted tests were obsolete.
-- Build and test results are credible.
 
 Output:
 - Pass/fail.
 - Blocking issues.
 - Non-blocking issues.
 - Suggested fixes.
+
+
+
+Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- current repository state
+- PR1–PR8 verifier reports
+- current SAR topology
+- Metal backend implementation
+
+Repository inspection overrides assumptions.
+
+Mission:
+
+Determine whether GraphX currently exposes enough instrumentation to understand runtime behavior.
+
+Do not optimize.
+
+Do not redesign.
+
+Do not recommend algorithm changes.
+
+Required outputs:
+
+1. Missing measurements.
+2. Existing measurements.
+3. Graph-level metrics.
+4. GPU transfer metrics.
+5. Kernel metrics.
+6. Memory metrics.
+7. Queue metrics.
+8. Diagnostics overhead.
+9. Benchmark gaps.
+10. Instrumentation to add.
+
+Separate:
+
+Graph overhead
+DSP overhead
+Transfer overhead
+Kernel overhead
+Diagnostics overhead
+
+Rank missing instrumentation by importance.
+
+Stop before proposing optimizations.
+
+=======
+
+Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_PERFORMANCE_AUDIT.md report
+  plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/reviews/SAR_PR_ROADMAP.md
+- plan/reviews/SAR_VERIFIER_PR8_*_REPORT.md
+- Current repository state
+- Current diff
+- current PR roadmap
+- current verifier reports
+- current repository state
+
+Task:
+Convert the Performance Auditor findings into reviewable PRs.
+
+Rules:
+- Instrumentation before optimization.
+- Measurements before tuning.
+- One concern per PR.
+- Do not change SAR math unless required for measurement.
+- Do not optimize yet unless the finding is already proven by benchmark data.
+- Preserve AccelControlToken<SarSidecar> architecture.
+
+Output:
+1. Findings classified as:
+   - instrumentation gap
+   - benchmark gap
+   - confirmed bottleneck
+   - suspected bottleneck
+   - premature optimization
+2. PR-sized roadmap.
+3. For each PR:
+   - title
+   - scope
+   - files to touch
+   - tests to add
+   - metrics expected
+   - acceptance criteria
+4. Items explicitly deferred.
