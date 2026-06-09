@@ -8,6 +8,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <cstdio>
 #include <memory>
 #include <set>
 #include <string>
@@ -74,6 +75,10 @@ void AssertPortableIntents(const nlohmann::json& config) {
 
 #ifndef SAR_JSON_CONFIG_PATH
 #define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr1.json"
+#endif
+
+#ifndef SAR_DEFINITIVE_JSON_CONFIG_PATH
+#define SAR_DEFINITIVE_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_definitive.json"
 #endif
 
 TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
@@ -163,4 +168,119 @@ TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExpli
 
         AssertPortableIntents(config);
     }
+}
+
+TEST(SarJsonRuntimeTest, DefinitivePresetKeepsStrictResolverContractAndPortableIntent) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const auto config = LoadJsonFile(config_path);
+    ASSERT_TRUE(config.contains("execution_backend"));
+    ASSERT_TRUE(config.contains("backend_fallback_policy"));
+    ASSERT_TRUE(config.contains("resolver_diagnostics"));
+    ASSERT_TRUE(config.contains("edge_contract"));
+
+    EXPECT_EQ(config.at("execution_backend").get<std::string>(), "auto");
+    EXPECT_EQ(config.at("backend_fallback_policy").get<std::string>(), "strict");
+    EXPECT_TRUE(config.at("resolver_diagnostics").get<bool>());
+    EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+    const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(config_path.string());
+    ASSERT_TRUE(parsed);
+    EXPECT_EQ(parsed->resolver.execution_backend, "auto");
+    EXPECT_EQ(parsed->resolver.backend_fallback_policy, "strict");
+    EXPECT_TRUE(parsed->resolver.resolver_diagnostics);
+    EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
+
+    AssertPortableIntents(config);
+}
+
+TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(15))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr);
+    ASSERT_NE(executor->GetGraphManager(), nullptr);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+    ASSERT_TRUE(executor->IsCompletionSignaled());
+
+    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
+
+    const auto& diagnostics = sink->last_diagnostics();
+    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.pulses_processed, 64u);
+    EXPECT_EQ(diagnostics.tiles_processed, 4u);
+    EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
+    EXPECT_GT(diagnostics.bytes_h2d, 0u);
+}
+
+TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcreteProvider) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto metal_config = LoadJsonFile(config_path);
+    metal_config["execution_backend"] = "metal";
+
+    const auto temp_path = std::filesystem::temp_directory_path() /
+                           "sar_stripmap_definitive_runtime_metal.json";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(temp_path.string());
+    ASSERT_TRUE(parsed);
+    EXPECT_EQ(parsed->resolver.execution_backend, "metal");
+    EXPECT_EQ(parsed->resolver.backend_fallback_policy, "strict");
+    EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
+
+    EXPECT_THROW(
+        {
+            auto _ = graph::GraphExecutorBuilder()
+                         .WithJsonConfig(temp_path.string())
+                         .WithPluginDirectory(plugin_dir.string())
+                         .WithExecutorTimeout(std::chrono::seconds(15))
+                         .Build();
+        },
+        std::runtime_error);
+
+    metal_config["backend_fallback_policy"] = "allow_fallback";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    auto fallback_executor = graph::GraphExecutorBuilder()
+                                 .WithJsonConfig(temp_path.string())
+                                 .WithPluginDirectory(plugin_dir.string())
+                                 .WithExecutorTimeout(std::chrono::seconds(15))
+                                 .Build();
+
+    ASSERT_NE(fallback_executor, nullptr);
+    ASSERT_NE(fallback_executor->GetGraphManager(), nullptr);
+
+    const auto run_result = fallback_executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+    EXPECT_TRUE(fallback_executor->IsCompletionSignaled());
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
 }

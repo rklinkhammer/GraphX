@@ -35,10 +35,11 @@ flowchart LR
 
 Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
-Definitive main.cpp pipeline configs:
+Definitive main.cpp pipeline config:
 
-1. examples/SAR/config/sar_stripmap_definitive_nonmetal.json
-2. examples/SAR/config/sar_stripmap_definitive_metal.json
+1. examples/SAR/config/sar_stripmap_definitive.json
+
+ResolverConfig dynamically replaces eligible portable intent nodes with METAL equivalents at runtime when `execution_backend` is set to `metal`.
 
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
@@ -78,12 +79,11 @@ Run example:
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/sar_example
 ./build-ninja/ninja-debug/examples/SAR/sar_example \
-  examples/SAR/config/sar_stripmap_definitive_nonmetal.json \
-  ./build-ninja/ninja-debug/examples/SAR/plugins
-./build-ninja/ninja-debug/examples/SAR/sar_example \
-  examples/SAR/config/sar_stripmap_definitive_metal.json \
+  examples/SAR/config/sar_stripmap_definitive.json \
   ./build-ninja/ninja-debug/examples/SAR/plugins
 ```
+
+To force METAL resolution, copy the definitive config and set `execution_backend` to `metal`.
 
 Run SAR tests:
 
@@ -351,8 +351,8 @@ bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh \
 
 This benchmark executes `sar_example` directly with:
 
-1. `examples/SAR/config/sar_stripmap_definitive_nonmetal.json`
-2. `examples/SAR/config/sar_stripmap_definitive_metal.json`
+1. `examples/SAR/config/sar_stripmap_definitive.json` with `execution_backend=auto`
+2. a temporary runtime variant of the same config with `execution_backend=metal`
 
 and reports per-run milliseconds plus avg/min/max timing for each profile.
 

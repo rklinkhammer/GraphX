@@ -4,8 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 DEFAULT_BIN="$ROOT_DIR/build-ninja/ninja-debug/examples/SAR/sar_example"
 DEFAULT_PLUGIN_DIR="$ROOT_DIR/build-ninja/ninja-debug/examples/SAR/plugins"
-NON_METAL_CFG="$ROOT_DIR/examples/SAR/config/sar_stripmap_definitive_nonmetal.json"
-METAL_CFG="$ROOT_DIR/examples/SAR/config/sar_stripmap_definitive_metal.json"
+DEFINITIVE_CFG="$ROOT_DIR/examples/SAR/config/sar_stripmap_definitive.json"
 RUNS=5
 
 BIN_PATH="${1:-$DEFAULT_BIN}"
@@ -21,12 +20,20 @@ if [[ ! -d "$PLUGIN_DIR" ]]; then
   exit 1
 fi
 
-for cfg in "$NON_METAL_CFG" "$METAL_CFG"; do
-  if [[ ! -f "$cfg" ]]; then
-    echo "Config missing: $cfg" >&2
-    exit 1
-  fi
-done
+if [[ ! -f "$DEFINITIVE_CFG" ]]; then
+  echo "Config missing: $DEFINITIVE_CFG" >&2
+  exit 1
+fi
+
+make_backend_variant() {
+  local source_cfg="$1"
+  local backend="$2"
+  local output_cfg
+  output_cfg="$(mktemp "/tmp/sar_stripmap_definitive_${backend}.XXXXXX.json")"
+
+  sed -E "s/(\"execution_backend\"[[:space:]]*:[[:space:]]*\")[^\"]+(\",)/\\1${backend}\\2/" "$source_cfg" > "$output_cfg"
+  printf '%s\n' "$output_cfg"
+}
 
 run_case() {
   local label="$1"
@@ -54,7 +61,10 @@ run_case() {
   echo
 }
 
-run_case "non_metal" "$NON_METAL_CFG"
-run_case "metal" "$METAL_CFG"
+METAL_CFG_RUNTIME="$(make_backend_variant "$DEFINITIVE_CFG" "metal")"
+trap 'rm -f "$METAL_CFG_RUNTIME"' EXIT
+
+run_case "resolver_auto" "$DEFINITIVE_CFG"
+run_case "resolver_metal" "$METAL_CFG_RUNTIME"
 
 echo "Benchmark complete."
