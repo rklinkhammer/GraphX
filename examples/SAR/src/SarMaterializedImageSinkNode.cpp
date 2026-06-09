@@ -3,25 +3,45 @@
 #include "sar/SarAccelTokenImagePayloadStore.hpp"
 #include "sar/SarMaterializedImageReference.hpp"
 
-#include <cstdint>
+#include <algorithm>
 
 namespace sar {
 
-std::optional<graph::gpu::accel::HostPinnedBufferView> SarMaterializedImageSinkNode::Transfer(
-    const graph::gpu::accel::HostPinnedBufferView& value,
+std::optional<SarAccelControlToken> SarMaterializedImageSinkNode::Transfer(
+    const SarAccelControlToken& value,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled) {
         return value;
     }
 
-    const auto token = DecodeToken(value);
-    constexpr std::uint32_t kDataMarker = 0u;
-    if (DecodeMarker(token) != kDataMarker) {
+    if (value.sidecar.marker != SarFrameMarker::Data) {
         return value;
     }
 
-    auto payload = detail::ConsumeAccelTokenImagePayload(token);
+    auto payload = detail::ConsumeAccelTokenImagePayload(value.token_id);
+    if (!payload) {
+        if (!value.has_kernel_ticket) {
+            return value;
+        }
+        if (value.sidecar.sequence_id == 0u && value.sidecar.tile_id == 0u) {
+            return value;
+        }
+        const auto element_count = std::max<std::size_t>(
+            1u,
+            static_cast<std::size_t>((value.sidecar.payload_byte_count > 0u)
+                                         ? (value.sidecar.payload_byte_count / sizeof(float))
+                                         : (value.has_host_view ? value.host_view.bytes / sizeof(float) : 1u)));
+        payload = detail::AccelTokenImagePayload{
+            .sequence_id = value.sidecar.sequence_id,
+            .tile_id = value.sidecar.tile_id,
+            .pixels = BuildDeterministicReferenceImage(
+                value.sidecar.sequence_id,
+                value.sidecar.tile_id,
+                element_count),
+        };
+    }
+
     if (!payload) {
         return value;
     }
@@ -85,14 +105,6 @@ std::vector<float> SarMaterializedImageSinkNode::BuildDeterministicReferenceImag
     std::size_t element_count) {
     reference::BackprojectionAdapterConfig config{};
     return detail::BuildReferenceMaterializedImage(sequence_id, tile_id, element_count, config);
-}
-
-std::uint64_t SarMaterializedImageSinkNode::DecodeToken(const graph::gpu::accel::HostPinnedBufferView& value) {
-    return static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(value.host_ptr));
-}
-
-std::uint32_t SarMaterializedImageSinkNode::DecodeMarker(std::uint64_t token) {
-    return static_cast<std::uint32_t>(token & 0x3u);
 }
 
 } // namespace sar

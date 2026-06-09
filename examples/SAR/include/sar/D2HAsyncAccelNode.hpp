@@ -25,16 +25,16 @@ struct D2HAsyncAccelConfig {
 
 class D2HAsyncAccelNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<graph::gpu::accel::DeviceBufferView>,
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           D2HAsyncAccelNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
     D2HAsyncAccelNode() = default;
 
-    std::optional<graph::gpu::accel::HostPinnedBufferView> Transfer(
-        const graph::gpu::accel::DeviceBufferView& input,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

@@ -11,7 +11,6 @@ add_graphx_plugin(
     SOURCE_FILES
         h2d_async_node_plugin.cpp
         ../src/H2DAsyncAccelNode.cpp
-        ../src/SarAccelTokenSidecarStore.cpp
     DESCRIPTION "SAR host-to-device async transfer stage"
     DEPENDENCIES graph gpu
 )
@@ -26,7 +25,6 @@ add_graphx_plugin(
     SOURCE_FILES
         d2h_async_node_plugin.cpp
         ../src/D2HAsyncAccelNode.cpp
-        ../src/SarAccelTokenSidecarStore.cpp
     DESCRIPTION "SAR device-to-host async transfer stage"
     DEPENDENCIES graph gpu
 )
@@ -41,7 +39,6 @@ add_graphx_plugin(
     SOURCE_FILES
         azimuth_tile_split_node_plugin.cpp
         ../src/AzimuthTileSplitNode.cpp
-        ../src/SarAccelTokenSidecarStore.cpp
     DESCRIPTION "SAR azimuth tile split node"
     DEPENDENCIES graph gpu
 )
@@ -93,7 +90,6 @@ add_graphx_plugin(
     SOURCE_FILES
         sar_backprojection_transform_node_plugin.cpp
         ../src/SarBackprojectionTransformAccelNode.cpp
-        ../src/SarAccelTokenSidecarStore.cpp
     DESCRIPTION "SAR backprojection transform node"
     DEPENDENCIES graph gpu sar_materialized_payload_runtime
 )
@@ -146,7 +142,6 @@ add_graphx_plugin(
     SOURCE_FILES
         image_tile_merge_node_plugin.cpp
         ../src/ImageTileMergeNode.cpp
-        ../src/SarAccelTokenSidecarStore.cpp
     DESCRIPTION "SAR image tile merge node"
     DEPENDENCIES graph gpu
 )

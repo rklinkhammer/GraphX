@@ -28,7 +28,7 @@ struct ImageTileMergeConfig {
 
 class ImageTileMergeNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
+          graph::TypeList<SarAccelControlToken>,
           graph::TypeList<SarMergeStatusMessage>,
           ImageTileMergeNode>,
     public graph::IConfigurable,
@@ -38,7 +38,7 @@ public:
     explicit ImageTileMergeNode(ImageTileMergeConfig config);
 
     std::optional<SarMergeStatusMessage> Transfer(
-        const graph::gpu::accel::HostPinnedBufferView& input,
+        const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -108,8 +108,7 @@ public:
 
 private:
     SarMergeStatusMessage BuildStatusMessage(
-        const graph::gpu::accel::HostPinnedBufferView& input,
-        std::uint64_t token,
+        const SarAccelControlToken& input,
         std::uint64_t sequence_id,
         std::uint32_t tile_id,
         std::uint32_t stream_id,

@@ -28,7 +28,7 @@ struct AzimuthTileSplitConfig {
 class AzimuthTileSplitNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarPulseBlockMessage>,
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
+          graph::TypeList<SarAccelControlToken>,
           AzimuthTileSplitNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
@@ -36,7 +36,7 @@ public:
     AzimuthTileSplitNode() = default;
     explicit AzimuthTileSplitNode(AzimuthTileSplitConfig config);
 
-    std::optional<graph::gpu::accel::HostPinnedBufferView> Transfer(
+    std::optional<SarAccelControlToken> Transfer(
         const SarPulseBlockMessage& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
@@ -106,8 +106,8 @@ public:
 
 private:
     std::uint32_t ResolveTileId(const SarPulseBlockMessage& input) const;
-    graph::gpu::accel::HostPinnedBufferView BuildDataTile(const SarPulseBlockMessage& input) const;
-    graph::gpu::accel::HostPinnedBufferView BuildEndOfStreamTile(const SarPulseBlockMessage& input) const;
+    SarAccelControlToken BuildDataTile(const SarPulseBlockMessage& input) const;
+    SarAccelControlToken BuildEndOfStreamTile(const SarPulseBlockMessage& input) const;
 
     AzimuthTileSplitConfig config_{};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};

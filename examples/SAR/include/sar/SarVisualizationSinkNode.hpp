@@ -3,7 +3,6 @@
 #include "sar/SarMessages.hpp"
 
 #include "config/Config.hpp"
-#include "gpu/accel/types/AccelTypes.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -26,16 +25,16 @@ struct SarVisualizationSinkConfig {
 
 class SarVisualizationSinkNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           SarVisualizationSinkNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     SarVisualizationSinkNode() = default;
 
-    std::optional<graph::gpu::accel::HostPinnedBufferView> Transfer(
-        const graph::gpu::accel::HostPinnedBufferView& value,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& value,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -108,7 +107,7 @@ public:
     }
 
 private:
-    bool WriteArtifact(const graph::gpu::accel::HostPinnedBufferView& value);
+    bool WriteArtifact(const SarAccelControlToken& value);
     bool WritePgm(std::size_t element_count, const std::string& path);
     bool WriteCsv(std::size_t element_count, const std::string& path);
 

@@ -330,6 +330,30 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     auto metal_config = LoadJsonFile(config_path);
     metal_config["execution_backend"] = "metal";
     metal_config["backend_fallback_policy"] = "strict";
+    metal_config["resolver_mappings"].push_back(
+        nlohmann::json{
+            {"intent_type", "H2DAsyncNode"},
+            {"input_token_type", "SarAccelControlToken"},
+            {"output_token_type", "SarAccelControlToken"},
+            {"variants", nlohmann::json::array({
+                nlohmann::json{{"backend", "metal"}, {"concrete_type", "H2DAsyncNode"}},
+                nlohmann::json{{"backend", "stub"}, {"concrete_type", "H2DAsyncNode"}},
+                nlohmann::json{{"backend", "cuda"}, {"concrete_type", "H2DAsyncNode"}},
+                nlohmann::json{{"backend", "sycl"}, {"concrete_type", "H2DAsyncNode"}},
+            })},
+        });
+    metal_config["resolver_mappings"].push_back(
+        nlohmann::json{
+            {"intent_type", "D2HAsyncNode"},
+            {"input_token_type", "SarAccelControlToken"},
+            {"output_token_type", "SarAccelControlToken"},
+            {"variants", nlohmann::json::array({
+                nlohmann::json{{"backend", "metal"}, {"concrete_type", "D2HAsyncNode"}},
+                nlohmann::json{{"backend", "stub"}, {"concrete_type", "D2HAsyncNode"}},
+                nlohmann::json{{"backend", "cuda"}, {"concrete_type", "D2HAsyncNode"}},
+                nlohmann::json{{"backend", "sycl"}, {"concrete_type", "D2HAsyncNode"}},
+            })},
+        });
 
     const auto temp_path = std::filesystem::temp_directory_path() /
                            "sar_stripmap_definitive_composed_provider_metal.json";
@@ -364,13 +388,13 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
 
     const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode");
     ASSERT_NE(h2d, nullptr);
-    EXPECT_EQ(h2d->concrete_type, "H2DAsyncNodeMetal");
+    EXPECT_EQ(h2d->concrete_type, "H2DAsyncNode");
     EXPECT_EQ(h2d->selected_backend, "metal");
     EXPECT_FALSE(h2d->fallback_used);
 
     const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode");
     ASSERT_NE(d2h, nullptr);
-    EXPECT_EQ(d2h->concrete_type, "D2HAsyncNodeMetal");
+    EXPECT_EQ(d2h->concrete_type, "D2HAsyncNode");
     EXPECT_EQ(d2h->selected_backend, "metal");
     EXPECT_FALSE(d2h->fallback_used);
 

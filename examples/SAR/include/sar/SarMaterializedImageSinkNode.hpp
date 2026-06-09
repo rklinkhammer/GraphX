@@ -1,7 +1,8 @@
 #pragma once
 
+#include "sar/SarMessages.hpp"
+
 #include "config/Config.hpp"
-#include "gpu/accel/types/AccelTypes.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -28,16 +29,16 @@ struct SarMaterializedCaptureMetadata {
 
 class SarMaterializedImageSinkNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
-          graph::TypeList<graph::gpu::accel::HostPinnedBufferView>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           SarMaterializedImageSinkNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
     SarMaterializedImageSinkNode() = default;
 
-    std::optional<graph::gpu::accel::HostPinnedBufferView> Transfer(
-        const graph::gpu::accel::HostPinnedBufferView& value,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& value,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -91,9 +92,6 @@ public:
         std::size_t element_count);
 
 private:
-    static std::uint64_t DecodeToken(const graph::gpu::accel::HostPinnedBufferView& value);
-    static std::uint32_t DecodeMarker(std::uint64_t token);
-
     SarMaterializedImageSinkConfig config_{};
 
     mutable std::mutex state_mutex_;

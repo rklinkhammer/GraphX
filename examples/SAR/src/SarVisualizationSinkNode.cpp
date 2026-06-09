@@ -20,34 +20,17 @@ std::string Lowercase(std::string value) {
     return value;
 }
 
-sar::SarFrameMarker DecodeMarker(std::uint64_t token) {
-    return static_cast<sar::SarFrameMarker>(token & 0x3u);
-}
-
-std::uint32_t DecodeTileId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
-}
-
-std::uint64_t DecodeSequenceId(std::uint64_t token) {
-    return (token >> 14u) & 0xFFFFFFu;
-}
-
-std::size_t DecodeByteCount(std::uint64_t token) {
-    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
-}
-
 } // namespace
 
-std::optional<graph::gpu::accel::HostPinnedBufferView> SarVisualizationSinkNode::Transfer(
-    const graph::gpu::accel::HostPinnedBufferView& value,
+std::optional<SarAccelControlToken> SarVisualizationSinkNode::Transfer(
+    const SarAccelControlToken& value,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled) {
         return value;
     }
 
-    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(value.host_ptr));
-    if (DecodeMarker(token) != SarFrameMarker::Data) {
+    if (value.sidecar.marker != SarFrameMarker::Data) {
         return value;
     }
 
@@ -159,14 +142,14 @@ std::vector<std::string> SarVisualizationSinkNode::GetParameterNames() const {
     };
 }
 
-bool SarVisualizationSinkNode::WriteArtifact(const graph::gpu::accel::HostPinnedBufferView& value) {
+bool SarVisualizationSinkNode::WriteArtifact(const SarAccelControlToken& value) {
     std::filesystem::create_directories(config_.output_dir);
 
-    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(value.host_ptr));
-    const auto sequence_id = DecodeSequenceId(token);
-    const auto tile_id = DecodeTileId(token);
-    const auto encoded_byte_count = DecodeByteCount(token);
-    const auto byte_count = std::max<std::size_t>(encoded_byte_count, static_cast<std::size_t>(value.bytes));
+    const auto sequence_id = value.sidecar.sequence_id;
+    const auto tile_id = value.sidecar.tile_id;
+    const auto byte_count = std::max<std::size_t>(
+        value.sidecar.payload_byte_count,
+        value.has_host_view ? static_cast<std::size_t>(value.host_view.bytes) : 0u);
     const auto element_count = std::max<std::size_t>(1u, byte_count / sizeof(float));
 
     const std::string base =

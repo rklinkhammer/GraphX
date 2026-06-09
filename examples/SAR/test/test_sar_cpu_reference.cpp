@@ -222,16 +222,26 @@ TEST(SarCpuReferenceTest, BackprojectionAdapterReferenceMatchesNativeMetalWhenAv
     sar::SarBackprojectionTransformNode bp(bp_cfg);
     ASSERT_TRUE(bp.BindGpuCapabilities(bus));
     ASSERT_TRUE(bp.native_kernel_bound());
+
+    sar::SarAccelControlToken bp_input{};
+    bp_input.token_id = 1u;
+    bp_input.sidecar.sequence_id = 1u;
+    bp_input.sidecar.tile_id = 0u;
+    bp_input.sidecar.marker = sar::SarFrameMarker::Data;
+    bp_input.device_view = *device_input;
+    bp_input.has_device_view = true;
+
     auto device_output = bp.Transfer(
-        *device_input,
+        bp_input,
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(device_output.has_value());
+    ASSERT_TRUE(device_output->has_device_view);
 
     metal_nodes::D2HAsyncNodeMetal d2h;
     ASSERT_TRUE(d2h.BindGpuCapabilities(bus));
     auto host_output = d2h.Transfer(
-        *device_output,
+        device_output->device_view,
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(host_output.has_value());

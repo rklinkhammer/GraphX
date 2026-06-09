@@ -9,7 +9,6 @@ endif()
 
 add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AzimuthTileSplitNode.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarAccelTokenSidecarStore.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_azimuth_tile_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/D2HAsyncAccelNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/H2DAsyncAccelNode.cpp
@@ -36,6 +35,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_token_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp

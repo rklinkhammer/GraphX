@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "gpu/accel/types/AccelTypes.hpp"
 #include "sar/SarAccelTokenImagePayloadStore.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
@@ -10,35 +9,27 @@
 
 namespace {
 
-std::uint64_t EncodeToken(std::uint32_t marker,
-                          std::uint32_t tile_id,
-                          std::uint64_t sequence_id,
-                          std::uint32_t byte_count,
-                          std::uint32_t stream_id) {
-    const auto marker_bits = static_cast<std::uint64_t>(marker & 0x3u);
-    const auto tile_bits = static_cast<std::uint64_t>(tile_id & 0xFFFu);
-    const auto sequence_bits = static_cast<std::uint64_t>(sequence_id & 0xFFFFFFu);
-    const auto byte_bits = static_cast<std::uint64_t>(byte_count & 0xFFFFu);
-    const auto stream_bits = static_cast<std::uint64_t>(stream_id & 0x3FFu);
-
-    return marker_bits |
-           (tile_bits << 2u) |
-           (sequence_bits << 14u) |
-           (byte_bits << 38u) |
-           (stream_bits << 54u);
-}
-
-graph::gpu::accel::HostPinnedBufferView MakeHostView(std::uint64_t token, std::uint64_t bytes) {
-    graph::gpu::accel::HostPinnedBufferView view{};
-    view.backend = graph::gpu::accel::BackendKind::Metal;
-    view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
-    view.bytes = bytes;
-    view.dtype = graph::gpu::accel::DataType::Float32;
-    view.layout.rank = 1;
-    view.layout.shape[0] = std::max<std::uint64_t>(1u, bytes / sizeof(float));
-    view.layout.stride[0] = 1;
-    view.allocator_id = 1;
-    return view;
+sar::SarAccelControlToken MakeHostToken(std::uint64_t token,
+                                        std::uint64_t sequence_id,
+                                        std::uint32_t tile_id,
+                                        std::uint32_t marker,
+                                        std::uint64_t bytes) {
+    sar::SarAccelControlToken msg{};
+    msg.token_id = token;
+    msg.sidecar.sequence_id = sequence_id;
+    msg.sidecar.tile_id = tile_id;
+    msg.sidecar.marker = static_cast<sar::SarFrameMarker>(marker);
+    msg.sidecar.payload_byte_count = bytes;
+    msg.host_view.backend = graph::gpu::accel::BackendKind::Metal;
+    msg.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(token + 1u));
+    msg.host_view.bytes = bytes;
+    msg.host_view.dtype = graph::gpu::accel::DataType::Float32;
+    msg.host_view.layout.rank = 1;
+    msg.host_view.layout.shape[0] = std::max<std::uint64_t>(1u, bytes / sizeof(float));
+    msg.host_view.layout.stride[0] = 1;
+    msg.host_view.allocator_id = 1;
+    msg.has_host_view = true;
+    return msg;
 }
 
 } // namespace
@@ -46,8 +37,7 @@ graph::gpu::accel::HostPinnedBufferView MakeHostView(std::uint64_t token, std::u
 TEST(SarMaterializedImageSinkNodeTest, DisabledModePassesThroughWithoutCapture) {
     sar::SarMaterializedImageSinkNode sink;
 
-    const auto token = EncodeToken(0u, 3u, 11u, 64u, 1u);
-    const auto input = MakeHostView(token, 64u);
+    const auto input = MakeHostToken(1001u, 11u, 3u, 0u, 64u);
 
     auto out = sink.Transfer(
         input,
@@ -55,7 +45,7 @@ TEST(SarMaterializedImageSinkNodeTest, DisabledModePassesThroughWithoutCapture) 
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->host_ptr, input.host_ptr);
+    EXPECT_EQ(out->token_id, input.token_id);
     EXPECT_EQ(sink.capture_count(), 0u);
     EXPECT_FALSE(sink.has_materialized_image());
 }
@@ -64,8 +54,7 @@ TEST(SarMaterializedImageSinkNodeTest, NonDataMarkersDoNotCaptureImage) {
     sar::SarMaterializedImageSinkNode sink;
     sink.Configure(graph::JsonView(nlohmann::json{{"enabled", true}}));
 
-    const auto eos_token = EncodeToken(2u, 3u, 11u, 0u, 1u);
-    const auto eos_input = MakeHostView(eos_token, sizeof(float));
+    const auto eos_input = MakeHostToken(1002u, 11u, 3u, 2u, sizeof(float));
 
     auto out = sink.Transfer(
         eos_input,
@@ -85,8 +74,7 @@ TEST(SarMaterializedImageSinkNodeTest, MissingPayloadDoesNotCaptureImage) {
     constexpr std::uint32_t tile_id = 5u;
     constexpr std::uint32_t bytes = 64u;
 
-    const auto token = EncodeToken(0u, tile_id, sequence_id, bytes, 2u);
-    const auto input = MakeHostView(token, bytes);
+    const auto input = MakeHostToken(1003u, sequence_id, tile_id, 0u, bytes);
 
     auto out = sink.Transfer(
         input,
@@ -106,7 +94,7 @@ TEST(SarMaterializedImageSinkNodeTest, ConsumesStoredPayloadWhenAvailable) {
     constexpr std::uint32_t tile_id = 7u;
     constexpr std::uint32_t bytes = 64u;
 
-    const auto token = EncodeToken(0u, tile_id, sequence_id, bytes, 4u);
+    const auto token = 1004u;
     const std::vector<float> payload{3.5f, 2.5f, 1.5f, 0.5f};
     sar::detail::StoreAccelTokenImagePayload(
         token,
@@ -116,7 +104,7 @@ TEST(SarMaterializedImageSinkNodeTest, ConsumesStoredPayloadWhenAvailable) {
             .pixels = payload,
         });
 
-    const auto input = MakeHostView(token, bytes);
+    const auto input = MakeHostToken(token, sequence_id, tile_id, 0u, bytes);
     auto out = sink.Transfer(
         input,
         std::integral_constant<std::size_t, 0>{},

@@ -16,17 +16,25 @@
 
 namespace {
 
-graph::gpu::accel::HostPinnedBufferView MakeHostView() {
-    graph::gpu::accel::HostPinnedBufferView view{};
-    view.backend = graph::gpu::accel::BackendKind::Metal;
-    view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1000u));
-    view.bytes = 16u * sizeof(float);
-    view.dtype = graph::gpu::accel::DataType::Float32;
-    view.layout.rank = 1;
-    view.layout.shape[0] = 16;
-    view.layout.stride[0] = 1;
-    view.allocator_id = 7;
-    return view;
+sar::SarAccelControlToken MakeHostToken() {
+    sar::SarAccelControlToken token{};
+    token.token_id = 0x1000u;
+    token.sidecar.sequence_id = 1u;
+    token.sidecar.tile_id = 0u;
+    token.sidecar.tile_count = 1u;
+    token.sidecar.stream_id = 0u;
+    token.sidecar.marker = sar::SarFrameMarker::Data;
+    token.sidecar.payload_byte_count = 16u * sizeof(float);
+    token.host_view.backend = graph::gpu::accel::BackendKind::Metal;
+    token.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1001u));
+    token.host_view.bytes = 16u * sizeof(float);
+    token.host_view.dtype = graph::gpu::accel::DataType::Float32;
+    token.host_view.layout.rank = 1;
+    token.host_view.layout.shape[0] = 16;
+    token.host_view.layout.stride[0] = 1;
+    token.host_view.allocator_id = 7;
+    token.has_host_view = true;
+    return token;
 }
 
 sar::SarPulseBlockMessage MakePulseForTokenSidecar() {
@@ -65,13 +73,14 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
     h2d.SetConfig(h2d_cfg);
 
     auto device_in = h2d.Transfer(
-        MakeHostView(),
+        MakeHostToken(),
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(device_in.has_value());
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*device_in));
-    EXPECT_EQ(device_in->execution_queue_id, 7u);
+    ASSERT_TRUE(device_in->has_device_view);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(device_in->device_view));
+    EXPECT_EQ(device_in->device_view.execution_queue_id, 7u);
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(h2d.last_lease()));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(h2d.last_transfer_ticket()));
 
@@ -88,8 +97,9 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(device_out.has_value());
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*device_out));
-    EXPECT_EQ(device_out->execution_queue_id, 9u);
+    ASSERT_TRUE(device_out->has_device_view);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(device_out->device_view));
+    EXPECT_EQ(device_out->device_view.execution_queue_id, 9u);
     EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
     EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 4402u);
 
@@ -107,7 +117,8 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(host_out.has_value());
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*host_out));
+    ASSERT_TRUE(host_out->has_host_view);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(host_out->host_view));
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(d2h.last_lease()));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(d2h.last_transfer_ticket()));
     EXPECT_EQ(d2h.last_transfer_ticket().execution_queue_id, 11u);
@@ -116,8 +127,8 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
 TEST(SarAccelNodesTest, H2DRejectsUnknownBackendWhenNotOverridden) {
     sar::H2DAsyncAccelNode h2d;
 
-    auto host = MakeHostView();
-    host.backend = graph::gpu::accel::BackendKind::Unknown;
+    auto host = MakeHostToken();
+    host.host_view.backend = graph::gpu::accel::BackendKind::Unknown;
 
     auto out = h2d.Transfer(
         host,
@@ -141,15 +152,21 @@ TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreserv
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(64, 0, input_lease));
-    auto input = input_lease.device_view;
-    input.backend = graph::gpu::accel::BackendKind::Metal;
-    input.dtype = graph::gpu::accel::DataType::Float32;
-    input.layout.rank = 1;
-    input.layout.shape[0] = 16;
-    input.layout.stride[0] = 1;
-    input.device_id = 0;
-    input.execution_queue_id = 5;
-    input.ready_event = 0xCAFEu;
+    sar::SarAccelControlToken input{};
+    input.token_id = 0xCAFEu;
+    input.sidecar.sequence_id = 3u;
+    input.sidecar.tile_id = 1u;
+    input.sidecar.marker = sar::SarFrameMarker::Data;
+    input.device_view = input_lease.device_view;
+    input.device_view.backend = graph::gpu::accel::BackendKind::Metal;
+    input.device_view.dtype = graph::gpu::accel::DataType::Float32;
+    input.device_view.layout.rank = 1;
+    input.device_view.layout.shape[0] = 16;
+    input.device_view.layout.stride[0] = 1;
+    input.device_view.device_id = 0;
+    input.device_view.execution_queue_id = 5;
+    input.device_view.ready_event = 1u;
+    input.has_device_view = true;
 
     sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = 16;
@@ -167,9 +184,9 @@ TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreserv
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(output.has_value());
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*output));
-    EXPECT_EQ(output->bytes, input.bytes);
-    EXPECT_EQ(output->ready_event, input.ready_event);
+    ASSERT_TRUE(output->has_device_view);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(output->device_view));
+    EXPECT_EQ(output->device_view.bytes, input.device_view.bytes);
     EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
     EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 8801u);
     EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);
@@ -191,15 +208,21 @@ TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingPar
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
-    auto input = input_lease.device_view;
-    input.backend = graph::gpu::accel::BackendKind::Metal;
-    input.dtype = graph::gpu::accel::DataType::Float32;
-    input.layout.rank = 1;
-    input.layout.shape[0] = 32;
-    input.layout.stride[0] = 1;
-    input.device_id = 0;
-    input.execution_queue_id = 9;
-    input.ready_event = 0x55AAu;
+    sar::SarAccelControlToken input{};
+    input.token_id = 0x55AAu;
+    input.sidecar.sequence_id = 4u;
+    input.sidecar.tile_id = 2u;
+    input.sidecar.marker = sar::SarFrameMarker::Data;
+    input.device_view = input_lease.device_view;
+    input.device_view.backend = graph::gpu::accel::BackendKind::Metal;
+    input.device_view.dtype = graph::gpu::accel::DataType::Float32;
+    input.device_view.layout.rank = 1;
+    input.device_view.layout.shape[0] = 32;
+    input.device_view.layout.stride[0] = 1;
+    input.device_view.device_id = 0;
+    input.device_view.execution_queue_id = 9;
+    input.device_view.ready_event = 2u;
+    input.has_device_view = true;
 
     sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = 32;
@@ -236,9 +259,9 @@ TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingPar
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(output.has_value());
-    EXPECT_TRUE(graph::gpu::accel::IsValidView(*output));
-    EXPECT_EQ(output->bytes, input.bytes);
-    EXPECT_EQ(output->ready_event, input.ready_event);
+    ASSERT_TRUE(output->has_device_view);
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(output->device_view));
+    EXPECT_EQ(output->device_view.bytes, input.device_view.bytes);
     EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
     EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 9901u);
     EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);

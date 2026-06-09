@@ -32,8 +32,8 @@ struct SarBackprojectionTransformAccelConfig {
 
 class SarBackprojectionTransformAccelNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<graph::gpu::accel::DeviceBufferView>,
-          graph::TypeList<graph::gpu::accel::DeviceBufferView>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           SarBackprojectionTransformAccelNode>,
       public graph::IConfigurable,
       public graph::IParameterized,
@@ -42,8 +42,8 @@ public:
     SarBackprojectionTransformAccelNode() = default;
     explicit SarBackprojectionTransformAccelNode(SarBackprojectionTransformAccelConfig config);
 
-    std::optional<graph::gpu::accel::DeviceBufferView> Transfer(
-        const graph::gpu::accel::DeviceBufferView& input,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

@@ -5,6 +5,7 @@
 #include <complex>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 namespace sar {
@@ -80,6 +81,46 @@ struct SarGpuMetadata {
     bool has_transfer_ticket{false};
     bool has_kernel_ticket{false};
 };
+
+struct SarSidecar {
+    std::uint64_t sequence_id{};
+    std::uint64_t batch_id{};
+    std::uint64_t aperture_id{};
+    std::uint64_t pulse_range_start{};
+    std::uint32_t pulse_range_count{};
+    std::uint32_t stream_id{};
+    std::uint32_t tile_id{};
+    std::uint32_t tile_count{};
+    std::uint32_t backend_id{};
+    SarBackendKind backend{SarBackendKind::Host};
+    SarFrameMarker marker{SarFrameMarker::Data};
+    bool synthetic{true};
+    std::size_t payload_byte_count{};
+    std::uint64_t h2d_queue_id{};
+    std::uint64_t kernel_queue_id{};
+    std::uint64_t d2h_queue_id{};
+};
+
+template <typename SidecarT>
+struct AccelControlToken {
+    std::uint64_t token_id{};
+    SidecarT sidecar{};
+    graph::gpu::accel::BufferLease lease{};
+    graph::gpu::accel::DeviceBufferView device_view{};
+    graph::gpu::accel::HostPinnedBufferView host_view{};
+    graph::gpu::accel::TransferTicket transfer_ticket{};
+    graph::gpu::accel::KernelTicket kernel_ticket{};
+    bool has_lease{false};
+    bool has_device_view{false};
+    bool has_host_view{false};
+    bool has_transfer_ticket{false};
+    bool has_kernel_ticket{false};
+};
+
+using SarAccelControlToken = AccelControlToken<SarSidecar>;
+
+static_assert(std::is_standard_layout_v<SarSidecar>);
+static_assert(std::is_standard_layout_v<SarAccelControlToken>);
 
 using SarIqSample = std::complex<float>;
 

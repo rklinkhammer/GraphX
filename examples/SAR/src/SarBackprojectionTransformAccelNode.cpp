@@ -1,6 +1,5 @@
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
 #include "sar/SarAccelTokenImagePayloadStore.hpp"
-#include "sar/SarAccelTokenSidecarStore.hpp"
 #include "sar/SarMaterializedImageReference.hpp"
 
 #include "config/ConfigError.hpp"
@@ -13,18 +12,6 @@
 namespace sar {
 
 namespace {
-
-std::uint32_t DecodeMarker(std::uint64_t token) {
-    return static_cast<std::uint32_t>(token & 0x3u);
-}
-
-std::uint32_t DecodeTileId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
-}
-
-std::uint64_t DecodeSequenceId(std::uint64_t token) {
-    return (token >> 14u) & 0xFFFFFFu;
-}
 
 SarBackendKind ParseBackendKind(int raw_backend) {
     if (raw_backend < static_cast<int>(SarBackendKind::Host) ||
@@ -118,13 +105,15 @@ SarBackprojectionTransformAccelNode::SarBackprojectionTransformAccelNode(
     SarBackprojectionTransformAccelConfig config)
     : config_(config) {}
 
-std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAccelNode::Transfer(
-    const graph::gpu::accel::DeviceBufferView& input,
+std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfer(
+    const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    if (!graph::gpu::accel::IsValidView(input)) {
+    if (!input.has_device_view || !graph::gpu::accel::IsValidView(input.device_view)) {
         return std::nullopt;
     }
+
+    const auto& in_view = input.device_view;
 
     const auto accel_backend = ToAccelBackendKind(config_.backend);
     if (accel_backend == graph::gpu::accel::BackendKind::Unknown) {
@@ -132,31 +121,55 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     }
 
     if (config_.backend == SarBackendKind::NativeDevice && native_kernel_bound_) {
-        native_kernel_node_.SetOutputBytes(input.bytes);
+        native_kernel_node_.SetOutputBytes(in_view.bytes);
         auto native_output = native_kernel_node_.Transfer(
-            input,
+            in_view,
             std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
         if (!native_output) {
             return std::nullopt;
         }
 
-        native_output->ready_event = input.ready_event;
         last_kernel_ticket_ = native_kernel_node_.last_kernel_ticket();
-        detail::UpdateAccelTokenSidecarKernel(
-            input.ready_event,
-            native_output->device_id,
-            ToSarBackendKind(native_output->backend),
-            last_kernel_ticket_.execution_queue_id);
-        return native_output;
+
+        auto token = input;
+        token.device_view = *native_output;
+        token.has_device_view = true;
+        token.kernel_ticket = last_kernel_ticket_;
+        token.has_kernel_ticket = true;
+        token.sidecar.backend_id = native_output->device_id;
+        token.sidecar.backend = ToSarBackendKind(native_output->backend);
+        token.sidecar.kernel_queue_id = last_kernel_ticket_.execution_queue_id;
+
+        if (token.sidecar.marker == SarFrameMarker::Data) {
+            const auto element_count =
+                std::max<std::size_t>(1u, static_cast<std::size_t>(native_output->bytes) / sizeof(float));
+            reference::BackprojectionAdapterConfig reference_config{};
+            reference_config.tap_count = std::max<std::uint32_t>(1u, config_.tap_count);
+            reference_config.delay_step = static_cast<double>(config_.delay_step);
+            reference_config.phase_tap_scale = static_cast<double>(config_.phase_tap_scale);
+            reference_config.phase_aperture_scale = static_cast<double>(config_.phase_aperture_scale);
+
+            detail::StoreAccelTokenImagePayload(
+                token.token_id,
+                detail::AccelTokenImagePayload{
+                    .sequence_id = token.sidecar.sequence_id,
+                    .tile_id = token.sidecar.tile_id,
+                    .pixels = detail::BuildReferenceMaterializedImage(
+                        token.sidecar.sequence_id,
+                        token.sidecar.tile_id,
+                        element_count,
+                        reference_config)});
+        }
+
+        return token;
     }
 
     ++kernel_sequence_;
 
-    const auto token = input.ready_event;
-    constexpr std::uint32_t kDataMarker = 0u;
-    if (DecodeMarker(token) == kDataMarker) {
-        const auto element_count = std::max<std::size_t>(1u, static_cast<std::size_t>(input.bytes) / sizeof(float));
+    if (input.sidecar.marker == SarFrameMarker::Data) {
+        const auto element_count =
+            std::max<std::size_t>(1u, static_cast<std::size_t>(in_view.bytes) / sizeof(float));
         reference::BackprojectionAdapterConfig reference_config{};
         reference_config.tap_count = std::max<std::uint32_t>(1u, config_.tap_count);
         reference_config.delay_step = static_cast<double>(config_.delay_step);
@@ -164,23 +177,23 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
         reference_config.phase_aperture_scale = static_cast<double>(config_.phase_aperture_scale);
 
         detail::StoreAccelTokenImagePayload(
-            token,
+            input.token_id,
             detail::AccelTokenImagePayload{
-                .sequence_id = DecodeSequenceId(token),
-                .tile_id = DecodeTileId(token),
+                .sequence_id = input.sidecar.sequence_id,
+                .tile_id = input.sidecar.tile_id,
                 .pixels = detail::BuildReferenceMaterializedImage(
-                    DecodeSequenceId(token),
-                    DecodeTileId(token),
+                    input.sidecar.sequence_id,
+                    input.sidecar.tile_id,
                     element_count,
                     reference_config)});
     }
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;
-    output.device_ptr = MakeSyntheticDevicePointer(input, kernel_sequence_);
-    output.bytes = input.bytes;
-    output.dtype = input.dtype;
-    output.layout = input.layout;
+    output.device_ptr = MakeSyntheticDevicePointer(in_view, kernel_sequence_);
+    output.bytes = in_view.bytes;
+    output.dtype = in_view.dtype;
+    output.layout = in_view.layout;
     output.device_id = config_.backend_id;
     output.execution_queue_id =
         (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
@@ -198,21 +211,23 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
     last_kernel_ticket_.completion_event = kernel_sequence_;
-
-    output.ready_event = input.ready_event;
-
-    detail::UpdateAccelTokenSidecarKernel(
-        input.ready_event,
-        output.device_id,
-        ToSarBackendKind(output.backend),
-        output.execution_queue_id);
+    output.ready_event = kernel_sequence_;
 
     if (!graph::gpu::accel::IsValidView(output) ||
         !graph::gpu::accel::IsValidKernelTicket(last_kernel_ticket_)) {
         return std::nullopt;
     }
 
-    return output;
+    auto token = input;
+    token.device_view = output;
+    token.has_device_view = true;
+    token.kernel_ticket = last_kernel_ticket_;
+    token.has_kernel_ticket = true;
+    token.sidecar.backend_id = output.device_id;
+    token.sidecar.backend = ToSarBackendKind(output.backend);
+    token.sidecar.kernel_queue_id = output.execution_queue_id;
+
+    return token;
 }
 
 bool SarBackprojectionTransformAccelNode::BindGpuCapabilities(graph::CapabilityBus& capability_bus) {

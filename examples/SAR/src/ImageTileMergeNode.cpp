@@ -1,7 +1,5 @@
 #include "sar/ImageTileMergeNode.hpp"
 
-#include "sar/SarAccelTokenSidecarStore.hpp"
-
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
@@ -19,47 +17,26 @@ SarBackendKind ParseBackendKind(int raw_backend) {
     return static_cast<SarBackendKind>(raw_backend);
 }
 
-SarFrameMarker DecodeMarker(std::uint64_t token) {
-    return static_cast<SarFrameMarker>(token & 0x3u);
-}
-
-std::uint32_t DecodeTileId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
-}
-
-std::uint64_t DecodeSequenceId(std::uint64_t token) {
-    return (token >> 14u) & 0xFFFFFFu;
-}
-
-std::size_t DecodeByteCount(std::uint64_t token) {
-    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
-}
-
-std::uint32_t DecodeStreamId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 54u) & 0x3FFu);
-}
-
 } // namespace
 
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
     : config_(config) {}
 
 std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
-    const graph::gpu::accel::HostPinnedBufferView& input,
+    const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    if (!graph::gpu::accel::IsValidView(input)) {
+    if (!input.has_host_view || !graph::gpu::accel::IsValidView(input.host_view)) {
         return std::nullopt;
     }
 
-    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(input.host_ptr));
-    const auto marker = DecodeMarker(token);
-    const auto tile_id = DecodeTileId(token);
-    const auto sequence_id = DecodeSequenceId(token);
-    const auto stream_id = DecodeStreamId(token);
-    const auto token_byte_count = DecodeByteCount(token);
+    const auto marker = input.sidecar.marker;
+    const auto tile_id = input.sidecar.tile_id;
+    const auto sequence_id = input.sidecar.sequence_id;
+    const auto stream_id = input.sidecar.stream_id;
+    const auto token_byte_count = input.sidecar.payload_byte_count;
     const auto effective_byte_count = (marker == SarFrameMarker::Data)
-                                          ? std::max<std::size_t>(token_byte_count, static_cast<std::size_t>(input.bytes))
+                                          ? std::max<std::size_t>(token_byte_count, static_cast<std::size_t>(input.host_view.bytes))
                                           : 0u;
 
     if (completion_emitted_) {
@@ -72,7 +49,6 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         watermark_seen_ = true;
         return BuildStatusMessage(
             input,
-            token,
             sequence_id,
             tile_id,
             stream_id,
@@ -100,7 +76,6 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         }
         return BuildStatusMessage(
             input,
-            token,
             sequence_id,
             tile_id,
             stream_id,
@@ -137,7 +112,6 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
 
     return BuildStatusMessage(
         input,
-        token,
         sequence_id,
         tile_id,
         stream_id,
@@ -274,8 +248,7 @@ const ImageTileMergeConfig& ImageTileMergeNode::GetConfig() const noexcept {
 }
 
 SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
-    const graph::gpu::accel::HostPinnedBufferView& input,
-    std::uint64_t token,
+    const SarAccelControlToken& input,
     std::uint64_t sequence_id,
     std::uint32_t tile_id,
     std::uint32_t stream_id,
@@ -286,42 +259,41 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     const std::uint32_t missing_tiles =
         (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
 
-    const auto sidecar = detail::FindAccelTokenSidecar(token);
-
     SarMergeStatusMessage out{};
-    out.envelope.sequence_id = sidecar ? sidecar->sequence_id : sequence_id;
-    out.envelope.batch_id = sidecar ? sidecar->batch_id : stream_id;
-    out.envelope.aperture_id = sidecar ? sidecar->aperture_id : sequence_id;
-    out.envelope.pulse_range_start = sidecar ? sidecar->pulse_range_start : sequence_id;
+    out.envelope.sequence_id = input.sidecar.sequence_id ? input.sidecar.sequence_id : sequence_id;
+    out.envelope.batch_id = input.sidecar.batch_id;
+    out.envelope.aperture_id = input.sidecar.aperture_id ? input.sidecar.aperture_id : sequence_id;
+    out.envelope.pulse_range_start =
+        input.sidecar.pulse_range_start ? input.sidecar.pulse_range_start : sequence_id;
     out.envelope.pulse_range_count =
-        sidecar ? sidecar->pulse_range_count : ((marker == SarFrameMarker::Data) ? 1u : 0u);
-    out.envelope.stream_id = sidecar ? sidecar->stream_id : stream_id;
-    out.envelope.tile_id = sidecar ? sidecar->tile_id : tile_id;
-    out.envelope.tile_count = sidecar ? sidecar->tile_count : expected_tiles;
-    out.envelope.backend_id = sidecar ? sidecar->backend_id : config_.backend_id;
-    out.envelope.backend = sidecar ? sidecar->backend : config_.backend;
-    out.envelope.marker = sidecar ? sidecar->marker : marker;
-    out.envelope.synthetic = sidecar ? sidecar->synthetic : true;
+        input.sidecar.pulse_range_count ? input.sidecar.pulse_range_count : ((marker == SarFrameMarker::Data) ? 1u : 0u);
+    out.envelope.stream_id = input.sidecar.stream_id ? input.sidecar.stream_id : stream_id;
+    out.envelope.tile_id = input.sidecar.tile_id;
+    out.envelope.tile_count = input.sidecar.tile_count ? input.sidecar.tile_count : expected_tiles;
+    out.envelope.backend_id = input.sidecar.backend_id;
+    out.envelope.backend = input.sidecar.backend;
+    out.envelope.marker = input.sidecar.marker;
+    out.envelope.synthetic = input.sidecar.synthetic;
 
-    out.gpu.host_view = input;
+    out.gpu.host_view = input.host_view;
     out.gpu.has_host_view = true;
-    out.gpu.transfer_ticket.backend = input.backend;
+    out.gpu.transfer_ticket.backend = input.host_view.backend;
     out.gpu.transfer_ticket.transfer_id = out.envelope.sequence_id;
     out.gpu.transfer_ticket.execution_queue_id =
-        (sidecar && sidecar->d2h_queue_id > 0u)
-            ? sidecar->d2h_queue_id
-            : ((sidecar && sidecar->h2d_queue_id > 0u)
-                   ? sidecar->h2d_queue_id
+        (input.sidecar.d2h_queue_id > 0u)
+            ? input.sidecar.d2h_queue_id
+            : ((input.sidecar.h2d_queue_id > 0u)
+                   ? input.sidecar.h2d_queue_id
                    : (static_cast<std::uint64_t>(config_.backend_id) + 1u));
     out.gpu.transfer_ticket.completion_event = out.envelope.sequence_id;
-    out.gpu.transfer_ticket.dst_host = input;
+    out.gpu.transfer_ticket.dst_host = input.host_view;
     out.gpu.has_transfer_ticket = true;
 
     out.gpu.kernel_ticket.backend = ToAccelBackendKind(out.envelope.backend);
     out.gpu.kernel_ticket.kernel_id = static_cast<std::uint64_t>(out.envelope.backend_id) + 3301u;
     out.gpu.kernel_ticket.execution_queue_id =
-        (sidecar && sidecar->kernel_queue_id > 0u)
-            ? sidecar->kernel_queue_id
+        (input.sidecar.kernel_queue_id > 0u)
+            ? input.sidecar.kernel_queue_id
             : (static_cast<std::uint64_t>(out.envelope.backend_id) + 1u);
     out.gpu.kernel_ticket.completion_event = out.envelope.sequence_id;
     out.gpu.kernel_ticket.arg_count = 1;

@@ -124,22 +124,6 @@ struct Pr5ReferenceMetrics {
     double graph_direct_peak_value_delta{0.0};
 };
 
-sar::SarFrameMarker DecodeMarker(std::uint64_t token) {
-    return static_cast<sar::SarFrameMarker>(token & 0x3u);
-}
-
-std::uint32_t DecodeTileId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
-}
-
-std::uint64_t DecodeSequenceId(std::uint64_t token) {
-    return (token >> 14u) & 0xFFFFFFu;
-}
-
-std::size_t DecodeByteCount(std::uint64_t token) {
-    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
-}
-
 std::string BackendKindToString(graph::gpu::accel::BackendKind backend);
 
 std::string_view TypeToken(std::string_view type_name) {
@@ -843,10 +827,8 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
             throw std::runtime_error("DeviceReduce prototype split failed");
         }
 
-        const auto range_token = static_cast<std::uint64_t>(
-            reinterpret_cast<std::uintptr_t>(range_tile->host_ptr));
-        if (DecodeMarker(range_token) == sar::SarFrameMarker::EndOfStream) {
-            eos_sequence = DecodeSequenceId(range_token);
+        if (range_tile->sidecar.marker == sar::SarFrameMarker::EndOfStream) {
+            eos_sequence = range_tile->sidecar.sequence_id;
             break;
         }
 
@@ -874,13 +856,11 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
             throw std::runtime_error("DeviceReduce prototype d2h failed");
         }
 
-        const auto d2h_token = static_cast<std::uint64_t>(
-            reinterpret_cast<std::uintptr_t>(d2h_tile->host_ptr));
-        const auto sequence_id = DecodeSequenceId(d2h_token);
-        const auto tile_id = DecodeTileId(d2h_token);
+        const auto sequence_id = d2h_tile->sidecar.sequence_id;
+        const auto tile_id = d2h_tile->sidecar.tile_id;
         const auto byte_count = std::max<std::uint64_t>(
-            d2h_tile->bytes,
-            static_cast<std::uint64_t>(DecodeByteCount(d2h_token)));
+            d2h_tile->has_host_view ? d2h_tile->host_view.bytes : 0u,
+            static_cast<std::uint64_t>(d2h_tile->sidecar.payload_byte_count));
 
         if (!has_first_sequence) {
             first_sequence = sequence_id;

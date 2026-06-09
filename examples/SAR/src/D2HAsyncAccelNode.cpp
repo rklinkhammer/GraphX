@@ -1,7 +1,5 @@
 #include "sar/D2HAsyncAccelNode.hpp"
 
-#include "sar/SarAccelTokenSidecarStore.hpp"
-
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
@@ -28,16 +26,18 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
 
 } // namespace
 
-std::optional<graph::gpu::accel::HostPinnedBufferView> D2HAsyncAccelNode::Transfer(
-    const graph::gpu::accel::DeviceBufferView& input,
+std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
+    const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    if (!graph::gpu::accel::IsValidView(input)) {
+    if (!input.has_device_view || !graph::gpu::accel::IsValidView(input.device_view)) {
         return std::nullopt;
     }
 
+    const auto& device_view = input.device_view;
+
     const auto accel_backend =
-        config_.override_backend ? ToAccelBackendKind(config_.backend) : input.backend;
+        config_.override_backend ? ToAccelBackendKind(config_.backend) : device_view.backend;
     if (accel_backend == graph::gpu::accel::BackendKind::Unknown) {
         return std::nullopt;
     }
@@ -46,10 +46,10 @@ std::optional<graph::gpu::accel::HostPinnedBufferView> D2HAsyncAccelNode::Transf
 
     graph::gpu::accel::HostPinnedBufferView output{};
     output.backend = accel_backend;
-    output.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(input.ready_event));
-    output.bytes = input.bytes;
-    output.dtype = input.dtype;
-    output.layout = input.layout;
+    output.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(transfer_sequence_ + 1u));
+    output.bytes = device_view.bytes;
+    output.dtype = device_view.dtype;
+    output.layout = device_view.layout;
     output.allocator_id = 2;
 
     if (!graph::gpu::accel::IsValidView(output)) {
@@ -64,7 +64,7 @@ std::optional<graph::gpu::accel::HostPinnedBufferView> D2HAsyncAccelNode::Transf
     last_lease_.pool_id = 2;
     last_lease_.allocation_id = transfer_sequence_;
     last_lease_.release_policy = graph::gpu::accel::ReleasePolicy::AutoOnGraphCompletion;
-    last_lease_.device_view = input;
+    last_lease_.device_view = device_view;
     last_lease_.host_view = output;
 
     last_transfer_ticket_ = {};
@@ -72,17 +72,21 @@ std::optional<graph::gpu::accel::HostPinnedBufferView> D2HAsyncAccelNode::Transf
     last_transfer_ticket_.transfer_id = transfer_sequence_;
     last_transfer_ticket_.execution_queue_id = effective_queue;
     last_transfer_ticket_.completion_event = transfer_sequence_;
-    last_transfer_ticket_.src_device = input;
+    last_transfer_ticket_.src_device = device_view;
     last_transfer_ticket_.dst_host = output;
 
-    const auto token = input.ready_event;
-    detail::UpdateAccelTokenSidecarD2H(
-        token,
-        input.device_id,
-        ToSarBackendKind(input.backend),
-        effective_queue);
+    auto token = input;
+    token.host_view = output;
+    token.has_host_view = true;
+    token.lease = last_lease_;
+    token.has_lease = true;
+    token.transfer_ticket = last_transfer_ticket_;
+    token.has_transfer_ticket = true;
+    token.sidecar.backend_id = device_view.device_id;
+    token.sidecar.backend = ToSarBackendKind(device_view.backend);
+    token.sidecar.d2h_queue_id = effective_queue;
 
-    return output;
+    return token;
 }
 
 void D2HAsyncAccelNode::Configure(const graph::JsonView& cfg) {

@@ -1,7 +1,5 @@
 #include "sar/AzimuthTileSplitNode.hpp"
 
-#include "sar/SarAccelTokenSidecarStore.hpp"
-
 #include "config/ConfigError.hpp"
 
 #include <algorithm>
@@ -20,56 +18,52 @@ SarBackendKind ParseBackendKind(int raw_backend) {
 
 std::uint64_t EncodeAccelToken(const SarPulseBlockMessage& input,
                                std::uint32_t tile_id,
-                               std::size_t byte_count,
                                SarFrameMarker marker) {
-    const auto marker_bits = static_cast<std::uint64_t>(marker) & 0x3u;
-    const auto tile_bits = static_cast<std::uint64_t>(tile_id) & 0xFFFu;
+    const auto marker_bits = static_cast<std::uint64_t>(marker) & 0xFFu;
+    const auto tile_bits = static_cast<std::uint64_t>(tile_id) & 0xFFFFu;
     const auto sequence_bits = static_cast<std::uint64_t>(input.envelope.sequence_id) & 0xFFFFFFu;
-    const auto byte_bits = static_cast<std::uint64_t>(byte_count) & 0xFFFFu;
-    const auto stream_bits = static_cast<std::uint64_t>(input.envelope.stream_id) & 0x3FFu;
+    const auto stream_bits = static_cast<std::uint64_t>(input.envelope.stream_id) & 0xFFFFu;
 
     return marker_bits |
-           (tile_bits << 2u) |
-           (sequence_bits << 14u) |
-           (byte_bits << 38u) |
-           (stream_bits << 54u);
+           (tile_bits << 8u) |
+           (sequence_bits << 24u) |
+           (stream_bits << 48u);
 }
 
-graph::gpu::accel::HostPinnedBufferView BuildHostView(const SarPulseBlockMessage& input,
-                                                      std::uint32_t tile_id,
-                                                      std::size_t token_byte_count,
-                                                      std::size_t view_byte_count,
-                                                      SarFrameMarker marker,
-                                                      const AzimuthTileSplitConfig& config) {
-    const auto token = EncodeAccelToken(input, tile_id, token_byte_count, marker);
+SarAccelControlToken BuildToken(const SarPulseBlockMessage& input,
+                                std::uint32_t tile_id,
+                                std::size_t payload_byte_count,
+                                std::size_t view_byte_count,
+                                SarFrameMarker marker,
+                                const AzimuthTileSplitConfig& config) {
+    SarAccelControlToken out{};
+    out.token_id = EncodeAccelToken(input, tile_id, marker);
+    out.sidecar.sequence_id = input.envelope.sequence_id;
+    out.sidecar.batch_id = input.envelope.batch_id;
+    out.sidecar.aperture_id = input.envelope.aperture_id;
+    out.sidecar.pulse_range_start = input.envelope.pulse_range_start;
+    out.sidecar.pulse_range_count = input.envelope.pulse_range_count;
+    out.sidecar.stream_id = input.envelope.stream_id;
+    out.sidecar.tile_id = tile_id;
+    out.sidecar.tile_count = std::max<std::uint32_t>(1u, config.tile_count);
+    out.sidecar.backend_id = input.envelope.backend_id;
+    out.sidecar.backend = input.envelope.backend;
+    out.sidecar.marker = marker;
+    out.sidecar.synthetic = input.envelope.synthetic;
+    out.sidecar.payload_byte_count = payload_byte_count;
 
-    detail::AccelTokenSidecar sidecar{};
-    sidecar.sequence_id = input.envelope.sequence_id;
-    sidecar.batch_id = input.envelope.batch_id;
-    sidecar.aperture_id = input.envelope.aperture_id;
-    sidecar.pulse_range_start = input.envelope.pulse_range_start;
-    sidecar.pulse_range_count = input.envelope.pulse_range_count;
-    sidecar.stream_id = input.envelope.stream_id;
-    sidecar.tile_id = tile_id;
-    sidecar.tile_count = std::max<std::uint32_t>(1u, config.tile_count);
-    sidecar.backend_id = input.envelope.backend_id;
-    sidecar.backend = input.envelope.backend;
-    sidecar.marker = marker;
-    sidecar.synthetic = input.envelope.synthetic;
-    sidecar.payload_byte_count = token_byte_count;
-    detail::StoreAccelTokenSidecar(token, sidecar);
-
-    graph::gpu::accel::HostPinnedBufferView out{};
+    auto& host_view = out.host_view;
     const auto backend = ToAccelBackendKind(config.backend);
-    out.backend =
+    host_view.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
-    out.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
-    out.bytes = static_cast<std::uint64_t>(view_byte_count);
-    out.dtype = graph::gpu::accel::DataType::Float32;
-    out.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
+    host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(out.token_id + 1u));
+    host_view.bytes = static_cast<std::uint64_t>(view_byte_count);
+    host_view.dtype = graph::gpu::accel::DataType::Float32;
+    host_view.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
         std::max<std::size_t>(1u, view_byte_count / sizeof(float))));
-    out.allocator_id = static_cast<std::uint64_t>(config.backend_id) + 1u;
+    host_view.allocator_id = static_cast<std::uint64_t>(config.backend_id) + 1u;
+    out.has_host_view = true;
     return out;
 }
 
@@ -78,7 +72,7 @@ graph::gpu::accel::HostPinnedBufferView BuildHostView(const SarPulseBlockMessage
 AzimuthTileSplitNode::AzimuthTileSplitNode(AzimuthTileSplitConfig config)
     : config_(config) {}
 
-std::optional<graph::gpu::accel::HostPinnedBufferView> AzimuthTileSplitNode::Transfer(
+std::optional<SarAccelControlToken> AzimuthTileSplitNode::Transfer(
     const SarPulseBlockMessage& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
@@ -210,19 +204,19 @@ std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarPulseBlockMessage& in
     return (sequence_tile + (config_.tile_id_offset % tile_count)) % tile_count;
 }
 
-graph::gpu::accel::HostPinnedBufferView AzimuthTileSplitNode::BuildDataTile(
+SarAccelControlToken AzimuthTileSplitNode::BuildDataTile(
     const SarPulseBlockMessage& input) const {
     const std::uint32_t tile_id = ResolveTileId(input);
     const std::size_t byte_count =
         (input.iq_samples.empty() ? 0u : input.iq_samples.size() * sizeof(float));
 
-    return BuildHostView(input, tile_id, byte_count, byte_count, SarFrameMarker::Data, config_);
+    return BuildToken(input, tile_id, byte_count, byte_count, SarFrameMarker::Data, config_);
 }
 
-graph::gpu::accel::HostPinnedBufferView AzimuthTileSplitNode::BuildEndOfStreamTile(
+SarAccelControlToken AzimuthTileSplitNode::BuildEndOfStreamTile(
     const SarPulseBlockMessage& input) const {
     const auto tile_id = ResolveTileId(input);
-    return BuildHostView(
+    return BuildToken(
         input,
         tile_id,
         0u,
