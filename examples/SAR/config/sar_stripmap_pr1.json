@@ -1,5 +1,9 @@
 {
   "name": "sar_stripmap_pr1",
+  "execution_backend": "auto",
+  "backend_fallback_policy": "allow_fallback",
+  "resolver_diagnostics": true,
+  "edge_contract": "accel-token",
   "num_threads": 4,
   "nodes": [
     {

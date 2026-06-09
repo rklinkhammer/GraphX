@@ -47,6 +47,10 @@ PR3 Metal-oriented SAR topologies:
 2. examples/SAR/config/sar_stripmap_pr3_metal_compression.json
 3. examples/SAR/config/sar_stripmap_pr3_metal_fanout.json
 
+PR8 non-CI external-data manual topology scaffold:
+
+1. examples/SAR/config/sar_gotcha_external_manual.json
+
 The PR2 topology uses `SarPulseFanoutNode` to expose four branch lanes:
 
 ```text
@@ -175,6 +179,36 @@ cmake --build --preset build-debug --target sar_benchmark
 ```
 
 See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPORT.md.
+
+## External Data Lane (Non-CI)
+
+PR8 keeps CI deterministic by default and requires explicit local/manual opt-in for larger external replay fixtures.
+
+CI/default behavior:
+
+1. Continue using small deterministic fixtures under `examples/SAR/test/fixtures`.
+2. `GotchaReplaySourceNode` rejects non-test fixture paths by default.
+
+Local/manual external-data behavior:
+
+1. Set node config field `allow_external_fixture: true`.
+2. Export environment gate `GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1`.
+3. Use the scaffold config `examples/SAR/config/sar_gotcha_external_manual.json` and replace `fixture_path` with your local normalized replay file.
+
+Example local/manual run:
+
+```bash
+export GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1
+./build-ninja/ninja-debug-metal-native/examples/SAR/sar_example \
+  examples/SAR/config/sar_gotcha_external_manual.json \
+  ./build-ninja/ninja-debug-metal-native/examples/SAR/plugins
+```
+
+Notes:
+
+1. External raw dataset ingestion remains out of CI scope.
+2. Keep any heavyweight replay fixtures local and untracked.
+3. Preserve `edge_contract=accel-token` and portable JSON intent contracts for external runs.
 
 ## Current Non-Goals
 

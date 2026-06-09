@@ -1,12 +1,19 @@
 #include <gtest/gtest.h>
 
+#include "graph/GraphConfigParser.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -29,6 +36,34 @@ std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
     }
 
     return nullptr;
+}
+
+nlohmann::json LoadJsonFile(const std::filesystem::path& path) {
+    std::ifstream in(path);
+    EXPECT_TRUE(in.good()) << "unable to open preset: " << path;
+
+    nlohmann::json json;
+    in >> json;
+    return json;
+}
+
+void AssertPortableIntents(const nlohmann::json& config) {
+    ASSERT_TRUE(config.contains("nodes"));
+    ASSERT_TRUE(config.at("nodes").is_array());
+
+    std::set<std::string> seen_intents;
+    for (const auto& node : config.at("nodes")) {
+        ASSERT_TRUE(node.contains("type"));
+        const auto type = node.at("type").get<std::string>();
+        EXPECT_FALSE(type.ends_with("Metal")) << "preset must keep portable node intent types";
+        if (type == "H2DAsyncNode" || type == "SarBackprojectionTransformNode" || type == "D2HAsyncNode") {
+            seen_intents.insert(type);
+        }
+    }
+
+    EXPECT_TRUE(seen_intents.contains("H2DAsyncNode"));
+    EXPECT_TRUE(seen_intents.contains("SarBackprojectionTransformNode"));
+    EXPECT_TRUE(seen_intents.contains("D2HAsyncNode"));
 }
 
 } // namespace
@@ -85,4 +120,47 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
     EXPECT_EQ(
         diagnostics.peak_queue_depth,
         executor->GetGraphManager()->GetMetrics().peak_queue_depth.load(std::memory_order_relaxed));
+}
+
+TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExplicit) {
+    struct PresetExpectation {
+        const char* path;
+        const char* backend;
+    };
+
+    const std::vector<PresetExpectation> presets{
+        {SAR_JSON_CONFIG_PATH, "auto"},
+        {SAR_PR2_FANOUT_JSON_CONFIG_PATH, "auto"},
+        {SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH, "metal"},
+        {SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH, "metal"},
+        {SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH, "metal"},
+        {SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH, "metal"},
+        {SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH, "auto"},
+        {SAR_PROJECTILE_JSON_CONFIG_PATH, "auto"},
+    };
+
+    for (const auto& preset : presets) {
+        const std::filesystem::path config_path{preset.path};
+        ASSERT_TRUE(std::filesystem::exists(config_path)) << "missing preset " << config_path;
+
+        const auto config = LoadJsonFile(config_path);
+        ASSERT_TRUE(config.contains("execution_backend"));
+        ASSERT_TRUE(config.contains("backend_fallback_policy"));
+        ASSERT_TRUE(config.contains("resolver_diagnostics"));
+        ASSERT_TRUE(config.contains("edge_contract"));
+
+        EXPECT_EQ(config.at("execution_backend").get<std::string>(), preset.backend);
+        EXPECT_EQ(config.at("backend_fallback_policy").get<std::string>(), "allow_fallback");
+        EXPECT_TRUE(config.at("resolver_diagnostics").get<bool>());
+        EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+        const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(config_path.string());
+        ASSERT_TRUE(parsed) << "failed parsing preset " << config_path;
+        EXPECT_EQ(parsed->resolver.execution_backend, preset.backend);
+        EXPECT_EQ(parsed->resolver.backend_fallback_policy, "allow_fallback");
+        EXPECT_TRUE(parsed->resolver.resolver_diagnostics);
+        EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
+
+        AssertPortableIntents(config);
+    }
 }

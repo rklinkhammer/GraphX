@@ -1,6 +1,6 @@
 {
-  "name": "sar_stripmap_pr7_materialized_image",
-  "execution_backend": "auto",
+  "name": "sar_gotcha_external_manual",
+  "execution_backend": "metal",
   "backend_fallback_policy": "allow_fallback",
   "resolver_diagnostics": true,
   "edge_contract": "accel-token",
@@ -8,13 +8,20 @@
   "nodes": [
     {
       "id": "src",
-      "type": "SyntheticApertureIqSourceNode",
+      "type": "GotchaReplaySourceNode",
       "node_config": {
-        "stream_id": 0,
-        "total_pulses": 32,
-        "samples_per_pulse": 256,
-        "backend_id": 0,
-        "backend": 0
+        "fixture_path": "REPLACE_WITH_LOCAL_EXTERNAL_FIXTURE_PATH",
+        "emit_watermark": false,
+        "allow_external_fixture": true
+      }
+    },
+    {
+      "id": "compression",
+      "type": "RangeCompressionNode",
+      "node_config": {
+        "enabled": true,
+        "gain": 1.0,
+        "sample_rate_hz": 48000.0
       }
     },
     {
@@ -23,16 +30,7 @@
       "node_config": {
         "tile_count": 4,
         "tile_id_offset": 0,
-        "backend_id": 0,
-        "backend": 0
-      }
-    },
-    {
-      "id": "window",
-      "type": "RangeWindowNode",
-      "node_config": {
-        "enabled": true,
-        "gain": 1.0
+        "backend_id": 0
       }
     },
     {
@@ -40,8 +38,7 @@
       "type": "H2DAsyncNode",
       "node_config": {
         "override_backend": false,
-        "backend_id": 0,
-        "backend": 0
+        "backend_id": 0
       }
     },
     {
@@ -51,8 +48,7 @@
         "image_width": 16,
         "backend_id": 0,
         "queue_id": 0,
-        "kernel_id": 3301,
-        "backend": 1
+        "kernel_id": 3301
       }
     },
     {
@@ -60,15 +56,7 @@
       "type": "D2HAsyncNode",
       "node_config": {
         "override_backend": false,
-        "backend_id": 0,
-        "backend": 0
-      }
-    },
-    {
-      "id": "materialize",
-      "type": "SarMaterializedImageSinkNode",
-      "node_config": {
-        "enabled": true
+        "backend_id": 0
       }
     },
     {
@@ -78,7 +66,7 @@
         "expected_tiles": 4,
         "require_watermark_before_complete": false,
         "backend_id": 0,
-        "backend": 0
+        "backend": 1
       }
     },
     {
@@ -93,11 +81,11 @@
     {
       "source_node_id": "src",
       "source_port": 0,
-      "target_node_id": "window",
+      "target_node_id": "compression",
       "target_port": 0
     },
     {
-      "source_node_id": "window",
+      "source_node_id": "compression",
       "source_port": 0,
       "target_node_id": "split",
       "target_port": 0
@@ -122,12 +110,6 @@
     },
     {
       "source_node_id": "d2h",
-      "source_port": 0,
-      "target_node_id": "materialize",
-      "target_port": 0
-    },
-    {
-      "source_node_id": "materialize",
       "source_port": 0,
       "target_node_id": "merge",
       "target_port": 0

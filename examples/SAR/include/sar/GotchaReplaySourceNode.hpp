@@ -49,6 +49,7 @@ struct GotchaNormalizedPulseRecord {
 struct GotchaReplaySourceConfig {
     std::filesystem::path fixture_path{};
     bool emit_watermark{false};
+    bool allow_external_fixture{false};
     std::vector<GotchaNormalizedPulseRecord> records{};
 };
 
@@ -77,7 +78,7 @@ public:
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 2> Fields() {
+    static constexpr std::array<graph::JsonField, 3> Fields() {
         return {{
             graph::JsonField{
                 .name = "fixture_path",
@@ -98,6 +99,16 @@ public:
                 .default_value = "false",
                 .enum_values = std::nullopt,
                 .description = "Emit a watermark record before EOS"
+            },
+            graph::JsonField{
+                .name = "allow_external_fixture",
+                .type = graph::JsonType::Boolean,
+                .required = false,
+                .min = std::nullopt,
+                .max = std::nullopt,
+                .default_value = "false",
+                .enum_values = std::nullopt,
+                .description = "Allow external replay fixtures (requires GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1)"
             }
         }};
     }

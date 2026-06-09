@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -148,6 +149,31 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(overhead_ms.contains("lifecycle_join_last"));
     EXPECT_GE(overhead_ms.at("graph_run_minus_baseline_median").get<double>(), 0.0);
     EXPECT_GE(overhead_ms.at("lifecycle_join_last").get<double>(), 0.0);
+    EXPECT_NEAR(
+        overhead_ms.at("graph_run_minus_baseline_median").get<double>(),
+        cost_buckets.at("graph_overhead_ms").get<double>(),
+        1.0e-9);
+
+    ASSERT_TRUE(trace.contains("performance_claim_policy"));
+    const auto& claim_policy = trace.at("performance_claim_policy");
+    EXPECT_TRUE(claim_policy.contains("requires_bottleneck_attribution"));
+    EXPECT_TRUE(claim_policy.contains("disallow_lifecycle_total_as_speedup_basis"));
+    EXPECT_TRUE(claim_policy.contains("speedup_basis"));
+    EXPECT_TRUE(claim_policy.contains("lifecycle_total_reported_separately"));
+    EXPECT_TRUE(claim_policy.contains("attribution_evidence_present"));
+    EXPECT_TRUE(claim_policy.contains("attribution_evidence_keys"));
+    EXPECT_TRUE(claim_policy.contains("no_speedup_claim_from"));
+
+    EXPECT_TRUE(claim_policy.at("requires_bottleneck_attribution").get<bool>());
+    EXPECT_TRUE(claim_policy.at("disallow_lifecycle_total_as_speedup_basis").get<bool>());
+    EXPECT_EQ(claim_policy.at("speedup_basis").get<std::string>(), "graph_run_minus_baseline_median");
+    EXPECT_TRUE(claim_policy.at("lifecycle_total_reported_separately").get<bool>());
+    EXPECT_TRUE(claim_policy.at("attribution_evidence_present").get<bool>());
+
+    ASSERT_TRUE(claim_policy.at("attribution_evidence_keys").is_array());
+    EXPECT_GE(claim_policy.at("attribution_evidence_keys").size(), 5u);
+    ASSERT_TRUE(claim_policy.at("no_speedup_claim_from").is_array());
+    EXPECT_GE(claim_policy.at("no_speedup_claim_from").size(), 2u);
 
     ASSERT_TRUE(trace.contains("pr5_accuracy_fidelity"));
     const auto& pr5 = trace.at("pr5_accuracy_fidelity");

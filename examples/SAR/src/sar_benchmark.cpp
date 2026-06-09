@@ -1170,6 +1170,15 @@ void WriteTraceJson(const std::filesystem::path& path,
         std::filesystem::create_directories(parent);
     }
 
+    const double graph_overhead_ms =
+        std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
+    const bool attribution_evidence_present =
+        graph_run.median_ms >= 0.0 &&
+        baseline_exec.median_ms >= 0.0 &&
+        last_graph.diagnostics.bytes_h2d > 0u &&
+        last_graph.diagnostics.bytes_d2h > 0u &&
+        last_graph.diagnostics.kernel_dispatches > 0u;
+
     nlohmann::json trace = {
         {"schema", "graphx.sar.benchmark.trace.v1"},
         {"profile", {
@@ -1262,7 +1271,7 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"run_elapsed_ms", last_graph.run_ms},
         }},
         {"overhead_ms", {
-            {"graph_run_minus_baseline_median", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
+            {"graph_run_minus_baseline_median", graph_overhead_ms},
             {"lifecycle_join_last", last_graph.join_ms},
         }},
         {"overhead_attribution", {
@@ -1277,7 +1286,7 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"transfer_payload_bytes",
                  last_graph.diagnostics.bytes_h2d + last_graph.diagnostics.bytes_d2h},
                 {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
-                {"graph_overhead_ms", std::max(0.0, graph_run.median_ms - baseline_exec.median_ms)},
+                {"graph_overhead_ms", graph_overhead_ms},
                 {"diagnostics_contract", "sink-status"},
                 {"range_compression_reference_ms", pr5_reference.range_compression_reference_ms},
                 {"range_compression_runtime_ms", pr5_reference.range_compression_runtime_ms},
@@ -1285,6 +1294,27 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"image_metric_ms", pr5_reference.image_metric_ms},
                 {"graph_direct_peak_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
             }},
+        }},
+        {"performance_claim_policy", {
+            {"requires_bottleneck_attribution", true},
+            {"disallow_lifecycle_total_as_speedup_basis", true},
+            {"speedup_basis", "graph_run_minus_baseline_median"},
+            {"lifecycle_total_reported_separately", true},
+            {"attribution_evidence_present", attribution_evidence_present},
+            {"attribution_evidence_keys", nlohmann::json::array({
+                "timing_ms.graph_run.median_ms",
+                "timing_ms.baseline_execute.median_ms",
+                "overhead_ms.graph_run_minus_baseline_median",
+                "overhead_attribution.cost_buckets.graph_overhead_ms",
+                "overhead_attribution.transfer_payload_bytes_h2d",
+                "overhead_attribution.transfer_payload_bytes_d2h",
+                "overhead_attribution.cost_buckets.kernel_dispatches",
+            })},
+            {"no_speedup_claim_from", nlohmann::json::array({
+                "timing_ms.graph_lifecycle_total",
+                "last_lifecycle_ms.total",
+                "overhead_ms.lifecycle_join_last",
+            })},
         }},
         {"pr5_accuracy_fidelity", {
             {"matched_filter_reference", {

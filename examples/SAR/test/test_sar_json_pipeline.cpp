@@ -67,6 +67,33 @@ std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
     return nullptr;
 }
 
+void AssertEosSidecarIdentity(const sar::SarMergeStatusMessage& status,
+                              std::uint64_t expected_sequence_id,
+                              std::uint32_t expected_stream_id,
+                              std::uint32_t expected_tile_count,
+                              std::uint32_t expected_backend_id) {
+    EXPECT_EQ(status.envelope.sequence_id, expected_sequence_id);
+    EXPECT_EQ(status.envelope.batch_id, expected_stream_id);
+    EXPECT_EQ(status.envelope.aperture_id, expected_sequence_id);
+    EXPECT_EQ(status.envelope.pulse_range_start, expected_sequence_id);
+    EXPECT_EQ(status.envelope.pulse_range_count, 0u);
+    EXPECT_EQ(status.envelope.stream_id, expected_stream_id);
+    EXPECT_LT(status.envelope.tile_id, expected_tile_count);
+    EXPECT_EQ(status.envelope.tile_count, expected_tile_count);
+    EXPECT_EQ(status.envelope.backend_id, expected_backend_id);
+    EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+
+    EXPECT_TRUE(status.gpu.has_host_view);
+    EXPECT_TRUE(status.gpu.has_transfer_ticket);
+    EXPECT_EQ(status.gpu.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
+
+    if (status.gpu.has_kernel_ticket) {
+        EXPECT_EQ(status.gpu.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    }
+}
+
 } // namespace
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
@@ -114,6 +141,9 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
     EXPECT_EQ(diagnostics.kernel_dispatches, 32u);
     EXPECT_EQ(diagnostics.duplicate_tile_count, 28u);
     EXPECT_EQ(diagnostics.missing_tile_count, 0u);
+
+    const auto& status = sink->last_status();
+    AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 
 TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) {
@@ -149,6 +179,9 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
     ASSERT_NE(diagnostics_sink, nullptr);
     diagnostics_sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_EQ(diagnostics_sink->last_diagnostics().envelope.marker, sar::SarFrameMarker::EndOfStream);
+
+    const auto& status = diagnostics_sink->last_status();
+    AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 
 TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {

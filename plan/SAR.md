@@ -14,30 +14,33 @@ This plan intentionally reuses existing GraphX patterns rather than introducing 
 
 ---
 
-## Current State Update (Post-PR6)
+## Current State Update (Post-PR7)
 
 As of the latest SAR checklist consolidation:
 
 1. PR6 is complete for its intended scope: runtime matched-filter path, accel-token guardrails, resolver/Metal substitution audit, benchmark trace contract, and deterministic display artifact coverage.
-2. Full SAR example unit coverage is green in the local native-metal configuration.
-3. The PR6 Metal substitution review and ownership decisions are documented in plan/SAR_PR6_METAL_AUDIT.md.
+2. PR7 is complete for its intended scope: materialized image-sample graph/direct parity harness, PR6 trace-compatibility preservation, and native matched-filter/range-compression kernel gate decision.
+3. Full SAR example unit coverage is green in the local native-metal configuration (`test_sar_example_unit`: 60 tests passing).
+4. The PR6 Metal substitution review and ownership decisions remain documented in plan/SAR_PR6_METAL_AUDIT.md.
 
-What was intentionally deferred out of PR6 and carried into PR7:
+What remains intentionally deferred out of PR7 and carried into PR8:
 
-1. Full materialized image-sample graph/direct parity path (beyond diagnostics/token-lifecycle evidence).
-2. Device-side matched-filter/range-compression Metal kernel expansion, gated by accepted CPU-reference parity and sidecar/contract preservation.
+1. Exhaustive sidecar identity matrix hardening across baseline/fanout/materialized topologies.
+2. Explicit attribution-discipline enforcement for benchmark performance claims.
+3. External-data non-CI validation lane (kept out of CI profile).
+4. Device-side matched-filter/range-compression Metal kernel implementation remains deferred unless a new parity gate is opened with accepted evidence.
 
-PR7 planning entrypoint:
+PR8 planning entrypoint:
 
-- plan/SAR_PR7_CHECKLIST.md
+- plan/SAR_PR8_CHECKLIST.md
 
-PR7 should preserve all PR6 invariants:
+PR8 should preserve all PR6/PR7 invariants:
 
 1. GraphExecutorBuilder plus JSON remains the canonical user-facing runtime path.
 2. Transfer/kernel edges remain accel-token contracts with SAR sidecars.
 3. Portable SAR JSON remains generic-intent driven, with resolver-managed backend substitution.
 
-### PR7 Slice 1.5 Native Matched-Filter Gate Decision
+### PR7 Slice 1.5 Native Matched-Filter Gate Decision (Recorded)
 
 Decision: defer native matched-filter/range-compression Metal kernel implementation in PR7.
 
@@ -52,6 +55,71 @@ Rationale for defer:
 1. Current evidence confirms fidelity and contract correctness for runtime matched-filter behavior without introducing a new native kernel risk surface.
 2. PR7 priority remains materialized graph/direct parity and trace/contract stability; adding native range-compression kernels now would expand scope and regression risk beyond current acceptance gates.
 3. Native kernel expansion should proceed only in a dedicated follow-up slice/PR with explicit CPU parity tables, sidecar/accel-token preservation checks, and benchmark attribution proving benefit.
+
+### PR8 Kickoff Focus
+
+PR8 focuses on contract hardening and validation depth rather than new kernel rollout:
+
+1. Sidecar identity propagation audit and regression coverage expansion.
+2. Accel-token + resolver preset integrity checks across maintained SAR JSON topologies.
+3. Performance-attribution policy enforcement in benchmark trace review/tests.
+4. External-data readiness lane definition for local/manual runs while preserving deterministic CI scope.
+
+### PR8 Progress Update (Slice 2.1 Complete)
+
+PR8 Slice 2.1 is complete: sidecar identity matrix hardening is now explicitly covered in GraphExecutor-driven baseline, fanout, and PR7 materialized-image paths.
+
+Completed validation outcomes:
+
+1. Added explicit sidecar envelope identity assertions for sequence/batch/aperture/pulse-range/stream/tile fields and marker propagation in JSON runtime tests.
+2. Added transfer/kernel metadata checks for backend/queue identifiers, with host-backend merge tolerance where kernel tickets are intentionally absent.
+3. Stabilized fanout terminal-frame assertions against observed Data-vs-EOS end-of-run variability while preserving identity and diagnostics invariants.
+4. Full SAR example unit target remains green in the local native-metal configuration (`test_sar_example_unit`: 60 tests passing).
+
+### PR8 Progress Update (Slice 2.2 Complete)
+
+PR8 Slice 2.2 is complete: SAR preset contract audit now enforces accel-token edge-contract usage and explicit resolver metadata across maintained SAR JSON presets.
+
+Completed validation outcomes:
+
+1. Added explicit resolver-contract fields (`execution_backend`, `backend_fallback_policy`, `resolver_diagnostics`, `edge_contract`) to maintained non-metal presets (`sar_stripmap_pr1`, `sar_stripmap_pr2_fanout`, `sar_stripmap_pr7_materialized_image`, `sar_projectile_approach_pr1`).
+2. Added `SarJsonRuntimeTest.MaintainedPresetsKeepAccelTokenAndResolverContractExplicit` to assert, for all maintained presets, JSON-level contract keys, parser-level resolver values, and portable (non-concrete) node intents.
+3. Revalidated resolver metadata audits for PR3/PR6 metal presets in the existing `SarPr3MetalJsonTest.*PresetUsesAccelTokenResolverMetadata` suite.
+4. Full SAR example unit target remains green in the local native-metal configuration (`test_sar_example_unit`: 61 tests passing).
+
+### PR8 Progress Update (Slice 2.3 Complete)
+
+PR8 Slice 2.3 is complete: benchmark attribution discipline is now enforced by trace-level claim-policy fields plus schema assertions that fail when attribution evidence is missing or when lifecycle totals are used as speedup basis.
+
+Completed validation outcomes:
+
+1. Extended SAR benchmark trace output with a `performance_claim_policy` contract carrying required attribution policy flags, evidence presence, explicit speedup basis, and explicit disallowed lifecycle-only claim sources.
+2. Added schema-test guardrails that require `performance_claim_policy` presence/values and enforce consistency between `overhead_ms.graph_run_minus_baseline_median` and `overhead_attribution.cost_buckets.graph_overhead_ms`.
+3. Preserved PR6/PR7 trace compatibility while extending attribution checks (existing compatibility key matrix remains enforced).
+4. Full SAR example unit target remains green in the local native-metal configuration (`test_sar_example_unit`: 61 tests passing).
+
+### PR8 Progress Update (Slice 2.4 Complete)
+
+PR8 Slice 2.4 is complete: a strict non-CI external-data lane scaffold now exists for Gotcha-style replay with explicit CI guards, local/manual opt-in controls, and documentation.
+
+Completed validation outcomes:
+
+1. Added `GotchaReplaySourceNode` external-fixture gate policy: non-test fixture paths are rejected unless both `allow_external_fixture=true` and `GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1` are set.
+2. Added guardrail tests that verify reject-by-default behavior, environment-gate enforcement, and successful explicit local/manual opt-in for external fixtures.
+3. Added manual external replay topology scaffold (`examples/SAR/config/sar_gotcha_external_manual.json`) and documented usage/constraints in `examples/SAR/README.md`.
+4. Full SAR example unit target remains green in the local native-metal configuration (`test_sar_example_unit`: 64 tests passing).
+
+### PR8 Closeout (Complete)
+
+PR8 is complete. All planned slices (2.1-2.4) and acceptance criteria are closed with passing SAR validation in the native-metal local lane.
+
+Closeout summary:
+
+1. Sidecar identity matrix is hardened across baseline, fanout, and PR7 materialized paths.
+2. JSON preset contract audits enforce explicit resolver metadata and accel-token edge-contract invariants.
+3. Benchmark trace now carries explicit performance-claim policy and attribution evidence guardrails.
+4. External-data validation lane is explicitly non-CI, opt-in gated, and documented for local/manual execution.
+5. Ownership boundaries remain intact: SAR-specific adapters stay in `examples/SAR`; no promotion to shared libs was introduced in PR8.
 
 ---
 

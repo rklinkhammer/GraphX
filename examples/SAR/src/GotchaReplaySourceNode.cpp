@@ -4,9 +4,11 @@
 
 #include <array>
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <sstream>
+#include <string>
 #include <utility>
 
 namespace sar {
@@ -19,6 +21,17 @@ SarBackendKind ParseBackendKind(int raw_backend) {
         throw graph::ConfigError("backend must be in range [0,2]");
     }
     return static_cast<SarBackendKind>(raw_backend);
+}
+
+bool IsLikelyCiFixturePath(const std::filesystem::path& fixture_path) {
+    const auto normalized = fixture_path.lexically_normal().generic_string();
+    return normalized.find("/test/fixtures/") != std::string::npos ||
+           normalized.find("examples/SAR/test/fixtures/") != std::string::npos;
+}
+
+bool ExternalDataAllowedByEnvironment() {
+    const char* value = std::getenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA");
+    return value != nullptr && std::string(value) == "1";
 }
 
 std::uint64_t RequireUInt64(const nlohmann::json& object, const char* key) {
@@ -250,6 +263,23 @@ void GotchaReplaySourceNode::Configure(const graph::JsonView& cfg) {
         config.emit_watermark = value.value();
     }
 
+    if (cfg.Contains("allow_external_fixture")) {
+        auto value = cfg.TryGetBool("allow_external_fixture");
+        if (!value) {
+            throw value.error();
+        }
+        config.allow_external_fixture = value.value();
+    }
+
+    if (!IsLikelyCiFixturePath(config.fixture_path)) {
+        if (!config.allow_external_fixture || !ExternalDataAllowedByEnvironment()) {
+            throw graph::ConfigError(
+                "External Gotcha fixture path is disabled by default. "
+                "Set node_config.allow_external_fixture=true and export "
+                "GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1 for local/manual non-CI runs.");
+        }
+    }
+
     config.records = converter_.LoadFromFile(config.fixture_path);
     SetConfig(config);
 }
@@ -258,6 +288,7 @@ graph::JsonView GotchaReplaySourceNode::GetParameters() const {
     parameters_cache_ = nlohmann::json::object();
     parameters_cache_["fixture_path"] = config_.fixture_path.string();
     parameters_cache_["emit_watermark"] = config_.emit_watermark;
+    parameters_cache_["allow_external_fixture"] = config_.allow_external_fixture;
     parameters_cache_["record_count"] = config_.records.size();
     return graph::JsonView(parameters_cache_);
 }
@@ -289,6 +320,7 @@ std::vector<std::string> GotchaReplaySourceNode::GetParameterNames() const {
     return {
         "fixture_path",
         "emit_watermark",
+        "allow_external_fixture",
     };
 }
 

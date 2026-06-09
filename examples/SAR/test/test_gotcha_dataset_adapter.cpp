@@ -4,14 +4,17 @@
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
+#include "config/ConfigError.hpp"
 #include "sar/GotchaReplaySourceNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
+#include <cstdlib>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <utility>
 
 namespace {
@@ -61,6 +64,73 @@ std::filesystem::path WriteTempTopologyFile(const nlohmann::json& topology) {
     output << topology.dump(2) << '\n';
     return path;
 }
+
+std::filesystem::path WriteExternalFixtureFile() {
+    const auto fixture_path = std::filesystem::temp_directory_path() / "gotcha_external_manual_fixture.json";
+    const nlohmann::json fixture{
+        {"schema", "graphx.sar.gotcha.normalized.v1"},
+        {"records", nlohmann::json::array({
+            {
+                {"frame_id", 1},
+                {"pass_id", 77},
+                {"pulse_block_id", 101},
+                {"range_bin_start", 0},
+                {"range_bin_count", 2},
+                {"aperture_span_start", 0},
+                {"aperture_span_count", 1},
+                {"timestamp_us", 12345},
+                {"ordering_key", 1},
+                {"stream_id", 3},
+                {"backend_id", 0},
+                {"backend", 0},
+                {"iq_samples", nlohmann::json::array({
+                    nlohmann::json{{"real", 1.0f}, {"imag", 0.0f}},
+                    nlohmann::json{{"real", 0.5f}, {"imag", -0.25f}}
+                })}
+            }
+        })}
+    };
+
+    std::ofstream out(fixture_path);
+    out << fixture.dump(2) << '\n';
+    return fixture_path;
+}
+
+class ScopedEnvVar {
+public:
+    explicit ScopedEnvVar(const std::string& value) {
+        const char* current = std::getenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA");
+        had_original_ = current != nullptr;
+        if (had_original_) {
+            original_ = current;
+        }
+#ifdef _WIN32
+        _putenv_s("GRAPHX_SAR_ALLOW_EXTERNAL_DATA", value.c_str());
+#else
+        setenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA", value.c_str(), 1);
+#endif
+    }
+
+    ~ScopedEnvVar() {
+        if (had_original_) {
+#ifdef _WIN32
+            _putenv_s("GRAPHX_SAR_ALLOW_EXTERNAL_DATA", original_.c_str());
+#else
+            setenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA", original_.c_str(), 1);
+#endif
+        } else {
+#ifdef _WIN32
+            _putenv_s("GRAPHX_SAR_ALLOW_EXTERNAL_DATA", "");
+#else
+            unsetenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA");
+#endif
+        }
+    }
+
+private:
+    bool had_original_{false};
+    std::string original_{};
+};
 
 nlohmann::json MakeGotchaPr3Topology() {
     return nlohmann::json{
@@ -257,4 +327,53 @@ TEST(GotchaDatasetAdapterTest, PluginLoadedGotchaReplayPipelineRunsEndToEnd) {
     EXPECT_EQ(diagnostics.duplicate_tile_count, 0u);
     EXPECT_EQ(diagnostics.missing_tile_count, 0u);
     EXPECT_EQ(diagnostics.out_of_order_completion_count, 0u);
+}
+
+TEST(GotchaDatasetAdapterTest, RejectsExternalFixtureWithoutExplicitOptIn) {
+    const auto fixture_path = WriteExternalFixtureFile();
+    ASSERT_TRUE(std::filesystem::exists(fixture_path));
+
+    sar::GotchaReplaySourceNode node;
+    nlohmann::json cfg_json{
+        {"fixture_path", fixture_path.string()},
+        {"emit_watermark", false},
+        {"allow_external_fixture", false}
+    };
+
+    EXPECT_THROW(node.Configure(graph::JsonView(cfg_json)), graph::ConfigError);
+}
+
+TEST(GotchaDatasetAdapterTest, RejectsExternalFixtureWithoutEnvironmentGate) {
+    const auto fixture_path = WriteExternalFixtureFile();
+    ASSERT_TRUE(std::filesystem::exists(fixture_path));
+
+    sar::GotchaReplaySourceNode node;
+    nlohmann::json cfg_json{
+        {"fixture_path", fixture_path.string()},
+        {"emit_watermark", false},
+        {"allow_external_fixture", true}
+    };
+
+    EXPECT_THROW(node.Configure(graph::JsonView(cfg_json)), graph::ConfigError);
+}
+
+TEST(GotchaDatasetAdapterTest, AllowsExternalFixtureWithExplicitLocalManualOptIn) {
+    const auto fixture_path = WriteExternalFixtureFile();
+    ASSERT_TRUE(std::filesystem::exists(fixture_path));
+
+    ScopedEnvVar env_guard("1");
+
+    sar::GotchaReplaySourceNode node;
+    nlohmann::json cfg_json{
+        {"fixture_path", fixture_path.string()},
+        {"emit_watermark", false},
+        {"allow_external_fixture", true}
+    };
+
+    EXPECT_NO_THROW(node.Configure(graph::JsonView(cfg_json)));
+
+    auto out = node.Produce(std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(out.has_value());
+    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(out->envelope.synthetic, false);
 }
