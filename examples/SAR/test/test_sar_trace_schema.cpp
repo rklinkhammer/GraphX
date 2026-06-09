@@ -60,8 +60,9 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     nlohmann::json trace;
     in >> trace;
 
-    // PR6 compatibility matrix: these keys define the benchmark trace contract that PR7 must preserve.
-    const std::array<const char*, 12> required_pr6_top_level_keys{{
+    // PR8 compatibility matrix: these keys define the benchmark trace contract
+    // that native-metal parity finalization must preserve.
+    const std::array<const char*, 13> required_pr8_top_level_keys{{
         "schema",
         "timing_ms",
         "profile",
@@ -74,9 +75,10 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
         "token_lifecycle",
         "resolved_nodes",
         "native_execution_evidence",
+        "pr8_native_parity",
     }};
-    for (const char* key : required_pr6_top_level_keys) {
-        EXPECT_TRUE(trace.contains(key)) << "Missing required PR6 trace key: " << key;
+    for (const char* key : required_pr8_top_level_keys) {
+        EXPECT_TRUE(trace.contains(key)) << "Missing required PR8 trace key: " << key;
     }
 
     ASSERT_TRUE(trace.contains("schema"));
@@ -256,6 +258,8 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
         EXPECT_TRUE(node.contains("fallback_reason"));
         EXPECT_TRUE(node.contains("input_token_type"));
         EXPECT_TRUE(node.contains("output_token_type"));
+        EXPECT_EQ(node.at("selected_backend").get<std::string>(), "metal");
+        EXPECT_EQ(node.at("fallback_reason").get<std::string>(), "none");
     }
 
     ASSERT_TRUE(trace.contains("native_execution_evidence"));
@@ -278,6 +282,21 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_GE(native.at("kernel_ticket_arg_count").get<std::uint64_t>(), 1u);
     EXPECT_GT(native.at("kernel_ticket_id").get<std::uint64_t>(), 0u);
     EXPECT_GT(native.at("kernel_ticket_queue_id").get<std::uint64_t>(), 0u);
+
+    ASSERT_TRUE(trace.contains("pr8_native_parity"));
+    const auto& pr8_parity = trace.at("pr8_native_parity");
+    EXPECT_TRUE(pr8_parity.contains("canonical_token_path_locked"));
+    EXPECT_TRUE(pr8_parity.contains("dual_path_artifacts_detected"));
+    EXPECT_TRUE(pr8_parity.contains("portable_intent_types_only"));
+    EXPECT_TRUE(pr8_parity.contains("native_backend_requested"));
+    EXPECT_TRUE(pr8_parity.contains("native_backend_resolved"));
+    EXPECT_TRUE(pr8_parity.contains("backprojection_native_kernel_executed"));
+    EXPECT_TRUE(pr8_parity.at("canonical_token_path_locked").get<bool>());
+    EXPECT_FALSE(pr8_parity.at("dual_path_artifacts_detected").get<bool>());
+    EXPECT_TRUE(pr8_parity.at("portable_intent_types_only").get<bool>());
+    EXPECT_TRUE(pr8_parity.at("native_backend_requested").get<bool>());
+    EXPECT_TRUE(pr8_parity.at("native_backend_resolved").get<bool>());
+    EXPECT_TRUE(pr8_parity.at("backprojection_native_kernel_executed").get<bool>());
 }
 
 } // namespace

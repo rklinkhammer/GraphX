@@ -382,17 +382,18 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR6_*_REPORT.md
+- plan/reviews/SAR_VERIFIER_PR7_*_REPORT.md
 - Current repository state
 - Current diff
 
 Task:
-Keep correctness gates explicit and independent from transport cleanup.
+Finalize native-metal parity on single canonical SAR path
+Lock native-metal parity evidence and remove residual dual-path artifacts.
 
-PR7 title:
-CPU Reference SAR Validation Consolidation
+PR8 title:
+Native Metal Parity Finalization
 
-PR7 scope:
+PR8 scope:
 
 Rules:
 - Do not redesign.
@@ -400,8 +401,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR7 requires it.
-- Add or update tests for PR7.
+- Delete obsolete code if PR8 requires it.
+- Add or update tests for PR8.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -423,16 +424,17 @@ Inputs:
 - SAR_INSPECTOR_REPORT.md
 - SAR_SIMPLIFIER_REPORT.md
 - SAR_PR_ROADMAP.md
-- PR1 - PR5 verifier reports
+- PR1 - PR7 verifier reports
 - current repo state
 
 Task:
-Verify whether PR6 actually satisfies its acceptance criteria.
+Verify whether PR8 actually satisfies its acceptance criteria.
 
 Check:
-- Parser rejects forbidden legacy contracts deterministically.
-- libgraph + SAR parser tests pass.
-
+  - Definitive topology is the single canonical SAR GPU runtime path.
+  - Full CTest lane passes.
+  - Benchmark attribution policy remains intact.
+  
 Output:
 - Pass/fail.
 - Blocking issues.

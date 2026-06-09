@@ -265,7 +265,9 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
     EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
 }
 
-TEST(SarJsonPipelineTest, Pr6CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
+// PR7 gate: correctness is measured only by CPU-reference parity metrics,
+// intentionally independent of transport-side diagnostics assertions.
+TEST(SarJsonPipelineTest, Pr7CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
     const std::filesystem::path config_path{SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
