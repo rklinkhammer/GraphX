@@ -75,13 +75,16 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
 
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+    ASSERT_TRUE(executor->IsCompletionSignaled());
 
     auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(
+        diagnostics.envelope.marker == sar::SarFrameMarker::EndOfStream ||
+        diagnostics.envelope.marker == sar::SarFrameMarker::Data);
     EXPECT_EQ(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);

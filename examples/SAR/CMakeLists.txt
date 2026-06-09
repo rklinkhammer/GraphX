@@ -13,6 +13,7 @@ add_executable(sar_example
     src/RangeCompressionNode.cpp
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
+    src/SarMaterializedImageSinkNode.cpp
     src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )
@@ -26,6 +27,7 @@ add_executable(sar_benchmark
     src/RangeCompressionNode.cpp
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
+    src/SarMaterializedImageSinkNode.cpp
     src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )

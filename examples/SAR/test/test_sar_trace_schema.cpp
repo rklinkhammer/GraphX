@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
+#include "sar_pr7_parity_fixture.hpp"
+
 #include <cstdlib>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -10,6 +13,8 @@
 #include <nlohmann/json.hpp>
 
 namespace {
+
+namespace pr7 = sar::test::pr7;
 
 #ifndef SAR_BENCHMARK_EXECUTABLE_PATH
 #define SAR_BENCHMARK_EXECUTABLE_PATH "./sar_benchmark"
@@ -53,6 +58,25 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
 
     nlohmann::json trace;
     in >> trace;
+
+    // PR6 compatibility matrix: these keys define the benchmark trace contract that PR7 must preserve.
+    const std::array<const char*, 12> required_pr6_top_level_keys{{
+        "schema",
+        "timing_ms",
+        "profile",
+        "diagnostics",
+        "queue",
+        "overhead_attribution",
+        "overhead_ms",
+        "pr5_accuracy_fidelity",
+        "execution_outcome",
+        "token_lifecycle",
+        "resolved_nodes",
+        "native_execution_evidence",
+    }};
+    for (const char* key : required_pr6_top_level_keys) {
+        EXPECT_TRUE(trace.contains(key)) << "Missing required PR6 trace key: " << key;
+    }
 
     ASSERT_TRUE(trace.contains("schema"));
     EXPECT_EQ(trace.at("schema").get<std::string>(), "graphx.sar.benchmark.trace.v1");
@@ -132,23 +156,33 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     ASSERT_TRUE(pr5.contains("image_metrics"));
     ASSERT_TRUE(pr5.contains("graph_direct_metric_deltas"));
 
+    const std::array<const char*, 4> required_pr6_pr5_keys{{
+        "matched_filter_reference",
+        "runtime_matched_filter",
+        "image_metrics",
+        "graph_direct_metric_deltas",
+    }};
+    for (const char* key : required_pr6_pr5_keys) {
+        EXPECT_TRUE(pr5.contains(key)) << "Missing required PR6 pr5_accuracy_fidelity key: " << key;
+    }
+
     const auto& matched_filter = pr5.at("matched_filter_reference");
-    EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), 16u);
-    EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), 3u);
-    EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), 9.75, 1.0e-5);
+    EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), pr7::kMatchedFilterVectorLength);
+    EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), pr7::kMatchedFilterPeakBin);
+    EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), pr7::kMatchedFilterPeakValue, 1.0e-5);
     EXPECT_GE(matched_filter.at("reference_time_ms").get<double>(), 0.0);
 
     const auto& runtime_filter = pr5.at("runtime_matched_filter");
     EXPECT_EQ(runtime_filter.at("mode").get<std::string>(), "matched_filter");
     EXPECT_EQ(runtime_filter.at("output").get<std::string>(), "magnitude");
     EXPECT_GE(runtime_filter.at("runtime_time_ms").get<double>(), 0.0);
-    EXPECT_LT(runtime_filter.at("reference_l_inf").get<double>(), 1.0e-4);
-    EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), 1.0e-5);
+    EXPECT_LT(runtime_filter.at("reference_l_inf").get<double>(), pr7::kMatchedFilterReferenceLInfTolerance);
+    EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), pr7::kMatchedFilterReferenceRmsTolerance);
     EXPECT_EQ(runtime_filter.at("parity_status").get<std::string>(), "pass");
 
     const auto& image_metrics = pr5.at("image_metrics");
-    EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), 0.0);
-    EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), 15.0);
+    EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), pr7::kImagePeakLocationErrorTolerancePixels);
+    EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), pr7::kImageDynamicRangeMinDb);
     EXPECT_NE(image_metrics.at("image_hash").get<std::uint64_t>(), 0u);
 
     const auto& metric_deltas = pr5.at("graph_direct_metric_deltas");

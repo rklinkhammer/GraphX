@@ -14,6 +14,47 @@ This plan intentionally reuses existing GraphX patterns rather than introducing 
 
 ---
 
+## Current State Update (Post-PR6)
+
+As of the latest SAR checklist consolidation:
+
+1. PR6 is complete for its intended scope: runtime matched-filter path, accel-token guardrails, resolver/Metal substitution audit, benchmark trace contract, and deterministic display artifact coverage.
+2. Full SAR example unit coverage is green in the local native-metal configuration.
+3. The PR6 Metal substitution review and ownership decisions are documented in plan/SAR_PR6_METAL_AUDIT.md.
+
+What was intentionally deferred out of PR6 and carried into PR7:
+
+1. Full materialized image-sample graph/direct parity path (beyond diagnostics/token-lifecycle evidence).
+2. Device-side matched-filter/range-compression Metal kernel expansion, gated by accepted CPU-reference parity and sidecar/contract preservation.
+
+PR7 planning entrypoint:
+
+- plan/SAR_PR7_CHECKLIST.md
+
+PR7 should preserve all PR6 invariants:
+
+1. GraphExecutorBuilder plus JSON remains the canonical user-facing runtime path.
+2. Transfer/kernel edges remain accel-token contracts with SAR sidecars.
+3. Portable SAR JSON remains generic-intent driven, with resolver-managed backend substitution.
+
+### PR7 Slice 1.5 Native Matched-Filter Gate Decision
+
+Decision: defer native matched-filter/range-compression Metal kernel implementation in PR7.
+
+Evidence reviewed from current deterministic fixtures and benchmark trace contracts:
+
+1. Matched-filter parity is already passing against CPU reference in current runtime path (`RangeCompressionNodeTest.MatchedFilterModeMatchesCpuReferenceMagnitude`, `SarCpuReferenceTest.MatchedFilterKnownVectorFindsDelayedEcho`).
+2. PR7 graph materialized-image parity harness is passing (`SarJsonPipelineTest.Pr7MaterializedImageParityMetricsMatchReference`).
+3. PR6 benchmark trace contract remains intact and confirms native backprojection execution evidence while matched-filter parity remains in tolerance (`SarTraceSchemaTest.BenchmarkTraceContainsRequiredSchemaAndDiagnosticsFields`).
+
+Rationale for defer:
+
+1. Current evidence confirms fidelity and contract correctness for runtime matched-filter behavior without introducing a new native kernel risk surface.
+2. PR7 priority remains materialized graph/direct parity and trace/contract stability; adding native range-compression kernels now would expand scope and regression risk beyond current acceptance gates.
+3. Native kernel expansion should proceed only in a dedicated follow-up slice/PR with explicit CPU parity tables, sidecar/accel-token preservation checks, and benchmark attribution proving benefit.
+
+---
+
 ## Current Implementation Notes
 
 The current SAR example has a working CI-safe benchmark and JSON runtime path. Recent benchmark analysis clarified two important operational details:

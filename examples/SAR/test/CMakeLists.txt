@@ -21,6 +21,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_range_window_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_diagnostics_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarMaterializedImageSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarVisualizationSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_visualization_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformAccelNode.cpp
@@ -51,6 +52,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_compression.json"
     SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_fanout.json"
     SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr6_matched_filter.json"
+    SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr7_materialized_image.json"
     SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach_pr1.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
@@ -72,9 +74,11 @@ add_dependencies(test_sar_example_unit range_window_node)
 add_dependencies(test_sar_example_unit range_compression_node)
 add_dependencies(test_sar_example_unit sar_pulse_fanout_node)
 add_dependencies(test_sar_example_unit sar_diagnostics_sink_node)
+add_dependencies(test_sar_example_unit sar_materialized_image_sink_node)
 add_dependencies(test_sar_example_unit sar_visualization_sink_node)
 add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit gotcha_replay_source_node)
+add_dependencies(test_sar_example_unit sar_benchmark)
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)

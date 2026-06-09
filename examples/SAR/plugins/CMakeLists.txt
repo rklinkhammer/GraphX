@@ -123,6 +123,19 @@ target_include_directories(sar_visualization_sink_node PRIVATE
 )
 
 add_graphx_plugin(
+    TARGET_NAME sar_materialized_image_sink_node
+    SOURCE_FILES
+        sar_materialized_image_sink_node_plugin.cpp
+        ../src/SarMaterializedImageSinkNode.cpp
+    DESCRIPTION "SAR deterministic materialized image sink node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(sar_materialized_image_sink_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+add_graphx_plugin(
     TARGET_NAME image_tile_merge_node
     SOURCE_FILES
         image_tile_merge_node_plugin.cpp

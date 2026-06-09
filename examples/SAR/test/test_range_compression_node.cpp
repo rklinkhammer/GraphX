@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "sar_pr7_parity_fixture.hpp"
 #include "sar/RangeCompressionNode.hpp"
 #include "sar/SarCpuReference.hpp"
 
@@ -14,6 +15,8 @@
 #include <vector>
 
 namespace {
+
+namespace pr7 = sar::test::pr7;
 
 #ifdef __APPLE__
 constexpr const char* kSharedLibraryExtension = ".dylib";
@@ -46,7 +49,7 @@ sar::SarPulseBlockMessage MakePulse(std::size_t sample_count = 256u) {
 
 sar::SarPulseBlockMessage MakeMatchedFilterPulse() {
     sar::reference::ChirpReferenceConfig cfg{};
-    cfg.sample_count = 16;
+    cfg.sample_count = pr7::kMatchedFilterVectorLength;
     cfg.sample_rate_hz = 16.0e6;
     cfg.bandwidth_hz = 4.0e6;
     cfg.chirp_duration_s = 1.0e-6;
@@ -145,8 +148,8 @@ TEST(RangeCompressionNodeTest, MatchedFilterModeMatchesCpuReferenceMagnitude) {
         received.emplace_back(sample.real(), sample.imag());
     }
     const auto expected = sar::reference::MatchedFilterRangeCompress(received, chirp);
-    const auto expected_image = sar::reference::MagnitudeImage(16u, 1u, expected);
-    const auto expected_metrics = sar::reference::MeasureImageQuality(expected_image, 3u, 0u);
+    const auto expected_image = sar::reference::MagnitudeImage(pr7::kMatchedFilterVectorLength, 1u, expected);
+    const auto expected_metrics = sar::reference::MeasureImageQuality(expected_image, pr7::kMatchedFilterPeakBin, 0u);
 
     std::vector<std::complex<double>> actual_complex;
     actual_complex.reserve(out->iq_samples.size());
@@ -154,14 +157,14 @@ TEST(RangeCompressionNodeTest, MatchedFilterModeMatchesCpuReferenceMagnitude) {
         EXPECT_EQ(sample.imag(), 0.0f);
         actual_complex.emplace_back(sample.real(), sample.imag());
     }
-    const auto actual_image = sar::reference::MagnitudeImage(16u, 1u, actual_complex);
-    const auto actual_metrics = sar::reference::MeasureImageQuality(actual_image, 3u, 0u);
+    const auto actual_image = sar::reference::MagnitudeImage(pr7::kMatchedFilterVectorLength, 1u, actual_complex);
+    const auto actual_metrics = sar::reference::MeasureImageQuality(actual_image, pr7::kMatchedFilterPeakBin, 0u);
     const auto error = sar::reference::CompareImages(actual_image, expected_image);
 
-    EXPECT_LT(error.l_inf, 1.0e-4);
-    EXPECT_LT(error.rms, 1.0e-5);
+    EXPECT_LT(error.l_inf, pr7::kMatchedFilterReferenceLInfTolerance);
+    EXPECT_LT(error.rms, pr7::kMatchedFilterReferenceRmsTolerance);
     EXPECT_EQ(actual_metrics.peak.x, expected_metrics.peak.x);
-    EXPECT_NEAR(actual_metrics.peak.value, expected_metrics.peak.value, 1.0e-4f);
+    EXPECT_NEAR(actual_metrics.peak.value, expected_metrics.peak.value, static_cast<float>(pr7::kMatchedFilterReferenceLInfTolerance));
 }
 
 TEST(RangeCompressionNodeTest, ConfigureEnablesMatchedFilterModeFromJson) {
