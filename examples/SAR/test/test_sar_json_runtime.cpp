@@ -314,6 +314,28 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcret
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     EXPECT_TRUE(fallback_executor->IsCompletionSignaled());
 
+    auto fallback_sink = ResolveDiagnosticsSink(fallback_executor->GetGraphManager());
+    ASSERT_NE(fallback_sink, nullptr);
+    fallback_sink->UpdateFromGraphMetrics(fallback_executor->GetGraphManager()->GetMetrics());
+
+    const auto& fallback_status = fallback_sink->last_status();
+    EXPECT_EQ(fallback_status.envelope.sequence_id, 64u);
+    EXPECT_EQ(fallback_status.envelope.batch_id, 0u);
+    EXPECT_EQ(fallback_status.envelope.aperture_id, 64u);
+    EXPECT_EQ(fallback_status.envelope.pulse_range_start, 64u);
+    EXPECT_EQ(fallback_status.envelope.pulse_range_count, 0u);
+    EXPECT_EQ(fallback_status.envelope.stream_id, 0u);
+    EXPECT_LT(fallback_status.envelope.tile_id, fallback_status.envelope.tile_count);
+    EXPECT_EQ(fallback_status.envelope.tile_count, 4u);
+    EXPECT_EQ(fallback_status.envelope.backend_id, 0u);
+    EXPECT_EQ(fallback_status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(fallback_status.gpu.has_host_view);
+    EXPECT_TRUE(fallback_status.gpu.has_transfer_ticket);
+    EXPECT_GT(fallback_status.gpu.transfer_ticket.execution_queue_id, 0u);
+    if (fallback_status.gpu.has_kernel_ticket) {
+        EXPECT_GT(fallback_status.gpu.kernel_ticket.execution_queue_id, 0u);
+    }
+
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);
 }

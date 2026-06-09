@@ -20,6 +20,10 @@ inline constexpr double kMatchedFilterReferenceRmsTolerance = 1.0e-5;
 
 inline constexpr double kImagePeakLocationErrorTolerancePixels = 0.0;
 inline constexpr double kImageDynamicRangeMinDb = 15.0;
+inline constexpr double kMaterializedImageLInfTolerance = 1.0e-7;
+inline constexpr double kMaterializedImageRmsTolerance = 1.0e-7;
+inline constexpr double kMaterializedImageRelativeL2Tolerance = 2.0e-7;
+inline constexpr double kMaterializedImageDynamicRangeDeltaToleranceDb = 1.0e-5;
 
 inline constexpr std::uint32_t kTinyPointPeakX = 4u;
 inline constexpr std::uint32_t kTinyPointPeakY = 4u;

@@ -108,6 +108,25 @@ TEST(ResolvingNodeProviderTest, CreateNodeExpectedRecordsResolutionDiagnostics) 
     EXPECT_FALSE(diagnostic.fallback_used);
 }
 
+TEST(ResolvingNodeProviderTest, CreateNodeExpectedFallbackDiagnosticsPreserveTokenContractMetadata) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"H2DAsyncNode"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal", "allow_fallback"));
+
+    const auto created = provider.CreateNodeExpected("H2DAsyncNode");
+    EXPECT_FALSE(created.has_value());
+
+    ASSERT_EQ(provider.diagnostics().size(), 1u);
+    const auto& diagnostic = provider.diagnostics().front();
+    EXPECT_EQ(diagnostic.intent_type, "H2DAsyncNode");
+    EXPECT_EQ(diagnostic.concrete_type, "H2DAsyncNode");
+    EXPECT_EQ(diagnostic.selected_backend, "stub");
+    EXPECT_TRUE(diagnostic.fallback_used);
+    EXPECT_EQ(diagnostic.fallback_reason, "requested-backend-unavailable");
+    EXPECT_EQ(diagnostic.input_token_type, "HostPinnedBufferView");
+    EXPECT_EQ(diagnostic.output_token_type, "DeviceBufferView");
+}
+
 TEST(ResolvingNodeProviderTest, StrictRequestedBackendRejectsFallbackOnlyIntent) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"H2DAsyncNode"});

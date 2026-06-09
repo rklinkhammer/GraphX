@@ -95,6 +95,20 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.transfer_h2d_time_us, 0u);
     EXPECT_GT(diagnostics.kernel_exec_time_us, 0u);
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
+
+    const auto& status = sink->last_status();
+    EXPECT_EQ(status.envelope.stream_id, 0u);
+    EXPECT_EQ(status.envelope.tile_count, 4u);
+    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
+    EXPECT_TRUE(
+        status.envelope.marker == sar::SarFrameMarker::EndOfStream ||
+        status.envelope.marker == sar::SarFrameMarker::Data);
+    EXPECT_TRUE(status.gpu.has_host_view);
+    EXPECT_TRUE(status.gpu.has_transfer_ticket);
+    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
+    if (status.gpu.has_kernel_ticket) {
+        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    }
 }
 
 void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
@@ -142,6 +156,20 @@ void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.transfer_h2d_time_us, 0u);
     EXPECT_GT(diagnostics.kernel_exec_time_us, 0u);
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
+
+    const auto& status = sink->last_status();
+    EXPECT_EQ(status.envelope.stream_id, 0u);
+    EXPECT_EQ(status.envelope.tile_count, 4u);
+    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
+    EXPECT_TRUE(
+        status.envelope.marker == sar::SarFrameMarker::EndOfStream ||
+        status.envelope.marker == sar::SarFrameMarker::Data);
+    EXPECT_TRUE(status.gpu.has_host_view);
+    EXPECT_TRUE(status.gpu.has_transfer_ticket);
+    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
+    if (status.gpu.has_kernel_ticket) {
+        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    }
 }
 
 void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path) {

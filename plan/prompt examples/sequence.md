@@ -286,35 +286,6 @@ Required output:
 
 ====
 
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
-
-Inputs:
-- SAR_INSPECTOR_REPORT.md
-- SAR_SIMPLIFIER_REPORT.md
-- SAR_PR_ROADMAP.md
-- implemented PR3 diff
-
-Task:
-Verify whether PR3 actually satisfies its acceptance criteria.
-
-Check:
-- Definitive topology executes with tokenized SAR GPU stages.
-- Strict-metal and fallback resolver tests pass.
-
-- No encoded host_ptr identity remains.
-- No encoded ready_event identity remains.
-- No global sidecar store remains as primary path.
-- SAR sidecar is carried explicitly.
-- Generic GPU nodes remain SAR-unaware.
-- Tests cover sidecar preservation.
-- Deleted tests were obsolete.
-- Build and test results are credible.
-
-Output:
-- Pass/fail.
-- Blocking issues.
-- Non-blocking issues.
-- Suggested fixes.
 
 =========
 
@@ -370,7 +341,8 @@ Inputs:
 - SAR_INSPECTOR_REPORT.md
 - SAR_SIMPLIFIER_REPORT.md
 - SAR_PR_ROADMAP.md
-- implemented PR4 diff
+- PR1 - PR4 verifier reports
+- current repo state
 
 Task:
 Verify whether PR4 actually satisfies its acceptance criteria.
@@ -378,6 +350,122 @@ Verify whether PR4 actually satisfies its acceptance criteria.
 Check:
   - Removed legacy message types are not referenced by definitive runtime path.
   - SAR unit and parser-related tests pass.
+
+Output:
+- Pass/fail.
+- Blocking issues.
+- Non-blocking issues.
+- Suggested fixes.
+
+
+===
+
+Act as PRINCIPAL_ARCHITECT.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_SIMPLIFIER_REPORT.md
+- SAR_PR_ROADMAP.md
+- PR1 - PR4 verifier reports
+- current repo state
+
+Question:
+Are we still converging toward the intended architecture, or has the implementation drifted?
+
+Do not redesign unless there is architectural drift.
+
+=======
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/reviews/SAR_PR_ROADMAP.md
+- plan/reviews/SAR_VERIFIER_PR5_*_REPORT.md
+- Current repository state
+- Current diff
+
+Task:
+Keep correctness gates explicit and independent from transport cleanup.
+
+PR6 title:
+CPU Reference SAR Validation Consolidation
+
+PR6 scope:
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not preserve obsolete behavior.
+- Do not add compatibility shims.
+- Do not touch future-PR items.
+- Delete obsolete code if PR6 requires it.
+- Add or update tests for PR6.
+- Remove tests that only validate obsolete behavior.
+- Keep Metal as the first backend.
+- Preserve GraphX dynamic loading and resolver behavior.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed or replaced.
+5. Build commands run.
+6. Test commands run.
+7. Remaining follow-up items.
+
+====
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_SIMPLIFIER_REPORT.md
+- SAR_PR_ROADMAP.md
+- PR1 - PR5 verifier reports
+- current repo state
+
+Task:
+Verify whether PR6 actually satisfies its acceptance criteria.
+
+Check:
+  - Deterministic CPU parity suite is green on canonical token path.
+
+
+Output:
+- Pass/fail.
+- Blocking issues.
+- Non-blocking issues.
+- Suggested fixes.
+
+
+======
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_SIMPLIFIER_REPORT.md
+- SAR_PR_ROADMAP.md
+- implemented PR5 diff
+
+Task:
+Verify whether PR5 actually satisfies its acceptance criteria.
+
+Check:
+- Definitive topology executes with tokenized SAR GPU stages.
+- Strict-metal and fallback resolver tests pass.
+- Resolver diagnostics prove concrete selection and sidecar continuity.
+
+- No encoded host_ptr identity remains.
+- No encoded ready_event identity remains.
+- No global sidecar store remains as primary path.
+- SAR sidecar is carried explicitly.
+- Generic GPU nodes remain SAR-unaware.
+- Tests cover sidecar preservation.
+- Deleted tests were obsolete.
+- Build and test results are credible.
 
 Output:
 - Pass/fail.
