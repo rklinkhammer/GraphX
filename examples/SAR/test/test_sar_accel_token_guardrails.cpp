@@ -2,8 +2,10 @@
 
 #include "graph/GraphConfigParser.hpp"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
+#include <string>
 
 #include <nlohmann/json.hpp>
 
@@ -22,25 +24,39 @@ TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMod
 
     nlohmann::json config;
     in >> config;
-    config["edges"][0]["payload_contract"] = "SarRangeTileMessage";
+    // PR4 note: these legacy-name literals are intentional negative-validation
+    // artifacts, not runtime contracts. Expanded coverage aligns with PR6 guardrails.
+    const std::array<const char*, 4> legacy_payload_contracts = {
+        "SarRangeTileMessage",
+        "SarImageTileMessage",
+        "SarDeviceLeaseMessage",
+        "SarTransferTicketMessage",
+    };
 
-    const auto temp_path = std::filesystem::temp_directory_path() /
-                           "sar_pr6_legacy_payload_contract.json";
-    {
-        std::ofstream out(temp_path, std::ios::trunc);
-        ASSERT_TRUE(out.good());
-        out << config.dump(2) << '\n';
+    for (std::size_t i = 0; i < legacy_payload_contracts.size(); ++i) {
+        SCOPED_TRACE(legacy_payload_contracts[i]);
+
+        config["edges"][0]["payload_contract"] = legacy_payload_contracts[i];
+
+        const auto temp_path = std::filesystem::temp_directory_path() /
+                               (std::string("sar_pr6_legacy_payload_contract_") +
+                                std::to_string(i) + ".json");
+        {
+            std::ofstream out(temp_path, std::ios::trunc);
+            ASSERT_TRUE(out.good());
+            out << config.dump(2) << '\n';
+        }
+
+        const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(temp_path.string());
+        ASSERT_TRUE(parsed);
+
+        const auto validation = graph::config::GraphConfigParser::Validate(parsed.value());
+        EXPECT_FALSE(validation.valid);
+        ASSERT_FALSE(validation.errors.empty());
+        EXPECT_NE(
+            validation.errors.front().find("Legacy SAR payload contract is not allowed on accel-token edge"),
+            std::string::npos);
     }
-
-    const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(temp_path.string());
-    ASSERT_TRUE(parsed);
-
-    const auto validation = graph::config::GraphConfigParser::Validate(parsed.value());
-    EXPECT_FALSE(validation.valid);
-    ASSERT_FALSE(validation.errors.empty());
-    EXPECT_NE(
-        validation.errors.front().find("Legacy SAR payload contract is not allowed on accel-token edge"),
-        std::string::npos);
 }
 
 } // namespace

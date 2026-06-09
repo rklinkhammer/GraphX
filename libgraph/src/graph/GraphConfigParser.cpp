@@ -50,6 +50,8 @@ bool IsOneOf(std::string_view value, std::initializer_list<std::string_view> all
 }
 
 bool IsLegacySarPayloadContract(const std::string& payload_contract) {
+    // These names are intentionally retained as rejection guardrails for accel-token mode.
+    // They are not canonical runtime edge contracts.
     return IsOneOf(payload_contract,
                    {"SarPulseBlockMessage",
                     "SarRangeTileMessage",

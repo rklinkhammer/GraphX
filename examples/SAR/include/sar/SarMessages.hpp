@@ -130,49 +130,12 @@ struct SarPulseBlockMessage {
     std::vector<SarIqSample> iq_samples{};
 };
 
-struct SarRangeTileMessage {
-    SarMessageEnvelope envelope{};
-    SarBufferDescriptor buffer{};
-    SarGpuMetadata gpu{};
-    std::uint64_t transfer_h2d_time_us{};
-    std::uint64_t kernel_exec_time_us{};
-    std::uint64_t transfer_d2h_time_us{};
-    std::vector<float> range_bins{};
-};
-
-struct SarDeviceLeaseMessage {
-    SarMessageEnvelope envelope{};
-    std::uint32_t lease_token{};
-    std::uint32_t device_index{};
-    bool granted{false};
-};
-
-struct SarTransferTicketMessage {
-    SarMessageEnvelope envelope{};
-    SarBufferDescriptor buffer{};
-    std::uint64_t transfer_id{};
-    std::uint64_t byte_count{};
-};
-
 struct SarDispatchMetadata {
     std::uint32_t queue_id{};
     std::uint32_t kernel_id{};
     std::uint32_t dispatch_width{};
     std::uint32_t dispatch_height{};
     std::uint32_t dispatch_depth{1};
-};
-
-struct SarImageTileMessage {
-    SarMessageEnvelope envelope{};
-    SarBufferDescriptor buffer{};
-    SarDispatchMetadata dispatch{};
-    SarGpuMetadata gpu{};
-    std::uint64_t transfer_h2d_time_us{};
-    std::uint64_t kernel_exec_time_us{};
-    std::uint64_t transfer_d2h_time_us{};
-    std::uint32_t width{};
-    std::uint32_t height{};
-    std::vector<float> pixels{};
 };
 
 struct SarMergeStatusMessage {

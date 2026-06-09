@@ -241,7 +241,7 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(tokens.contains("lease"));
     EXPECT_TRUE(tokens.contains("transfer_ticket"));
     EXPECT_TRUE(tokens.contains("kernel_ticket"));
-    EXPECT_GT(tokens.at("host_view").at("host_ptr_token").get<std::uint64_t>(), 0u);
+    EXPECT_GT(tokens.at("host_view").at("host_view_handle").get<std::uint64_t>(), 0u);
     EXPECT_GT(tokens.at("transfer_ticket").at("transfer_id").get<std::uint64_t>(), 0u);
     EXPECT_GT(tokens.at("kernel_ticket").at("kernel_id").get<std::uint64_t>(), 0u);
     EXPECT_GT(tokens.at("kernel_ticket").at("queue_id").get<std::uint64_t>(), 0u);

@@ -315,3 +315,72 @@ Output:
 - Blocking issues.
 - Non-blocking issues.
 - Suggested fixes.
+
+=========
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/reviews/SAR_PR_ROADMAP.md
+- plan/reviews/SAR_VERIFIER_PR4_!_REPORT.md
+- Current repository state
+- Current diff
+
+Task:
+Implement PR4 verifer fixes and suggested fixes
+
+PR4 title:
+Remove obsolete SAR message abstractions
+
+PR4 scope:
+Remove non-canonical legacy edge abstractions from SAR message model.
+1. Keep current PR4 code changes as accepted for criteria compliance.
+2. If strict PR boundary purity is required, move or label the guardrail-test broadening as PR6-aligned follow-up while retaining PR4 type deletions.
+3. Add a short PR note clarifying that remaining legacy-name strings are intentional negative-validation artifacts, not runtime contracts.
+4. rename benchmark trace fields that mention pointer/event tokens to avoid ambiguity with identity transport semantics.
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not preserve obsolete behavior.
+- Do not add compatibility shims.
+- Do not touch future-PR items.
+- Delete obsolete code if PR4 requires it.
+- Add or update tests for PR4.
+- Remove tests that only validate obsolete behavior.
+- Keep Metal as the first backend.
+- Preserve GraphX dynamic loading and resolver behavior.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed or replaced.
+5. Build commands run.
+6. Test commands run.
+7. Remaining follow-up items.
+
+====
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_SIMPLIFIER_REPORT.md
+- SAR_PR_ROADMAP.md
+- implemented PR4 diff
+
+Task:
+Verify whether PR4 actually satisfies its acceptance criteria.
+
+Check:
+  - Removed legacy message types are not referenced by definitive runtime path.
+  - SAR unit and parser-related tests pass.
+
+Output:
+- Pass/fail.
+- Blocking issues.
+- Non-blocking issues.
+- Suggested fixes.

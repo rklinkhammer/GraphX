@@ -2,8 +2,11 @@
 
 #include "graph/GraphConfigParser.hpp"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -222,25 +225,37 @@ TEST(GraphConfigParserExpectedTest, ParseSafePreservesDeclaredPayloadContract) {
 }
 
 TEST(GraphConfigParserExpectedTest, ValidateRejectsLegacySarPayloadContractForAccelTokenGraph) {
-    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
-      "name": "legacy_payload_contract_graph",
-      "edge_contract": "accel-token",
-      "nodes": [
-        {"id": "source_1", "type": "SourceTestNode"},
-        {"id": "sink_1", "type": "SinkTestNode"}
-      ],
-      "edges": [{
-        "source_node_id": "source_1",
-        "source_port": 0,
-        "target_node_id": "sink_1",
-        "target_port": 0,
-        "payload_contract": "SarRangeTileMessage"
-      }]
-    })");
+  // PR4 note: legacy-name literals are retained only for negative validation.
+  // Expanded list coverage is PR6-aligned guardrail hardening.
+    const std::array<const char*, 4> legacy_payload_contracts = {
+        "SarRangeTileMessage",
+        "SarImageTileMessage",
+        "SarDeviceLeaseMessage",
+        "SarTransferTicketMessage",
+    };
 
-    ASSERT_TRUE(result);
-    const auto validation = graph::config::GraphConfigParser::Validate(result.value());
-    EXPECT_FALSE(validation.valid);
+    for (const auto* payload_contract : legacy_payload_contracts) {
+        SCOPED_TRACE(payload_contract);
+
+        nlohmann::json config = {
+            {"name", "legacy_payload_contract_graph"},
+            {"edge_contract", "accel-token"},
+            {"nodes",
+             {{{"id", "source_1"}, {"type", "SourceTestNode"}},
+              {{"id", "sink_1"}, {"type", "SinkTestNode"}}}},
+            {"edges",
+             {{{"source_node_id", "source_1"},
+               {"source_port", 0},
+               {"target_node_id", "sink_1"},
+               {"target_port", 0},
+               {"payload_contract", payload_contract}}}},
+        };
+
+        const auto result = graph::config::GraphConfigParser::ParseSafe(config.dump());
+        ASSERT_TRUE(result);
+        const auto validation = graph::config::GraphConfigParser::Validate(result.value());
+        EXPECT_FALSE(validation.valid);
+    }
 }
 
   TEST(GraphConfigParserExpectedTest, ParseSafeParsesNamedPorts) {
