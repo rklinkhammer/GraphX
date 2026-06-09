@@ -3,6 +3,8 @@
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
+#include <atomic>
+
 namespace sar {
 
 namespace {
@@ -30,6 +32,11 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
         default:
             return SarBackendKind::Host;
     }
+}
+
+std::uint64_t NextOpaqueEventId() {
+    static std::atomic<std::uint64_t> next_event{1u};
+    return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
 } // namespace
@@ -62,7 +69,7 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
     output.execution_queue_id =
         (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
                                  : config_.queue_id;
-    output.ready_event = transfer_sequence_;
+    output.ready_event = 0u;
 
     if (!graph::gpu::accel::IsValidView(output)) {
         return std::nullopt;
@@ -79,7 +86,7 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
     last_transfer_ticket_.backend = accel_backend;
     last_transfer_ticket_.transfer_id = transfer_sequence_;
     last_transfer_ticket_.execution_queue_id = output.execution_queue_id;
-    last_transfer_ticket_.completion_event = output.ready_event;
+    last_transfer_ticket_.completion_event = NextOpaqueEventId();
     last_transfer_ticket_.src_host = host_view;
     last_transfer_ticket_.dst_device = output;
 

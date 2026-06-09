@@ -81,9 +81,11 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
     ASSERT_TRUE(device_in.has_value());
     ASSERT_TRUE(device_in->has_device_view);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(device_in->device_view));
+    EXPECT_EQ(device_in->device_view.ready_event, 0u);
     EXPECT_EQ(device_in->device_view.execution_queue_id, 7u);
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(h2d.last_lease()));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(h2d.last_transfer_ticket()));
+    EXPECT_NE(h2d.last_transfer_ticket().completion_event, 0u);
 
     sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.backend_id = 3;
@@ -100,9 +102,11 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
     ASSERT_TRUE(device_out.has_value());
     ASSERT_TRUE(device_out->has_device_view);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(device_out->device_view));
+    EXPECT_EQ(device_out->device_view.ready_event, 0u);
     EXPECT_EQ(device_out->device_view.execution_queue_id, 9u);
     EXPECT_TRUE(graph::gpu::accel::IsValidKernelTicket(bp.last_kernel_ticket()));
     EXPECT_EQ(bp.last_kernel_ticket().kernel_id, 4402u);
+    EXPECT_NE(bp.last_kernel_ticket().completion_event, 0u);
 
     sar::D2HAsyncAccelConfig d2h_cfg{};
     d2h_cfg.override_backend = true;
@@ -120,9 +124,13 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
     ASSERT_TRUE(host_out.has_value());
     ASSERT_TRUE(host_out->has_host_view);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(host_out->host_view));
+    EXPECT_EQ(
+        reinterpret_cast<std::uintptr_t>(host_out->host_view.host_ptr),
+        static_cast<std::uintptr_t>(0x1u));
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(d2h.last_lease()));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(d2h.last_transfer_ticket()));
     EXPECT_EQ(d2h.last_transfer_ticket().execution_queue_id, 11u);
+    EXPECT_NE(d2h.last_transfer_ticket().completion_event, 0u);
 }
 
 TEST(SarAccelNodesTest, H2DRejectsUnknownBackendWhenNotOverridden) {

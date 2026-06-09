@@ -3,6 +3,8 @@
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
+#include <atomic>
+
 namespace sar {
 
 namespace {
@@ -26,6 +28,11 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
 
 void* OpaqueHostPointer() noexcept {
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
+}
+
+std::uint64_t NextOpaqueEventId() {
+    static std::atomic<std::uint64_t> next_event{1u};
+    return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
 } // namespace
@@ -75,7 +82,7 @@ std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
     last_transfer_ticket_.backend = accel_backend;
     last_transfer_ticket_.transfer_id = transfer_sequence_;
     last_transfer_ticket_.execution_queue_id = effective_queue;
-    last_transfer_ticket_.completion_event = transfer_sequence_;
+    last_transfer_ticket_.completion_event = NextOpaqueEventId();
     last_transfer_ticket_.src_device = device_view;
     last_transfer_ticket_.dst_host = output;
 

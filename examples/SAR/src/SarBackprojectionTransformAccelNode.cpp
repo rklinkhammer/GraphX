@@ -7,6 +7,7 @@
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <sstream>
 
 namespace sar {
@@ -97,6 +98,11 @@ graph::gpu::metal::capabilities::MetalKernelDescriptor MakeBackprojectionDescrip
     descriptor.dispatch.default_block_y = 1;
     descriptor.dispatch.default_block_z = 1;
     return descriptor;
+}
+
+std::uint64_t NextOpaqueEventId() {
+    static std::atomic<std::uint64_t> next_event{1u};
+    return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
 } // namespace
@@ -210,8 +216,8 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     last_kernel_ticket_.launch.block_z = 1;
     last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
-    last_kernel_ticket_.completion_event = kernel_sequence_;
-    output.ready_event = kernel_sequence_;
+    last_kernel_ticket_.completion_event = NextOpaqueEventId();
+    output.ready_event = 0u;
 
     if (!graph::gpu::accel::IsValidView(output) ||
         !graph::gpu::accel::IsValidKernelTicket(last_kernel_ticket_)) {
