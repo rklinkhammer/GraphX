@@ -1,4 +1,4 @@
-# SAR PR10 Checklist: Metal-Equivalent Nodes For Definitive SAR Topology
+# SAR PR10 Checklist: Metal-Equivalent Coverage For Definitive SAR Topology
 
 Status:
 
@@ -7,7 +7,9 @@ Status:
 - [x] PR10 implementation started
 - [ ] PR10 implementation complete
 - [x] PR10A provider/resolver proof complete
-- [ ] PR10B algorithm-stage Metalization complete
+- [x] PR10B evidence-only stage closed
+- [ ] PR10C sidecar-preserving work complete
+- [ ] PR10C algorithm-stage Metal coverage expansion complete
 - [ ] PR10 ready for review
 - [ ] PR10 merged
 
@@ -109,13 +111,13 @@ If a SAR-local `*Metal` node is proposed:
 - [x] Add `allow_fallback` test using the same definitive topology.
 - [x] Ensure resolver diagnostics report actual concrete types selected by `GraphBuilder`, not benchmark hard-coded summaries.
 
-## PR10B: First Metal-Equivalent Algorithm Stage
+## PR10C: Sidecar-Preserving and Metal Coverage Expansion
 
 Preferred first stage: `RangeWindowNode`.
 
 - [ ] Decide whether `DeviceTransformNodeMetal` can support deterministic Hann windowing with current descriptor path.
 - [ ] If yes, implement SAR sidecar-preserving adapter over `DeviceTransformNodeMetal`.
-- [x] If no, document blocker and keep PR10B scoped to transfer/backprojection evidence.
+- [ ] If blocked, document reproducible blocker evidence and implement the next highest-value Metal coverage candidate without violating ownership boundaries.
 - [ ] Add CPU reference parity test for Metalized range window.
 - [ ] Add graph/direct parity test for range window output or deterministic diagnostics.
 - [ ] Preserve EOS/watermark behavior.
@@ -248,6 +250,8 @@ bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh
 - [x] Resolver diagnostics prove actual backend selection.
 - [x] Accel-token guardrails remain green.
 - [x] CPU reference parity remains green.
+- [ ] Sidecar identity is preserved across transfer/kernel/merge boundaries with explicit test evidence.
+- [ ] At least one additional algorithm stage achieves Metal-equivalent coverage, or is formally blocked with approved evidence-backed fallback scope.
 - [x] Benchmark evidence shows improvement or clearly attributes bottlenecks.
 - [x] Documentation explains residual gaps and next optimization candidates.
 

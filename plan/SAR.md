@@ -1226,9 +1226,11 @@ Explicitly deferred beyond PR6:
 2. Device-side matched-filter/range-compression Metal kernels remain future work and require CPU-reference parity gates before implementation.
 3. Provider/bootstrap changes that make libgpu Metal transfer plugins automatically available inside the SAR example plugin path remain a follow-up if blanket H2D/D2H `*Metal` substitution is required.
 
-## PR10A Completion Summary
+## PR10 Status Summary (PR10A Complete, PR10B Evidence-Only Closed, PR10C Active)
 
 PR10A is complete for provider/resolver proof of Metal-equivalent node selection without duplicating common `libgpu` nodes.
+
+PR10B is closed as an evidence-only stage (transfer and resolver proof plus backprojection adapter evidence), and PR10C is now the active implementation scope.
 
 Completed in this phase:
 
@@ -1251,8 +1253,9 @@ Validation evidence:
 4. `./build-ninja/ninja-debug/libgraph/test/test_libgraph_unit '--gtest_filter=ResolvingNodeProviderTest.*:GraphConfigParserExpectedTest.*Resolver*'` passed 17/17 tests.
 5. Focused libgraph regression run for builder/topology paths passed 37/37 tests.
 
-Explicitly deferred beyond PR10A:
+Open work for PR10C:
 
-1. PR10B device-side `RangeWindowNode` or `RangeCompressionNode` Metalization remains open. It needs a sidecar-preserving SAR adapter over generic `DeviceTransformNodeMetal` or `DeviceKernelNodeMetal`, plus CPU reference parity evidence.
-2. A composed-provider GraphExecutor execution path that fully replaces SAR-local H2D/D2H wrappers with generic libgpu Metal transfer nodes is not yet claimed as a SAR semantic-performance win. PR10A proves resolver selection and graph construction; runtime sidecar preservation across a fully generic transfer substitution remains a separate acceptance gate.
-3. No performance speedup claim should be made from resolver selection alone. Benchmark claims remain tied to graph-run-vs-baseline metrics and explicit overhead attribution.
+1. Sidecar-preserving evidence remains open across transfer, kernel, and merge boundaries; PR10C must close this with explicit runtime tests and diagnostics assertions.
+2. Algorithm-stage Metal coverage expansion remains open. Preferred first target is `RangeWindowNode` via a sidecar-preserving SAR adapter over `DeviceTransformNodeMetal`; if blocked, PR10C must document reproducible blocker evidence and land the next highest-value stage without violating ownership boundaries.
+3. A composed-provider GraphExecutor execution path that fully replaces SAR-local H2D/D2H wrappers with generic libgpu Metal transfer nodes is not yet claimed as a SAR semantic-performance win. PR10A proves resolver selection and graph construction; runtime sidecar preservation across a fully generic transfer substitution remains a separate acceptance gate.
+4. No performance speedup claim should be made from resolver selection alone. Benchmark claims remain tied to graph-run-vs-baseline metrics and explicit overhead attribution.
