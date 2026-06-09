@@ -242,3 +242,76 @@ Output:
 - Blocking issues.
 - Non-blocking issues.
 - Suggested fixes.
+==========
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/reviews/SAR_PR_ROADMAP.md
+- Most recent VERIFIER report
+- Current repository state
+- Current diff
+
+Task:
+Implement PR3 only.
+
+PR3 title:
+Convert SAR H2D/Kernel/D2H Path to Explicit Tokens
+
+PR3 scope:
+Convert core SAR GPU path to one canonical tokenized contract flow.
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not preserve obsolete behavior.
+- Do not add compatibility shims.
+- Do not touch future-PR items.
+- Delete obsolete code if PR2 requires it.
+- Add or update tests for PR2.
+- Remove tests that only validate obsolete behavior.
+- Keep Metal as the first backend.
+- Preserve GraphX dynamic loading and resolver behavior.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed or replaced.
+5. Build commands run.
+6. Test commands run.
+7. Remaining follow-up items.
+
+====
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_SIMPLIFIER_REPORT.md
+- SAR_PR_ROADMAP.md
+- implemented PR3 diff
+
+Task:
+Verify whether PR3 actually satisfies its acceptance criteria.
+
+Check:
+- Definitive topology executes with tokenized SAR GPU stages.
+- Strict-metal and fallback resolver tests pass.
+
+- No encoded host_ptr identity remains.
+- No encoded ready_event identity remains.
+- No global sidecar store remains as primary path.
+- SAR sidecar is carried explicitly.
+- Generic GPU nodes remain SAR-unaware.
+- Tests cover sidecar preservation.
+- Deleted tests were obsolete.
+- Build and test results are credible.
+
+Output:
+- Pass/fail.
+- Blocking issues.
+- Non-blocking issues.
+- Suggested fixes.
