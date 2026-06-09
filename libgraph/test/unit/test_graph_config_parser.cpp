@@ -87,6 +87,61 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverControls) {
     EXPECT_EQ(result->resolver.edge_contract, "accel-token");
 }
 
+TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverMappings) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "resolver_mapping_graph",
+      "execution_backend": "metal",
+      "resolver_mappings": [{
+        "intent_type": "RangeCompressionNode",
+        "input_token_type": "HostPinnedBufferView",
+        "output_token_type": "DeviceBufferView",
+        "variants": [
+          {
+            "backend": "metal",
+            "concrete_type": "SarRangeCompressionNodeMetal"
+          },
+          {
+            "backend": "stub",
+            "concrete_type": "RangeCompressionNode"
+          }
+        ]
+      }],
+      "nodes": [
+        {"id": "source_1", "type": "RangeCompressionNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_TRUE(result);
+    ASSERT_EQ(result->resolver_mappings.size(), 1u);
+    const auto& mapping = result->resolver_mappings.front();
+    EXPECT_EQ(mapping.intent_type, "RangeCompressionNode");
+    EXPECT_EQ(mapping.input_token_type, "HostPinnedBufferView");
+    EXPECT_EQ(mapping.output_token_type, "DeviceBufferView");
+    ASSERT_EQ(mapping.variants.size(), 2u);
+    EXPECT_EQ(mapping.variants[0].backend, "metal");
+    EXPECT_EQ(mapping.variants[0].concrete_type, "SarRangeCompressionNodeMetal");
+    EXPECT_EQ(mapping.variants[1].backend, "stub");
+    EXPECT_EQ(mapping.variants[1].concrete_type, "RangeCompressionNode");
+}
+
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsResolverMappingWithoutVariants) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "bad_resolver_mapping_graph",
+      "resolver_mappings": [{
+        "intent_type": "RangeCompressionNode",
+        "variants": []
+      }],
+      "nodes": [
+        {"id": "source_1", "type": "RangeCompressionNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+}
+
 TEST(GraphConfigParserExpectedTest, ParseSafeAppliesResolverDefaults) {
     const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
       "name": "resolver_defaults_graph",

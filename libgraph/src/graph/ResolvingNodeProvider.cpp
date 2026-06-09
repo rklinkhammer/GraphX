@@ -2,98 +2,11 @@
 
 #include <algorithm>
 #include <array>
-#include <map>
 #include <set>
 
 namespace graph {
 
 namespace {
-
-struct BackendVariant {
-    std::string backend;
-    std::string concrete_type;
-};
-
-struct IntentContract {
-    std::string input_token_type;
-    std::string output_token_type;
-    std::vector<BackendVariant> variants;
-};
-
-const std::map<std::string, IntentContract>& IntentContracts() {
-    static const std::map<std::string, IntentContract> contracts{
-        {
-            "H2DAsyncNode",
-            IntentContract{
-                .input_token_type = "HostPinnedBufferView",
-                .output_token_type = "DeviceBufferView",
-                .variants = {
-                    {"metal", "H2DAsyncNodeMetal"},
-                    {"sycl", "H2DAsyncNodeSycl"},
-                    {"stub", "H2DAsyncNode"},
-                    {"cuda", "H2DAsyncNode"},
-                },
-            },
-        },
-        {
-            "D2HAsyncNode",
-            IntentContract{
-                .input_token_type = "DeviceBufferView",
-                .output_token_type = "HostPinnedBufferView",
-                .variants = {
-                    {"metal", "D2HAsyncNodeMetal"},
-                    {"sycl", "D2HAsyncNodeSycl"},
-                    {"stub", "D2HAsyncNode"},
-                    {"cuda", "D2HAsyncNode"},
-                },
-            },
-        },
-        {
-            "DeviceTransformNode",
-            IntentContract{
-                .input_token_type = "DeviceBufferView",
-                .output_token_type = "DeviceBufferView",
-                .variants = {
-                    {"metal", "DeviceTransformNodeMetal"},
-                    {"stub", "DeviceTransformNode"},
-                },
-            },
-        },
-        {
-            "DeviceKernelNode",
-            IntentContract{
-                .input_token_type = "DeviceBufferView",
-                .output_token_type = "DeviceBufferView",
-                .variants = {
-                    {"metal", "DeviceKernelNodeMetal"},
-                },
-            },
-        },
-        {
-            "DeviceReduceNode",
-            IntentContract{
-                .input_token_type = "DeviceBufferView",
-                .output_token_type = "DeviceBufferView",
-                .variants = {
-                    {"metal", "DeviceReduceNodeMetal"},
-                    {"stub", "DeviceReduceNode"},
-                },
-            },
-        },
-        {
-            "QueueSyncNode",
-            IntentContract{
-                .input_token_type = "DeviceBufferView",
-                .output_token_type = "DeviceBufferView",
-                .variants = {
-                    {"metal", "QueueSyncNodeMetal"},
-                    {"stub", "QueueSyncNode"},
-                },
-            },
-        },
-    };
-    return contracts;
-}
 
 std::vector<std::string> BackendPreference(const std::string& requested_backend,
                                            const std::string& fallback_policy) {
@@ -115,7 +28,7 @@ std::vector<std::string> BackendPreference(const std::string& requested_backend,
     return order;
 }
 
-std::optional<std::string> ConcreteForBackend(const IntentContract& contract,
+std::optional<std::string> ConcreteForBackend(const NodeResolutionContract& contract,
                                               const std::string& backend) {
     for (const auto& variant : contract.variants) {
         if (variant.backend == backend) {
@@ -125,16 +38,23 @@ std::optional<std::string> ConcreteForBackend(const IntentContract& contract,
     return std::nullopt;
 }
 
-bool IsKnownIntent(const std::string& node_type_name) {
-    return IntentContracts().contains(node_type_name);
-}
-
 } // namespace
 
 ResolvingNodeProvider::ResolvingNodeProvider(
     std::shared_ptr<INodeProvider> inner,
     GraphConfig::ResolverConfig resolver_config)
-    : inner_(std::move(inner)), resolver_config_(std::move(resolver_config)) {}
+    : ResolvingNodeProvider(
+          std::move(inner),
+          std::move(resolver_config),
+          NodeResolutionRegistry::CreateDefault()) {}
+
+ResolvingNodeProvider::ResolvingNodeProvider(
+    std::shared_ptr<INodeProvider> inner,
+    GraphConfig::ResolverConfig resolver_config,
+    NodeResolutionRegistry resolution_registry)
+    : inner_(std::move(inner)),
+      resolver_config_(std::move(resolver_config)),
+      resolution_registry_(std::move(resolution_registry)) {}
 
 std::expected<NodeFacadeAdapter, NodeCreationError>
 ResolvingNodeProvider::CreateNodeExpected(const std::string& node_type_name) noexcept {
@@ -167,7 +87,7 @@ std::vector<std::string> ResolvingNodeProvider::GetAvailableNodeTypes() const {
     for (const auto& type : inner_->GetAvailableNodeTypes()) {
         types.insert(type);
     }
-    for (const auto& [intent, _] : IntentContracts()) {
+    for (const auto& intent : resolution_registry_.IntentTypes()) {
         if (IsNodeTypeAvailable(intent)) {
             types.insert(intent);
         }
@@ -195,8 +115,8 @@ ResolvingNodeProvider::ResolveWithAvailability(
         return std::nullopt;
     }
 
-    const auto contract_it = IntentContracts().find(node_type_name);
-    if (contract_it == IntentContracts().end()) {
+    const auto* contract = resolution_registry_.Find(node_type_name);
+    if (contract == nullptr) {
         if (!available(node_type_name)) {
             return std::nullopt;
         }
@@ -211,7 +131,6 @@ ResolvingNodeProvider::ResolveWithAvailability(
         };
     }
 
-    const auto& contract = contract_it->second;
     const auto requested_backend = resolver_config_.execution_backend.empty()
         ? std::string{"auto"}
         : resolver_config_.execution_backend;
@@ -220,7 +139,7 @@ ResolvingNodeProvider::ResolveWithAvailability(
         : resolver_config_.backend_fallback_policy;
 
     for (const auto& backend : BackendPreference(requested_backend, fallback_policy)) {
-        auto concrete = ConcreteForBackend(contract, backend);
+        auto concrete = ConcreteForBackend(*contract, backend);
         if (!concrete || !available(*concrete)) {
             continue;
         }
@@ -232,14 +151,10 @@ ResolvingNodeProvider::ResolveWithAvailability(
             .concrete_type = *concrete,
             .selected_backend = backend,
             .fallback_reason = fallback_used ? "requested-backend-unavailable" : "",
-            .input_token_type = contract.input_token_type,
-            .output_token_type = contract.output_token_type,
+            .input_token_type = contract->input_token_type,
+            .output_token_type = contract->output_token_type,
             .fallback_used = fallback_used,
         };
-    }
-
-    if (!IsKnownIntent(node_type_name)) {
-        return std::nullopt;
     }
 
     return std::nullopt;

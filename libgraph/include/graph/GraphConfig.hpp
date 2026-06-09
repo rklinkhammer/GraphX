@@ -174,6 +174,22 @@ struct GraphConfig {
         bool resolver_diagnostics{true};
         std::string edge_contract{};
     } resolver;
+
+    /// Concrete backend variant for a portable node intent.
+    struct ResolverBackendVariant {
+        std::string backend;
+        std::string concrete_type;
+    };
+
+    /// Dynamic resolver mapping supplied by config or future plugin metadata.
+    struct ResolverMapping {
+        std::string intent_type;
+        std::string input_token_type;
+        std::string output_token_type;
+        std::vector<ResolverBackendVariant> variants;
+    };
+
+    std::vector<ResolverMapping> resolver_mappings;
     
     /// Deadlock detection configuration
     struct DeadlockDetectionConfig {

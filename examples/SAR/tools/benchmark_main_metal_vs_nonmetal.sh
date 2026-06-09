@@ -28,10 +28,16 @@ fi
 make_backend_variant() {
   local source_cfg="$1"
   local backend="$2"
+  local output_tmp
   local output_cfg
-  output_cfg="$(mktemp "/tmp/sar_stripmap_definitive_${backend}.XXXXXX.json")"
+  output_tmp="$(mktemp "/tmp/sar_stripmap_definitive_${backend}.XXXXXX")"
+  output_cfg="${output_tmp}.json"
+  mv "$output_tmp" "$output_cfg"
 
   sed -E "s/(\"execution_backend\"[[:space:]]*:[[:space:]]*\")[^\"]+(\",)/\\1${backend}\\2/" "$source_cfg" > "$output_cfg"
+  if [[ "$backend" == "metal" ]]; then
+    sed -i '' -E "s/(\"backend_fallback_policy\"[[:space:]]*:[[:space:]]*\")[^\"]+(\",)/\\1allow_fallback\\2/" "$output_cfg"
+  fi
   printf '%s\n' "$output_cfg"
 }
 
@@ -59,12 +65,30 @@ run_case() {
   echo "min_ms=$min"
   echo "max_ms=$max"
   echo
+  CASE_AVG="$avg"
 }
 
+STUB_CFG_RUNTIME="$(make_backend_variant "$DEFINITIVE_CFG" "stub")"
 METAL_CFG_RUNTIME="$(make_backend_variant "$DEFINITIVE_CFG" "metal")"
-trap 'rm -f "$METAL_CFG_RUNTIME"' EXIT
+trap 'rm -f "$STUB_CFG_RUNTIME" "$METAL_CFG_RUNTIME"' EXIT
 
-run_case "resolver_auto" "$DEFINITIVE_CFG"
+CASE_AVG=0
+run_case "resolver_stub" "$STUB_CFG_RUNTIME"
+stub_avg="$CASE_AVG"
+
 run_case "resolver_metal" "$METAL_CFG_RUNTIME"
+metal_avg="$CASE_AVG"
+
+if (( metal_avg < stub_avg )); then
+  improvement=$((stub_avg - metal_avg))
+  improvement_pct=$((improvement * 100 / stub_avg))
+  echo "metal_improvement_ms=$improvement"
+  echo "metal_improvement_percent=${improvement_pct}%"
+else
+  regression=$((metal_avg - stub_avg))
+  regression_pct=$((regression * 100 / stub_avg))
+  echo "metal_regression_ms=$regression"
+  echo "metal_regression_percent=${regression_pct}%"
+fi
 
 echo "Benchmark complete."

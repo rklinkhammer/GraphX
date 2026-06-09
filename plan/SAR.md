@@ -696,7 +696,9 @@ The following kernel-level work is required for true SAR Metal execution path be
 3. `graphx_sar_backprojection_tile_f32` (core PR3 target): tile backprojection kernel with explicit geometry parameter contract.
 4. Optional merge-side kernels for future GPU merge/reduction acceleration (`graphx_sar_tile_accumulate_*`) if merge leaves host path.
 
-Important: this can be implemented either as new SAR-specialized Metal node wrappers or by reusing `DeviceKernelNodeMetal`/`DeviceTransformNodeMetal`/`DeviceReduceNodeMetal` plus new kernel descriptors and SAR adapter nodes. `SarBackprojectionTransformNode` now follows the preferred adapter direction for native-device mode: it binds GPU capabilities, configures `DeviceKernelNodeMetal`, delegates the kernel launch, and restores the SAR sidecar token for downstream merge.
+Important: SAR must not introduce Metal node classes or plugins that duplicate existing `libgpu` nodes. Implement this path by reusing `DeviceKernelNodeMetal`/`DeviceTransformNodeMetal`/`DeviceReduceNodeMetal` plus kernel descriptors and SAR adapter nodes that preserve SAR sidecars. `SarBackprojectionTransformNode` follows this adapter direction for native-device mode: it binds GPU capabilities, configures `DeviceKernelNodeMetal`, delegates the kernel launch, and restores the SAR sidecar token for downstream merge.
+
+Resolver boundary: `libgraph` resolver defaults must remain domain-neutral. Generic GPU intent mappings may be built in, but SAR-specific intent mappings belong in SAR-owned `resolver_mappings` JSON entries or future plugin-provided registration metadata. This keeps canonical SAR topologies portable without requiring explicit Metal-only graph files and without making `libgraph` statically aware of SAR node names.
 
 ### New node/adaptor work items needed (non-kernel)
 

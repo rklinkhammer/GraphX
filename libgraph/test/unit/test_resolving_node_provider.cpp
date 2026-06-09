@@ -159,6 +159,71 @@ TEST(ResolvingNodeProviderTest, ResolvesGenericDeviceKernelToMetalVariant) {
     EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
 }
 
+TEST(ResolvingNodeProviderTest, ResolvesSarBackprojectionToAdapterWithoutLocalMetalDuplicate) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"SarBackprojectionTransformNode"});
+    auto registry = graph::NodeResolutionRegistry::CreateDefault();
+    registry.AddContract(graph::NodeResolutionContract{
+        .intent_type = "SarBackprojectionTransformNode",
+        .input_token_type = "DeviceBufferView",
+        .output_token_type = "DeviceBufferView",
+        .variants = {
+            {"metal", "SarBackprojectionTransformNode"},
+            {"stub", "SarBackprojectionTransformNode"},
+        },
+    });
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal"), std::move(registry));
+
+    const auto resolved = provider.ResolveNodeType("SarBackprojectionTransformNode");
+
+    ASSERT_TRUE(resolved);
+    EXPECT_EQ(resolved->intent_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(resolved->concrete_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(resolved->selected_backend, "metal");
+    EXPECT_EQ(resolved->input_token_type, "DeviceBufferView");
+    EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
+}
+
+TEST(ResolvingNodeProviderTest, UnregisteredDomainIntentPassesThroughDirectly) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"SarBackprojectionTransformNode"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal"));
+
+    const auto resolved = provider.ResolveNodeType("SarBackprojectionTransformNode");
+
+    ASSERT_TRUE(resolved);
+    EXPECT_EQ(resolved->intent_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(resolved->concrete_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(resolved->selected_backend, "direct");
+    EXPECT_EQ(resolved->input_token_type, "");
+    EXPECT_EQ(resolved->output_token_type, "");
+}
+
+TEST(ResolvingNodeProviderTest, DynamicMappingCanSelectDomainLocalMetalNode) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"SarRangeCompressionNodeMetal", "RangeCompressionNode"});
+    graph::NodeResolutionRegistry registry;
+    registry.AddContract(graph::NodeResolutionContract{
+        .intent_type = "RangeCompressionNode",
+        .input_token_type = "HostPinnedBufferView",
+        .output_token_type = "DeviceBufferView",
+        .variants = {
+            {"metal", "SarRangeCompressionNodeMetal"},
+            {"stub", "RangeCompressionNode"},
+        },
+    });
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal"), std::move(registry));
+
+    const auto resolved = provider.ResolveNodeType("RangeCompressionNode");
+
+    ASSERT_TRUE(resolved);
+    EXPECT_EQ(resolved->intent_type, "RangeCompressionNode");
+    EXPECT_EQ(resolved->concrete_type, "SarRangeCompressionNodeMetal");
+    EXPECT_EQ(resolved->selected_backend, "metal");
+    EXPECT_EQ(resolved->input_token_type, "HostPinnedBufferView");
+    EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
+}
+
 TEST(ResolvingNodeProviderTest, ResolvesSyclD2HVariantWhenRequested) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"D2HAsyncNodeSycl"});

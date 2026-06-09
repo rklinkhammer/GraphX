@@ -8,6 +8,31 @@
   "backend_fallback_policy": "strict",
   "resolver_diagnostics": true,
   "edge_contract": "accel-token",
+  "resolver_mappings": [
+    {
+      "intent_type": "SarBackprojectionTransformNode",
+      "input_token_type": "DeviceBufferView",
+      "output_token_type": "DeviceBufferView",
+      "variants": [
+        {
+          "backend": "metal",
+          "concrete_type": "SarBackprojectionTransformNode"
+        },
+        {
+          "backend": "stub",
+          "concrete_type": "SarBackprojectionTransformNode"
+        },
+        {
+          "backend": "cuda",
+          "concrete_type": "SarBackprojectionTransformNode"
+        },
+        {
+          "backend": "sycl",
+          "concrete_type": "SarBackprojectionTransformNode"
+        }
+      ]
+    }
+  ],
   "num_threads": 4,
   "nodes": [
     {

@@ -186,9 +186,13 @@ BuildResult GraphBuilder::Build() {
             return result;
         }
 
+        auto resolution_registry = graph::NodeResolutionRegistry::CreateDefault();
+        resolution_registry.AddMappings(parsed_config_for_resolver->resolver_mappings);
+
         auto resolving_provider = std::make_shared<graph::ResolvingNodeProvider>(
             capability_->GetNodeProvider(),
-            parsed_config_for_resolver->resolver);
+            parsed_config_for_resolver->resolver,
+            std::move(resolution_registry));
         auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
             json_path,
             resolving_provider);

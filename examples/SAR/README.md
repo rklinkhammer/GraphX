@@ -39,7 +39,12 @@ Definitive main.cpp pipeline config:
 
 1. examples/SAR/config/sar_stripmap_definitive.json
 
-ResolverConfig dynamically replaces eligible portable intent nodes with METAL equivalents at runtime when `execution_backend` is set to `metal`.
+ResolverConfig dynamically replaces eligible portable intent nodes with METAL equivalents at runtime when `execution_backend` is set to `metal`. Generic GPU mappings are provided by the resolver default registry; SAR-specific mappings are declared in each SAR JSON preset under `resolver_mappings` so `libgraph` does not need SAR-specific node knowledge.
+
+Current METAL-equivalent resolution from definitive topology intent nodes:
+
+1. `SarBackprojectionTransformNode` is mapped by the SAR preset `resolver_mappings`, remains the SAR adapter, and delegates native-device work to libgpu `DeviceKernelNodeMetal` when Metal is selected.
+2. `H2DAsyncNodeMetal` and `D2HAsyncNodeMetal` remain canonical common nodes in libgpu and are not duplicated in examples/SAR.
 
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
@@ -351,10 +356,10 @@ bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh \
 
 This benchmark executes `sar_example` directly with:
 
-1. `examples/SAR/config/sar_stripmap_definitive.json` with `execution_backend=auto`
+1. a temporary runtime variant of `examples/SAR/config/sar_stripmap_definitive.json` with `execution_backend=stub` (baseline)
 2. a temporary runtime variant of the same config with `execution_backend=metal`
 
-and reports per-run milliseconds plus avg/min/max timing for each profile.
+and reports per-run milliseconds plus avg/min/max timing for each profile, plus a metal improvement/regression summary.
 
 ## External Data Lane (Non-CI)
 
@@ -400,4 +405,3 @@ Notes:
 3. Extended execution tracing and richer performance attribution.
 4. PR2 fan-out graph-vs-baseline comparison harness.
 5. Multi-device heterogeneous routing and balancing.
-

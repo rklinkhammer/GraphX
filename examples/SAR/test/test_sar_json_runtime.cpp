@@ -65,6 +65,21 @@ void AssertPortableIntents(const nlohmann::json& config) {
     EXPECT_TRUE(seen_intents.contains("H2DAsyncNode"));
     EXPECT_TRUE(seen_intents.contains("SarBackprojectionTransformNode"));
     EXPECT_TRUE(seen_intents.contains("D2HAsyncNode"));
+
+    ASSERT_TRUE(config.contains("resolver_mappings"));
+    ASSERT_TRUE(config.at("resolver_mappings").is_array());
+    bool has_backprojection_mapping = false;
+    for (const auto& mapping : config.at("resolver_mappings")) {
+        if (!mapping.is_object() || !mapping.contains("intent_type")) {
+            continue;
+        }
+        if (mapping.at("intent_type").get<std::string>() == "SarBackprojectionTransformNode") {
+            has_backprojection_mapping = true;
+            ASSERT_TRUE(mapping.contains("variants"));
+            ASSERT_TRUE(mapping.at("variants").is_array());
+        }
+    }
+    EXPECT_TRUE(has_backprojection_mapping);
 }
 
 } // namespace

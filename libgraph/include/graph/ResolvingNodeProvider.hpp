@@ -5,6 +5,7 @@
 #pragma once
 
 #include "graph/GraphConfig.hpp"
+#include "graph/NodeResolutionRegistry.hpp"
 #include "graph/NodeProvider.hpp"
 
 #include <functional>
@@ -32,6 +33,10 @@ public:
     ResolvingNodeProvider(std::shared_ptr<INodeProvider> inner,
                           GraphConfig::ResolverConfig resolver_config);
 
+    ResolvingNodeProvider(std::shared_ptr<INodeProvider> inner,
+                          GraphConfig::ResolverConfig resolver_config,
+                          NodeResolutionRegistry resolution_registry);
+
     [[nodiscard]] std::expected<NodeFacadeAdapter, NodeCreationError>
     CreateNodeExpected(const std::string& node_type_name) noexcept override;
 
@@ -53,6 +58,7 @@ private:
 
     std::shared_ptr<INodeProvider> inner_;
     GraphConfig::ResolverConfig resolver_config_{};
+    NodeResolutionRegistry resolution_registry_;
     std::vector<NodeResolutionDiagnostic> diagnostics_{};
 };
 

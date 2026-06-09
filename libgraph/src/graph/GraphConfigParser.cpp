@@ -416,6 +416,66 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
             }
         }
 
+        if (json_data.contains("resolver_mappings")) {
+            if (!json_data["resolver_mappings"].is_array()) {
+                return std::unexpected(app::error::ConfigError::TypeMismatch);
+            }
+
+            for (const auto& mapping_json : json_data["resolver_mappings"]) {
+                if (!mapping_json.is_object()) {
+                    return std::unexpected(app::error::ConfigError::TypeMismatch);
+                }
+                if (!mapping_json.contains("intent_type") ||
+                    !mapping_json["intent_type"].is_string()) {
+                    return std::unexpected(app::error::ConfigError::TypeMismatch);
+                }
+                if (!mapping_json.contains("variants") ||
+                    !mapping_json["variants"].is_array() ||
+                    mapping_json["variants"].empty()) {
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
+                }
+
+                GraphConfig::ResolverMapping mapping;
+                mapping.intent_type = mapping_json["intent_type"].get<std::string>();
+                if (mapping.intent_type.empty()) {
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
+                }
+                if (mapping_json.contains("input_token_type")) {
+                    if (!mapping_json["input_token_type"].is_string()) {
+                        return std::unexpected(app::error::ConfigError::TypeMismatch);
+                    }
+                    mapping.input_token_type = mapping_json["input_token_type"].get<std::string>();
+                }
+                if (mapping_json.contains("output_token_type")) {
+                    if (!mapping_json["output_token_type"].is_string()) {
+                        return std::unexpected(app::error::ConfigError::TypeMismatch);
+                    }
+                    mapping.output_token_type = mapping_json["output_token_type"].get<std::string>();
+                }
+
+                for (const auto& variant_json : mapping_json["variants"]) {
+                    if (!variant_json.is_object() ||
+                        !variant_json.contains("backend") ||
+                        !variant_json["backend"].is_string() ||
+                        !variant_json.contains("concrete_type") ||
+                        !variant_json["concrete_type"].is_string()) {
+                        return std::unexpected(app::error::ConfigError::TypeMismatch);
+                    }
+
+                    GraphConfig::ResolverBackendVariant variant;
+                    variant.backend = variant_json["backend"].get<std::string>();
+                    variant.concrete_type = variant_json["concrete_type"].get<std::string>();
+                    if (!IsOneOf(variant.backend, {"metal", "cuda", "sycl", "stub"}) ||
+                        variant.concrete_type.empty()) {
+                        return std::unexpected(app::error::ConfigError::ValidationFailed);
+                    }
+                    mapping.variants.push_back(std::move(variant));
+                }
+
+                config.resolver_mappings.push_back(std::move(mapping));
+            }
+        }
+
         if (json_data.contains("num_threads")) {
             if (!json_data["num_threads"].is_number_integer()) {
                 return std::unexpected(app::error::ConfigError::TypeMismatch);
