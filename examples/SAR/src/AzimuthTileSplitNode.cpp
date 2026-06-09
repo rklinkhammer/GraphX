@@ -1,5 +1,7 @@
 #include "sar/AzimuthTileSplitNode.hpp"
 
+#include "sar/SarAccelTokenSidecarStore.hpp"
+
 #include "config/ConfigError.hpp"
 
 #include <algorithm>
@@ -39,13 +41,30 @@ graph::gpu::accel::HostPinnedBufferView BuildHostView(const SarPulseBlockMessage
                                                       std::size_t view_byte_count,
                                                       SarFrameMarker marker,
                                                       const AzimuthTileSplitConfig& config) {
+    const auto token = EncodeAccelToken(input, tile_id, token_byte_count, marker);
+
+    detail::AccelTokenSidecar sidecar{};
+    sidecar.sequence_id = input.envelope.sequence_id;
+    sidecar.batch_id = input.envelope.batch_id;
+    sidecar.aperture_id = input.envelope.aperture_id;
+    sidecar.pulse_range_start = input.envelope.pulse_range_start;
+    sidecar.pulse_range_count = input.envelope.pulse_range_count;
+    sidecar.stream_id = input.envelope.stream_id;
+    sidecar.tile_id = tile_id;
+    sidecar.tile_count = std::max<std::uint32_t>(1u, config.tile_count);
+    sidecar.backend_id = input.envelope.backend_id;
+    sidecar.backend = input.envelope.backend;
+    sidecar.marker = marker;
+    sidecar.synthetic = input.envelope.synthetic;
+    sidecar.payload_byte_count = token_byte_count;
+    detail::StoreAccelTokenSidecar(token, sidecar);
+
     graph::gpu::accel::HostPinnedBufferView out{};
     const auto backend = ToAccelBackendKind(config.backend);
     out.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
-    out.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(
-        EncodeAccelToken(input, tile_id, token_byte_count, marker)));
+    out.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
     out.bytes = static_cast<std::uint64_t>(view_byte_count);
     out.dtype = graph::gpu::accel::DataType::Float32;
     out.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(

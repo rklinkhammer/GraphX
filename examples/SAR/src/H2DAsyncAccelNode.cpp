@@ -1,5 +1,7 @@
 #include "sar/H2DAsyncAccelNode.hpp"
 
+#include "sar/SarAccelTokenSidecarStore.hpp"
+
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
@@ -21,6 +23,15 @@ void* MakeSyntheticDevicePointer(const graph::gpu::accel::HostPinnedBufferView& 
         ((static_cast<std::uint64_t>(input.bytes) + 1u) << 8u) |
         ((transfer_sequence + 1u) & 0xFFu);
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
+}
+
+SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept {
+    switch (backend) {
+        case graph::gpu::accel::BackendKind::Metal:
+            return SarBackendKind::SimulatedDevice;
+        default:
+            return SarBackendKind::Host;
+    }
 }
 
 } // namespace
@@ -68,6 +79,13 @@ std::optional<graph::gpu::accel::DeviceBufferView> H2DAsyncAccelNode::Transfer(
     last_transfer_ticket_.completion_event = output.ready_event;
     last_transfer_ticket_.src_host = input;
     last_transfer_ticket_.dst_device = output;
+
+    const auto token = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(input.host_ptr));
+    detail::UpdateAccelTokenSidecarH2D(
+        token,
+        output.device_id,
+        ToSarBackendKind(output.backend),
+        output.execution_queue_id);
 
     return output;
 }

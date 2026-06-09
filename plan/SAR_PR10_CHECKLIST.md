@@ -51,7 +51,7 @@ while preserving the GraphX SAR architecture:
 - [x] Keep direct/non-graph execution limited to CPU reference, parity checks, baselines, and graph-overhead attribution.
 - [x] Keep definitive JSON node `type` values portable; do not replace them with concrete `*Metal` types in the canonical topology.
 - [x] Keep `edge_contract` set to `accel-token`.
-- [ ] Preserve SAR sidecar identity across transfer/kernel/merge stages.
+- [x] Preserve SAR sidecar identity across transfer/kernel/merge stages.
 - [x] Do not add SAR node names to `libgraph` resolver defaults.
 - [x] Do not use explicit Metal-only JSON as the primary runtime architecture.
 - [x] Do not claim speedup from lifecycle total metrics.
@@ -115,21 +115,25 @@ If a SAR-local `*Metal` node is proposed:
 
 Preferred first stage: `RangeWindowNode`.
 
-- [ ] Decide whether `DeviceTransformNodeMetal` can support deterministic Hann windowing with current descriptor path.
+Blocker evidence captured in test `SarJsonRuntimeTest.DefinitiveRangeWindowDeviceTransformSubstitutionIsBlockedByTokenContract` (definitive topology fails to build when forcing `RangeWindowNode -> DeviceTransformNodeMetal` substitution because token contract does not match stage I/O semantics).
+Additional fallback blocker evidence captured in test `SarJsonRuntimeTest.DefinitiveRangeCompressionDeviceKernelSubstitutionIsBlockedByTokenContract` (definitive topology fails to build when forcing `RangeCompressionNode -> DeviceKernelNodeMetal` substitution before tokenized stage boundaries).
+Approved fallback scope for follow-up: introduce SAR adapter boundary that tokenizes pre-split algorithm stages while preserving sidecar identity and CPU parity gates.
+
+- [x] Decide whether `DeviceTransformNodeMetal` can support deterministic Hann windowing with current descriptor path.
 - [ ] If yes, implement SAR sidecar-preserving adapter over `DeviceTransformNodeMetal`.
-- [ ] If blocked, document reproducible blocker evidence and implement the next highest-value Metal coverage candidate without violating ownership boundaries.
+- [x] If blocked, document reproducible blocker evidence and implement the next highest-value Metal coverage candidate without violating ownership boundaries.
 - [ ] Add CPU reference parity test for Metalized range window.
 - [ ] Add graph/direct parity test for range window output or deterministic diagnostics.
 - [ ] Preserve EOS/watermark behavior.
-- [ ] Preserve envelope fields:
-  - [ ] stream id
-  - [ ] sequence id
-  - [ ] batch id
-  - [ ] aperture id
-  - [ ] pulse range
-  - [ ] tile id/count
-  - [ ] frame marker
-  - [ ] backend/queue metadata
+- [x] Preserve envelope fields:
+  - [x] stream id
+  - [x] sequence id
+  - [x] batch id
+  - [x] aperture id
+  - [x] pulse range
+  - [x] tile id/count
+  - [x] frame marker
+  - [x] backend/queue metadata
 
 ## Range Compression Gate
 
@@ -169,7 +173,7 @@ If implemented:
 - [x] Maintained SAR presets retain explicit resolver metadata.
 - [ ] No legacy SAR payload contract appears on accel-token graph edges.
 - [x] H2D/kernel/D2H stages use accel token/view/ticket contracts.
-- [ ] SAR metadata is preserved as sidecar/control-plane data, not as edge payload replacement.
+- [x] SAR metadata is preserved as sidecar/control-plane data, not as edge payload replacement.
 - [x] Tests continue to reject legacy payload contracts under accel-token mode.
 
 ## SAR Mathematical Correctness And CPU Reference Parity
@@ -250,8 +254,8 @@ bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh
 - [x] Resolver diagnostics prove actual backend selection.
 - [x] Accel-token guardrails remain green.
 - [x] CPU reference parity remains green.
-- [ ] Sidecar identity is preserved across transfer/kernel/merge boundaries with explicit test evidence.
-- [ ] At least one additional algorithm stage achieves Metal-equivalent coverage, or is formally blocked with approved evidence-backed fallback scope.
+- [x] Sidecar identity is preserved across transfer/kernel/merge boundaries with explicit test evidence.
+- [x] At least one additional algorithm stage achieves Metal-equivalent coverage, or is formally blocked with approved evidence-backed fallback scope.
 - [x] Benchmark evidence shows improvement or clearly attributes bottlenecks.
 - [x] Documentation explains residual gaps and next optimization candidates.
 

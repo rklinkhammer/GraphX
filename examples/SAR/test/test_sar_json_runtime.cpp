@@ -384,3 +384,143 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);
 }
+
+TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(15))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr);
+    ASSERT_NE(executor->GetGraphManager(), nullptr);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+    ASSERT_TRUE(executor->IsCompletionSignaled());
+
+    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
+
+    const auto& status = sink->last_status();
+    EXPECT_EQ(status.envelope.sequence_id, 64u);
+    EXPECT_EQ(status.envelope.batch_id, 0u);
+    EXPECT_EQ(status.envelope.aperture_id, 64u);
+    EXPECT_EQ(status.envelope.pulse_range_start, 64u);
+    EXPECT_EQ(status.envelope.pulse_range_count, 0u);
+    EXPECT_EQ(status.envelope.stream_id, 0u);
+    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
+    EXPECT_EQ(status.envelope.tile_count, 4u);
+    EXPECT_EQ(status.envelope.backend_id, 0u);
+    EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+
+    EXPECT_TRUE(status.gpu.has_host_view);
+    EXPECT_TRUE(status.gpu.has_transfer_ticket);
+    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
+    if (status.gpu.has_kernel_ticket) {
+        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    }
+}
+
+TEST(SarJsonRuntimeTest, DefinitiveRangeWindowDeviceTransformSubstitutionIsBlockedByTokenContract) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path sar_plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    const std::filesystem::path gpu_plugin_dir{GPU_PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(sar_plugin_dir));
+    ASSERT_TRUE(std::filesystem::exists(gpu_plugin_dir));
+
+    auto metal_config = LoadJsonFile(config_path);
+    metal_config["execution_backend"] = "metal";
+    metal_config["backend_fallback_policy"] = "strict";
+    metal_config["resolver_mappings"].push_back(
+        nlohmann::json{
+            {"intent_type", "RangeWindowNode"},
+            {"input_token_type", "SarPulseBlockMessage"},
+            {"output_token_type", "SarPulseBlockMessage"},
+            {"variants", nlohmann::json::array({
+                nlohmann::json{{"backend", "metal"}, {"concrete_type", "DeviceTransformNodeMetal"}},
+                nlohmann::json{{"backend", "stub"}, {"concrete_type", "RangeWindowNode"}},
+            })},
+        });
+
+    const auto temp_path = std::filesystem::temp_directory_path() /
+                           "sar_stripmap_definitive_range_window_transform_blocker.json";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(
+        std::vector<std::string>{gpu_plugin_dir.string(), sar_plugin_dir.string()});
+    ASSERT_TRUE(bootstrap);
+    ASSERT_NE(bootstrap->provider, nullptr);
+
+    auto graph_cap = std::make_shared<capabilities::GraphCapability>();
+    graph_cap->SetNodeProvider(bootstrap->provider);
+    graph_cap->SetJsonConfigPath(temp_path.string());
+
+    app::GraphBuilder graph_builder(graph_cap);
+    const auto build_result = graph_builder.Build();
+    EXPECT_FALSE(build_result.success);
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+}
+
+TEST(SarJsonRuntimeTest, DefinitiveRangeCompressionDeviceKernelSubstitutionIsBlockedByTokenContract) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path sar_plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    const std::filesystem::path gpu_plugin_dir{GPU_PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(sar_plugin_dir));
+    ASSERT_TRUE(std::filesystem::exists(gpu_plugin_dir));
+
+    auto metal_config = LoadJsonFile(config_path);
+    metal_config["execution_backend"] = "metal";
+    metal_config["backend_fallback_policy"] = "strict";
+    metal_config["resolver_mappings"].push_back(
+        nlohmann::json{
+            {"intent_type", "RangeCompressionNode"},
+            {"input_token_type", "SarPulseBlockMessage"},
+            {"output_token_type", "SarPulseBlockMessage"},
+            {"variants", nlohmann::json::array({
+                nlohmann::json{{"backend", "metal"}, {"concrete_type", "DeviceKernelNodeMetal"}},
+                nlohmann::json{{"backend", "stub"}, {"concrete_type", "RangeCompressionNode"}},
+            })},
+        });
+
+    const auto temp_path = std::filesystem::temp_directory_path() /
+                           "sar_stripmap_definitive_range_compression_kernel_blocker.json";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(
+        std::vector<std::string>{gpu_plugin_dir.string(), sar_plugin_dir.string()});
+    ASSERT_TRUE(bootstrap);
+    ASSERT_NE(bootstrap->provider, nullptr);
+
+    auto graph_cap = std::make_shared<capabilities::GraphCapability>();
+    graph_cap->SetNodeProvider(bootstrap->provider);
+    graph_cap->SetJsonConfigPath(temp_path.string());
+
+    app::GraphBuilder graph_builder(graph_cap);
+    const auto build_result = graph_builder.Build();
+    EXPECT_FALSE(build_result.success);
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+}

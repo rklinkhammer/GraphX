@@ -1,5 +1,7 @@
 #include "sar/D2HAsyncAccelNode.hpp"
 
+#include "sar/SarAccelTokenSidecarStore.hpp"
+
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
@@ -13,6 +15,15 @@ SarBackendKind ParseBackendKind(int raw_backend) {
         throw graph::ConfigError("backend must be in range [0,2]");
     }
     return static_cast<SarBackendKind>(raw_backend);
+}
+
+SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept {
+    switch (backend) {
+        case graph::gpu::accel::BackendKind::Metal:
+            return SarBackendKind::NativeDevice;
+        default:
+            return SarBackendKind::Host;
+    }
 }
 
 } // namespace
@@ -63,6 +74,13 @@ std::optional<graph::gpu::accel::HostPinnedBufferView> D2HAsyncAccelNode::Transf
     last_transfer_ticket_.completion_event = transfer_sequence_;
     last_transfer_ticket_.src_device = input;
     last_transfer_ticket_.dst_host = output;
+
+    const auto token = input.ready_event;
+    detail::UpdateAccelTokenSidecarD2H(
+        token,
+        input.device_id,
+        ToSarBackendKind(input.backend),
+        effective_queue);
 
     return output;
 }

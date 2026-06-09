@@ -37,9 +37,12 @@ sar::SarPulseBlockMessage MakePulseForTokenSidecar() {
     msg.envelope.pulse_range_start = 9;
     msg.envelope.pulse_range_count = 1;
     msg.envelope.stream_id = 23;
+    msg.envelope.tile_id = 0;
     msg.envelope.tile_count = 4;
+    msg.envelope.backend_id = 7;
     msg.envelope.backend = sar::SarBackendKind::SimulatedDevice;
     msg.envelope.marker = sar::SarFrameMarker::Data;
+    msg.envelope.synthetic = false;
     msg.iq_samples = {
         sar::SarIqSample(1.0f, 0.0f),
         sar::SarIqSample(2.0f, 0.0f),
@@ -308,18 +311,24 @@ TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge
 
     ASSERT_TRUE(status.has_value());
     EXPECT_EQ(status->envelope.sequence_id, 9u);
-    EXPECT_EQ(status->envelope.batch_id, 23u);
+    EXPECT_EQ(status->envelope.batch_id, 5u);
     EXPECT_EQ(status->envelope.aperture_id, 9u);
     EXPECT_EQ(status->envelope.pulse_range_start, 9u);
     EXPECT_EQ(status->envelope.pulse_range_count, 1u);
     EXPECT_EQ(status->envelope.stream_id, 23u);
     EXPECT_EQ(status->envelope.tile_id, 2u);
     EXPECT_EQ(status->envelope.tile_count, 4u);
+    EXPECT_EQ(status->envelope.backend_id, 3u);
+    EXPECT_EQ(status->envelope.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(status->envelope.marker, sar::SarFrameMarker::Data);
+    EXPECT_FALSE(status->envelope.synthetic);
     EXPECT_EQ(status->bytes_h2d, 16u);
     EXPECT_EQ(status->bytes_d2h, 16u);
     EXPECT_TRUE(status->gpu.has_host_view);
     EXPECT_TRUE(status->gpu.has_transfer_ticket);
     EXPECT_TRUE(status->gpu.has_kernel_ticket);
+    EXPECT_EQ(status->gpu.transfer_ticket.execution_queue_id, 4u);
+    EXPECT_EQ(status->gpu.kernel_ticket.execution_queue_id, 4u);
 }
 
 TEST(SarAccelNodesTest, MaterializedSinkExtractsPayloadFromAccelTokenFlow) {

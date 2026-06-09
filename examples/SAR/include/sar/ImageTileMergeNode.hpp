@@ -109,6 +109,7 @@ public:
 private:
     SarMergeStatusMessage BuildStatusMessage(
         const graph::gpu::accel::HostPinnedBufferView& input,
+        std::uint64_t token,
         std::uint64_t sequence_id,
         std::uint32_t tile_id,
         std::uint32_t stream_id,

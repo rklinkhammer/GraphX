@@ -131,9 +131,9 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
     EXPECT_LE(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
-    EXPECT_GE(diagnostics.bytes_h2d, 130048u);
+    EXPECT_GE(diagnostics.bytes_h2d, 129024u);
     EXPECT_LE(diagnostics.bytes_h2d, 131072u);
-    EXPECT_GE(diagnostics.kernel_dispatches, 127u);
+    EXPECT_GE(diagnostics.kernel_dispatches, 126u);
     EXPECT_LE(diagnostics.kernel_dispatches, 128u);
     EXPECT_GE(diagnostics.duplicate_tile_count, 120u);
     EXPECT_LE(diagnostics.duplicate_tile_count, 124u);

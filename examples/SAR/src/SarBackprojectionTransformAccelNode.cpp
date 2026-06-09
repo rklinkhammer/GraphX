@@ -1,5 +1,6 @@
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
 #include "sar/SarAccelTokenImagePayloadStore.hpp"
+#include "sar/SarAccelTokenSidecarStore.hpp"
 #include "sar/SarMaterializedImageReference.hpp"
 
 #include "config/ConfigError.hpp"
@@ -31,6 +32,15 @@ SarBackendKind ParseBackendKind(int raw_backend) {
         throw graph::ConfigError("backend must be in range [0,2]");
     }
     return static_cast<SarBackendKind>(raw_backend);
+}
+
+SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept {
+    switch (backend) {
+        case graph::gpu::accel::BackendKind::Metal:
+            return SarBackendKind::NativeDevice;
+        default:
+            return SarBackendKind::Host;
+    }
 }
 
 void* MakeSyntheticDevicePointer(const graph::gpu::accel::DeviceBufferView& input,
@@ -133,6 +143,11 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
 
         native_output->ready_event = input.ready_event;
         last_kernel_ticket_ = native_kernel_node_.last_kernel_ticket();
+        detail::UpdateAccelTokenSidecarKernel(
+            input.ready_event,
+            native_output->device_id,
+            ToSarBackendKind(native_output->backend),
+            last_kernel_ticket_.execution_queue_id);
         return native_output;
     }
 
@@ -185,6 +200,12 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     last_kernel_ticket_.completion_event = kernel_sequence_;
 
     output.ready_event = input.ready_event;
+
+    detail::UpdateAccelTokenSidecarKernel(
+        input.ready_event,
+        output.device_id,
+        ToSarBackendKind(output.backend),
+        output.execution_queue_id);
 
     if (!graph::gpu::accel::IsValidView(output) ||
         !graph::gpu::accel::IsValidKernelTicket(last_kernel_ticket_)) {

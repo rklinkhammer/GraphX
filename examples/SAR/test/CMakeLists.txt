@@ -9,6 +9,7 @@ endif()
 
 add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AzimuthTileSplitNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarAccelTokenSidecarStore.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_azimuth_tile_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/D2HAsyncAccelNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/H2DAsyncAccelNode.cpp
@@ -55,6 +56,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_fanout.json"
     SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr6_matched_filter.json"
     SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr7_materialized_image.json"
+    SAR_DEFINITIVE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_definitive.json"
     SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach_pr1.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"

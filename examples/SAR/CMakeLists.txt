@@ -6,12 +6,14 @@ find_package(log4cxx REQUIRED)
 
 add_library(sar_materialized_payload_runtime SHARED
     src/SarAccelTokenImagePayloadStore.cpp
+    src/SarAccelTokenSidecarStore.cpp
 )
 
 target_compile_features(sar_materialized_payload_runtime PRIVATE cxx_std_26)
 target_include_directories(sar_materialized_payload_runtime PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+target_link_libraries(sar_materialized_payload_runtime PUBLIC gpu)
 
 set_target_properties(sar_materialized_payload_runtime PROPERTIES
     POSITION_INDEPENDENT_CODE ON
@@ -27,6 +29,7 @@ add_executable(sar_example
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
     src/SarMaterializedImageSinkNode.cpp
+    src/SarAccelTokenSidecarStore.cpp
     src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )
@@ -41,6 +44,7 @@ add_executable(sar_benchmark
     src/RangeWindowNode.cpp
     src/SarDiagnosticsSinkNode.cpp
     src/SarMaterializedImageSinkNode.cpp
+    src/SarAccelTokenSidecarStore.cpp
     src/SarBackprojectionTransformAccelNode.cpp
     src/SyntheticApertureIqSourceNode.cpp
 )
