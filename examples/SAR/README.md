@@ -35,6 +35,11 @@ flowchart LR
 
 Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
 
+Definitive main.cpp pipeline configs:
+
+1. examples/SAR/config/sar_stripmap_definitive_nonmetal.json
+2. examples/SAR/config/sar_stripmap_definitive_metal.json
+
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
 The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
@@ -72,6 +77,12 @@ Run example:
 
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/sar_example
+./build-ninja/ninja-debug/examples/SAR/sar_example \
+  examples/SAR/config/sar_stripmap_definitive_nonmetal.json \
+  ./build-ninja/ninja-debug/examples/SAR/plugins
+./build-ninja/ninja-debug/examples/SAR/sar_example \
+  examples/SAR/config/sar_stripmap_definitive_metal.json \
+  ./build-ninja/ninja-debug/examples/SAR/plugins
 ```
 
 Run SAR tests:
@@ -143,6 +154,141 @@ Primary knobs:
 
 All SAR nodes are initialized through standard IConfigurable using node_config.
 
+## Complete Node Parameter Reference
+
+Top-level JSON graph contract fields:
+
+| Field | Purpose |
+| --- | --- |
+| name | Graph name |
+| execution_backend | Resolver backend intent, for example auto or metal |
+| backend_fallback_policy | Resolver fallback policy, strict or allow_fallback |
+| resolver_diagnostics | Include resolver metadata in execution trace |
+| edge_contract | Must be accel-token for SAR transfer or kernel edges |
+| num_threads | Graph executor thread count hint |
+
+`SyntheticApertureIqSourceNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| stream_id | integer | 0 | SAR stream identifier |
+| total_pulses | integer | 32 | Number of pulses emitted before EOS |
+| samples_per_pulse | integer | 256 | Number of IQ samples per pulse |
+| backend_id | integer | 0 | Backend device index |
+| backend | integer | 0 | Backend kind enum |
+| moving_target_enabled | boolean | false | Enable deterministic moving-target synthesis |
+| target_initial_range_m | number | 2000.0 | Initial target range in meters |
+| target_closing_velocity_mps | number | 250.0 | Target closing velocity in meters per second |
+| pulse_interval_s | number | 0.001 | Pulse interval in seconds |
+| target_reflectivity | number | 1.0 | Deterministic target reflectivity scale |
+
+`RangeWindowNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| enabled | boolean | true | Apply deterministic Hann range window |
+| gain | number | 1.0 | Linear gain after windowing |
+
+`RangeCompressionNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| enabled | boolean | true | Enable range compression |
+| gain | number | 1.0 | Gain on compressed output |
+| sample_rate_hz | number | 48000.0 | Sample-rate metadata |
+| mode | string | fft_magnitude | Compression mode |
+| output | string | magnitude | Matched-filter output representation |
+| bandwidth_hz | number | 4000000.0 | LFM chirp bandwidth |
+| chirp_duration_s | number | 0.000001 | LFM chirp duration |
+| range_origin_m | number | 0.0 | Range origin metadata |
+| range_spacing_m | number | 0.25 | Range-bin spacing metadata |
+
+`SarPulseFanoutNode`:
+
+No configurable node_config parameters. The node performs graph-visible 4-way fanout.
+
+`AzimuthTileSplitNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| tile_count | integer | 4 | Number of azimuth tiles |
+| tile_id_offset | integer | 0 | Offset applied to modulo tile selection |
+| fixed_tile_id | integer | -1 | Fixed branch tile id; -1 keeps modulo behavior |
+| backend_id | integer | 0 | Backend device index |
+| backend | integer | 0 | Backend kind enum |
+
+`H2DAsyncNode` (`H2DAsyncAccelNode`):
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| override_backend | boolean | false | Override backend on outgoing view |
+| backend_id | integer | 0 | Backend device index for override mode |
+| queue_id | integer | 0 | Queue id, 0 resolves to backend_id + 1 |
+| backend | integer | 0 | Backend kind enum for override mode |
+
+`SarBackprojectionTransformNode` (`SarBackprojectionTransformAccelNode`):
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| image_width | integer | 16 | Dispatch width hint |
+| backend_id | integer | 0 | Backend device index |
+| queue_id | integer | 0 | Queue id, 0 resolves to backend_id + 1 |
+| kernel_id | integer | 3301 | Kernel identifier |
+| tap_count | integer | 8 | Backprojection accumulation tap count |
+| delay_step | number | 0.5 | Fractional sample delay step |
+| phase_tap_scale | number | 0.35 | Tap phase scale |
+| phase_aperture_scale | number | 0.2 | Aperture phase scale |
+| backend | integer | 1 | Backend kind enum |
+
+`D2HAsyncNode` (`D2HAsyncAccelNode`):
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| override_backend | boolean | false | Override backend on outgoing view |
+| backend_id | integer | 0 | Backend device index for override mode |
+| queue_id | integer | 0 | Queue id, 0 resolves to backend_id + 1 |
+| backend | integer | 0 | Backend kind enum for override mode |
+
+`ImageTileMergeNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| expected_tiles | integer | 4 | Expected number of tiles before completion |
+| require_watermark_before_complete | boolean | false | Require watermark before EOS completion |
+| require_all_tile_eos_before_complete | boolean | false | Require EOS from all tile branches |
+| backend_id | integer | 0 | Backend device index |
+| backend | integer | 0 | Backend kind enum |
+
+`SarDiagnosticsSinkNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| completion_signal_enabled | boolean | true | Signal completion callback on complete EOS |
+
+`SarMaterializedImageSinkNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| enabled | boolean | false | Enable in-memory materialized capture |
+
+`SarVisualizationSinkNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| enabled | boolean | false | Enable artifact generation |
+| output_dir | string | sar_viz_output | Output directory |
+| format | string | pgm | Artifact format, pgm or csv |
+| normalize | boolean | true | Normalize output values |
+| file_prefix | string | sar_tile | Artifact filename prefix |
+
+`GotchaReplaySourceNode`:
+
+| Parameter | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| fixture_path | string | empty | Path to normalized replay fixture |
+| emit_watermark | boolean | false | Emit a watermark record before EOS |
+| allow_external_fixture | boolean | false | Allow local/manual external replay fixture loading |
+
 Projectile-approach demo knobs (source node):
 
 1. moving_target_enabled
@@ -193,6 +339,22 @@ cmake --build --preset build-debug --target sar_benchmark
 ```
 
 See benchmark details and attribution categories in examples/SAR/BENCHMARK_REPORT.md.
+
+Main.cpp based METAL vs non-METAL timing benchmark:
+
+```bash
+bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh
+bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh \
+  ./build-ninja/ninja-debug/examples/SAR/sar_example \
+  ./build-ninja/ninja-debug/examples/SAR/plugins
+```
+
+This benchmark executes `sar_example` directly with:
+
+1. `examples/SAR/config/sar_stripmap_definitive_nonmetal.json`
+2. `examples/SAR/config/sar_stripmap_definitive_metal.json`
+
+and reports per-run milliseconds plus avg/min/max timing for each profile.
 
 ## External Data Lane (Non-CI)
 
