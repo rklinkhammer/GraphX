@@ -122,6 +122,15 @@ public:
                 throw std::invalid_argument("device_id must be >= 0");
             }
             device_id = static_cast<std::uint32_t>(parsed_device.value());
+        } else if (cfg.Contains("backend_id")) {
+            auto parsed_backend = cfg.TryGetInt("backend_id");
+            if (!parsed_backend) {
+                throw parsed_backend.error();
+            }
+            if (parsed_backend.value() < 0) {
+                throw std::invalid_argument("backend_id must be >= 0");
+            }
+            device_id = static_cast<std::uint32_t>(parsed_backend.value());
         }
 
         SetQueueAndDevice(queue_id, device_id);
@@ -150,6 +159,24 @@ public:
                 {"required", false},
                 {"description", "Target Metal device id for allocation and transfer."},
             };
+        } else if (param_name == "backend_id") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Compatibility alias for device_id."},
+            };
+        } else if (param_name == "backend") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Compatibility field ignored by the concrete Metal node."},
+            };
+        } else if (param_name == "override_backend") {
+            desc = {
+                {"type", "boolean"},
+                {"required", false},
+                {"description", "Compatibility field ignored by the concrete Metal node."},
+            };
         } else {
             desc = nlohmann::json::object();
         }
@@ -157,7 +184,7 @@ public:
     }
 
     [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
-        return {"queue_id", "device_id"};
+        return {"queue_id", "device_id", "backend_id", "backend", "override_backend"};
     }
 
 private:

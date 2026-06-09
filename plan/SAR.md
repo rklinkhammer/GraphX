@@ -1225,3 +1225,34 @@ Explicitly deferred beyond PR6:
 1. Full image-sample graph/direct parity remains future work because the current public graph path still reports diagnostics and token lifecycle evidence rather than materialized image samples.
 2. Device-side matched-filter/range-compression Metal kernels remain future work and require CPU-reference parity gates before implementation.
 3. Provider/bootstrap changes that make libgpu Metal transfer plugins automatically available inside the SAR example plugin path remain a follow-up if blanket H2D/D2H `*Metal` substitution is required.
+
+## PR10A Completion Summary
+
+PR10A is complete for provider/resolver proof of Metal-equivalent node selection without duplicating common `libgpu` nodes.
+
+Completed in this phase:
+
+1. Extended `NodeProviderBootstrap` to compose multiple plugin directories into one shared `PluginRegistry` and provider lifetime.
+2. Extended `GraphExecutorBuilder` with `WithAdditionalPluginDirectory()` while preserving the existing single-directory API.
+3. Updated the SAR example runtime entrypoint so `examples/SAR/src/main.cpp` can run the canonical JSON topology with SAR plugins plus optional additional plugin directories such as the shared `libgpu` plugin output directory.
+4. Kept `sar_stripmap_definitive.json` portable: H2D/D2H/backprojection node `type` values remain generic intents or SAR adapter names, not concrete `*Metal` types.
+5. Reused existing `libgpu` `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, and `DeviceKernelNodeMetal`; no duplicate SAR-local transfer Metal nodes were added.
+6. Added compatibility config fields to the generic Metal transfer nodes so portable SAR JSON can resolve to common `libgpu` transfer nodes while tolerating existing transfer metadata (`backend_id`, `backend`, `override_backend`).
+7. Added `SarJsonRuntimeTest.DefinitivePresetResolvesCommonMetalNodesWithComposedProvider`, proving GraphBuilder diagnostics select:
+   - `H2DAsyncNode -> H2DAsyncNodeMetal`,
+   - `D2HAsyncNode -> D2HAsyncNodeMetal`,
+   - `SarBackprojectionTransformNode -> SarBackprojectionTransformNode` from SAR-owned `resolver_mappings`.
+
+Validation evidence:
+
+1. `cmake --build build-ninja/ninja-debug --target test_sar_example_unit`
+2. `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit` passed 73/73 tests.
+3. `cmake --build build-ninja/ninja-debug --target test_libgraph_unit`
+4. `./build-ninja/ninja-debug/libgraph/test/test_libgraph_unit '--gtest_filter=ResolvingNodeProviderTest.*:GraphConfigParserExpectedTest.*Resolver*'` passed 17/17 tests.
+5. Focused libgraph regression run for builder/topology paths passed 37/37 tests.
+
+Explicitly deferred beyond PR10A:
+
+1. PR10B device-side `RangeWindowNode` or `RangeCompressionNode` Metalization remains open. It needs a sidecar-preserving SAR adapter over generic `DeviceTransformNodeMetal` or `DeviceKernelNodeMetal`, plus CPU reference parity evidence.
+2. A composed-provider GraphExecutor execution path that fully replaces SAR-local H2D/D2H wrappers with generic libgpu Metal transfer nodes is not yet claimed as a SAR semantic-performance win. PR10A proves resolver selection and graph construction; runtime sidecar preservation across a fully generic transfer substitution remains a separate acceptance gate.
+3. No performance speedup claim should be made from resolver selection alone. Benchmark claims remain tied to graph-run-vs-baseline metrics and explicit overhead attribution.

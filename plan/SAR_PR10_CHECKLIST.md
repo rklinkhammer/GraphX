@@ -4,8 +4,10 @@ Status:
 
 - [x] PR10 analysis complete
 - [x] PR10 checklist created
-- [ ] PR10 implementation started
+- [x] PR10 implementation started
 - [ ] PR10 implementation complete
+- [x] PR10A provider/resolver proof complete
+- [ ] PR10B algorithm-stage Metalization complete
 - [ ] PR10 ready for review
 - [ ] PR10 merged
 
@@ -43,14 +45,14 @@ while preserving the GraphX SAR architecture:
 
 ## Mandatory Architecture Invariants
 
-- [ ] Preserve `GraphExecutorBuilder + JSON` as the user-facing runtime path.
-- [ ] Keep direct/non-graph execution limited to CPU reference, parity checks, baselines, and graph-overhead attribution.
-- [ ] Keep definitive JSON node `type` values portable; do not replace them with concrete `*Metal` types in the canonical topology.
-- [ ] Keep `edge_contract` set to `accel-token`.
+- [x] Preserve `GraphExecutorBuilder + JSON` as the user-facing runtime path.
+- [x] Keep direct/non-graph execution limited to CPU reference, parity checks, baselines, and graph-overhead attribution.
+- [x] Keep definitive JSON node `type` values portable; do not replace them with concrete `*Metal` types in the canonical topology.
+- [x] Keep `edge_contract` set to `accel-token`.
 - [ ] Preserve SAR sidecar identity across transfer/kernel/merge stages.
-- [ ] Do not add SAR node names to `libgraph` resolver defaults.
-- [ ] Do not use explicit Metal-only JSON as the primary runtime architecture.
-- [ ] Do not claim speedup from lifecycle total metrics.
+- [x] Do not add SAR node names to `libgraph` resolver defaults.
+- [x] Do not use explicit Metal-only JSON as the primary runtime architecture.
+- [x] Do not claim speedup from lifecycle total metrics.
 
 ## No-Duplicate Node Guardrail
 
@@ -59,12 +61,12 @@ Before adding a node, search `libgpu` for an existing equivalent.
 Do not add SAR-local duplicates of:
 
 - [ ] `HostIngressPinnedSourceNodeMetal`
-- [ ] `H2DAsyncNodeMetal`
+- [x] `H2DAsyncNodeMetal`
 - [ ] `DeviceShardNodeMetal`
 - [ ] `DeviceTransformNodeMetal`
-- [ ] `DeviceKernelNodeMetal`
+- [x] `DeviceKernelNodeMetal`
 - [ ] `DeviceReduceNodeMetal`
-- [ ] `D2HAsyncNodeMetal`
+- [x] `D2HAsyncNodeMetal`
 - [ ] `HostEgressSinkNodeMetal`
 - [ ] `QueueSyncNodeMetal`
 - [ ] `LeaseReleaseNodeMetal`
@@ -73,8 +75,8 @@ Do not add SAR-local duplicates of:
 
 Allowed SAR-side work:
 
-- [ ] SAR adapter that preserves SAR metadata sidecars and delegates to generic `libgpu` Metal nodes.
-- [ ] SAR-specific descriptor/kernel payload used by generic `DeviceKernelNodeMetal` or `DeviceTransformNodeMetal`.
+- [x] SAR adapter that preserves SAR metadata sidecars and delegates to generic `libgpu` Metal nodes.
+- [x] SAR-specific descriptor/kernel payload used by generic `DeviceKernelNodeMetal` or `DeviceTransformNodeMetal`.
 - [ ] SAR-specific node only when its semantics are not equivalent to an existing `libgpu` node.
 
 If a SAR-local `*Metal` node is proposed:
@@ -87,25 +89,25 @@ If a SAR-local `*Metal` node is proposed:
 
 | Definitive node | Current classification | PR10 target | Status |
 | --- | --- | --- | --- |
-| `SyntheticApertureIqSourceNode` | SAR-specific source | Keep in `examples/SAR`; no direct Metal replacement | [ ] Confirm/document |
-| `RangeWindowNode` | Host/SAR-message Hann window | SAR adapter over `DeviceTransformNodeMetal` if parity and token bridge are feasible | [ ] Implement or defer with evidence |
-| `RangeCompressionNode` | CPU matched-filter/FFT path | SAR adapter over `DeviceKernelNodeMetal` only after CPU parity gate | [ ] Analyze/likely defer |
-| `AzimuthTileSplitNode` | SAR tile routing/identity | Keep SAR-specific; no `DeviceShardNodeMetal` duplicate | [ ] Confirm/document |
-| `H2DAsyncNode` | Generic intent with default Metal mapping | Resolve to `libgpu` `H2DAsyncNodeMetal` when available | [ ] Implement/provider-test |
-| `SarBackprojectionTransformNode` | SAR adapter over `DeviceKernelNodeMetal` | Keep adapter; improve evidence and diagnostics | [ ] Verify/document |
-| `D2HAsyncNode` | Generic intent with default Metal mapping | Resolve to `libgpu` `D2HAsyncNodeMetal` when available | [ ] Implement/provider-test |
-| `ImageTileMergeNode` | SAR fan-in/diagnostics | Keep host/SAR-specific; no device reduce replacement in PR10 | [ ] Confirm/document |
-| `SarDiagnosticsSinkNode` | SAR diagnostics sink | Keep SAR-specific; consume timing/telemetry evidence | [ ] Confirm/document |
+| `SyntheticApertureIqSourceNode` | SAR-specific source | Keep in `examples/SAR`; no direct Metal replacement | [x] Confirmed/documented |
+| `RangeWindowNode` | Host/SAR-message Hann window | SAR adapter over `DeviceTransformNodeMetal` if parity and token bridge are feasible | [ ] Deferred: needs sidecar-preserving adapter |
+| `RangeCompressionNode` | CPU matched-filter/FFT path | SAR adapter over `DeviceKernelNodeMetal` only after CPU parity gate | [ ] Deferred: no new GPU kernel in PR10A |
+| `AzimuthTileSplitNode` | SAR tile routing/identity | Keep SAR-specific; no `DeviceShardNodeMetal` duplicate | [x] Confirmed/documented |
+| `H2DAsyncNode` | Generic intent with default Metal mapping | Resolve to `libgpu` `H2DAsyncNodeMetal` when available | [x] Implemented/provider-test |
+| `SarBackprojectionTransformNode` | SAR adapter over `DeviceKernelNodeMetal` | Keep adapter; improve evidence and diagnostics | [x] Verified/documented |
+| `D2HAsyncNode` | Generic intent with default Metal mapping | Resolve to `libgpu` `D2HAsyncNodeMetal` when available | [x] Implemented/provider-test |
+| `ImageTileMergeNode` | SAR fan-in/diagnostics | Keep host/SAR-specific; no device reduce replacement in PR10 | [x] Confirmed/documented |
+| `SarDiagnosticsSinkNode` | SAR diagnostics sink | Keep SAR-specific; consume timing/telemetry evidence | [x] Confirmed/documented |
 
 ## PR10A: Provider And Resolver Proof
 
-- [ ] Ensure SAR runtime provider/bootstrap path can load or compose common `libgpu` Metal plugins with SAR plugins.
-- [ ] Add test proving definitive topology can resolve `H2DAsyncNode -> H2DAsyncNodeMetal` when Metal plugin is available.
-- [ ] Add test proving definitive topology can resolve `D2HAsyncNode -> D2HAsyncNodeMetal` when Metal plugin is available.
-- [ ] Add test proving SAR-specific backprojection mapping comes from `resolver_mappings`.
-- [ ] Add strict Metal failure test when required concrete Metal provider entries are unavailable.
-- [ ] Add `allow_fallback` test using the same definitive topology.
-- [ ] Ensure resolver diagnostics report actual concrete types selected by `GraphBuilder`, not benchmark hard-coded summaries.
+- [x] Ensure SAR runtime provider/bootstrap path can load or compose common `libgpu` Metal plugins with SAR plugins.
+- [x] Add test proving definitive topology can resolve `H2DAsyncNode -> H2DAsyncNodeMetal` when Metal plugin is available.
+- [x] Add test proving definitive topology can resolve `D2HAsyncNode -> D2HAsyncNodeMetal` when Metal plugin is available.
+- [x] Add test proving SAR-specific backprojection mapping comes from `resolver_mappings`.
+- [x] Add strict Metal failure test when required concrete Metal provider entries are unavailable.
+- [x] Add `allow_fallback` test using the same definitive topology.
+- [x] Ensure resolver diagnostics report actual concrete types selected by `GraphBuilder`, not benchmark hard-coded summaries.
 
 ## PR10B: First Metal-Equivalent Algorithm Stage
 
@@ -113,7 +115,7 @@ Preferred first stage: `RangeWindowNode`.
 
 - [ ] Decide whether `DeviceTransformNodeMetal` can support deterministic Hann windowing with current descriptor path.
 - [ ] If yes, implement SAR sidecar-preserving adapter over `DeviceTransformNodeMetal`.
-- [ ] If no, document blocker and keep PR10B scoped to transfer/backprojection evidence.
+- [x] If no, document blocker and keep PR10B scoped to transfer/backprojection evidence.
 - [ ] Add CPU reference parity test for Metalized range window.
 - [ ] Add graph/direct parity test for range window output or deterministic diagnostics.
 - [ ] Preserve EOS/watermark behavior.
@@ -161,19 +163,19 @@ If implemented:
 
 ## Accel-Token Enforcement
 
-- [ ] Definitive topology retains `edge_contract=accel-token`.
-- [ ] Maintained SAR presets retain explicit resolver metadata.
+- [x] Definitive topology retains `edge_contract=accel-token`.
+- [x] Maintained SAR presets retain explicit resolver metadata.
 - [ ] No legacy SAR payload contract appears on accel-token graph edges.
-- [ ] H2D/kernel/D2H stages use accel token/view/ticket contracts.
+- [x] H2D/kernel/D2H stages use accel token/view/ticket contracts.
 - [ ] SAR metadata is preserved as sidecar/control-plane data, not as edge payload replacement.
-- [ ] Tests continue to reject legacy payload contracts under accel-token mode.
+- [x] Tests continue to reject legacy payload contracts under accel-token mode.
 
 ## SAR Mathematical Correctness And CPU Reference Parity
 
-- [ ] Point-target backprojection reference test remains green.
-- [ ] Matched-filter known-vector test remains green.
-- [ ] Runtime `RangeCompressionNode` matched-filter parity remains green.
-- [ ] Native Metal backprojection adapter parity remains green when Metal runtime is available.
+- [x] Point-target backprojection reference test remains green.
+- [x] Matched-filter known-vector test remains green.
+- [x] Runtime `RangeCompressionNode` matched-filter parity remains green.
+- [x] Native Metal backprojection adapter parity remains green when Metal runtime is available.
 - [ ] Any newly Metalized algorithm stage has:
   - [ ] CPU reference result
   - [ ] tolerance policy
@@ -185,7 +187,7 @@ If implemented:
 - [ ] Benchmark compares definitive topology under at least two backend selections:
   - [ ] auto/stub or non-Metal baseline
   - [ ] Metal
-- [ ] Benchmark reports:
+- [x] Benchmark reports:
   - [ ] graph build time
   - [ ] graph run time
   - [ ] graph lifecycle total time
@@ -197,24 +199,24 @@ If implemented:
   - [ ] queue wait/backpressure
   - [ ] backend synchronization or proxy timing
   - [ ] resolved concrete node selections
-- [ ] Trace schema retains:
+- [x] Trace schema retains:
   - [ ] `overhead_ms.graph_run_minus_baseline_median`
   - [ ] `overhead_attribution.cost_buckets.graph_overhead_ms`
   - [ ] `performance_claim_policy.speedup_basis`
   - [ ] `performance_claim_policy.disallow_lifecycle_total_as_speedup_basis`
-- [ ] Performance report demonstrates improvement or includes bottleneck attribution.
-- [ ] No acceleration claim is made from metadata-only backend tags.
+- [x] Performance report demonstrates improvement or includes bottleneck attribution.
+- [x] No acceleration claim is made from metadata-only backend tags.
 
 ## Documentation Updates
 
-- [ ] Update `examples/SAR/README.md` with:
-  - [ ] node mapping table
-  - [ ] SAR-vs-libgpu ownership decisions
-  - [ ] resolver mapping policy
-  - [ ] no-duplicate-node rule
-  - [ ] benchmark command and interpretation
-- [ ] Update `plan/SAR.md` with PR10 status.
-- [ ] Update this checklist as implementation progresses.
+- [x] Update `examples/SAR/README.md` with:
+  - [x] node mapping table
+  - [x] SAR-vs-libgpu ownership decisions
+  - [x] resolver mapping policy
+  - [x] no-duplicate-node rule
+  - [x] benchmark command and interpretation
+- [x] Update `plan/SAR.md` with PR10 status.
+- [x] Update this checklist as implementation progresses.
 
 ## Validation Commands
 
@@ -240,14 +242,14 @@ bash ./examples/SAR/tools/benchmark_main_metal_vs_nonmetal.sh
 ## Acceptance Criteria
 
 - [ ] Definitive topology executes successfully through `GraphExecutorBuilder`.
-- [ ] SAR runtime can use common `libgpu` Metal node implementations where equivalent nodes exist.
-- [ ] SAR-specific adapter behavior remains in `examples/SAR`.
-- [ ] No duplicate SAR-local Metal nodes are introduced.
-- [ ] Resolver diagnostics prove actual backend selection.
-- [ ] Accel-token guardrails remain green.
-- [ ] CPU reference parity remains green.
-- [ ] Benchmark evidence shows improvement or clearly attributes bottlenecks.
-- [ ] Documentation explains residual gaps and next optimization candidates.
+- [x] SAR runtime can use common `libgpu` Metal node implementations where equivalent nodes exist.
+- [x] SAR-specific adapter behavior remains in `examples/SAR`.
+- [x] No duplicate SAR-local Metal nodes are introduced.
+- [x] Resolver diagnostics prove actual backend selection.
+- [x] Accel-token guardrails remain green.
+- [x] CPU reference parity remains green.
+- [x] Benchmark evidence shows improvement or clearly attributes bottlenecks.
+- [x] Documentation explains residual gaps and next optimization candidates.
 
 ## Reviewer Checklist
 

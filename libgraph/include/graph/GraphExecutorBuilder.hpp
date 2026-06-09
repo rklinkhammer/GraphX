@@ -130,6 +130,18 @@ public:
     GraphExecutorBuilder& WithPluginDirectory(const std::string& directory);
 
     /**
+     * @brief Add an additional plugin directory path (optional)
+     *
+     * Use this when a graph needs both common plugins and domain-local plugins,
+     * for example libgpu Metal nodes plus example/SAR plugins.
+     *
+     * @param directory Path to additional directory containing plugin .so files
+     * @return Reference to this builder (fluent API)
+     * @throws std::invalid_argument if path is empty
+     */
+    GraphExecutorBuilder& WithAdditionalPluginDirectory(const std::string& directory);
+
+    /**
      * @brief Add single CSV input for a node
      *
      * @param path Path to CSV file
@@ -247,6 +259,7 @@ private:
     std::string json_config_;
     std::shared_ptr<graph::GraphManager> graph_manager_;
     std::string plugin_directory_;
+    std::vector<std::string> plugin_directories_;
     std::vector<std::pair<std::string, std::string>> csv_inputs_;
     uint32_t csv_injection_rate_ms_;
     std::chrono::seconds executor_timeout_;

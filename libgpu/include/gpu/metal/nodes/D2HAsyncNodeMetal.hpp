@@ -108,6 +108,16 @@ public:
             }
             SetQueue(static_cast<std::uint64_t>(parsed_queue.value()));
         }
+
+        if (cfg.Contains("backend_id")) {
+            auto parsed_backend = cfg.TryGetInt("backend_id");
+            if (!parsed_backend) {
+                throw parsed_backend.error();
+            }
+            if (parsed_backend.value() < 0) {
+                throw std::invalid_argument("backend_id must be >= 0");
+            }
+        }
     }
 
     [[nodiscard]] graph::JsonView GetParameters() const override {
@@ -126,6 +136,24 @@ public:
                 {"required", false},
                 {"description", "Optional command queue id. 0 means node-owned queue."},
             };
+        } else if (param_name == "backend_id") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Compatibility field accepted by the concrete Metal node."},
+            };
+        } else if (param_name == "backend") {
+            desc = {
+                {"type", "integer"},
+                {"required", false},
+                {"description", "Compatibility field ignored by the concrete Metal node."},
+            };
+        } else if (param_name == "override_backend") {
+            desc = {
+                {"type", "boolean"},
+                {"required", false},
+                {"description", "Compatibility field ignored by the concrete Metal node."},
+            };
         } else {
             desc = nlohmann::json::object();
         }
@@ -133,7 +161,7 @@ public:
     }
 
     [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
-        return {"queue_id"};
+        return {"queue_id", "backend_id", "backend", "override_backend"};
     }
 
 private:

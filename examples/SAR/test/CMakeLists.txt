@@ -47,6 +47,7 @@ target_include_directories(test_sar_example_unit PRIVATE
 )
 target_compile_definitions(test_sar_example_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
+    GPU_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr1.json"
     SAR_PR2_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr2_fanout.json"
     SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_pr3_metal_window.json"
@@ -82,5 +83,14 @@ add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit gotcha_replay_source_node)
 add_dependencies(test_sar_example_unit sar_benchmark)
+if(TARGET metal_h2d_async_node)
+    add_dependencies(test_sar_example_unit metal_h2d_async_node)
+endif()
+if(TARGET metal_d2h_async_node)
+    add_dependencies(test_sar_example_unit metal_d2h_async_node)
+endif()
+if(TARGET metal_device_kernel_node)
+    add_dependencies(test_sar_example_unit metal_device_kernel_node)
+endif()
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)

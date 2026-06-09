@@ -45,6 +45,7 @@ Current METAL-equivalent resolution from definitive topology intent nodes:
 
 1. `SarBackprojectionTransformNode` is mapped by the SAR preset `resolver_mappings`, remains the SAR adapter, and delegates native-device work to libgpu `DeviceKernelNodeMetal` when Metal is selected.
 2. `H2DAsyncNodeMetal` and `D2HAsyncNodeMetal` remain canonical common nodes in libgpu and are not duplicated in examples/SAR.
+3. When a run needs both common libgpu Metal plugins and SAR-local plugins, pass the shared plugin directory as an additional plugin directory instead of copying or duplicating nodes.
 
 Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
 
@@ -88,7 +89,14 @@ Run example:
   ./build-ninja/ninja-debug/examples/SAR/plugins
 ```
 
-To force METAL resolution, copy the definitive config and set `execution_backend` to `metal`.
+To force METAL resolution, copy the definitive config and set `execution_backend` to `metal`. To make common libgpu Metal plugins available to the resolver, provide the shared plugin output directory after the SAR plugin directory:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_example \
+  /tmp/sar_stripmap_definitive_metal.json \
+  ./build-ninja/ninja-debug/examples/SAR/plugins \
+  ./build-ninja/ninja-debug/plugins
+```
 
 Run SAR tests:
 

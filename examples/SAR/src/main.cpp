@@ -48,6 +48,9 @@ int main(int argc, char** argv) {
     std::cout << "GraphX SAR example runtime" << '\n';
     std::cout << "Topology config: " << configPath << '\n';
     std::cout << "Plugin directory: " << pluginDirectory << '\n';
+    for (int i = 3; i < argc; ++i) {
+        std::cout << "Additional plugin directory: " << argv[i] << '\n';
+    }
 
     if (!std::filesystem::exists(configPath)) {
         std::cerr << "Config file not found: " << configPath << '\n';
@@ -58,13 +61,22 @@ int main(int argc, char** argv) {
         std::cerr << "Plugin directory not found: " << pluginDirectory << '\n';
         return 1;
     }
+    for (int i = 3; i < argc; ++i) {
+        if (!std::filesystem::exists(argv[i])) {
+            std::cerr << "Additional plugin directory not found: " << argv[i] << '\n';
+            return 1;
+        }
+    }
 
     try {
-        auto executor = graph::GraphExecutorBuilder()
-                            .WithJsonConfig(configPath)
-                            .WithPluginDirectory(pluginDirectory)
-                            .WithExecutorTimeout(std::chrono::seconds(15))
-                            .Build();
+        graph::GraphExecutorBuilder builder;
+        builder.WithJsonConfig(configPath)
+            .WithPluginDirectory(pluginDirectory)
+            .WithExecutorTimeout(std::chrono::seconds(15));
+        for (int i = 3; i < argc; ++i) {
+            builder.WithAdditionalPluginDirectory(argv[i]);
+        }
+        auto executor = builder.Build();
         if (!executor) {
             std::cerr << "Failed to build SAR graph executor" << '\n';
             return 1;

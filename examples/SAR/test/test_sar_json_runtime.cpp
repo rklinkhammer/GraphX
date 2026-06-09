@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include "capabilities/GraphCapability.hpp"
+#include "graph/GraphBuilder.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
+#include "graph/NodeProviderBootstrap.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
@@ -82,10 +85,25 @@ void AssertPortableIntents(const nlohmann::json& config) {
     EXPECT_TRUE(has_backprojection_mapping);
 }
 
+const graph::NodeResolutionDiagnostic* FindResolverDiagnostic(
+    const std::vector<graph::NodeResolutionDiagnostic>& diagnostics,
+    const std::string& intent_type) {
+    for (const auto& diagnostic : diagnostics) {
+        if (diagnostic.intent_type == intent_type) {
+            return &diagnostic;
+        }
+    }
+    return nullptr;
+}
+
 } // namespace
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
+#endif
+
+#ifndef GPU_PLUGIN_OUTPUT_DIRECTORY
+#define GPU_PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
 
 #ifndef SAR_JSON_CONFIG_PATH
@@ -295,6 +313,73 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcret
     const auto run_result = fallback_executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     EXPECT_TRUE(fallback_executor->IsCompletionSignaled());
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+}
+
+TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedProvider) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path sar_plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    const std::filesystem::path gpu_plugin_dir{GPU_PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(sar_plugin_dir));
+    ASSERT_TRUE(std::filesystem::exists(gpu_plugin_dir));
+
+    auto metal_config = LoadJsonFile(config_path);
+    metal_config["execution_backend"] = "metal";
+    metal_config["backend_fallback_policy"] = "strict";
+
+    const auto temp_path = std::filesystem::temp_directory_path() /
+                           "sar_stripmap_definitive_composed_provider_metal.json";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(
+        std::vector<std::string>{gpu_plugin_dir.string(), sar_plugin_dir.string()});
+    ASSERT_TRUE(bootstrap);
+    ASSERT_NE(bootstrap->provider, nullptr);
+    EXPECT_GE(bootstrap->diagnostics.loaded_count, 3u);
+
+    auto available = app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(bootstrap->provider);
+    ASSERT_TRUE(available);
+    const std::set<std::string> available_types(available->begin(), available->end());
+    EXPECT_TRUE(available_types.contains("H2DAsyncNodeMetal"));
+    EXPECT_TRUE(available_types.contains("D2HAsyncNodeMetal"));
+    EXPECT_TRUE(available_types.contains("SarBackprojectionTransformNode"));
+
+    auto graph_cap = std::make_shared<capabilities::GraphCapability>();
+    graph_cap->SetNodeProvider(bootstrap->provider);
+    graph_cap->SetJsonConfigPath(temp_path.string());
+
+    app::GraphBuilder graph_builder(graph_cap);
+    const auto build_result = graph_builder.Build();
+    ASSERT_TRUE(build_result.success) << build_result.error_message;
+    EXPECT_EQ(build_result.node_count, metal_config.at("nodes").size());
+    EXPECT_EQ(build_result.edge_count, metal_config.at("edges").size());
+
+    const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode");
+    ASSERT_NE(h2d, nullptr);
+    EXPECT_EQ(h2d->concrete_type, "H2DAsyncNodeMetal");
+    EXPECT_EQ(h2d->selected_backend, "metal");
+    EXPECT_FALSE(h2d->fallback_used);
+
+    const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode");
+    ASSERT_NE(d2h, nullptr);
+    EXPECT_EQ(d2h->concrete_type, "D2HAsyncNodeMetal");
+    EXPECT_EQ(d2h->selected_backend, "metal");
+    EXPECT_FALSE(d2h->fallback_used);
+
+    const auto* bp = FindResolverDiagnostic(
+        build_result.resolver_diagnostics, "SarBackprojectionTransformNode");
+    ASSERT_NE(bp, nullptr);
+    EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(bp->selected_backend, "metal");
+    EXPECT_FALSE(bp->fallback_used);
 
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);

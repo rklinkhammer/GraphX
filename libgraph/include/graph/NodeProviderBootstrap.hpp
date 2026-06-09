@@ -94,6 +94,7 @@ public:
 
   struct ProviderBootstrapDiagnostics {
     std::string plugin_directory{};
+    std::vector<std::string> plugin_directories{};
     std::size_t discovered_count{0};
     std::size_t loaded_count{0};
     std::size_t failed_count{0};
@@ -104,6 +105,7 @@ public:
   struct ProviderBootstrapHandle {
     std::shared_ptr<graph::PluginRegistry> plugin_registry;
     std::shared_ptr<graph::PluginLoader> loader;
+    std::vector<std::shared_ptr<graph::PluginLoader>> loaders;
   };
 
   struct ProviderBootstrapResult {
@@ -146,6 +148,9 @@ public:
    */
   [[nodiscard]] static std::expected<ProviderBootstrapResult, ProviderBootstrapError>
   CreateProviderExpected(const std::string& plugin_directory) noexcept;
+
+  [[nodiscard]] static std::expected<ProviderBootstrapResult, ProviderBootstrapError>
+  CreateProviderExpected(const std::vector<std::string>& plugin_directories) noexcept;
   
   /**
     * @brief Get list of available node types in provider

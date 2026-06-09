@@ -30,6 +30,7 @@
 #include <system_error>
 #include <filesystem>
 #include <chrono>
+#include <sstream>
 
 namespace app {
 
@@ -39,39 +40,43 @@ namespace app {
 
 static log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("NodeProviderBootstrap");
 
+namespace {
+
+std::string JoinPluginDirectories(const std::vector<std::string>& plugin_directories) {
+    std::ostringstream joined;
+    for (std::size_t i = 0; i < plugin_directories.size(); ++i) {
+        if (i > 0) {
+            joined << ";";
+        }
+        joined << plugin_directories[i];
+    }
+    return joined.str();
+}
+
+} // namespace
+
 // ============================================================================
 std::expected<NodeProviderBootstrap::ProviderBootstrapResult, NodeProviderBootstrap::ProviderBootstrapError>
 NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_directory) noexcept {
+    return CreateProviderExpected(std::vector<std::string>{plugin_directory});
+}
+
+// ============================================================================
+std::expected<NodeProviderBootstrap::ProviderBootstrapResult, NodeProviderBootstrap::ProviderBootstrapError>
+NodeProviderBootstrap::CreateProviderExpected(const std::vector<std::string>& plugin_directories) noexcept {
     LOG4CXX_TRACE(logger_, "Bootstrapping node provider with plugin directory: "
-                          << plugin_directory);
+                          << JoinPluginDirectories(plugin_directories));
 
     ProviderBootstrapDiagnostics diagnostics{};
-    diagnostics.plugin_directory = plugin_directory;
+    diagnostics.plugin_directory = JoinPluginDirectories(plugin_directories);
+    diagnostics.plugin_directories = plugin_directories;
 
-    // Step 1: Validate plugin directory exists
-    std::error_code fs_error;
-    const bool plugin_directory_exists = std::filesystem::exists(plugin_directory, fs_error);
-    if (fs_error) {
-        LOG4CXX_ERROR(logger_, "Unable to inspect plugin directory: "
-                             << plugin_directory << " - " << fs_error.message());
+    if (plugin_directories.empty()) {
+        LOG4CXX_ERROR(logger_, "No plugin directories provided");
         return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
     }
 
-    if (!plugin_directory_exists) {
-        LOG4CXX_WARN(logger_, "Plugin directory does not exist: "
-                            << plugin_directory << ". Proceeding with empty registry.");
-    } else if (!std::filesystem::is_directory(plugin_directory, fs_error)) {
-        if (fs_error) {
-            LOG4CXX_ERROR(logger_, "Unable to inspect plugin path: "
-                                 << plugin_directory << " - " << fs_error.message());
-            return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
-        }
-        LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: "
-                             << plugin_directory);
-        return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
-    }
-
-    // Step 2: Create PluginRegistry
+    // Step 1: Create PluginRegistry shared by every loader.
     std::shared_ptr<graph::PluginRegistry> registry;
     try {
         registry = std::make_shared<graph::PluginRegistry>();
@@ -84,38 +89,70 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
         return std::unexpected(ProviderBootstrapError::Unknown);
     }
 
-    // Step 3: Create PluginLoader with registry
-    std::shared_ptr<graph::PluginLoader> loader;
-    try {
-        loader = std::make_shared<graph::PluginLoader>(plugin_directory, registry);
-        LOG4CXX_TRACE(logger_, "Created PluginLoader successfully");
-    } catch (const std::exception& e) {
-        LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: " << e.what());
-        return std::unexpected(ProviderBootstrapError::LoaderCreationFailed);
-    } catch (...) {
-        LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: unknown error");
-        return std::unexpected(ProviderBootstrapError::Unknown);
-    }
+    std::vector<std::shared_ptr<graph::PluginLoader>> loaders;
+    loaders.reserve(plugin_directories.size());
 
-    // Step 4: Load plugins from directory and capture loader diagnostics
-    if (plugin_directory_exists) {
-        auto loaded = loader->LoadAllPluginsSafe();
-        if (loaded) {
-            diagnostics.discovered_count = loaded->discovered_count;
-            diagnostics.loaded_count = loaded->loaded_count;
-            diagnostics.failed_count = loaded->failed_count;
-            diagnostics.scan_duration = loaded->load_duration;
-        } else {
-            LOG4CXX_WARN(logger_, "Plugin loading encountered errors: "
-                                  << app::error::ErrorMessage(loaded.error())
-                                  << ". Some plugins may not be available.");
+    for (const auto& plugin_directory : plugin_directories) {
+        if (plugin_directory.empty()) {
+            LOG4CXX_ERROR(logger_, "Plugin directory cannot be empty");
+            return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
         }
-    } else {
-        LOG4CXX_WARN(logger_, "Plugin directory does not exist, skipping plugin loading: "
-                            << plugin_directory);
+
+        std::error_code fs_error;
+        const bool plugin_directory_exists = std::filesystem::exists(plugin_directory, fs_error);
+        if (fs_error) {
+            LOG4CXX_ERROR(logger_, "Unable to inspect plugin directory: "
+                                 << plugin_directory << " - " << fs_error.message());
+            return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
+        }
+
+        if (!plugin_directory_exists) {
+            LOG4CXX_WARN(logger_, "Plugin directory does not exist: "
+                                << plugin_directory << ". Proceeding with empty registry for this directory.");
+        } else if (!std::filesystem::is_directory(plugin_directory, fs_error)) {
+            if (fs_error) {
+                LOG4CXX_ERROR(logger_, "Unable to inspect plugin path: "
+                                     << plugin_directory << " - " << fs_error.message());
+                return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
+            }
+            LOG4CXX_ERROR(logger_, "Plugin path exists but is not a directory: "
+                                 << plugin_directory);
+            return std::unexpected(ProviderBootstrapError::InvalidPluginDirectory);
+        }
+
+        std::shared_ptr<graph::PluginLoader> loader;
+        try {
+            loader = std::make_shared<graph::PluginLoader>(plugin_directory, registry);
+            loaders.push_back(loader);
+            LOG4CXX_TRACE(logger_, "Created PluginLoader successfully for " << plugin_directory);
+        } catch (const std::exception& e) {
+            LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: " << e.what());
+            return std::unexpected(ProviderBootstrapError::LoaderCreationFailed);
+        } catch (...) {
+            LOG4CXX_ERROR(logger_, "Failed to create PluginLoader: unknown error");
+            return std::unexpected(ProviderBootstrapError::Unknown);
+        }
+
+        if (plugin_directory_exists) {
+            auto loaded = loader->LoadAllPluginsSafe();
+            if (loaded) {
+                diagnostics.discovered_count += loaded->discovered_count;
+                diagnostics.loaded_count += loaded->loaded_count;
+                diagnostics.failed_count += loaded->failed_count;
+                diagnostics.scan_duration += loaded->load_duration;
+            } else {
+                LOG4CXX_WARN(logger_, "Plugin loading encountered errors in "
+                                      << plugin_directory << ": "
+                                      << app::error::ErrorMessage(loaded.error())
+                                      << ". Some plugins may not be available.");
+            }
+        } else {
+            LOG4CXX_WARN(logger_, "Plugin directory does not exist, skipping plugin loading: "
+                                << plugin_directory);
+        }
     }
 
-    // Step 5: Create RegisteredNodeProvider with loaded registry
+    // Step 3: Create RegisteredNodeProvider with loaded registry
     const auto init_start = std::chrono::steady_clock::now();
     std::shared_ptr<graph::RegisteredNodeProvider> provider;
     try {
@@ -137,7 +174,10 @@ NodeProviderBootstrap::CreateProviderExpected(const std::string& plugin_director
 
     auto lifetime = std::make_shared<ProviderBootstrapHandle>();
     lifetime->plugin_registry = registry;
-    lifetime->loader = loader;
+    lifetime->loaders = loaders;
+    if (!loaders.empty()) {
+        lifetime->loader = loaders.front();
+    }
 
     LOG4CXX_TRACE(logger_, "Provider bootstrap completed. discovered="
                          << diagnostics.discovered_count

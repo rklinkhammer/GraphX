@@ -40,6 +40,7 @@
 #include "capabilities/GraphCapability.hpp"
 #include <log4cxx/logger.h>
 #include <expected>
+#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 
@@ -51,6 +52,7 @@ GraphExecutorBuilder::GraphExecutorBuilder()
     : json_config_(""),
       graph_manager_(nullptr),
       plugin_directory_(""),
+      plugin_directories_(),
       csv_inputs_(),
       csv_injection_rate_ms_(10),
       executor_timeout_(std::chrono::seconds(30)),
@@ -88,7 +90,24 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithPluginDirectory(const std::strin
         throw std::invalid_argument("GraphExecutorBuilder: Plugin directory cannot be empty");
     }
     plugin_directory_ = directory;
+    plugin_directories_.clear();
+    plugin_directories_.push_back(directory);
     LOG4CXX_TRACE(g_logger, "Set plugin directory: " << directory);
+    return *this;
+}
+
+GraphExecutorBuilder& GraphExecutorBuilder::WithAdditionalPluginDirectory(const std::string& directory) {
+    if (directory.empty()) {
+        throw std::invalid_argument("GraphExecutorBuilder: Plugin directory cannot be empty");
+    }
+    if (plugin_directory_.empty()) {
+        plugin_directory_ = directory;
+    }
+    if (std::find(plugin_directories_.begin(), plugin_directories_.end(), directory) ==
+        plugin_directories_.end()) {
+        plugin_directories_.push_back(directory);
+    }
+    LOG4CXX_TRACE(g_logger, "Added plugin directory: " << directory);
     return *this;
 }
 
@@ -192,7 +211,18 @@ std::string GraphExecutorBuilder::GetDefaultPluginDirectory() {
 
 void GraphExecutorBuilder::ValidateConfiguration() {
     LOG4CXX_TRACE(g_logger, "Validating GraphExecutorBuilder configuration");
+    auto ensure_plugin_directories = [this]() {
+        if (plugin_directory_.empty()) {
+            plugin_directory_ = GetDefaultPluginDirectory();
+            LOG4CXX_TRACE(g_logger, "Using default plugin directory: " << plugin_directory_);
+        }
+        if (plugin_directories_.empty()) {
+            plugin_directories_.push_back(plugin_directory_);
+        }
+    };
+
     if(graph_manager_ && csv_inputs_.empty()) {
+        ensure_plugin_directories();
         LOG4CXX_TRACE(g_logger, "Using provided GraphManager without CSV inputs");
         return;
     }
@@ -209,16 +239,18 @@ void GraphExecutorBuilder::ValidateConfiguration() {
     }
 
     // If plugin directory not set, use default
-    if (plugin_directory_.empty()) {
-        plugin_directory_ = GetDefaultPluginDirectory();
-        LOG4CXX_TRACE(g_logger, "Using default plugin directory: " << plugin_directory_);
-    }
+    ensure_plugin_directories();
 
-    // Check plugin directory exists
-    if (!std::filesystem::exists(plugin_directory_)) {
-        throw std::runtime_error(
-            "GraphExecutorBuilder: Plugin directory not found: " + plugin_directory_ +
-            ". Set explicitly with WithPluginDirectory()");
+    for (const auto& plugin_directory : plugin_directories_) {
+        if (!std::filesystem::exists(plugin_directory)) {
+            throw std::runtime_error(
+                "GraphExecutorBuilder: Plugin directory not found: " + plugin_directory +
+                ". Set explicitly with WithPluginDirectory() or WithAdditionalPluginDirectory()");
+        }
+        if (!std::filesystem::is_directory(plugin_directory)) {
+            throw std::runtime_error(
+                "GraphExecutorBuilder: Plugin path is not a directory: " + plugin_directory);
+        }
     }
 
     LOG4CXX_TRACE(g_logger, "Configuration validation passed");
@@ -240,6 +272,9 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     LOG4CXX_TRACE(g_logger, "Building executor with:");
     LOG4CXX_TRACE(g_logger, "  json_config: " << json_config_);
     LOG4CXX_TRACE(g_logger, "  plugin_directory: " << plugin_directory_);
+    for (const auto& plugin_directory : plugin_directories_) {
+        LOG4CXX_TRACE(g_logger, "  plugin_directory_entry: " << plugin_directory);
+    }
     LOG4CXX_TRACE(g_logger, "  csv_inputs: " << csv_inputs_.size());
     LOG4CXX_TRACE(g_logger, "  csv_injection_rate_ms: " << csv_injection_rate_ms_);
     LOG4CXX_TRACE(g_logger, "  executor_timeout: " << executor_timeout_.count() << "s");
@@ -249,12 +284,13 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     try {
         // Step 2: Create NodeProviderBootstrap and load plugins
         LOG4CXX_TRACE(g_logger, "Step 2: Bootstrapping node provider and loading plugins");
-        auto provider_bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(plugin_directory_);
+        auto provider_bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(plugin_directories_);
         if (!provider_bootstrap) {
             throw std::runtime_error("Failed to bootstrap node provider and load plugins");
         }
         auto node_provider = provider_bootstrap->provider;
-        LOG4CXX_TRACE(g_logger, "Node provider bootstrapped and plugins loaded from: " << plugin_directory_);
+        LOG4CXX_TRACE(g_logger, "Node provider bootstrapped and plugins loaded from: "
+                     << provider_bootstrap->diagnostics.plugin_directory);
         LOG4CXX_TRACE(g_logger, "Provider bootstrap diagnostics: discovered="
                      << provider_bootstrap->diagnostics.discovered_count
                      << ", loaded=" << provider_bootstrap->diagnostics.loaded_count
