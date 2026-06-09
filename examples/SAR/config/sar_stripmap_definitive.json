@@ -1,0 +1,118 @@
+{
+  "name": "sar_stripmap_definitive",
+  "execution_backend": "auto",
+  "backend_fallback_policy": "strict",
+  "resolver_diagnostics": true,
+  "edge_contract": "accel-token",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "src",
+      "type": "SyntheticApertureIqSourceNode",
+      "node_config": {
+        "stream_id": 0,
+        "total_pulses": 64,
+        "samples_per_pulse": 512,
+        "backend_id": 0,
+        "backend": 0,
+        "moving_target_enabled": false
+      }
+    },
+    {
+      "id": "window",
+      "type": "RangeWindowNode",
+      "node_config": {
+        "enabled": true,
+        "gain": 1.0
+      }
+    },
+    {
+      "id": "compression",
+      "type": "RangeCompressionNode",
+      "node_config": {
+        "enabled": true,
+        "mode": "matched_filter",
+        "output": "magnitude",
+        "gain": 1.0,
+        "sample_rate_hz": 16000000.0,
+        "bandwidth_hz": 4000000.0,
+        "chirp_duration_s": 0.000001,
+        "range_origin_m": 0.0,
+        "range_spacing_m": 0.25
+      }
+    },
+    {
+      "id": "split",
+      "type": "AzimuthTileSplitNode",
+      "node_config": {
+        "tile_count": 4,
+        "tile_id_offset": 0,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "h2d",
+      "type": "H2DAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "queue_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "bp",
+      "type": "SarBackprojectionTransformNode",
+      "node_config": {
+        "image_width": 64,
+        "backend_id": 0,
+        "queue_id": 0,
+        "kernel_id": 3301,
+        "tap_count": 8,
+        "delay_step": 0.5,
+        "phase_tap_scale": 0.35,
+        "phase_aperture_scale": 0.2,
+        "backend": 1
+      }
+    },
+    {
+      "id": "d2h",
+      "type": "D2HAsyncNode",
+      "node_config": {
+        "override_backend": false,
+        "backend_id": 0,
+        "queue_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "merge",
+      "type": "ImageTileMergeNode",
+      "node_config": {
+        "expected_tiles": 4,
+        "require_watermark_before_complete": false,
+        "require_all_tile_eos_before_complete": false,
+        "backend_id": 0,
+        "backend": 0
+      }
+    },
+    {
+      "id": "sink",
+      "type": "SarDiagnosticsSinkNode",
+      "node_config": {
+        "completion_signal_enabled": true
+      }
+    }
+  ],
+  "edges": [
+    {"source_node_id": "src", "source_port": 0, "target_node_id": "window", "target_port": 0},
+    {"source_node_id": "window", "source_port": 0, "target_node_id": "compression", "target_port": 0},
+    {"source_node_id": "compression", "source_port": 0, "target_node_id": "split", "target_port": 0},
+    {"source_node_id": "split", "source_port": 0, "target_node_id": "h2d", "target_port": 0},
+    {"source_node_id": "h2d", "source_port": 0, "target_node_id": "bp", "target_port": 0},
+    {"source_node_id": "bp", "source_port": 0, "target_node_id": "d2h", "target_port": 0},
+    {"source_node_id": "d2h", "source_port": 0, "target_node_id": "merge", "target_port": 0},
+    {"source_node_id": "merge", "source_port": 0, "target_node_id": "sink", "target_port": 0}
+  ]
+}
