@@ -1,6 +1,6 @@
 # GraphX SAR Example
 
-This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX.
+This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX with optional GPU acceleration
 
 ## Current Goals
 
@@ -238,3 +238,4 @@ Notes:
 3. Extended execution tracing and richer performance attribution.
 4. PR2 fan-out graph-vs-baseline comparison harness.
 5. Multi-device heterogeneous routing and balancing.
+
