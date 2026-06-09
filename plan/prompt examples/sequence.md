@@ -382,17 +382,17 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR5_*_REPORT.md
+- plan/reviews/SAR_VERIFIER_PR6_*_REPORT.md
 - Current repository state
 - Current diff
 
 Task:
 Keep correctness gates explicit and independent from transport cleanup.
 
-PR6 title:
+PR7 title:
 CPU Reference SAR Validation Consolidation
 
-PR6 scope:
+PR7 scope:
 
 Rules:
 - Do not redesign.
@@ -400,8 +400,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR6 requires it.
-- Add or update tests for PR6.
+- Delete obsolete code if PR7 requires it.
+- Add or update tests for PR7.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -430,8 +430,8 @@ Task:
 Verify whether PR6 actually satisfies its acceptance criteria.
 
 Check:
-  - Deterministic CPU parity suite is green on canonical token path.
-
+- Parser rejects forbidden legacy contracts deterministically.
+- libgraph + SAR parser tests pass.
 
 Output:
 - Pass/fail.

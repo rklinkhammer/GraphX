@@ -26,11 +26,14 @@ TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMod
     in >> config;
     // PR4 note: these legacy-name literals are intentional negative-validation
     // artifacts, not runtime contracts. Expanded coverage aligns with PR6 guardrails.
-    const std::array<const char*, 4> legacy_payload_contracts = {
+    const std::array<const char*, 7> legacy_payload_contracts = {
+        "SarPulseBlockMessage",
         "SarRangeTileMessage",
         "SarImageTileMessage",
         "SarDeviceLeaseMessage",
         "SarTransferTicketMessage",
+        "  SarRangeTileMessage  ",
+        "sardeviceleasemessage",
     };
 
     for (std::size_t i = 0; i < legacy_payload_contracts.size(); ++i) {

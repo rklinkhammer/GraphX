@@ -49,15 +49,28 @@ bool IsOneOf(std::string_view value, std::initializer_list<std::string_view> all
     return std::find(allowed.begin(), allowed.end(), value) != allowed.end();
 }
 
+std::string NormalizeContractName(std::string_view raw) {
+    const auto first = raw.find_first_not_of(" \t\n\r");
+    if (first == std::string_view::npos) {
+        return {};
+    }
+    const auto last = raw.find_last_not_of(" \t\n\r");
+    std::string normalized(raw.substr(first, last - first + 1));
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return normalized;
+}
+
 bool IsLegacySarPayloadContract(const std::string& payload_contract) {
+    const auto normalized = NormalizeContractName(payload_contract);
     // These names are intentionally retained as rejection guardrails for accel-token mode.
     // They are not canonical runtime edge contracts.
-    return IsOneOf(payload_contract,
-                   {"SarPulseBlockMessage",
-                    "SarRangeTileMessage",
-                    "SarImageTileMessage",
-                    "SarDeviceLeaseMessage",
-                    "SarTransferTicketMessage"});
+    return IsOneOf(normalized,
+                   {"sarpulseblockmessage",
+                    "sarrangetilemessage",
+                    "sarimagetilemessage",
+                    "sardeviceleasemessage",
+                    "sartransferticketmessage"});
 }
 
 } // namespace
