@@ -11,6 +11,7 @@
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
 #include <cstddef>
+#include <cstdint>
 
 #include <nlohmann/json.hpp>
 
@@ -414,4 +415,141 @@ TEST(SarAccelNodesTest, MaterializedSinkExtractsPayloadFromAccelTokenFlow) {
     for (std::size_t i = 0; i < image.size(); ++i) {
         EXPECT_NEAR(image[i], reference[i], 1.0e-7f);
     }
+}
+
+TEST(SarAccelNodesTest, MergeIdentityIsInvariantToHostPointerWhenSidecarIsConstant) {
+    sar::AzimuthTileSplitConfig split_cfg{};
+    split_cfg.tile_count = 4;
+    split_cfg.fixed_tile_id = 2;
+    split_cfg.backend_id = 3;
+    split_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::AzimuthTileSplitNode split(split_cfg);
+
+    auto host_tile = split.Transfer(
+        MakePulseForTokenSidecar(),
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_tile.has_value());
+
+    sar::H2DAsyncAccelNode h2d;
+    auto device_tile = h2d.Transfer(
+        *host_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_tile.has_value());
+
+    sar::SarBackprojectionTransformAccelNode bp;
+    auto device_image = bp.Transfer(
+        *device_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_image.has_value());
+
+    sar::D2HAsyncAccelNode d2h;
+    auto host_image = d2h.Transfer(
+        *device_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_image.has_value());
+
+    auto host_image_mutated = *host_image;
+    host_image_mutated.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xABCu));
+
+    sar::ImageTileMergeConfig merge_cfg{};
+    merge_cfg.expected_tiles = 4;
+    merge_cfg.backend_id = 3;
+    merge_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::ImageTileMergeNode merge_a(merge_cfg);
+    sar::ImageTileMergeNode merge_b(merge_cfg);
+
+    auto status_a = merge_a.Transfer(
+        *host_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto status_b = merge_b.Transfer(
+        host_image_mutated,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(status_a.has_value());
+    ASSERT_TRUE(status_b.has_value());
+
+    EXPECT_EQ(status_a->envelope.sequence_id, status_b->envelope.sequence_id);
+    EXPECT_EQ(status_a->envelope.batch_id, status_b->envelope.batch_id);
+    EXPECT_EQ(status_a->envelope.aperture_id, status_b->envelope.aperture_id);
+    EXPECT_EQ(status_a->envelope.pulse_range_start, status_b->envelope.pulse_range_start);
+    EXPECT_EQ(status_a->envelope.pulse_range_count, status_b->envelope.pulse_range_count);
+    EXPECT_EQ(status_a->envelope.stream_id, status_b->envelope.stream_id);
+    EXPECT_EQ(status_a->envelope.tile_id, status_b->envelope.tile_id);
+    EXPECT_EQ(status_a->envelope.tile_count, status_b->envelope.tile_count);
+    EXPECT_EQ(status_a->envelope.marker, status_b->envelope.marker);
+    EXPECT_EQ(status_a->bytes_h2d, status_b->bytes_h2d);
+    EXPECT_EQ(status_a->bytes_d2h, status_b->bytes_d2h);
+    EXPECT_EQ(status_a->kernel_dispatches, status_b->kernel_dispatches);
+}
+
+TEST(SarAccelNodesTest, MergeIdentityIsInvariantToReadyEventWhenSidecarIsConstant) {
+    sar::AzimuthTileSplitNode split;
+    auto host_tile = split.Transfer(
+        MakePulseForTokenSidecar(),
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_tile.has_value());
+
+    sar::H2DAsyncAccelNode h2d;
+    auto device_tile = h2d.Transfer(
+        *host_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_tile.has_value());
+
+    sar::SarBackprojectionTransformAccelNode bp;
+    auto device_image = bp.Transfer(
+        *device_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_image.has_value());
+
+    auto device_image_mutated = *device_image;
+    device_image_mutated.device_view.ready_event = device_image->device_view.ready_event + 9999u;
+
+    sar::D2HAsyncAccelNode d2h_a;
+    sar::D2HAsyncAccelNode d2h_b;
+    auto host_image_a = d2h_a.Transfer(
+        *device_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto host_image_b = d2h_b.Transfer(
+        device_image_mutated,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_image_a.has_value());
+    ASSERT_TRUE(host_image_b.has_value());
+
+    sar::ImageTileMergeNode merge_a;
+    sar::ImageTileMergeNode merge_b;
+    auto status_a = merge_a.Transfer(
+        *host_image_a,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto status_b = merge_b.Transfer(
+        *host_image_b,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(status_a.has_value());
+    ASSERT_TRUE(status_b.has_value());
+
+    EXPECT_EQ(status_a->envelope.sequence_id, status_b->envelope.sequence_id);
+    EXPECT_EQ(status_a->envelope.batch_id, status_b->envelope.batch_id);
+    EXPECT_EQ(status_a->envelope.aperture_id, status_b->envelope.aperture_id);
+    EXPECT_EQ(status_a->envelope.pulse_range_start, status_b->envelope.pulse_range_start);
+    EXPECT_EQ(status_a->envelope.pulse_range_count, status_b->envelope.pulse_range_count);
+    EXPECT_EQ(status_a->envelope.stream_id, status_b->envelope.stream_id);
+    EXPECT_EQ(status_a->envelope.tile_id, status_b->envelope.tile_id);
+    EXPECT_EQ(status_a->envelope.tile_count, status_b->envelope.tile_count);
+    EXPECT_EQ(status_a->envelope.marker, status_b->envelope.marker);
+    EXPECT_EQ(status_a->bytes_h2d, status_b->bytes_h2d);
+    EXPECT_EQ(status_a->bytes_d2h, status_b->bytes_d2h);
+    EXPECT_EQ(status_a->kernel_dispatches, status_b->kernel_dispatches);
 }

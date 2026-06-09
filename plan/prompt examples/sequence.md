@@ -61,21 +61,28 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_PR1_VERIFIER_REPORT_2.md
+- plan/reviews/SAR_VERIFIER_PR1_1_REPORT.md
 
 
 
 Task:
 Implement PR1 only.
+-- apply PR1 verifier fixes <=======>
 
 PR1 title:
 Introduce Canonical Token and Sidecar Types
 PR1 scope:
 Apply required fixes for PR1 only:
-remove host_ptr identity transport,
-remove ready_event identity transport,
-remove global sidecar store as runtime dependency,
-and migrate runtime node interfaces to explicit AccelControlToken<SarSidecar>.
+Remove host_ptr identity encoding entirely.
+Eliminate identity packing in AzimuthTileSplitNode.cpp:19.
+Stop deriving host_ptr from token/sequence identity in:
+AzimuthTileSplitNode.cpp:60
+D2HAsyncAccelNode.cpp:49
+Add explicit tests that enforce the rule.
+Assert SAR identity and merge diagnostics are unchanged when host_ptr changes but sidecar is constant.
+Assert no runtime node reconstructs SAR identity from host_ptr.
+Optional hardening for ready_event rule.
+Add tests proving SAR identity is invariant to ready_event variation.
 
 Rules:
 - Do not redesign.

@@ -24,6 +24,10 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
     }
 }
 
+void* OpaqueHostPointer() noexcept {
+    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
+}
+
 } // namespace
 
 std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
@@ -46,7 +50,7 @@ std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
 
     graph::gpu::accel::HostPinnedBufferView output{};
     output.backend = accel_backend;
-    output.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(transfer_sequence_ + 1u));
+    output.host_ptr = OpaqueHostPointer();
     output.bytes = device_view.bytes;
     output.dtype = device_view.dtype;
     output.layout = device_view.layout;

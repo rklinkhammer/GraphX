@@ -3,6 +3,7 @@
 #include "config/ConfigError.hpp"
 
 #include <algorithm>
+#include <atomic>
 
 namespace sar {
 
@@ -16,18 +17,13 @@ SarBackendKind ParseBackendKind(int raw_backend) {
     return static_cast<SarBackendKind>(raw_backend);
 }
 
-std::uint64_t EncodeAccelToken(const SarPulseBlockMessage& input,
-                               std::uint32_t tile_id,
-                               SarFrameMarker marker) {
-    const auto marker_bits = static_cast<std::uint64_t>(marker) & 0xFFu;
-    const auto tile_bits = static_cast<std::uint64_t>(tile_id) & 0xFFFFu;
-    const auto sequence_bits = static_cast<std::uint64_t>(input.envelope.sequence_id) & 0xFFFFFFu;
-    const auto stream_bits = static_cast<std::uint64_t>(input.envelope.stream_id) & 0xFFFFu;
+std::uint64_t NextOpaqueTokenId() {
+    static std::atomic<std::uint64_t> next_id{1u};
+    return next_id.fetch_add(1u, std::memory_order_relaxed);
+}
 
-    return marker_bits |
-           (tile_bits << 8u) |
-           (sequence_bits << 24u) |
-           (stream_bits << 48u);
+void* OpaqueHostPointer() noexcept {
+    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
 }
 
 SarAccelControlToken BuildToken(const SarPulseBlockMessage& input,
@@ -37,7 +33,7 @@ SarAccelControlToken BuildToken(const SarPulseBlockMessage& input,
                                 SarFrameMarker marker,
                                 const AzimuthTileSplitConfig& config) {
     SarAccelControlToken out{};
-    out.token_id = EncodeAccelToken(input, tile_id, marker);
+    out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = input.envelope.sequence_id;
     out.sidecar.batch_id = input.envelope.batch_id;
     out.sidecar.aperture_id = input.envelope.aperture_id;
@@ -57,7 +53,7 @@ SarAccelControlToken BuildToken(const SarPulseBlockMessage& input,
     host_view.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
-    host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(out.token_id + 1u));
+    host_view.host_ptr = OpaqueHostPointer();
     host_view.bytes = static_cast<std::uint64_t>(view_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
