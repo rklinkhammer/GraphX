@@ -165,6 +165,20 @@ PR3 kickoff adds feature-gated native backend benchmarking mode and real transfe
 
 PR3 follow-up adds Metal-oriented JSON SAR presets as a backend validation path, not as the default public SAR node surface.
 
+## PR9 Materialized Image Output
+
+PR9 upgrades the PR7 materialized-image path from surrogate-only output to accel-token keyed image payload extraction in the simulated backend lane.
+
+1. `SarBackprojectionTransformNode` now publishes deterministic image payload vectors keyed by the accel token carried through transfer stages.
+2. `SarMaterializedImageSinkNode` consumes those payloads when available and captures image samples plus sidecar metadata (`sequence_id`, `tile_id`, element count).
+3. Payload handoff now uses a shared SAR runtime component so backprojection and materialized sink nodes observe the same token payload registry in plugin and non-plugin execution layouts.
+
+This keeps the public runtime contract unchanged:
+
+1. `GraphExecutorBuilder` plus JSON remains the canonical execution path.
+2. `edge_contract=accel-token` and resolver metadata contracts remain intact.
+3. Direct non-graph execution remains baseline/parity-only support code.
+
 ## Benchmarking
 
 A dedicated benchmark executable is provided:

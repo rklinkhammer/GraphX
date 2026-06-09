@@ -22,6 +22,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarDiagnosticsSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_diagnostics_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarMaterializedImageSinkNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_materialized_image_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarVisualizationSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_visualization_sink_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformAccelNode.cpp
@@ -61,6 +62,7 @@ target_link_libraries(test_sar_example_unit PRIVATE
     graph
     gpu
     dsp
+    sar_materialized_payload_runtime
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

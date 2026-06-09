@@ -93,9 +93,6 @@ public:
 private:
     static std::uint64_t DecodeToken(const graph::gpu::accel::HostPinnedBufferView& value);
     static std::uint32_t DecodeMarker(std::uint64_t token);
-    static std::uint32_t DecodeTileId(std::uint64_t token);
-    static std::uint64_t DecodeSequenceId(std::uint64_t token);
-    static std::size_t DecodeByteCount(std::uint64_t token);
 
     SarMaterializedImageSinkConfig config_{};
 

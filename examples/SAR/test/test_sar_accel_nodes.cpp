@@ -8,8 +8,11 @@
 #include "sar/H2DAsyncAccelNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
+#include "sar/SarMaterializedImageSinkNode.hpp"
 
 #include <cstddef>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -317,4 +320,66 @@ TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge
     EXPECT_TRUE(status->gpu.has_host_view);
     EXPECT_TRUE(status->gpu.has_transfer_ticket);
     EXPECT_TRUE(status->gpu.has_kernel_ticket);
+}
+
+TEST(SarAccelNodesTest, MaterializedSinkExtractsPayloadFromAccelTokenFlow) {
+    sar::AzimuthTileSplitConfig split_cfg{};
+    split_cfg.tile_count = 4;
+    split_cfg.fixed_tile_id = 1;
+    split_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::AzimuthTileSplitNode split(split_cfg);
+
+    auto host_tile = split.Transfer(
+        MakePulseForTokenSidecar(),
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_tile.has_value());
+
+    sar::H2DAsyncAccelNode h2d;
+    auto device_tile = h2d.Transfer(
+        *host_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_tile.has_value());
+
+    sar::SarBackprojectionTransformAccelNode bp;
+    auto device_image = bp.Transfer(
+        *device_tile,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device_image.has_value());
+
+    sar::D2HAsyncAccelNode d2h;
+    auto host_image = d2h.Transfer(
+        *device_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(host_image.has_value());
+
+    sar::SarMaterializedImageSinkNode sink;
+    sink.Configure(graph::JsonView(nlohmann::json{{"enabled", true}}));
+    auto forwarded = sink.Transfer(
+        *host_image,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(forwarded.has_value());
+
+    EXPECT_TRUE(sink.has_materialized_image());
+    EXPECT_EQ(sink.capture_count(), 1u);
+
+    const auto metadata = sink.last_capture_metadata();
+    const auto image = sink.last_materialized_image();
+    ASSERT_EQ(metadata.element_count, image.size());
+    EXPECT_EQ(metadata.sequence_id, 9u);
+    EXPECT_EQ(metadata.tile_id, 1u);
+
+    const auto reference = sar::SarMaterializedImageSinkNode::BuildDeterministicReferenceImage(
+        metadata.sequence_id,
+        metadata.tile_id,
+        metadata.element_count);
+    ASSERT_EQ(reference.size(), image.size());
+
+    for (std::size_t i = 0; i < image.size(); ++i) {
+        EXPECT_NEAR(image[i], reference[i], 1.0e-7f);
+    }
 }

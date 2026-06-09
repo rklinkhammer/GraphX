@@ -1,6 +1,8 @@
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
-#include <algorithm>
+#include "sar/SarAccelTokenImagePayloadStore.hpp"
+#include "sar/SarMaterializedImageReference.hpp"
+
 #include <cstdint>
 
 namespace sar {
@@ -19,20 +21,17 @@ std::optional<graph::gpu::accel::HostPinnedBufferView> SarMaterializedImageSinkN
         return value;
     }
 
-    const auto sequence_id = DecodeSequenceId(token);
-    const auto tile_id = DecodeTileId(token);
-    const auto encoded_bytes = DecodeByteCount(token);
-    const auto byte_count = std::max<std::size_t>(encoded_bytes, static_cast<std::size_t>(value.bytes));
-    const auto element_count = std::max<std::size_t>(1u, byte_count / sizeof(float));
-
-    auto materialized = BuildDeterministicReferenceImage(sequence_id, tile_id, element_count);
+    auto payload = detail::ConsumeAccelTokenImagePayload(token);
+    if (!payload) {
+        return value;
+    }
 
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
-        last_materialized_image_ = std::move(materialized);
-        last_capture_metadata_.sequence_id = sequence_id;
-        last_capture_metadata_.tile_id = tile_id;
-        last_capture_metadata_.element_count = element_count;
+        last_materialized_image_ = std::move(payload->pixels);
+        last_capture_metadata_.sequence_id = payload->sequence_id;
+        last_capture_metadata_.tile_id = payload->tile_id;
+        last_capture_metadata_.element_count = last_materialized_image_.size();
         ++capture_count_;
     }
 
@@ -84,15 +83,8 @@ std::vector<float> SarMaterializedImageSinkNode::BuildDeterministicReferenceImag
     std::uint64_t sequence_id,
     std::uint32_t tile_id,
     std::size_t element_count) {
-    std::vector<float> image(element_count, 0.0f);
-    const float base =
-        static_cast<float>(sequence_id % 1024u) * 1.0e-3f +
-        static_cast<float>(tile_id) * 1.0e-2f;
-    for (std::size_t i = 0; i < element_count; ++i) {
-        // Deterministic surrogate samples unlock graph-vs-reference parity wiring before full native image extraction lands.
-        image[i] = base + static_cast<float>(i) * 1.0e-4f;
-    }
-    return image;
+    reference::BackprojectionAdapterConfig config{};
+    return detail::BuildReferenceMaterializedImage(sequence_id, tile_id, element_count, config);
 }
 
 std::uint64_t SarMaterializedImageSinkNode::DecodeToken(const graph::gpu::accel::HostPinnedBufferView& value) {
@@ -101,18 +93,6 @@ std::uint64_t SarMaterializedImageSinkNode::DecodeToken(const graph::gpu::accel:
 
 std::uint32_t SarMaterializedImageSinkNode::DecodeMarker(std::uint64_t token) {
     return static_cast<std::uint32_t>(token & 0x3u);
-}
-
-std::uint32_t SarMaterializedImageSinkNode::DecodeTileId(std::uint64_t token) {
-    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
-}
-
-std::uint64_t SarMaterializedImageSinkNode::DecodeSequenceId(std::uint64_t token) {
-    return (token >> 14u) & 0xFFFFFFu;
-}
-
-std::size_t SarMaterializedImageSinkNode::DecodeByteCount(std::uint64_t token) {
-    return static_cast<std::size_t>((token >> 38u) & 0xFFFFu);
 }
 
 } // namespace sar

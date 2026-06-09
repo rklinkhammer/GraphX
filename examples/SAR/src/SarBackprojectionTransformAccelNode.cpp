@@ -1,4 +1,6 @@
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
+#include "sar/SarAccelTokenImagePayloadStore.hpp"
+#include "sar/SarMaterializedImageReference.hpp"
 
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
@@ -10,6 +12,18 @@
 namespace sar {
 
 namespace {
+
+std::uint32_t DecodeMarker(std::uint64_t token) {
+    return static_cast<std::uint32_t>(token & 0x3u);
+}
+
+std::uint32_t DecodeTileId(std::uint64_t token) {
+    return static_cast<std::uint32_t>((token >> 2u) & 0xFFFu);
+}
+
+std::uint64_t DecodeSequenceId(std::uint64_t token) {
+    return (token >> 14u) & 0xFFFFFFu;
+}
 
 SarBackendKind ParseBackendKind(int raw_backend) {
     if (raw_backend < static_cast<int>(SarBackendKind::Host) ||
@@ -123,6 +137,28 @@ std::optional<graph::gpu::accel::DeviceBufferView> SarBackprojectionTransformAcc
     }
 
     ++kernel_sequence_;
+
+    const auto token = input.ready_event;
+    constexpr std::uint32_t kDataMarker = 0u;
+    if (DecodeMarker(token) == kDataMarker) {
+        const auto element_count = std::max<std::size_t>(1u, static_cast<std::size_t>(input.bytes) / sizeof(float));
+        reference::BackprojectionAdapterConfig reference_config{};
+        reference_config.tap_count = std::max<std::uint32_t>(1u, config_.tap_count);
+        reference_config.delay_step = static_cast<double>(config_.delay_step);
+        reference_config.phase_tap_scale = static_cast<double>(config_.phase_tap_scale);
+        reference_config.phase_aperture_scale = static_cast<double>(config_.phase_aperture_scale);
+
+        detail::StoreAccelTokenImagePayload(
+            token,
+            detail::AccelTokenImagePayload{
+                .sequence_id = DecodeSequenceId(token),
+                .tile_id = DecodeTileId(token),
+                .pixels = detail::BuildReferenceMaterializedImage(
+                    DecodeSequenceId(token),
+                    DecodeTileId(token),
+                    element_count,
+                    reference_config)});
+    }
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;

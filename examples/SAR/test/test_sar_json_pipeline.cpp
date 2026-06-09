@@ -172,8 +172,19 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
     ASSERT_TRUE(materialized_sink->has_materialized_image());
 
     const auto image = materialized_sink->last_materialized_image();
-    ASSERT_GE(image.size(), 2u);
-    EXPECT_NEAR(image[1] - image[0], 1.0e-4f, 1.0e-7f);
+    const auto metadata = materialized_sink->last_capture_metadata();
+    ASSERT_EQ(metadata.element_count, image.size());
+    ASSERT_GE(image.size(), 4u);
+
+    const auto reference = sar::SarMaterializedImageSinkNode::BuildDeterministicReferenceImage(
+        metadata.sequence_id,
+        metadata.tile_id,
+        metadata.element_count);
+    const auto error = sar::reference::CompareVectors(image, reference);
+
+    EXPECT_LE(error.l_inf, 1.0e-7);
+    EXPECT_LE(error.rms, 1.0e-7);
+    EXPECT_LE(error.relative_l2, 1.0e-7);
 
     auto diagnostics_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(diagnostics_sink, nullptr);
