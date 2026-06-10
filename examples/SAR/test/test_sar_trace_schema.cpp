@@ -298,6 +298,50 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_EQ(native.at("resolved_execution_backend").get<std::string>(), "metal");
     EXPECT_EQ(native.at("kernel_ticket_backend").get<std::string>(), "metal");
     EXPECT_TRUE(native.at("backprojection_native_kernel_bound").get<bool>());
+
+    ASSERT_TRUE(trace.contains("native_metal_telemetry"));
+    const auto& native_metal_telemetry = trace.at("native_metal_telemetry");
+    EXPECT_TRUE(native_metal_telemetry.contains("transfer_samples"));
+    EXPECT_TRUE(native_metal_telemetry.contains("kernel_samples"));
+    EXPECT_TRUE(native_metal_telemetry.contains("error_count"));
+    EXPECT_TRUE(native_metal_telemetry.contains("transfer_total_duration_ns"));
+    EXPECT_TRUE(native_metal_telemetry.contains("kernel_total_duration_ns"));
+    EXPECT_TRUE(native_metal_telemetry.contains("last_transfer_duration_ns"));
+    EXPECT_TRUE(native_metal_telemetry.contains("last_kernel_duration_ns"));
+    EXPECT_TRUE(native_metal_telemetry.contains("h2d_transfer_samples"));
+    EXPECT_TRUE(native_metal_telemetry.contains("d2h_transfer_samples"));
+    EXPECT_TRUE(native_metal_telemetry.contains("d2d_transfer_samples"));
+    const auto transfer_samples =
+        native_metal_telemetry.at("transfer_samples").get<std::uint64_t>();
+    const auto kernel_samples =
+        native_metal_telemetry.at("kernel_samples").get<std::uint64_t>();
+    const auto transfer_total_duration_ns =
+        native_metal_telemetry.at("transfer_total_duration_ns").get<std::uint64_t>();
+    const auto kernel_total_duration_ns =
+        native_metal_telemetry.at("kernel_total_duration_ns").get<std::uint64_t>();
+    const auto last_transfer_duration_ns =
+        native_metal_telemetry.at("last_transfer_duration_ns").get<std::uint64_t>();
+    const auto last_kernel_duration_ns =
+        native_metal_telemetry.at("last_kernel_duration_ns").get<std::uint64_t>();
+    const auto h2d_transfer_samples =
+        native_metal_telemetry.at("h2d_transfer_samples").get<std::uint64_t>();
+    const auto d2h_transfer_samples =
+        native_metal_telemetry.at("d2h_transfer_samples").get<std::uint64_t>();
+    const auto d2d_transfer_samples =
+        native_metal_telemetry.at("d2d_transfer_samples").get<std::uint64_t>();
+
+    EXPECT_EQ(transfer_samples,
+              h2d_transfer_samples + d2h_transfer_samples + d2d_transfer_samples);
+    EXPECT_GE(transfer_total_duration_ns, last_transfer_duration_ns);
+    EXPECT_GE(kernel_total_duration_ns, last_kernel_duration_ns);
+    if (transfer_samples == 0u) {
+        EXPECT_EQ(transfer_total_duration_ns, 0u);
+        EXPECT_EQ(last_transfer_duration_ns, 0u);
+    }
+    if (kernel_samples == 0u) {
+        EXPECT_EQ(kernel_total_duration_ns, 0u);
+        EXPECT_EQ(last_kernel_duration_ns, 0u);
+    }
     EXPECT_TRUE(native.at("backprojection_native_kernel_executed").get<bool>());
     EXPECT_GE(native.at("kernel_ticket_arg_count").get<std::uint64_t>(), 1u);
     EXPECT_GT(native.at("kernel_ticket_id").get<std::uint64_t>(), 0u);

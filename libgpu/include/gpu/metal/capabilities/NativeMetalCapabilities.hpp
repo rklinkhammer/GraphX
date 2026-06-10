@@ -132,6 +132,7 @@ public:
     void RecordKernel(const accel::KernelTicket& ticket,
                       std::uint64_t duration_ns) override;
     void IncrementErrorCounter(std::string_view error_code) override;
+    [[nodiscard]] TelemetrySnapshot Snapshot() const override;
 
     [[nodiscard]] std::uint64_t TransferSamples() const;
     [[nodiscard]] std::uint64_t KernelSamples() const;

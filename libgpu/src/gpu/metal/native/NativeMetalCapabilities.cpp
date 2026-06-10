@@ -86,8 +86,13 @@ public:
         std::uint64_t transfer_samples{0};
         std::uint64_t kernel_samples{0};
         std::uint64_t error_count{0};
+        std::uint64_t transfer_total_duration_ns{0};
+        std::uint64_t kernel_total_duration_ns{0};
         std::uint64_t last_transfer_duration_ns{0};
         std::uint64_t last_kernel_duration_ns{0};
+        std::uint64_t h2d_transfer_samples{0};
+        std::uint64_t d2h_transfer_samples{0};
+        std::uint64_t d2d_transfer_samples{0};
         std::unordered_map<std::string, std::uint64_t> error_code_counts{};
         mutable std::mutex mutex{};
     };
@@ -1805,7 +1810,15 @@ void NativeMetalTelemetryCapability::RecordTransfer(const accel::TransferTicket&
     auto& telemetry = TelemetryState();
     std::scoped_lock lock(telemetry.mutex);
     ++telemetry.transfer_samples;
+    telemetry.transfer_total_duration_ns += duration_ns;
     telemetry.last_transfer_duration_ns = duration_ns;
+    if (accel::IsValidView(ticket.src_host) && accel::IsValidView(ticket.dst_device)) {
+        ++telemetry.h2d_transfer_samples;
+    } else if (accel::IsValidView(ticket.src_device) && accel::IsValidView(ticket.dst_host)) {
+        ++telemetry.d2h_transfer_samples;
+    } else if (accel::IsValidView(ticket.src_device) && accel::IsValidView(ticket.dst_device)) {
+        ++telemetry.d2d_transfer_samples;
+    }
 }
 
 void NativeMetalTelemetryCapability::RecordKernel(const accel::KernelTicket& ticket,
@@ -1819,6 +1832,7 @@ void NativeMetalTelemetryCapability::RecordKernel(const accel::KernelTicket& tic
     auto& telemetry = TelemetryState();
     std::scoped_lock lock(telemetry.mutex);
     ++telemetry.kernel_samples;
+    telemetry.kernel_total_duration_ns += duration_ns;
     telemetry.last_kernel_duration_ns = duration_ns;
 }
 
@@ -1851,6 +1865,25 @@ std::uint64_t NativeMetalTelemetryCapability::ErrorCount() const {
     return telemetry.error_count;
 }
 
+IMetalTelemetryCapability::TelemetrySnapshot NativeMetalTelemetryCapability::Snapshot() const {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    auto& telemetry = TelemetryState();
+    std::scoped_lock lock(telemetry.mutex);
+
+    TelemetrySnapshot out{};
+    out.transfer_samples = telemetry.transfer_samples;
+    out.kernel_samples = telemetry.kernel_samples;
+    out.error_count = telemetry.error_count;
+    out.transfer_total_duration_ns = telemetry.transfer_total_duration_ns;
+    out.kernel_total_duration_ns = telemetry.kernel_total_duration_ns;
+    out.last_transfer_duration_ns = telemetry.last_transfer_duration_ns;
+    out.last_kernel_duration_ns = telemetry.last_kernel_duration_ns;
+    out.h2d_transfer_samples = telemetry.h2d_transfer_samples;
+    out.d2h_transfer_samples = telemetry.d2h_transfer_samples;
+    out.d2d_transfer_samples = telemetry.d2d_transfer_samples;
+    return out;
+}
+
 #if GRAPHX_ENABLE_GPU_TEST_HOOKS
 void NativeMetalTelemetryCapability::ResetForTesting() {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
@@ -1859,8 +1892,13 @@ void NativeMetalTelemetryCapability::ResetForTesting() {
     telemetry.transfer_samples = 0;
     telemetry.kernel_samples = 0;
     telemetry.error_count = 0;
+    telemetry.transfer_total_duration_ns = 0;
+    telemetry.kernel_total_duration_ns = 0;
     telemetry.last_transfer_duration_ns = 0;
     telemetry.last_kernel_duration_ns = 0;
+    telemetry.h2d_transfer_samples = 0;
+    telemetry.d2h_transfer_samples = 0;
+    telemetry.d2d_transfer_samples = 0;
     telemetry.error_code_counts.clear();
 }
 #endif

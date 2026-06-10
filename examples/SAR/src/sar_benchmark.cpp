@@ -10,6 +10,7 @@
 #include "sar/SarCpuReference.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -84,6 +85,9 @@ struct GraphRunResult {
     graph::gpu::accel::KernelTicket backprojection_last_kernel_ticket{};
     std::uint64_t queue_backpressure_events{0};
     std::uint64_t peak_queue_depth{0};
+    bool has_metal_telemetry{false};
+    graph::gpu::metal::capabilities::IMetalTelemetryCapability::TelemetrySnapshot
+        metal_telemetry{};
     bool completion_signaled{false};
     bool run_timeout_proxy{false};
     std::string run_exit_mode{"unknown"};
@@ -626,6 +630,12 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
         out.backprojection_last_kernel_ticket.arg_count >= 1u;
     out.queue_backpressure_events = metrics.backpressure_events.load(std::memory_order_relaxed);
     out.peak_queue_depth = metrics.peak_queue_depth.load(std::memory_order_relaxed);
+
+    auto telemetry = executor->GetCapability<graph::gpu::metal::capabilities::IMetalTelemetryCapability>();
+    if (telemetry && out.resolved_execution_backend == "metal") {
+        out.has_metal_telemetry = true;
+        out.metal_telemetry = telemetry->Snapshot();
+    }
     return out;
 }
 
@@ -1357,6 +1367,21 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"prototype_baseline_execute_ms", StatsToJson(device_reduce_eval.prototype_exec_stats)},
             {"decision", device_reduce_eval.decision},
             {"rationale", device_reduce_eval.rationale},
+        };
+    }
+
+    if (last_graph.has_metal_telemetry) {
+        trace["native_metal_telemetry"] = {
+            {"transfer_samples", last_graph.metal_telemetry.transfer_samples},
+            {"kernel_samples", last_graph.metal_telemetry.kernel_samples},
+            {"error_count", last_graph.metal_telemetry.error_count},
+            {"transfer_total_duration_ns", last_graph.metal_telemetry.transfer_total_duration_ns},
+            {"kernel_total_duration_ns", last_graph.metal_telemetry.kernel_total_duration_ns},
+            {"last_transfer_duration_ns", last_graph.metal_telemetry.last_transfer_duration_ns},
+            {"last_kernel_duration_ns", last_graph.metal_telemetry.last_kernel_duration_ns},
+            {"h2d_transfer_samples", last_graph.metal_telemetry.h2d_transfer_samples},
+            {"d2h_transfer_samples", last_graph.metal_telemetry.d2h_transfer_samples},
+            {"d2d_transfer_samples", last_graph.metal_telemetry.d2d_transfer_samples},
         };
     }
 

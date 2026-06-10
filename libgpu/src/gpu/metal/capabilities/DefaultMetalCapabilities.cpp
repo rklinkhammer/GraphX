@@ -263,18 +263,44 @@ bool DefaultMetalKernelCapability::Launch(const accel::KernelTicket& ticket,
     return registered_kernels_.contains(ticket.kernel_id);
 }
 
-void DefaultMetalTelemetryCapability::RecordTransfer(const accel::TransferTicket&,
-                                                     std::uint64_t) {
+void DefaultMetalTelemetryCapability::RecordTransfer(const accel::TransferTicket& ticket,
+                                                     std::uint64_t duration_ns) {
     ++transfer_samples_;
+    transfer_total_duration_ns_ += duration_ns;
+    last_transfer_duration_ns_ = duration_ns;
+    if (accel::IsValidView(ticket.src_host) && accel::IsValidView(ticket.dst_device)) {
+        ++h2d_transfer_samples_;
+    } else if (accel::IsValidView(ticket.src_device) && accel::IsValidView(ticket.dst_host)) {
+        ++d2h_transfer_samples_;
+    } else if (accel::IsValidView(ticket.src_device) && accel::IsValidView(ticket.dst_device)) {
+        ++d2d_transfer_samples_;
+    }
 }
 
 void DefaultMetalTelemetryCapability::RecordKernel(const accel::KernelTicket&,
-                                                   std::uint64_t) {
+                                                   std::uint64_t duration_ns) {
     ++kernel_samples_;
+    kernel_total_duration_ns_ += duration_ns;
+    last_kernel_duration_ns_ = duration_ns;
 }
 
 void DefaultMetalTelemetryCapability::IncrementErrorCounter(std::string_view) {
     ++error_count_;
+}
+
+IMetalTelemetryCapability::TelemetrySnapshot DefaultMetalTelemetryCapability::Snapshot() const {
+    TelemetrySnapshot out{};
+    out.transfer_samples = transfer_samples_;
+    out.kernel_samples = kernel_samples_;
+    out.error_count = error_count_;
+    out.transfer_total_duration_ns = transfer_total_duration_ns_;
+    out.kernel_total_duration_ns = kernel_total_duration_ns_;
+    out.last_transfer_duration_ns = last_transfer_duration_ns_;
+    out.last_kernel_duration_ns = last_kernel_duration_ns_;
+    out.h2d_transfer_samples = h2d_transfer_samples_;
+    out.d2h_transfer_samples = d2h_transfer_samples_;
+    out.d2d_transfer_samples = d2d_transfer_samples_;
+    return out;
 }
 
 bool DefaultMetalCollectiveCapability::AllReduce(accel::DeviceBufferView& in_out,

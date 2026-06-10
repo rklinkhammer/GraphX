@@ -160,6 +160,13 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         telemetry->RecordTransfer(d2h_ticket, 222);
         telemetry->RecordTransfer(d2d_ticket, 333);
         EXPECT_EQ(native_telemetry->TransferSamples(), transfer_before + 3U);
+        const auto transfer_snapshot = telemetry->Snapshot();
+        EXPECT_EQ(transfer_snapshot.transfer_samples, transfer_before + 3U);
+        EXPECT_EQ(transfer_snapshot.transfer_total_duration_ns, 666U);
+        EXPECT_EQ(transfer_snapshot.last_transfer_duration_ns, 333U);
+        EXPECT_EQ(transfer_snapshot.h2d_transfer_samples, 1U);
+        EXPECT_EQ(transfer_snapshot.d2h_transfer_samples, 1U);
+        EXPECT_EQ(transfer_snapshot.d2d_transfer_samples, 1U);
 
         constexpr std::uint64_t kKernelId = 9001;
         EXPECT_TRUE(kernel->RegisterKernel(kKernelId, "graphx_identity_u8_inplace"));
@@ -234,6 +241,11 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_EQ(native_telemetry->KernelSamples(), kernel_before + 1U);
         telemetry->IncrementErrorCounter("phase-e-synthetic");
         EXPECT_EQ(native_telemetry->ErrorCount(), error_before + 1U);
+        const auto kernel_snapshot = telemetry->Snapshot();
+        EXPECT_EQ(kernel_snapshot.kernel_samples, kernel_before + 1U);
+        EXPECT_EQ(kernel_snapshot.kernel_total_duration_ns, 444U);
+        EXPECT_EQ(kernel_snapshot.last_kernel_duration_ns, 444U);
+        EXPECT_EQ(kernel_snapshot.error_count, error_before + 1U);
 
         graph::gpu::accel::CollectiveTicket collective_ticket{};
         collective_ticket.backend = graph::gpu::accel::BackendKind::Metal;

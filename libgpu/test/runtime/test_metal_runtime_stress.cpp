@@ -139,6 +139,17 @@ TEST(MetalNativeRuntimeStressTest, RepeatedTransfersAndKernelLaunchesUpdateTelem
     EXPECT_EQ(native_telemetry->TransferSamples(), transfer_before + (kIterations * 3));
     EXPECT_EQ(native_telemetry->KernelSamples(), kernel_before + kIterations);
 
+    const auto snapshot = telemetry->Snapshot();
+    EXPECT_EQ(snapshot.transfer_samples, transfer_before + (kIterations * 3));
+    EXPECT_EQ(snapshot.kernel_samples, kernel_before + kIterations);
+    EXPECT_EQ(snapshot.transfer_total_duration_ns, 3030U);
+    EXPECT_EQ(snapshot.kernel_total_duration_ns, 2010U);
+    EXPECT_EQ(snapshot.last_transfer_duration_ns, 304U);
+    EXPECT_EQ(snapshot.last_kernel_duration_ns, 404U);
+    EXPECT_EQ(snapshot.h2d_transfer_samples, kIterations);
+    EXPECT_EQ(snapshot.d2h_transfer_samples, kIterations);
+    EXPECT_EQ(snapshot.d2d_transfer_samples, kIterations);
+
     EXPECT_TRUE(memory_pool->Release(device_lease));
     EXPECT_TRUE(memory_pool->Release(shared_lease));
 

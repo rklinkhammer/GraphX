@@ -102,6 +102,7 @@ public:
     void RecordKernel(const accel::KernelTicket& ticket,
                       std::uint64_t duration_ns) override;
     void IncrementErrorCounter(std::string_view error_code) override;
+    [[nodiscard]] TelemetrySnapshot Snapshot() const override;
 
     [[nodiscard]] std::uint64_t TransferSamples() const { return transfer_samples_; }
     [[nodiscard]] std::uint64_t KernelSamples() const { return kernel_samples_; }
@@ -111,6 +112,13 @@ private:
     std::uint64_t transfer_samples_{0};
     std::uint64_t kernel_samples_{0};
     std::uint64_t error_count_{0};
+    std::uint64_t transfer_total_duration_ns_{0};
+    std::uint64_t kernel_total_duration_ns_{0};
+    std::uint64_t last_transfer_duration_ns_{0};
+    std::uint64_t last_kernel_duration_ns_{0};
+    std::uint64_t h2d_transfer_samples_{0};
+    std::uint64_t d2h_transfer_samples_{0};
+    std::uint64_t d2d_transfer_samples_{0};
 };
 
 class DefaultMetalCollectiveCapability final : public IMetalCollectiveCapability {

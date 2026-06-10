@@ -173,11 +173,25 @@ class IMetalTelemetryCapability {
 public:
     virtual ~IMetalTelemetryCapability() = default;
 
+    struct TelemetrySnapshot {
+        std::uint64_t transfer_samples{0};
+        std::uint64_t kernel_samples{0};
+        std::uint64_t error_count{0};
+        std::uint64_t transfer_total_duration_ns{0};
+        std::uint64_t kernel_total_duration_ns{0};
+        std::uint64_t last_transfer_duration_ns{0};
+        std::uint64_t last_kernel_duration_ns{0};
+        std::uint64_t h2d_transfer_samples{0};
+        std::uint64_t d2h_transfer_samples{0};
+        std::uint64_t d2d_transfer_samples{0};
+    };
+
     virtual void RecordTransfer(const accel::TransferTicket& ticket,
                                 std::uint64_t duration_ns) = 0;
     virtual void RecordKernel(const accel::KernelTicket& ticket,
                               std::uint64_t duration_ns) = 0;
     virtual void IncrementErrorCounter(std::string_view error_code) = 0;
+    [[nodiscard]] virtual TelemetrySnapshot Snapshot() const = 0;
 };
 
 class IMetalCollectiveCapability {

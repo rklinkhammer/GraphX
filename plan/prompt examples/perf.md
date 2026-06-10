@@ -50,23 +50,22 @@ PR1-A2 acceptance criteria:
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
-plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/reviews/SAR_PR_ROADMAP.md
 - plan/reviews/SAR_PERFORMANCE_AUDIT.md
-- plan/reviews/SAR_VERIFIER_PERF_PR1_A1.md
-- implemented PR1-A1 diff
-- Current repository state
-- Current diff
+- plan/reviews/SAR_VERIFIER_PERF_PR1_A1_*.md
+- current PR1-A2 diff
+- current repository state
+- current test output
 
 Task:
-Verify whether PR1-A1  actually satisfies its acceptance criteria.
+Verify whether PR1-A2  actually satisfies its acceptance criteria.
 
 Check:
-- Definitive topology emits stage timing fields in diagnostics and trace.
-- Benchmark trace schema covers those fields.
-- Full CTest lane remains green.
-
+  - Public snapshot API exists and is used by the SAR benchmark.
+  - Benchmark trace exports telemetry summaries for native backend runs.
+  - Full CTest lane remains green.
 
 Output:
 - Pass/fail.
