@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "sar/SarAccelTokenImagePayloadStore.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
 #include <array>
@@ -13,7 +12,8 @@ sar::SarAccelControlToken MakeHostToken(std::uint64_t token,
                                         std::uint64_t sequence_id,
                                         std::uint32_t tile_id,
                                         std::uint32_t marker,
-                                        std::uint64_t bytes) {
+                                        std::uint64_t bytes,
+                                        bool with_kernel_ticket = false) {
     sar::SarAccelControlToken msg{};
     msg.token_id = token;
     msg.sidecar.sequence_id = sequence_id;
@@ -29,6 +29,14 @@ sar::SarAccelControlToken MakeHostToken(std::uint64_t token,
     msg.host_view.layout.stride[0] = 1;
     msg.host_view.allocator_id = 1;
     msg.has_host_view = true;
+    if (with_kernel_ticket) {
+        msg.kernel_ticket.backend = graph::gpu::accel::BackendKind::Metal;
+        msg.kernel_ticket.kernel_id = 3301u;
+        msg.kernel_ticket.execution_queue_id = 1u;
+        msg.kernel_ticket.completion_event = token + 9u;
+        msg.kernel_ticket.arg_count = 2u;
+        msg.has_kernel_ticket = true;
+    }
     return msg;
 }
 
@@ -66,7 +74,7 @@ TEST(SarMaterializedImageSinkNodeTest, NonDataMarkersDoNotCaptureImage) {
     EXPECT_FALSE(sink.has_materialized_image());
 }
 
-TEST(SarMaterializedImageSinkNodeTest, MissingPayloadDoesNotCaptureImage) {
+TEST(SarMaterializedImageSinkNodeTest, MissingKernelTicketDoesNotCaptureImage) {
     sar::SarMaterializedImageSinkNode sink;
     sink.Configure(graph::JsonView(nlohmann::json{{"enabled", true}}));
 
@@ -86,7 +94,7 @@ TEST(SarMaterializedImageSinkNodeTest, MissingPayloadDoesNotCaptureImage) {
     EXPECT_FALSE(sink.has_materialized_image());
 }
 
-TEST(SarMaterializedImageSinkNodeTest, ConsumesStoredPayloadWhenAvailable) {
+TEST(SarMaterializedImageSinkNodeTest, CapturesDeterministicImageFromTokenContract) {
     sar::SarMaterializedImageSinkNode sink;
     sink.Configure(graph::JsonView(nlohmann::json{{"enabled", true}}));
 
@@ -95,16 +103,7 @@ TEST(SarMaterializedImageSinkNodeTest, ConsumesStoredPayloadWhenAvailable) {
     constexpr std::uint32_t bytes = 64u;
 
     const auto token = 1004u;
-    const std::vector<float> payload{3.5f, 2.5f, 1.5f, 0.5f};
-    sar::detail::StoreAccelTokenImagePayload(
-        token,
-        sar::detail::AccelTokenImagePayload{
-            .sequence_id = sequence_id,
-            .tile_id = tile_id,
-            .pixels = payload,
-        });
-
-    const auto input = MakeHostToken(token, sequence_id, tile_id, 0u, bytes);
+    const auto input = MakeHostToken(token, sequence_id, tile_id, 0u, bytes, true);
     auto out = sink.Transfer(
         input,
         std::integral_constant<std::size_t, 0>{},
@@ -117,11 +116,15 @@ TEST(SarMaterializedImageSinkNodeTest, ConsumesStoredPayloadWhenAvailable) {
     const auto metadata = sink.last_capture_metadata();
     EXPECT_EQ(metadata.sequence_id, sequence_id);
     EXPECT_EQ(metadata.tile_id, tile_id);
-    EXPECT_EQ(metadata.element_count, payload.size());
+    EXPECT_EQ(metadata.element_count, bytes / sizeof(float));
 
     const auto image = sink.last_materialized_image();
-    ASSERT_EQ(image.size(), payload.size());
-    for (std::size_t i = 0; i < payload.size(); ++i) {
-        EXPECT_NEAR(image[i], payload[i], 1.0e-7f);
+    const auto reference = sar::SarMaterializedImageSinkNode::BuildDeterministicReferenceImage(
+        sequence_id,
+        tile_id,
+        metadata.element_count);
+    ASSERT_EQ(image.size(), reference.size());
+    for (std::size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_NEAR(image[i], reference[i], 1.0e-7f);
     }
 }

@@ -346,11 +346,11 @@ PR3 follow-up adds Metal-oriented JSON SAR presets as a backend validation path,
 
 ## PR9 Materialized Image Output
 
-PR9 upgrades the PR7 materialized-image path from surrogate-only output to accel-token keyed image payload extraction in the simulated backend lane.
+PR9 upgrades the PR7 materialized-image path to explicit token-carried deterministic materialization in the simulated backend lane.
 
-1. `SarBackprojectionTransformNode` now publishes deterministic image payload vectors keyed by the accel token carried through transfer stages.
-2. `SarMaterializedImageSinkNode` consumes those payloads when available and captures image samples plus sidecar metadata (`sequence_id`, `tile_id`, element count).
-3. Payload handoff now uses a shared SAR runtime component so backprojection and materialized sink nodes observe the same token payload registry in plugin and non-plugin execution layouts.
+1. `SarBackprojectionTransformNode` preserves sidecar metadata and payload-size context on `SarAccelControlToken` through transfer stages.
+2. `SarMaterializedImageSinkNode` captures deterministic reference image samples directly from token-carried fields (`sequence_id`, `tile_id`, payload bytes) plus kernel-ticket validity.
+3. No global token-id keyed payload registry is required in the primary path.
 
 This keeps the public runtime contract unchanged:
 

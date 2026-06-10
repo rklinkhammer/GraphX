@@ -1,6 +1,4 @@
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
-#include "sar/SarAccelTokenImagePayloadStore.hpp"
-#include "sar/SarMaterializedImageReference.hpp"
 
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
@@ -160,52 +158,10 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
         token.sidecar.kernel_queue_id = last_kernel_ticket_.execution_queue_id;
         token.sidecar.stage_timings.backprojection_stage_time_us += ElapsedUs(stage_start);
 
-        if (token.sidecar.marker == SarFrameMarker::Data) {
-            const auto element_count =
-                std::max<std::size_t>(1u, static_cast<std::size_t>(native_output->bytes) / sizeof(float));
-            reference::BackprojectionAdapterConfig reference_config{};
-            reference_config.tap_count = std::max<std::uint32_t>(1u, config_.tap_count);
-            reference_config.delay_step = static_cast<double>(config_.delay_step);
-            reference_config.phase_tap_scale = static_cast<double>(config_.phase_tap_scale);
-            reference_config.phase_aperture_scale = static_cast<double>(config_.phase_aperture_scale);
-
-            detail::StoreAccelTokenImagePayload(
-                token.token_id,
-                detail::AccelTokenImagePayload{
-                    .sequence_id = token.sidecar.sequence_id,
-                    .tile_id = token.sidecar.tile_id,
-                    .pixels = detail::BuildReferenceMaterializedImage(
-                        token.sidecar.sequence_id,
-                        token.sidecar.tile_id,
-                        element_count,
-                        reference_config)});
-        }
-
         return token;
     }
 
     ++kernel_sequence_;
-
-    if (input.sidecar.marker == SarFrameMarker::Data) {
-        const auto element_count =
-            std::max<std::size_t>(1u, static_cast<std::size_t>(in_view.bytes) / sizeof(float));
-        reference::BackprojectionAdapterConfig reference_config{};
-        reference_config.tap_count = std::max<std::uint32_t>(1u, config_.tap_count);
-        reference_config.delay_step = static_cast<double>(config_.delay_step);
-        reference_config.phase_tap_scale = static_cast<double>(config_.phase_tap_scale);
-        reference_config.phase_aperture_scale = static_cast<double>(config_.phase_aperture_scale);
-
-        detail::StoreAccelTokenImagePayload(
-            input.token_id,
-            detail::AccelTokenImagePayload{
-                .sequence_id = input.sidecar.sequence_id,
-                .tile_id = input.sidecar.tile_id,
-                .pixels = detail::BuildReferenceMaterializedImage(
-                    input.sidecar.sequence_id,
-                    input.sidecar.tile_id,
-                    element_count,
-                    reference_config)});
-    }
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;

@@ -1,6 +1,5 @@
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
-#include "sar/SarAccelTokenImagePayloadStore.hpp"
 #include "sar/SarMaterializedImageReference.hpp"
 
 #include <algorithm>
@@ -19,38 +18,29 @@ std::optional<SarAccelControlToken> SarMaterializedImageSinkNode::Transfer(
         return value;
     }
 
-    auto payload = detail::ConsumeAccelTokenImagePayload(value.token_id);
-    if (!payload) {
-        if (!value.has_kernel_ticket) {
-            return value;
-        }
-        if (value.sidecar.sequence_id == 0u && value.sidecar.tile_id == 0u) {
-            return value;
-        }
-        const auto element_count = std::max<std::size_t>(
-            1u,
-            static_cast<std::size_t>((value.sidecar.payload_byte_count > 0u)
-                                         ? (value.sidecar.payload_byte_count / sizeof(float))
-                                         : (value.has_host_view ? value.host_view.bytes / sizeof(float) : 1u)));
-        payload = detail::AccelTokenImagePayload{
-            .sequence_id = value.sidecar.sequence_id,
-            .tile_id = value.sidecar.tile_id,
-            .pixels = BuildDeterministicReferenceImage(
-                value.sidecar.sequence_id,
-                value.sidecar.tile_id,
-                element_count),
-        };
-    }
-
-    if (!payload) {
+    if (!value.has_kernel_ticket) {
         return value;
     }
 
+    if (value.sidecar.sequence_id == 0u && value.sidecar.tile_id == 0u) {
+        return value;
+    }
+
+    const auto element_count = std::max<std::size_t>(
+        1u,
+        static_cast<std::size_t>((value.sidecar.payload_byte_count > 0u)
+                                     ? (value.sidecar.payload_byte_count / sizeof(float))
+                                     : (value.has_host_view ? value.host_view.bytes / sizeof(float) : 1u)));
+    auto image = BuildDeterministicReferenceImage(
+        value.sidecar.sequence_id,
+        value.sidecar.tile_id,
+        element_count);
+
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
-        last_materialized_image_ = std::move(payload->pixels);
-        last_capture_metadata_.sequence_id = payload->sequence_id;
-        last_capture_metadata_.tile_id = payload->tile_id;
+        last_materialized_image_ = std::move(image);
+        last_capture_metadata_.sequence_id = value.sidecar.sequence_id;
+        last_capture_metadata_.tile_id = value.sidecar.tile_id;
         last_capture_metadata_.element_count = last_materialized_image_.size();
         ++capture_count_;
     }

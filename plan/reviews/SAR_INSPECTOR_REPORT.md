@@ -6,25 +6,24 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 ## 1. Current Type Model
 
 - Observed: Canonical SAR accel token alias exists: `SarAccelControlToken = AccelControlToken<SarSidecar>` in `examples/SAR/include/sar/SarMessages.hpp`.
-- Observed: `SarSidecar` is explicit identity/metadata carrier (sequence, batch, aperture, pulse range, stream, tile, backend, marker, payload size, queue IDs, stage timings) in `examples/SAR/include/sar/SarMessages.hpp`.
+- Observed: `SarSidecar` is explicit identity/metadata carrier (sequence, batch, aperture, pulse range, stream, tile, backend, marker, payload size, queue IDs, stage timings, merge/materialization telemetry) in `examples/SAR/include/sar/SarMessages.hpp`.
 - Observed: `AccelControlToken<SidecarT>` carries sidecar plus accel transport/control fields (`lease`, `device_view`, `host_view`, `transfer_ticket`, `kernel_ticket`, presence flags).
-- Observed: Legacy SAR payload/status types remain defined and used in pipeline boundaries:
-  - `SarPulseBlockMessage` (source/range stages)
-  - `SarMergeStatusMessage` (merge output)
-  - `SarDiagnosticsMessage` (sink diagnostics)
+- Observed: Legacy SAR payload/status types remain defined, but the definitive runtime no longer uses them as primary edge contracts:
+  - `SarPulseBlockMessage` remains as legacy/non-canonical type surface.
+  - `SarMergeStatusMessage` remains as projected diagnostics/status surface.
+  - `SarDiagnosticsMessage` remains as sink-owned reporting state.
 - Observed: Additional envelope/gpu structs remain (`SarMessageEnvelope`, `SarBufferDescriptor`, `SarGpuMetadata`, `SarDispatchMetadata`).
-- Inferred: Type surface is mixed: canonical token type exists, but non-token SAR message families are still runtime-significant.
+- Inferred: Type surface still includes legacy message families for compatibility/reporting surfaces, but the maintained definitive runtime path is now token-first through merge/diagnostics boundary.
 
 ## 2. Current Node Model
 
 - Observed: Definitive JSON topology in `examples/SAR/config/sar_stripmap_definitive.json` wires:
   `SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncNode -> SarBackprojectionTransformNode -> D2HAsyncNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode`.
-- Observed: Stage contracts are mixed by implementation:
-  - `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode` use `SarPulseBlockMessage`.
-  - `AzimuthTileSplitNode` converts `SarPulseBlockMessage` to `SarAccelControlToken`.
-  - `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, `D2HAsyncAccelNode` operate on `SarAccelControlToken`.
-  - `ImageTileMergeNode` consumes token, emits `SarMergeStatusMessage`.
-  - `SarDiagnosticsSinkNode` consumes `SarMergeStatusMessage` and emits internal `SarDiagnosticsMessage` state.
+- Observed: Definitive stage contracts are tokenized end-to-end from source through diagnostics boundary:
+  - `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode`, and `AzimuthTileSplitNode` use `SarAccelControlToken`.
+  - `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, and `D2HAsyncAccelNode` operate on `SarAccelControlToken`.
+  - `ImageTileMergeNode` consumes token and emits token.
+  - `SarDiagnosticsSinkNode` consumes token and projects internal `SarDiagnosticsMessage` state plus a projected `SarMergeStatusMessage` accessor.
 - Observed: Alias wrappers map intent names to accel node implementations:
   - `H2DAsyncNode -> H2DAsyncAccelNode`
   - `D2HAsyncNode -> D2HAsyncAccelNode`
@@ -40,8 +39,9 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 - Observed: `host_view.host_ptr` in split and D2H is constant opaque sentinel (`0x1`) via `OpaqueHostPointer()` in `examples/SAR/src/AzimuthTileSplitNode.cpp` and `examples/SAR/src/D2HAsyncAccelNode.cpp`.
 - Observed: H2D/backprojection simulated paths synthesize `device_ptr` from bytes + sequence counters (`MakeSyntheticDevicePointer`) in `examples/SAR/src/H2DAsyncAccelNode.cpp` and `examples/SAR/src/SarBackprojectionTransformAccelNode.cpp`.
 - Observed: Simulated H2D/backprojection set `device_view.ready_event = 0`; completion is carried by opaque transfer/kernel ticket completion events (`NextOpaqueEventId`).
-- Observed: Merge derives output envelope from sidecar first and only falls back to provided sequence/stream values when sidecar fields are zero (`ImageTileMergeNode::BuildStatusMessage`).
-- Observed: Token sidecar timings are accumulated across stages; merge and diagnostics preserve/report these fields.
+- Observed: Merge emits token output and records merge-stage status/metrics into token sidecar fields rather than a primary-path status-message boundary.
+- Observed: Token sidecar timings are accumulated across stages; merge and diagnostics preserve/report these fields from token sidecar data.
+- Observed: Materialized-image capture now derives deterministic output directly from token-carried sidecar fields plus kernel-ticket validity in `examples/SAR/src/SarMaterializedImageSinkNode.cpp`.
 - Observed: Tests explicitly enforce sidecar-identity invariance to host pointer and ready-event mutation in `examples/SAR/test/test_sar_accel_nodes.cpp`.
 - Inferred: Runtime identity transport path is sidecar-centric; pointer/event channels are treated as transport telemetry/control artifacts.
 
@@ -59,10 +59,9 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 ## 5. Violations of Accel-Token Architecture
 
-- Observed: Pipeline is not single-contract end-to-end; upstream DSP/source path still uses `SarPulseBlockMessage` before token conversion at split.
-- Observed: Merge/sink boundary exits token contract (`SarMergeStatusMessage` then `SarDiagnosticsMessage`).
-- Observed: Side-channel payload store exists (`SarAccelTokenImagePayloadStore` global mutex + map keyed by token id), written in backprojection and consumed by materialized sink.
-- Inferred: Side-channel payload store introduces an alternate data path outside explicit edge payload contracts for materialized-image behavior.
+- Observed: Definitive maintained path is tokenized through merge/diagnostics boundary.
+- Observed: Global side-channel payload store has been removed from the primary path; materialization now uses explicit token-carried contract data.
+- Inferred: Remaining accel-token architecture gaps are upstream to PR4 scope, primarily the continued presence of legacy type definitions and compatibility/reporting surfaces in the codebase.
 - Unknown: Whether side-channel materialization path is considered acceptable runtime architecture or temporary instrumentation scaffolding.
 
 ## 6. Obsolete Abstractions
@@ -82,10 +81,9 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 ## 8. Blockers for `AccelControlToken<SarSidecar>`
 
-- Observed: Upstream range/source stages are message-contract based, not token-contract based.
-- Observed: Merge/diagnostics consume status messages instead of token sidecar directly.
-- Observed: Materialized image path relies on global side-channel payload store instead of edge-carried payload.
-- Inferred: Converging to exactly one canonical SAR GPU flow requires collapsing mixed contract boundaries and side-channel dependencies.
+- Observed: Source, DSP, merge, and diagnostics boundaries are tokenized in the maintained definitive path.
+- Observed: Materialized image path no longer relies on global side-channel payload store in the primary path.
+- Inferred: Remaining blockers are now centered on deleting legacy type surfaces and any remaining non-canonical abstractions, rather than primary-path contract continuity.
 - Unknown: Desired canonical home of SAR-specific sidecar/type aliases (remain SAR-local vs broader shared accel-token namespace).
 
 ## 9. Existing External Comparison/Baseline Hooks

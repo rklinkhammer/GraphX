@@ -66,7 +66,6 @@ target_link_libraries(test_sar_example_unit PRIVATE
     graph
     gpu
     dsp
-    sar_materialized_payload_runtime
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

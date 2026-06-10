@@ -91,7 +91,7 @@ add_graphx_plugin(
         sar_backprojection_transform_node_plugin.cpp
         ../src/SarBackprojectionTransformAccelNode.cpp
     DESCRIPTION "SAR backprojection transform node"
-    DEPENDENCIES graph gpu sar_materialized_payload_runtime
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_backprojection_transform_node PRIVATE
@@ -130,7 +130,7 @@ add_graphx_plugin(
         sar_materialized_image_sink_node_plugin.cpp
         ../src/SarMaterializedImageSinkNode.cpp
     DESCRIPTION "SAR deterministic materialized image sink node"
-    DEPENDENCIES graph gpu sar_materialized_payload_runtime
+    DEPENDENCIES graph gpu
 )
 
 target_include_directories(sar_materialized_image_sink_node PRIVATE

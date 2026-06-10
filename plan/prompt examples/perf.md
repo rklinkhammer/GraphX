@@ -46,12 +46,11 @@ Inputs:
 - current test output
 
 Task:
-Implement PR3 only
+Implement PR5 only
 
-PR3 title:  Tokenize Merge and Diagnostics Boundaries
-PR3 Scope:
-- Merge/diagnostics tests validating sidecar-derived output semantics from token input only.
-- Regression tests confirming no fallback identity derivation outside sidecar.
+PR5 title:  Delete Obsolete SAR Message Abstractions
+PR5 Scope:
+- Remove non-canonical legacy edge abstractions after token path is complete.
 
 
 
@@ -61,8 +60,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR3 requires it.
-- Add or update tests for PR3.
+- Delete obsolete code if PR5 requires it.
+- Add or update tests for PR5.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -76,9 +75,9 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR3 acceptance criteria:
-- Definitive runtime path remains tokenized through merge/diagnostics boundary.
-- Diagnostics and metrics still emitted with unchanged semantic meaning.
+PR5 acceptance criteria:
+- Removed legacy message abstractions are absent from definitive runtime path.
+- Parser negative-validation artifacts may remain as strings only where intentionally required for guardrails.
 
 =========
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -87,19 +86,19 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_IMPL_PR3_1.md
+- plan/reviews/SAR_IMPL_PR4_1.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
 - current repository state
 - current test output
-- current PR3 diff
+- current PR4 diff
 
 
 Task:
-Verify whether PR3  actually satisfies its acceptance criteria.
+Verify whether PR4  actually satisfies its acceptance criteria.
 
 Check:
-- Definitive runtime path remains tokenized through merge/diagnostics boundary.
-- Diagnostics and metrics still emitted with unchanged semantic meaning.
+- No primary-path reliance on global sidecar/payload store.
+- Materialization behavior preserved through explicit contracts.
 
 Output:
 - Pass/fail.
