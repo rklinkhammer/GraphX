@@ -142,7 +142,7 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
     EXPECT_GT(sink->consume_count(), 0u);
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
@@ -253,7 +253,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diagnostics.pulses_processed, 64u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
@@ -326,22 +326,22 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcret
     ASSERT_NE(fallback_sink, nullptr);
     fallback_sink->UpdateFromGraphMetrics(fallback_executor->GetGraphManager()->GetMetrics());
 
-    const auto& fallback_status = fallback_sink->last_status();
-    EXPECT_EQ(fallback_status.envelope.sequence_id, 64u);
-    EXPECT_EQ(fallback_status.envelope.batch_id, 0u);
-    EXPECT_EQ(fallback_status.envelope.aperture_id, 64u);
-    EXPECT_EQ(fallback_status.envelope.pulse_range_start, 64u);
-    EXPECT_EQ(fallback_status.envelope.pulse_range_count, 0u);
-    EXPECT_EQ(fallback_status.envelope.stream_id, 0u);
-    EXPECT_LT(fallback_status.envelope.tile_id, fallback_status.envelope.tile_count);
-    EXPECT_EQ(fallback_status.envelope.tile_count, 4u);
-    EXPECT_EQ(fallback_status.envelope.backend_id, 0u);
-    EXPECT_EQ(fallback_status.envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_TRUE(fallback_status.gpu.has_host_view);
-    EXPECT_TRUE(fallback_status.gpu.has_transfer_ticket);
-    EXPECT_GT(fallback_status.gpu.transfer_ticket.execution_queue_id, 0u);
-    if (fallback_status.gpu.has_kernel_ticket) {
-        EXPECT_GT(fallback_status.gpu.kernel_ticket.execution_queue_id, 0u);
+    const auto& fallback_status = fallback_sink->last_token();
+    EXPECT_EQ(fallback_status.sidecar.sequence_id, 64u);
+    EXPECT_EQ(fallback_status.sidecar.batch_id, 0u);
+    EXPECT_EQ(fallback_status.sidecar.aperture_id, 64u);
+    EXPECT_EQ(fallback_status.sidecar.pulse_range_start, 64u);
+    EXPECT_EQ(fallback_status.sidecar.pulse_range_count, 0u);
+    EXPECT_EQ(fallback_status.sidecar.stream_id, 0u);
+    EXPECT_LT(fallback_status.sidecar.tile_id, fallback_status.sidecar.tile_count);
+    EXPECT_EQ(fallback_status.sidecar.tile_count, 4u);
+    EXPECT_EQ(fallback_status.sidecar.backend_id, 0u);
+    EXPECT_EQ(fallback_status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(fallback_status.has_host_view);
+    EXPECT_TRUE(fallback_status.has_transfer_ticket);
+    EXPECT_GT(fallback_status.transfer_ticket.execution_queue_id, 0u);
+    if (fallback_status.has_kernel_ticket) {
+        EXPECT_GT(fallback_status.kernel_ticket.execution_queue_id, 0u);
     }
 
     std::error_code remove_error;
@@ -463,23 +463,23 @@ TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
-    const auto& status = sink->last_status();
-    EXPECT_EQ(status.envelope.sequence_id, 64u);
-    EXPECT_EQ(status.envelope.batch_id, 0u);
-    EXPECT_EQ(status.envelope.aperture_id, 64u);
-    EXPECT_EQ(status.envelope.pulse_range_start, 64u);
-    EXPECT_EQ(status.envelope.pulse_range_count, 0u);
-    EXPECT_EQ(status.envelope.stream_id, 0u);
-    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
-    EXPECT_EQ(status.envelope.tile_count, 4u);
-    EXPECT_EQ(status.envelope.backend_id, 0u);
-    EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    const auto& status = sink->last_token();
+    EXPECT_EQ(status.sidecar.sequence_id, 64u);
+    EXPECT_EQ(status.sidecar.batch_id, 0u);
+    EXPECT_EQ(status.sidecar.aperture_id, 64u);
+    EXPECT_EQ(status.sidecar.pulse_range_start, 64u);
+    EXPECT_EQ(status.sidecar.pulse_range_count, 0u);
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_LT(status.sidecar.tile_id, status.sidecar.tile_count);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_EQ(status.sidecar.backend_id, 0u);
+    EXPECT_EQ(status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
 
-    EXPECT_TRUE(status.gpu.has_host_view);
-    EXPECT_TRUE(status.gpu.has_transfer_ticket);
-    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
-    if (status.gpu.has_kernel_ticket) {
-        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 }
 

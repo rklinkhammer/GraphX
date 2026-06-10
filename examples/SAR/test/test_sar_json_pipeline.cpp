@@ -67,30 +67,30 @@ std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
     return nullptr;
 }
 
-void AssertEosSidecarIdentity(const sar::SarMergeStatusMessage& status,
+void AssertEosSidecarIdentity(const sar::SarAccelControlToken& status,
                               std::uint64_t expected_sequence_id,
                               std::uint32_t expected_stream_id,
                               std::uint32_t expected_tile_count,
                               std::uint32_t expected_backend_id) {
-    EXPECT_EQ(status.envelope.sequence_id, expected_sequence_id);
-    EXPECT_EQ(status.envelope.batch_id, expected_stream_id);
-    EXPECT_EQ(status.envelope.aperture_id, expected_sequence_id);
-    EXPECT_EQ(status.envelope.pulse_range_start, expected_sequence_id);
-    EXPECT_EQ(status.envelope.pulse_range_count, 0u);
-    EXPECT_EQ(status.envelope.stream_id, expected_stream_id);
-    EXPECT_LT(status.envelope.tile_id, expected_tile_count);
-    EXPECT_EQ(status.envelope.tile_count, expected_tile_count);
-    EXPECT_EQ(status.envelope.backend_id, expected_backend_id);
-    EXPECT_EQ(status.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(status.sidecar.sequence_id, expected_sequence_id);
+    EXPECT_EQ(status.sidecar.batch_id, expected_stream_id);
+    EXPECT_EQ(status.sidecar.aperture_id, expected_sequence_id);
+    EXPECT_EQ(status.sidecar.pulse_range_start, expected_sequence_id);
+    EXPECT_EQ(status.sidecar.pulse_range_count, 0u);
+    EXPECT_EQ(status.sidecar.stream_id, expected_stream_id);
+    EXPECT_LT(status.sidecar.tile_id, expected_tile_count);
+    EXPECT_EQ(status.sidecar.tile_count, expected_tile_count);
+    EXPECT_EQ(status.sidecar.backend_id, expected_backend_id);
+    EXPECT_EQ(status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
 
-    EXPECT_TRUE(status.gpu.has_host_view);
-    EXPECT_TRUE(status.gpu.has_transfer_ticket);
-    EXPECT_EQ(status.gpu.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_EQ(status.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
 
-    if (status.gpu.has_kernel_ticket) {
-        EXPECT_EQ(status.gpu.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
-        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_EQ(status.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 }
 
@@ -133,7 +133,7 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, 32768u);
@@ -142,7 +142,7 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
     EXPECT_EQ(diagnostics.duplicate_tile_count, 28u);
     EXPECT_EQ(diagnostics.missing_tile_count, 0u);
 
-    const auto& status = sink->last_status();
+    const auto& status = sink->last_token();
     AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 
@@ -189,9 +189,9 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
     auto diagnostics_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(diagnostics_sink, nullptr);
     diagnostics_sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
-    EXPECT_EQ(diagnostics_sink->last_diagnostics().envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics_sink->last_diagnostics().sidecar.marker, sar::SarFrameMarker::EndOfStream);
 
-    const auto& status = diagnostics_sink->last_status();
+    const auto& status = diagnostics_sink->last_token();
     AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 

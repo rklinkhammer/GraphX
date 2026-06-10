@@ -318,7 +318,7 @@ TEST(GotchaDatasetAdapterTest, PluginLoadedGotchaReplayPipelineRunsEndToEnd) {
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diagnostics.pulses_processed, 4u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, 128u);

@@ -86,7 +86,7 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_IMPL_PR4_1.md
+- plan/reviews/SAR_IMPL_PR5_1.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
 - current repository state
 - current test output
@@ -94,11 +94,12 @@ Inputs:
 
 
 Task:
-Verify whether PR4  actually satisfies its acceptance criteria.
+Verify whether PR5  actually satisfies its acceptance criteria.
 
 Check:
-- No primary-path reliance on global sidecar/payload store.
-- Materialization behavior preserved through explicit contracts.
+- Removed legacy message abstractions are absent from definitive runtime path.
+- Parser negative-validation artifacts may remain as strings only where intentionally required for guardrails.
+
 
 Output:
 - Pass/fail.

@@ -83,8 +83,8 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
 
     const auto& diagnostics = sink->last_diagnostics();
     EXPECT_TRUE(
-        diagnostics.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        diagnostics.envelope.marker == sar::SarFrameMarker::Data);
+        diagnostics.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        diagnostics.sidecar.marker == sar::SarFrameMarker::Data);
     EXPECT_EQ(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
@@ -96,18 +96,18 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.kernel_exec_time_us, 0u);
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
 
-    const auto& status = sink->last_status();
-    EXPECT_EQ(status.envelope.stream_id, 0u);
-    EXPECT_EQ(status.envelope.tile_count, 4u);
-    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
+    const auto& status = sink->last_token();
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_LT(status.sidecar.tile_id, status.sidecar.tile_count);
     EXPECT_TRUE(
-        status.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        status.envelope.marker == sar::SarFrameMarker::Data);
-    EXPECT_TRUE(status.gpu.has_host_view);
-    EXPECT_TRUE(status.gpu.has_transfer_ticket);
-    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
-    if (status.gpu.has_kernel_ticket) {
-        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+        status.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        status.sidecar.marker == sar::SarFrameMarker::Data);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 }
 
@@ -137,8 +137,8 @@ void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
 
     const auto& diagnostics = sink->last_diagnostics();
     EXPECT_TRUE(
-        diagnostics.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        diagnostics.envelope.marker == sar::SarFrameMarker::Data);
+        diagnostics.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        diagnostics.sidecar.marker == sar::SarFrameMarker::Data);
     EXPECT_GE(diagnostics.pulses_processed, 25u);
     EXPECT_LE(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
@@ -157,18 +157,18 @@ void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
     EXPECT_GT(diagnostics.kernel_exec_time_us, 0u);
     EXPECT_GT(diagnostics.transfer_d2h_time_us, 0u);
 
-    const auto& status = sink->last_status();
-    EXPECT_EQ(status.envelope.stream_id, 0u);
-    EXPECT_EQ(status.envelope.tile_count, 4u);
-    EXPECT_LT(status.envelope.tile_id, status.envelope.tile_count);
+    const auto& status = sink->last_token();
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_LT(status.sidecar.tile_id, status.sidecar.tile_count);
     EXPECT_TRUE(
-        status.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        status.envelope.marker == sar::SarFrameMarker::Data);
-    EXPECT_TRUE(status.gpu.has_host_view);
-    EXPECT_TRUE(status.gpu.has_transfer_ticket);
-    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
-    if (status.gpu.has_kernel_ticket) {
-        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+        status.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        status.sidecar.marker == sar::SarFrameMarker::Data);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 }
 
@@ -296,8 +296,8 @@ TEST(SarPr3MetalJsonTest, RuntimeDiagnosticsRemainStableAcrossWindowAndCompressi
     compression_sink->UpdateFromGraphMetrics(compression_executor->GetGraphManager()->GetMetrics());
     const auto& compression_diag = compression_sink->last_diagnostics();
 
-    EXPECT_EQ(window_diag.envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(compression_diag.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(window_diag.sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(compression_diag.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(window_diag.pulses_processed, 32u);
     EXPECT_EQ(compression_diag.pulses_processed, 32u);
     EXPECT_EQ(window_diag.tiles_processed, 4u);

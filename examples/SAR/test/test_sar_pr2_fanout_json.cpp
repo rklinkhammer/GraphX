@@ -99,34 +99,34 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
-    const auto& status = sink->last_status();
+    const auto& status = sink->last_token();
     EXPECT_TRUE(
-        status.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        status.envelope.marker == sar::SarFrameMarker::Data);
-    EXPECT_GE(status.envelope.sequence_id, 30u);
-    EXPECT_LE(status.envelope.sequence_id, 32u);
-    EXPECT_EQ(status.envelope.batch_id, 0u);
-    EXPECT_EQ(status.envelope.aperture_id, status.envelope.sequence_id);
-    EXPECT_EQ(status.envelope.pulse_range_start, status.envelope.sequence_id);
-    EXPECT_LE(status.envelope.pulse_range_count, 1u);
-    EXPECT_EQ(status.envelope.stream_id, 0u);
-    EXPECT_LT(status.envelope.tile_id, 4u);
-    EXPECT_EQ(status.envelope.tile_count, 4u);
-    EXPECT_EQ(status.envelope.backend_id, 0u);
-    EXPECT_EQ(status.complete, status.envelope.marker == sar::SarFrameMarker::EndOfStream);
-    EXPECT_TRUE(status.gpu.has_host_view);
-    EXPECT_TRUE(status.gpu.has_transfer_ticket);
-    EXPECT_EQ(status.gpu.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
-    EXPECT_GT(status.gpu.transfer_ticket.execution_queue_id, 0u);
-    if (status.gpu.has_kernel_ticket) {
-        EXPECT_EQ(status.gpu.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
-        EXPECT_GT(status.gpu.kernel_ticket.execution_queue_id, 0u);
+        status.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        status.sidecar.marker == sar::SarFrameMarker::Data);
+    EXPECT_GE(status.sidecar.sequence_id, 30u);
+    EXPECT_LE(status.sidecar.sequence_id, 32u);
+    EXPECT_EQ(status.sidecar.batch_id, 0u);
+    EXPECT_EQ(status.sidecar.aperture_id, status.sidecar.sequence_id);
+    EXPECT_EQ(status.sidecar.pulse_range_start, status.sidecar.sequence_id);
+    EXPECT_LE(status.sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_LT(status.sidecar.tile_id, 4u);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_EQ(status.sidecar.backend_id, 0u);
+    EXPECT_EQ(status.sidecar.merge_complete, status.sidecar.marker == sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_EQ(status.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_EQ(status.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 
     const auto& diagnostics = sink->last_diagnostics();
     EXPECT_TRUE(
-        diagnostics.envelope.marker == sar::SarFrameMarker::EndOfStream ||
-        diagnostics.envelope.marker == sar::SarFrameMarker::Data);
+        diagnostics.sidecar.marker == sar::SarFrameMarker::EndOfStream ||
+        diagnostics.sidecar.marker == sar::SarFrameMarker::Data);
     EXPECT_GE(diagnostics.pulses_processed, 31u);
     EXPECT_LE(diagnostics.pulses_processed, 32u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);

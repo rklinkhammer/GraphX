@@ -114,7 +114,7 @@ TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
     sink->UpdateFromGraphMetrics(graph_manager->GetMetrics());
 
     const auto& diagnostics = sink->last_diagnostics();
-    EXPECT_EQ(diagnostics.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diagnostics.pulses_processed, 24u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
 

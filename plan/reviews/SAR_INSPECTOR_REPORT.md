@@ -8,12 +8,13 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 - Observed: Canonical SAR accel token alias exists: `SarAccelControlToken = AccelControlToken<SarSidecar>` in `examples/SAR/include/sar/SarMessages.hpp`.
 - Observed: `SarSidecar` is explicit identity/metadata carrier (sequence, batch, aperture, pulse range, stream, tile, backend, marker, payload size, queue IDs, stage timings, merge/materialization telemetry) in `examples/SAR/include/sar/SarMessages.hpp`.
 - Observed: `AccelControlToken<SidecarT>` carries sidecar plus accel transport/control fields (`lease`, `device_view`, `host_view`, `transfer_ticket`, `kernel_ticket`, presence flags).
-- Observed: Legacy SAR payload/status types remain defined, but the definitive runtime no longer uses them as primary edge contracts:
-  - `SarPulseBlockMessage` remains as legacy/non-canonical type surface.
-  - `SarMergeStatusMessage` remains as projected diagnostics/status surface.
-  - `SarDiagnosticsMessage` remains as sink-owned reporting state.
+- Observed: Legacy SAR payload/status message structs targeted by PR5 are no longer defined in `examples/SAR/include/sar/SarMessages.hpp`:
+  - `SarPulseBlockMessage`
+  - `SarMergeStatusMessage`
+  - `SarDiagnosticsMessage`
+- Observed: Diagnostics reporting now uses `SarDiagnosticsSnapshot`, which stores canonical sidecar-derived reporting state without reintroducing a legacy message edge contract.
 - Observed: Additional envelope/gpu structs remain (`SarMessageEnvelope`, `SarBufferDescriptor`, `SarGpuMetadata`, `SarDispatchMetadata`).
-- Inferred: Type surface still includes legacy message families for compatibility/reporting surfaces, but the maintained definitive runtime path is now token-first through merge/diagnostics boundary.
+- Inferred: The maintained SAR runtime type surface is now canonical-token-first through merge/diagnostics, with legacy SAR message names retained only in parser/test/document guardrail contexts.
 
 ## 2. Current Node Model
 
@@ -23,7 +24,7 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
   - `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode`, and `AzimuthTileSplitNode` use `SarAccelControlToken`.
   - `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, and `D2HAsyncAccelNode` operate on `SarAccelControlToken`.
   - `ImageTileMergeNode` consumes token and emits token.
-  - `SarDiagnosticsSinkNode` consumes token and projects internal `SarDiagnosticsMessage` state plus a projected `SarMergeStatusMessage` accessor.
+  - `SarDiagnosticsSinkNode` consumes token, stores canonical last-token state, and exposes `SarDiagnosticsSnapshot` reporting state.
 - Observed: Alias wrappers map intent names to accel node implementations:
   - `H2DAsyncNode -> H2DAsyncAccelNode`
   - `D2HAsyncNode -> D2HAsyncAccelNode`
@@ -61,15 +62,17 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 - Observed: Definitive maintained path is tokenized through merge/diagnostics boundary.
 - Observed: Global side-channel payload store has been removed from the primary path; materialization now uses explicit token-carried contract data.
-- Inferred: Remaining accel-token architecture gaps are upstream to PR4 scope, primarily the continued presence of legacy type definitions and compatibility/reporting surfaces in the codebase.
+- Observed: The PR5 legacy SAR message abstractions have been removed from the definitive runtime path and shared SAR type surface.
+- Inferred: Remaining accel-token architecture gaps are no longer centered on the removed PR5 message abstractions; remaining questions are broader cleanup/documentation concerns outside the primary runtime contract.
 - Unknown: Whether side-channel materialization path is considered acceptable runtime architecture or temporary instrumentation scaffolding.
 
 ## 6. Obsolete Abstractions
 
 - Observed: Legacy SAR payload contract names are intentionally retained in parser as rejection literals (guardrails), not runtime contracts.
 - Observed: Deprecated config files remain (`sar_stripmap_definitive_nonmetal.json`, `sar_stripmap_definitive_metal.json`) with deprecation notices.
-- Observed: Legacy-named message families remain in type model and stage APIs (`SarPulseBlockMessage`, `SarMergeStatusMessage`, `SarDiagnosticsMessage`).
-- Inferred: Some legacy abstractions are intentionally retained for guardrails/tests/document continuity, not necessarily active contract direction.
+- Observed: PR5 removed the legacy SAR message families from the shared SAR runtime type model and diagnostics sink API (`SarPulseBlockMessage`, `SarMergeStatusMessage`, `SarDiagnosticsMessage`).
+- Observed: Legacy SAR message names still appear in parser rejection logic and negative-validation tests as string-only guardrails.
+- Inferred: Some obsolete vocabulary is intentionally retained for guardrails/tests/document continuity, but not as active runtime type or edge-contract direction.
 
 ## 7. Complexity Hotspots
 
@@ -83,7 +86,8 @@ Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 - Observed: Source, DSP, merge, and diagnostics boundaries are tokenized in the maintained definitive path.
 - Observed: Materialized image path no longer relies on global side-channel payload store in the primary path.
-- Inferred: Remaining blockers are now centered on deleting legacy type surfaces and any remaining non-canonical abstractions, rather than primary-path contract continuity.
+- Observed: PR5 removed the legacy message type surfaces that previously remained in merge/diagnostics reporting APIs.
+- Inferred: Remaining blockers are no longer about primary-path message abstractions; they are limited to cleanup of stale documentation and any future narrowing of non-message helper structs if desired.
 - Unknown: Desired canonical home of SAR-specific sidecar/type aliases (remain SAR-local vs broader shared accel-token namespace).
 
 ## 9. Existing External Comparison/Baseline Hooks

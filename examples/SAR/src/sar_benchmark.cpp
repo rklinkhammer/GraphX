@@ -76,8 +76,8 @@ struct GraphRunResult {
     double start_ms{0.0};
     double stop_ms{0.0};
     double join_ms{0.0};
-    sar::SarDiagnosticsMessage diagnostics{};
-    sar::SarMergeStatusMessage last_status{};
+    sar::SarDiagnosticsSnapshot diagnostics{};
+    sar::SarAccelControlToken last_token{};
     std::string resolved_execution_backend{"unknown"};
     std::string backprojection_concrete_type{"unknown"};
     bool backprojection_native_kernel_bound{false};
@@ -98,7 +98,7 @@ struct GraphRunResult {
 
 struct BaselineRunResult {
     double execute_ms{0.0};
-    sar::SarDiagnosticsMessage diagnostics{};
+    sar::SarDiagnosticsSnapshot diagnostics{};
 };
 
 struct DeviceReduceEvaluation {
@@ -610,13 +610,13 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
     const auto& metrics = executor->GetGraphManager()->GetMetrics();
     sink->UpdateFromGraphMetrics(metrics);
     out.diagnostics = sink->last_diagnostics();
-    out.last_status = sink->last_status();
+    out.last_token = sink->last_token();
     if (out.backprojection_last_kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown) {
         out.resolved_execution_backend =
             BackendKindToString(out.backprojection_last_kernel_ticket.backend);
     } else {
         out.resolved_execution_backend =
-            BackendKindToString(out.last_status.gpu.kernel_ticket.backend);
+            BackendKindToString(out.last_token.kernel_ticket.backend);
     }
     out.backprojection_native_kernel_executed =
         out.backprojection_native_kernel_bound &&
@@ -902,9 +902,9 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
         (received_tiles >= expected_tiles) ? 0u : (expected_tiles - received_tiles);
 
     out.execute_ms = std::chrono::duration<double, std::milli>(end - start).count();
-    out.diagnostics.envelope.sequence_id = eos_sequence;
-    out.diagnostics.envelope.stream_id = 0;
-    out.diagnostics.envelope.marker = sar::SarFrameMarker::EndOfStream;
+    out.diagnostics.sidecar.sequence_id = eos_sequence;
+    out.diagnostics.sidecar.stream_id = 0;
+    out.diagnostics.sidecar.marker = sar::SarFrameMarker::EndOfStream;
     out.diagnostics.pulses_processed = eos_sequence;
     out.diagnostics.tiles_processed = received_tiles;
     out.diagnostics.bytes_h2d = bytes_h2d;
@@ -918,8 +918,8 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
     return out;
 }
 
-bool DiagnosticsEquivalent(const sar::SarDiagnosticsMessage& lhs,
-                           const sar::SarDiagnosticsMessage& rhs) {
+bool DiagnosticsEquivalent(const sar::SarDiagnosticsSnapshot& lhs,
+                           const sar::SarDiagnosticsSnapshot& rhs) {
     return lhs.pulses_processed == rhs.pulses_processed &&
            lhs.tiles_processed == rhs.tiles_processed &&
            lhs.bytes_h2d == rhs.bytes_h2d &&
@@ -1105,44 +1105,44 @@ std::uint64_t PointerToken(const void* ptr) {
     return static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr));
 }
 
-nlohmann::json GpuMetadataToJson(const sar::SarGpuMetadata& gpu) {
+nlohmann::json TokenLifecycleToJson(const sar::SarAccelControlToken& token) {
     return {
-        {"has_lease", gpu.has_lease},
-        {"has_host_view", gpu.has_host_view},
-        {"has_device_view", gpu.has_device_view},
-        {"has_transfer_ticket", gpu.has_transfer_ticket},
-        {"has_kernel_ticket", gpu.has_kernel_ticket},
+        {"has_lease", token.has_lease},
+        {"has_host_view", token.has_host_view},
+        {"has_device_view", token.has_device_view},
+        {"has_transfer_ticket", token.has_transfer_ticket},
+        {"has_kernel_ticket", token.has_kernel_ticket},
         {"lease", {
-            {"pool_id", gpu.lease.pool_id},
-            {"allocation_id", gpu.lease.allocation_id},
-            {"release_policy", static_cast<int>(gpu.lease.release_policy)},
+            {"pool_id", token.lease.pool_id},
+            {"allocation_id", token.lease.allocation_id},
+            {"release_policy", static_cast<int>(token.lease.release_policy)},
         }},
         {"host_view", {
-            {"backend", BackendKindToString(gpu.host_view.backend)},
-            {"host_view_handle", PointerToken(gpu.host_view.host_ptr)},
-            {"bytes", gpu.host_view.bytes},
-            {"allocator_id", gpu.host_view.allocator_id},
+            {"backend", BackendKindToString(token.host_view.backend)},
+            {"host_view_handle", PointerToken(token.host_view.host_ptr)},
+            {"bytes", token.host_view.bytes},
+            {"allocator_id", token.host_view.allocator_id},
         }},
         {"device_view", {
-            {"backend", BackendKindToString(gpu.device_view.backend)},
-            {"device_view_handle", PointerToken(gpu.device_view.device_ptr)},
-            {"bytes", gpu.device_view.bytes},
-            {"device_id", gpu.device_view.device_id},
-            {"queue_id", gpu.device_view.execution_queue_id},
-            {"ready_signal_id", gpu.device_view.ready_event},
+            {"backend", BackendKindToString(token.device_view.backend)},
+            {"device_view_handle", PointerToken(token.device_view.device_ptr)},
+            {"bytes", token.device_view.bytes},
+            {"device_id", token.device_view.device_id},
+            {"queue_id", token.device_view.execution_queue_id},
+            {"ready_signal_id", token.device_view.ready_event},
         }},
         {"transfer_ticket", {
-            {"backend", BackendKindToString(gpu.transfer_ticket.backend)},
-            {"transfer_id", gpu.transfer_ticket.transfer_id},
-            {"queue_id", gpu.transfer_ticket.execution_queue_id},
-            {"completion_signal_id", gpu.transfer_ticket.completion_event},
+            {"backend", BackendKindToString(token.transfer_ticket.backend)},
+            {"transfer_id", token.transfer_ticket.transfer_id},
+            {"queue_id", token.transfer_ticket.execution_queue_id},
+            {"completion_signal_id", token.transfer_ticket.completion_event},
         }},
         {"kernel_ticket", {
-            {"backend", BackendKindToString(gpu.kernel_ticket.backend)},
-            {"kernel_id", gpu.kernel_ticket.kernel_id},
-            {"queue_id", gpu.kernel_ticket.execution_queue_id},
-            {"completion_signal_id", gpu.kernel_ticket.completion_event},
-            {"arg_count", gpu.kernel_ticket.arg_count},
+            {"backend", BackendKindToString(token.kernel_ticket.backend)},
+            {"kernel_id", token.kernel_ticket.kernel_id},
+            {"queue_id", token.kernel_ticket.execution_queue_id},
+            {"completion_signal_id", token.kernel_ticket.completion_event},
+            {"arg_count", token.kernel_ticket.arg_count},
         }},
     };
 }
@@ -1226,7 +1226,7 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"backpressure_events", last_graph.queue_backpressure_events},
             {"peak_queue_depth", last_graph.peak_queue_depth},
         }},
-        {"token_lifecycle", GpuMetadataToJson(last_graph.last_status.gpu)},
+        {"token_lifecycle", TokenLifecycleToJson(last_graph.last_token)},
         {"resolved_nodes", nlohmann::json::array({
             {
                 {"intent_type", "H2DAsyncNode"},
@@ -1295,7 +1295,7 @@ void WriteTraceJson(const std::filesystem::path& path,
                  last_graph.diagnostics.bytes_h2d + last_graph.diagnostics.bytes_d2h},
                 {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
                 {"graph_overhead_ms", graph_overhead_ms},
-                {"diagnostics_contract", "sink-status"},
+                {"diagnostics_contract", "sink-token"},
                 {"range_compression_reference_ms", pr5_reference.range_compression_reference_ms},
                 {"range_compression_runtime_ms", pr5_reference.range_compression_runtime_ms},
                 {"matched_filter_vector_length", pr5_reference.matched_filter_vector_length},

@@ -145,48 +145,8 @@ struct AccelControlToken {
 
 using SarAccelControlToken = AccelControlToken<SarSidecar>;
 
-static_assert(std::is_standard_layout_v<SarSidecar>);
-static_assert(std::is_standard_layout_v<SarAccelControlToken>);
-
-using SarIqSample = std::complex<float>;
-
-struct SarPulseBlockMessage {
-    SarMessageEnvelope envelope{};
-    SarBufferDescriptor buffer{};
-    SarStageTimingMetrics stage_timings{};
-    std::vector<SarIqSample> iq_samples{};
-};
-
-struct SarDispatchMetadata {
-    std::uint32_t queue_id{};
-    std::uint32_t kernel_id{};
-    std::uint32_t dispatch_width{};
-    std::uint32_t dispatch_height{};
-    std::uint32_t dispatch_depth{1};
-};
-
-struct SarMergeStatusMessage {
-    SarMessageEnvelope envelope{};
-    SarGpuMetadata gpu{};
-    SarStageTimingMetrics stage_timings{};
-    std::uint32_t expected_tiles{};
-    std::uint32_t received_tiles{};
-    std::uint32_t duplicate_tiles{};
-    std::uint32_t missing_tiles{};
-    std::uint32_t out_of_order_tiles{};
-    std::uint64_t bytes_h2d{};
-    std::uint64_t bytes_d2h{};
-    std::uint64_t kernel_dispatches{};
-    std::uint64_t transfer_h2d_time_us{};
-    std::uint64_t kernel_exec_time_us{};
-    std::uint64_t transfer_d2h_time_us{};
-    bool watermark_seen{false};
-    std::uint64_t fanin_wait_ms{};
-    bool complete{false};
-};
-
-struct SarDiagnosticsMessage {
-    SarMessageEnvelope envelope{};
+struct SarDiagnosticsSnapshot {
+    SarSidecar sidecar{};
     SarStageTimingMetrics stage_timings{};
     std::uint64_t pulses_processed{};
     std::uint64_t tiles_processed{};
@@ -204,5 +164,11 @@ struct SarDiagnosticsMessage {
     std::uint64_t queue_backpressure_events{};
     std::uint64_t peak_queue_depth{};
 };
+
+static_assert(std::is_standard_layout_v<SarSidecar>);
+static_assert(std::is_standard_layout_v<SarAccelControlToken>);
+static_assert(std::is_standard_layout_v<SarDiagnosticsSnapshot>);
+
+using SarIqSample = std::complex<float>;
 
 } // namespace sar

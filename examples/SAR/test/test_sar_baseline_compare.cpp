@@ -40,7 +40,7 @@ std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
     return nullptr;
 }
 
-sar::SarDiagnosticsMessage RunBaselinePipeline() {
+sar::SarDiagnosticsSnapshot RunBaselinePipeline() {
     sar::SyntheticApertureIqSourceConfig source_cfg{};
     source_cfg.stream_id = 0;
     source_cfg.total_pulses = 32;
@@ -144,7 +144,7 @@ sar::SarDiagnosticsMessage RunBaselinePipeline() {
     return sink.last_diagnostics();
 }
 
-sar::SarDiagnosticsMessage RunFanoutBaselinePipeline() {
+sar::SarDiagnosticsSnapshot RunFanoutBaselinePipeline() {
     constexpr std::size_t kTileCount = 4;
 
     sar::SyntheticApertureIqSourceConfig source_cfg{};

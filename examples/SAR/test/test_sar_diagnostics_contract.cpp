@@ -64,7 +64,7 @@ TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromTokenizedMergeBoun
         std::integral_constant<std::size_t, 0>{}));
 
     const auto& diag = sink.last_diagnostics();
-    EXPECT_EQ(diag.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diag.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(diag.pulses_processed, 32u);
     EXPECT_EQ(diag.tiles_processed, 4u);
     EXPECT_EQ(diag.bytes_h2d, 32768u);
@@ -129,17 +129,17 @@ TEST(SarDiagnosticsContractTest, DiagnosticsIdentityIsInvariantToTransportFieldM
     const auto& diag_a = sink_a.last_diagnostics();
     const auto& diag_b = sink_b.last_diagnostics();
 
-    EXPECT_EQ(diag_a.envelope.sequence_id, diag_b.envelope.sequence_id);
-    EXPECT_EQ(diag_a.envelope.batch_id, diag_b.envelope.batch_id);
-    EXPECT_EQ(diag_a.envelope.aperture_id, diag_b.envelope.aperture_id);
-    EXPECT_EQ(diag_a.envelope.pulse_range_start, diag_b.envelope.pulse_range_start);
-    EXPECT_EQ(diag_a.envelope.pulse_range_count, diag_b.envelope.pulse_range_count);
-    EXPECT_EQ(diag_a.envelope.stream_id, diag_b.envelope.stream_id);
-    EXPECT_EQ(diag_a.envelope.tile_id, diag_b.envelope.tile_id);
-    EXPECT_EQ(diag_a.envelope.tile_count, diag_b.envelope.tile_count);
-    EXPECT_EQ(diag_a.envelope.backend_id, diag_b.envelope.backend_id);
-    EXPECT_EQ(diag_a.envelope.backend, diag_b.envelope.backend);
-    EXPECT_EQ(diag_a.envelope.marker, diag_b.envelope.marker);
+    EXPECT_EQ(diag_a.sidecar.sequence_id, diag_b.sidecar.sequence_id);
+    EXPECT_EQ(diag_a.sidecar.batch_id, diag_b.sidecar.batch_id);
+    EXPECT_EQ(diag_a.sidecar.aperture_id, diag_b.sidecar.aperture_id);
+    EXPECT_EQ(diag_a.sidecar.pulse_range_start, diag_b.sidecar.pulse_range_start);
+    EXPECT_EQ(diag_a.sidecar.pulse_range_count, diag_b.sidecar.pulse_range_count);
+    EXPECT_EQ(diag_a.sidecar.stream_id, diag_b.sidecar.stream_id);
+    EXPECT_EQ(diag_a.sidecar.tile_id, diag_b.sidecar.tile_id);
+    EXPECT_EQ(diag_a.sidecar.tile_count, diag_b.sidecar.tile_count);
+    EXPECT_EQ(diag_a.sidecar.backend_id, diag_b.sidecar.backend_id);
+    EXPECT_EQ(diag_a.sidecar.backend, diag_b.sidecar.backend);
+    EXPECT_EQ(diag_a.sidecar.marker, diag_b.sidecar.marker);
 }
 
 } // namespace

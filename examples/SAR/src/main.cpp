@@ -40,7 +40,7 @@ std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
 } // namespace
 
 int main(int argc, char** argv) {
-    [[maybe_unused]] const sar::SarMessageEnvelope contract_probe{};
+    [[maybe_unused]] const sar::SarSidecar contract_probe{};
     const char* defaultConfig = "examples/SAR/config/sar_stripmap_definitive.json";
     const char* configPath = (argc > 1) ? argv[1] : defaultConfig;
     const char* pluginDirectory = (argc > 2) ? argv[2] : SAR_PLUGIN_OUTPUT_DIRECTORY;

@@ -31,11 +31,11 @@ public:
         return consume_count_;
     }
 
-    [[nodiscard]] const SarMergeStatusMessage& last_status() const noexcept {
-        return last_status_;
+    [[nodiscard]] const SarAccelControlToken& last_token() const noexcept {
+        return last_token_;
     }
 
-    [[nodiscard]] const SarDiagnosticsMessage& last_diagnostics() const noexcept {
+    [[nodiscard]] const SarDiagnosticsSnapshot& last_diagnostics() const noexcept {
         return diagnostics_;
     }
 
@@ -63,12 +63,11 @@ public:
 
 private:
     void UpdateDiagnostics(const SarAccelControlToken& value);
-    static SarMergeStatusMessage ProjectStatus(const SarAccelControlToken& value);
     void SignalCompletion();
 
     std::size_t consume_count_{0};
-    SarMergeStatusMessage last_status_{};
-    SarDiagnosticsMessage diagnostics_{};
+    SarAccelControlToken last_token_{};
+    SarDiagnosticsSnapshot diagnostics_{};
     bool completion_signal_enabled_{true};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
