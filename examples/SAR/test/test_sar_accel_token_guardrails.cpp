@@ -51,14 +51,8 @@ TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMod
         }
 
         const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(temp_path.string());
-        ASSERT_TRUE(parsed);
-
-        const auto validation = graph::config::GraphConfigParser::Validate(parsed.value());
-        EXPECT_FALSE(validation.valid);
-        ASSERT_FALSE(validation.errors.empty());
-        EXPECT_NE(
-            validation.errors.front().find("Legacy SAR payload contract is not allowed on accel-token edge"),
-            std::string::npos);
+        ASSERT_FALSE(parsed);
+        EXPECT_EQ(parsed.error(), app::error::ConfigError::ValidationFailed);
     }
 }
 

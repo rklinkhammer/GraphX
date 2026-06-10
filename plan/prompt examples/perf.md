@@ -46,11 +46,12 @@ Inputs:
 - current test output
 
 Task:
-Implement PR5 only
+Implement PR6 only
 
-PR5 title:  Delete Obsolete SAR Message Abstractions
-PR5 Scope:
-- Remove non-canonical legacy edge abstractions after token path is complete.
+PR6 title:  Resolver and Schema Guardrails for Accel Token Contract
+PR6 Scope:
+- Harden parser and resolver behavior around edge_contract=accel-token and legacy contract rejection.
+
 
 
 
@@ -60,8 +61,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR5 requires it.
-- Add or update tests for PR5.
+- Delete obsolete code if PR6 requires it.
+- Add or update tests for PR6.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -75,9 +76,9 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR5 acceptance criteria:
-- Removed legacy message abstractions are absent from definitive runtime path.
-- Parser negative-validation artifacts may remain as strings only where intentionally required for guardrails.
+PR6 acceptance criteria:
+- Guardrails enforce canonical contract and fail fast on forbidden legacy edges.
+- Resolver behavior remains explicit and deterministic.
 
 =========
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -86,7 +87,7 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_IMPL_PR5_1.md
+- plan/reviews/SAR_IMPL_PR6_1.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
 - current repository state
 - current test output
@@ -94,11 +95,11 @@ Inputs:
 
 
 Task:
-Verify whether PR5  actually satisfies its acceptance criteria.
+Verify whether PR6  actually satisfies its acceptance criteria.
 
 Check:
-- Removed legacy message abstractions are absent from definitive runtime path.
-- Parser negative-validation artifacts may remain as strings only where intentionally required for guardrails.
+- Guardrails enforce canonical contract and fail fast on forbidden legacy edges.
+- Resolver behavior remains explicit and deterministic.
 
 
 Output:

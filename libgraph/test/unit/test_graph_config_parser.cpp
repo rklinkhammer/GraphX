@@ -224,9 +224,9 @@ TEST(GraphConfigParserExpectedTest, ParseSafePreservesDeclaredPayloadContract) {
     EXPECT_EQ(result->edges[0].payload_contract, "HostPinnedBufferView");
 }
 
-TEST(GraphConfigParserExpectedTest, ValidateRejectsLegacySarPayloadContractForAccelTokenGraph) {
-  // PR4 note: legacy-name literals are retained only for negative validation.
-  // Expanded list coverage is PR6-aligned guardrail hardening.
+TEST(GraphConfigParserExpectedTest, ParseSafeRejectsLegacySarPayloadContractForAccelTokenGraph) {
+    // PR4 note: legacy-name literals are retained only for negative validation.
+    // Expanded list coverage is PR6-aligned guardrail hardening.
     const std::array<const char*, 7> legacy_payload_contracts = {
         "SarPulseBlockMessage",
         "SarRangeTileMessage",
@@ -255,10 +255,32 @@ TEST(GraphConfigParserExpectedTest, ValidateRejectsLegacySarPayloadContractForAc
         };
 
         const auto result = graph::config::GraphConfigParser::ParseSafe(config.dump());
-        ASSERT_TRUE(result);
-        const auto validation = graph::config::GraphConfigParser::Validate(result.value());
-        EXPECT_FALSE(validation.valid);
+        ASSERT_FALSE(result);
+        EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
     }
+}
+
+TEST(GraphConfigParserExpectedTest,
+     ParseSafeRejectsLegacyResolverMappingTokenTypeForAccelTokenGraph) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "legacy_mapping_contract_graph",
+      "edge_contract": "accel-token",
+      "resolver_mappings": [{
+        "intent_type": "RangeCompressionNode",
+        "input_token_type": "SarPulseBlockMessage",
+        "output_token_type": "SarAccelControlToken",
+        "variants": [
+          {"backend": "metal", "concrete_type": "RangeCompressionNode"}
+        ]
+      }],
+      "nodes": [
+        {"id": "source_1", "type": "SourceTestNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
 
   TEST(GraphConfigParserExpectedTest, ParseSafeParsesNamedPorts) {

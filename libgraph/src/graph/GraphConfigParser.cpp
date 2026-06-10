@@ -460,12 +460,20 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
                         return std::unexpected(app::error::ConfigError::TypeMismatch);
                     }
                     mapping.input_token_type = mapping_json["input_token_type"].get<std::string>();
+                    if (config.resolver.edge_contract == "accel-token" &&
+                        IsLegacySarPayloadContract(mapping.input_token_type)) {
+                        return std::unexpected(app::error::ConfigError::ValidationFailed);
+                    }
                 }
                 if (mapping_json.contains("output_token_type")) {
                     if (!mapping_json["output_token_type"].is_string()) {
                         return std::unexpected(app::error::ConfigError::TypeMismatch);
                     }
                     mapping.output_token_type = mapping_json["output_token_type"].get<std::string>();
+                    if (config.resolver.edge_contract == "accel-token" &&
+                        IsLegacySarPayloadContract(mapping.output_token_type)) {
+                        return std::unexpected(app::error::ConfigError::ValidationFailed);
+                    }
                 }
 
                 for (const auto& variant_json : mapping_json["variants"]) {
@@ -552,6 +560,10 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
                 auto edge = ParseEdgeSafe(edge_json);
                 if (!edge) {
                     return std::unexpected(edge.error());
+                }
+                if (config.resolver.edge_contract == "accel-token" &&
+                    IsLegacySarPayloadContract(edge->payload_contract)) {
+                    return std::unexpected(app::error::ConfigError::ValidationFailed);
                 }
                 config.edges.push_back(std::move(edge).value());
             }
