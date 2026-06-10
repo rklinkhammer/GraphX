@@ -407,6 +407,10 @@ public:
         return removed_device != 0 || removed_host != 0;
     }
 
+    [[nodiscard]] MemoryPoolSnapshot Snapshot() const override {
+        return {};
+    }
+
 private:
     std::uint64_t next_allocation_id_{1};
     std::size_t host_allocation_count_{0};

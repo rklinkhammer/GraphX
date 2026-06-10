@@ -41,6 +41,10 @@ public:
         return should_succeed;
     }
 
+    [[nodiscard]] MemoryPoolSnapshot Snapshot() const override {
+        return {};
+    }
+
     bool should_succeed{true};
     std::size_t release_count{0};
     std::uint64_t last_allocation_id{0};

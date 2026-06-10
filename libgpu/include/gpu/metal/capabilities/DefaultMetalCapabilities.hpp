@@ -45,12 +45,21 @@ public:
     bool AllocateHost(std::uint64_t bytes,
                       accel::BufferLease& out_lease) override;
     bool Release(const accel::BufferLease& lease) override;
+    [[nodiscard]] MemoryPoolSnapshot Snapshot() const override;
 
 private:
     std::uint64_t next_allocation_id_{1};
     std::unordered_map<std::uint64_t, std::vector<std::byte>> device_allocations_{};
     std::unordered_map<std::uint64_t, std::vector<std::byte>> shared_allocations_{};
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
+    std::uint64_t live_device_bytes_{0};
+    std::uint64_t live_shared_bytes_{0};
+    std::uint64_t live_host_bytes_{0};
+    std::uint64_t peak_device_bytes_{0};
+    std::uint64_t peak_shared_bytes_{0};
+    std::uint64_t peak_host_bytes_{0};
+    std::uint64_t allocation_count_{0};
+    std::uint64_t release_count_{0};
 };
 
 class DefaultMetalTransferCapability final : public IMetalTransferCapability {

@@ -73,6 +73,17 @@ class IMetalMemoryPoolCapability {
 public:
     virtual ~IMetalMemoryPoolCapability() = default;
 
+    struct MemoryPoolSnapshot {
+        std::uint64_t live_device_bytes{0};
+        std::uint64_t live_shared_bytes{0};
+        std::uint64_t live_host_bytes{0};
+        std::uint64_t peak_device_bytes{0};
+        std::uint64_t peak_shared_bytes{0};
+        std::uint64_t peak_host_bytes{0};
+        std::uint64_t allocation_count{0};
+        std::uint64_t release_count{0};
+    };
+
     virtual bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
                                 accel::BufferLease& out_lease) = 0;
     virtual bool AllocateShared(std::uint64_t bytes, std::uint32_t device_id,
@@ -80,6 +91,7 @@ public:
     virtual bool AllocateHost(std::uint64_t bytes,
                               accel::BufferLease& out_lease) = 0;
     virtual bool Release(const accel::BufferLease& lease) = 0;
+    [[nodiscard]] virtual MemoryPoolSnapshot Snapshot() const = 0;
 };
 
 class IMetalTransferCapability {

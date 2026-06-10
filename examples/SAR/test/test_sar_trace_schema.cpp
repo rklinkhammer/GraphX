@@ -342,6 +342,44 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
         EXPECT_EQ(kernel_total_duration_ns, 0u);
         EXPECT_EQ(last_kernel_duration_ns, 0u);
     }
+
+    ASSERT_TRUE(trace.contains("native_metal_memory_pool"));
+    const auto& native_metal_memory_pool = trace.at("native_metal_memory_pool");
+    EXPECT_TRUE(native_metal_memory_pool.contains("live_device_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("live_shared_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("live_host_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("peak_device_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("peak_shared_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("peak_host_bytes"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("allocation_count"));
+    EXPECT_TRUE(native_metal_memory_pool.contains("release_count"));
+    const auto live_device_bytes =
+        native_metal_memory_pool.at("live_device_bytes").get<std::uint64_t>();
+    const auto live_shared_bytes =
+        native_metal_memory_pool.at("live_shared_bytes").get<std::uint64_t>();
+    const auto live_host_bytes =
+        native_metal_memory_pool.at("live_host_bytes").get<std::uint64_t>();
+    const auto peak_device_bytes =
+        native_metal_memory_pool.at("peak_device_bytes").get<std::uint64_t>();
+    const auto peak_shared_bytes =
+        native_metal_memory_pool.at("peak_shared_bytes").get<std::uint64_t>();
+    const auto peak_host_bytes =
+        native_metal_memory_pool.at("peak_host_bytes").get<std::uint64_t>();
+    const auto allocation_count =
+        native_metal_memory_pool.at("allocation_count").get<std::uint64_t>();
+    const auto release_count =
+        native_metal_memory_pool.at("release_count").get<std::uint64_t>();
+
+    EXPECT_GE(peak_device_bytes, live_device_bytes);
+    EXPECT_GE(peak_shared_bytes, live_shared_bytes);
+    EXPECT_GE(peak_host_bytes, live_host_bytes);
+    EXPECT_GE(allocation_count, release_count);
+    if (allocation_count == 0u) {
+        EXPECT_EQ(release_count, 0u);
+        EXPECT_EQ(peak_device_bytes, 0u);
+        EXPECT_EQ(peak_shared_bytes, 0u);
+        EXPECT_EQ(peak_host_bytes, 0u);
+    }
     EXPECT_TRUE(native.at("backprojection_native_kernel_executed").get<bool>());
     EXPECT_GE(native.at("kernel_ticket_arg_count").get<std::uint64_t>(), 1u);
     EXPECT_GT(native.at("kernel_ticket_id").get<std::uint64_t>(), 0u);

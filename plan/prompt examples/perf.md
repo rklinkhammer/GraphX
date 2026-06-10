@@ -233,7 +233,7 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR1-A2 acceptance criteria:
+PR1-A3 acceptance criteria:
   - Memory metrics are publicly queryable.
   - SAR benchmark trace exports memory metrics for native backend runs.
   - Full CTest lane remains green.

@@ -51,6 +51,7 @@ public:
     bool AllocateHost(std::uint64_t bytes,
                       accel::BufferLease& out_lease) override;
     bool Release(const accel::BufferLease& lease) override;
+    [[nodiscard]] MemoryPoolSnapshot Snapshot() const override;
 
 private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;

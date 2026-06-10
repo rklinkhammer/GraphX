@@ -88,6 +88,9 @@ struct GraphRunResult {
     bool has_metal_telemetry{false};
     graph::gpu::metal::capabilities::IMetalTelemetryCapability::TelemetrySnapshot
         metal_telemetry{};
+    bool has_metal_memory_pool_metrics{false};
+    graph::gpu::metal::capabilities::IMetalMemoryPoolCapability::MemoryPoolSnapshot
+        metal_memory_pool{};
     bool completion_signaled{false};
     bool run_timeout_proxy{false};
     std::string run_exit_mode{"unknown"};
@@ -635,6 +638,12 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
     if (telemetry && out.resolved_execution_backend == "metal") {
         out.has_metal_telemetry = true;
         out.metal_telemetry = telemetry->Snapshot();
+    }
+
+    auto memory_pool = executor->GetCapability<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>();
+    if (memory_pool && out.resolved_execution_backend == "metal") {
+        out.has_metal_memory_pool_metrics = true;
+        out.metal_memory_pool = memory_pool->Snapshot();
     }
     return out;
 }
@@ -1382,6 +1391,19 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"h2d_transfer_samples", last_graph.metal_telemetry.h2d_transfer_samples},
             {"d2h_transfer_samples", last_graph.metal_telemetry.d2h_transfer_samples},
             {"d2d_transfer_samples", last_graph.metal_telemetry.d2d_transfer_samples},
+        };
+    }
+
+    if (last_graph.has_metal_memory_pool_metrics) {
+        trace["native_metal_memory_pool"] = {
+            {"live_device_bytes", last_graph.metal_memory_pool.live_device_bytes},
+            {"live_shared_bytes", last_graph.metal_memory_pool.live_shared_bytes},
+            {"live_host_bytes", last_graph.metal_memory_pool.live_host_bytes},
+            {"peak_device_bytes", last_graph.metal_memory_pool.peak_device_bytes},
+            {"peak_shared_bytes", last_graph.metal_memory_pool.peak_shared_bytes},
+            {"peak_host_bytes", last_graph.metal_memory_pool.peak_host_bytes},
+            {"allocation_count", last_graph.metal_memory_pool.allocation_count},
+            {"release_count", last_graph.metal_memory_pool.release_count},
         };
     }
 

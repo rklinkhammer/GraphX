@@ -70,6 +70,10 @@ bool DefaultMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes, std::
         return false;
     }
 
+    ++allocation_count_;
+    live_device_bytes_ += bytes;
+    peak_device_bytes_ = std::max(peak_device_bytes_, live_device_bytes_);
+
     out_lease.pool_id = 21;
     out_lease.allocation_id = allocation_id;
     out_lease.release_policy = accel::ReleasePolicy::Manual;
@@ -96,6 +100,10 @@ bool DefaultMetalMemoryPoolCapability::AllocateShared(std::uint64_t bytes, std::
     if (!inserted) {
         return false;
     }
+
+    ++allocation_count_;
+    live_shared_bytes_ += bytes;
+    peak_shared_bytes_ = std::max(peak_shared_bytes_, live_shared_bytes_);
 
     out_lease.pool_id = 22;
     out_lease.allocation_id = allocation_id;
@@ -124,6 +132,10 @@ bool DefaultMetalMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
         return false;
     }
 
+    ++allocation_count_;
+    live_host_bytes_ += bytes;
+    peak_host_bytes_ = std::max(peak_host_bytes_, live_host_bytes_);
+
     out_lease.pool_id = 23;
     out_lease.allocation_id = allocation_id;
     out_lease.release_policy = accel::ReleasePolicy::Manual;
@@ -143,10 +155,39 @@ bool DefaultMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) 
         return false;
     }
 
-    const auto released_device = device_allocations_.erase(lease.allocation_id);
-    const auto released_shared = shared_allocations_.erase(lease.allocation_id);
-    const auto released_host = host_allocations_.erase(lease.allocation_id);
-    return released_device != 0 || released_shared != 0 || released_host != 0;
+    const auto release_from = [this, &lease](auto& allocations, std::uint64_t& live_bytes) {
+        const auto it = allocations.find(lease.allocation_id);
+        if (it == allocations.end()) {
+            return false;
+        }
+
+        if (live_bytes >= it->second.size()) {
+            live_bytes -= static_cast<std::uint64_t>(it->second.size());
+        } else {
+            live_bytes = 0;
+        }
+        allocations.erase(it);
+        ++release_count_;
+        return true;
+    };
+
+    const bool released_device = release_from(device_allocations_, live_device_bytes_);
+    const bool released_shared = release_from(shared_allocations_, live_shared_bytes_);
+    const bool released_host = release_from(host_allocations_, live_host_bytes_);
+    return released_device || released_shared || released_host;
+}
+
+IMetalMemoryPoolCapability::MemoryPoolSnapshot DefaultMetalMemoryPoolCapability::Snapshot() const {
+    MemoryPoolSnapshot out{};
+    out.live_device_bytes = live_device_bytes_;
+    out.live_shared_bytes = live_shared_bytes_;
+    out.live_host_bytes = live_host_bytes_;
+    out.peak_device_bytes = peak_device_bytes_;
+    out.peak_shared_bytes = peak_shared_bytes_;
+    out.peak_host_bytes = peak_host_bytes_;
+    out.allocation_count = allocation_count_;
+    out.release_count = release_count_;
+    return out;
 }
 
 bool DefaultMetalTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView& src,

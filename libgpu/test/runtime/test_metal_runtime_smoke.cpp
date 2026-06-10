@@ -100,6 +100,18 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_TRUE(memory_pool->AllocateHost(64U, host_lease));
         EXPECT_TRUE(graph::gpu::accel::IsValidView(host_lease.host_view));
 
+        const auto memory_snapshot_after_alloc = memory_pool->Snapshot();
+        EXPECT_GE(memory_snapshot_after_alloc.live_device_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_alloc.live_shared_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_alloc.live_host_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_alloc.peak_device_bytes,
+              memory_snapshot_after_alloc.live_device_bytes);
+        EXPECT_GE(memory_snapshot_after_alloc.peak_shared_bytes,
+              memory_snapshot_after_alloc.live_shared_bytes);
+        EXPECT_GE(memory_snapshot_after_alloc.peak_host_bytes,
+              memory_snapshot_after_alloc.live_host_bytes);
+        EXPECT_GE(memory_snapshot_after_alloc.allocation_count, 3U);
+
         std::array<std::uint8_t, 64> host_src{};
         std::array<std::uint8_t, 64> host_dst{};
         for (std::size_t i = 0; i < host_src.size(); ++i) {
@@ -267,6 +279,16 @@ TEST(MetalNativeRuntimeSmokeTest, RegistersNativeOrFallsBackSafely) {
         EXPECT_TRUE(memory_pool->Release(device_lease));
         EXPECT_TRUE(memory_pool->Release(shared_lease));
         EXPECT_TRUE(memory_pool->Release(host_lease));
+
+        const auto memory_snapshot_after_release = memory_pool->Snapshot();
+        EXPECT_EQ(memory_snapshot_after_release.live_device_bytes, 0U);
+        EXPECT_EQ(memory_snapshot_after_release.live_shared_bytes, 0U);
+        EXPECT_EQ(memory_snapshot_after_release.live_host_bytes, 0U);
+        EXPECT_GE(memory_snapshot_after_release.peak_device_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_release.peak_shared_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_release.peak_host_bytes, 64U);
+        EXPECT_GE(memory_snapshot_after_release.allocation_count,
+              memory_snapshot_after_release.release_count);
 
         context->DestroyEvent(event_id);
         context->DestroyCommandQueue(queue_id);

@@ -53,6 +53,14 @@ public:
         std::unordered_map<std::uint64_t, AllocationRecord> device_allocations{};
         std::unordered_map<std::uint64_t, AllocationRecord> shared_allocations{};
         std::unordered_map<std::uint64_t, AllocationRecord> host_allocations{};
+        std::uint64_t live_device_bytes{0};
+        std::uint64_t live_shared_bytes{0};
+        std::uint64_t live_host_bytes{0};
+        std::uint64_t peak_device_bytes{0};
+        std::uint64_t peak_shared_bytes{0};
+        std::uint64_t peak_host_bytes{0};
+        std::uint64_t allocation_count{0};
+        std::uint64_t release_count{0};
     };
 
     struct TransferState {
@@ -1176,6 +1184,9 @@ bool NativeMetalMemoryPoolCapability::AllocateDevice(std::uint64_t bytes,
     }
 
     pool_state.device_allocations.emplace(allocation_id, record);
+    ++pool_state.allocation_count;
+    pool_state.live_device_bytes += bytes;
+    pool_state.peak_device_bytes = std::max(pool_state.peak_device_bytes, pool_state.live_device_bytes);
 
     out_lease.pool_id = 31;
     out_lease.allocation_id = allocation_id;
@@ -1241,6 +1252,9 @@ bool NativeMetalMemoryPoolCapability::AllocateShared(std::uint64_t bytes,
     }
 
     pool_state.shared_allocations.emplace(allocation_id, record);
+    ++pool_state.allocation_count;
+    pool_state.live_shared_bytes += bytes;
+    pool_state.peak_shared_bytes = std::max(pool_state.peak_shared_bytes, pool_state.live_shared_bytes);
 
     out_lease.pool_id = 32;
     out_lease.allocation_id = allocation_id;
@@ -1282,6 +1296,9 @@ bool NativeMetalMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
     record.buffer = buffer;
     record.bytes = bytes;
     pool_state.host_allocations.emplace(allocation_id, record);
+    ++pool_state.allocation_count;
+    pool_state.live_host_bytes += bytes;
+    pool_state.peak_host_bytes = std::max(pool_state.peak_host_bytes, pool_state.live_host_bytes);
 
     out_lease.pool_id = 33;
     out_lease.allocation_id = allocation_id;
@@ -1306,10 +1323,18 @@ bool NativeMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
     auto& pool_state = MemoryPoolState();
     std::scoped_lock lock(pool_state.mutex);
 
-    const auto release_from = [&lease](auto& allocations) {
+    const auto release_from = [&lease](auto& allocations,
+                                       std::uint64_t& live_bytes,
+                                       std::uint64_t& release_count) {
         const auto it = allocations.find(lease.allocation_id);
         if (it == allocations.end()) {
             return false;
+        }
+
+        if (live_bytes >= it->second.bytes) {
+            live_bytes -= it->second.bytes;
+        } else {
+            live_bytes = 0;
         }
 
         if (it->second.buffer != nullptr) {
@@ -1317,13 +1342,37 @@ bool NativeMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
         }
         delete[] it->second.host_token;
         allocations.erase(it);
+        ++release_count;
         return true;
     };
 
-    const bool released_device = release_from(pool_state.device_allocations);
-    const bool released_shared = release_from(pool_state.shared_allocations);
-    const bool released_host = release_from(pool_state.host_allocations);
+    const bool released_device = release_from(pool_state.device_allocations,
+                                              pool_state.live_device_bytes,
+                                              pool_state.release_count);
+    const bool released_shared = release_from(pool_state.shared_allocations,
+                                              pool_state.live_shared_bytes,
+                                              pool_state.release_count);
+    const bool released_host = release_from(pool_state.host_allocations,
+                                            pool_state.live_host_bytes,
+                                            pool_state.release_count);
     return released_device || released_shared || released_host;
+}
+
+IMetalMemoryPoolCapability::MemoryPoolSnapshot NativeMetalMemoryPoolCapability::Snapshot() const {
+    ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
+    auto& pool_state = MemoryPoolState();
+    std::scoped_lock lock(pool_state.mutex);
+
+    MemoryPoolSnapshot out{};
+    out.live_device_bytes = pool_state.live_device_bytes;
+    out.live_shared_bytes = pool_state.live_shared_bytes;
+    out.live_host_bytes = pool_state.live_host_bytes;
+    out.peak_device_bytes = pool_state.peak_device_bytes;
+    out.peak_shared_bytes = pool_state.peak_shared_bytes;
+    out.peak_host_bytes = pool_state.peak_host_bytes;
+    out.allocation_count = pool_state.allocation_count;
+    out.release_count = pool_state.release_count;
+    return out;
 }
 
 bool NativeMetalTransferCapability::EnqueueH2D(const accel::HostPinnedBufferView& src,
