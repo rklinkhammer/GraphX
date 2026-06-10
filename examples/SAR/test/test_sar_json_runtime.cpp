@@ -258,6 +258,14 @@ TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, diagnostics.bytes_d2h);
     EXPECT_GT(diagnostics.bytes_h2d, 0u);
+    EXPECT_GT(diagnostics.stage_timings.range_window_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.range_compression_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.split_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.h2d_stage_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.backprojection_stage_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.d2h_stage_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.merge_stage_time_us, 0u);
+    EXPECT_GT(diagnostics.stage_timings.diagnostics_sink_time_us, 0u);
 }
 
 TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcreteProvider) {

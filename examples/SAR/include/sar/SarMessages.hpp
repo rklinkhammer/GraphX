@@ -82,6 +82,17 @@ struct SarGpuMetadata {
     bool has_kernel_ticket{false};
 };
 
+struct SarStageTimingMetrics {
+    std::uint64_t range_window_time_us{};
+    std::uint64_t range_compression_time_us{};
+    std::uint64_t split_time_us{};
+    std::uint64_t h2d_stage_time_us{};
+    std::uint64_t backprojection_stage_time_us{};
+    std::uint64_t d2h_stage_time_us{};
+    std::uint64_t merge_stage_time_us{};
+    std::uint64_t diagnostics_sink_time_us{};
+};
+
 struct SarSidecar {
     std::uint64_t sequence_id{};
     std::uint64_t batch_id{};
@@ -99,6 +110,7 @@ struct SarSidecar {
     std::uint64_t h2d_queue_id{};
     std::uint64_t kernel_queue_id{};
     std::uint64_t d2h_queue_id{};
+    SarStageTimingMetrics stage_timings{};
 };
 
 template <typename SidecarT>
@@ -127,6 +139,7 @@ using SarIqSample = std::complex<float>;
 struct SarPulseBlockMessage {
     SarMessageEnvelope envelope{};
     SarBufferDescriptor buffer{};
+    SarStageTimingMetrics stage_timings{};
     std::vector<SarIqSample> iq_samples{};
 };
 
@@ -141,6 +154,7 @@ struct SarDispatchMetadata {
 struct SarMergeStatusMessage {
     SarMessageEnvelope envelope{};
     SarGpuMetadata gpu{};
+    SarStageTimingMetrics stage_timings{};
     std::uint32_t expected_tiles{};
     std::uint32_t received_tiles{};
     std::uint32_t duplicate_tiles{};
@@ -159,6 +173,7 @@ struct SarMergeStatusMessage {
 
 struct SarDiagnosticsMessage {
     SarMessageEnvelope envelope{};
+    SarStageTimingMetrics stage_timings{};
     std::uint64_t pulses_processed{};
     std::uint64_t tiles_processed{};
     std::uint64_t bytes_h2d{};

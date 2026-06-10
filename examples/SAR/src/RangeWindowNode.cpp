@@ -2,6 +2,7 @@
 
 #include "config/ConfigError.hpp"
 
+#include <chrono>
 #include <cmath>
 
 namespace sar {
@@ -9,6 +10,15 @@ namespace sar {
 namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
+
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t ElapsedUs(const Clock::time_point start) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        Clock::now() - start);
+    const auto count = static_cast<std::uint64_t>(elapsed.count());
+    return (count == 0u) ? 1u : count;
+}
 
 } // namespace
 
@@ -24,11 +34,14 @@ std::optional<SarPulseBlockMessage> RangeWindowNode::Transfer(
         return out;
     }
 
+    const auto stage_start = Clock::now();
+
     const auto sample_count = out.iq_samples.size();
     for (std::size_t i = 0; i < sample_count; ++i) {
         out.iq_samples[i] *= config_.gain * HannWeight(i, sample_count);
     }
     out.buffer.byte_count = out.iq_samples.size() * sizeof(SarIqSample);
+    out.stage_timings.range_window_time_us += ElapsedUs(stage_start);
     return out;
 }
 

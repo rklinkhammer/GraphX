@@ -6,6 +6,7 @@
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
+#include <chrono>
 #include <algorithm>
 #include <atomic>
 #include <sstream>
@@ -105,6 +106,15 @@ std::uint64_t NextOpaqueEventId() {
     return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t ElapsedUs(const Clock::time_point start) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        Clock::now() - start);
+    const auto count = static_cast<std::uint64_t>(elapsed.count());
+    return (count == 0u) ? 1u : count;
+}
+
 } // namespace
 
 SarBackprojectionTransformAccelNode::SarBackprojectionTransformAccelNode(
@@ -115,6 +125,8 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
+    const auto stage_start = Clock::now();
+
     if (!input.has_device_view || !graph::gpu::accel::IsValidView(input.device_view)) {
         return std::nullopt;
     }
@@ -146,6 +158,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
         token.sidecar.backend_id = native_output->device_id;
         token.sidecar.backend = ToSarBackendKind(native_output->backend);
         token.sidecar.kernel_queue_id = last_kernel_ticket_.execution_queue_id;
+        token.sidecar.stage_timings.backprojection_stage_time_us += ElapsedUs(stage_start);
 
         if (token.sidecar.marker == SarFrameMarker::Data) {
             const auto element_count =
@@ -232,6 +245,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     token.sidecar.backend_id = output.device_id;
     token.sidecar.backend = ToSarBackendKind(output.backend);
     token.sidecar.kernel_queue_id = output.execution_queue_id;
+    token.sidecar.stage_timings.backprojection_stage_time_us += ElapsedUs(stage_start);
 
     return token;
 }

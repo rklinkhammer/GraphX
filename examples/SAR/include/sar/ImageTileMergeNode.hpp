@@ -131,6 +131,7 @@ private:
     std::uint64_t transfer_h2d_time_us_{0};
     std::uint64_t kernel_exec_time_us_{0};
     std::uint64_t transfer_d2h_time_us_{0};
+    SarStageTimingMetrics stage_timing_totals_{};
     std::uint32_t last_tile_id_{0};
     bool has_last_tile_{false};
     bool watermark_seen_{false};

@@ -7,6 +7,7 @@ These agent roles are intended for GraphX SAR cleanup work where:
 * Obsolete SAR/GPU message paths should be deleted.
 * Metal is the first backend.
 * GraphX DAG semantics take priority over SAR convenience.
+* Code is not duplicated
 
 ---
 
@@ -80,6 +81,7 @@ Design the simplest clean architecture. Prefer deletion over compatibility.
 * Do not preserve old APIs because tests reference them.
 * Do not create compatibility shims.
 * Do not support dual SAR GPU paths.
+* Duplicate code is a defect
 
 ## Required Target
 

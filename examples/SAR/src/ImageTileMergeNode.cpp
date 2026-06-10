@@ -3,6 +3,7 @@
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
+#include <chrono>
 #include <algorithm>
 #include <atomic>
 
@@ -23,6 +24,15 @@ std::uint64_t NextOpaqueEventId() {
     return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t ElapsedUs(const Clock::time_point start) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        Clock::now() - start);
+    const auto count = static_cast<std::uint64_t>(elapsed.count());
+    return (count == 0u) ? 1u : count;
+}
+
 } // namespace
 
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
@@ -32,6 +42,8 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
+    const auto stage_start = Clock::now();
+
     if (!input.has_host_view || !graph::gpu::accel::IsValidView(input.host_view)) {
         return std::nullopt;
     }
@@ -51,16 +63,23 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
 
     const std::uint32_t expected_tiles = ResolveExpectedTiles();
 
-    if (marker == SarFrameMarker::Watermark) {
-        watermark_seen_ = true;
-        return BuildStatusMessage(
+    const auto finalize_status = [&](SarFrameMarker output_marker, bool complete) {
+        stage_timing_totals_.merge_stage_time_us += ElapsedUs(stage_start);
+        auto status = BuildStatusMessage(
             input,
             sequence_id,
             tile_id,
             stream_id,
             effective_byte_count,
-            SarFrameMarker::Watermark,
-            false);
+            output_marker,
+            complete);
+        status.stage_timings = stage_timing_totals_;
+        return std::optional<SarMergeStatusMessage>(std::move(status));
+    };
+
+    if (marker == SarFrameMarker::Watermark) {
+        watermark_seen_ = true;
+        return finalize_status(SarFrameMarker::Watermark, false);
     }
 
     if (marker == SarFrameMarker::EndOfStream) {
@@ -80,14 +99,7 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         if (complete) {
             completion_emitted_ = true;
         }
-        return BuildStatusMessage(
-            input,
-            sequence_id,
-            tile_id,
-            stream_id,
-            effective_byte_count,
-            SarFrameMarker::EndOfStream,
-            complete);
+        return finalize_status(SarFrameMarker::EndOfStream, complete);
     }
 
     if (!has_first_data_sequence_) {
@@ -102,6 +114,12 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
     transfer_h2d_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
     kernel_exec_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
     transfer_d2h_time_us_ += (transfer_bytes > 0u) ? 1u : 0u;
+    stage_timing_totals_.range_window_time_us += input.sidecar.stage_timings.range_window_time_us;
+    stage_timing_totals_.range_compression_time_us += input.sidecar.stage_timings.range_compression_time_us;
+    stage_timing_totals_.split_time_us += input.sidecar.stage_timings.split_time_us;
+    stage_timing_totals_.h2d_stage_time_us += input.sidecar.stage_timings.h2d_stage_time_us;
+    stage_timing_totals_.backprojection_stage_time_us += input.sidecar.stage_timings.backprojection_stage_time_us;
+    stage_timing_totals_.d2h_stage_time_us += input.sidecar.stage_timings.d2h_stage_time_us;
 
     const auto [_, inserted] = seen_tiles_.insert(tile_id);
     if (!inserted) {
@@ -116,14 +134,7 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
         has_last_tile_ = true;
     }
 
-    return BuildStatusMessage(
-        input,
-        sequence_id,
-        tile_id,
-        stream_id,
-        effective_byte_count,
-        SarFrameMarker::Data,
-        false);
+    return finalize_status(SarFrameMarker::Data, false);
 }
 
 void ImageTileMergeNode::Configure(const graph::JsonView& cfg) {
@@ -236,6 +247,7 @@ void ImageTileMergeNode::Reset() {
     transfer_h2d_time_us_ = 0;
     kernel_exec_time_us_ = 0;
     transfer_d2h_time_us_ = 0;
+    stage_timing_totals_ = {};
     last_tile_id_ = 0;
     has_last_tile_ = false;
     watermark_seen_ = false;
@@ -256,7 +268,7 @@ const ImageTileMergeConfig& ImageTileMergeNode::GetConfig() const noexcept {
 SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     const SarAccelControlToken& input,
     std::uint64_t sequence_id,
-    std::uint32_t tile_id,
+    std::uint32_t,
     std::uint32_t stream_id,
     std::size_t byte_count,
     SarFrameMarker marker,
@@ -317,6 +329,7 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     out.transfer_h2d_time_us = transfer_h2d_time_us_;
     out.kernel_exec_time_us = kernel_exec_time_us_;
     out.transfer_d2h_time_us = transfer_d2h_time_us_;
+    out.stage_timings = stage_timing_totals_;
     out.watermark_seen = watermark_seen_;
     out.complete = complete;
 

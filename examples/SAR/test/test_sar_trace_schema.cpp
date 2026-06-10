@@ -108,10 +108,30 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_TRUE(diagnostics.contains("transfer_h2d_time_us"));
     EXPECT_TRUE(diagnostics.contains("kernel_exec_time_us"));
     EXPECT_TRUE(diagnostics.contains("transfer_d2h_time_us"));
+    EXPECT_TRUE(diagnostics.contains("range_window_time_us"));
+    EXPECT_TRUE(diagnostics.contains("range_compression_time_us"));
+    EXPECT_TRUE(diagnostics.contains("split_time_us"));
+    EXPECT_TRUE(diagnostics.contains("h2d_stage_time_us"));
+    EXPECT_TRUE(diagnostics.contains("backprojection_stage_time_us"));
+    EXPECT_TRUE(diagnostics.contains("d2h_stage_time_us"));
+    EXPECT_TRUE(diagnostics.contains("merge_stage_time_us"));
+    EXPECT_TRUE(diagnostics.contains("diagnostics_sink_time_us"));
     EXPECT_TRUE(diagnostics.contains("fanin_wait_ms"));
     EXPECT_TRUE(diagnostics.contains("duplicate_tile_count"));
     EXPECT_TRUE(diagnostics.contains("missing_tile_count"));
     EXPECT_TRUE(diagnostics.contains("out_of_order_completion_count"));
+    if (trace.at("profile").at("range_stage").get<std::string>() == "window") {
+        EXPECT_GT(diagnostics.at("range_window_time_us").get<std::uint64_t>(), 0u);
+    } else {
+        EXPECT_EQ(diagnostics.at("range_window_time_us").get<std::uint64_t>(), 0u);
+    }
+    EXPECT_GT(diagnostics.at("range_compression_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("split_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("h2d_stage_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("backprojection_stage_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("d2h_stage_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("merge_stage_time_us").get<std::uint64_t>(), 0u);
+    EXPECT_GT(diagnostics.at("diagnostics_sink_time_us").get<std::uint64_t>(), 0u);
 
     ASSERT_TRUE(trace.contains("queue"));
     const auto& queue = trace.at("queue");

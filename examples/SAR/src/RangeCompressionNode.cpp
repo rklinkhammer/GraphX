@@ -5,6 +5,7 @@
 #include "dsp/IqPacket.hpp"
 #include "sar/SarCpuReference.hpp"
 
+#include <chrono>
 #include <algorithm>
 #include <array>
 #include <complex>
@@ -109,6 +110,15 @@ std::string OutputToString(RangeCompressionOutput output) {
     return "magnitude";
 }
 
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t ElapsedUs(const Clock::time_point start) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        Clock::now() - start);
+    const auto count = static_cast<std::uint64_t>(elapsed.count());
+    return (count == 0u) ? 1u : count;
+}
+
 } // namespace
 
 RangeCompressionNode::RangeCompressionNode(RangeCompressionConfig config)
@@ -122,10 +132,17 @@ std::optional<SarPulseBlockMessage> RangeCompressionNode::Transfer(
         return input;
     }
 
+    const auto stage_start = Clock::now();
+
+    SarPulseBlockMessage out{};
+
     if (config_.mode == RangeCompressionMode::MatchedFilter) {
-        return CompressWithMatchedFilter(input);
+        out = CompressWithMatchedFilter(input);
+    } else {
+        out = CompressWithFft(input);
     }
-    return CompressWithFft(input);
+    out.stage_timings.range_compression_time_us += ElapsedUs(stage_start);
+    return out;
 }
 
 void RangeCompressionNode::Configure(const graph::JsonView& cfg) {

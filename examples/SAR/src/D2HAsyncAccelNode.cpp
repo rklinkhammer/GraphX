@@ -3,6 +3,7 @@
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
 
+#include <chrono>
 #include <atomic>
 
 namespace sar {
@@ -35,12 +36,23 @@ std::uint64_t NextOpaqueEventId() {
     return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
+using Clock = std::chrono::steady_clock;
+
+std::uint64_t ElapsedUs(const Clock::time_point start) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        Clock::now() - start);
+    const auto count = static_cast<std::uint64_t>(elapsed.count());
+    return (count == 0u) ? 1u : count;
+}
+
 } // namespace
 
 std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
+    const auto stage_start = Clock::now();
+
     if (!input.has_device_view || !graph::gpu::accel::IsValidView(input.device_view)) {
         return std::nullopt;
     }
@@ -96,6 +108,7 @@ std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
     token.sidecar.backend_id = device_view.device_id;
     token.sidecar.backend = ToSarBackendKind(device_view.backend);
     token.sidecar.d2h_queue_id = effective_queue;
+    token.sidecar.stage_timings.d2h_stage_time_us += ElapsedUs(stage_start);
 
     return token;
 }
