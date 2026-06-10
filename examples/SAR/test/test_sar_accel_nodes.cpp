@@ -345,25 +345,25 @@ TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(status.has_value());
-    EXPECT_EQ(status->envelope.sequence_id, 9u);
-    EXPECT_EQ(status->envelope.batch_id, 5u);
-    EXPECT_EQ(status->envelope.aperture_id, 9u);
-    EXPECT_EQ(status->envelope.pulse_range_start, 9u);
-    EXPECT_EQ(status->envelope.pulse_range_count, 1u);
-    EXPECT_EQ(status->envelope.stream_id, 23u);
-    EXPECT_EQ(status->envelope.tile_id, 2u);
-    EXPECT_EQ(status->envelope.tile_count, 4u);
-    EXPECT_EQ(status->envelope.backend_id, 3u);
-    EXPECT_EQ(status->envelope.backend, sar::SarBackendKind::NativeDevice);
-    EXPECT_EQ(status->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_FALSE(status->envelope.synthetic);
-    EXPECT_EQ(status->bytes_h2d, 16u);
-    EXPECT_EQ(status->bytes_d2h, 16u);
-    EXPECT_TRUE(status->gpu.has_host_view);
-    EXPECT_TRUE(status->gpu.has_transfer_ticket);
-    EXPECT_TRUE(status->gpu.has_kernel_ticket);
-    EXPECT_EQ(status->gpu.transfer_ticket.execution_queue_id, 4u);
-    EXPECT_EQ(status->gpu.kernel_ticket.execution_queue_id, 4u);
+    EXPECT_EQ(status->sidecar.sequence_id, 9u);
+    EXPECT_EQ(status->sidecar.batch_id, 5u);
+    EXPECT_EQ(status->sidecar.aperture_id, 9u);
+    EXPECT_EQ(status->sidecar.pulse_range_start, 9u);
+    EXPECT_EQ(status->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(status->sidecar.stream_id, 23u);
+    EXPECT_EQ(status->sidecar.tile_id, 2u);
+    EXPECT_EQ(status->sidecar.tile_count, 4u);
+    EXPECT_EQ(status->sidecar.backend_id, 3u);
+    EXPECT_EQ(status->sidecar.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(status->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_FALSE(status->sidecar.synthetic);
+    EXPECT_EQ(status->sidecar.bytes_h2d, 16u);
+    EXPECT_EQ(status->sidecar.bytes_d2h, 16u);
+    EXPECT_TRUE(status->has_host_view);
+    EXPECT_TRUE(status->has_transfer_ticket);
+    EXPECT_TRUE(status->has_kernel_ticket);
+    EXPECT_EQ(status->transfer_ticket.execution_queue_id, 4u);
+    EXPECT_EQ(status->kernel_ticket.execution_queue_id, 4u);
 }
 
 TEST(SarAccelNodesTest, MaterializedSinkExtractsPayloadFromAccelTokenFlow) {
@@ -485,18 +485,18 @@ TEST(SarAccelNodesTest, MergeIdentityIsInvariantToHostPointerWhenSidecarIsConsta
     ASSERT_TRUE(status_a.has_value());
     ASSERT_TRUE(status_b.has_value());
 
-    EXPECT_EQ(status_a->envelope.sequence_id, status_b->envelope.sequence_id);
-    EXPECT_EQ(status_a->envelope.batch_id, status_b->envelope.batch_id);
-    EXPECT_EQ(status_a->envelope.aperture_id, status_b->envelope.aperture_id);
-    EXPECT_EQ(status_a->envelope.pulse_range_start, status_b->envelope.pulse_range_start);
-    EXPECT_EQ(status_a->envelope.pulse_range_count, status_b->envelope.pulse_range_count);
-    EXPECT_EQ(status_a->envelope.stream_id, status_b->envelope.stream_id);
-    EXPECT_EQ(status_a->envelope.tile_id, status_b->envelope.tile_id);
-    EXPECT_EQ(status_a->envelope.tile_count, status_b->envelope.tile_count);
-    EXPECT_EQ(status_a->envelope.marker, status_b->envelope.marker);
-    EXPECT_EQ(status_a->bytes_h2d, status_b->bytes_h2d);
-    EXPECT_EQ(status_a->bytes_d2h, status_b->bytes_d2h);
-    EXPECT_EQ(status_a->kernel_dispatches, status_b->kernel_dispatches);
+    EXPECT_EQ(status_a->sidecar.sequence_id, status_b->sidecar.sequence_id);
+    EXPECT_EQ(status_a->sidecar.batch_id, status_b->sidecar.batch_id);
+    EXPECT_EQ(status_a->sidecar.aperture_id, status_b->sidecar.aperture_id);
+    EXPECT_EQ(status_a->sidecar.pulse_range_start, status_b->sidecar.pulse_range_start);
+    EXPECT_EQ(status_a->sidecar.pulse_range_count, status_b->sidecar.pulse_range_count);
+    EXPECT_EQ(status_a->sidecar.stream_id, status_b->sidecar.stream_id);
+    EXPECT_EQ(status_a->sidecar.tile_id, status_b->sidecar.tile_id);
+    EXPECT_EQ(status_a->sidecar.tile_count, status_b->sidecar.tile_count);
+    EXPECT_EQ(status_a->sidecar.marker, status_b->sidecar.marker);
+    EXPECT_EQ(status_a->sidecar.bytes_h2d, status_b->sidecar.bytes_h2d);
+    EXPECT_EQ(status_a->sidecar.bytes_d2h, status_b->sidecar.bytes_d2h);
+    EXPECT_EQ(status_a->sidecar.kernel_dispatches, status_b->sidecar.kernel_dispatches);
 }
 
 TEST(SarAccelNodesTest, SplitDoesNotEncodeIdentityIntoHostPointerChannel) {
@@ -640,18 +640,18 @@ TEST(SarAccelNodesTest, MergeIdentityIsInvariantToReadyEventWhenSidecarIsConstan
     ASSERT_TRUE(status_a.has_value());
     ASSERT_TRUE(status_b.has_value());
 
-    EXPECT_EQ(status_a->envelope.sequence_id, status_b->envelope.sequence_id);
-    EXPECT_EQ(status_a->envelope.batch_id, status_b->envelope.batch_id);
-    EXPECT_EQ(status_a->envelope.aperture_id, status_b->envelope.aperture_id);
-    EXPECT_EQ(status_a->envelope.pulse_range_start, status_b->envelope.pulse_range_start);
-    EXPECT_EQ(status_a->envelope.pulse_range_count, status_b->envelope.pulse_range_count);
-    EXPECT_EQ(status_a->envelope.stream_id, status_b->envelope.stream_id);
-    EXPECT_EQ(status_a->envelope.tile_id, status_b->envelope.tile_id);
-    EXPECT_EQ(status_a->envelope.tile_count, status_b->envelope.tile_count);
-    EXPECT_EQ(status_a->envelope.marker, status_b->envelope.marker);
-    EXPECT_EQ(status_a->bytes_h2d, status_b->bytes_h2d);
-    EXPECT_EQ(status_a->bytes_d2h, status_b->bytes_d2h);
-    EXPECT_EQ(status_a->kernel_dispatches, status_b->kernel_dispatches);
+    EXPECT_EQ(status_a->sidecar.sequence_id, status_b->sidecar.sequence_id);
+    EXPECT_EQ(status_a->sidecar.batch_id, status_b->sidecar.batch_id);
+    EXPECT_EQ(status_a->sidecar.aperture_id, status_b->sidecar.aperture_id);
+    EXPECT_EQ(status_a->sidecar.pulse_range_start, status_b->sidecar.pulse_range_start);
+    EXPECT_EQ(status_a->sidecar.pulse_range_count, status_b->sidecar.pulse_range_count);
+    EXPECT_EQ(status_a->sidecar.stream_id, status_b->sidecar.stream_id);
+    EXPECT_EQ(status_a->sidecar.tile_id, status_b->sidecar.tile_id);
+    EXPECT_EQ(status_a->sidecar.tile_count, status_b->sidecar.tile_count);
+    EXPECT_EQ(status_a->sidecar.marker, status_b->sidecar.marker);
+    EXPECT_EQ(status_a->sidecar.bytes_h2d, status_b->sidecar.bytes_h2d);
+    EXPECT_EQ(status_a->sidecar.bytes_d2h, status_b->sidecar.bytes_d2h);
+    EXPECT_EQ(status_a->sidecar.kernel_dispatches, status_b->sidecar.kernel_dispatches);
 }
 
 TEST(SarAccelNodesTest, MergeIdentityIsInvariantWhenReadyEventAndHostPointerBothChange) {
@@ -710,16 +710,16 @@ TEST(SarAccelNodesTest, MergeIdentityIsInvariantWhenReadyEventAndHostPointerBoth
     ASSERT_TRUE(status_a.has_value());
     ASSERT_TRUE(status_b.has_value());
 
-    EXPECT_EQ(status_a->envelope.sequence_id, status_b->envelope.sequence_id);
-    EXPECT_EQ(status_a->envelope.batch_id, status_b->envelope.batch_id);
-    EXPECT_EQ(status_a->envelope.aperture_id, status_b->envelope.aperture_id);
-    EXPECT_EQ(status_a->envelope.pulse_range_start, status_b->envelope.pulse_range_start);
-    EXPECT_EQ(status_a->envelope.pulse_range_count, status_b->envelope.pulse_range_count);
-    EXPECT_EQ(status_a->envelope.stream_id, status_b->envelope.stream_id);
-    EXPECT_EQ(status_a->envelope.tile_id, status_b->envelope.tile_id);
-    EXPECT_EQ(status_a->envelope.tile_count, status_b->envelope.tile_count);
-    EXPECT_EQ(status_a->envelope.marker, status_b->envelope.marker);
-    EXPECT_EQ(status_a->bytes_h2d, status_b->bytes_h2d);
-    EXPECT_EQ(status_a->bytes_d2h, status_b->bytes_d2h);
-    EXPECT_EQ(status_a->kernel_dispatches, status_b->kernel_dispatches);
+    EXPECT_EQ(status_a->sidecar.sequence_id, status_b->sidecar.sequence_id);
+    EXPECT_EQ(status_a->sidecar.batch_id, status_b->sidecar.batch_id);
+    EXPECT_EQ(status_a->sidecar.aperture_id, status_b->sidecar.aperture_id);
+    EXPECT_EQ(status_a->sidecar.pulse_range_start, status_b->sidecar.pulse_range_start);
+    EXPECT_EQ(status_a->sidecar.pulse_range_count, status_b->sidecar.pulse_range_count);
+    EXPECT_EQ(status_a->sidecar.stream_id, status_b->sidecar.stream_id);
+    EXPECT_EQ(status_a->sidecar.tile_id, status_b->sidecar.tile_id);
+    EXPECT_EQ(status_a->sidecar.tile_count, status_b->sidecar.tile_count);
+    EXPECT_EQ(status_a->sidecar.marker, status_b->sidecar.marker);
+    EXPECT_EQ(status_a->sidecar.bytes_h2d, status_b->sidecar.bytes_h2d);
+    EXPECT_EQ(status_a->sidecar.bytes_d2h, status_b->sidecar.bytes_d2h);
+    EXPECT_EQ(status_a->sidecar.kernel_dispatches, status_b->sidecar.kernel_dispatches);
 }

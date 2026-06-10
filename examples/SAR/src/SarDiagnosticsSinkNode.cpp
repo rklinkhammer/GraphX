@@ -61,14 +61,14 @@ std::vector<std::string> SarDiagnosticsSinkNode::GetParameterNames() const {
     return {"completion_signal_enabled"};
 }
 
-bool SarDiagnosticsSinkNode::Consume(const SarMergeStatusMessage& value,
+bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
                                      std::integral_constant<std::size_t, 0>) {
     const auto stage_start = Clock::now();
-    last_status_ = value;
+    last_status_ = ProjectStatus(value);
     ++consume_count_;
     UpdateDiagnostics(value);
 
-    if (value.envelope.marker == SarFrameMarker::EndOfStream && value.complete) {
+    if (value.sidecar.marker == SarFrameMarker::EndOfStream && value.sidecar.merge_complete) {
         SignalCompletion();
     }
 
@@ -77,35 +77,90 @@ bool SarDiagnosticsSinkNode::Consume(const SarMergeStatusMessage& value,
     return true;
 }
 
-void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarMergeStatusMessage& value) {
-    diagnostics_.envelope = value.envelope;
-    diagnostics_.stage_timings = value.stage_timings;
+void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarAccelControlToken& value) {
+    diagnostics_.envelope.sequence_id = value.sidecar.sequence_id;
+    diagnostics_.envelope.batch_id = value.sidecar.batch_id;
+    diagnostics_.envelope.aperture_id = value.sidecar.aperture_id;
+    diagnostics_.envelope.pulse_range_start = value.sidecar.pulse_range_start;
+    diagnostics_.envelope.pulse_range_count = value.sidecar.pulse_range_count;
+    diagnostics_.envelope.stream_id = value.sidecar.stream_id;
+    diagnostics_.envelope.tile_id = value.sidecar.tile_id;
+    diagnostics_.envelope.tile_count = value.sidecar.tile_count;
+    diagnostics_.envelope.backend_id = value.sidecar.backend_id;
+    diagnostics_.envelope.backend = value.sidecar.backend;
+    diagnostics_.envelope.marker = value.sidecar.marker;
+    diagnostics_.envelope.synthetic = value.sidecar.synthetic;
+    diagnostics_.stage_timings = value.sidecar.stage_timings;
 
-    if (value.envelope.marker == SarFrameMarker::Data) {
-        const auto pulse_count = static_cast<std::uint64_t>(value.envelope.sequence_id + 1u);
+    if (value.sidecar.marker == SarFrameMarker::Data) {
+        const auto pulse_count = static_cast<std::uint64_t>(value.sidecar.sequence_id + 1u);
         if (pulse_count > diagnostics_.pulses_processed) {
             diagnostics_.pulses_processed = pulse_count;
         }
-    } else if (value.envelope.marker == SarFrameMarker::EndOfStream) {
-        const auto pulse_count = static_cast<std::uint64_t>(value.envelope.sequence_id);
+    } else if (value.sidecar.marker == SarFrameMarker::EndOfStream) {
+        const auto pulse_count = static_cast<std::uint64_t>(value.sidecar.sequence_id);
         if (pulse_count > diagnostics_.pulses_processed) {
             diagnostics_.pulses_processed = pulse_count;
         }
     }
 
-    diagnostics_.tiles_processed = static_cast<std::uint64_t>(value.received_tiles);
-    diagnostics_.bytes_h2d = value.bytes_h2d;
-    diagnostics_.bytes_d2h = value.bytes_d2h;
-    diagnostics_.kernel_dispatches = value.kernel_dispatches;
-    diagnostics_.transfer_h2d_time_us = value.transfer_h2d_time_us;
-    diagnostics_.kernel_exec_time_us = value.kernel_exec_time_us;
-    diagnostics_.transfer_d2h_time_us = value.transfer_d2h_time_us;
-    diagnostics_.fanin_wait_ms = value.fanin_wait_ms;
-    diagnostics_.e2e_latency_ms = value.fanin_wait_ms;
-    diagnostics_.duplicate_tile_count = static_cast<std::uint64_t>(value.duplicate_tiles);
-    diagnostics_.missing_tile_count = static_cast<std::uint64_t>(value.missing_tiles);
+    diagnostics_.tiles_processed = static_cast<std::uint64_t>(value.sidecar.received_tiles);
+    diagnostics_.bytes_h2d = value.sidecar.bytes_h2d;
+    diagnostics_.bytes_d2h = value.sidecar.bytes_d2h;
+    diagnostics_.kernel_dispatches = value.sidecar.kernel_dispatches;
+    diagnostics_.transfer_h2d_time_us = value.sidecar.transfer_h2d_time_us;
+    diagnostics_.kernel_exec_time_us = value.sidecar.kernel_exec_time_us;
+    diagnostics_.transfer_d2h_time_us = value.sidecar.transfer_d2h_time_us;
+    diagnostics_.fanin_wait_ms = value.sidecar.fanin_wait_ms;
+    diagnostics_.e2e_latency_ms = value.sidecar.fanin_wait_ms;
+    diagnostics_.duplicate_tile_count = static_cast<std::uint64_t>(value.sidecar.duplicate_tiles);
+    diagnostics_.missing_tile_count = static_cast<std::uint64_t>(value.sidecar.missing_tiles);
     diagnostics_.out_of_order_completion_count =
-        static_cast<std::uint64_t>(value.out_of_order_tiles);
+        static_cast<std::uint64_t>(value.sidecar.out_of_order_tiles);
+}
+
+SarMergeStatusMessage SarDiagnosticsSinkNode::ProjectStatus(const SarAccelControlToken& value) {
+    SarMergeStatusMessage status{};
+    status.envelope.sequence_id = value.sidecar.sequence_id;
+    status.envelope.batch_id = value.sidecar.batch_id;
+    status.envelope.aperture_id = value.sidecar.aperture_id;
+    status.envelope.pulse_range_start = value.sidecar.pulse_range_start;
+    status.envelope.pulse_range_count = value.sidecar.pulse_range_count;
+    status.envelope.stream_id = value.sidecar.stream_id;
+    status.envelope.tile_id = value.sidecar.tile_id;
+    status.envelope.tile_count = value.sidecar.tile_count;
+    status.envelope.backend_id = value.sidecar.backend_id;
+    status.envelope.backend = value.sidecar.backend;
+    status.envelope.marker = value.sidecar.marker;
+    status.envelope.synthetic = value.sidecar.synthetic;
+
+    status.gpu.host_view = value.host_view;
+    status.gpu.device_view = value.device_view;
+    status.gpu.lease = value.lease;
+    status.gpu.transfer_ticket = value.transfer_ticket;
+    status.gpu.kernel_ticket = value.kernel_ticket;
+    status.gpu.has_host_view = value.has_host_view;
+    status.gpu.has_device_view = value.has_device_view;
+    status.gpu.has_lease = value.has_lease;
+    status.gpu.has_transfer_ticket = value.has_transfer_ticket;
+    status.gpu.has_kernel_ticket = value.has_kernel_ticket;
+
+    status.stage_timings = value.sidecar.stage_timings;
+    status.expected_tiles = value.sidecar.expected_tiles;
+    status.received_tiles = value.sidecar.received_tiles;
+    status.duplicate_tiles = value.sidecar.duplicate_tiles;
+    status.missing_tiles = value.sidecar.missing_tiles;
+    status.out_of_order_tiles = value.sidecar.out_of_order_tiles;
+    status.bytes_h2d = value.sidecar.bytes_h2d;
+    status.bytes_d2h = value.sidecar.bytes_d2h;
+    status.kernel_dispatches = value.sidecar.kernel_dispatches;
+    status.transfer_h2d_time_us = value.sidecar.transfer_h2d_time_us;
+    status.kernel_exec_time_us = value.sidecar.kernel_exec_time_us;
+    status.transfer_d2h_time_us = value.sidecar.transfer_d2h_time_us;
+    status.watermark_seen = value.sidecar.watermark_seen;
+    status.fanin_wait_ms = value.sidecar.fanin_wait_ms;
+    status.complete = value.sidecar.merge_complete;
+    return status;
 }
 
 void SarDiagnosticsSinkNode::UpdateFromGraphMetrics(const graph::GraphMetrics& metrics) {

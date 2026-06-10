@@ -29,7 +29,7 @@ struct ImageTileMergeConfig {
 class ImageTileMergeNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarMergeStatusMessage>,
+          graph::TypeList<SarAccelControlToken>,
           ImageTileMergeNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
@@ -37,7 +37,7 @@ public:
     ImageTileMergeNode() = default;
     explicit ImageTileMergeNode(ImageTileMergeConfig config);
 
-    std::optional<SarMergeStatusMessage> Transfer(
+    std::optional<SarAccelControlToken> Transfer(
         const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
@@ -107,7 +107,7 @@ public:
     const ImageTileMergeConfig& GetConfig() const noexcept;
 
 private:
-    SarMergeStatusMessage BuildStatusMessage(
+    SarAccelControlToken BuildOutputToken(
         const SarAccelControlToken& input,
         std::uint64_t sequence_id,
         std::uint32_t tile_id,

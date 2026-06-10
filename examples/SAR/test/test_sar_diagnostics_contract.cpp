@@ -3,10 +3,13 @@
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
 
 namespace {
 
-sar::SarMergeStatusMessage MakeStatus(
+sar::SarAccelControlToken MakeStatus(
     std::uint64_t sequence_id,
     sar::SarFrameMarker marker,
     bool complete,
@@ -17,34 +20,34 @@ sar::SarMergeStatusMessage MakeStatus(
     std::uint64_t bytes_d2h,
     std::uint64_t kernel_dispatches,
     std::uint64_t fanin_wait_ms) {
-    sar::SarMergeStatusMessage msg{};
-    msg.envelope.sequence_id = sequence_id;
-    msg.envelope.stream_id = 42;
-    msg.envelope.tile_id = 0;
-    msg.envelope.tile_count = 4;
-    msg.envelope.backend_id = 1;
-    msg.envelope.backend = sar::SarBackendKind::SimulatedDevice;
-    msg.envelope.marker = marker;
-    msg.envelope.synthetic = true;
+    sar::SarAccelControlToken msg{};
+    msg.sidecar.sequence_id = sequence_id;
+    msg.sidecar.stream_id = 42;
+    msg.sidecar.tile_id = 0;
+    msg.sidecar.tile_count = 4;
+    msg.sidecar.backend_id = 1;
+    msg.sidecar.backend = sar::SarBackendKind::SimulatedDevice;
+    msg.sidecar.marker = marker;
+    msg.sidecar.synthetic = true;
 
-    msg.expected_tiles = 4;
-    msg.received_tiles = received_tiles;
-    msg.duplicate_tiles = duplicate_tiles;
-    msg.missing_tiles = missing_tiles;
-    msg.out_of_order_tiles = 2;
-    msg.bytes_h2d = bytes_h2d;
-    msg.bytes_d2h = bytes_d2h;
-    msg.kernel_dispatches = kernel_dispatches;
-    msg.transfer_h2d_time_us = 11;
-    msg.kernel_exec_time_us = 22;
-    msg.transfer_d2h_time_us = 33;
-    msg.watermark_seen = false;
-    msg.fanin_wait_ms = fanin_wait_ms;
-    msg.complete = complete;
+    msg.sidecar.expected_tiles = 4;
+    msg.sidecar.received_tiles = received_tiles;
+    msg.sidecar.duplicate_tiles = duplicate_tiles;
+    msg.sidecar.missing_tiles = missing_tiles;
+    msg.sidecar.out_of_order_tiles = 2;
+    msg.sidecar.bytes_h2d = bytes_h2d;
+    msg.sidecar.bytes_d2h = bytes_d2h;
+    msg.sidecar.kernel_dispatches = kernel_dispatches;
+    msg.sidecar.transfer_h2d_time_us = 11;
+    msg.sidecar.kernel_exec_time_us = 22;
+    msg.sidecar.transfer_d2h_time_us = 33;
+    msg.sidecar.watermark_seen = false;
+    msg.sidecar.fanin_wait_ms = fanin_wait_ms;
+    msg.sidecar.merge_complete = complete;
     return msg;
 }
 
-TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromMergeStatus) {
+TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsFromTokenizedMergeBoundary) {
     sar::SarDiagnosticsSinkNode sink;
 
     graph::GraphMetrics graph_metrics{};
@@ -94,6 +97,49 @@ TEST(SarDiagnosticsContractTest, SignalsCompletionOnCompleteEndOfStream) {
         std::integral_constant<std::size_t, 0>{}));
 
     EXPECT_TRUE(completed);
+}
+
+TEST(SarDiagnosticsContractTest, DiagnosticsBoundaryConsumesTokenContract) {
+    static_assert(std::is_same_v<
+                  decltype(std::declval<sar::SarDiagnosticsSinkNode>().Consume(
+                      std::declval<const sar::SarAccelControlToken&>(),
+                      std::integral_constant<std::size_t, 0>{})),
+                  bool>);
+    SUCCEED();
+}
+
+TEST(SarDiagnosticsContractTest, DiagnosticsIdentityIsInvariantToTransportFieldMutation) {
+    auto base = MakeStatus(12, sar::SarFrameMarker::Data, false, 1, 0, 3, 1024, 1024, 1, 0);
+    base.sidecar.batch_id = 77u;
+    base.sidecar.aperture_id = 12u;
+    base.sidecar.pulse_range_start = 12u;
+    base.sidecar.pulse_range_count = 1u;
+
+    auto mutated = base;
+    mutated.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xBEEFu));
+    mutated.transfer_ticket.completion_event = 99999u;
+    mutated.kernel_ticket.completion_event = 88888u;
+
+    sar::SarDiagnosticsSinkNode sink_a;
+    sar::SarDiagnosticsSinkNode sink_b;
+
+    ASSERT_TRUE(sink_a.Consume(base, std::integral_constant<std::size_t, 0>{}));
+    ASSERT_TRUE(sink_b.Consume(mutated, std::integral_constant<std::size_t, 0>{}));
+
+    const auto& diag_a = sink_a.last_diagnostics();
+    const auto& diag_b = sink_b.last_diagnostics();
+
+    EXPECT_EQ(diag_a.envelope.sequence_id, diag_b.envelope.sequence_id);
+    EXPECT_EQ(diag_a.envelope.batch_id, diag_b.envelope.batch_id);
+    EXPECT_EQ(diag_a.envelope.aperture_id, diag_b.envelope.aperture_id);
+    EXPECT_EQ(diag_a.envelope.pulse_range_start, diag_b.envelope.pulse_range_start);
+    EXPECT_EQ(diag_a.envelope.pulse_range_count, diag_b.envelope.pulse_range_count);
+    EXPECT_EQ(diag_a.envelope.stream_id, diag_b.envelope.stream_id);
+    EXPECT_EQ(diag_a.envelope.tile_id, diag_b.envelope.tile_id);
+    EXPECT_EQ(diag_a.envelope.tile_count, diag_b.envelope.tile_count);
+    EXPECT_EQ(diag_a.envelope.backend_id, diag_b.envelope.backend_id);
+    EXPECT_EQ(diag_a.envelope.backend, diag_b.envelope.backend);
+    EXPECT_EQ(diag_a.envelope.marker, diag_b.envelope.marker);
 }
 
 } // namespace

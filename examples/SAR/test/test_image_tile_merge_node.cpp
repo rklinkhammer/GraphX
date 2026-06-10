@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 namespace {
 
@@ -91,17 +93,17 @@ TEST(ImageTileMergeNodeTest, CompletesAtEndOfStreamWhenAllTilesArrive) {
     ASSERT_TRUE(status2.has_value());
     ASSERT_TRUE(eos.has_value());
 
-    EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(eos->expected_tiles, 3u);
-    EXPECT_EQ(eos->received_tiles, 3u);
-    EXPECT_EQ(eos->duplicate_tiles, 0u);
-    EXPECT_EQ(eos->missing_tiles, 0u);
-    EXPECT_EQ(eos->out_of_order_tiles, 1u);
-    EXPECT_EQ(eos->bytes_h2d, 48u);
-    EXPECT_EQ(eos->bytes_d2h, 48u);
-    EXPECT_EQ(eos->kernel_dispatches, 3u);
-    EXPECT_FALSE(eos->watermark_seen);
-    EXPECT_TRUE(eos->complete);
+    EXPECT_EQ(eos->sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(eos->sidecar.expected_tiles, 3u);
+    EXPECT_EQ(eos->sidecar.received_tiles, 3u);
+    EXPECT_EQ(eos->sidecar.duplicate_tiles, 0u);
+    EXPECT_EQ(eos->sidecar.missing_tiles, 0u);
+    EXPECT_EQ(eos->sidecar.out_of_order_tiles, 1u);
+    EXPECT_EQ(eos->sidecar.bytes_h2d, 48u);
+    EXPECT_EQ(eos->sidecar.bytes_d2h, 48u);
+    EXPECT_EQ(eos->sidecar.kernel_dispatches, 3u);
+    EXPECT_FALSE(eos->sidecar.watermark_seen);
+    EXPECT_TRUE(eos->sidecar.merge_complete);
 }
 
 TEST(ImageTileMergeNodeTest, ReportsDuplicateAndMissingTiles) {
@@ -129,14 +131,14 @@ TEST(ImageTileMergeNodeTest, ReportsDuplicateAndMissingTiles) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->expected_tiles, 4u);
-    EXPECT_EQ(eos->received_tiles, 2u);
-    EXPECT_EQ(eos->duplicate_tiles, 1u);
-    EXPECT_EQ(eos->missing_tiles, 2u);
-    EXPECT_EQ(eos->bytes_h2d, 48u);
-    EXPECT_EQ(eos->bytes_d2h, 48u);
-    EXPECT_EQ(eos->kernel_dispatches, 3u);
-    EXPECT_FALSE(eos->complete);
+    EXPECT_EQ(eos->sidecar.expected_tiles, 4u);
+    EXPECT_EQ(eos->sidecar.received_tiles, 2u);
+    EXPECT_EQ(eos->sidecar.duplicate_tiles, 1u);
+    EXPECT_EQ(eos->sidecar.missing_tiles, 2u);
+    EXPECT_EQ(eos->sidecar.bytes_h2d, 48u);
+    EXPECT_EQ(eos->sidecar.bytes_d2h, 48u);
+    EXPECT_EQ(eos->sidecar.kernel_dispatches, 3u);
+    EXPECT_FALSE(eos->sidecar.merge_complete);
 }
 
 TEST(ImageTileMergeNodeTest, RequiresWatermarkWhenConfigured) {
@@ -157,11 +159,11 @@ TEST(ImageTileMergeNodeTest, RequiresWatermarkWhenConfigured) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(eos_without_watermark.has_value());
-    EXPECT_EQ(eos_without_watermark->bytes_h2d, 16u);
-    EXPECT_EQ(eos_without_watermark->bytes_d2h, 16u);
-    EXPECT_EQ(eos_without_watermark->kernel_dispatches, 1u);
-    EXPECT_FALSE(eos_without_watermark->watermark_seen);
-    EXPECT_FALSE(eos_without_watermark->complete);
+    EXPECT_EQ(eos_without_watermark->sidecar.bytes_h2d, 16u);
+    EXPECT_EQ(eos_without_watermark->sidecar.bytes_d2h, 16u);
+    EXPECT_EQ(eos_without_watermark->sidecar.kernel_dispatches, 1u);
+    EXPECT_FALSE(eos_without_watermark->sidecar.watermark_seen);
+    EXPECT_FALSE(eos_without_watermark->sidecar.merge_complete);
 
     node.Reset();
 
@@ -180,11 +182,11 @@ TEST(ImageTileMergeNodeTest, RequiresWatermarkWhenConfigured) {
 
     ASSERT_TRUE(watermark.has_value());
     ASSERT_TRUE(eos_with_watermark.has_value());
-    EXPECT_EQ(eos_with_watermark->bytes_h2d, 16u);
-    EXPECT_EQ(eos_with_watermark->bytes_d2h, 16u);
-    EXPECT_EQ(eos_with_watermark->kernel_dispatches, 1u);
-    EXPECT_TRUE(eos_with_watermark->watermark_seen);
-    EXPECT_TRUE(eos_with_watermark->complete);
+    EXPECT_EQ(eos_with_watermark->sidecar.bytes_h2d, 16u);
+    EXPECT_EQ(eos_with_watermark->sidecar.bytes_d2h, 16u);
+    EXPECT_EQ(eos_with_watermark->sidecar.kernel_dispatches, 1u);
+    EXPECT_TRUE(eos_with_watermark->sidecar.watermark_seen);
+    EXPECT_TRUE(eos_with_watermark->sidecar.merge_complete);
 }
 
 TEST(ImageTileMergeNodeTest, DynamicPluginLoadAndBehaviorValidation) {
@@ -225,13 +227,61 @@ TEST(ImageTileMergeNodeTest, DynamicPluginLoadAndBehaviorValidation) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->expected_tiles, 2u);
-    EXPECT_EQ(eos->received_tiles, 2u);
-    EXPECT_EQ(eos->missing_tiles, 0u);
-    EXPECT_EQ(eos->bytes_h2d, 32u);
-    EXPECT_EQ(eos->bytes_d2h, 32u);
-    EXPECT_EQ(eos->kernel_dispatches, 2u);
-    EXPECT_TRUE(eos->complete);
+    EXPECT_EQ(eos->sidecar.expected_tiles, 2u);
+    EXPECT_EQ(eos->sidecar.received_tiles, 2u);
+    EXPECT_EQ(eos->sidecar.missing_tiles, 0u);
+    EXPECT_EQ(eos->sidecar.bytes_h2d, 32u);
+    EXPECT_EQ(eos->sidecar.bytes_d2h, 32u);
+    EXPECT_EQ(eos->sidecar.kernel_dispatches, 2u);
+    EXPECT_TRUE(eos->sidecar.merge_complete);
+}
+
+TEST(ImageTileMergeNodeTest, MergeBoundaryConsumesAndEmitsTokenContract) {
+    static_assert(std::is_same_v<
+                  decltype(std::declval<sar::ImageTileMergeNode>().Transfer(
+                      std::declval<const sar::SarAccelControlToken&>(),
+                      std::integral_constant<std::size_t, 0>{},
+                      std::integral_constant<std::size_t, 0>{})),
+                  std::optional<sar::SarAccelControlToken>>);
+    SUCCEED();
+}
+
+TEST(ImageTileMergeNodeTest, MergeIdentityIsSidecarOnlyWhenTransportFieldsDiffer) {
+    sar::ImageTileMergeConfig cfg{};
+    cfg.expected_tiles = 1;
+
+    sar::ImageTileMergeNode node_a(cfg);
+    sar::ImageTileMergeNode node_b(cfg);
+
+    auto base = MakeImageTile(70, 3, sar::SarFrameMarker::Data, 16u, 99u);
+    auto mutated = base;
+    mutated.token_id = base.token_id + 5000u;
+    mutated.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xABCDu));
+    mutated.host_view.allocator_id = base.host_view.allocator_id + 3u;
+
+    auto status_a = node_a.Transfer(
+        base,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto status_b = node_b.Transfer(
+        mutated,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(status_a.has_value());
+    ASSERT_TRUE(status_b.has_value());
+
+    EXPECT_EQ(status_a->sidecar.sequence_id, status_b->sidecar.sequence_id);
+    EXPECT_EQ(status_a->sidecar.batch_id, status_b->sidecar.batch_id);
+    EXPECT_EQ(status_a->sidecar.aperture_id, status_b->sidecar.aperture_id);
+    EXPECT_EQ(status_a->sidecar.pulse_range_start, status_b->sidecar.pulse_range_start);
+    EXPECT_EQ(status_a->sidecar.pulse_range_count, status_b->sidecar.pulse_range_count);
+    EXPECT_EQ(status_a->sidecar.stream_id, status_b->sidecar.stream_id);
+    EXPECT_EQ(status_a->sidecar.tile_id, status_b->sidecar.tile_id);
+    EXPECT_EQ(status_a->sidecar.tile_count, status_b->sidecar.tile_count);
+    EXPECT_EQ(status_a->sidecar.backend_id, status_b->sidecar.backend_id);
+    EXPECT_EQ(status_a->sidecar.backend, status_b->sidecar.backend);
+    EXPECT_EQ(status_a->sidecar.marker, status_b->sidecar.marker);
 }
 
 } // namespace

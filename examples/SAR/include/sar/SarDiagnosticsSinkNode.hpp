@@ -17,14 +17,14 @@
 namespace sar {
 
 class SarDiagnosticsSinkNode
-    : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarMergeStatusMessage>,
+    : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarAccelControlToken>,
     public graph::CompletionCallbackProvider,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     SarDiagnosticsSinkNode() = default;
 
-    bool Consume(const SarMergeStatusMessage& value,
+    bool Consume(const SarAccelControlToken& value,
                  std::integral_constant<std::size_t, 0>) override;
 
     [[nodiscard]] std::size_t consume_count() const noexcept {
@@ -62,7 +62,8 @@ public:
     void UpdateFromGraphMetrics(const graph::GraphMetrics& metrics);
 
 private:
-    void UpdateDiagnostics(const SarMergeStatusMessage& value);
+    void UpdateDiagnostics(const SarAccelControlToken& value);
+    static SarMergeStatusMessage ProjectStatus(const SarAccelControlToken& value);
     void SignalCompletion();
 
     std::size_t consume_count_{0};

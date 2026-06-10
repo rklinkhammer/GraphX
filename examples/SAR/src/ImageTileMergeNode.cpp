@@ -38,7 +38,7 @@ std::uint64_t ElapsedUs(const Clock::time_point start) {
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
     : config_(config) {}
 
-std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
+std::optional<SarAccelControlToken> ImageTileMergeNode::Transfer(
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
@@ -65,7 +65,7 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
 
     const auto finalize_status = [&](SarFrameMarker output_marker, bool complete) {
         stage_timing_totals_.merge_stage_time_us += ElapsedUs(stage_start);
-        auto status = BuildStatusMessage(
+        auto output = BuildOutputToken(
             input,
             sequence_id,
             tile_id,
@@ -73,8 +73,8 @@ std::optional<SarMergeStatusMessage> ImageTileMergeNode::Transfer(
             effective_byte_count,
             output_marker,
             complete);
-        status.stage_timings = stage_timing_totals_;
-        return std::optional<SarMergeStatusMessage>(std::move(status));
+        output.sidecar.stage_timings = stage_timing_totals_;
+        return std::optional<SarAccelControlToken>(std::move(output));
     };
 
     if (marker == SarFrameMarker::Watermark) {
@@ -265,7 +265,7 @@ const ImageTileMergeConfig& ImageTileMergeNode::GetConfig() const noexcept {
     return config_;
 }
 
-SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
+SarAccelControlToken ImageTileMergeNode::BuildOutputToken(
     const SarAccelControlToken& input,
     std::uint64_t sequence_id,
     std::uint32_t,
@@ -277,72 +277,74 @@ SarMergeStatusMessage ImageTileMergeNode::BuildStatusMessage(
     const std::uint32_t missing_tiles =
         (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
 
-    SarMergeStatusMessage out{};
-    out.envelope.sequence_id = input.sidecar.sequence_id ? input.sidecar.sequence_id : sequence_id;
-    out.envelope.batch_id = input.sidecar.batch_id;
-    out.envelope.aperture_id = input.sidecar.aperture_id ? input.sidecar.aperture_id : sequence_id;
-    out.envelope.pulse_range_start =
+    SarAccelControlToken out = input;
+    out.sidecar.sequence_id = input.sidecar.sequence_id ? input.sidecar.sequence_id : sequence_id;
+    out.sidecar.batch_id = input.sidecar.batch_id;
+    out.sidecar.aperture_id =
+        input.sidecar.aperture_id ? input.sidecar.aperture_id : sequence_id;
+    out.sidecar.pulse_range_start =
         input.sidecar.pulse_range_start ? input.sidecar.pulse_range_start : sequence_id;
-    out.envelope.pulse_range_count =
+    out.sidecar.pulse_range_count =
         input.sidecar.pulse_range_count ? input.sidecar.pulse_range_count : ((marker == SarFrameMarker::Data) ? 1u : 0u);
-    out.envelope.stream_id = input.sidecar.stream_id ? input.sidecar.stream_id : stream_id;
-    out.envelope.tile_id = input.sidecar.tile_id;
-    out.envelope.tile_count = input.sidecar.tile_count ? input.sidecar.tile_count : expected_tiles;
-    out.envelope.backend_id = input.sidecar.backend_id;
-    out.envelope.backend = input.sidecar.backend;
-    out.envelope.marker = input.sidecar.marker;
-    out.envelope.synthetic = input.sidecar.synthetic;
+    out.sidecar.stream_id = input.sidecar.stream_id ? input.sidecar.stream_id : stream_id;
+    out.sidecar.tile_id = input.sidecar.tile_id;
+    out.sidecar.tile_count = input.sidecar.tile_count ? input.sidecar.tile_count : expected_tiles;
+    out.sidecar.backend_id = input.sidecar.backend_id;
+    out.sidecar.backend = input.sidecar.backend;
+    out.sidecar.marker = marker;
+    out.sidecar.synthetic = input.sidecar.synthetic;
+    out.sidecar.payload_byte_count = byte_count;
 
-    out.gpu.host_view = input.host_view;
-    out.gpu.has_host_view = true;
-    out.gpu.transfer_ticket.backend = input.host_view.backend;
-    out.gpu.transfer_ticket.transfer_id = out.envelope.sequence_id;
-    out.gpu.transfer_ticket.execution_queue_id =
+    out.host_view = input.host_view;
+    out.has_host_view = true;
+    out.transfer_ticket.backend = input.host_view.backend;
+    out.transfer_ticket.transfer_id = out.sidecar.sequence_id;
+    out.transfer_ticket.execution_queue_id =
         (input.sidecar.d2h_queue_id > 0u)
             ? input.sidecar.d2h_queue_id
             : ((input.sidecar.h2d_queue_id > 0u)
                    ? input.sidecar.h2d_queue_id
                    : (static_cast<std::uint64_t>(config_.backend_id) + 1u));
-    out.gpu.transfer_ticket.completion_event = NextOpaqueEventId();
-    out.gpu.transfer_ticket.dst_host = input.host_view;
-    out.gpu.has_transfer_ticket = true;
+    out.transfer_ticket.completion_event = NextOpaqueEventId();
+    out.transfer_ticket.dst_host = input.host_view;
+    out.has_transfer_ticket = true;
 
-    out.gpu.kernel_ticket.backend = ToAccelBackendKind(out.envelope.backend);
-    out.gpu.kernel_ticket.kernel_id = static_cast<std::uint64_t>(out.envelope.backend_id) + 3301u;
-    out.gpu.kernel_ticket.execution_queue_id =
+    out.kernel_ticket.backend = ToAccelBackendKind(out.sidecar.backend);
+    out.kernel_ticket.kernel_id = static_cast<std::uint64_t>(out.sidecar.backend_id) + 3301u;
+    out.kernel_ticket.execution_queue_id =
         (input.sidecar.kernel_queue_id > 0u)
             ? input.sidecar.kernel_queue_id
-            : (static_cast<std::uint64_t>(out.envelope.backend_id) + 1u);
-    out.gpu.kernel_ticket.completion_event = NextOpaqueEventId();
-    out.gpu.kernel_ticket.arg_count = 1;
-    out.gpu.has_kernel_ticket =
-        out.gpu.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
+            : (static_cast<std::uint64_t>(out.sidecar.backend_id) + 1u);
+    out.kernel_ticket.completion_event = NextOpaqueEventId();
+    out.kernel_ticket.arg_count = 1;
+    out.has_kernel_ticket =
+        out.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
 
-    out.expected_tiles = expected_tiles;
-    out.received_tiles = received_tiles_;
-    out.duplicate_tiles = duplicate_tiles_;
-    out.missing_tiles = missing_tiles;
-    out.out_of_order_tiles = out_of_order_tiles_;
-    out.bytes_h2d = bytes_h2d_;
-    out.bytes_d2h = bytes_d2h_;
-    out.kernel_dispatches = kernel_dispatches_;
-    out.transfer_h2d_time_us = transfer_h2d_time_us_;
-    out.kernel_exec_time_us = kernel_exec_time_us_;
-    out.transfer_d2h_time_us = transfer_d2h_time_us_;
-    out.stage_timings = stage_timing_totals_;
-    out.watermark_seen = watermark_seen_;
-    out.complete = complete;
+    out.sidecar.expected_tiles = expected_tiles;
+    out.sidecar.received_tiles = received_tiles_;
+    out.sidecar.duplicate_tiles = duplicate_tiles_;
+    out.sidecar.missing_tiles = missing_tiles;
+    out.sidecar.out_of_order_tiles = out_of_order_tiles_;
+    out.sidecar.bytes_h2d = bytes_h2d_;
+    out.sidecar.bytes_d2h = bytes_d2h_;
+    out.sidecar.kernel_dispatches = kernel_dispatches_;
+    out.sidecar.transfer_h2d_time_us = transfer_h2d_time_us_;
+    out.sidecar.kernel_exec_time_us = kernel_exec_time_us_;
+    out.sidecar.transfer_d2h_time_us = transfer_d2h_time_us_;
+    out.sidecar.stage_timings = stage_timing_totals_;
+    out.sidecar.watermark_seen = watermark_seen_;
+    out.sidecar.merge_complete = complete;
 
     if (has_first_data_sequence_ && sequence_id >= first_data_sequence_) {
-        out.fanin_wait_ms = sequence_id - first_data_sequence_;
+        out.sidecar.fanin_wait_ms = sequence_id - first_data_sequence_;
     }
 
     if (marker != SarFrameMarker::Data) {
-        out.bytes_h2d = bytes_h2d_;
-        out.bytes_d2h = bytes_d2h_;
+        out.sidecar.bytes_h2d = bytes_h2d_;
+        out.sidecar.bytes_d2h = bytes_d2h_;
     } else if (byte_count == 0u) {
-        out.bytes_h2d = bytes_h2d_;
-        out.bytes_d2h = bytes_d2h_;
+        out.sidecar.bytes_h2d = bytes_h2d_;
+        out.sidecar.bytes_d2h = bytes_d2h_;
     }
 
     return out;

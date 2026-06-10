@@ -110,6 +110,20 @@ struct SarSidecar {
     std::uint64_t h2d_queue_id{};
     std::uint64_t kernel_queue_id{};
     std::uint64_t d2h_queue_id{};
+    std::uint32_t expected_tiles{};
+    std::uint32_t received_tiles{};
+    std::uint32_t duplicate_tiles{};
+    std::uint32_t missing_tiles{};
+    std::uint32_t out_of_order_tiles{};
+    std::uint64_t bytes_h2d{};
+    std::uint64_t bytes_d2h{};
+    std::uint64_t kernel_dispatches{};
+    std::uint64_t transfer_h2d_time_us{};
+    std::uint64_t kernel_exec_time_us{};
+    std::uint64_t transfer_d2h_time_us{};
+    bool watermark_seen{false};
+    std::uint64_t fanin_wait_ms{};
+    bool merge_complete{false};
     SarStageTimingMetrics stage_timings{};
 };
 

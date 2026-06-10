@@ -87,20 +87,19 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_IMPL_PR2_1.md
-- plan/reviews/SAR_IMPL_PR2_2.md
+- plan/reviews/SAR_IMPL_PR3_1.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
 - current repository state
 - current test output
-- current PR2 diff
+- current PR3 diff
 
 
 Task:
-Verify whether PR2  actually satisfies its acceptance criteria.
+Verify whether PR3  actually satisfies its acceptance criteria.
 
 Check:
-- Canonical definitive topology uses token contract through source and DSP-to-GPU handoff.
-- PR compiles and tests pass without compatibility shims.
+- Definitive runtime path remains tokenized through merge/diagnostics boundary.
+- Diagnostics and metrics still emitted with unchanged semantic meaning.
 
 Output:
 - Pass/fail.
@@ -116,14 +115,15 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_PR_ROADMAP.md
+- plan/reviews/SAR_IMPL_PR3_1.md
+- plan/reviews/SAR_VERIFIER_PR3_1.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_IMPL_PR2_1.md
-- plan/reviews/SAR_VERIFIER_PR2_1.md
 - current repository state
 - current test output
+- current PR3 diff
 
 Task:
-Apply verifier fixes for PR2 only.
+Apply verifier fixes for PR3 only.
 
 PR2 title:  Remove Encoded Host Pointer and Event Identity
 PR2 Scope:
@@ -414,3 +414,25 @@ Required output:
 3. Tests added or updated.
 4. Build/test commands run.
 5. Any deferred numerical DSP work, clearly labeled as future PR work.
+
+
+
+=======
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/roadmap/SAR_PR_ROADMAP.md
+- plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
+- current repository state
+- current test output
+
+Task:
+Implement PR3 only
+
+PR3 title:  Tokenize Merge and Diagnostics Boundaries
+PR3 Scope:
+- Merge/diagnostics tests validating sidecar-derived output semantics from token input only.
+- Regression tests confirming no fallback identity derivation outside sidecar.

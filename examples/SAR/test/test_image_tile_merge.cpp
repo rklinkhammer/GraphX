@@ -52,7 +52,7 @@ TEST(ImageTileMergeFileCoverageTest, HappyPathCompletesOnEos) {
             std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
         ASSERT_TRUE(status.has_value());
-        EXPECT_FALSE(status->complete);
+        EXPECT_FALSE(status->sidecar.merge_complete);
     }
 
     auto eos = node.Transfer(
@@ -61,9 +61,9 @@ TEST(ImageTileMergeFileCoverageTest, HappyPathCompletesOnEos) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(eos.has_value());
-    EXPECT_TRUE(eos->complete);
-    EXPECT_EQ(eos->missing_tiles, 0u);
-    EXPECT_EQ(eos->duplicate_tiles, 0u);
+    EXPECT_TRUE(eos->sidecar.merge_complete);
+    EXPECT_EQ(eos->sidecar.missing_tiles, 0u);
+    EXPECT_EQ(eos->sidecar.duplicate_tiles, 0u);
 }
 
 } // namespace
