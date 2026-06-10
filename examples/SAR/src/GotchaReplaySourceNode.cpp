@@ -2,7 +2,9 @@
 
 #include "config/ConfigError.hpp"
 
+#include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
@@ -32,6 +34,15 @@ bool IsLikelyCiFixturePath(const std::filesystem::path& fixture_path) {
 bool ExternalDataAllowedByEnvironment() {
     const char* value = std::getenv("GRAPHX_SAR_ALLOW_EXTERNAL_DATA");
     return value != nullptr && std::string(value) == "1";
+}
+
+std::uint64_t NextOpaqueTokenId() {
+    static std::atomic<std::uint64_t> next_id{1u};
+    return next_id.fetch_add(1u, std::memory_order_relaxed);
+}
+
+void* OpaqueHostPointer() noexcept {
+    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
 }
 
 std::uint64_t RequireUInt64(const nlohmann::json& object, const char* key) {
@@ -218,7 +229,7 @@ std::vector<GotchaNormalizedPulseRecord> GotchaOfflineConverter::LoadFromJson(
 GotchaReplaySourceNode::GotchaReplaySourceNode(GotchaReplaySourceConfig config)
     : config_(std::move(config)) {}
 
-std::optional<SarPulseBlockMessage> GotchaReplaySourceNode::Produce(
+std::optional<SarAccelControlToken> GotchaReplaySourceNode::Produce(
     std::integral_constant<std::size_t, 0>) {
     if (eos_emitted_) {
         return std::nullopt;
@@ -339,50 +350,67 @@ const GotchaReplaySourceConfig& GotchaReplaySourceNode::GetConfig() const noexce
     return config_;
 }
 
-SarPulseBlockMessage GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedPulseRecord& record) const {
-    SarPulseBlockMessage out{};
-    out.envelope.sequence_id = record.ordering_key;
-    out.envelope.batch_id = record.pass_id;
-    out.envelope.aperture_id = record.pulse_block_id;
-    out.envelope.pulse_range_start = record.range_bin_start;
-    out.envelope.pulse_range_count = record.range_bin_count;
-    out.envelope.stream_id = record.stream_id;
-    out.envelope.tile_id = static_cast<std::uint32_t>(record.aperture_span_start);
-    out.envelope.tile_count = record.aperture_span_count;
-    out.envelope.backend_id = record.backend_id;
-    out.envelope.backend = record.backend;
-    out.envelope.marker = SarFrameMarker::Data;
-    out.envelope.synthetic = false;
+SarAccelControlToken GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedPulseRecord& record) const {
+    SarAccelControlToken out{};
+    out.token_id = NextOpaqueTokenId();
+    out.sidecar.sequence_id = record.ordering_key;
+    out.sidecar.batch_id = record.pass_id;
+    out.sidecar.aperture_id = record.pulse_block_id;
+    out.sidecar.pulse_range_start = record.range_bin_start;
+    out.sidecar.pulse_range_count = record.range_bin_count;
+    out.sidecar.stream_id = record.stream_id;
+    out.sidecar.tile_id = static_cast<std::uint32_t>(record.aperture_span_start);
+    out.sidecar.tile_count = record.aperture_span_count;
+    out.sidecar.backend_id = record.backend_id;
+    out.sidecar.backend = record.backend;
+    out.sidecar.marker = SarFrameMarker::Data;
+    out.sidecar.synthetic = false;
+    out.sidecar.payload_byte_count = record.iq_samples.size() * sizeof(float);
 
-    out.buffer.buffer_id = record.pulse_block_id;
-    out.buffer.device_index = record.backend_id;
-    out.buffer.backend = record.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-    out.iq_samples = record.iq_samples;
-    out.buffer.byte_count = out.iq_samples.size() * sizeof(SarIqSample);
+    auto& host_view = out.host_view;
+    const auto backend = ToAccelBackendKind(record.backend);
+    host_view.backend =
+        (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
+                                                              : backend;
+    host_view.host_ptr = OpaqueHostPointer();
+    host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
+    host_view.dtype = graph::gpu::accel::DataType::Float32;
+    host_view.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
+        std::max<std::size_t>(1u, record.iq_samples.size())));
+    host_view.allocator_id = static_cast<std::uint64_t>(record.backend_id) + 1u;
+    out.has_host_view = true;
     return out;
 }
 
-SarPulseBlockMessage GotchaReplaySourceNode::MakeControlMessage(SarFrameMarker marker) const {
-    SarPulseBlockMessage out{};
+SarAccelControlToken GotchaReplaySourceNode::MakeControlMessage(SarFrameMarker marker) const {
+    SarAccelControlToken out{};
+    out.token_id = NextOpaqueTokenId();
     const auto control_sequence_id = static_cast<std::uint64_t>(config_.records.size());
-    out.envelope.sequence_id = control_sequence_id;
-    out.envelope.batch_id = config_.records.empty() ? 0u : config_.records.front().pass_id;
-    out.envelope.aperture_id = control_sequence_id;
-    out.envelope.pulse_range_start = control_sequence_id;
-    out.envelope.pulse_range_count = 0u;
-    out.envelope.stream_id = config_.records.empty() ? 0u : config_.records.front().stream_id;
-    out.envelope.tile_id = 0u;
-    out.envelope.tile_count = config_.records.empty() ? 0u : config_.records.front().aperture_span_count;
-    out.envelope.backend_id = config_.records.empty() ? 0u : config_.records.front().backend_id;
-    out.envelope.backend = config_.records.empty() ? SarBackendKind::Host : config_.records.front().backend;
-    out.envelope.marker = marker;
-    out.envelope.synthetic = false;
-    out.buffer.buffer_id = control_sequence_id;
-    out.buffer.device_index = out.envelope.backend_id;
-    out.buffer.backend = out.envelope.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-    out.buffer.byte_count = 0u;
+    out.sidecar.sequence_id = control_sequence_id;
+    out.sidecar.batch_id = config_.records.empty() ? 0u : config_.records.front().pass_id;
+    out.sidecar.aperture_id = control_sequence_id;
+    out.sidecar.pulse_range_start = control_sequence_id;
+    out.sidecar.pulse_range_count = 0u;
+    out.sidecar.stream_id = config_.records.empty() ? 0u : config_.records.front().stream_id;
+    out.sidecar.tile_id = 0u;
+    out.sidecar.tile_count = config_.records.empty() ? 0u : config_.records.front().aperture_span_count;
+    out.sidecar.backend_id = config_.records.empty() ? 0u : config_.records.front().backend_id;
+    out.sidecar.backend = config_.records.empty() ? SarBackendKind::Host : config_.records.front().backend;
+    out.sidecar.marker = marker;
+    out.sidecar.synthetic = false;
+    out.sidecar.payload_byte_count = 0u;
+
+    auto& host_view = out.host_view;
+    const auto backend = ToAccelBackendKind(out.sidecar.backend);
+    host_view.backend =
+        (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
+                                                              : backend;
+    host_view.host_ptr = OpaqueHostPointer();
+    host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
+    host_view.dtype = graph::gpu::accel::DataType::Float32;
+    host_view.layout = MakeAccelVectorLayout(1u);
+    host_view.allocator_id = static_cast<std::uint64_t>(out.sidecar.backend_id) + 1u;
+    out.has_host_view = true;
     return out;
 }
 

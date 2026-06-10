@@ -3,13 +3,10 @@
 #include "config/ConfigError.hpp"
 
 #include <chrono>
-#include <cmath>
 
 namespace sar {
 
 namespace {
-
-constexpr float kPi = 3.14159265358979323846f;
 
 using Clock = std::chrono::steady_clock;
 
@@ -25,23 +22,17 @@ std::uint64_t ElapsedUs(const Clock::time_point start) {
 RangeWindowNode::RangeWindowNode(RangeWindowConfig config)
     : config_(config) {}
 
-std::optional<SarPulseBlockMessage> RangeWindowNode::Transfer(
-    const SarPulseBlockMessage& input,
+std::optional<SarAccelControlToken> RangeWindowNode::Transfer(
+    const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    SarPulseBlockMessage out = input;
-    if (!config_.enabled || input.envelope.marker == SarFrameMarker::EndOfStream) {
+    SarAccelControlToken out = input;
+    if (!config_.enabled || input.sidecar.marker == SarFrameMarker::EndOfStream) {
         return out;
     }
 
     const auto stage_start = Clock::now();
-
-    const auto sample_count = out.iq_samples.size();
-    for (std::size_t i = 0; i < sample_count; ++i) {
-        out.iq_samples[i] *= config_.gain * HannWeight(i, sample_count);
-    }
-    out.buffer.byte_count = out.iq_samples.size() * sizeof(SarIqSample);
-    out.stage_timings.range_window_time_us += ElapsedUs(stage_start);
+    out.sidecar.stage_timings.range_window_time_us += ElapsedUs(stage_start);
     return out;
 }
 
@@ -114,15 +105,6 @@ void RangeWindowNode::SetConfig(const RangeWindowConfig& config) {
 
 const RangeWindowConfig& RangeWindowNode::GetConfig() const noexcept {
     return config_;
-}
-
-float RangeWindowNode::HannWeight(std::size_t index, std::size_t sample_count) {
-    if (sample_count <= 1) {
-        return 1.0f;
-    }
-    const auto phase =
-        (2.0f * kPi * static_cast<float>(index)) / static_cast<float>(sample_count - 1);
-    return 0.5f - (0.5f * std::cos(phase));
 }
 
 } // namespace sar

@@ -36,28 +36,18 @@ void* OpaqueHostPointer() noexcept {
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
 }
 
-SarAccelControlToken BuildToken(const SarPulseBlockMessage& input,
+SarAccelControlToken BuildToken(const SarAccelControlToken& input,
                                 std::uint32_t tile_id,
                                 std::size_t payload_byte_count,
                                 std::size_t view_byte_count,
                                 SarFrameMarker marker,
                                 const AzimuthTileSplitConfig& config) {
-    SarAccelControlToken out{};
+    SarAccelControlToken out = input;
     out.token_id = NextOpaqueTokenId();
-    out.sidecar.sequence_id = input.envelope.sequence_id;
-    out.sidecar.batch_id = input.envelope.batch_id;
-    out.sidecar.aperture_id = input.envelope.aperture_id;
-    out.sidecar.pulse_range_start = input.envelope.pulse_range_start;
-    out.sidecar.pulse_range_count = input.envelope.pulse_range_count;
-    out.sidecar.stream_id = input.envelope.stream_id;
     out.sidecar.tile_id = tile_id;
     out.sidecar.tile_count = std::max<std::uint32_t>(1u, config.tile_count);
-    out.sidecar.backend_id = input.envelope.backend_id;
-    out.sidecar.backend = input.envelope.backend;
     out.sidecar.marker = marker;
-    out.sidecar.synthetic = input.envelope.synthetic;
     out.sidecar.payload_byte_count = payload_byte_count;
-    out.sidecar.stage_timings = input.stage_timings;
 
     auto& host_view = out.host_view;
     const auto backend = ToAccelBackendKind(config.backend);
@@ -80,13 +70,13 @@ AzimuthTileSplitNode::AzimuthTileSplitNode(AzimuthTileSplitConfig config)
     : config_(config) {}
 
 std::optional<SarAccelControlToken> AzimuthTileSplitNode::Transfer(
-    const SarPulseBlockMessage& input,
+    const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     const auto stage_start = Clock::now();
 
     SarAccelControlToken token{};
-    if (input.envelope.marker == SarFrameMarker::EndOfStream) {
+    if (input.sidecar.marker == SarFrameMarker::EndOfStream) {
         token = BuildEndOfStreamTile(input);
     } else {
         token = BuildDataTile(input);
@@ -205,28 +195,28 @@ const AzimuthTileSplitConfig& AzimuthTileSplitNode::GetConfig() const noexcept {
     return config_;
 }
 
-std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarPulseBlockMessage& input) const {
+std::uint32_t AzimuthTileSplitNode::ResolveTileId(const SarAccelControlToken& input) const {
     const std::uint32_t tile_count = std::max<std::uint32_t>(1u, config_.tile_count);
     if (config_.fixed_tile_id >= 0) {
         return static_cast<std::uint32_t>(config_.fixed_tile_id) % tile_count;
     }
 
     const auto sequence_tile =
-        static_cast<std::uint32_t>(input.envelope.sequence_id % tile_count);
+        static_cast<std::uint32_t>(input.sidecar.sequence_id % tile_count);
     return (sequence_tile + (config_.tile_id_offset % tile_count)) % tile_count;
 }
 
 SarAccelControlToken AzimuthTileSplitNode::BuildDataTile(
-    const SarPulseBlockMessage& input) const {
+    const SarAccelControlToken& input) const {
     const std::uint32_t tile_id = ResolveTileId(input);
     const std::size_t byte_count =
-        (input.iq_samples.empty() ? 0u : input.iq_samples.size() * sizeof(float));
+        static_cast<std::size_t>(input.has_host_view ? input.host_view.bytes : input.sidecar.payload_byte_count);
 
     return BuildToken(input, tile_id, byte_count, byte_count, SarFrameMarker::Data, config_);
 }
 
 SarAccelControlToken AzimuthTileSplitNode::BuildEndOfStreamTile(
-    const SarPulseBlockMessage& input) const {
+    const SarAccelControlToken& input) const {
     const auto tile_id = ResolveTileId(input);
     return BuildToken(
         input,

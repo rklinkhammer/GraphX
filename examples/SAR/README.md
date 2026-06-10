@@ -199,22 +199,42 @@ Top-level JSON graph contract fields:
 
 | Parameter | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| enabled | boolean | true | Apply deterministic Hann range window |
-| gain | number | 1.0 | Linear gain after windowing |
+| enabled | boolean | true | Enable pre-GPU range-window token stage timing |
+| gain | number | 1.0 | Reserved range-window numeric gain metadata |
 
 `RangeCompressionNode`:
 
 | Parameter | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| enabled | boolean | true | Enable range compression |
-| gain | number | 1.0 | Gain on compressed output |
-| sample_rate_hz | number | 48000.0 | Sample-rate metadata |
-| mode | string | fft_magnitude | Compression mode |
-| output | string | magnitude | Matched-filter output representation |
-| bandwidth_hz | number | 4000000.0 | LFM chirp bandwidth |
-| chirp_duration_s | number | 0.000001 | LFM chirp duration |
-| range_origin_m | number | 0.0 | Range origin metadata |
-| range_spacing_m | number | 0.25 | Range-bin spacing metadata |
+| enabled | boolean | true | Enable pre-GPU range-compression token stage timing |
+| gain | number | 1.0 | Reserved compression numeric gain metadata |
+| sample_rate_hz | number | 48000.0 | Reserved compression sample-rate metadata |
+| mode | string | fft_magnitude | Reserved compression mode metadata |
+| output | string | magnitude | Reserved matched-filter output metadata |
+| bandwidth_hz | number | 4000000.0 | Reserved LFM chirp bandwidth metadata |
+| chirp_duration_s | number | 0.000001 | Reserved LFM chirp duration metadata |
+| range_origin_m | number | 0.0 | Reserved range-origin metadata |
+| range_spacing_m | number | 0.25 | Reserved range-bin spacing metadata |
+
+## PR2-F1 Range-Stage Semantics Decision
+
+Decision: pre-GPU `RangeWindowNode` and `RangeCompressionNode` are currently token-only/timing placeholder stages.
+
+What this means now:
+
+1. Both nodes preserve `SarAccelControlToken` identity and payload metadata.
+2. Both nodes emit stage timing metrics (`range_window_time_us`, `range_compression_time_us`).
+3. These nodes do not apply numerical DSP transforms to sample payloads in the current canonical token path.
+
+Range-stage runtime presets currently supported:
+
+1. Window stage runtime preset: `examples/SAR/config/sar_stripmap_pr3_metal_window.json`
+2. Compression stage runtime preset: `examples/SAR/config/sar_stripmap_pr3_metal_compression.json`
+
+Deferred work:
+
+1. Re-introducing numerically meaningful host-side window/compression behavior is deferred to a future PR.
+2. Any future numerical DSP reintroduction must define payload representation and add explicit parity/fidelity tests.
 
 `SarPulseFanoutNode`:
 

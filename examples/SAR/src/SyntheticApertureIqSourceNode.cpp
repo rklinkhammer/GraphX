@@ -3,7 +3,7 @@
 #include "config/ConfigError.hpp"
 
 #include <algorithm>
-#include <cmath>
+#include <atomic>
 
 namespace sar {
 
@@ -17,13 +17,22 @@ SarBackendKind ParseBackendKind(int raw_backend) {
     return static_cast<SarBackendKind>(raw_backend);
 }
 
+std::uint64_t NextOpaqueTokenId() {
+    static std::atomic<std::uint64_t> next_id{1u};
+    return next_id.fetch_add(1u, std::memory_order_relaxed);
+}
+
+void* OpaqueHostPointer() noexcept {
+    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
+}
+
 } // namespace
 
 SyntheticApertureIqSourceNode::SyntheticApertureIqSourceNode(
     SyntheticApertureIqSourceConfig config)
     : config_(config) {}
 
-std::optional<SarPulseBlockMessage> SyntheticApertureIqSourceNode::Produce(
+std::optional<SarAccelControlToken> SyntheticApertureIqSourceNode::Produce(
     std::integral_constant<std::size_t, 0>) {
     if (eos_emitted_) {
         return std::nullopt;
@@ -31,10 +40,10 @@ std::optional<SarPulseBlockMessage> SyntheticApertureIqSourceNode::Produce(
 
     if (next_sequence_id_ >= config_.total_pulses) {
         eos_emitted_ = true;
-        return MakeEndOfStreamMessage();
+        return MakeEndOfStreamToken();
     }
 
-    SarPulseBlockMessage out = MakeDataMessage();
+    SarAccelControlToken out = MakeDataToken();
     ++next_sequence_id_;
     return out;
 }
@@ -217,81 +226,67 @@ const SyntheticApertureIqSourceConfig& SyntheticApertureIqSourceNode::GetConfig(
     return config_;
 }
 
-SarIqSample SyntheticApertureIqSourceNode::MakeSample(
-    std::uint64_t sequence_id,
-    std::uint32_t sample_index) const {
-    const float seq = static_cast<float>(sequence_id);
-    const float idx = static_cast<float>(sample_index);
+SarAccelControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
+    SarAccelControlToken out{};
+    out.token_id = NextOpaqueTokenId();
+    out.sidecar.sequence_id = next_sequence_id_;
+    out.sidecar.batch_id = config_.stream_id;
+    out.sidecar.aperture_id = next_sequence_id_;
+    out.sidecar.pulse_range_start = next_sequence_id_;
+    out.sidecar.pulse_range_count = 1;
+    out.sidecar.stream_id = config_.stream_id;
+    out.sidecar.tile_id = 0;
+    out.sidecar.tile_count = 1;
+    out.sidecar.backend_id = config_.backend_id;
+    out.sidecar.backend = config_.backend;
+    out.sidecar.marker = SarFrameMarker::Data;
+    out.sidecar.synthetic = true;
+    out.sidecar.payload_byte_count =
+        static_cast<std::size_t>(config_.samples_per_pulse) * sizeof(float);
 
-    float real = seq + (idx * 0.001f);
-    float imag = (seq * 0.25f) - (idx * 0.0015f);
-
-    if (config_.moving_target_enabled) {
-        const float pulse_time_s = seq * config_.pulse_interval_s;
-        const float range_m = std::max(
-            1.0f,
-            config_.target_initial_range_m - (config_.target_closing_velocity_mps * pulse_time_s));
-        const float normalized_range = config_.target_initial_range_m / range_m;
-        const float amp = 1.0f + ((normalized_range - 1.0f) * config_.target_reflectivity);
-        const float phase = (range_m * 0.0005f) + (idx * 0.01f);
-
-        real += amp * std::cos(phase);
-        imag += 0.5f * amp * std::sin(phase);
-    }
-
-    return SarIqSample(real, imag);
-}
-
-SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeDataMessage() const {
-    SarPulseBlockMessage out{};
-    out.envelope.sequence_id = next_sequence_id_;
-    out.envelope.batch_id = config_.stream_id;
-    out.envelope.aperture_id = next_sequence_id_;
-    out.envelope.pulse_range_start = next_sequence_id_;
-    out.envelope.pulse_range_count = 1;
-    out.envelope.stream_id = config_.stream_id;
-    out.envelope.tile_id = 0;
-    out.envelope.tile_count = 1;
-    out.envelope.backend_id = config_.backend_id;
-    out.envelope.backend = config_.backend;
-    out.envelope.marker = SarFrameMarker::Data;
-    out.envelope.synthetic = true;
-
-    out.buffer.buffer_id = next_sequence_id_;
-    out.buffer.device_index = config_.backend_id;
-    out.buffer.backend = config_.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-
-    out.iq_samples.reserve(config_.samples_per_pulse);
-    for (std::uint32_t i = 0; i < config_.samples_per_pulse; ++i) {
-        out.iq_samples.push_back(MakeSample(next_sequence_id_, i));
-    }
-    out.buffer.byte_count = out.iq_samples.size() * sizeof(SarIqSample);
-
+    auto& host_view = out.host_view;
+    const auto backend = ToAccelBackendKind(config_.backend);
+    host_view.backend =
+        (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
+                                                              : backend;
+    host_view.host_ptr = OpaqueHostPointer();
+    host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
+    host_view.dtype = graph::gpu::accel::DataType::Float32;
+    host_view.layout =
+        MakeAccelVectorLayout(static_cast<std::uint64_t>(std::max<std::uint32_t>(1u, config_.samples_per_pulse)));
+    host_view.allocator_id = static_cast<std::uint64_t>(config_.backend_id) + 1u;
+    out.has_host_view = true;
     return out;
 }
 
-SarPulseBlockMessage SyntheticApertureIqSourceNode::MakeEndOfStreamMessage() const {
-    SarPulseBlockMessage out{};
-    out.envelope.sequence_id = next_sequence_id_;
-    out.envelope.batch_id = config_.stream_id;
-    out.envelope.aperture_id = next_sequence_id_;
-    out.envelope.pulse_range_start = next_sequence_id_;
-    out.envelope.pulse_range_count = 0;
-    out.envelope.stream_id = config_.stream_id;
-    out.envelope.tile_id = 0;
-    out.envelope.tile_count = 1;
-    out.envelope.backend_id = config_.backend_id;
-    out.envelope.backend = config_.backend;
-    out.envelope.marker = SarFrameMarker::EndOfStream;
-    out.envelope.synthetic = true;
+SarAccelControlToken SyntheticApertureIqSourceNode::MakeEndOfStreamToken() const {
+    SarAccelControlToken out{};
+    out.token_id = NextOpaqueTokenId();
+    out.sidecar.sequence_id = next_sequence_id_;
+    out.sidecar.batch_id = config_.stream_id;
+    out.sidecar.aperture_id = next_sequence_id_;
+    out.sidecar.pulse_range_start = next_sequence_id_;
+    out.sidecar.pulse_range_count = 0;
+    out.sidecar.stream_id = config_.stream_id;
+    out.sidecar.tile_id = 0;
+    out.sidecar.tile_count = 1;
+    out.sidecar.backend_id = config_.backend_id;
+    out.sidecar.backend = config_.backend;
+    out.sidecar.marker = SarFrameMarker::EndOfStream;
+    out.sidecar.synthetic = true;
+    out.sidecar.payload_byte_count = 0u;
 
-    out.buffer.buffer_id = next_sequence_id_;
-    out.buffer.device_index = config_.backend_id;
-    out.buffer.backend = config_.backend;
-    out.buffer.direction = SarTransferDirection::HostToDevice;
-    out.buffer.byte_count = 0;
-
+    auto& host_view = out.host_view;
+    const auto backend = ToAccelBackendKind(config_.backend);
+    host_view.backend =
+        (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
+                                                              : backend;
+    host_view.host_ptr = OpaqueHostPointer();
+    host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
+    host_view.dtype = graph::gpu::accel::DataType::Float32;
+    host_view.layout = MakeAccelVectorLayout(1u);
+    host_view.allocator_id = static_cast<std::uint64_t>(config_.backend_id) + 1u;
+    out.has_host_view = true;
     return out;
 }
 

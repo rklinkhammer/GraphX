@@ -256,6 +256,65 @@ TEST(SarPr3MetalJsonTest, ExecutesMetalCompressionPipeline) {
     ValidateMetalSarConfig(std::filesystem::path{SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH});
 }
 
+TEST(SarPr3MetalJsonTest, RuntimeDiagnosticsRemainStableAcrossWindowAndCompressionModes) {
+    const std::filesystem::path window_path{SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH};
+    const std::filesystem::path compression_path{SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(window_path));
+    ASSERT_TRUE(std::filesystem::exists(compression_path));
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto window_executor = graph::GraphExecutorBuilder()
+                               .WithJsonConfig(window_path.string())
+                               .WithPluginDirectory(plugin_dir.string())
+                               .WithExecutorTimeout(std::chrono::seconds(10))
+                               .Build();
+    ASSERT_NE(window_executor, nullptr);
+    const auto window_run = window_executor->Execute();
+    ASSERT_TRUE(window_run.success) << window_run.message << " " << window_run.error_details;
+    ASSERT_TRUE(window_executor->IsCompletionSignaled());
+
+    auto window_sink = ResolveDiagnosticsSink(window_executor->GetGraphManager());
+    ASSERT_NE(window_sink, nullptr);
+    window_sink->UpdateFromGraphMetrics(window_executor->GetGraphManager()->GetMetrics());
+    const auto& window_diag = window_sink->last_diagnostics();
+
+    auto compression_executor = graph::GraphExecutorBuilder()
+                                    .WithJsonConfig(compression_path.string())
+                                    .WithPluginDirectory(plugin_dir.string())
+                                    .WithExecutorTimeout(std::chrono::seconds(10))
+                                    .Build();
+    ASSERT_NE(compression_executor, nullptr);
+    const auto compression_run = compression_executor->Execute();
+    ASSERT_TRUE(compression_run.success)
+        << compression_run.message << " " << compression_run.error_details;
+    ASSERT_TRUE(compression_executor->IsCompletionSignaled());
+
+    auto compression_sink = ResolveDiagnosticsSink(compression_executor->GetGraphManager());
+    ASSERT_NE(compression_sink, nullptr);
+    compression_sink->UpdateFromGraphMetrics(compression_executor->GetGraphManager()->GetMetrics());
+    const auto& compression_diag = compression_sink->last_diagnostics();
+
+    EXPECT_EQ(window_diag.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(compression_diag.envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(window_diag.pulses_processed, 32u);
+    EXPECT_EQ(compression_diag.pulses_processed, 32u);
+    EXPECT_EQ(window_diag.tiles_processed, 4u);
+    EXPECT_EQ(compression_diag.tiles_processed, 4u);
+    EXPECT_EQ(window_diag.bytes_h2d, 32768u);
+    EXPECT_EQ(compression_diag.bytes_h2d, 32768u);
+    EXPECT_EQ(window_diag.bytes_d2h, 32768u);
+    EXPECT_EQ(compression_diag.bytes_d2h, 32768u);
+    EXPECT_EQ(window_diag.kernel_dispatches, 32u);
+    EXPECT_EQ(compression_diag.kernel_dispatches, 32u);
+
+    EXPECT_GT(window_diag.stage_timings.range_window_time_us, 0u);
+    EXPECT_EQ(window_diag.stage_timings.range_compression_time_us, 0u);
+    EXPECT_EQ(compression_diag.stage_timings.range_window_time_us, 0u);
+    EXPECT_GT(compression_diag.stage_timings.range_compression_time_us, 0u);
+}
+
 TEST(SarPr3MetalJsonTest, MetalWindowPresetUsesAccelTokenResolverMetadata) {
     ValidateAccelTokenResolverMetadata(std::filesystem::path{SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH});
 }

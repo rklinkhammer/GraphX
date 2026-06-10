@@ -133,12 +133,11 @@ TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
     auto second = source->Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
     ASSERT_TRUE(second.has_value());
-    ASSERT_FALSE(first->iq_samples.empty());
-    ASSERT_FALSE(second->iq_samples.empty());
-
-    const float first_magnitude = std::abs(first->iq_samples.front());
-    const float second_magnitude = std::abs(second->iq_samples.front());
-    EXPECT_GT(second_magnitude, first_magnitude);
+    EXPECT_EQ(first->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(second->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(first->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(second->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(first->sidecar.payload_byte_count, second->sidecar.payload_byte_count);
 
     auto visualization = ResolveVisualizationNode(graph_manager);
     ASSERT_NE(visualization, nullptr);

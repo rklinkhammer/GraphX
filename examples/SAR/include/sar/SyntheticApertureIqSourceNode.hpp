@@ -30,14 +30,14 @@ struct SyntheticApertureIqSourceConfig {
 };
 
 class SyntheticApertureIqSourceNode
-    : public graph::NamedSourceNode<SyntheticApertureIqSourceNode, SarPulseBlockMessage>,
+    : public graph::NamedSourceNode<SyntheticApertureIqSourceNode, SarAccelControlToken>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     SyntheticApertureIqSourceNode() = default;
     explicit SyntheticApertureIqSourceNode(SyntheticApertureIqSourceConfig config);
 
-    std::optional<SarPulseBlockMessage> Produce(
+    std::optional<SarAccelControlToken> Produce(
         std::integral_constant<std::size_t, 0>) override;
 
     void Configure(const graph::JsonView& cfg) override;
@@ -155,10 +155,8 @@ public:
     const SyntheticApertureIqSourceConfig& GetConfig() const noexcept;
 
 private:
-    SarIqSample MakeSample(std::uint64_t sequence_id, std::uint32_t sample_index) const;
-
-    SarPulseBlockMessage MakeDataMessage() const;
-    SarPulseBlockMessage MakeEndOfStreamMessage() const;
+    SarAccelControlToken MakeDataToken() const;
+    SarAccelControlToken MakeEndOfStreamToken() const;
 
     SyntheticApertureIqSourceConfig config_{};
     std::uint64_t next_sequence_id_{0};

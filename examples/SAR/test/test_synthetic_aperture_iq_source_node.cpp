@@ -37,43 +37,39 @@ TEST(SyntheticApertureIqSourceNodeTest, EmitsDeterministicPulseBlocksThenEos) {
 
     auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
-    EXPECT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(first->envelope.sequence_id, 0u);
-    EXPECT_EQ(first->envelope.batch_id, cfg.stream_id);
-    EXPECT_EQ(first->envelope.aperture_id, 0u);
-    EXPECT_EQ(first->envelope.pulse_range_start, 0u);
-    EXPECT_EQ(first->envelope.pulse_range_count, 1u);
-    EXPECT_EQ(first->envelope.stream_id, cfg.stream_id);
-    EXPECT_EQ(first->envelope.backend_id, cfg.backend_id);
-    EXPECT_EQ(first->envelope.backend, cfg.backend);
-    EXPECT_EQ(first->iq_samples.size(), cfg.samples_per_pulse);
-    EXPECT_FLOAT_EQ(first->iq_samples[0].real(), 0.0f);
-    EXPECT_FLOAT_EQ(first->iq_samples[0].imag(), 0.0f);
-    EXPECT_FLOAT_EQ(first->iq_samples[1].real(), 0.001f);
-    EXPECT_FLOAT_EQ(first->iq_samples[1].imag(), -0.0015f);
+    EXPECT_EQ(first->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(first->sidecar.sequence_id, 0u);
+    EXPECT_EQ(first->sidecar.batch_id, cfg.stream_id);
+    EXPECT_EQ(first->sidecar.aperture_id, 0u);
+    EXPECT_EQ(first->sidecar.pulse_range_start, 0u);
+    EXPECT_EQ(first->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(first->sidecar.stream_id, cfg.stream_id);
+    EXPECT_EQ(first->sidecar.backend_id, cfg.backend_id);
+    EXPECT_EQ(first->sidecar.backend, cfg.backend);
+    EXPECT_EQ(first->sidecar.payload_byte_count, cfg.samples_per_pulse * sizeof(float));
+    EXPECT_TRUE(first->has_host_view);
 
     auto second = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(second.has_value());
-    EXPECT_EQ(second->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(second->envelope.sequence_id, 1u);
-    EXPECT_EQ(second->envelope.batch_id, cfg.stream_id);
-    EXPECT_EQ(second->envelope.aperture_id, 1u);
-    EXPECT_EQ(second->envelope.pulse_range_start, 1u);
-    EXPECT_EQ(second->envelope.pulse_range_count, 1u);
-    EXPECT_EQ(second->iq_samples.size(), cfg.samples_per_pulse);
-    EXPECT_FLOAT_EQ(second->iq_samples[0].real(), 1.0f);
-    EXPECT_FLOAT_EQ(second->iq_samples[0].imag(), 0.25f);
+    EXPECT_EQ(second->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(second->sidecar.sequence_id, 1u);
+    EXPECT_EQ(second->sidecar.batch_id, cfg.stream_id);
+    EXPECT_EQ(second->sidecar.aperture_id, 1u);
+    EXPECT_EQ(second->sidecar.pulse_range_start, 1u);
+    EXPECT_EQ(second->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(second->sidecar.payload_byte_count, cfg.samples_per_pulse * sizeof(float));
 
     auto eos = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(eos->envelope.sequence_id, 2u);
-    EXPECT_EQ(eos->envelope.batch_id, cfg.stream_id);
-    EXPECT_EQ(eos->envelope.aperture_id, 2u);
-    EXPECT_EQ(eos->envelope.pulse_range_start, 2u);
-    EXPECT_EQ(eos->envelope.pulse_range_count, 0u);
-    EXPECT_TRUE(eos->iq_samples.empty());
-    EXPECT_EQ(eos->buffer.byte_count, 0u);
+    EXPECT_EQ(eos->sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(eos->sidecar.sequence_id, 2u);
+    EXPECT_EQ(eos->sidecar.batch_id, cfg.stream_id);
+    EXPECT_EQ(eos->sidecar.aperture_id, 2u);
+    EXPECT_EQ(eos->sidecar.pulse_range_start, 2u);
+    EXPECT_EQ(eos->sidecar.pulse_range_count, 0u);
+    EXPECT_EQ(eos->sidecar.payload_byte_count, 0u);
+    EXPECT_TRUE(eos->has_host_view);
+    EXPECT_EQ(eos->host_view.bytes, static_cast<std::uint64_t>(sizeof(float)));
 
     auto after_eos = node.Produce(std::integral_constant<std::size_t, 0>{});
     EXPECT_FALSE(after_eos.has_value());
@@ -88,18 +84,18 @@ TEST(SyntheticApertureIqSourceNodeTest, ResetRestartsSequenceAndData) {
 
     auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
-    EXPECT_EQ(first->envelope.sequence_id, 0u);
+    EXPECT_EQ(first->sidecar.sequence_id, 0u);
 
     auto eos = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(eos->sidecar.marker, sar::SarFrameMarker::EndOfStream);
 
     node.Reset();
 
     auto restarted = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(restarted.has_value());
-    EXPECT_EQ(restarted->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(restarted->envelope.sequence_id, 0u);
+    EXPECT_EQ(restarted->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(restarted->sidecar.sequence_id, 0u);
 }
 
 TEST(SyntheticApertureIqSourceNodeTest, SetConfigAppliesAndResetsState) {
@@ -122,9 +118,9 @@ TEST(SyntheticApertureIqSourceNodeTest, SetConfigAppliesAndResetsState) {
 
     auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
-    EXPECT_EQ(first->envelope.sequence_id, 0u);
-    EXPECT_EQ(first->envelope.stream_id, 11u);
-    EXPECT_EQ(first->iq_samples.size(), 3u);
+    EXPECT_EQ(first->sidecar.sequence_id, 0u);
+    EXPECT_EQ(first->sidecar.stream_id, 11u);
+    EXPECT_EQ(first->sidecar.payload_byte_count, 3u * sizeof(float));
 }
 
 TEST(SyntheticApertureIqSourceNodeTest, DynamicPluginLoadAndBehaviorValidation) {
@@ -154,20 +150,20 @@ TEST(SyntheticApertureIqSourceNodeTest, DynamicPluginLoadAndBehaviorValidation) 
 
     auto pulse = node->Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(pulse.has_value());
-    EXPECT_EQ(pulse->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(pulse->envelope.sequence_id, 0u);
-    EXPECT_EQ(pulse->envelope.stream_id, 5u);
-    EXPECT_EQ(pulse->iq_samples.size(), 2u);
+    EXPECT_EQ(pulse->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(pulse->sidecar.sequence_id, 0u);
+    EXPECT_EQ(pulse->sidecar.stream_id, 5u);
+    EXPECT_EQ(pulse->sidecar.payload_byte_count, 2u * sizeof(float));
 
     auto eos = node->Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(eos->sidecar.marker, sar::SarFrameMarker::EndOfStream);
 
     auto after = node->Produce(std::integral_constant<std::size_t, 0>{});
     EXPECT_FALSE(after.has_value());
 }
 
-TEST(SyntheticApertureIqSourceNodeTest, MovingTargetScenarioIncreasesReturnMagnitude) {
+TEST(SyntheticApertureIqSourceNodeTest, MovingTargetConfigPreservesTokenEnvelopeAndPayload) {
     sar::SyntheticApertureIqSourceConfig cfg{};
     cfg.stream_id = 3;
     cfg.total_pulses = 3;
@@ -187,15 +183,10 @@ TEST(SyntheticApertureIqSourceNodeTest, MovingTargetScenarioIncreasesReturnMagni
 
     ASSERT_TRUE(first.has_value());
     ASSERT_TRUE(second.has_value());
-    ASSERT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
-    ASSERT_EQ(second->envelope.marker, sar::SarFrameMarker::Data);
-    ASSERT_FALSE(first->iq_samples.empty());
-    ASSERT_FALSE(second->iq_samples.empty());
-
-    const float first_magnitude = std::abs(first->iq_samples[0]);
-    const float second_magnitude = std::abs(second->iq_samples[0]);
-
-    EXPECT_GT(second_magnitude, first_magnitude);
+    ASSERT_EQ(first->sidecar.marker, sar::SarFrameMarker::Data);
+    ASSERT_EQ(second->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(first->sidecar.payload_byte_count, second->sidecar.payload_byte_count);
+    EXPECT_EQ(first->sidecar.payload_byte_count, cfg.samples_per_pulse * sizeof(float));
 }
 
 } // namespace

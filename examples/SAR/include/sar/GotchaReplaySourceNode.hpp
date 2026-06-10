@@ -63,14 +63,14 @@ public:
 // once the raw file layout, calibration metadata, and redistribution constraints are confirmed.
 
 class GotchaReplaySourceNode
-    : public graph::NamedSourceNode<GotchaReplaySourceNode, SarPulseBlockMessage>,
+    : public graph::NamedSourceNode<GotchaReplaySourceNode, SarAccelControlToken>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     GotchaReplaySourceNode() = default;
     explicit GotchaReplaySourceNode(GotchaReplaySourceConfig config);
 
-    std::optional<SarPulseBlockMessage> Produce(
+    std::optional<SarAccelControlToken> Produce(
         std::integral_constant<std::size_t, 0>) override;
 
     void Configure(const graph::JsonView& cfg) override;
@@ -118,8 +118,8 @@ public:
     const GotchaReplaySourceConfig& GetConfig() const noexcept;
 
 private:
-    SarPulseBlockMessage MakeMessage(const GotchaNormalizedPulseRecord& record) const;
-    SarPulseBlockMessage MakeControlMessage(SarFrameMarker marker) const;
+    SarAccelControlToken MakeMessage(const GotchaNormalizedPulseRecord& record) const;
+    SarAccelControlToken MakeControlMessage(SarFrameMarker marker) const;
 
     GotchaOfflineConverter converter_{};
     GotchaReplaySourceConfig config_{};

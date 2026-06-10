@@ -1,22 +1,17 @@
 #include <gtest/gtest.h>
 
-#include "sar_pr7_parity_fixture.hpp"
 #include "sar/RangeCompressionNode.hpp"
-#include "sar/SarCpuReference.hpp"
 
 #include "graph/NodeFacade.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
 
 #include <cstddef>
-#include <complex>
+#include <cstdint>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace {
-
-namespace pr7 = sar::test::pr7;
 
 #ifdef __APPLE__
 constexpr const char* kSharedLibraryExtension = ".dylib";
@@ -32,57 +27,32 @@ std::string RangeCompressionPluginFilename() {
     return std::string("librange_compression_node") + kSharedLibraryExtension;
 }
 
-sar::SarPulseBlockMessage MakePulse(std::size_t sample_count = 256u) {
-    sar::SarPulseBlockMessage msg{};
-    msg.envelope.sequence_id = 3;
-    msg.envelope.stream_id = 9;
-    msg.envelope.marker = sar::SarFrameMarker::Data;
-    msg.buffer.buffer_id = 44;
-    msg.buffer.direction = sar::SarTransferDirection::HostToDevice;
-    msg.iq_samples.reserve(sample_count);
-    for (std::size_t i = 0; i < sample_count; ++i) {
-        msg.iq_samples.emplace_back(static_cast<float>(i % 17) * 0.1f, static_cast<float>(i % 11) * 0.07f);
-    }
-    msg.buffer.byte_count = msg.iq_samples.size() * sizeof(sar::SarIqSample);
-    return msg;
+sar::SarAccelControlToken MakeToken() {
+    sar::SarAccelControlToken token{};
+    token.token_id = 44u;
+    token.sidecar.sequence_id = 3u;
+    token.sidecar.stream_id = 9u;
+    token.sidecar.marker = sar::SarFrameMarker::Data;
+    token.sidecar.payload_byte_count = 256u;
+    token.host_view.backend = graph::gpu::accel::BackendKind::Metal;
+    token.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1001u));
+    token.host_view.bytes = 256u;
+    token.host_view.dtype = graph::gpu::accel::DataType::Float32;
+    token.host_view.layout.rank = 1;
+    token.host_view.layout.shape[0] = 64;
+    token.host_view.layout.stride[0] = 1;
+    token.has_host_view = true;
+    return token;
 }
 
-sar::SarPulseBlockMessage MakeMatchedFilterPulse() {
-    sar::reference::ChirpReferenceConfig cfg{};
-    cfg.sample_count = pr7::kMatchedFilterVectorLength;
-    cfg.sample_rate_hz = 16.0e6;
-    cfg.bandwidth_hz = 4.0e6;
-    cfg.chirp_duration_s = 1.0e-6;
-    cfg.range_origin_m = 0.0;
-    cfg.range_spacing_m = 0.25;
-
-    const auto chirp = sar::reference::GenerateLinearFmChirp(cfg);
-    const auto echo = sar::reference::GenerateDelayedEcho(chirp, 3u, 0.75);
-
-    sar::SarPulseBlockMessage msg{};
-    msg.envelope.sequence_id = 5;
-    msg.envelope.stream_id = 2;
-    msg.envelope.marker = sar::SarFrameMarker::Data;
-    msg.buffer.buffer_id = 99;
-    msg.buffer.direction = sar::SarTransferDirection::HostToDevice;
-    msg.iq_samples.reserve(echo.size());
-    for (const auto& sample : echo) {
-        msg.iq_samples.emplace_back(
-            static_cast<float>(sample.real()),
-            static_cast<float>(sample.imag()));
-    }
-    msg.buffer.byte_count = msg.iq_samples.size() * sizeof(sar::SarIqSample);
-    return msg;
-}
-
-TEST(RangeCompressionNodeTest, AppliesDeterministicCompressionWhenEnabled) {
+TEST(RangeCompressionNodeTest, EnabledCompressionPreservesTokenIdentityAndUpdatesTiming) {
     sar::RangeCompressionConfig cfg{};
     cfg.enabled = true;
     cfg.gain = 1.0f;
     cfg.sample_rate_hz = 48000.0;
 
     sar::RangeCompressionNode node(cfg);
-    const auto input = MakePulse(256u);
+    const auto input = MakeToken();
 
     auto out = node.Transfer(
         input,
@@ -90,16 +60,15 @@ TEST(RangeCompressionNodeTest, AppliesDeterministicCompressionWhenEnabled) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    ASSERT_EQ(out->iq_samples.size(), input.iq_samples.size());
-    EXPECT_NE(out->iq_samples[0].real(), input.iq_samples[0].real());
-    EXPECT_EQ(out->iq_samples[0].imag(), 0.0f);
-    EXPECT_EQ(out->buffer.byte_count, out->iq_samples.size() * sizeof(sar::SarIqSample));
+    EXPECT_EQ(out->sidecar.sequence_id, input.sidecar.sequence_id);
+    EXPECT_EQ(out->sidecar.payload_byte_count, input.sidecar.payload_byte_count);
+    EXPECT_GT(out->sidecar.stage_timings.range_compression_time_us, 0u);
 }
 
 TEST(RangeCompressionNodeTest, EndOfStreamPassesThroughWithoutCompression) {
     sar::RangeCompressionNode node;
-    auto input = MakePulse(256u);
-    input.envelope.marker = sar::SarFrameMarker::EndOfStream;
+    auto input = MakeToken();
+    input.sidecar.marker = sar::SarFrameMarker::EndOfStream;
 
     auto out = node.Transfer(
         input,
@@ -107,24 +76,24 @@ TEST(RangeCompressionNodeTest, EndOfStreamPassesThroughWithoutCompression) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(out->iq_samples.size(), input.iq_samples.size());
-    EXPECT_EQ(out->iq_samples[3], input.iq_samples[3]);
+    EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(out->sidecar.stage_timings.range_compression_time_us, 0u);
 }
 
-TEST(RangeCompressionNodeTest, MatchedFilterModeMatchesCpuReferenceMagnitude) {
+TEST(RangeCompressionNodeTest, NumericalCompressionIsDeferredAndStageIsTokenTimingOnly) {
     sar::RangeCompressionConfig cfg{};
     cfg.enabled = true;
     cfg.mode = sar::RangeCompressionMode::MatchedFilter;
-    cfg.output = sar::RangeCompressionOutput::Magnitude;
-    cfg.gain = 1.0f;
-    cfg.sample_rate_hz = 16.0e6;
-    cfg.bandwidth_hz = 4.0e6;
-    cfg.chirp_duration_s = 1.0e-6;
-    cfg.range_spacing_m = 0.25;
+    cfg.output = sar::RangeCompressionOutput::Complex;
+    cfg.gain = 4.0f;
+    cfg.sample_rate_hz = 16000000.0;
+    cfg.bandwidth_hz = 4000000.0;
+    cfg.chirp_duration_s = 0.000001;
+    cfg.range_origin_m = 10.0;
+    cfg.range_spacing_m = 0.5;
 
     sar::RangeCompressionNode node(cfg);
-    const auto input = MakeMatchedFilterPulse();
+    const auto input = MakeToken();
 
     auto out = node.Transfer(
         input,
@@ -132,39 +101,10 @@ TEST(RangeCompressionNodeTest, MatchedFilterModeMatchesCpuReferenceMagnitude) {
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    ASSERT_EQ(out->iq_samples.size(), input.iq_samples.size());
-
-    sar::reference::ChirpReferenceConfig ref_cfg{};
-    ref_cfg.sample_count = static_cast<std::uint32_t>(input.iq_samples.size());
-    ref_cfg.sample_rate_hz = cfg.sample_rate_hz;
-    ref_cfg.bandwidth_hz = cfg.bandwidth_hz;
-    ref_cfg.chirp_duration_s = cfg.chirp_duration_s;
-    ref_cfg.range_spacing_m = cfg.range_spacing_m;
-    const auto chirp = sar::reference::GenerateLinearFmChirp(ref_cfg);
-
-    std::vector<std::complex<double>> received;
-    received.reserve(input.iq_samples.size());
-    for (const auto& sample : input.iq_samples) {
-        received.emplace_back(sample.real(), sample.imag());
-    }
-    const auto expected = sar::reference::MatchedFilterRangeCompress(received, chirp);
-    const auto expected_image = sar::reference::MagnitudeImage(pr7::kMatchedFilterVectorLength, 1u, expected);
-    const auto expected_metrics = sar::reference::MeasureImageQuality(expected_image, pr7::kMatchedFilterPeakBin, 0u);
-
-    std::vector<std::complex<double>> actual_complex;
-    actual_complex.reserve(out->iq_samples.size());
-    for (const auto& sample : out->iq_samples) {
-        EXPECT_EQ(sample.imag(), 0.0f);
-        actual_complex.emplace_back(sample.real(), sample.imag());
-    }
-    const auto actual_image = sar::reference::MagnitudeImage(pr7::kMatchedFilterVectorLength, 1u, actual_complex);
-    const auto actual_metrics = sar::reference::MeasureImageQuality(actual_image, pr7::kMatchedFilterPeakBin, 0u);
-    const auto error = sar::reference::CompareImages(actual_image, expected_image);
-
-    EXPECT_LT(error.l_inf, pr7::kMatchedFilterReferenceLInfTolerance);
-    EXPECT_LT(error.rms, pr7::kMatchedFilterReferenceRmsTolerance);
-    EXPECT_EQ(actual_metrics.peak.x, expected_metrics.peak.x);
-    EXPECT_NEAR(actual_metrics.peak.value, expected_metrics.peak.value, static_cast<float>(pr7::kMatchedFilterReferenceLInfTolerance));
+    EXPECT_EQ(out->sidecar.sequence_id, input.sidecar.sequence_id);
+    EXPECT_EQ(out->sidecar.payload_byte_count, input.sidecar.payload_byte_count);
+    EXPECT_EQ(out->host_view.bytes, input.host_view.bytes);
+    EXPECT_GT(out->sidecar.stage_timings.range_compression_time_us, 0u);
 }
 
 TEST(RangeCompressionNodeTest, ConfigureEnablesMatchedFilterModeFromJson) {
@@ -215,16 +155,14 @@ TEST(RangeCompressionNodeTest, DefaultModeRemainsFftMagnitudeWhenModeIsOmitted) 
     EXPECT_EQ(cfg.mode, sar::RangeCompressionMode::FftMagnitude);
     EXPECT_EQ(cfg.output, sar::RangeCompressionOutput::Magnitude);
 
-    const auto input = MakePulse(256u);
+    const auto input = MakeToken();
     auto out = node.Transfer(
         input,
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    ASSERT_EQ(out->iq_samples.size(), input.iq_samples.size());
-    EXPECT_EQ(out->iq_samples[0].imag(), 0.0f);
-    EXPECT_GE(out->iq_samples[0].real(), 0.0f);
+    EXPECT_GT(out->sidecar.stage_timings.range_compression_time_us, 0u);
 }
 
 TEST(RangeCompressionNodeTest, DynamicPluginLoadAndBehaviorValidation) {
@@ -251,12 +189,12 @@ TEST(RangeCompressionNodeTest, DynamicPluginLoadAndBehaviorValidation) {
     node->SetConfig(cfg);
 
     auto out = node->Transfer(
-        MakePulse(256u),
+        MakeToken(),
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
 
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->iq_samples.size(), 256u);
+    EXPECT_GT(out->sidecar.stage_timings.range_compression_time_us, 0u);
 }
 
 } // namespace

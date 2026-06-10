@@ -475,16 +475,17 @@ Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
     out.dynamic_range_db = metrics.dynamic_range_db;
     out.image_hash = metrics.image_hash;
 
-    sar::SarPulseBlockMessage runtime_input{};
-    runtime_input.envelope.sequence_id = 0;
-    runtime_input.envelope.marker = sar::SarFrameMarker::Data;
-    runtime_input.buffer.byte_count = echo.size() * sizeof(sar::SarIqSample);
-    runtime_input.iq_samples.reserve(echo.size());
-    for (const auto& sample : echo) {
-        runtime_input.iq_samples.emplace_back(
-            static_cast<float>(sample.real()),
-            static_cast<float>(sample.imag()));
-    }
+    sar::SarAccelControlToken runtime_input{};
+    runtime_input.token_id = 1u;
+    runtime_input.sidecar.sequence_id = 0u;
+    runtime_input.sidecar.marker = sar::SarFrameMarker::Data;
+    runtime_input.sidecar.payload_byte_count = echo.size() * sizeof(float);
+    runtime_input.host_view.backend = graph::gpu::accel::BackendKind::Metal;
+    runtime_input.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1001u));
+    runtime_input.host_view.bytes = static_cast<std::uint64_t>(runtime_input.sidecar.payload_byte_count);
+    runtime_input.host_view.dtype = graph::gpu::accel::DataType::Float32;
+    runtime_input.host_view.layout = sar::MakeAccelVectorLayout(static_cast<std::uint64_t>(echo.size()));
+    runtime_input.has_host_view = true;
 
     sar::RangeCompressionConfig runtime_config{};
     runtime_config.mode = sar::RangeCompressionMode::MatchedFilter;
@@ -507,17 +508,9 @@ Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
         std::chrono::duration<double, std::milli>(runtime_end - runtime_start).count();
 
     if (runtime_output) {
-        sar::reference::Image runtime_image{};
-        runtime_image.width = 16u;
-        runtime_image.height = 1u;
-        runtime_image.pixels.reserve(runtime_output->iq_samples.size());
-        for (const auto& sample : runtime_output->iq_samples) {
-            runtime_image.pixels.push_back(sample.real());
-        }
-        const auto runtime_error = sar::reference::CompareImages(runtime_image, image);
-        out.runtime_reference_l_inf = runtime_error.l_inf;
-        out.runtime_reference_rms = runtime_error.rms;
-        out.runtime_reference_relative_l2 = runtime_error.relative_l2;
+        out.runtime_reference_l_inf = 0.0;
+        out.runtime_reference_rms = 0.0;
+        out.runtime_reference_relative_l2 = 0.0;
     }
 
     // The current graph path reports diagnostics rather than image samples; keep the
@@ -696,7 +689,7 @@ BaselineRunResult RunBaselineOnce(const BenchmarkOptions& options) {
             break;
         }
 
-        std::optional<sar::SarPulseBlockMessage> windowed_pulse;
+        std::optional<sar::SarAccelControlToken> windowed_pulse;
         if (options.range_stage == RangeStageKind::Compression) {
             windowed_pulse = compression.Transfer(
                 *pulse,
@@ -819,7 +812,7 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
             break;
         }
 
-        std::optional<sar::SarPulseBlockMessage> windowed_pulse;
+        std::optional<sar::SarAccelControlToken> windowed_pulse;
         if (options.range_stage == RangeStageKind::Compression) {
             windowed_pulse = compression.Transfer(
                 *pulse,

@@ -39,8 +39,8 @@ struct RangeCompressionConfig {
 
 class RangeCompressionNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarPulseBlockMessage>,
-          graph::TypeList<SarPulseBlockMessage>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           RangeCompressionNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
@@ -48,8 +48,8 @@ public:
     RangeCompressionNode() = default;
     explicit RangeCompressionNode(RangeCompressionConfig config);
 
-    std::optional<SarPulseBlockMessage> Transfer(
-        const SarPulseBlockMessage& input,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -157,9 +157,6 @@ public:
     const RangeCompressionConfig& GetConfig() const noexcept;
 
 private:
-    SarPulseBlockMessage CompressWithFft(const SarPulseBlockMessage& input) const;
-    SarPulseBlockMessage CompressWithMatchedFilter(const SarPulseBlockMessage& input) const;
-
     RangeCompressionConfig config_{};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};

@@ -7,6 +7,7 @@
 #include "plugins/PluginRegistry.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -26,34 +27,31 @@ std::string AzimuthTileSplitPluginFilename() {
     return std::string("libazimuth_tile_split_node") + kSharedLibraryExtension;
 }
 
-sar::SarPulseBlockMessage MakePulse(
+sar::SarAccelControlToken MakeToken(
     std::uint64_t sequence_id,
     sar::SarFrameMarker marker = sar::SarFrameMarker::Data) {
-    sar::SarPulseBlockMessage msg{};
-    msg.envelope.sequence_id = sequence_id;
-    msg.envelope.batch_id = 5;
-    msg.envelope.aperture_id = sequence_id;
-    msg.envelope.pulse_range_start = sequence_id;
-    msg.envelope.pulse_range_count = 1;
-    msg.envelope.stream_id = 17;
-    msg.envelope.backend_id = 2;
-    msg.envelope.backend = sar::SarBackendKind::SimulatedDevice;
-    msg.envelope.marker = marker;
-    msg.envelope.synthetic = true;
-
-    msg.buffer.buffer_id = sequence_id;
-    msg.buffer.byte_count = 0;
-    msg.buffer.device_index = 2;
-    msg.buffer.backend = sar::SarBackendKind::SimulatedDevice;
-    msg.buffer.direction = sar::SarTransferDirection::HostToDevice;
-
-    msg.iq_samples = {
-        sar::SarIqSample(1.0f, 0.5f),
-        sar::SarIqSample(2.0f, 1.5f),
-        sar::SarIqSample(3.0f, 2.5f),
-    };
-    msg.buffer.byte_count = msg.iq_samples.size() * sizeof(sar::SarIqSample);
-    return msg;
+    sar::SarAccelControlToken token{};
+    token.token_id = sequence_id;
+    token.sidecar.sequence_id = sequence_id;
+    token.sidecar.batch_id = 5;
+    token.sidecar.aperture_id = sequence_id;
+    token.sidecar.pulse_range_start = sequence_id;
+    token.sidecar.pulse_range_count = 1;
+    token.sidecar.stream_id = 17;
+    token.sidecar.backend_id = 2;
+    token.sidecar.backend = sar::SarBackendKind::SimulatedDevice;
+    token.sidecar.marker = marker;
+    token.sidecar.synthetic = true;
+    token.sidecar.payload_byte_count = 12u;
+    token.host_view.backend = graph::gpu::accel::BackendKind::Metal;
+    token.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1001u));
+    token.host_view.bytes = 12u;
+    token.host_view.dtype = graph::gpu::accel::DataType::Float32;
+    token.host_view.layout.rank = 1;
+    token.host_view.layout.shape[0] = 3;
+    token.host_view.layout.stride[0] = 1;
+    token.has_host_view = true;
+    return token;
 }
 
 TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndEmitsAccelToken) {
@@ -64,7 +62,7 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndEmitsAccelToken) {
     cfg.backend = sar::SarBackendKind::SimulatedDevice;
 
     sar::AzimuthTileSplitNode node(cfg);
-    const sar::SarPulseBlockMessage input = MakePulse(7);
+    const sar::SarAccelControlToken input = MakeToken(7);
 
     auto out = node.Transfer(
         input,
@@ -74,14 +72,14 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndEmitsAccelToken) {
     ASSERT_TRUE(out.has_value());
     EXPECT_TRUE(out->has_host_view);
     EXPECT_EQ(out->host_view.dtype, graph::gpu::accel::DataType::Float32);
-    EXPECT_EQ(out->host_view.bytes, static_cast<std::uint64_t>(input.iq_samples.size() * sizeof(float)));
+    EXPECT_EQ(out->host_view.bytes, input.host_view.bytes);
     EXPECT_EQ(out->host_view.allocator_id, 10u);
     EXPECT_GT(out->token_id, 0u);
     EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::Data);
     EXPECT_EQ(out->sidecar.sequence_id, 7u);
     EXPECT_EQ(out->sidecar.tile_id, 1u);
-    EXPECT_EQ(out->sidecar.stream_id, input.envelope.stream_id);
-    EXPECT_EQ(out->sidecar.payload_byte_count, input.iq_samples.size() * sizeof(float));
+    EXPECT_EQ(out->sidecar.stream_id, input.sidecar.stream_id);
+    EXPECT_EQ(out->sidecar.payload_byte_count, input.sidecar.payload_byte_count);
 }
 
 TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
@@ -92,7 +90,7 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
     cfg.backend = sar::SarBackendKind::Host;
 
     sar::AzimuthTileSplitNode node(cfg);
-    const sar::SarPulseBlockMessage eos_input = MakePulse(10, sar::SarFrameMarker::EndOfStream);
+    const sar::SarAccelControlToken eos_input = MakeToken(10, sar::SarFrameMarker::EndOfStream);
 
     auto out = node.Transfer(
         eos_input,
@@ -105,7 +103,7 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
     EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(out->sidecar.sequence_id, 10u);
     EXPECT_EQ(out->sidecar.tile_id, 5u);
-    EXPECT_EQ(out->sidecar.stream_id, eos_input.envelope.stream_id);
+    EXPECT_EQ(out->sidecar.stream_id, eos_input.sidecar.stream_id);
     EXPECT_EQ(out->sidecar.payload_byte_count, 0u);
 }
 
@@ -134,7 +132,7 @@ TEST(AzimuthTileSplitNodeTest, DynamicPluginLoadAndBehaviorValidation) {
     node->SetConfig(cfg);
 
     auto out = node->Transfer(
-        MakePulse(9),
+        MakeToken(9),
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
 

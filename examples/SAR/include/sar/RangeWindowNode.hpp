@@ -22,8 +22,8 @@ struct RangeWindowConfig {
 
 class RangeWindowNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarPulseBlockMessage>,
-          graph::TypeList<SarPulseBlockMessage>,
+          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarAccelControlToken>,
           RangeWindowNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
@@ -31,8 +31,8 @@ public:
     RangeWindowNode() = default;
     explicit RangeWindowNode(RangeWindowConfig config);
 
-    std::optional<SarPulseBlockMessage> Transfer(
-        const SarPulseBlockMessage& input,
+    std::optional<SarAccelControlToken> Transfer(
+        const SarAccelControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -70,8 +70,6 @@ public:
     const RangeWindowConfig& GetConfig() const noexcept;
 
 private:
-    static float HannWeight(std::size_t index, std::size_t sample_count);
-
     RangeWindowConfig config_{};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};

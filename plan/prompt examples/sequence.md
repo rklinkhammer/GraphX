@@ -1,3 +1,9 @@
+Act as EXTERNAL_SAR_BASELINE_REVIEWER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
+
+=====
+
 Act as INSPECTOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
@@ -49,7 +55,21 @@ Each PR must:
 - compile independently,
 - have tests,
 - avoid compatibility shims,
-- move toward exactly one canonical SAR GPU path.
+
+
+I would also update `PLANNER` with this additional roadmap section:
+
+After GraphX SAR token architecture and basic performance instrumentation are stable, prefer:
+
+1. External SAR baseline survey.
+2. Select one baseline package.
+3. Add local-only baseline runner script.
+4. Add GraphX-vs-baseline output comparison harness.
+5. Add tiny deterministic fixture comparison.
+6. Add CI-safe derived fixture if licensing permits.
+7. Add optional local Gotcha/OpenSAR benchmark.
+8. Add substitution experiment where GraphX replaces the baseline SAR stage in a selected test.actly one canonical SAR GPU path.
+
 
 Do not implement code.
 ==========
@@ -360,7 +380,7 @@ Output:
 
 ===
 
-Act as PRINCIPAL_ARCHITECT.
+Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md

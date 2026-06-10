@@ -255,30 +255,30 @@ TEST(GotchaDatasetAdapterTest, ReplaySourceEmitsDeterministicPulseBlocksThenEos)
 
     auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
-    EXPECT_EQ(first->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(first->envelope.sequence_id, 0u);
-    EXPECT_EQ(first->envelope.batch_id, 17u);
-    EXPECT_EQ(first->envelope.aperture_id, 9000u);
-    EXPECT_EQ(first->envelope.pulse_range_start, 0u);
-    EXPECT_EQ(first->envelope.pulse_range_count, 8u);
-    EXPECT_EQ(first->envelope.stream_id, 5u);
-    EXPECT_EQ(first->envelope.tile_id, 0u);
-    EXPECT_EQ(first->envelope.tile_count, 4u);
-    EXPECT_FALSE(first->envelope.synthetic);
-    EXPECT_EQ(first->buffer.byte_count, 8u * sizeof(sar::SarIqSample));
-    ASSERT_EQ(first->iq_samples.size(), 8u);
+    EXPECT_EQ(first->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(first->sidecar.sequence_id, 0u);
+    EXPECT_EQ(first->sidecar.batch_id, 17u);
+    EXPECT_EQ(first->sidecar.aperture_id, 9000u);
+    EXPECT_EQ(first->sidecar.pulse_range_start, 0u);
+    EXPECT_EQ(first->sidecar.pulse_range_count, 8u);
+    EXPECT_EQ(first->sidecar.stream_id, 5u);
+    EXPECT_EQ(first->sidecar.tile_id, 0u);
+    EXPECT_EQ(first->sidecar.tile_count, 4u);
+    EXPECT_FALSE(first->sidecar.synthetic);
+    EXPECT_EQ(first->sidecar.payload_byte_count, 8u * sizeof(float));
+    ASSERT_TRUE(first->has_host_view);
 
     for (int i = 0; i < 3; ++i) {
         auto out = node.Produce(std::integral_constant<std::size_t, 0>{});
         ASSERT_TRUE(out.has_value());
-        EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
+        EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::Data);
     }
 
     auto eos = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(eos.has_value());
-    EXPECT_EQ(eos->envelope.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_EQ(eos->envelope.sequence_id, 4u);
-    EXPECT_EQ(eos->buffer.byte_count, 0u);
+    EXPECT_EQ(eos->sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(eos->sidecar.sequence_id, 4u);
+    EXPECT_EQ(eos->sidecar.payload_byte_count, 0u);
 
     auto after = node.Produce(std::integral_constant<std::size_t, 0>{});
     EXPECT_FALSE(after.has_value());
@@ -374,6 +374,6 @@ TEST(GotchaDatasetAdapterTest, AllowsExternalFixtureWithExplicitLocalManualOptIn
 
     auto out = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(out.has_value());
-    EXPECT_EQ(out->envelope.marker, sar::SarFrameMarker::Data);
-    EXPECT_EQ(out->envelope.synthetic, false);
+    EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(out->sidecar.synthetic, false);
 }
