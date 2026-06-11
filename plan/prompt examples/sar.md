@@ -118,16 +118,16 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
-- plan/reviews/SAR_IMPL_RRP1_1.md
+- plan/reviews/SAR_IMPL_RRP2_1.md
 - current repository state
 - current test output
 
 Task:
-Implement RRP2 only
+Implement RRP3 only
 
-RRP2 title:  GraphX Scenario-to-Image Path
-RRP2 Scope:
-- Wire `scenario_001` into the existing GraphX GOTCHA replay plus materialized image path.
+RRP3 title:  gotcha-back Scenario Adapter
+RRP3 Scope:
+- Convert `scenario_001` into the pinned gotcha-back invocation and normalize its output artifact.
 
 
 
@@ -137,8 +137,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if RRP2 requires it.
-- Add or update tests for RRP2.
+- Delete obsolete code if RRP3 requires it.
+- Add or update tests for RRP3.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -152,9 +152,8 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-RRP1 acceptance criteria:
-- GraphX can produce one scenario-driven image artifact without changing SAR math architecture
-
+RRP3 acceptance criteria:
+- gotcha-back output is reproducibly mappable to the comparison format for `scenario_001`
 =====
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -165,17 +164,18 @@ Inputs:
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
 - plan/reviews/SAR_IMPL_RRP0_1.md
 - plan/reviews/SAR_IMPL_RRP1_1.md
+- plan/reviews/SAR_IMPL_RRP2_1.md
 - current repository state
 - current test output
-- current RRP1 diff
+- current RRP2 diff
 
 
 
 Task:
-Verify whether RRP1  actually satisfies its acceptance criteria.
+Verify whether RRP2  actually satisfies its acceptance criteria.
 
 Check:
-- one local command accepts `scenario_001` and produces a known artifact directory layout without requiring CI data
+- GraphX can produce one scenario-driven image artifact without changing SAR math architecture
 
 
 Output:

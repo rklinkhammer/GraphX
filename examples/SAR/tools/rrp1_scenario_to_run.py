@@ -50,7 +50,7 @@ def scenario_id_from_path(path: Path) -> str:
 
 def build_graphx_config(scenario: dict[str, Any], manual_template: dict[str, Any]) -> dict[str, Any]:
     config = json.loads(json.dumps(manual_template))
-    config["name"] = f"rrp1_{scenario['dataset']['subset']}"
+    config["name"] = f"rrp2_{scenario['dataset']['subset']}"
 
     image_grid = scenario["image_grid"]
     pulse_range = scenario["pulse_range"]
@@ -58,12 +58,53 @@ def build_graphx_config(scenario: dict[str, Any], manual_template: dict[str, Any
     output = scenario["output"]
 
     for node in config.get("nodes", []):
+        if node.get("id") == "src":
+            node.setdefault("node_config", {})["emit_watermark"] = False
         if node.get("id") == "bp":
             node.setdefault("node_config", {})["image_width"] = image_grid["width"]
         if node.get("id") == "compression":
             node.setdefault("node_config", {})["enabled"] = bool(
                 scenario["range_compression"].get("enabled", True)
             )
+
+    if not any(node.get("id") == "materialize" for node in config.get("nodes", [])):
+        materialize_node = {
+            "id": "materialize",
+            "type": "SarMaterializedImageSinkNode",
+            "node_config": {
+                "enabled": output.get("artifact_kind") == "materialized_image"
+            },
+        }
+
+        new_nodes: list[dict[str, Any]] = []
+        for node in config.get("nodes", []):
+            if node.get("id") == "merge":
+                new_nodes.append(materialize_node)
+            new_nodes.append(node)
+        config["nodes"] = new_nodes
+
+        new_edges: list[dict[str, Any]] = []
+        for edge in config.get("edges", []):
+            if edge.get("source_node_id") == "d2h" and edge.get("target_node_id") == "merge":
+                new_edges.append(
+                    {
+                        "source_node_id": "d2h",
+                        "source_port": 0,
+                        "target_node_id": "materialize",
+                        "target_port": 0,
+                    }
+                )
+                new_edges.append(
+                    {
+                        "source_node_id": "materialize",
+                        "source_port": 0,
+                        "target_node_id": "merge",
+                        "target_port": 0,
+                    }
+                )
+                continue
+            new_edges.append(edge)
+        config["edges"] = new_edges
 
     config.setdefault("metadata", {})
     config["metadata"]["scenario_id"] = scenario["dataset"]["subset"]

@@ -42,6 +42,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp1_local_runner.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp2_scenario_image_path.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
