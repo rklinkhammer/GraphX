@@ -47,6 +47,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp4_image_comparator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_frozen_scenario_replay.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_tiny_fixture.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_ci_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -114,3 +115,4 @@ if(TARGET metal_device_kernel_node)
 endif()
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)
+add_test(NAME sar_example_ci_lane COMMAND test_sar_example_unit --gtest_filter=Rrp7CiValidationLaneTest.*)

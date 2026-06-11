@@ -35,11 +35,11 @@ TEST(Rrp6TinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
     EXPECT_TRUE(fixture.at("ci_safe").get<bool>());
     ASSERT_TRUE(fixture.contains("records"));
     ASSERT_TRUE(fixture.at("records").is_array());
-    ASSERT_EQ(fixture.at("records").size(), 1u);
+    ASSERT_EQ(fixture.at("records").size(), 4u);
 
     sar::GotchaOfflineConverter converter;
     const auto records = converter.LoadFromFile(fixture_path);
-    ASSERT_EQ(records.size(), 1u);
+    ASSERT_EQ(records.size(), 4u);
     EXPECT_EQ(records.front().frame_id, 0u);
     EXPECT_EQ(records.front().pass_id, 17u);
     EXPECT_EQ(records.front().pulse_block_id, 9000u);
@@ -60,6 +60,12 @@ TEST(Rrp6TinyFixtureTest, GotchaReplaySourceAcceptsCiSafeTinyFixtureWithoutExter
     auto first = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(first.has_value());
     EXPECT_EQ(first->sidecar.marker, sar::SarFrameMarker::Data);
+
+    for (int i = 0; i < 3; ++i) {
+        auto out = node.Produce(std::integral_constant<std::size_t, 0>{});
+        ASSERT_TRUE(out.has_value());
+        EXPECT_EQ(out->sidecar.marker, sar::SarFrameMarker::Data);
+    }
 
     auto eos = node.Produce(std::integral_constant<std::size_t, 0>{});
     ASSERT_TRUE(eos.has_value());
