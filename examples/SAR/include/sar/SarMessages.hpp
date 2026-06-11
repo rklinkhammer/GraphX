@@ -46,42 +46,6 @@ inline graph::gpu::accel::TensorLayout MakeAccelVectorLayout(std::uint64_t eleme
     return layout;
 }
 
-struct SarMessageEnvelope {
-    std::uint64_t sequence_id{};
-    std::uint64_t batch_id{};
-    std::uint64_t aperture_id{};
-    std::uint64_t pulse_range_start{};
-    std::uint32_t pulse_range_count{};
-    std::uint32_t stream_id{};
-    std::uint32_t tile_id{};
-    std::uint32_t tile_count{};
-    std::uint32_t backend_id{};
-    SarBackendKind backend{SarBackendKind::Host};
-    SarFrameMarker marker{SarFrameMarker::Data};
-    bool synthetic{true};
-};
-
-struct SarBufferDescriptor {
-    std::uint64_t buffer_id{};
-    std::size_t byte_count{};
-    std::uint32_t device_index{};
-    SarBackendKind backend{SarBackendKind::Host};
-    SarTransferDirection direction{SarTransferDirection::HostToDevice};
-};
-
-struct SarGpuMetadata {
-    graph::gpu::accel::BufferLease lease{};
-    graph::gpu::accel::DeviceBufferView device_view{};
-    graph::gpu::accel::HostPinnedBufferView host_view{};
-    graph::gpu::accel::TransferTicket transfer_ticket{};
-    graph::gpu::accel::KernelTicket kernel_ticket{};
-    bool has_lease{false};
-    bool has_device_view{false};
-    bool has_host_view{false};
-    bool has_transfer_ticket{false};
-    bool has_kernel_ticket{false};
-};
-
 struct SarStageTimingMetrics {
     std::uint64_t range_window_time_us{};
     std::uint64_t range_compression_time_us{};

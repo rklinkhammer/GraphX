@@ -80,6 +80,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparison_report.schema.json"
     SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp5_frozen_scenario_replay.md"
     SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+    SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph

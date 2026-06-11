@@ -66,6 +66,8 @@ TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
 }
 
 TEST(SarTokenContractTest, WrapperAliasesUseCanonicalTokenType) {
+    EXPECT_TRUE((std::is_same_v<sar::SarAccelControlToken,
+                                sar::AccelControlToken<sar::SarSidecar>>));
     EXPECT_TRUE((std::is_same_v<sar::H2DAsyncInputToken, sar::SarAccelControlToken>));
     EXPECT_TRUE((std::is_same_v<sar::H2DAsyncOutputToken, sar::SarAccelControlToken>));
     EXPECT_TRUE((std::is_same_v<sar::D2HAsyncInputToken, sar::SarAccelControlToken>));
