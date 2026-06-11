@@ -40,18 +40,18 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/roadmap/SAR_PR_ROADMAP.md
+- plan/roadmap/SAR_EXTERNAL_BASELINE_PR_ROADMAP.md
 - plan/reviews/EXTERNAL_SAR_INSPECTOR_REPORT.md
 - current repository state
 - current test output
 
 Task:
-Implement PR6 only
+Implement EBP1 only
 
-PR6 title:  Resolver and Schema Guardrails for Accel Token Contract
-PR6 Scope:
-- Harden parser and resolver behavior around edge_contract=accel-token and legacy contract rejection.
-
+EBP1 title:  External Baseline Policy and Registry
+EBP1 Scope:
+- Establish baseline package roles, licensing boundaries, and architecture-protection rules.
+- Declare comparator-only stance for SarPy, ISCE3, and gotcha-back.
 
 
 
@@ -61,8 +61,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR6 requires it.
-- Add or update tests for PR6.
+- Delete obsolete code if EBP1 requires it.
+- Add or update tests for EBP1.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -76,9 +76,8 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR6 acceptance criteria:
-- Guardrails enforce canonical contract and fail fast on forbidden legacy edges.
-- Resolver behavior remains explicit and deterministic.
+EBP1 acceptance criteria:
+
 
 =========
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.

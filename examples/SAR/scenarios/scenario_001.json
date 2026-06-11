@@ -1,0 +1,45 @@
+{
+  "version": "graphx.sar.scenario.v1",
+  "dataset": {
+    "name": "AFRL GOTCHA Challenge Problem",
+    "subset": "scenario_001_local_manual",
+    "source_kind": "external_local_manual",
+    "normalization_schema": "graphx.sar.gotcha.normalized.v1"
+  },
+  "pulse_range": {
+    "start": 0,
+    "count": 4
+  },
+  "range_bins": {
+    "start": 0,
+    "count": 32
+  },
+  "image_grid": {
+    "width": 16,
+    "height": 16,
+    "pixel_spacing_m": 1.0
+  },
+  "scene_center": {
+    "x_m": 0.0,
+    "y_m": 0.0,
+    "z_m": 0.0,
+    "frame": "ecef"
+  },
+  "algorithm": {
+    "name": "backprojection",
+    "implementation_target": "graphx_sar_and_gotcha_back_reference"
+  },
+  "window": {
+    "name": "hann",
+    "enabled": true
+  },
+  "range_compression": {
+    "mode": "matched_filter",
+    "enabled": true
+  },
+  "output": {
+    "format": "float32_raster",
+    "layout": "row_major",
+    "artifact_kind": "materialized_image"
+  }
+}
