@@ -2,6 +2,7 @@
 
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
 #include "sar/SarVisualizationSinkNode.hpp"
@@ -11,27 +12,6 @@
 #include <memory>
 
 namespace {
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 std::shared_ptr<sar::SyntheticApertureIqSourceNode> ResolveSourceNode(
     const std::shared_ptr<graph::GraphManager>& graph_manager) {
@@ -109,7 +89,7 @@ TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto sink = ResolveDiagnosticsSink(graph_manager);
+    auto sink = sar::runtime::ResolveDiagnosticsSink(graph_manager);
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(graph_manager->GetMetrics());
 

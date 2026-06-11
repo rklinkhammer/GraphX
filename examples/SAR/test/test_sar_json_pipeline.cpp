@@ -3,6 +3,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarCpuReference.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
 #include "sar_pr7_parity_fixture.hpp"
@@ -23,27 +24,6 @@ sar::reference::Image ToImage(const std::vector<float>& pixels) {
     image.height = 1u;
     image.pixels = pixels;
     return image;
-}
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
 }
 
 std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
@@ -128,7 +108,7 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
@@ -186,7 +166,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
     EXPECT_LE(error.rms, 1.0e-7);
     EXPECT_LE(error.relative_l2, 2.0e-7);
 
-    auto diagnostics_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto diagnostics_sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(diagnostics_sink, nullptr);
     diagnostics_sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_EQ(diagnostics_sink->last_diagnostics().sidecar.marker, sar::SarFrameMarker::EndOfStream);

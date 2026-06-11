@@ -37,6 +37,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_transport_opaque_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_runtime_helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp

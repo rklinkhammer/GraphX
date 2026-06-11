@@ -5,6 +5,7 @@
 #include "graph/NodeFacade.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarPulseFanoutNode.hpp"
 
@@ -31,24 +32,6 @@ constexpr const char* kSharedLibraryExtension = ".so";
 
 std::string SarPulseFanoutPluginFilename() {
     return std::string("libsar_pulse_fanout_node") + kSharedLibraryExtension;
-}
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper || wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
 }
 
 } // namespace
@@ -95,7 +78,7 @@ TEST(SarPr2FanoutJsonTest, ExecutesGraphVisibleFanoutTopology) {
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 

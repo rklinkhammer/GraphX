@@ -9,6 +9,7 @@
 #include "sar/RangeWindowNode.hpp"
 #include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
 
 #include <chrono>
@@ -18,27 +19,6 @@
 #include <memory>
 
 namespace {
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 sar::SarDiagnosticsSnapshot RunBaselinePipeline() {
     sar::SyntheticApertureIqSourceConfig source_cfg{};
@@ -289,7 +269,7 @@ TEST(SarBaselineCompareTest, GraphPipelineMatchesDirectBaselineWithinTolerance) 
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto graph_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto graph_sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(graph_sink, nullptr);
 
     const auto baseline = RunBaselinePipeline();
@@ -323,7 +303,7 @@ TEST(SarBaselineCompareTest, FanoutGraphPipelineMatchesDirectBaselineWithinToler
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 
-    auto graph_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto graph_sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(graph_sink, nullptr);
 
     const auto baseline = RunFanoutBaselinePipeline();

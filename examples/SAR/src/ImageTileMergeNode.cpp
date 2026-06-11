@@ -1,4 +1,5 @@
 #include "sar/ImageTileMergeNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 
 #include "config/ConfigError.hpp"
 #include "gpu/accel/types/AccelValidation.hpp"
@@ -24,15 +25,6 @@ std::uint64_t NextOpaqueEventId() {
     return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
-using Clock = std::chrono::steady_clock;
-
-std::uint64_t ElapsedUs(const Clock::time_point start) {
-    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-        Clock::now() - start);
-    const auto count = static_cast<std::uint64_t>(elapsed.count());
-    return (count == 0u) ? 1u : count;
-}
-
 } // namespace
 
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
@@ -42,7 +34,7 @@ std::optional<SarAccelControlToken> ImageTileMergeNode::Transfer(
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    const auto stage_start = Clock::now();
+    const auto stage_start = runtime::SteadyClock::now();
 
     if (!input.has_host_view || !graph::gpu::accel::IsValidView(input.host_view)) {
         return std::nullopt;
@@ -64,7 +56,7 @@ std::optional<SarAccelControlToken> ImageTileMergeNode::Transfer(
     const std::uint32_t expected_tiles = ResolveExpectedTiles();
 
     const auto finalize_status = [&](SarFrameMarker output_marker, bool complete) {
-        stage_timing_totals_.merge_stage_time_us += ElapsedUs(stage_start);
+        stage_timing_totals_.merge_stage_time_us += runtime::ElapsedUs(stage_start);
         auto output = BuildOutputToken(
             input,
             sequence_id,

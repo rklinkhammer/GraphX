@@ -9,6 +9,7 @@
 #include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarCpuReference.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 
@@ -146,26 +147,6 @@ struct BackprojectionResolution {
     std::shared_ptr<sar::SarBackprojectionTransformNode> node;
     std::string concrete_type{"unknown"};
 };
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 BackprojectionResolution ResolveBackprojectionNode(
     const std::shared_ptr<graph::GraphManager>& graph_manager) {
@@ -593,7 +574,7 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
                                    ? "timeout_proxy"
                                    : "stopped_without_completion");
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     if (!sink) {
         throw std::runtime_error("Failed to resolve SarDiagnosticsSinkNode in benchmark");
     }

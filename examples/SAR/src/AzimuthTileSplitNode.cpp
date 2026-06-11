@@ -1,4 +1,5 @@
 #include "sar/AzimuthTileSplitNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 
 #include "config/ConfigError.hpp"
 
@@ -21,15 +22,6 @@ SarBackendKind ParseBackendKind(int raw_backend) {
 std::uint64_t NextOpaqueTokenId() {
     static std::atomic<std::uint64_t> next_id{1u};
     return next_id.fetch_add(1u, std::memory_order_relaxed);
-}
-
-using Clock = std::chrono::steady_clock;
-
-std::uint64_t ElapsedUs(const Clock::time_point start) {
-    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-        Clock::now() - start);
-    const auto count = static_cast<std::uint64_t>(elapsed.count());
-    return (count == 0u) ? 1u : count;
 }
 
 void* OpaqueHostPointer() noexcept {
@@ -74,7 +66,7 @@ std::optional<SarAccelControlToken> AzimuthTileSplitNode::Transfer(
     const SarAccelControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    const auto stage_start = Clock::now();
+    const auto stage_start = runtime::SteadyClock::now();
 
     SarAccelControlToken token{};
     if (input.sidecar.marker == SarFrameMarker::EndOfStream) {
@@ -82,7 +74,7 @@ std::optional<SarAccelControlToken> AzimuthTileSplitNode::Transfer(
     } else {
         token = BuildDataTile(input);
     }
-    token.sidecar.stage_timings.split_time_us += ElapsedUs(stage_start);
+    token.sidecar.stage_timings.split_time_us += runtime::ElapsedUs(stage_start);
     return token;
 }
 

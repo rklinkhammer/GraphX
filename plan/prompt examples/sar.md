@@ -291,11 +291,11 @@ Inputs:
 - current test output
 
 Task:
-Implement PR2 only
+Implement PR3 only
 
-PR2 title:  Freeze Opaque Transport Semantics for `host_ptr` and `ready_event`
-PR2 Scope:
-- Remove ambiguity by defining these fields as opaque transport metadata only, with SAR identity remaining in sidecar.
+PR3 title:  Consolidate `ElapsedUs` and Diagnostics Sink Resolver and `ready_event`
+PR3 Scope:
+- Reduce duplicated helper logic without changing SAR algorithm behavior.
 
 Rules:
 - Do not redesign.
@@ -303,8 +303,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR2 requires it.
-- Add or update tests for PR2.
+- Delete obsolete code if PR3 requires it.
+- Add or update tests for PR3.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -318,10 +318,10 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR2 acceptance criteria:
-  - Documentation and tests consistently treat transport fields as opaque metadata (or remove usage, if chosen in implementation).
-  - No regression in existing SAR runtime tests.
-
+PR3 acceptance criteria:
+  - Zero duplicated `ElapsedUs(...)` helper definitions in SAR sources.
+  - Single shared diagnostics resolver usage path for main, benchmark, and tests.
+  - No behavior change in SAR test outcomes.
 ========
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -330,21 +330,21 @@ Inputs:
 - `plan/reviews/SAR2_INSPECTOR.md`
 - `plan/reviews/SAR2_SIMPLIFIER.md`
 - `plan/reviews/SAR2_ARCHITECT.md`
-- `plan/reviews/SAR2_IMPL_PR2_1.md`
-- `plan/reviews/SAR2_VERIFY_PR2_1.md`
+- `plan/reviews/SAR2_IMPL_PR3_1.md`
 - current repository state
 - current test output
 
 
 
 Task:
-Verify whether PR2  actually satisfies its acceptance criteria.
+Verify whether PR3  actually satisfies its acceptance criteria.
 
 Check:
-  - Negative tests for identity derivation from transport fields.
-  - Existing SAR runtime and CI lane tests remain green.
-
-
+  - Single shared diagnostics resolver usage path for main, benchmark, and tests.
+  - No behavior change in SAR test outcomes.
+  - Search confirms helper deduplication.
+  - SAR example unit target passes.
+  
 Output:
 - Pass/fail.
 - Blocking issues.

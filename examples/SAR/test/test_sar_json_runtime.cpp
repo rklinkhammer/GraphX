@@ -6,6 +6,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeProviderBootstrap.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <chrono>
@@ -20,27 +21,6 @@
 #include <nlohmann/json.hpp>
 
 namespace {
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 nlohmann::json LoadJsonFile(const std::filesystem::path& path) {
     std::ifstream in(path);
@@ -136,7 +116,7 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
     EXPECT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     EXPECT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_GT(sink->consume_count(), 0u);
@@ -248,7 +228,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
@@ -322,7 +302,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcret
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     EXPECT_TRUE(fallback_executor->IsCompletionSignaled());
 
-    auto fallback_sink = ResolveDiagnosticsSink(fallback_executor->GetGraphManager());
+    auto fallback_sink = sar::runtime::ResolveDiagnosticsSink(fallback_executor->GetGraphManager());
     ASSERT_NE(fallback_sink, nullptr);
     fallback_sink->UpdateFromGraphMetrics(fallback_executor->GetGraphManager()->GetMetrics());
 
@@ -459,7 +439,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 

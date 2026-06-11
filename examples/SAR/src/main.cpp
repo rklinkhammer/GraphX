@@ -1,8 +1,8 @@
 #include "sar/SarMessages.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 
 #include "graph/GraphExecutorBuilder.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
 
 #include <filesystem>
 #include <chrono>
@@ -15,27 +15,6 @@
 #endif
 
 namespace {
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 } // namespace
 
@@ -106,7 +85,7 @@ int main(int argc, char** argv) {
                   << (executor->IsCompletionSignaled() ? "true" : "false")
                   << '\n';
 
-        auto sink = ResolveDiagnosticsSink(graph_manager);
+        auto sink = sar::runtime::ResolveDiagnosticsSink(graph_manager);
         if (sink) {
             sink->UpdateFromGraphMetrics(graph_manager->GetMetrics());
             const auto& diagnostics = sink->last_diagnostics();

@@ -1,4 +1,5 @@
 #include "sar/RangeWindowNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 
 #include "config/ConfigError.hpp"
 
@@ -7,15 +8,6 @@
 namespace sar {
 
 namespace {
-
-using Clock = std::chrono::steady_clock;
-
-std::uint64_t ElapsedUs(const Clock::time_point start) {
-    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-        Clock::now() - start);
-    const auto count = static_cast<std::uint64_t>(elapsed.count());
-    return (count == 0u) ? 1u : count;
-}
 
 } // namespace
 
@@ -31,8 +23,8 @@ std::optional<SarAccelControlToken> RangeWindowNode::Transfer(
         return out;
     }
 
-    const auto stage_start = Clock::now();
-    out.sidecar.stage_timings.range_window_time_us += ElapsedUs(stage_start);
+    const auto stage_start = runtime::SteadyClock::now();
+    out.sidecar.stage_timings.range_window_time_us += runtime::ElapsedUs(stage_start);
     return out;
 }
 

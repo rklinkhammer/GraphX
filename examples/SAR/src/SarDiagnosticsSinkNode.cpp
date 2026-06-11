@@ -1,19 +1,9 @@
 #include "sar/SarDiagnosticsSinkNode.hpp"
-
-#include <chrono>
+#include "sar/SarRuntimeHelpers.hpp"
 
 namespace sar {
 
 namespace {
-
-using Clock = std::chrono::steady_clock;
-
-std::uint64_t ElapsedUs(const Clock::time_point start) {
-    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-        Clock::now() - start);
-    const auto count = static_cast<std::uint64_t>(elapsed.count());
-    return (count == 0u) ? 1u : count;
-}
 
 } // namespace
 
@@ -63,7 +53,7 @@ std::vector<std::string> SarDiagnosticsSinkNode::GetParameterNames() const {
 
 bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
                                      std::integral_constant<std::size_t, 0>) {
-    const auto stage_start = Clock::now();
+    const auto stage_start = runtime::SteadyClock::now();
     last_token_ = value;
     ++consume_count_;
     UpdateDiagnostics(value);
@@ -72,7 +62,7 @@ bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
         SignalCompletion();
     }
 
-    diagnostics_.stage_timings.diagnostics_sink_time_us += ElapsedUs(stage_start);
+    diagnostics_.stage_timings.diagnostics_sink_time_us += runtime::ElapsedUs(stage_start);
 
     return true;
 }

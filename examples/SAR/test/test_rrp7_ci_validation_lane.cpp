@@ -3,6 +3,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/SarCpuReference.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
 #include "sar_pr7_parity_fixture.hpp"
@@ -72,27 +73,6 @@ std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
             continue;
         }
         return wrapper->GetNode<sar::SarMaterializedImageSinkNode>();
-    }
-
-    return nullptr;
-}
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
     }
 
     return nullptr;
@@ -192,7 +172,7 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
     const auto dynamic_range_delta = std::abs(graph_metrics.dynamic_range_db - ref_metrics.dynamic_range_db);
     EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb);
 
-    auto diagnostics_sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto diagnostics_sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(diagnostics_sink, nullptr);
     diagnostics_sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_EQ(diagnostics_sink->last_diagnostics().sidecar.marker, sar::SarFrameMarker::EndOfStream);

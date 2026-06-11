@@ -6,6 +6,7 @@
 #include "plugins/PluginRegistry.hpp"
 #include "config/ConfigError.hpp"
 #include "sar/GotchaReplaySourceNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <cstdlib>
@@ -35,27 +36,6 @@ constexpr const char* kSharedLibraryExtension = ".so";
 
 std::string GotchaReplaySourcePluginFilename() {
     return std::string("libgotcha_replay_source_node") + kSharedLibraryExtension;
-}
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
 }
 
 std::filesystem::path WriteTempTopologyFile(const nlohmann::json& topology) {
@@ -313,7 +293,7 @@ TEST(GotchaDatasetAdapterTest, PluginLoadedGotchaReplayPipelineRunsEndToEnd) {
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     EXPECT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 

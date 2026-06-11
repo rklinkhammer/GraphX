@@ -3,6 +3,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 #include "sar/RangeCompressionNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
@@ -15,27 +16,6 @@
 #include <nlohmann/json.hpp>
 
 namespace {
-
-std::shared_ptr<sar::SarDiagnosticsSinkNode> ResolveDiagnosticsSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    const auto nodes = graph_manager->GetNodes();
-    for (const auto& node : nodes) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-        if (wrapper->GetType() != "SarDiagnosticsSinkNode") {
-            continue;
-        }
-        return wrapper->GetNode<sar::SarDiagnosticsSinkNode>();
-    }
-
-    return nullptr;
-}
 
 std::shared_ptr<sar::RangeCompressionNode> ResolveRangeCompressionNode(
     const std::shared_ptr<graph::GraphManager>& graph_manager) {
@@ -77,7 +57,7 @@ void ValidateMetalSarConfig(const std::filesystem::path& config_path) {
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
@@ -131,7 +111,7 @@ void ValidateMetalSarFanoutConfig(const std::filesystem::path& config_path) {
     const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 
-    auto sink = ResolveDiagnosticsSink(executor->GetGraphManager());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(sink, nullptr);
     sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
@@ -275,7 +255,7 @@ TEST(SarPr3MetalJsonTest, RuntimeDiagnosticsRemainStableAcrossWindowAndCompressi
     ASSERT_TRUE(window_run.success) << window_run.message << " " << window_run.error_details;
     ASSERT_TRUE(window_executor->IsCompletionSignaled());
 
-    auto window_sink = ResolveDiagnosticsSink(window_executor->GetGraphManager());
+    auto window_sink = sar::runtime::ResolveDiagnosticsSink(window_executor->GetGraphManager());
     ASSERT_NE(window_sink, nullptr);
     window_sink->UpdateFromGraphMetrics(window_executor->GetGraphManager()->GetMetrics());
     const auto& window_diag = window_sink->last_diagnostics();
@@ -291,7 +271,7 @@ TEST(SarPr3MetalJsonTest, RuntimeDiagnosticsRemainStableAcrossWindowAndCompressi
         << compression_run.message << " " << compression_run.error_details;
     ASSERT_TRUE(compression_executor->IsCompletionSignaled());
 
-    auto compression_sink = ResolveDiagnosticsSink(compression_executor->GetGraphManager());
+    auto compression_sink = sar::runtime::ResolveDiagnosticsSink(compression_executor->GetGraphManager());
     ASSERT_NE(compression_sink, nullptr);
     compression_sink->UpdateFromGraphMetrics(compression_executor->GetGraphManager()->GetMetrics());
     const auto& compression_diag = compression_sink->last_diagnostics();
