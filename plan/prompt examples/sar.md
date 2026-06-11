@@ -118,16 +118,16 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
-- plan/reviews/SAR_IMPL_RRP3_1.md
+- plan/reviews/SAR_IMPL_RRP5_1.md
 - current repository state
 - current test output
 
 Task:
-Implement RRP4 only
+Implement RRP6 only
 
-RRP4 title:  Image Comparator and Report Schema
-RRP4 Scope:
-- Implement deterministic comparison logic between GraphX and gotcha-back image outputs.
+RRP6 title:  Tiny Deterministic Fixture from Scenario 001
+RRP6 Scope:
+- Derive the CI-safe tiny fixture from the already frozen scenario.
 
 
 
@@ -137,8 +137,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if RRP4 requires it.
-- Add or update tests for RRP4.
+- Delete obsolete code if RRP6 requires it.
+- Add or update tests for RRP6.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -152,8 +152,9 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-RRP4 acceptance criteria:
-- comparison produces deterministic metrics and structured pass/fail outputs
+RRP6 acceptance criteria:
+- tiny fixture remains traceable to `scenario_001` and is safe for CI
+
 =====
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
