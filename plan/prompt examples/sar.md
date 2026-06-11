@@ -291,12 +291,11 @@ Inputs:
 - current test output
 
 Task:
-Implement PR1 only
+Implement PR2 only
 
-PR1 title:  Retire Unused SAR Transport Helper Structs
-PR1 Scope:
-- Remove or explicitly retire `SarMessageEnvelope`, `SarBufferDescriptor`, and `SarGpuMetadata` to reduce canonical model ambiguity.
-
+PR2 title:  Freeze Opaque Transport Semantics for `host_ptr` and `ready_event`
+PR2 Scope:
+- Remove ambiguity by defining these fields as opaque transport metadata only, with SAR identity remaining in sidecar.
 
 Rules:
 - Do not redesign.
@@ -304,8 +303,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR1 requires it.
-- Add or update tests for PR1.
+- Delete obsolete code if PR2 requires it.
+- Add or update tests for PR2.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -319,9 +318,9 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR1 acceptance criteria:
-  - No in-repo references to retired struct names remain.
-  - Canonical token contract remains unchanged and test-backed.
+PR2 acceptance criteria:
+  - Documentation and tests consistently treat transport fields as opaque metadata (or remove usage, if chosen in implementation).
+  - No regression in existing SAR runtime tests.
 
 ========
 
@@ -331,18 +330,19 @@ Inputs:
 - `plan/reviews/SAR2_INSPECTOR.md`
 - `plan/reviews/SAR2_SIMPLIFIER.md`
 - `plan/reviews/SAR2_ARCHITECT.md`
-- `plan/reviews/SAR2_IMPL_PR1_1.md`
+- `plan/reviews/SAR2_IMPL_PR2_1.md`
+- `plan/reviews/SAR2_VERIFY_PR2_1.md`
 - current repository state
 - current test output
 
 
 
 Task:
-Verify whether PR1  actually satisfies its acceptance criteria.
+Verify whether PR2  actually satisfies its acceptance criteria.
 
 Check:
-  - Search confirms zero references to retired type names.
-  - SAR unit target builds and passes.
+  - Negative tests for identity derivation from transport fields.
+  - Existing SAR runtime and CI lane tests remain green.
 
 
 Output:

@@ -91,13 +91,30 @@ struct SarSidecar {
     SarStageTimingMetrics stage_timings{};
 };
 
+// AccelControlToken carries both SAR identity semantics and opaque GPU transport metadata.
+//
+// SAR IDENTITY SEMANTICS (from sidecar):
+// - SAR identity MUST be derived ONLY from the sidecar fields:
+//   sequence_id, batch_id, aperture_id, pulse_range_start/count, stream_id, tile_id,
+//   tile_count, backend_id, backend, marker, synthetic, payload_byte_count, h2d_queue_id,
+//   kernel_queue_id, d2h_queue_id, expected_tiles, received_tiles, merge_complete, etc.
+// - All SAR algorithm decisions, data flow routing, and correctness checks must use sidecar.
+//
+// OPAQUE TRANSPORT METADATA (from device_view.ready_event and host_view.host_ptr):
+// - device_view.ready_event: Opaque GPU event ID for synchronization. Not used for identity.
+// - host_view.host_ptr: Opaque host pointer sentinel. Not used for identity.
+// - These fields are set by transport infrastructure (H2D/D2H nodes) and may be synthetic.
+// - Transport semantics derive from GPU/accel infrastructure, NOT from SAR domain logic.
+// - Code must NOT use device_view.ready_event or host_view.host_ptr for SAR identity decisions.
+//
+// This contract ensures SAR algorithm logic is decoupled from GPU transport implementation.
 template <typename SidecarT>
 struct AccelControlToken {
     std::uint64_t token_id{};
     SidecarT sidecar{};
     graph::gpu::accel::BufferLease lease{};
-    graph::gpu::accel::DeviceBufferView device_view{};
-    graph::gpu::accel::HostPinnedBufferView host_view{};
+    graph::gpu::accel::DeviceBufferView device_view{};  // device_view.ready_event is opaque
+    graph::gpu::accel::HostPinnedBufferView host_view{};  // host_view.host_ptr is opaque
     graph::gpu::accel::TransferTicket transfer_ticket{};
     graph::gpu::accel::KernelTicket kernel_ticket{};
     bool has_lease{false};

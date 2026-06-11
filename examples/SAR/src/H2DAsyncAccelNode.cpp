@@ -81,6 +81,7 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
     output.execution_queue_id =
         (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
                                  : config_.queue_id;
+    // PR2: ready_event is opaque transport metadata only. SAR identity derives from sidecar.
     output.ready_event = 0u;
 
     if (!graph::gpu::accel::IsValidView(output)) {

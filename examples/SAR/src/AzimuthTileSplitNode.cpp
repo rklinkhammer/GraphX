@@ -54,6 +54,7 @@ SarAccelControlToken BuildToken(const SarAccelControlToken& input,
     host_view.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
+    // PR2: host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
     host_view.host_ptr = OpaqueHostPointer();
     host_view.bytes = static_cast<std::uint64_t>(view_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
