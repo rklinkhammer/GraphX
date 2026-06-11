@@ -17,7 +17,8 @@ python3 examples/SAR/tools/rrp1_local_runner.py \
 - copies the scenario manifest into the output
 - generates a GraphX config scaffold from `sar_gotcha_external_manual.json`
 - writes a GraphX boundary script
-- writes a gotcha-back boundary script
+- writes a pinned gotcha-back invocation spec and boundary script
+- writes a reference output contract for normalization
 - writes an orchestration plan JSON
 
 ## Output Layout
@@ -30,6 +31,8 @@ python3 examples/SAR/tools/rrp1_local_runner.py \
     graphx_config.json
     run_graphx.sh
   reference/
+    gotcha_back_invocation.json
+    reference_output_contract.json
     run_gotcha_back.sh
   reports/
     orchestration_plan.json
@@ -46,4 +49,4 @@ python3 examples/SAR/tools/rrp1_local_runner.py \
 
 ## Manual Follow-Up
 
-Before any local/manual run, replace the `fixture_path` placeholder in `graphx/graphx_config.json` with a local normalized GOTCHA replay file and provide the local gotcha-back binary/dataset path for the reference boundary.
+Before any local/manual run, replace the `fixture_path` placeholder in `graphx/graphx_config.json`, set `GOTCHA_DIR` to the unpacked GOTCHA dataset, and set `GOTCHA_BACK_BIN` to the gotcha-back `sarbp` executable used by the pinned reference script.

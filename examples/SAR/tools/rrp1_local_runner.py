@@ -17,6 +17,7 @@ from rrp1_scenario_to_run import (
     write_json,
     write_text,
 )
+from rrp3_gotcha_back_adapter import build_invocation_spec, build_run_script
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -71,13 +72,17 @@ def main() -> int:
     )
     graphx_script_path.chmod(0o755)
 
+    reference_invocation = build_invocation_spec(scenario_path, scenario, layout["reference"])
+    reference_invocation_path = layout["reference"] / "gotcha_back_invocation.json"
+    write_json(reference_invocation_path, reference_invocation)
+
+    reference_contract_path = layout["reference"] / "reference_output_contract.json"
+    write_json(reference_contract_path, reference_invocation["expected_output"])
+
     reference_script_path = layout["reference"] / "run_gotcha_back.sh"
     write_text(
         reference_script_path,
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n\n"
-        "echo 'Provide local gotcha-back binary and GOTCHA dataset path before running this boundary.'\n"
-        "echo 'Scenario: " + scenario_id_from_path(scenario_path) + "'\n",
+        build_run_script(reference_invocation, reference_invocation_path, scenario_path),
     )
     reference_script_path.chmod(0o755)
 
@@ -96,6 +101,8 @@ def main() -> int:
             },
             "reference": {
                 "command": str(reference_script_path),
+                "invocation": str(reference_invocation_path),
+                "output_contract": str(reference_contract_path),
             },
             "notes": [
                 "RRP1 prepares boundaries only and does not execute GraphX or gotcha-back.",

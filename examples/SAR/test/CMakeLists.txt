@@ -43,6 +43,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp1_local_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp2_scenario_image_path.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_gotcha_back_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -70,6 +71,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_SCENARIO_001_JSON_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.json"
     SAR_SCENARIO_001_MD_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.md"
     SAR_RRP1_LOCAL_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp1_local_runner.py"
+    SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp3_gotcha_back_adapter.py"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
