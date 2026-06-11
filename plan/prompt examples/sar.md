@@ -291,11 +291,11 @@ Inputs:
 - current test output
 
 Task:
-Implement PR3 only
+Implement PR5 only
 
-PR3 title:  Consolidate `ElapsedUs` and Diagnostics Sink Resolver and `ready_event`
-PR3 Scope:
-- Reduce duplicated helper logic without changing SAR algorithm behavior.
+PR5 title:  Local Runner-to-Comparator Integration for `scenario_001` Artifacts
+PR5 Scope:
+- Close the RRP4 non-blocking gap by wiring scenario-driven artifact production to comparator invocation in one local-only reproducible flow.
 
 Rules:
 - Do not redesign.
@@ -303,8 +303,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR3 requires it.
-- Add or update tests for PR3.
+- Delete obsolete code if PR4 requires it.
+- Add or update tests for PR4.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -318,10 +318,9 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-PR3 acceptance criteria:
-  - Zero duplicated `ElapsedUs(...)` helper definitions in SAR sources.
-  - Single shared diagnostics resolver usage path for main, benchmark, and tests.
-  - No behavior change in SAR test outcomes.
+PR5 acceptance criteria:
+- One documented command path (or short sequence) materializes both artifact contracts and runs comparator with structured pass/fail output.
+  - CI does not require external dataset download.
 ========
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -330,21 +329,20 @@ Inputs:
 - `plan/reviews/SAR2_INSPECTOR.md`
 - `plan/reviews/SAR2_SIMPLIFIER.md`
 - `plan/reviews/SAR2_ARCHITECT.md`
-- `plan/reviews/SAR2_IMPL_PR3_1.md`
+- `plan/reviews/SAR2_IMPL_PR4_1.md`
 - current repository state
 - current test output
 
 
 
 Task:
-Verify whether PR3  actually satisfies its acceptance criteria.
+Verify whether PR4 actually satisfies its acceptance criteria.
 
 Check:
-  - Single shared diagnostics resolver usage path for main, benchmark, and tests.
-  - No behavior change in SAR test outcomes.
-  - Search confirms helper deduplication.
-  - SAR example unit target passes.
-  
+  - CI lane remains bounded and deterministic.
+  - Tiny fixture checks validate output properties, not only orchestration completion.
+  - Repeat runs produce stable pass/fail outcomes.
+  - Existing RRP7 CI lane remains green.
 Output:
 - Pass/fail.
 - Blocking issues.

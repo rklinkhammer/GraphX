@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <sstream>
 
@@ -171,9 +172,41 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
     const auto ref_metrics = sar::reference::MeasureImageQuality(reference_image, ref_peak.x, ref_peak.y);
     const auto dynamic_range_delta = std::abs(graph_metrics.dynamic_range_db - ref_metrics.dynamic_range_db);
     EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb);
+    EXPECT_GE(graph_metrics.dynamic_range_db, pr7::kImageDynamicRangeMinDb);
+
+    ASSERT_FALSE(graph_pixels.empty());
+    for (const auto value : graph_pixels) {
+        EXPECT_TRUE(std::isfinite(value));
+    }
+
+    const auto graph_image_hash = sar::reference::QuantizedImageHash(graph_image);
+    EXPECT_EQ(graph_image_hash, sar::reference::QuantizedImageHash(reference_image));
 
     auto diagnostics_sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
     ASSERT_NE(diagnostics_sink, nullptr);
     diagnostics_sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
     EXPECT_EQ(diagnostics_sink->last_diagnostics().sidecar.marker, sar::SarFrameMarker::EndOfStream);
+
+    auto second_executor = graph::GraphExecutorBuilder()
+                               .WithJsonConfig(runtime_config_path.string())
+                               .WithPluginDirectory(plugin_dir.string())
+                               .WithExecutorTimeout(std::chrono::seconds(10))
+                               .Build();
+    ASSERT_NE(second_executor, nullptr);
+
+    const auto second_run_result = second_executor->Execute();
+    ASSERT_TRUE(second_run_result.success) << second_run_result.message << " " << second_run_result.error_details;
+    ASSERT_TRUE(second_executor->IsCompletionSignaled());
+
+    auto second_sink = ResolveMaterializedSink(second_executor->GetGraphManager());
+    ASSERT_NE(second_sink, nullptr);
+    ASSERT_TRUE(second_sink->has_materialized_image());
+
+    const auto second_graph_pixels = second_sink->last_materialized_image();
+    ASSERT_EQ(second_graph_pixels.size(), graph_pixels.size());
+
+    const auto second_error = sar::reference::CompareVectors(second_graph_pixels, graph_pixels);
+    EXPECT_LE(second_error.l_inf, std::numeric_limits<double>::epsilon());
+    EXPECT_LE(second_error.rms, std::numeric_limits<double>::epsilon());
+    EXPECT_LE(second_error.relative_l2, std::numeric_limits<double>::epsilon());
 }
