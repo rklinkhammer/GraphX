@@ -7,8 +7,8 @@
   "resolver_mappings": [
     {
       "intent_type": "SarBackprojectionTransformNode",
-      "input_token_type": "DeviceBufferView",
-      "output_token_type": "DeviceBufferView",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
       "variants": [
         {
           "backend": "metal",

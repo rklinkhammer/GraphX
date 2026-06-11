@@ -1,100 +1,88 @@
-# SAR Inspector Report (Current Repository State)
+# SAR Inspector Report
 
-Scope: Current repository state only. No redesign, no implementation.
-Role contract source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
+Scope: Current repository state only. No redesign. No implementation.
+
+Role: `INSPECTOR` per `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 ## 1. Current Type Model
 
-- Observed: Canonical SAR accel token alias exists: `SarAccelControlToken = AccelControlToken<SarSidecar>` in `examples/SAR/include/sar/SarMessages.hpp`.
-- Observed: `SarSidecar` is explicit identity/metadata carrier (sequence, batch, aperture, pulse range, stream, tile, backend, marker, payload size, queue IDs, stage timings, merge/materialization telemetry) in `examples/SAR/include/sar/SarMessages.hpp`.
-- Observed: `AccelControlToken<SidecarT>` carries sidecar plus accel transport/control fields (`lease`, `device_view`, `host_view`, `transfer_ticket`, `kernel_ticket`, presence flags).
-- Observed: Legacy SAR payload/status message structs targeted by PR5 are no longer defined in `examples/SAR/include/sar/SarMessages.hpp`:
-  - `SarPulseBlockMessage`
-  - `SarMergeStatusMessage`
-  - `SarDiagnosticsMessage`
-- Observed: Diagnostics reporting now uses `SarDiagnosticsSnapshot`, which stores canonical sidecar-derived reporting state without reintroducing a legacy message edge contract.
-- Observed: Additional envelope/gpu structs remain (`SarMessageEnvelope`, `SarBufferDescriptor`, `SarGpuMetadata`, `SarDispatchMetadata`).
-- Inferred: The maintained SAR runtime type surface is now canonical-token-first through merge/diagnostics, with legacy SAR message names retained only in parser/test/document guardrail contexts.
+- Observed: SAR's canonical accel-token type is `SarAccelControlToken`, an alias of `AccelControlToken<SarSidecar>` in `examples/SAR/include/sar/SarMessages.hpp`.
+- Observed: SAR identity now lives in `SarSidecar`: sequence, batch, aperture, pulse range, stream, tile, backend, marker, byte counts, merge counters, and stage timings.
+- Observed: Transport fields such as `host_view.host_ptr` and `device_view.ready_event` are explicitly documented and tested as opaque transport metadata, not SAR identity.
+- Observed: Legacy SAR payload names are rejected under `edge_contract: accel-token` by `GraphConfigParser`.
 
 ## 2. Current Node Model
 
-- Observed: Definitive JSON topology in `examples/SAR/config/sar_stripmap_definitive.json` wires:
-  `SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncNode -> SarBackprojectionTransformNode -> D2HAsyncNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode`.
-- Observed: Definitive stage contracts are tokenized end-to-end from source through diagnostics boundary:
-  - `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode`, and `AzimuthTileSplitNode` use `SarAccelControlToken`.
-  - `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, and `D2HAsyncAccelNode` operate on `SarAccelControlToken`.
-  - `ImageTileMergeNode` consumes token and emits token.
-  - `SarDiagnosticsSinkNode` consumes token, stores canonical last-token state, and exposes `SarDiagnosticsSnapshot` reporting state.
-- Observed: Alias wrappers map intent names to accel node implementations:
+- Observed: SAR nodes now expose `SarAccelControlToken` through the active flow: source, range/window/compression stages, azimuth split, H2D, backprojection, D2H, merge, diagnostics.
+- Observed: Legacy public node names remain as aliases:
   - `H2DAsyncNode -> H2DAsyncAccelNode`
   - `D2HAsyncNode -> D2HAsyncAccelNode`
   - `SarBackprojectionTransformNode -> SarBackprojectionTransformAccelNode`
-  (headers in `examples/SAR/include/sar`).
-- Observed: Materialization/visualization are token-path interiors:
-  - `SarMaterializedImageSinkNode` consumes/emits token.
-  - `SarVisualizationSinkNode` consumes/emits token.
+- Observed: The aliases preserve old graph config names while the C++ token surface is now SAR accel-token based.
+- Inferred: The alias layer is compatibility scaffolding rather than an independent runtime path.
 
 ## 3. Current Token/Data Flow
 
-- Observed: Identity in split is sourced from message envelope into sidecar; token id is opaque monotonic counter in `examples/SAR/src/AzimuthTileSplitNode.cpp`.
-- Observed: `host_view.host_ptr` in split and D2H is constant opaque sentinel (`0x1`) via `OpaqueHostPointer()` in `examples/SAR/src/AzimuthTileSplitNode.cpp` and `examples/SAR/src/D2HAsyncAccelNode.cpp`.
-- Observed: H2D/backprojection simulated paths synthesize `device_ptr` from bytes + sequence counters (`MakeSyntheticDevicePointer`) in `examples/SAR/src/H2DAsyncAccelNode.cpp` and `examples/SAR/src/SarBackprojectionTransformAccelNode.cpp`.
-- Observed: Simulated H2D/backprojection set `device_view.ready_event = 0`; completion is carried by opaque transfer/kernel ticket completion events (`NextOpaqueEventId`).
-- Observed: Merge emits token output and records merge-stage status/metrics into token sidecar fields rather than a primary-path status-message boundary.
-- Observed: Token sidecar timings are accumulated across stages; merge and diagnostics preserve/report these fields from token sidecar data.
-- Observed: Materialized-image capture now derives deterministic output directly from token-carried sidecar fields plus kernel-ticket validity in `examples/SAR/src/SarMaterializedImageSinkNode.cpp`.
-- Observed: Tests explicitly enforce sidecar-identity invariance to host pointer and ready-event mutation in `examples/SAR/test/test_sar_accel_nodes.cpp`.
-- Inferred: Runtime identity transport path is sidecar-centric; pointer/event channels are treated as transport telemetry/control artifacts.
+- Observed: `SyntheticApertureIqSourceNode` creates `SarAccelControlToken` instances with populated sidecar identity and host views.
+- Observed: `AzimuthTileSplitNode` fans out SAR accel tokens by tile, updating sidecar tile metadata.
+- Observed: `H2DAsyncAccelNode` consumes host views, synthesizes or records device view state, updates transfer ticket metadata, and preserves sidecar identity.
+- Observed: `SarBackprojectionTransformAccelNode` consumes device views, uses native Metal when configured and available, otherwise follows the synthetic accel path.
+- Observed: `D2HAsyncAccelNode` consumes device views and produces host views while preserving sidecar identity.
+- Observed: `ImageTileMergeNode` merges host-view tiles and updates sidecar merge statistics, byte totals, timing, and completion state.
 
 ## 4. Resolver Substitution Flow
 
-- Observed: Parser-level resolver fields are validated in `libgraph/src/graph/GraphConfigParser.cpp`:
-  - `execution_backend` in `{auto, metal, cuda, sycl, stub}`
-  - `backend_fallback_policy` in `{strict, allow_fallback}`
-  - `resolver_diagnostics` boolean
-  - `edge_contract` currently constrained to `accel-token` when set.
-- Observed: Legacy SAR payload contracts are explicitly rejected when `edge_contract == "accel-token"` via `IsLegacySarPayloadContract` + validation path in `GraphConfigParser.cpp`.
-- Observed: Definitive SAR config includes resolver mapping for `SarBackprojectionTransformNode` variants; H2D/D2H are not mapped in the definitive JSON by default.
-- Observed: Runtime tests add temporary H2D/D2H mappings and validate composed-provider resolution in `examples/SAR/test/test_sar_json_runtime.cpp`.
-- Observed: Plugin packaging includes SAR nodes under `examples/SAR/plugins/CMakeLists.txt`; runtime can also load additional plugin directories in `examples/SAR/src/main.cpp`.
+- Observed: `examples/SAR/config/sar_stripmap_definitive.json` declares:
+  - `execution_backend: auto`
+  - `backend_fallback_policy: strict`
+  - `resolver_diagnostics: true`
+  - `edge_contract: accel-token`
+- Observed: SAR config maps `SarBackprojectionTransformNode` through resolver mappings, but H2D/D2H are still represented by compatibility names.
+- Observed: Default resolver mappings in `NodeResolutionRegistry` are generic GPU-oriented, using `HostPinnedBufferView` and `DeviceBufferView` labels for H2D/D2H/DeviceKernel-style nodes.
+- Observed: `ResolvingNodeProvider` uses backend preference order `metal`, `sycl`, `stub`, `cuda` for `auto`.
+- Inferred: SAR accel-token compatibility currently depends on wrapper aliases and SAR-specific tests/config discipline around generic resolver contracts.
 
-## 5. Violations of Accel-Token Architecture
+## 5. Violations Of Accel-Token Architecture
 
-- Observed: Definitive maintained path is tokenized through merge/diagnostics boundary.
-- Observed: Global side-channel payload store has been removed from the primary path; materialization now uses explicit token-carried contract data.
-- Observed: The PR5 legacy SAR message abstractions have been removed from the definitive runtime path and shared SAR type surface.
-- Inferred: Remaining accel-token architecture gaps are no longer centered on the removed PR5 message abstractions; remaining questions are broader cleanup/documentation concerns outside the primary runtime contract.
-- Unknown: Whether side-channel materialization path is considered acceptable runtime architecture or temporary instrumentation scaffolding.
+- Observed: No active SAR node flow was found using legacy SAR payload message types as the runtime payload under `edge_contract: accel-token`.
+- Observed: Parser guardrails reject legacy SAR payload contracts in accel-token graphs.
+- Observed: Tests assert `host_ptr` and `ready_event` are transport-only and do not define SAR identity.
+- Observed: Some nodes still synthesize local opaque host pointers, device pointers, and event IDs.
+- Inferred: These synthetic transport fields are compatible with the documented architecture, but they remain easy places for future accidental identity coupling.
 
 ## 6. Obsolete Abstractions
 
-- Observed: Legacy SAR payload contract names are intentionally retained in parser as rejection literals (guardrails), not runtime contracts.
-- Observed: Deprecated config files remain (`sar_stripmap_definitive_nonmetal.json`, `sar_stripmap_definitive_metal.json`) with deprecation notices.
-- Observed: PR5 removed the legacy SAR message families from the shared SAR runtime type model and diagnostics sink API (`SarPulseBlockMessage`, `SarMergeStatusMessage`, `SarDiagnosticsMessage`).
-- Observed: Legacy SAR message names still appear in parser rejection logic and negative-validation tests as string-only guardrails.
-- Inferred: Some obsolete vocabulary is intentionally retained for guardrails/tests/document continuity, but not as active runtime type or edge-contract direction.
+- Observed: Legacy message names still exist as rejected contract strings and historical vocabulary in tests/docs.
+- Observed: Old node names remain as aliases for compatibility.
+- Observed: Generic resolver token labels such as `HostPinnedBufferView` and `DeviceBufferView` still appear in resolver mappings even though SAR runtime payloads are now `SarAccelControlToken`.
+- Inferred: The repository is mid-transition: runtime token architecture is mostly migrated, while naming, resolver vocabulary, and compatibility aliases retain pre-accel-token concepts.
 
 ## 7. Complexity Hotspots
 
-- Observed: Duplicate local `ElapsedUs` helper appears across many SAR source files:
-  `AzimuthTileSplitNode.cpp`, `H2DAsyncAccelNode.cpp`, `SarBackprojectionTransformAccelNode.cpp`, `D2HAsyncAccelNode.cpp`, `ImageTileMergeNode.cpp`, `RangeWindowNode.cpp`, `RangeCompressionNode.cpp`, `SarDiagnosticsSinkNode.cpp`.
-- Observed: `sar_benchmark.cpp` is a large multi-concern file (graph execution, baseline execution, parity checks, telemetry serialization, policy assertions, trace schema output).
-- Observed: Dual behavior in backprojection (native kernel path + simulated path) plus payload-store hooks increases branching in `SarBackprojectionTransformAccelNode.cpp`.
-- Observed: Resolver behavior is split across parser validation, JSON mappings, plugin availability, and test-time temporary mapping injections.
+- Observed: `examples/SAR/src/sar_benchmark.cpp` is a large mixed-purpose benchmark/diagnostics/baseline harness with lifecycle tracing, graph-vs-direct comparison, and reporting logic.
+- Observed: Opaque pointer/event generation remains duplicated across SAR nodes, although elapsed-time measurement is now consolidated in `SarRuntimeHelpers.hpp`.
+- Observed: `ImageTileMergeNode` combines merge semantics, diagnostics aggregation, transfer/kernel ticket synthesis, ordering checks, and sidecar finalization.
+- Observed: Resolver behavior spans graph config JSON, `GraphConfigParser`, `NodeResolutionRegistry`, `ResolvingNodeProvider`, wrapper aliases, and SAR tests.
+- Inferred: The highest comprehension cost is now resolver/token vocabulary alignment, not the core `SarAccelControlToken` data model.
 
-## 8. Blockers for `AccelControlToken<SarSidecar>`
+## 8. Blockers For `AccelControlToken<SarSidecar>`
 
-- Observed: Source, DSP, merge, and diagnostics boundaries are tokenized in the maintained definitive path.
-- Observed: Materialized image path no longer relies on global side-channel payload store in the primary path.
-- Observed: PR5 removed the legacy message type surfaces that previously remained in merge/diagnostics reporting APIs.
-- Inferred: Remaining blockers are no longer about primary-path message abstractions; they are limited to cleanup of stale documentation and any future narrowing of non-message helper structs if desired.
-- Unknown: Desired canonical home of SAR-specific sidecar/type aliases (remain SAR-local vs broader shared accel-token namespace).
+- Observed: The core alias already exists and is used by SAR accel nodes.
+- Observed: Transport opacity is documented and covered by tests.
+- Observed: Legacy payload contracts are rejected under accel-token mode.
+- Observed: Remaining blockers are not the absence of `AccelControlToken<SarSidecar>`, but surrounding consistency issues:
+  - generic resolver contract labels still describe view-level payloads,
+  - compatibility aliases preserve older node names,
+  - synthetic transport helpers remain scattered,
+  - external baseline execution is not fully wired into CI.
 
 ## 9. Existing External Comparison/Baseline Hooks
 
-- Observed: Deterministic baseline execution and graph-vs-baseline parity are implemented in `examples/SAR/src/sar_benchmark.cpp` and `examples/SAR/test/test_sar_baseline_compare.cpp`.
-- Observed: Benchmark trace schema and required diagnostics/telemetry fields are enforced by `examples/SAR/test/test_sar_trace_schema.cpp`.
-- Observed: Gotcha dataset adapter/replay path exists with CI-safe fixture and explicit external-data gating (`GRAPHX_SAR_ALLOW_EXTERNAL_DATA`, `allow_external_fixture`) in `examples/SAR/src/GotchaReplaySourceNode.cpp` and `examples/SAR/test/test_gotcha_dataset_adapter.cpp`.
-- Observed: Manual external topology scaffold exists (`examples/SAR/config/sar_gotcha_external_manual.json`).
-- Inferred: External comparison hooks are present and active, but mostly layered in benchmark/test/example scaffolding rather than core libgraph/libgpu contracts.
+- Observed: External baseline policy and package registry files exist under `plan/reviews`.
+- Observed: Gotcha-back adapter and image comparator tooling exist under `examples/SAR/tools`.
+- Observed: CI fixtures and RRP tests reference gotcha-back-style contracts.
+- Observed: Current CI-safe replay uses deterministic generated reference imagery rather than executing an external gotcha-back binary.
+- Observed: No current repository hook was found for OpenSAR or OpenSARLab execution.
+- Observed: SarPy and ISCE3 are present as registered comparator candidates, but no active SAR example test appears to execute them.
 
+Tests were not run for this inspection-only report.

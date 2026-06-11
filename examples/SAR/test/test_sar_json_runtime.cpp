@@ -56,6 +56,10 @@ void AssertPortableIntents(const nlohmann::json& config) {
         if (!mapping.is_object() || !mapping.contains("intent_type")) {
             continue;
         }
+        ASSERT_TRUE(mapping.contains("input_token_type"));
+        ASSERT_TRUE(mapping.contains("output_token_type"));
+        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarAccelControlToken");
+        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarAccelControlToken");
         if (mapping.at("intent_type").get<std::string>() == "SarBackprojectionTransformNode") {
             has_backprojection_mapping = true;
             ASSERT_TRUE(mapping.contains("variants"));
@@ -63,6 +67,35 @@ void AssertPortableIntents(const nlohmann::json& config) {
         }
     }
     EXPECT_TRUE(has_backprojection_mapping);
+}
+
+void AssertDefinitiveSarAccelResolverMappings(const nlohmann::json& config) {
+    ASSERT_TRUE(config.contains("resolver_mappings"));
+    ASSERT_TRUE(config.at("resolver_mappings").is_array());
+
+    const std::set<std::string> expected_intents{
+        "H2DAsyncNode",
+        "SarBackprojectionTransformNode",
+        "D2HAsyncNode",
+    };
+    std::set<std::string> seen_intents;
+
+    for (const auto& mapping : config.at("resolver_mappings")) {
+        ASSERT_TRUE(mapping.is_object());
+        ASSERT_TRUE(mapping.contains("intent_type"));
+        const auto intent = mapping.at("intent_type").get<std::string>();
+        if (!expected_intents.contains(intent)) {
+            continue;
+        }
+
+        seen_intents.insert(intent);
+        ASSERT_TRUE(mapping.contains("input_token_type"));
+        ASSERT_TRUE(mapping.contains("output_token_type"));
+        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarAccelControlToken");
+        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarAccelControlToken");
+    }
+
+    EXPECT_EQ(seen_intents, expected_intents);
 }
 
 const graph::NodeResolutionDiagnostic* FindResolverDiagnostic(
@@ -206,6 +239,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetKeepsStrictResolverContractAndPortableI
     EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
     AssertPortableIntents(config);
+    AssertDefinitiveSarAccelResolverMappings(config);
 }
 
 TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
@@ -248,7 +282,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
     EXPECT_GT(diagnostics.stage_timings.diagnostics_sink_time_us, 0u);
 }
 
-TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcreteProvider) {
+TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionUsesSarAccelTokenMappings) {
     const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -272,56 +306,39 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionFailsWithoutConcret
     EXPECT_EQ(parsed->resolver.backend_fallback_policy, "strict");
     EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
-    EXPECT_THROW(
-        {
-            auto _ = graph::GraphExecutorBuilder()
-                         .WithJsonConfig(temp_path.string())
-                         .WithPluginDirectory(plugin_dir.string())
-                         .WithExecutorTimeout(std::chrono::seconds(15))
-                         .Build();
-        },
-        std::runtime_error);
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(temp_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(15))
+                        .Build();
 
-    metal_config["backend_fallback_policy"] = "allow_fallback";
-    {
-        std::ofstream out(temp_path, std::ios::trunc);
-        ASSERT_TRUE(out.good());
-        out << metal_config.dump(2) << '\n';
-    }
+    ASSERT_NE(executor, nullptr);
+    ASSERT_NE(executor->GetGraphManager(), nullptr);
 
-    auto fallback_executor = graph::GraphExecutorBuilder()
-                                 .WithJsonConfig(temp_path.string())
-                                 .WithPluginDirectory(plugin_dir.string())
-                                 .WithExecutorTimeout(std::chrono::seconds(15))
-                                 .Build();
-
-    ASSERT_NE(fallback_executor, nullptr);
-    ASSERT_NE(fallback_executor->GetGraphManager(), nullptr);
-
-    const auto run_result = fallback_executor->Execute();
+    const auto run_result = executor->Execute();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
-    EXPECT_TRUE(fallback_executor->IsCompletionSignaled());
+    EXPECT_TRUE(executor->IsCompletionSignaled());
 
-    auto fallback_sink = sar::runtime::ResolveDiagnosticsSink(fallback_executor->GetGraphManager());
-    ASSERT_NE(fallback_sink, nullptr);
-    fallback_sink->UpdateFromGraphMetrics(fallback_executor->GetGraphManager()->GetMetrics());
+    auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
+    ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(executor->GetGraphManager()->GetMetrics());
 
-    const auto& fallback_status = fallback_sink->last_token();
-    EXPECT_EQ(fallback_status.sidecar.sequence_id, 64u);
-    EXPECT_EQ(fallback_status.sidecar.batch_id, 0u);
-    EXPECT_EQ(fallback_status.sidecar.aperture_id, 64u);
-    EXPECT_EQ(fallback_status.sidecar.pulse_range_start, 64u);
-    EXPECT_EQ(fallback_status.sidecar.pulse_range_count, 0u);
-    EXPECT_EQ(fallback_status.sidecar.stream_id, 0u);
-    EXPECT_LT(fallback_status.sidecar.tile_id, fallback_status.sidecar.tile_count);
-    EXPECT_EQ(fallback_status.sidecar.tile_count, 4u);
-    EXPECT_EQ(fallback_status.sidecar.backend_id, 0u);
-    EXPECT_EQ(fallback_status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
-    EXPECT_TRUE(fallback_status.has_host_view);
-    EXPECT_TRUE(fallback_status.has_transfer_ticket);
-    EXPECT_GT(fallback_status.transfer_ticket.execution_queue_id, 0u);
-    if (fallback_status.has_kernel_ticket) {
-        EXPECT_GT(fallback_status.kernel_ticket.execution_queue_id, 0u);
+    const auto& status = sink->last_token();
+    EXPECT_EQ(status.sidecar.sequence_id, 64u);
+    EXPECT_EQ(status.sidecar.batch_id, 0u);
+    EXPECT_EQ(status.sidecar.aperture_id, 64u);
+    EXPECT_EQ(status.sidecar.pulse_range_start, 64u);
+    EXPECT_EQ(status.sidecar.pulse_range_count, 0u);
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_LT(status.sidecar.tile_id, status.sidecar.tile_count);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_EQ(status.sidecar.backend_id, 0u);
+    EXPECT_EQ(status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_GT(status.transfer_ticket.execution_queue_id, 0u);
+    if (status.has_kernel_ticket) {
+        EXPECT_GT(status.kernel_ticket.execution_queue_id, 0u);
     }
 
     std::error_code remove_error;
@@ -340,30 +357,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     auto metal_config = LoadJsonFile(config_path);
     metal_config["execution_backend"] = "metal";
     metal_config["backend_fallback_policy"] = "strict";
-    metal_config["resolver_mappings"].push_back(
-        nlohmann::json{
-            {"intent_type", "H2DAsyncNode"},
-            {"input_token_type", "SarAccelControlToken"},
-            {"output_token_type", "SarAccelControlToken"},
-            {"variants", nlohmann::json::array({
-                nlohmann::json{{"backend", "metal"}, {"concrete_type", "H2DAsyncNode"}},
-                nlohmann::json{{"backend", "stub"}, {"concrete_type", "H2DAsyncNode"}},
-                nlohmann::json{{"backend", "cuda"}, {"concrete_type", "H2DAsyncNode"}},
-                nlohmann::json{{"backend", "sycl"}, {"concrete_type", "H2DAsyncNode"}},
-            })},
-        });
-    metal_config["resolver_mappings"].push_back(
-        nlohmann::json{
-            {"intent_type", "D2HAsyncNode"},
-            {"input_token_type", "SarAccelControlToken"},
-            {"output_token_type", "SarAccelControlToken"},
-            {"variants", nlohmann::json::array({
-                nlohmann::json{{"backend", "metal"}, {"concrete_type", "D2HAsyncNode"}},
-                nlohmann::json{{"backend", "stub"}, {"concrete_type", "D2HAsyncNode"}},
-                nlohmann::json{{"backend", "cuda"}, {"concrete_type", "D2HAsyncNode"}},
-                nlohmann::json{{"backend", "sycl"}, {"concrete_type", "D2HAsyncNode"}},
-            })},
-        });
+    AssertDefinitiveSarAccelResolverMappings(metal_config);
 
     const auto temp_path = std::filesystem::temp_directory_path() /
                            "sar_stripmap_definitive_composed_provider_metal.json";
@@ -400,12 +394,16 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     ASSERT_NE(h2d, nullptr);
     EXPECT_EQ(h2d->concrete_type, "H2DAsyncNode");
     EXPECT_EQ(h2d->selected_backend, "metal");
+    EXPECT_EQ(h2d->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(h2d->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(h2d->fallback_used);
 
     const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode");
     ASSERT_NE(d2h, nullptr);
     EXPECT_EQ(d2h->concrete_type, "D2HAsyncNode");
     EXPECT_EQ(d2h->selected_backend, "metal");
+    EXPECT_EQ(d2h->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(d2h->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(d2h->fallback_used);
 
     const auto* bp = FindResolverDiagnostic(
@@ -413,6 +411,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     ASSERT_NE(bp, nullptr);
     EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformNode");
     EXPECT_EQ(bp->selected_backend, "metal");
+    EXPECT_EQ(bp->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(bp->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(bp->fallback_used);
 
     std::error_code remove_error;

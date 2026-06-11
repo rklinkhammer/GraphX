@@ -128,6 +128,41 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverMappings) {
     EXPECT_EQ(mapping.variants[1].concrete_type, "RangeCompressionNode");
 }
 
+TEST(GraphConfigParserExpectedTest, ParseSafeParsesSarAccelTokenResolverMappings) {
+    const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
+      "name": "sar_resolver_mapping_graph",
+      "edge_contract": "accel-token",
+      "execution_backend": "metal",
+      "resolver_mappings": [{
+        "intent_type": "SarBackprojectionTransformNode",
+        "input_token_type": "SarAccelControlToken",
+        "output_token_type": "SarAccelControlToken",
+        "variants": [
+          {
+            "backend": "metal",
+            "concrete_type": "SarBackprojectionTransformNode"
+          },
+          {
+            "backend": "stub",
+            "concrete_type": "SarBackprojectionTransformNode"
+          }
+        ]
+      }],
+      "nodes": [
+        {"id": "bp", "type": "SarBackprojectionTransformNode"}
+      ],
+      "edges": []
+    })");
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(result->resolver.edge_contract, "accel-token");
+    ASSERT_EQ(result->resolver_mappings.size(), 1u);
+    const auto& mapping = result->resolver_mappings.front();
+    EXPECT_EQ(mapping.intent_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(mapping.input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(mapping.output_token_type, "SarAccelControlToken");
+}
+
 TEST(GraphConfigParserExpectedTest, ParseSafeRejectsResolverMappingWithoutVariants) {
     const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
       "name": "bad_resolver_mapping_graph",

@@ -331,7 +331,7 @@ Inputs:
 - `plan/reviews/SAR2_INSPECTOR.md`
 - `plan/reviews/SAR2_SIMPLIFIER.md`
 - `plan/reviews/SAR2_ARCHITECT.md`
-- `plan/reviews/SAR2_IMPL_PR4_1.md`
+- `plan/reviews/SAR2_IMPL_PR5_1.md`
 - current repository state
 - current test output
 
@@ -346,7 +346,7 @@ Check:
 - Verifier checks:
   - Local-only runbook is reproducible without reverse engineering.
   - Comparator report schema and deterministic metrics remain 
-  
+
 Output:
 - Pass/fail.
 - Blocking issues.

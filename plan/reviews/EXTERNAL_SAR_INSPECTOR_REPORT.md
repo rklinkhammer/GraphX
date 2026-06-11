@@ -1,121 +1,104 @@
-# EXTERNAL_SAR_INSPECTOR_REPORT
+# External SAR Baseline Current-State Report
 
-Date: 2026-06-09
-Role: SAR systems engineer (external baseline selection)
+Role applied from `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`: external packages are comparators only; they must not dictate GraphX architecture.
 
-## Scope
-Evaluate external SAR ecosystem references beyond repository-only evidence and select:
-- one primary reference package
-- two secondary references
+Scope: inspected the current repository only. No redesign or implementation performed.
 
-Evaluation criteria:
-- license
-- maturity
-- testability
-- raw phase-history support
-- ease of substitution
-- local execution
-- CI friendliness
-- architectural pollution risk
+## 1. Policy And Registry
 
-## 1. Primary baseline package
-SarPy (`ngageoint/sarpy`).
+Observed:
+- External baseline policy exists at `plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md`.
+- Machine-readable registry exists at `plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json`.
+- Registered packages are:
+  - SarPy: primary, MIT, CI-safe, standards/metadata focus.
+  - ISCE3: secondary, Apache-2.0, local-only, product-processing parity.
+  - gotcha-back: secondary, BSD-3-Clause, local-only, GOTCHA image-formation parity.
+- Policy explicitly requires comparator-only use and forbids `libgraph`/`libgpu` contract changes for external packages.
 
-## 2. Secondary package
-- ISCE3 (`isce-framework/isce3`)
-- gotcha-back (`tbensonatl/gotcha-back`)
+Inferred:
+- The current policy boundary is architecturally sound and aligned with `AccelControlToken<SarSidecar>`.
 
-## 3. Image-formation baseline
-gotcha-back CPU backprojection path on AFRL GOTCHA challenge data as the image-formation truth baseline.
+Unknown:
+- No repository evidence currently supports adding OpenSAR/OpenSARLab to the official registry.
 
-## 4. Product-processing baseline
-ISCE3 as product-processing baseline for downstream processing parity checks where pipeline overlap exists.
+## 2. Implemented Baseline Hooks
 
-## 5. Dataset baseline
-AFRL GOTCHA Challenge Problem data (Disc1/Disc2) as primary phase-history dataset baseline.
-Use a tiny derived deterministic fixture for CI-safe parity checks.
+Observed:
+- Policy/registry are tested by `examples/SAR/test/test_external_baseline_policy_registry.cpp`.
+- A local-only scenario scaffolder exists: `examples/SAR/tools/rrp1_local_runner.py`.
+- A gotcha-back adapter exists: `examples/SAR/tools/rrp3_gotcha_back_adapter.py`.
+- A normalized float32 raster comparator exists: `examples/SAR/tools/rrp4_image_comparator.py`.
+- A frozen replay guide exists: `examples/SAR/tools/rrp5_frozen_scenario_replay.md`.
+- Tiny CI-safe fixture exists at `examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json`.
 
-## 6. Why each was selected
-### SarPy (Primary)
-- License: MIT (low legal friction for integration and redistribution workflows).
-- Maturity: active maintenance and release cadence.
-- Testability: Python-native, straightforward harnessing for file-format and metadata conformance checks.
-- Raw phase-history support: strong standards coverage (SICD/SIDD/CPHD/CRSD readers and metadata pathways).
-- Ease of substitution: high for I/O and standards validation boundaries.
-- Local execution: high.
-- CI friendliness: high.
-- Architectural pollution risk: low if used as comparator/adapter boundary only.
+Inferred:
+- The current external baseline program is mostly scaffold/adapter/comparator infrastructure, not full external package execution.
 
-### ISCE3 (Secondary)
-- License: Apache-2.0.
-- Maturity: actively maintained successor architecture with sustained research/community investment.
-- Testability: reasonable, but heavier dependency/runtime footprint.
-- Raw phase-history support: not the primary reason for selection; stronger as science processing reference.
-- Ease of substitution: medium (better as external comparator than in-process replacement).
-- Local execution: medium.
-- CI friendliness: medium.
-- Architectural pollution risk: medium if internalized directly; low when black-boxed.
+## 3. Actual External Package Execution
 
-### gotcha-back (Secondary)
-- License: BSD-3-Clause.
-- Maturity: smaller project, narrower scope, but very targeted and practical for GOTCHA backprojection.
-- Testability: good for local deterministic runs; limited generality.
-- Raw phase-history support: high relevance for GOTCHA backprojection experiments.
-- Ease of substitution: medium for one-stage benchmarking.
-- Local execution: good with required CUDA tooling and data.
-- CI friendliness: low-to-medium for full runs; better with tiny derived fixtures.
-- Architectural pollution risk: medium if kernel design is copied into runtime abstractions.
+Observed:
+- SarPy and ISCE3 are only represented in policy/registry/roadmap. No current SarPy or ISCE3 runner exists under `examples/SAR/tools`.
+- gotcha-back is represented by invocation scaffolding and output normalization, but tests do not run the gotcha-back executable.
+- `rrp1_local_runner.py` writes scripts/contracts and explicitly does not execute GraphX or gotcha-back.
+- `rrp3_gotcha_back_adapter.py` creates a pinned gotcha-back command for `scenario_001` and normalizes a raw output if one already exists.
 
-## 7. What GraphX should compare against
-- SarPy: standards conformance and metadata integrity for SICD/CPHD/CRSD ingest behavior.
-- gotcha-back: image-formation output parity (phase + magnitude quality metrics) on identical GOTCHA subsets.
-- ISCE3: downstream product-level consistency checks where equivalent products exist.
-- Baseline discipline: deterministic subset reproducibility, not visual-only comparisons.
+Inferred:
+- Current repository state supports future gotcha-back local runs, but does not yet prove GraphX-vs-gotcha-back parity.
 
-## 8. What GraphX should never imitate
-- Monolithic architecture inheritance from external frameworks.
-- Environment/platform coupling (for example, cloud platform assumptions) in core runtime contracts.
-- Licensing-risky embedding patterns (especially GPL-linked behaviors in core paths).
-- Baseline tool contracts dictating GraphX internal token/message architecture.
-- Benchmark-only shortcuts becoming production identity/metadata transport semantics.
+## 4. CI-Safe Baseline Lane
 
-## 9. Confidence level
-High (0.83).
+Observed:
+- CTest defines `sar_example_ci_lane` as `Rrp7CiValidationLaneTest.*` in `examples/SAR/test/CMakeLists.txt`.
+- The CI lane runs GraphX with the tiny fixture and compares against `SarMaterializedImageSinkNode::BuildDeterministicReferenceImage`, not an external package.
+- `examples/SAR/test/test_rrp5_frozen_scenario_replay.cpp` writes a reference contract labeled `source_tool: gotcha-back`, but the pixels are generated by GraphX's deterministic reference builder.
 
-Primary uncertainty drivers:
-- exact overlap between GraphX target modalities and external pipeline assumptions
-- CI-safe licensing and packaging of derived GOTCHA fixtures at useful fidelity
-- future weight of InSAR time-series vs image-formation-only roadmap items
+Inferred:
+- The CI lane is useful for deterministic GraphX replay and comparator plumbing, but it should not be interpreted as external gotcha-back validation.
 
-## 10. PR roadmap
-1. Baseline Policy and Registry
-- Define official baseline roles and legal boundaries.
-- Add baseline metadata registry with policy checks.
+## 5. Dataset And Licensing Boundaries
 
-2. SarPy Standards Harness
-- Add conformance runner for SICD/CPHD/CRSD parsing and metadata invariants.
-- Gate deterministic conformance checks in CI.
+Observed:
+- Full external GOTCHA data is not vendored.
+- `GotchaReplaySourceNode.cpp` blocks non-CI fixture paths unless `allow_external_fixture=true` and `GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1`.
+- `examples/SAR/config/sar_gotcha_external_manual.json` is explicitly manual and contains a placeholder fixture path.
 
-3. GOTCHA Local Runner
-- Add local-only gotcha-back comparison script and reproducibility documentation.
-- Keep this lane optional and non-blocking for CI.
+Inferred:
+- Current repo avoids CI data/download risk and keeps full GOTCHA workflows local-only.
 
-4. Tiny Deterministic Fixture Lane
-- Add reduced derived fixture with strict reproducibility.
-- Add CI regression on fixed thresholds.
+## 6. Roadmap Drift
 
-5. Image-Formation Metric Suite
-- Add canonical metrics (phase error, magnitude error, SER-like score, drift checks).
-- Integrate into fixture-based CI report artifacts.
+Observed:
+- `plan/roadmap/SAR_EXTERNAL_BASELINE_PR_ROADMAP.md` planned `SAR_BASELINE_PACKAGE_REGISTRY.yaml`, but implementation uses `SAR_BASELINE_PACKAGE_REGISTRY.json`.
+- The roadmap lists planned SarPy and ISCE3 harnesses, but they are not implemented in current repository state.
 
-6. ISCE3 Product Comparator Lane
-- Add optional/nightly product-processing comparison for overlapping outputs.
-- Track differences as structured artifacts.
+Inferred:
+- This is documentation drift, not a runtime defect.
 
-7. Substitution Experiment
-- Run one bounded stage-substitution experiment with explicit interface boundary.
-- Report parity deltas and integration friction.
+## 7. Architecture Leakage Assessment
 
-8. Guardrails Against Architectural Pollution
-- Enforce adapter boundary constraints and reviewer checklist updates.
-- Ensure external baselines remain comparators, not architectural templates.
+Observed:
+- External baseline code lives in `examples/SAR/tools`, `examples/SAR/test`, `examples/SAR/config`, and `plan`.
+- No observed external package API appears in `libgraph` or `libgpu`.
+- Registry asserts no GraphX core API mimicry and no core contract changes for external packages.
+
+Inferred:
+- Current external baseline integration has not polluted GraphX core architecture.
+
+## 8. Current Readiness
+
+Observed:
+- Policy: present and tested.
+- Registry: present and tested.
+- Local gotcha-back scaffolding: present and tested.
+- Normalized image comparator: present and tested.
+- Tiny deterministic fixture lane: present and tested.
+- Real SarPy harness: absent.
+- Real ISCE3 harness: absent.
+- Real gotcha-back execution in tests: absent.
+- OpenSAR/OpenSARLab registry entry or harness: absent.
+
+Current-state verdict:
+- The repository is ready for comparator-boundary experiments.
+- It is not yet ready to claim external SAR package parity.
+- The strongest implemented path is deterministic internal GraphX replay plus normalized artifact comparison.
+- The weakest area is that "gotcha-back" automated comparison currently uses a GraphX-generated deterministic reference while labeling it as gotcha-back-shaped output.

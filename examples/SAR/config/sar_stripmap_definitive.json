@@ -6,9 +6,32 @@
   "edge_contract": "accel-token",
   "resolver_mappings": [
     {
+      "intent_type": "H2DAsyncNode",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
+      "variants": [
+        {
+          "backend": "metal",
+          "concrete_type": "H2DAsyncNode"
+        },
+        {
+          "backend": "stub",
+          "concrete_type": "H2DAsyncNode"
+        },
+        {
+          "backend": "cuda",
+          "concrete_type": "H2DAsyncNode"
+        },
+        {
+          "backend": "sycl",
+          "concrete_type": "H2DAsyncNode"
+        }
+      ]
+    },
+    {
       "intent_type": "SarBackprojectionTransformNode",
-      "input_token_type": "DeviceBufferView",
-      "output_token_type": "DeviceBufferView",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
       "variants": [
         {
           "backend": "metal",
@@ -25,6 +48,29 @@
         {
           "backend": "sycl",
           "concrete_type": "SarBackprojectionTransformNode"
+        }
+      ]
+    },
+    {
+      "intent_type": "D2HAsyncNode",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
+      "variants": [
+        {
+          "backend": "metal",
+          "concrete_type": "D2HAsyncNode"
+        },
+        {
+          "backend": "stub",
+          "concrete_type": "D2HAsyncNode"
+        },
+        {
+          "backend": "cuda",
+          "concrete_type": "D2HAsyncNode"
+        },
+        {
+          "backend": "sycl",
+          "concrete_type": "D2HAsyncNode"
         }
       ]
     }
