@@ -109,3 +109,77 @@ Do not modify SAR math.
 Do not modify accel-token architecture.
 
 Run build and tests.
+
+=======
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/roadmap/SAR_VALIDATE_ROADMAP.md
+- plan/reviews/SAR_IMPL_RRP1_1.md
+- current repository state
+- current test output
+
+Task:
+Implement RRP2 only
+
+RRP2 title:  GraphX Scenario-to-Image Path
+RRP2 Scope:
+- Wire `scenario_001` into the existing GraphX GOTCHA replay plus materialized image path.
+
+
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not preserve obsolete behavior.
+- Do not add compatibility shims.
+- Do not touch future-PR items.
+- Delete obsolete code if RRP2 requires it.
+- Add or update tests for RRP2.
+- Remove tests that only validate obsolete behavior.
+- Keep Metal as the first backend.
+- Preserve GraphX dynamic loading and resolver behavior.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed or replaced.
+5. Build commands run.
+6. Test commands run.
+7. Remaining follow-up items.
+
+RRP1 acceptance criteria:
+- GraphX can produce one scenario-driven image artifact without changing SAR math architecture
+
+=====
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/roadmap/SAR_VALIDATE_ROADMAP.md
+- plan/reviews/SAR_IMPL_RRP0_1.md
+- plan/reviews/SAR_IMPL_RRP1_1.md
+- current repository state
+- current test output
+- current RRP1 diff
+
+
+
+Task:
+Verify whether RRP1  actually satisfies its acceptance criteria.
+
+Check:
+- one local command accepts `scenario_001` and produces a known artifact directory layout without requiring CI data
+
+
+Output:
+- Pass/fail.
+- Blocking issues.
+- Non-blocking issues.
+- Suggested fixes.
