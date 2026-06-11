@@ -24,10 +24,6 @@ std::uint64_t NextOpaqueTokenId() {
     return next_id.fetch_add(1u, std::memory_order_relaxed);
 }
 
-void* OpaqueHostPointer() noexcept {
-    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
-}
-
 SarAccelControlToken BuildToken(const SarAccelControlToken& input,
                                 std::uint32_t tile_id,
                                 std::size_t payload_byte_count,
@@ -47,7 +43,7 @@ SarAccelControlToken BuildToken(const SarAccelControlToken& input,
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // PR2: host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = OpaqueHostPointer();
+    host_view.host_ptr = runtime::OpaqueHostPointer();
     host_view.bytes = static_cast<std::uint64_t>(view_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(

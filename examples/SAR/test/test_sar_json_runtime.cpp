@@ -463,6 +463,91 @@ TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
     }
 }
 
+TEST(SarJsonRuntimeTest, ResolverSelectedDeviceStagesPreserveSidecarIdentityAndOpaqueTransportBoundaries) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const auto config = LoadJsonFile(config_path);
+    AssertDefinitiveSarAccelResolverMappings(config);
+
+    const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(
+        std::vector<std::string>{plugin_dir.string()});
+    ASSERT_TRUE(bootstrap);
+    ASSERT_NE(bootstrap->provider, nullptr);
+
+    auto graph_cap = std::make_shared<capabilities::GraphCapability>();
+    graph_cap->SetNodeProvider(bootstrap->provider);
+    graph_cap->SetJsonConfigPath(config_path.string());
+
+    app::GraphBuilder graph_builder(graph_cap);
+    const auto build_result = graph_builder.Build();
+    ASSERT_TRUE(build_result.success) << build_result.error_message;
+
+    const auto* h2d_diagnostic = FindResolverDiagnostic(
+        build_result.resolver_diagnostics, "H2DAsyncNode");
+    const auto* bp_diagnostic = FindResolverDiagnostic(
+        build_result.resolver_diagnostics, "SarBackprojectionTransformNode");
+    const auto* d2h_diagnostic = FindResolverDiagnostic(
+        build_result.resolver_diagnostics, "D2HAsyncNode");
+    ASSERT_NE(h2d_diagnostic, nullptr);
+    ASSERT_NE(bp_diagnostic, nullptr);
+    ASSERT_NE(d2h_diagnostic, nullptr);
+
+    EXPECT_EQ(h2d_diagnostic->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(h2d_diagnostic->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(bp_diagnostic->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(bp_diagnostic->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(d2h_diagnostic->input_token_type, "SarAccelControlToken");
+    EXPECT_EQ(d2h_diagnostic->output_token_type, "SarAccelControlToken");
+    EXPECT_FALSE(h2d_diagnostic->fallback_used);
+    EXPECT_FALSE(bp_diagnostic->fallback_used);
+    EXPECT_FALSE(d2h_diagnostic->fallback_used);
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(15))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr);
+    auto graph_manager = executor->GetGraphManager();
+    ASSERT_NE(graph_manager, nullptr);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+    ASSERT_TRUE(executor->IsCompletionSignaled());
+
+    auto sink = sar::runtime::ResolveDiagnosticsSink(graph_manager);
+    ASSERT_NE(sink, nullptr);
+    sink->UpdateFromGraphMetrics(graph_manager->GetMetrics());
+    const auto& status = sink->last_token();
+
+    EXPECT_EQ(status.sidecar.sequence_id, 64u);
+    EXPECT_EQ(status.sidecar.aperture_id, 64u);
+    EXPECT_EQ(status.sidecar.pulse_range_start, 64u);
+    EXPECT_EQ(status.sidecar.stream_id, 0u);
+    EXPECT_EQ(status.sidecar.tile_count, 4u);
+    EXPECT_EQ(status.sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_TRUE(status.has_host_view);
+    EXPECT_TRUE(status.has_transfer_ticket);
+    EXPECT_TRUE(status.has_kernel_ticket);
+
+    EXPECT_GT(status.transfer_ticket.completion_event, 0u);
+    EXPECT_GT(status.kernel_ticket.completion_event, 0u);
+    EXPECT_GT(status.sidecar.h2d_queue_id, 0u);
+    EXPECT_GT(status.sidecar.kernel_queue_id, 0u);
+    EXPECT_GT(status.sidecar.d2h_queue_id, 0u);
+
+    EXPECT_NE(status.sidecar.sequence_id, status.transfer_ticket.completion_event);
+    EXPECT_NE(status.sidecar.sequence_id, status.kernel_ticket.completion_event);
+    EXPECT_NE(
+        status.sidecar.sequence_id,
+        static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(status.host_view.host_ptr)));
+}
+
 TEST(SarJsonRuntimeTest, DefinitiveRangeWindowDeviceTransformSubstitutionIsBlockedByTokenContract) {
     const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));

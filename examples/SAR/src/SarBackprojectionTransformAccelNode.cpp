@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <algorithm>
-#include <atomic>
 #include <sstream>
 
 namespace sar {
@@ -29,14 +28,6 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
         default:
             return SarBackendKind::Host;
     }
-}
-
-void* MakeSyntheticDevicePointer(const graph::gpu::accel::DeviceBufferView& input,
-                                 std::uint64_t kernel_sequence) noexcept {
-    const auto token =
-        ((static_cast<std::uint64_t>(input.bytes) + 1u) << 8u) |
-        ((kernel_sequence + 1u) & 0xFFu);
-    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
 }
 
 graph::gpu::metal::capabilities::MetalKernelDescriptor MakeBackprojectionDescriptor(
@@ -100,11 +91,6 @@ graph::gpu::metal::capabilities::MetalKernelDescriptor MakeBackprojectionDescrip
     return descriptor;
 }
 
-std::uint64_t NextOpaqueEventId() {
-    static std::atomic<std::uint64_t> next_event{1u};
-    return next_event.fetch_add(1u, std::memory_order_relaxed);
-}
-
 } // namespace
 
 SarBackprojectionTransformAccelNode::SarBackprojectionTransformAccelNode(
@@ -157,7 +143,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;
-    output.device_ptr = MakeSyntheticDevicePointer(in_view, kernel_sequence_);
+    output.device_ptr = runtime::SyntheticDevicePointer(in_view, kernel_sequence_);
     output.bytes = in_view.bytes;
     output.dtype = in_view.dtype;
     output.layout = in_view.layout;
@@ -177,9 +163,9 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     last_kernel_ticket_.launch.block_z = 1;
     last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
-    last_kernel_ticket_.completion_event = NextOpaqueEventId();
+    last_kernel_ticket_.completion_event = runtime::NextOpaqueEventId();
     // PR2: ready_event is opaque transport metadata only. SAR identity derives from sidecar.
-    output.ready_event = 0u;
+    output.ready_event = runtime::OpaqueReadyEventNotSignaled();
 
     if (!graph::gpu::accel::IsValidView(output) ||
         !graph::gpu::accel::IsValidKernelTicket(last_kernel_ticket_)) {

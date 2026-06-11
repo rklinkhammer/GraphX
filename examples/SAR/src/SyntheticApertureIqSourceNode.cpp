@@ -1,4 +1,5 @@
 #include "sar/SyntheticApertureIqSourceNode.hpp"
+#include "sar/SarRuntimeHelpers.hpp"
 
 #include "config/ConfigError.hpp"
 
@@ -20,10 +21,6 @@ SarBackendKind ParseBackendKind(int raw_backend) {
 std::uint64_t NextOpaqueTokenId() {
     static std::atomic<std::uint64_t> next_id{1u};
     return next_id.fetch_add(1u, std::memory_order_relaxed);
-}
-
-void* OpaqueHostPointer() noexcept {
-    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
 }
 
 } // namespace
@@ -250,7 +247,7 @@ SarAccelControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // PR2: host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = OpaqueHostPointer();
+    host_view.host_ptr = runtime::OpaqueHostPointer();
     host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout =
@@ -283,7 +280,7 @@ SarAccelControlToken SyntheticApertureIqSourceNode::MakeEndOfStreamToken() const
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // PR2: host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = OpaqueHostPointer();
+    host_view.host_ptr = runtime::OpaqueHostPointer();
     host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(1u);

@@ -6,7 +6,6 @@
 
 #include <chrono>
 #include <algorithm>
-#include <atomic>
 
 namespace sar {
 
@@ -18,11 +17,6 @@ SarBackendKind ParseBackendKind(int raw_backend) {
         throw graph::ConfigError("backend must be in range [0,2]");
     }
     return static_cast<SarBackendKind>(raw_backend);
-}
-
-std::uint64_t NextOpaqueEventId() {
-    static std::atomic<std::uint64_t> next_event{1u};
-    return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
 } // namespace
@@ -297,7 +291,7 @@ SarAccelControlToken ImageTileMergeNode::BuildOutputToken(
             : ((input.sidecar.h2d_queue_id > 0u)
                    ? input.sidecar.h2d_queue_id
                    : (static_cast<std::uint64_t>(config_.backend_id) + 1u));
-    out.transfer_ticket.completion_event = NextOpaqueEventId();
+    out.transfer_ticket.completion_event = runtime::NextOpaqueEventId();
     out.transfer_ticket.dst_host = input.host_view;
     out.has_transfer_ticket = true;
 
@@ -307,7 +301,7 @@ SarAccelControlToken ImageTileMergeNode::BuildOutputToken(
         (input.sidecar.kernel_queue_id > 0u)
             ? input.sidecar.kernel_queue_id
             : (static_cast<std::uint64_t>(out.sidecar.backend_id) + 1u);
-    out.kernel_ticket.completion_event = NextOpaqueEventId();
+    out.kernel_ticket.completion_event = runtime::NextOpaqueEventId();
     out.kernel_ticket.arg_count = 1;
     out.has_kernel_ticket =
         out.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;

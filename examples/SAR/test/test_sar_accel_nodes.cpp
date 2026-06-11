@@ -17,6 +17,20 @@
 
 namespace {
 
+void ExpectCoreSidecarIdentityEq(const sar::SarSidecar& actual, const sar::SarSidecar& expected) {
+    EXPECT_EQ(actual.sequence_id, expected.sequence_id);
+    EXPECT_EQ(actual.batch_id, expected.batch_id);
+    EXPECT_EQ(actual.aperture_id, expected.aperture_id);
+    EXPECT_EQ(actual.pulse_range_start, expected.pulse_range_start);
+    EXPECT_EQ(actual.pulse_range_count, expected.pulse_range_count);
+    EXPECT_EQ(actual.stream_id, expected.stream_id);
+    EXPECT_EQ(actual.tile_id, expected.tile_id);
+    EXPECT_EQ(actual.tile_count, expected.tile_count);
+    EXPECT_EQ(actual.marker, expected.marker);
+    EXPECT_EQ(actual.synthetic, expected.synthetic);
+    EXPECT_EQ(actual.payload_byte_count, expected.payload_byte_count);
+}
+
 sar::SarAccelControlToken MakeHostToken() {
     sar::SarAccelControlToken token{};
     token.token_id = 0x1000u;
@@ -204,6 +218,10 @@ TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreserv
     EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);
     EXPECT_EQ(bp.last_kernel_ticket().execution_queue_id, 5u);
     EXPECT_EQ(telemetry->KernelSamples(), 1u);
+    ExpectCoreSidecarIdentityEq(output->sidecar, input.sidecar);
+    EXPECT_EQ(output->sidecar.backend_id, output->device_view.device_id);
+    EXPECT_EQ(output->sidecar.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(output->sidecar.kernel_queue_id, bp.last_kernel_ticket().execution_queue_id);
 }
 
 TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingParameters) {
@@ -279,6 +297,155 @@ TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingPar
     EXPECT_EQ(bp.last_kernel_ticket().arg_count, 2u);
     EXPECT_EQ(bp.last_kernel_ticket().execution_queue_id, 9u);
     EXPECT_EQ(telemetry->KernelSamples(), 1u);
+    ExpectCoreSidecarIdentityEq(output->sidecar, input.sidecar);
+}
+
+TEST(SarAccelNodesTest, H2DSidecarIdentityIsInvariantToHostPointerTransportMetadata) {
+    auto host_a = MakePulseForTokenSidecar();
+    auto host_b = host_a;
+    host_b.host_view.host_ptr = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xBEEF0001u));
+
+    sar::H2DAsyncAccelConfig h2d_cfg{};
+    h2d_cfg.override_backend = true;
+    h2d_cfg.backend_id = 3;
+    h2d_cfg.queue_id = 7;
+    h2d_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::H2DAsyncAccelNode h2d_a;
+    sar::H2DAsyncAccelNode h2d_b;
+    h2d_a.SetConfig(h2d_cfg);
+    h2d_b.SetConfig(h2d_cfg);
+
+    auto device_a = h2d_a.Transfer(
+        host_a,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto device_b = h2d_b.Transfer(
+        host_b,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(device_a.has_value());
+    ASSERT_TRUE(device_b.has_value());
+    ASSERT_TRUE(device_a->has_device_view);
+    ASSERT_TRUE(device_b->has_device_view);
+    EXPECT_NE(host_a.host_view.host_ptr, host_b.host_view.host_ptr);
+    EXPECT_EQ(device_a->device_view.ready_event, device_b->device_view.ready_event);
+    ExpectCoreSidecarIdentityEq(device_a->sidecar, device_b->sidecar);
+    EXPECT_EQ(device_a->sidecar.backend_id, device_b->sidecar.backend_id);
+    EXPECT_EQ(device_a->sidecar.backend, device_b->sidecar.backend);
+    EXPECT_EQ(device_a->sidecar.h2d_queue_id, device_b->sidecar.h2d_queue_id);
+}
+
+TEST(SarAccelNodesTest, BackprojectionSidecarIdentityIsInvariantToDeviceTransportMetadata) {
+    sar::H2DAsyncAccelNode h2d;
+    auto device = h2d.Transfer(
+        MakePulseForTokenSidecar(),
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(device.has_value());
+
+    auto mutated = *device;
+    mutated.device_view.ready_event = device->device_view.ready_event + 77u;
+    mutated.device_view.device_ptr =
+        reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(device->device_view.device_ptr) + 4096u);
+
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
+    bp_cfg.backend_id = 5;
+    bp_cfg.queue_id = 9;
+    bp_cfg.kernel_id = 4402;
+    bp_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::SarBackprojectionTransformAccelNode bp_a(bp_cfg);
+    sar::SarBackprojectionTransformAccelNode bp_b(bp_cfg);
+
+    auto image_a = bp_a.Transfer(
+        *device,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto image_b = bp_b.Transfer(
+        mutated,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(image_a.has_value());
+    ASSERT_TRUE(image_b.has_value());
+    ASSERT_TRUE(image_a->has_device_view);
+    ASSERT_TRUE(image_b->has_device_view);
+    EXPECT_NE(device->device_view.device_ptr, mutated.device_view.device_ptr);
+    EXPECT_NE(device->device_view.ready_event, mutated.device_view.ready_event);
+    ExpectCoreSidecarIdentityEq(image_a->sidecar, image_b->sidecar);
+    EXPECT_EQ(image_a->sidecar.backend_id, image_b->sidecar.backend_id);
+    EXPECT_EQ(image_a->sidecar.backend, image_b->sidecar.backend);
+    EXPECT_EQ(image_a->sidecar.kernel_queue_id, image_b->sidecar.kernel_queue_id);
+}
+
+TEST(SarAccelNodesTest, NativeAndSyntheticBackprojectionPreserveEquivalentSidecarIdentity) {
+    graph::CapabilityBus bus;
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+
+    graph::gpu::accel::BufferLease input_lease{};
+    ASSERT_TRUE(memory_pool->AllocateDevice(64, 0, input_lease));
+
+    sar::SarAccelControlToken input{};
+    input.token_id = 0xACEu;
+    input.sidecar.sequence_id = 42u;
+    input.sidecar.batch_id = 6u;
+    input.sidecar.aperture_id = 42u;
+    input.sidecar.pulse_range_start = 42u;
+    input.sidecar.pulse_range_count = 1u;
+    input.sidecar.stream_id = 17u;
+    input.sidecar.tile_id = 3u;
+    input.sidecar.tile_count = 8u;
+    input.sidecar.marker = sar::SarFrameMarker::Data;
+    input.sidecar.synthetic = false;
+    input.sidecar.payload_byte_count = 64u;
+    input.device_view = input_lease.device_view;
+    input.device_view.backend = graph::gpu::accel::BackendKind::Metal;
+    input.device_view.dtype = graph::gpu::accel::DataType::Float32;
+    input.device_view.layout.rank = 1;
+    input.device_view.layout.shape[0] = 16;
+    input.device_view.layout.stride[0] = 1;
+    input.device_view.device_id = 0;
+    input.device_view.execution_queue_id = 5;
+    input.device_view.ready_event = 1u;
+    input.has_device_view = true;
+
+    sar::SarBackprojectionTransformAccelConfig native_cfg{};
+    native_cfg.image_width = 16;
+    native_cfg.backend_id = 0;
+    native_cfg.queue_id = 5;
+    native_cfg.kernel_id = 8801;
+    native_cfg.backend = sar::SarBackendKind::NativeDevice;
+    sar::SarBackprojectionTransformAccelNode native_bp(native_cfg);
+    ASSERT_TRUE(native_bp.BindGpuCapabilities(bus));
+
+    sar::SarBackprojectionTransformAccelConfig synthetic_cfg = native_cfg;
+    synthetic_cfg.backend = sar::SarBackendKind::SimulatedDevice;
+    sar::SarBackprojectionTransformAccelNode synthetic_bp(synthetic_cfg);
+
+    auto native_output = native_bp.Transfer(
+        input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto synthetic_output = synthetic_bp.Transfer(
+        input,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(native_output.has_value());
+    ASSERT_TRUE(synthetic_output.has_value());
+    ExpectCoreSidecarIdentityEq(native_output->sidecar, synthetic_output->sidecar);
+    EXPECT_EQ(native_output->sidecar.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(synthetic_output->sidecar.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(native_output->sidecar.kernel_queue_id, synthetic_output->sidecar.kernel_queue_id);
+    EXPECT_NE(native_output->device_view.device_ptr, synthetic_output->device_view.device_ptr);
 }
 
 TEST(SarAccelNodesTest, PreservesTokenSidecarIdentityThroughDeviceStagesAndMerge) {
