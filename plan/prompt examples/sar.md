@@ -319,8 +319,10 @@ Required output:
 7. Remaining follow-up items.
 
 PR5 acceptance criteria:
-- One documented command path (or short sequence) materializes both artifact contracts and runs comparator with structured pass/fail output.
+ - One documented command path (or short sequence) materializes both artifact contracts and runs comparator with structured pass/fail output.
   - CI does not require external dataset download.
+  - Local-only runbook is reproducible without reverse engineering.
+  - Comparator report schema and deterministic metrics remain 
 ========
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -336,13 +338,15 @@ Inputs:
 
 
 Task:
-Verify whether PR4 actually satisfies its acceptance criteria.
+Verify whether PR5 actually satisfies its acceptance criteria.
 
 Check:
-  - CI lane remains bounded and deterministic.
-  - Tiny fixture checks validate output properties, not only orchestration completion.
-  - Repeat runs produce stable pass/fail outcomes.
-  - Existing RRP7 CI lane remains green.
+ - One documented command path (or short sequence) materializes both artifact contracts and runs comparator with structured pass/fail output.
+  - CI does not require external dataset download.
+- Verifier checks:
+  - Local-only runbook is reproducible without reverse engineering.
+  - Comparator report schema and deterministic metrics remain 
+  
 Output:
 - Pass/fail.
 - Blocking issues.

@@ -2,6 +2,48 @@
 
 This guide documents the exact local steps for replaying `scenario_001` without having to infer the script structure from the implementation files.
 
+## CI-Safe Local Replay Command Path
+
+The following sequence materializes both artifact contracts and runs the comparator with structured pass/fail output. **No external data download is required.**
+
+```bash
+# 1. Scaffold the runner layout from the frozen scenario
+python3 examples/SAR/tools/rrp1_local_runner.py \
+  --scenario examples/SAR/scenarios/scenario_001.json \
+  --output-dir /tmp/graphx_rrp5_ci_safe_replay
+
+# 2. Inject the CI-safe tiny fixture into the scaffolded config
+#    (edit /tmp/graphx_rrp5_ci_safe_replay/graphx/graphx_config.json:
+#     set src.node_config.fixture_path to the tiny fixture path)
+#    The tiny fixture is at:
+#    examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json
+
+# 3. Run GraphX with the patched config and capture the materialized image
+#    (handled by the C++ executor in the test suite below)
+
+# 4. Write graphx_output_contract.json and deterministic_reference_contract.json
+#    (handled by the test suite: test_sar_example_unit --gtest_filter=Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
+
+# 5. Run the comparator directly against the produced contracts:
+python3 examples/SAR/tools/rrp4_image_comparator.py \
+  compare \
+  --graphx-contract /tmp/graphx_rrp5_ci_safe_replay/graphx/graphx_output_contract.json \
+  --reference-contract /tmp/graphx_rrp5_ci_safe_replay/reference/deterministic_reference_contract.json \
+  --report-json /tmp/graphx_rrp5_ci_safe_replay/reports/ci_safe_comparison_report.json
+```
+
+The comparison report at `reports/ci_safe_comparison_report.json` contains:
+- `"verdict": "pass"` or `"verdict": "fail"`
+- Pixel metrics: `l_inf`, `rms`, `relative_l2`
+- Per-check breakdown: source_tool, scenario_id, format, layout, dimensions, byte_count, pixel_count
+
+The full CI-safe integration test (`Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator`) exercises this entire chain automatically from the test suite:
+
+```bash
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator' -v
+```
+
 ## Purpose
 
 Replay the frozen SAR scenario locally, capture one GraphX image artifact, capture the pinned gotcha-back reference artifact, and compare the two using the deterministic RRP4 comparator.
