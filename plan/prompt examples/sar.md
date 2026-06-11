@@ -118,17 +118,16 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
-- plan/reviews/SAR_IMPL_RRP5_1.md
+- plan/reviews/SAR_IMPL_RRP6_1.md
 - current repository state
 - current test output
 
 Task:
-Implement RRP6 only
+Implement RRP7 only
 
-RRP6 title:  Tiny Deterministic Fixture from Scenario 001
-RRP6 Scope:
-- Derive the CI-safe tiny fixture from the already frozen scenario.
-
+RRP7 title:  CI-Safe Validation Lane
+RRP7 Scope:
+- Add a bounded CI lane that validates the tiny scenario-derived fixture and comparison thresholds.
 
 
 Rules:
@@ -137,8 +136,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if RRP6 requires it.
-- Add or update tests for RRP6.
+- Delete obsolete code if RRP7 requires it.
+- Add or update tests for RRP7.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -152,8 +151,8 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-RRP6 acceptance criteria:
-- tiny fixture remains traceable to `scenario_001` and is safe for CI
+RRP7 acceptance criteria:
+- CI validates the reproduction path without external data download
 
 =====
 

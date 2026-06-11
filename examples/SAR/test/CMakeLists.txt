@@ -46,6 +46,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_gotcha_back_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp4_image_comparator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_frozen_scenario_replay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_tiny_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -77,6 +78,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_RRP4_IMAGE_COMPARATOR_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparator.py"
     SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparison_report.schema.json"
     SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp5_frozen_scenario_replay.md"
+    SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
