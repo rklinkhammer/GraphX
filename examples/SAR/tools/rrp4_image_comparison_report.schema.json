@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "graphx.sar.image_comparison_report.v1",
+  "title": "GraphX SAR Image Comparison Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "comparator",
+    "scenario_id",
+    "verdict",
+    "passed",
+    "graphx",
+    "reference",
+    "metrics",
+    "checks",
+    "reasons"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "graphx.sar.image_comparison_report.v1"
+    },
+    "comparator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "scenario_id": {"type": "string"},
+    "verdict": {"enum": ["pass", "fail"]},
+    "passed": {"type": "boolean"},
+    "graphx": {
+      "type": "object",
+      "required": [
+        "source_tool",
+        "scenario_id",
+        "format",
+        "layout",
+        "artifact_kind",
+        "dtype",
+        "width",
+        "height",
+        "byte_count",
+        "raw_path",
+        "image_hash",
+        "pixel_count"
+      ],
+      "properties": {
+        "source_tool": {"type": "string"},
+        "scenario_id": {"type": "string"},
+        "format": {"type": "string"},
+        "layout": {"type": "string"},
+        "artifact_kind": {"type": "string"},
+        "dtype": {"type": "string"},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "byte_count": {"type": "integer"},
+        "raw_path": {"type": "string"},
+        "image_hash": {"type": "string"},
+        "pixel_count": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "source_tool",
+        "scenario_id",
+        "format",
+        "layout",
+        "artifact_kind",
+        "dtype",
+        "width",
+        "height",
+        "byte_count",
+        "raw_path",
+        "image_hash",
+        "pixel_count"
+      ],
+      "properties": {
+        "source_tool": {"type": "string"},
+        "scenario_id": {"type": "string"},
+        "format": {"type": "string"},
+        "layout": {"type": "string"},
+        "artifact_kind": {"type": "string"},
+        "dtype": {"type": "string"},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "byte_count": {"type": "integer"},
+        "raw_path": {"type": "string"},
+        "image_hash": {"type": "string"},
+        "pixel_count": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["l_inf", "rms", "relative_l2"],
+      "properties": {
+        "l_inf": {"type": ["number", "null"]},
+        "rms": {"type": ["number", "null"]},
+        "relative_l2": {"type": ["number", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "passed", "detail"],
+        "properties": {
+          "name": {"type": "string"},
+          "passed": {"type": "boolean"},
+          "detail": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "reasons": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

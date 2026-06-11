@@ -118,16 +118,16 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
-- plan/reviews/SAR_IMPL_RRP2_1.md
+- plan/reviews/SAR_IMPL_RRP3_1.md
 - current repository state
 - current test output
 
 Task:
-Implement RRP3 only
+Implement RRP4 only
 
-RRP3 title:  gotcha-back Scenario Adapter
-RRP3 Scope:
-- Convert `scenario_001` into the pinned gotcha-back invocation and normalize its output artifact.
+RRP4 title:  Image Comparator and Report Schema
+RRP4 Scope:
+- Implement deterministic comparison logic between GraphX and gotcha-back image outputs.
 
 
 
@@ -137,8 +137,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if RRP3 requires it.
-- Add or update tests for RRP3.
+- Delete obsolete code if RRP4 requires it.
+- Add or update tests for RRP4.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -152,8 +152,8 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 
-RRP3 acceptance criteria:
-- gotcha-back output is reproducibly mappable to the comparison format for `scenario_001`
+RRP4 acceptance criteria:
+- comparison produces deterministic metrics and structured pass/fail outputs
 =====
 
 Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -162,20 +162,19 @@ Inputs:
 - plan/reviews/SAR_INSPECTOR_REPORT.md
 - plan/reviews/SAR_SIMPLIFIER_REPORT.md
 - plan/roadmap/SAR_VALIDATE_ROADMAP.md
-- plan/reviews/SAR_IMPL_RRP0_1.md
-- plan/reviews/SAR_IMPL_RRP1_1.md
-- plan/reviews/SAR_IMPL_RRP2_1.md
+- plan/reviews/SAR_IMPL_RRP4_1.md
 - current repository state
 - current test output
-- current RRP2 diff
+- current RRP4 diff
 
 
 
 Task:
-Verify whether RRP2  actually satisfies its acceptance criteria.
+Verify whether RRP4  actually satisfies its acceptance criteria.
 
 Check:
-- GraphX can produce one scenario-driven image artifact without changing SAR math architecture
+- comparison produces deterministic metrics and structured pass/fail outputs
+
 
 
 Output:
