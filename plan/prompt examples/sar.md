@@ -182,3 +182,99 @@ Output:
 - Blocking issues.
 - Non-blocking issues.
 - Suggested fixes.
+
+
+====
+
+Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR2_INSPECTOR.md
+- plan/reviews/SAR2_SIMPLIFIER.md
+- plan/reviews/SAR2_ARCHITECT.md
+- current repository state
+
+
+
+Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
+=========
+
+Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR2_INSPECTOR.md
+- plan/reviews/SAR2_SIMPLIFIER.md
+- plan/reviews/SAR2_ARCHITECT.md
+- current repository state
+
+
+
+Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
+
+========
+
+Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- plan/reviews/SAR2_INSPECTOR.md
+- plan/reviews/SAR2_SIMPLIFIER.md
+- plan/reviews/SAR2_ARCHITECT.md
+- current repository state
+- current verifier reports, if available
+
+Task:
+Convert the SAR2 Architect Report into a new reviewable PR sequence.
+
+Repository inspection overrides assumptions.
+
+Do not implement code.
+Do not reinspect broadly unless needed to clarify a specific planning item.
+Do not create governance-only PRs.
+Do not propose large rewrites.
+Do not mix cleanup, SAR correctness, performance, and external baseline work in one PR.
+
+Current architecture checkpoint:
+- `AccelControlToken<SarSidecar>` is now the canonical SAR runtime contract.
+- The SAR validation layer already includes benchmark tracing, external-baseline policy/registry, comparator tooling, replay guide, tiny fixture, and bounded CI lane.
+- The working tree is clean.
+- The remaining pressure is cleanup, semantic clarification, and measurable SAR correctness.
+
+Planning priorities:
+1. Remove or explicitly retire dormant helper types:
+   - `SarMessageEnvelope`
+   - `SarBufferDescriptor`
+   - `SarGpuMetadata`
+2. Clarify whether `host_ptr` and `ready_event` are retained as opaque transport metadata or removed from SAR identity/transport semantics.
+3. Consolidate duplicated helper code:
+   - repeated `ElapsedUs(...)`
+   - duplicated `ResolveDiagnosticsSink(...)`
+4. Preserve and strengthen existing layered validation artifacts.
+5. Move from validation scaffolding toward SAR correctness:
+   - meaningful tiny fixture checks
+   - CPU reference backprojection parity
+   - GraphX-vs-reference artifact comparison
+   - explicit image-quality thresholds
+6. Avoid external-package architecture pollution.
+
+Required output:
+1. Executive planning recommendation.
+2. Proposed next 3–6 PRs.
+3. For each PR:
+   - title
+   - purpose
+   - files likely touched
+   - files likely deleted
+   - tests to add
+   - tests to update/delete
+   - acceptance criteria
+   - verifier checks
+   - CI-safe or local-only
+   - risk level
+4. Items explicitly deferred.
+5. Things not to do.
+
+Planner bias:
+Prefer the next PR to be small and cleanup-oriented if it reduces ambiguity in the canonical token model.
+
+Do not propose another baseline registry PR.
+Do not add SarPy, ISCE3, or gotcha-back integration unless the PR directly advances artifact comparison or reproduction testing.
