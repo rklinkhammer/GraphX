@@ -98,6 +98,33 @@ void AssertDefinitiveSarAccelResolverMappings(const nlohmann::json& config) {
     EXPECT_EQ(seen_intents, expected_intents);
 }
 
+void AssertCompatibilityNamesStaySinglePath(const nlohmann::json& config) {
+    ASSERT_TRUE(config.contains("resolver_mappings"));
+    ASSERT_TRUE(config.at("resolver_mappings").is_array());
+
+    const std::set<std::string> compatibility_names{
+        "H2DAsyncNode",
+        "SarBackprojectionTransformNode",
+        "D2HAsyncNode",
+    };
+
+    for (const auto& mapping : config.at("resolver_mappings")) {
+        ASSERT_TRUE(mapping.is_object());
+        const auto intent = mapping.value("intent_type", "");
+        if (!compatibility_names.contains(intent)) {
+            continue;
+        }
+
+        ASSERT_TRUE(mapping.contains("variants"));
+        ASSERT_TRUE(mapping.at("variants").is_array());
+        for (const auto& variant : mapping.at("variants")) {
+            ASSERT_TRUE(variant.contains("concrete_type"));
+            EXPECT_EQ(variant.at("concrete_type").get<std::string>(), intent)
+                << intent << " must remain a compatibility alias to the canonical accel implementation";
+        }
+    }
+}
+
 const graph::NodeResolutionDiagnostic* FindResolverDiagnostic(
     const std::vector<graph::NodeResolutionDiagnostic>& diagnostics,
     const std::string& intent_type) {
@@ -240,6 +267,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetKeepsStrictResolverContractAndPortableI
 
     AssertPortableIntents(config);
     AssertDefinitiveSarAccelResolverMappings(config);
+    AssertCompatibilityNamesStaySinglePath(config);
 }
 
 TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {

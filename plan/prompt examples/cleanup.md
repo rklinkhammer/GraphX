@@ -298,6 +298,8 @@ Report requirements:
 
 Save the report as `plan/reviews/SAR_VERIFY_PR2_1.md`.
 
+=======
+
 Act as IMPLEMENTER using `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
 Implement only PR3 from `plan/reviews/SAR_PLANNER_REPORT.md`: **Add Sidecar Preservation Coverage For Resolver And Metal Paths**.
@@ -372,4 +374,92 @@ Report:
 - Tests added or updated.
 - Tests run and results.
 - Any skipped Metal/capability-gated tests and why.
+- Any risks or follow-up left for later PRs.
+
+Act as IMPLEMENTER using `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
+
+Implement only PR4 from `plan/reviews/SAR_PLANNER_REPORT.md`: **Put Compatibility Aliases On An Explicit Migration Path**.
+
+Use these reports as context:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/reviews/SAR_VERIFY_PR1_1.md`
+- `plan/reviews/SAR_VERIFY_PR2_1.md`
+- `plan/reviews/SAR_VERIFY_PR2_2.md`
+- `plan/reviews/SAR_IMPL_PR3_1.md`
+
+Scope:
+- Current repository only.
+- Implement PR4 only.
+- Do not implement PR5 or later.
+- Do not redesign the SAR graph architecture.
+- Preserve current runtime behavior.
+- Preserve compatibility aliases for:
+  - `H2DAsyncNode`
+  - `D2HAsyncNode`
+  - `SarBackprojectionTransformNode`
+- Do not remove compatibility aliases in this PR.
+- Do not add external SAR dependencies.
+- Do not change resolver contract vocabulary beyond what PR1 established.
+- Do not change opaque transport helper semantics beyond what PR2 centralized.
+- Do not expand resolver/Metal sidecar coverage beyond what PR3 requires unless directly needed for alias-boundary tests.
+
+PR4 goal:
+Put the existing SAR compatibility aliases on an explicit migration path without removing them, and prove they resolve to the canonical accel-token implementations rather than creating a second SAR GPU path.
+
+Required work:
+1. Inspect the current alias headers, SAR config, token contract tests, and JSON/runtime tests relevant to PR4.
+2. Add tests documenting that compatibility aliases are type aliases for the canonical accel-token implementations:
+   - `H2DAsyncNode` -> `H2DAsyncAccelNode`
+   - `D2HAsyncNode` -> `D2HAsyncAccelNode`
+   - `SarBackprojectionTransformNode` -> `SarBackprojectionTransformAccelNode`
+3. Add or strengthen tests proving alias input/output token types remain `SarAccelControlToken`.
+4. Add config/runtime coverage proving old config-facing names do not create a second SAR GPU path and still resolve/run through the canonical accel-token implementation.
+5. Add lightweight documentation or comments, only where consistent with repository style, marking these names as compatibility aliases and stating future removal criteria.
+6. Define a safe migration path for future alias removal, but do not remove aliases now.
+7. Preserve PR1 definitive config resolver labels using `SarAccelControlToken`.
+8. Preserve PR2 centralized helper usage.
+9. Preserve PR3 sidecar-preservation coverage.
+10. Do not implement PR5 main/benchmark validation work.
+
+Files likely affected:
+- Alias headers under `examples/SAR/include/sar`, likely:
+  - `examples/SAR/include/sar/H2DAsyncNode.hpp`
+  - `examples/SAR/include/sar/D2HAsyncNode.hpp`
+  - `examples/SAR/include/sar/SarBackprojectionTransformNode.hpp`
+- `examples/SAR/test/test_sar_token_contract.cpp`
+- SAR JSON/runtime tests under `examples/SAR/test`
+- Any local SAR docs that already list definitive node names, if present and appropriate
+- `examples/SAR/config/sar_stripmap_definitive.json` only if alias-boundary tests require explicit fixture updates
+
+Acceptance criteria:
+- Compatibility aliases remain present.
+- Alias behavior is explicitly covered by tests.
+- Alias token contracts are `SarAccelControlToken`.
+- Config-facing compatibility names resolve to the canonical accel-token implementations.
+- No second SAR GPU path exists through alias names.
+- Future alias removal criteria are documented or encoded in tests/docs.
+- Existing SAR runtime behavior is preserved.
+- PR1, PR2, and PR3 changes remain intact.
+- No external dependencies are added.
+- No PR5+ work is implemented.
+
+Focused verification to run:
+- Build affected targets if needed.
+- SAR token contract tests.
+- SAR JSON/runtime tests.
+- PR3 resolver/sidecar tests affected by alias behavior.
+- Full SAR unit test binary if available.
+- `examples/SAR/main.cpp` executable path if buildable.
+
+Stop after PR4 is implemented and verified.
+
+Save the implementation report as:
+- `plan/reviews/SAR_IMPL_PR4_1.md`
+
+Report:
+- Files changed.
+- Tests added or updated.
+- Tests run and results.
+- Any documentation/comments added for alias migration.
 - Any risks or follow-up left for later PRs.
