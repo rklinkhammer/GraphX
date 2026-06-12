@@ -978,3 +978,138 @@ Required output format from IMPLEMENTER:
 8. Test command run.
 9. Any missing fields, assumptions, or blockers.
 10. Explicit confirmation that RRP4+ work was not implemented.
+
+I’m pulling the inspect/planner reports and the existing RRP4-adjacent conventions so the prompt matches the repo’s actual boundaries instead of inventing new ones.
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_INSPECTOR_REPORT.md)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/roadmap/SAR_COMPARE_ROADMAP.md#1-1), lines 1 to 260
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/examples/SAR/tools/rrp4_image_comparator.py)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_PLANNER_REPORT.md#1-1), lines 1 to 260
+
+======
+
+Act as IMPLEMENTOR using plan/reviews/SAR_INSPECTOR_REPORT.md and plan/reviews/SAR_PLANNER_REPORT.md.
+
+Task:
+Implement RRP4 only.
+
+RRP4 title:
+Compare GraphX artifact output against the reference artifact and emit a normalized comparison report.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_PLANNER_REPORT.md
+- plan/roadmap/SAR_COMPARE_ROADMAP.md
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- RRP2 CPU reference outputs/code
+- RRP3 GraphX runner outputs/code
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP4 purpose:
+Add the comparison layer that reads the GraphX artifact contract and the reference artifact contract, compares them at the artifact boundary, and emits a deterministic comparison report suitable for CI and later review.
+
+Required flow for this PR:
+
+GraphX artifact contract
++ reference artifact contract
+-> normalized artifact loader
+-> pixel comparison
+-> comparison report JSON
+
+Important boundary:
+Do not modify GraphX core runtime architecture.
+Do not implement RRP5+ orchestration, replay expansion, or broader baseline policy work.
+Do not add new reference-generation logic.
+Do not replace artifact comparison with direct node/runtime introspection.
+Do not introduce external package execution or downloads.
+Do not require CUDA.
+
+Scope:
+Implement comparison logic, report emission, and tests only.
+
+Preferred implementation locations:
+- examples/SAR/tools
+- examples/SAR/test
+- examples/SAR/include/sar only if a small reusable helper is needed
+
+Do not promote logic into:
+- libgraph
+- libgpu
+- libdsp
+
+Required implementation:
+1. Load the GraphX contract and reference contract from normalized JSON.
+2. Resolve each contract’s raw artifact path.
+3. Read float32 row-major raster bytes from both artifacts.
+4. Validate required metadata alignment before computing metrics.
+5. Compute deterministic comparison metrics at minimum:
+   - pixel count match
+   - dimensions match
+   - byte count match
+   - l_inf
+   - rms
+   - relative_l2
+6. Emit a normalized comparison report JSON with:
+   - schema version
+   - scenario_id
+   - comparator name/version
+   - pass/fail verdict
+   - checks array with per-check pass/fail detail
+   - metrics object
+   - reasons for failure
+7. Keep the report format stable and explicit so later CI and review tooling can consume it.
+8. Ensure the comparator returns nonzero on failure and zero on pass.
+
+Contract compatibility requirement:
+Reuse the artifact contract conventions established in RRP2 and RRP3. Do not invent a new artifact schema if the existing comparator/report format can be extended cleanly.
+
+Required tests:
+Add or update tests to validate:
+1. GraphX and reference contracts are both loaded successfully.
+2. Artifact paths are resolved correctly.
+3. Float32 raster decoding works.
+4. Dimensions, byte count, and pixel counts are verified.
+5. Comparison metrics are emitted deterministically.
+6. The report is pass when identical or expected-equal artifacts are compared.
+7. The report fails with clear reasons when artifacts differ.
+8. Missing or malformed contract fields fail with explicit field-level errors.
+9. No external data/network/CUDA/gotcha-back execution is introduced.
+
+Preferred test file:
+- examples/SAR/test/test_rrp4_image_comparator.cpp
+
+If a similar test already exists:
+extend it minimally instead of duplicating behavior.
+
+Acceptance criteria:
+1. RRP4 comparator can compare GraphX artifact output against the reference artifact output.
+2. Comparison report JSON is emitted in a normalized, stable format.
+3. Deterministic metrics and pass/fail checks are validated by tests.
+4. Full relevant SAR test lane remains green.
+5. No GraphX core, accel-token, GPU, Metal, or resolver architecture changes are introduced unless clearly unavoidable and documented.
+6. RRP5+ is not implemented.
+
+Failure handling requirements:
+- If required contract fields are missing, fail with explicit field-level errors.
+- Do not silently invent defaults for required comparison fields.
+- Do not compare raw runtime nodes directly; compare emitted artifacts and contracts only.
+
+Required output format from IMPLEMENTOR:
+1. Files added.
+2. Files changed.
+3. Comparator summary.
+4. Report schema summary.
+5. Determinism method/checksum approach.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fields, assumptions, or blockers.
+10. Explicit confirmation that RRP5+ work was not implemented.
+```
+

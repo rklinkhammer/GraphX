@@ -16,6 +16,26 @@ from rrp1_scenario_to_run import load_json, write_json
 SCHEMA_VERSION = "graphx.sar.image_comparison_report.v1"
 
 
+def require_field(contract: dict[str, Any], field: str, contract_name: str) -> Any:
+    if field not in contract:
+        raise KeyError(f"{contract_name}.{field} is required")
+    return contract[field]
+
+
+def require_string(contract: dict[str, Any], field: str, contract_name: str) -> str:
+    value = require_field(contract, field, contract_name)
+    if not isinstance(value, str):
+        raise TypeError(f"{contract_name}.{field} must be a string")
+    return value
+
+
+def require_int(contract: dict[str, Any], field: str, contract_name: str) -> int:
+    value = require_field(contract, field, contract_name)
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"{contract_name}.{field} must be an integer")
+    return value
+
+
 def resolve_artifact_path(contract_path: Path, raw_path_text: str) -> Path:
     raw_path = Path(raw_path_text)
     if raw_path.is_absolute():
@@ -61,21 +81,33 @@ def compare_pixels(graphx_pixels: list[float], reference_pixels: list[float]) ->
     }
 
 
-def build_artifact_contract(contract_path: Path, contract: dict[str, Any]) -> dict[str, Any]:
-    raw_path = resolve_artifact_path(contract_path, contract["raw_path"])
+def build_artifact_contract(contract_path: Path, contract: dict[str, Any], contract_name: str) -> dict[str, Any]:
+    source_tool = require_string(contract, "source_tool", contract_name)
+    provenance_class = require_string(contract, "provenance_class", contract_name)
+    scenario_id = require_string(contract, "scenario_id", contract_name)
+    artifact_format = require_string(contract, "format", contract_name)
+    layout = require_string(contract, "layout", contract_name)
+    artifact_kind = require_string(contract, "artifact_kind", contract_name)
+    dtype = require_string(contract, "dtype", contract_name)
+    width = require_int(contract, "width", contract_name)
+    height = require_int(contract, "height", contract_name)
+    byte_count = require_int(contract, "byte_count", contract_name)
+    raw_path_text = require_string(contract, "raw_path", contract_name)
+
+    raw_path = resolve_artifact_path(contract_path, raw_path_text)
     pixels = read_float32_raster(raw_path)
     image_hash = hash_raw_bytes(raw_path)
     return {
-        "source_tool": contract.get("source_tool", "unknown"),
-        "provenance_class": contract["provenance_class"],
-        "scenario_id": contract["scenario_id"],
-        "format": contract["format"],
-        "layout": contract["layout"],
-        "artifact_kind": contract["artifact_kind"],
-        "dtype": contract["dtype"],
-        "width": contract["width"],
-        "height": contract["height"],
-        "byte_count": contract["byte_count"],
+        "source_tool": source_tool,
+        "provenance_class": provenance_class,
+        "scenario_id": scenario_id,
+        "format": artifact_format,
+        "layout": layout,
+        "artifact_kind": artifact_kind,
+        "dtype": dtype,
+        "width": width,
+        "height": height,
+        "byte_count": byte_count,
         "raw_path": str(raw_path),
         "image_hash": image_hash,
         "pixel_count": len(pixels),
@@ -87,8 +119,34 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
     graphx_contract = load_json(graphx_contract_path)
     reference_contract = load_json(reference_contract_path)
 
-    graphx = build_artifact_contract(graphx_contract_path, graphx_contract)
-    reference = build_artifact_contract(reference_contract_path, reference_contract)
+    graphx = build_artifact_contract(graphx_contract_path, graphx_contract, "graphx_contract")
+    reference = build_artifact_contract(reference_contract_path, reference_contract, "reference_contract")
+
+    if graphx["source_tool"] != "graphx":
+        raise ValueError(f"graphx_contract.source_tool must be graphx, found {graphx['source_tool']}")
+    if graphx["provenance_class"] != "graphx_runtime":
+        raise ValueError(
+            f"graphx_contract.provenance_class must be graphx_runtime, found {graphx['provenance_class']}"
+        )
+    if reference["scenario_id"] != graphx["scenario_id"]:
+        raise ValueError(
+            f"scenario_id mismatch: graphx={graphx['scenario_id']} reference={reference['scenario_id']}"
+        )
+    if reference["provenance_class"] not in {"deterministic_internal_reference", "external_baseline"}:
+        raise ValueError(
+            "reference_contract.provenance_class must be deterministic_internal_reference or external_baseline, "
+            f"found {reference['provenance_class']}"
+        )
+    if reference["source_tool"] not in {
+        "cpu-reference-backprojection",
+        "deterministic-reference",
+        "graphx-deterministic-reference",
+        "gotcha-back",
+    }:
+        raise ValueError(
+            "reference_contract.source_tool must identify a valid reference artifact tool, "
+            f"found {reference['source_tool']}"
+        )
 
     checks: list[dict[str, Any]] = []
     reasons: list[str] = []
@@ -98,11 +156,7 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
         if not passed:
             reasons.append(f"{name}: {detail}")
 
-    add_check(
-        "graphx_source_tool",
-        graphx["source_tool"] == "graphx",
-        f"graphx={graphx['source_tool']}",
-    )
+    add_check("graphx_source_tool", graphx["source_tool"] == "graphx", f"graphx={graphx['source_tool']}")
     add_check(
         "graphx_provenance_class",
         graphx["provenance_class"] == "graphx_runtime",
@@ -119,7 +173,8 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
             (reference["provenance_class"] == "external_baseline" and reference["source_tool"] != "graphx")
             or (
                 reference["provenance_class"] == "deterministic_internal_reference"
-                and reference["source_tool"] in {"deterministic-reference", "graphx-deterministic-reference"}
+                and reference["source_tool"]
+                in {"cpu-reference-backprojection", "deterministic-reference", "graphx-deterministic-reference"}
             )
         ),
         f"graphx={graphx['source_tool']}, reference={reference['source_tool']}",
@@ -167,6 +222,11 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
 
     metrics: dict[str, Any]
     if graphx["pixel_count"] == reference["pixel_count"] and graphx["pixel_count"] > 0:
+        if graphx["width"] != reference["width"] or graphx["height"] != reference["height"]:
+            raise ValueError(
+                "artifact dimensions must match before metric computation: "
+                f"graphx={graphx['width']}x{graphx['height']} reference={reference['width']}x{reference['height']}"
+            )
         metrics = compare_pixels(graphx["pixels"], reference["pixels"])
         add_check("pixel_metrics_zero", metrics["l_inf"] == 0.0 and metrics["rms"] == 0.0 and metrics["relative_l2"] == 0.0,
                   f"l_inf={metrics['l_inf']}, rms={metrics['rms']}, relative_l2={metrics['relative_l2']}")
