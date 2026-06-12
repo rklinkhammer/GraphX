@@ -1263,4 +1263,146 @@ Required output format from IMPLEMENTOR:
 10. Explicit confirmation that RRP6+ work was not implemented.
 ```
 
-If you want, I can also produce a shorter “paste-ready” version that is optimized for your prompt file and removes some of the repetition.
+======
+
+I’m pulling the RRP6 roadmap slice and the current RRP6/RRP7 test surfaces so the implementor prompt reflects the repo’s actual CI-lane boundary rather than a generic next-step description.
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/roadmap/SAR_COMPARE_ROADMAP.md#300-300), lines 300 to 430
+
+Searched for files matching `**/examples/SAR/test/*rrp6*`, 1 match
+
+Searched for files matching `**/examples/SAR/test/*rrp7*`, 1 match
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_INSPECTOR_REPORT.md)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_PLANNER_REPORT.md#1-1), lines 1 to 180
+
+Use this as the IMPLEMENTOR prompt for RRP6:
+
+```text
+Act as IMPLEMENTOR using plan/reviews/SAR_INSPECTOR_REPORT.md and plan/reviews/SAR_PLANNER_REPORT.md.
+
+Task:
+Implement RRP6 only.
+
+RRP6 title:
+CI-Safe GraphX SAR Correctness Lane.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_PLANNER_REPORT.md
+- plan/roadmap/SAR_COMPARE_ROADMAP.md
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- RRP2 CPU reference outputs/code
+- RRP3 GraphX runner outputs/code
+- RRP4 comparator outputs/code
+- RRP5 metric outputs/code
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP6 purpose:
+Create the CI-safe end-to-end Scenario 001 correctness lane that runs the frozen fixture through CPU reference image generation, GraphX image generation, comparator reporting, and CTest pass/fail without external downloads, CUDA, or local-only dependencies.
+
+Required flow for this PR:
+
+Scenario 001 fixture
+-> CPU reference image
+-> GraphX image
+-> comparator report
+-> CTest pass/fail
+
+Important boundary:
+Do not implement RRP7+ product-metadata or external package harness work.
+Do not add SarPy, ISCE3, gotcha-back, or any external package execution.
+Do not modify GraphX core runtime architecture.
+Do not add new reference-generation math beyond wiring the existing CPU reference path.
+Do not widen the comparison boundary beyond emitted artifacts and contracts.
+Do not require CUDA.
+Do not require network access.
+Do not make CI depend on manually downloaded datasets.
+
+Scope:
+Implement the CI-safe orchestration lane, artifact/report persistence, and tests only.
+
+Preferred implementation locations:
+- examples/SAR/test
+- examples/SAR/tools
+- examples/SAR/include/sar only if a small reusable helper is needed
+
+Do not promote logic into:
+- libgraph
+- libgpu
+- libdsp
+
+Required implementation:
+1. Use the existing Scenario 001 deterministic fixture or existing CI-safe tiny fixture strategy already present in the repo.
+2. Run the CPU reference path to materialize a normalized reference artifact and contract.
+3. Run the GraphX path to materialize a normalized GraphX artifact and contract.
+4. Run the comparator against those artifacts using the existing RRP4/RRP5 report format.
+5. Persist the comparator report to a stable test-output or artifact location.
+6. Ensure the lane is deterministic and bounded in runtime.
+7. Ensure the lane returns pass/fail through CTest or the SAR unit test binary.
+8. Reuse existing local-runner or replay scaffolding only if it stays CI-safe and does not introduce external binary assumptions.
+9. Make the report path and artifact layout explicit in the test or helper code.
+
+CI-safe lane requirements:
+- No network access
+- No external package install
+- No CUDA
+- No manual data path
+- No heavyweight external fixtures
+- Deterministic output
+- Bounded runtime suitable for CI
+
+Contract compatibility requirement:
+Reuse the artifact contract and report conventions already established in RRP2, RRP3, RRP4, and RRP5. Do not invent a parallel schema.
+
+Required tests:
+Add or update tests to validate:
+1. The full CI-safe Scenario 001 lane runs end-to-end without external dependencies.
+2. CPU reference artifact and contract are emitted or persisted for the lane.
+3. GraphX artifact and contract are emitted or persisted for the lane.
+4. Comparator report is emitted and contains structured pass/fail output.
+5. The lane produces deterministic results across repeated runs when practical.
+6. The lane fails clearly if artifacts or contracts are missing or malformed.
+7. The lane does not require network access, CUDA, or external package execution.
+8. The report path is stable and inspectable from CI/test output.
+
+Preferred test files:
+- extend existing CI-lane or replay tests if they already match the scope
+- otherwise add:
+  - examples/SAR/test/test_rrp6_ci_correctness_lane.cpp
+
+If similar tests already exist:
+extend them minimally instead of duplicating the orchestration logic.
+
+Acceptance criteria:
+1. Scenario 001 end-to-end correctness lane exists and is CI-safe.
+2. CPU reference, GraphX, and comparator are wired into one deterministic pass/fail lane.
+3. Comparator report is saved as test output or artifact.
+4. Runtime stays bounded and deterministic.
+5. Full relevant SAR test lane remains green.
+6. No external package, dataset download, network dependency, or CUDA requirement is introduced.
+7. No GraphX core, accel-token, GPU, Metal, or resolver architecture changes are introduced unless clearly unavoidable and documented.
+8. RRP7+ is not implemented.
+
+Failure handling requirements:
+- If required artifact fields are missing, fail with explicit field-level errors.
+- If the lane cannot produce comparable artifacts, fail with a structured comparator report when possible.
+- Do not silently skip the comparator or downgrade failing metrics.
+
+Required output format from IMPLEMENTOR:
+1. Files added.
+2. Files changed.
+3. CI-lane summary.
+4. Artifact/report output path summary.
+5. Determinism and runtime-bound summary.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fields, assumptions, or blockers.
+10. Explicit confirmation that RRP7+ work was not implemented.
+```
+

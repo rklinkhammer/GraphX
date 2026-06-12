@@ -53,6 +53,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp4_image_comparator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_comparator_metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_frozen_scenario_replay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_ci_correctness_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_tiny_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_ci_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
