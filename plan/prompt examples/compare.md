@@ -814,3 +814,167 @@ Required output:
 8. Test command run.
 9. Any missing fixture fields or assumptions.
 10. Explicit confirmation that RRP3+ work was not implemented.
+
+====
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Verify RRP2 only.
+
+Inputs:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- current RRP2 diff
+- current test output
+
+Required checks:
+1. CPU reference backprojection exists.
+2. It consumes Scenario 001 fixture data.
+3. It emits or validates a normalized reference image artifact.
+4. Output image dimensions match the scenario or declared fixture profile.
+5. Output values are finite.
+6. Output is not all zeros.
+7. Output is deterministic across repeated runs.
+8. Tests exist and pass.
+9. No external data, network download, CUDA, SarPy, ISCE3, or gotcha-back dependency was introduced.
+10. No GraphX core, accel-token, GPU, Metal, resolver, or SAR runtime architecture changes were introduced.
+11. RRP3+ was not implemented.
+
+Fail if:
+- the implementation uses placeholder math without documenting it,
+- the implementation invents missing fixture fields silently,
+- the reference depends on GraphX runtime output,
+- or the PR starts GraphX-vs-reference comparison work.
+
+=====
+
+Act as IMPLEMENTER using GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Implement RRP3 only.
+
+RRP3 title:
+Run GraphX on Scenario 001 and Emit Normalized GraphX Artifact.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_PLANNER_REPORT.md
+- SAR_COMPARE_ROADMAP.md
+- scenario_001.json
+- scenario_001.md
+- fixture_manifest.json
+- deterministic_iq_phase_history_fixture_v1.json
+- RRP0 and RRP1 verifier results if present
+- RRP2 outputs/code if present
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP3 purpose:
+Create the GraphX image side of the Scenario 001 flow and emit a normalized GraphX artifact contract that can be compared later.
+
+Required flow for this PR:
+
+Scenario 001 deterministic fixture
+-> GraphX SAR pipeline
+-> GraphX image artifact and GraphX artifact contract
+
+Important boundary:
+Do not implement comparator metrics or pass/fail comparison logic here. That belongs to later PRs.
+
+Scope:
+Implement GraphX execution for Scenario 001 fixture plus GraphX artifact emission and tests only.
+
+Do not implement RRP4+.
+Do not implement comparison metrics.
+Do not add SarPy, ISCE3, or gotcha-back integration.
+Do not download external data.
+Do not require CUDA.
+Do not modify GraphX core architecture unless absolutely necessary and clearly justified.
+Do not modify accel-token contracts.
+Do not modify Metal or GPU node architecture.
+Do not alter SAR math kernels for optimization.
+
+Preferred implementation locations:
+- tools
+- test
+- sar only for small reusable example-level helpers
+- src only if the existing repository patterns require it
+
+Do not promote logic into:
+- libgraph
+- libgpu
+- libdsp
+
+Required implementation:
+1. Load Scenario 001 and fixture data.
+2. Execute GraphX SAR path for the scenario using the existing example/runtime path.
+3. Materialize GraphX output raster artifact in float32 row-major format.
+4. Emit GraphX contract JSON with at least:
+   - source_tool = graphx
+   - provenance_class = graphx_runtime
+   - scenario_id
+   - fixture_id when available
+   - algorithm or pipeline label for GraphX path
+   - width
+   - height
+   - dtype
+   - layout
+   - format
+   - artifact_kind
+   - byte_count
+   - raw_path
+   - deterministic hash/checksum if supported
+5. Ensure deterministic output for repeated runs on the same fixture/config.
+6. Keep artifact small enough for CI lane usage.
+
+Contract compatibility requirement:
+Align GraphX artifact fields with existing artifact consumers so later comparator wiring is straightforward. Reuse existing contract conventions in the repo where available.
+
+Required tests:
+Add or update tests to validate:
+1. GraphX Scenario 001 runner executes with local fixture and no external dependencies.
+2. GraphX artifact file is emitted.
+3. GraphX contract file is emitted and contains required fields.
+4. Contract scenario_id matches Scenario 001.
+5. Dimensions are valid and match expected run output.
+6. Raster contains finite values.
+7. Raster is not all zeros.
+8. Output is deterministic across repeated runs.
+9. No external data/network/CUDA/external package requirement.
+
+Preferred test name:
+test_rrp3_graphx_scenario_runner.cpp
+
+If a similar test already exists:
+extend it minimally instead of duplicating behavior.
+
+Acceptance criteria:
+1. GraphX Scenario 001 run path exists and is documented.
+2. GraphX artifact and contract are emitted in normalized format.
+3. Tests verify deterministic, finite, nonzero output and metadata correctness.
+4. Full relevant CTest lane remains green.
+5. No external package, dataset download, CUDA, SarPy, ISCE3, or gotcha-back dependency is introduced.
+6. No GraphX core, accel-token, GPU, Metal, resolver, or SAR runtime architecture changes are introduced unless explicitly unavoidable and documented.
+7. RRP4+ is not implemented.
+
+Failure handling requirements:
+- If required scenario or fixture fields are missing, fail with explicit field-level error messages.
+- Do not invent missing fields silently.
+- Do not substitute GraphX runtime output with synthetic placeholders.
+
+Required output format from IMPLEMENTER:
+1. Files added.
+2. Files changed.
+3. GraphX runner summary.
+4. Artifact format and contract schema summary.
+5. Determinism method/checksum approach.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fields, assumptions, or blockers.
+10. Explicit confirmation that RRP4+ work was not implemented.

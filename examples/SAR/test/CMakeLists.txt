@@ -28,6 +28,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SarBackprojectionTransformAccelNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_nodes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_cpu_reference.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_cpu_reference_backprojection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/GotchaReplaySourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
@@ -47,6 +48,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp1_local_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp2_scenario_image_path.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_graphx_scenario_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_gotcha_back_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp4_image_comparator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_frozen_scenario_replay.cpp
