@@ -284,4 +284,107 @@ TEST(ImageTileMergeNodeTest, MergeIdentityIsSidecarOnlyWhenTransportFieldsDiffer
     EXPECT_EQ(status_a->sidecar.marker, status_b->sidecar.marker);
 }
 
+TEST(ImageTileMergeNodeTest, FinalizesSidecarIdentityFieldsIndependentlyOfTicketSynthesis) {
+    sar::ImageTileMergeConfig cfg{};
+    cfg.expected_tiles = 4;
+    cfg.backend_id = 12;
+    cfg.backend = sar::SarBackendKind::NativeDevice;
+
+    sar::ImageTileMergeNode node(cfg);
+
+    auto sparse_identity = MakeImageTile(90, 2, sar::SarFrameMarker::Data, 32u, 0u);
+    sparse_identity.sidecar.sequence_id = 90u;
+    sparse_identity.sidecar.aperture_id = 0u;
+    sparse_identity.sidecar.pulse_range_start = 0u;
+    sparse_identity.sidecar.pulse_range_count = 0u;
+    sparse_identity.sidecar.stream_id = 0u;
+    sparse_identity.sidecar.tile_count = 0u;
+    sparse_identity.sidecar.backend_id = 6u;
+    sparse_identity.sidecar.backend = sar::SarBackendKind::NativeDevice;
+    sparse_identity.sidecar.kernel_queue_id = 41u;
+    sparse_identity.sidecar.d2h_queue_id = 31u;
+    sparse_identity.sidecar.h2d_queue_id = 21u;
+
+    auto status = node.Transfer(
+        sparse_identity,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(status.has_value());
+
+    EXPECT_EQ(status->sidecar.sequence_id, 90u);
+    EXPECT_EQ(status->sidecar.aperture_id, 90u);
+    EXPECT_EQ(status->sidecar.pulse_range_start, 90u);
+    EXPECT_EQ(status->sidecar.pulse_range_count, 1u);
+    EXPECT_EQ(status->sidecar.stream_id, 0u);
+    EXPECT_EQ(status->sidecar.tile_id, 2u);
+    EXPECT_EQ(status->sidecar.tile_count, 4u);
+    EXPECT_EQ(status->sidecar.backend_id, 6u);
+    EXPECT_EQ(status->sidecar.backend, sar::SarBackendKind::NativeDevice);
+    EXPECT_EQ(status->sidecar.marker, sar::SarFrameMarker::Data);
+    EXPECT_EQ(status->sidecar.payload_byte_count, 32u);
+
+    EXPECT_TRUE(status->has_transfer_ticket);
+    EXPECT_TRUE(status->has_kernel_ticket);
+    EXPECT_EQ(status->transfer_ticket.execution_queue_id, 31u);
+    EXPECT_EQ(status->kernel_ticket.execution_queue_id, 41u);
+}
+
+TEST(ImageTileMergeNodeTest, PreservesMergeDiagnosticsAndTicketFieldsAcrossCompletionBoundary) {
+    sar::ImageTileMergeConfig cfg{};
+    cfg.expected_tiles = 2;
+    cfg.backend_id = 9;
+    cfg.backend = sar::SarBackendKind::SimulatedDevice;
+
+    sar::ImageTileMergeNode node(cfg);
+
+    auto first = MakeImageTile(100, 0, sar::SarFrameMarker::Data, 16u, 5u);
+    first.sidecar.d2h_queue_id = 77u;
+    first.sidecar.kernel_queue_id = 88u;
+    ASSERT_TRUE(node.Transfer(
+        first,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{}));
+
+    auto second = MakeImageTile(101, 1, sar::SarFrameMarker::Data, 24u, 5u);
+    second.sidecar.d2h_queue_id = 77u;
+    second.sidecar.kernel_queue_id = 88u;
+    ASSERT_TRUE(node.Transfer(
+        second,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{}));
+
+    auto eos = MakeImageTile(102, 0, sar::SarFrameMarker::EndOfStream, 16u, 5u);
+    eos.sidecar.d2h_queue_id = 77u;
+    eos.sidecar.kernel_queue_id = 88u;
+    auto completion = node.Transfer(
+        eos,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(completion->sidecar.expected_tiles, 2u);
+    EXPECT_EQ(completion->sidecar.received_tiles, 2u);
+    EXPECT_EQ(completion->sidecar.duplicate_tiles, 0u);
+    EXPECT_EQ(completion->sidecar.missing_tiles, 0u);
+    EXPECT_EQ(completion->sidecar.bytes_h2d, 40u);
+    EXPECT_EQ(completion->sidecar.bytes_d2h, 40u);
+    EXPECT_EQ(completion->sidecar.kernel_dispatches, 2u);
+    EXPECT_TRUE(completion->sidecar.merge_complete);
+
+    EXPECT_TRUE(completion->has_transfer_ticket);
+    EXPECT_EQ(completion->transfer_ticket.transfer_id, completion->sidecar.sequence_id);
+    EXPECT_EQ(completion->transfer_ticket.execution_queue_id, 77u);
+    EXPECT_EQ(completion->transfer_ticket.dst_host.bytes, eos.host_view.bytes);
+    EXPECT_NE(completion->transfer_ticket.completion_event, 0u);
+
+    EXPECT_TRUE(completion->has_kernel_ticket);
+    EXPECT_EQ(completion->kernel_ticket.execution_queue_id, 88u);
+    EXPECT_EQ(completion->kernel_ticket.kernel_id,
+              static_cast<std::uint64_t>(completion->sidecar.backend_id) + 3301u);
+    EXPECT_EQ(completion->kernel_ticket.arg_count, 1u);
+    EXPECT_NE(completion->kernel_ticket.completion_event, 0u);
+}
+
 } // namespace

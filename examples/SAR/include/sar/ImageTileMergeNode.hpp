@@ -107,6 +107,19 @@ public:
     const ImageTileMergeConfig& GetConfig() const noexcept;
 
 private:
+    void FinalizeOutputSidecar(
+        SarAccelControlToken& out,
+        const SarAccelControlToken& input,
+        std::uint64_t sequence_id,
+        std::uint32_t stream_id,
+        std::size_t byte_count,
+        SarFrameMarker marker,
+        bool complete) const;
+
+    void FinalizeOutputTickets(
+        SarAccelControlToken& out,
+        const SarAccelControlToken& input) const;
+
     SarAccelControlToken BuildOutputToken(
         const SarAccelControlToken& input,
         std::uint64_t sequence_id,
