@@ -1,0 +1,125 @@
+{
+  "schema": "graphx.sar.phase_history_fixture.v1",
+  "fixture_id": "deterministic_iq_phase_history_fixture_v1",
+  "scenario_id": "scenario_001",
+  "synthetic": true,
+  "deterministic": true,
+  "ci_safe": true,
+  "description": "Synthetic deterministic IQ phase-history fixture for Scenario 001 CI validation; not GOTCHA or Sentinel source data.",
+  "sample_layout": "interleaved_complex_f32",
+  "complex_encoding": "cartesian_real_imag",
+  "endianness": "native",
+  "units": {
+    "position": "m",
+    "velocity": "m/s",
+    "carrier_frequency": "Hz",
+    "bandwidth": "Hz",
+    "sample_rate": "Hz",
+    "phase": "rad"
+  },
+  "geometry": {
+    "coordinate_frame": "ecef",
+    "scene_center_m": [0.0, 0.0, 0.0],
+    "carrier_hz": 9600000000.0,
+    "bandwidth_hz": 20000000.0,
+    "sample_rate_hz": 48000.0
+  },
+  "profiles": {
+    "scenario_profile": {
+      "pulse_range": { "start": 0, "count": 4 },
+      "range_bins": { "start": 0, "count": 32 }
+    },
+    "ci_reduced_profile": {
+      "name": "scenario_001_ci_reduced_v1",
+      "reason": "Tiny committed fixture for bounded CI runtime and artifact size.",
+      "pulse_range": { "start": 0, "count": 4 },
+      "range_bins": { "start": 0, "count": 8 },
+      "derived_from_scenario": "scenario_001"
+    }
+  },
+  "generation": {
+    "method": "closed_form_formula",
+    "seed": 17,
+    "real_formula": "real = 1.0 + 0.1*pulse_index - 0.05*range_bin_index",
+    "imag_formula": "imag = -0.25*pulse_index - 0.125*range_bin_index"
+  },
+  "records": [
+    {
+      "pulse_index": 0,
+      "timestamp_us": 1000,
+      "platform_position_m": [0.0, 0.0, 1000.0],
+      "platform_velocity_mps": [0.0, 50.0, 0.0],
+      "range_bin_start": 0,
+      "range_bin_count": 8,
+      "iq_samples": [
+        {"real": 1.0, "imag": 0.0},
+        {"real": 0.95, "imag": -0.125},
+        {"real": 0.9, "imag": -0.25},
+        {"real": 0.85, "imag": -0.375},
+        {"real": 0.8, "imag": -0.5},
+        {"real": 0.75, "imag": -0.625},
+        {"real": 0.7, "imag": -0.75},
+        {"real": 0.65, "imag": -0.875}
+      ]
+    },
+    {
+      "pulse_index": 1,
+      "timestamp_us": 2000,
+      "platform_position_m": [5.0, 0.0, 1000.0],
+      "platform_velocity_mps": [0.0, 50.0, 0.0],
+      "range_bin_start": 0,
+      "range_bin_count": 8,
+      "iq_samples": [
+        {"real": 1.1, "imag": -0.25},
+        {"real": 1.05, "imag": -0.375},
+        {"real": 1.0, "imag": -0.5},
+        {"real": 0.95, "imag": -0.625},
+        {"real": 0.9, "imag": -0.75},
+        {"real": 0.85, "imag": -0.875},
+        {"real": 0.8, "imag": -1.0},
+        {"real": 0.75, "imag": -1.125}
+      ]
+    },
+    {
+      "pulse_index": 2,
+      "timestamp_us": 3000,
+      "platform_position_m": [10.0, 0.0, 1000.0],
+      "platform_velocity_mps": [0.0, 50.0, 0.0],
+      "range_bin_start": 0,
+      "range_bin_count": 8,
+      "iq_samples": [
+        {"real": 1.2, "imag": -0.5},
+        {"real": 1.15, "imag": -0.625},
+        {"real": 1.1, "imag": -0.75},
+        {"real": 1.05, "imag": -0.875},
+        {"real": 1.0, "imag": -1.0},
+        {"real": 0.95, "imag": -1.125},
+        {"real": 0.9, "imag": -1.25},
+        {"real": 0.85, "imag": -1.375}
+      ]
+    },
+    {
+      "pulse_index": 3,
+      "timestamp_us": 4000,
+      "platform_position_m": [15.0, 0.0, 1000.0],
+      "platform_velocity_mps": [0.0, 50.0, 0.0],
+      "range_bin_start": 0,
+      "range_bin_count": 8,
+      "iq_samples": [
+        {"real": 1.3, "imag": -0.75},
+        {"real": 1.25, "imag": -0.875},
+        {"real": 1.2, "imag": -1.0},
+        {"real": 1.15, "imag": -1.125},
+        {"real": 1.1, "imag": -1.25},
+        {"real": 1.05, "imag": -1.375},
+        {"real": 1.0, "imag": -1.5},
+        {"real": 0.95, "imag": -1.625}
+      ]
+    }
+  ],
+  "expected_dimensions": {
+    "pulse_count": 4,
+    "range_bin_count": 8,
+    "complex_sample_count": 32
+  }
+}

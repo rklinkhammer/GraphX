@@ -44,6 +44,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp1_local_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp2_scenario_image_path.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_gotcha_back_adapter.cpp
@@ -78,6 +79,10 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_BASELINE_PACKAGE_REGISTRY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
     SAR_SCENARIO_001_JSON_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.json"
     SAR_SCENARIO_001_MD_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.md"
+    SAR_SCENARIO_001_FIXTURE_MANIFEST_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/fixture_manifest.json"
+    SAR_SCENARIO_001_FIXTURE_PROVENANCE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/provenance.md"
+    SAR_SCENARIO_001_FIXTURE_CHECKSUMS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/checksums.txt"
+    SAR_SCENARIO_001_FIXTURE_DATA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/deterministic_iq_phase_history_fixture_v1.json"
     SAR_RRP1_LOCAL_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp1_local_runner.py"
     SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp3_gotcha_back_adapter.py"
     SAR_RRP4_IMAGE_COMPARATOR_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparator.py"

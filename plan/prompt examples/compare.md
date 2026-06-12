@@ -485,3 +485,332 @@ Required checks:
 9. Tests compile and pass.
 
 Fail if the implementation starts RRP1, adds external dependencies, or leaves Scenario 001 underspecified.
+
+=====
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Implement RRP1 only.
+
+RRP1 title:
+Add Deterministic IQ / Phase-History Fixture.
+
+Inputs:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/scenarios/scenario_001.md
+- current repository state
+- current RRP0 verifier report, if available
+
+Repository inspection overrides assumptions.
+
+RRP1 purpose:
+Provide a tiny deterministic IQ / phase-history fixture suitable for image-formation validation of Scenario 001.
+
+This fixture will later feed:
+
+Known deterministic IQ/phase-history fixture
+    ↓
+CPU reference backprojection
+    ↓
+Reference image artifact
+
+Known deterministic IQ/phase-history fixture
+    ↓
+GraphX SAR pipeline
+    ↓
+GraphX image artifact
+
+Reference image + GraphX image
+    ↓
+Comparator
+    ↓
+Metric report
+
+Scope:
+Create the deterministic fixture and its metadata/provenance only.
+
+Do not implement RRP2.
+Do not implement CPU reference backprojection.
+Do not implement GraphX runner changes.
+Do not implement comparator metrics.
+Do not add external packages.
+Do not download external data.
+Do not modify accel-token architecture.
+Do not modify Metal/GPU nodes.
+Do not modify SAR math beyond fixture-generation utilities if needed.
+
+Required fixture location:
+- examples/SAR/fixtures/scenario_001/
+
+Required files:
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- examples/SAR/fixtures/scenario_001/provenance.md
+- examples/SAR/fixtures/scenario_001/checksums.txt
+
+Also add one deterministic fixture data artifact, using the repository’s preferred small-data convention.
+
+Preferred fixture data options, in order:
+1. If the repo already has a small fixture format for SAR replay data, use that format.
+2. If the repo already uses JSON fixtures, use a compact JSON fixture.
+3. Otherwise use a simple portable text or binary format with a JSON sidecar.
+
+Fixture requirements:
+- deterministic
+- small enough for CI
+- generated without external packages
+- generated without network access
+- generated without CUDA
+- suitable for Scenario 001
+- includes enough IQ / phase-history-like data to support a future CPU reference backprojection test
+- documented as synthetic/deterministic, not real GOTCHA or Sentinel data
+
+Fixture content should include or describe:
+- scenario_id
+- fixture_id
+- pulse count or pulse range matching Scenario 001, unless Scenario 001 explicitly allows a reduced fixture profile
+- range bin count or range bin range matching Scenario 001, unless Scenario 001 explicitly allows a reduced fixture profile
+- sample layout
+- complex sample encoding
+- coordinate or platform geometry fields needed by a future CPU reference
+- units
+- generation seed or deterministic formula
+- expected dimensions
+- checksum
+
+If Scenario 001 requests dimensions too large for a committed tiny fixture:
+- do not silently change Scenario 001
+- add a clearly named reduced fixture profile inside the fixture manifest
+- document that this is the CI fixture profile for Scenario 001
+- ensure the manifest links back to Scenario 001
+
+Required test behavior:
+Add or update tests so they validate:
+- fixture manifest exists
+- provenance exists
+- checksum file exists
+- fixture data exists
+- fixture scenario_id matches Scenario 001
+- fixture dimensions are positive and bounded
+- fixture format/schema version exists
+- fixture checksum is stable
+- fixture is explicitly synthetic/deterministic
+- fixture does not require external packages or external data
+
+Use existing repository JSON parsing or fixture loading utilities if available.
+Do not introduce a new third-party dependency for fixture validation.
+
+Preferred test name:
+- test_scenario_fixture.cpp
+
+Acceptance criteria:
+1. The Scenario 001 fixture directory exists.
+2. Fixture manifest, provenance, checksums, and data artifact exist.
+3. Fixture is deterministic and small enough for CI.
+4. Fixture manifest ties the fixture to Scenario 001.
+5. Fixture provenance states that it is synthetic/deterministic and not externally sourced.
+6. Fixture validation tests pass.
+7. Full relevant CTest lane remains green.
+8. No external package, dataset download, CUDA, SarPy, ISCE3, or gotcha-back dependency is introduced.
+9. No GraphX core, accel-token, GPU, or SAR math changes are introduced.
+
+Required output:
+1. Files added.
+2. Files changed.
+3. Fixture format chosen and why.
+4. Tests added or updated.
+5. Build command run.
+6. Test command run.
+7. Any issues encountered.
+8. Explicit confirmation that RRP2+ work was not implemented.
+
+======
+
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Verify RRP1 only.
+
+Inputs:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
+- examples/SAR/scenarios/scenario_001.json
+- current RRP1 diff
+- current test output
+
+Required checks:
+1. `examples/SAR/fixtures/scenario_001/` exists.
+2. Fixture manifest exists.
+3. Provenance document exists.
+4. Checksum file exists.
+5. Fixture data artifact exists.
+6. Fixture scenario_id matches Scenario 001.
+7. Fixture is synthetic/deterministic.
+8. Fixture is small enough for CI.
+9. Fixture validation tests exist and pass.
+10. No external data, external packages, network download, CUDA, SarPy, ISCE3, or gotcha-back dependency was introduced.
+11. No GraphX core, accel-token, GPU, or SAR math changes were introduced.
+12. RRP2+ was not implemented.
+
+Fail if the implementation adds external dependencies, changes Scenario 001 silently, or starts CPU reference/comparator work.
+
+======
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Implement RRP2 only.
+
+RRP2 title:
+Add CPU Reference Backprojection.
+
+Inputs:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/scenarios/scenario_001.md
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- examples/SAR/fixtures/scenario_001/provenance.md
+- examples/SAR/fixtures/scenario_001/checksums.txt
+- current RRP0 verifier report, if available
+- current RRP1 verifier report, if available
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP2 purpose:
+Create a deterministic CPU reference backprojection path for Scenario 001.
+
+This reference output becomes the first image-formation truth artifact for GraphX SAR comparison.
+
+Required flow for this PR:
+
+Scenario 001 deterministic IQ / phase-history fixture
+    ↓
+CPU reference backprojection
+    ↓
+Reference image artifact
+
+This PR must not run GraphX SAR for comparison yet. That is RRP3.
+
+Scope:
+Add CPU reference backprojection implementation and tests only.
+
+Do not implement RRP3.
+Do not run GraphX on the fixture.
+Do not implement GraphX artifact parity.
+Do not implement external package comparison.
+Do not add SarPy.
+Do not add ISCE3.
+Do not add gotcha-back.
+Do not download external data.
+Do not require CUDA.
+Do not modify accel-token architecture.
+Do not modify Metal/GPU nodes.
+Do not change existing SAR runtime behavior except where needed to share read-only fixture parsing helpers.
+
+Preferred implementation location:
+Use example/test/tooling locations, not core framework libraries.
+
+Preferred locations:
+- examples/SAR/tools/
+- examples/SAR/test/
+- examples/SAR/include/sar/ only if a small reusable example-level helper is needed
+- examples/SAR/src/ only if the repo already places SAR example helpers there
+
+Do not promote to:
+- libgraph
+- libgpu
+- libdsp
+
+unless the existing architecture clearly already has an approved location for reference algorithms.
+
+Required implementation:
+1. Add a CPU reference backprojection routine that consumes the Scenario 001 fixture.
+2. Keep it deterministic and scalar/simple.
+3. Prefer clarity over speed.
+4. Use double precision internally if practical, or document the precision choice.
+5. Emit a normalized reference image artifact compatible with the artifact contract planned in SAR_COMPARE_ROADMAP_UPDATED.md.
+6. Emit or validate metadata:
+   - scenario_id
+   - fixture_id
+   - algorithm = cpu_reference_backprojection
+   - image width
+   - image height
+   - dtype
+   - layout
+   - checksum or deterministic hash if supported
+7. Keep the reference output small enough for CI.
+
+Algorithm requirements:
+- Implement physically meaningful backprojection at the fixture scale.
+- Use the fixture’s platform/geometry/sample definitions.
+- Do not use placeholder math unless the fixture itself is explicitly synthetic and the approximation is documented.
+- If required fields are missing from the fixture, stop and report exactly which fields are missing instead of inventing hidden assumptions.
+- If a minimal approximation is necessary, document:
+  - equation used
+  - units
+  - assumptions
+  - expected limitations
+
+Output artifact:
+Use the repository’s existing artifact convention if available.
+If none exists, use:
+- float32 row-major raster data
+- JSON sidecar metadata
+- deterministic checksum
+
+Required tests:
+Add or update tests so they validate:
+1. CPU reference backprojection can load Scenario 001 fixture.
+2. Output image dimensions match Scenario 001 or the fixture’s declared reduced profile.
+3. Output artifact metadata is present.
+4. Output is deterministic across repeated runs.
+5. Output contains finite values only.
+6. Output is not all zeros.
+7. Peak location is stable for the deterministic fixture, if fixture target geometry supports that.
+8. No external data, CUDA, or external package is required.
+
+Preferred test name:
+- test_cpu_reference_backprojection.cpp
+
+Acceptance criteria:
+1. CPU reference backprojection exists and is documented.
+2. It consumes Scenario 001 fixture data.
+3. It emits a normalized reference image artifact or validates the in-memory equivalent.
+4. It is deterministic.
+5. Tests prove fixture load, output dimensions, finite output, nonzero output, and repeatability.
+6. Full relevant CTest lane remains green.
+7. No external package, dataset download, CUDA, SarPy, ISCE3, or gotcha-back dependency is introduced.
+8. No GraphX core, accel-token, GPU, Metal, or resolver architecture changes are introduced.
+9. RRP3+ work is not implemented.
+
+Important boundary:
+This PR creates the reference image side of the comparison only.
+
+It does not yet create:
+
+Scenario 001 fixture
+    ↓
+GraphX SAR
+    ↓
+GraphX image artifact
+
+That is RRP3.
+
+Required output:
+1. Files added.
+2. Files changed.
+3. CPU reference algorithm summary.
+4. Equation/assumptions used.
+5. Output artifact format.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fixture fields or assumptions.
+10. Explicit confirmation that RRP3+ work was not implemented.

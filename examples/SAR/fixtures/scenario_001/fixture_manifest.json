@@ -1,0 +1,45 @@
+{
+  "schema": "graphx.sar.fixture_manifest.v1",
+  "version": "1.0.0",
+  "scenario_id": "scenario_001",
+  "fixture_id": "deterministic_iq_phase_history_fixture_v1",
+  "fixture_kind": "deterministic_iq_phase_history",
+  "synthetic": true,
+  "deterministic": true,
+  "ci_safe": true,
+  "requires_external_packages": false,
+  "requires_external_data": false,
+  "source_provenance": "repository_synthetic",
+  "references": {
+    "scenario_manifest": "examples/SAR/scenarios/scenario_001.json",
+    "scenario_doc": "examples/SAR/scenarios/scenario_001.md"
+  },
+  "profiles": {
+    "scenario_profile": {
+      "pulse_range": { "start": 0, "count": 4 },
+      "range_bins": { "start": 0, "count": 32 }
+    },
+    "ci_reduced_profile": {
+      "name": "scenario_001_ci_reduced_v1",
+      "pulse_range": { "start": 0, "count": 4 },
+      "range_bins": { "start": 0, "count": 8 },
+      "rationale": "Scenario 001 requests 4x32; this committed CI profile uses 4x8 and is explicitly linked to Scenario 001."
+    }
+  },
+  "format": {
+    "data_file": "deterministic_iq_phase_history_fixture_v1.json",
+    "data_schema": "graphx.sar.phase_history_fixture.v1",
+    "sample_layout": "interleaved_complex_f32",
+    "complex_encoding": "cartesian_real_imag"
+  },
+  "expected_dimensions": {
+    "pulse_count": 4,
+    "range_bin_count": 8,
+    "complex_sample_count": 32
+  },
+  "checksum": {
+    "algorithm": "fnv1a64",
+    "data_file": "deterministic_iq_phase_history_fixture_v1.json",
+    "value": "3da6429e0782549d"
+  }
+}
