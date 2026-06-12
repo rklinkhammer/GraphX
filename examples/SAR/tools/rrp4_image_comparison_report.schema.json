@@ -7,6 +7,7 @@
     "schema_version",
     "comparator",
     "scenario_id",
+    "thresholds",
     "verdict",
     "passed",
     "graphx",
@@ -29,6 +30,30 @@
       "additionalProperties": false
     },
     "scenario_id": {"type": "string"},
+    "thresholds": {
+      "type": "object",
+      "required": [
+        "mode",
+        "peak_window_radius_pixels",
+        "rms_max",
+        "relative_l2_max",
+        "max_abs_error_max",
+        "peak_coordinate_delta_pixels_max",
+        "pslr_db_min",
+        "islr_db_min"
+      ],
+      "properties": {
+        "mode": {"type": "string"},
+        "peak_window_radius_pixels": {"type": "integer"},
+        "rms_max": {"type": "number"},
+        "relative_l2_max": {"type": "number"},
+        "max_abs_error_max": {"type": "number"},
+        "peak_coordinate_delta_pixels_max": {"type": "number"},
+        "pslr_db_min": {"type": ["number", "null"]},
+        "islr_db_min": {"type": ["number", "null"]}
+      },
+      "additionalProperties": false
+    },
     "verdict": {"enum": ["pass", "fail"]},
     "passed": {"type": "boolean"},
     "graphx": {
@@ -101,11 +126,27 @@
     },
     "metrics": {
       "type": "object",
-      "required": ["l_inf", "rms", "relative_l2"],
+      "required": [
+        "l_inf",
+        "rms",
+        "relative_l2",
+        "max_abs_error",
+        "peak_coordinate_delta_x_pixels",
+        "peak_coordinate_delta_y_pixels",
+        "peak_coordinate_delta_pixels",
+        "pslr_db",
+        "islr_db"
+      ],
       "properties": {
         "l_inf": {"type": ["number", "null"]},
         "rms": {"type": ["number", "null"]},
-        "relative_l2": {"type": ["number", "null"]}
+        "relative_l2": {"type": ["number", "null"]},
+        "max_abs_error": {"type": ["number", "null"]},
+        "peak_coordinate_delta_x_pixels": {"type": ["number", "null"]},
+        "peak_coordinate_delta_y_pixels": {"type": ["number", "null"]},
+        "peak_coordinate_delta_pixels": {"type": ["number", "null"]},
+        "pslr_db": {"type": ["number", "null"]},
+        "islr_db": {"type": ["number", "null"]}
       },
       "additionalProperties": false
     },

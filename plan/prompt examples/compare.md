@@ -1113,3 +1113,154 @@ Required output format from IMPLEMENTOR:
 10. Explicit confirmation that RRP5+ work was not implemented.
 ```
 
+I’m pulling the RRP5 slice from the roadmap and the existing RRP5-related files so the implementor prompt matches the current repo boundary instead of restating earlier PRs.
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/roadmap/SAR_COMPARE_ROADMAP.md#260-260), lines 260 to 497
+
+Searched for files matching `**/examples/SAR/test/*rrp5*`, 1 match
+
+Searched for files matching `**/examples/SAR/tools/*rrp5*`, 1 match
+
+I found the RRP5 test and guide already in place. I’m reading those now so the prompt can stay consistent with the established “frozen replay” boundary rather than inventing a new one.
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/examples/SAR/test/test_rrp5_frozen_scenario_replay.cpp)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/examples/SAR/tools/rrp5_frozen_scenario_replay.md)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_INSPECTOR_REPORT.md)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_PLANNER_REPORT.md#1-1), lines 1 to 180
+
+I have enough context now to write the RRP5 implementor prompt. I’m aligning it to the roadmap’s actual RRP5 definition: comparator metrics for the existing Scenario 001 image-formation flow, not another replay or baseline lane.
+
+Use this as the IMPLEMENTOR prompt for RRP5:
+
+====
+
+Act as IMPLEMENTOR using plan/reviews/SAR_INSPECTOR_REPORT.md and plan/reviews/SAR_PLANNER_REPORT.md.
+
+Task:
+Implement RRP5 only.
+
+RRP5 title:
+Comparator Metrics for Image Formation.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_PLANNER_REPORT.md
+- plan/roadmap/SAR_COMPARE_ROADMAP.md
+- examples/SAR/scenarios/scenario_001.json
+- examples/SAR/fixtures/scenario_001/fixture_manifest.json
+- RRP2 CPU reference image outputs/code
+- RRP3 GraphX image outputs/code
+- RRP4 comparator outputs/code
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP5 purpose:
+Extend the artifact comparison layer so Scenario 001 image-formation results are compared with explicit metrics, thresholds, and deterministic structured reporting.
+
+Required flow for this PR:
+
+CPU reference image artifact
++ GraphX image artifact
+-> comparator metrics
+-> structured JSON report
+-> strict pass/fail verdict
+
+Important boundary:
+Do not implement the CI-safe end-to-end lane yet.
+Do not implement RRP6+ orchestration or broader external baseline work.
+Do not modify GraphX core runtime architecture.
+Do not add new reference-generation logic.
+Do not compare raw runtime nodes directly; compare emitted artifacts and contracts only.
+Do not introduce external package execution or downloads.
+Do not require CUDA.
+
+Scope:
+Implement metric computation, threshold handling, and tests only.
+
+Preferred implementation locations:
+- examples/SAR/tools
+- examples/SAR/test
+- examples/SAR/include/sar only if a small reusable helper is needed
+
+Do not promote logic into:
+- libgraph
+- libgpu
+- libdsp
+
+Required implementation:
+1. Extend the existing RRP4 comparator or add a small helper to compute image-formation metrics from the normalized artifacts.
+2. Support deterministic metrics at minimum:
+   - RMS error
+   - relative L2
+   - max absolute error
+   - peak coordinate delta
+3. If the fixture structure supports it, add optional:
+   - PSLR
+   - ISLR
+4. Make thresholds explicit and data-driven, not hard-coded magic numbers.
+5. Ensure strict mode is available for deterministic fixtures.
+6. Preserve the current artifact contract schema and report format where possible.
+7. Emit a structured JSON report that includes:
+   - schema version
+   - scenario_id
+   - comparator name/version
+   - pass/fail verdict
+   - checks array
+   - metrics object
+   - thresholds object or threshold summary
+   - reasons for failure
+8. Ensure the comparator returns nonzero on failure and zero on pass.
+
+Contract compatibility requirement:
+Reuse the artifact contract conventions established in RRP2, RRP3, and RRP4. Do not invent a new artifact schema if the existing comparator/report format can be extended cleanly.
+
+Required tests:
+Add or update tests to validate:
+1. Metrics are computed deterministically for identical inputs.
+2. Thresholds are applied explicitly and produce pass/fail behavior.
+3. Max absolute error is reported correctly.
+4. Peak coordinate delta is reported correctly when peak structure is available.
+5. Optional PSLR/ISLR are either computed or explicitly skipped with documented reasons.
+6. Structured JSON report contains metric and threshold sections.
+7. Failing metrics cause test failure with clear reasons.
+8. Missing or malformed metric fields fail with explicit field-level errors.
+9. No external data/network/CUDA/gotcha-back execution is introduced.
+
+Preferred test file:
+- examples/SAR/test/test_rrp5_comparator_metrics.cpp
+
+If a similar test already exists:
+extend it minimally instead of duplicating behavior.
+
+Acceptance criteria:
+1. RRP5 exposes explicit image-formation comparison metrics for Scenario 001 artifacts.
+2. Thresholds are explicit and deterministic.
+3. The comparator report includes structured metrics and reasons.
+4. Tests prove pass/fail behavior and metric correctness.
+5. Full relevant SAR test lane remains green.
+6. No GraphX core, accel-token, GPU, Metal, or resolver architecture changes are introduced unless clearly unavoidable and documented.
+7. RRP6+ is not implemented.
+
+Failure handling requirements:
+- If required artifact fields are missing, fail with explicit field-level errors.
+- Do not silently invent defaults for required comparison fields.
+- Do not widen the comparison boundary beyond emitted artifacts and contracts.
+
+Required output format from IMPLEMENTOR:
+1. Files added.
+2. Files changed.
+3. Metric summary.
+4. Threshold summary.
+5. Determinism method/checksum approach.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fields, assumptions, or blockers.
+10. Explicit confirmation that RRP6+ work was not implemented.
+```
+
+If you want, I can also produce a shorter “paste-ready” version that is optimized for your prompt file and removes some of the repetition.

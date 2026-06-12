@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import math
 import struct
 import sys
@@ -34,6 +35,19 @@ def require_int(contract: dict[str, Any], field: str, contract_name: str) -> int
     if not isinstance(value, int) or isinstance(value, bool):
         raise TypeError(f"{contract_name}.{field} must be an integer")
     return value
+
+
+def require_float(contract: dict[str, Any], field: str, contract_name: str) -> float:
+    value = require_field(contract, field, contract_name)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise TypeError(f"{contract_name}.{field} must be numeric")
+    return float(value)
+
+
+def optional_float(contract: dict[str, Any], field: str, contract_name: str) -> float | None:
+    if field not in contract or contract[field] is None:
+        return None
+    return require_float(contract, field, contract_name)
 
 
 def resolve_artifact_path(contract_path: Path, raw_path_text: str) -> Path:
@@ -81,6 +95,121 @@ def compare_pixels(graphx_pixels: list[float], reference_pixels: list[float]) ->
     }
 
 
+def default_thresholds(strict_mode: bool) -> dict[str, Any]:
+    if strict_mode:
+        return {
+            "mode": "strict",
+            "peak_window_radius_pixels": 1,
+            "rms_max": 0.0,
+            "relative_l2_max": 0.0,
+            "max_abs_error_max": 0.0,
+            "peak_coordinate_delta_pixels_max": 0.0,
+            "pslr_db_min": None,
+            "islr_db_min": None,
+        }
+    return {
+        "mode": "default",
+        "peak_window_radius_pixels": 1,
+        "rms_max": 1.0e-6,
+        "relative_l2_max": 1.0e-6,
+        "max_abs_error_max": 1.0e-6,
+        "peak_coordinate_delta_pixels_max": 0.0,
+        "pslr_db_min": None,
+        "islr_db_min": None,
+    }
+
+
+def load_thresholds(path: Path) -> dict[str, Any]:
+    thresholds = load_json(path)
+    contract_name = "thresholds"
+    output: dict[str, Any] = {
+        "mode": "configured",
+        "peak_window_radius_pixels": require_int(thresholds, "peak_window_radius_pixels", contract_name),
+        "rms_max": require_float(thresholds, "rms_max", contract_name),
+        "relative_l2_max": require_float(thresholds, "relative_l2_max", contract_name),
+        "max_abs_error_max": require_float(thresholds, "max_abs_error_max", contract_name),
+        "peak_coordinate_delta_pixels_max": require_float(
+            thresholds, "peak_coordinate_delta_pixels_max", contract_name
+        ),
+        "pslr_db_min": optional_float(thresholds, "pslr_db_min", contract_name),
+        "islr_db_min": optional_float(thresholds, "islr_db_min", contract_name),
+    }
+
+    if output["peak_window_radius_pixels"] < 0:
+        raise ValueError("thresholds.peak_window_radius_pixels must be non-negative")
+    return output
+
+
+def find_peak_index(pixels: list[float]) -> int:
+    if not pixels:
+        raise ValueError("pixel counts must be non-zero")
+    peak_index = 0
+    peak_value = pixels[0]
+    for index, value in enumerate(pixels[1:], start=1):
+        if value > peak_value:
+            peak_index = index
+            peak_value = value
+    return peak_index
+
+
+def compute_peak_metrics(
+    graphx_pixels: list[float], reference_pixels: list[float], width: int, height: int
+) -> dict[str, float]:
+    if width * height != len(graphx_pixels) or width * height != len(reference_pixels):
+        raise ValueError("image dimensions must match pixel counts to compute peak metrics")
+
+    graphx_peak = find_peak_index(graphx_pixels)
+    reference_peak = find_peak_index(reference_pixels)
+
+    graphx_peak_x = graphx_peak % width
+    graphx_peak_y = graphx_peak // width
+    reference_peak_x = reference_peak % width
+    reference_peak_y = reference_peak // width
+
+    dx = float(graphx_peak_x - reference_peak_x)
+    dy = float(graphx_peak_y - reference_peak_y)
+    return {
+        "peak_coordinate_delta_x_pixels": abs(dx),
+        "peak_coordinate_delta_y_pixels": abs(dy),
+        "peak_coordinate_delta_pixels": math.hypot(dx, dy),
+    }
+
+
+def compute_pslr_islr(
+    pixels: list[float], width: int, height: int, peak_window_radius_pixels: int
+) -> dict[str, float | None]:
+    if width * height != len(pixels):
+        raise ValueError("image dimensions must match pixel counts to compute sidelobe metrics")
+    if peak_window_radius_pixels < 0:
+        raise ValueError("peak_window_radius_pixels must be non-negative")
+
+    peak_index = find_peak_index(pixels)
+    peak_x = peak_index % width
+    peak_y = peak_index // width
+    peak_value = abs(float(pixels[peak_index]))
+    if peak_value == 0.0:
+        return {"pslr_db": None, "islr_db": None}
+
+    peak_energy = 0.0
+    sidelobe_energy = 0.0
+    max_sidelobe = 0.0
+    for index, value in enumerate(pixels):
+        x = index % width
+        y = index // width
+        magnitude = abs(float(value))
+        in_mainlobe = abs(x - peak_x) <= peak_window_radius_pixels and abs(y - peak_y) <= peak_window_radius_pixels
+        if in_mainlobe:
+            peak_energy += magnitude * magnitude
+            continue
+        sidelobe_energy += magnitude * magnitude
+        if magnitude > max_sidelobe:
+            max_sidelobe = magnitude
+
+    pslr_db = None if max_sidelobe == 0.0 else 20.0 * math.log10(peak_value / max_sidelobe)
+    islr_db = None if peak_energy == 0.0 or sidelobe_energy == 0.0 else 10.0 * math.log10(sidelobe_energy / peak_energy)
+    return {"pslr_db": pslr_db, "islr_db": islr_db}
+
+
 def build_artifact_contract(contract_path: Path, contract: dict[str, Any], contract_name: str) -> dict[str, Any]:
     source_tool = require_string(contract, "source_tool", contract_name)
     provenance_class = require_string(contract, "provenance_class", contract_name)
@@ -115,7 +244,11 @@ def build_artifact_contract(contract_path: Path, contract: dict[str, Any], contr
     }
 
 
-def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path) -> dict[str, Any]:
+def compare_contracts(
+    graphx_contract_path: Path,
+    reference_contract_path: Path,
+    thresholds_config: dict[str, Any],
+) -> dict[str, Any]:
     graphx_contract = load_json(graphx_contract_path)
     reference_contract = load_json(reference_contract_path)
 
@@ -204,9 +337,10 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
         graphx["dtype"] == reference["dtype"],
         f"graphx={graphx['dtype']}, reference={reference['dtype']}",
     )
+    dimensions_match = graphx["width"] == reference["width"] and graphx["height"] == reference["height"]
     add_check(
         "dimensions_match",
-        graphx["width"] == reference["width"] and graphx["height"] == reference["height"],
+        dimensions_match,
         f"graphx={graphx['width']}x{graphx['height']}, reference={reference['width']}x{reference['height']}",
     )
     add_check(
@@ -220,23 +354,83 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
         f"graphx={graphx['pixel_count']}, reference={reference['pixel_count']}",
     )
 
-    metrics: dict[str, Any]
-    if graphx["pixel_count"] == reference["pixel_count"] and graphx["pixel_count"] > 0:
-        if graphx["width"] != reference["width"] or graphx["height"] != reference["height"]:
-            raise ValueError(
-                "artifact dimensions must match before metric computation: "
-                f"graphx={graphx['width']}x{graphx['height']} reference={reference['width']}x{reference['height']}"
-            )
-        metrics = compare_pixels(graphx["pixels"], reference["pixels"])
-        add_check("pixel_metrics_zero", metrics["l_inf"] == 0.0 and metrics["rms"] == 0.0 and metrics["relative_l2"] == 0.0,
-                  f"l_inf={metrics['l_inf']}, rms={metrics['rms']}, relative_l2={metrics['relative_l2']}")
-    else:
-        metrics = {"l_inf": None, "rms": None, "relative_l2": None}
+    thresholds = dict(thresholds_config)
+    if not dimensions_match or graphx["pixel_count"] != reference["pixel_count"] or graphx["pixel_count"] == 0:
+        metrics = {
+            "l_inf": None,
+            "rms": None,
+            "relative_l2": None,
+            "max_abs_error": None,
+            "peak_coordinate_delta_x_pixels": None,
+            "peak_coordinate_delta_y_pixels": None,
+            "peak_coordinate_delta_pixels": None,
+            "pslr_db": None,
+            "islr_db": None,
+        }
         add_check(
-            "pixel_metrics_zero",
+            "metric_inputs_comparable",
             False,
-            "pixel metrics are unavailable because the raster sizes differ or are empty",
+            "metrics are unavailable because artifact dimensions or pixel counts differ",
         )
+    else:
+        basic_metrics = compare_pixels(graphx["pixels"], reference["pixels"])
+        peak_metrics = compute_peak_metrics(
+            graphx["pixels"], reference["pixels"], graphx["width"], graphx["height"]
+        )
+        sidelobe_metrics = compute_pslr_islr(
+            graphx["pixels"], graphx["width"], graphx["height"], thresholds_config["peak_window_radius_pixels"]
+        )
+
+        metrics = {
+            "l_inf": basic_metrics["l_inf"],
+            "rms": basic_metrics["rms"],
+            "relative_l2": basic_metrics["relative_l2"],
+            "max_abs_error": basic_metrics["l_inf"],
+            "peak_coordinate_delta_x_pixels": peak_metrics["peak_coordinate_delta_x_pixels"],
+            "peak_coordinate_delta_y_pixels": peak_metrics["peak_coordinate_delta_y_pixels"],
+            "peak_coordinate_delta_pixels": peak_metrics["peak_coordinate_delta_pixels"],
+            "pslr_db": sidelobe_metrics["pslr_db"],
+            "islr_db": sidelobe_metrics["islr_db"],
+        }
+
+        threshold_checks = [
+            ("rms_within_threshold", metrics["rms"] <= thresholds["rms_max"], f"rms={metrics['rms']}, threshold={thresholds['rms_max']}"),
+            (
+                "relative_l2_within_threshold",
+                metrics["relative_l2"] <= thresholds["relative_l2_max"],
+                f"relative_l2={metrics['relative_l2']}, threshold={thresholds['relative_l2_max']}",
+            ),
+            (
+                "max_abs_error_within_threshold",
+                metrics["max_abs_error"] <= thresholds["max_abs_error_max"],
+                f"max_abs_error={metrics['max_abs_error']}, threshold={thresholds['max_abs_error_max']}",
+            ),
+            (
+                "peak_coordinate_delta_within_threshold",
+                metrics["peak_coordinate_delta_pixels"] <= thresholds["peak_coordinate_delta_pixels_max"],
+                f"peak_coordinate_delta_pixels={metrics['peak_coordinate_delta_pixels']}, threshold={thresholds['peak_coordinate_delta_pixels_max']}",
+            ),
+        ]
+
+        if thresholds.get("pslr_db_min") is not None:
+            threshold_checks.append(
+                (
+                    "pslr_db_above_threshold",
+                    metrics["pslr_db"] is not None and metrics["pslr_db"] >= thresholds["pslr_db_min"],
+                    f"pslr_db={metrics['pslr_db']}, threshold={thresholds['pslr_db_min']}",
+                )
+            )
+        if thresholds.get("islr_db_min") is not None:
+            threshold_checks.append(
+                (
+                    "islr_db_above_threshold",
+                    metrics["islr_db"] is not None and metrics["islr_db"] >= thresholds["islr_db_min"],
+                    f"islr_db={metrics['islr_db']}, threshold={thresholds['islr_db_min']}",
+                )
+            )
+
+        for name, passed, detail in threshold_checks:
+            add_check(name, passed, detail)
 
     passed = all(check["passed"] for check in checks)
     return {
@@ -246,6 +440,7 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
             "version": 1,
         },
         "scenario_id": graphx["scenario_id"],
+        "thresholds": thresholds,
         "verdict": "pass" if passed else "fail",
         "passed": passed,
         "graphx": graphx | {"pixels": None},
@@ -257,13 +452,15 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Compare GraphX and gotcha-back image outputs")
+    parser = argparse.ArgumentParser(description="Compare GraphX and reference image artifacts")
     subparsers = parser.add_subparsers(dest="command_name", required=True)
 
     compare = subparsers.add_parser("compare", help="Compare two normalized image contracts and emit a report")
     compare.add_argument("--graphx-contract", required=True)
     compare.add_argument("--reference-contract", required=True)
     compare.add_argument("--report-json", required=True)
+    compare.add_argument("--thresholds-json")
+    compare.add_argument("--strict", action="store_true")
 
     return parser
 
@@ -272,7 +469,19 @@ def main() -> int:
     args = build_argument_parser().parse_args()
 
     if args.command_name == "compare":
-        report = compare_contracts(Path(args.graphx_contract).resolve(), Path(args.reference_contract).resolve())
+        if args.thresholds_json and args.strict:
+            raise ValueError("--thresholds-json and --strict are mutually exclusive")
+
+        if args.thresholds_json:
+            thresholds = load_thresholds(Path(args.thresholds_json).resolve())
+        else:
+            thresholds = default_thresholds(strict_mode=args.strict)
+
+        report = compare_contracts(
+            Path(args.graphx_contract).resolve(),
+            Path(args.reference_contract).resolve(),
+            thresholds,
+        )
         report_path = Path(args.report_json).resolve()
         write_json(report_path, report)
         print(report_path)
