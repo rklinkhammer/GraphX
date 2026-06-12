@@ -40,6 +40,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_runtime_helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_main_executable.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
@@ -72,6 +73,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach_pr1.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
+    SAR_EXAMPLE_EXECUTABLE_PATH="$<TARGET_FILE:sar_example>"
     SAR_EXTERNAL_BASELINE_POLICY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
     SAR_BASELINE_PACKAGE_REGISTRY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
     SAR_SCENARIO_001_JSON_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.json"
@@ -107,6 +109,7 @@ add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit gotcha_replay_source_node)
 add_dependencies(test_sar_example_unit sar_benchmark)
+add_dependencies(test_sar_example_unit sar_example)
 if(TARGET metal_h2d_async_node)
     add_dependencies(test_sar_example_unit metal_h2d_async_node)
 endif()
@@ -119,3 +122,5 @@ endif()
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)
 add_test(NAME sar_example_ci_lane COMMAND test_sar_example_unit --gtest_filter=Rrp7CiValidationLaneTest.*)
+add_test(NAME sar_example_main_executable
+    COMMAND test_sar_example_unit --gtest_filter=SarMainExecutableTest.*)

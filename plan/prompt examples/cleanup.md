@@ -463,3 +463,91 @@ Report:
 - Tests run and results.
 - Any documentation/comments added for alias migration.
 - Any risks or follow-up left for later PRs.
+
+Act as IMPLEMENTER using `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
+
+Implement only PR5 from `plan/reviews/SAR_PLANNER_REPORT.md`: **Split Benchmark And Main Validation Responsibilities**.
+
+Use these reports as context:
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/reviews/SAR_VERIFY_PR1_1.md`
+- `plan/reviews/SAR_VERIFY_PR2_1.md`
+- `plan/reviews/SAR_VERIFY_PR2_2.md`
+- `plan/reviews/SAR_IMPL_PR3_1.md`
+- `plan/reviews/SAR_IMPL_PR4_1.md`
+
+Scope:
+- Current repository only.
+- Implement PR5 only.
+- Do not implement PR6 or later.
+- Do not redesign the SAR graph architecture.
+- Preserve current SAR runtime and algorithm behavior.
+- Preserve compatibility aliases.
+- Do not change resolver contract vocabulary beyond PR1.
+- Do not change opaque transport helper semantics beyond PR2.
+- Do not change sidecar-preservation coverage beyond PR3 unless needed for main validation.
+- Do not remove compatibility aliases or alter their migration path beyond PR4.
+- Do not add external SAR dependencies.
+- Do not optimize SAR performance in this PR.
+
+PR5 goal:
+Clarify SAR benchmark, main execution, and performance-reporting boundaries by adding direct test coverage for `examples/SAR/main.cpp` and ensuring the main executable reports basic available runtime diagnostics without absorbing benchmark complexity.
+
+Required work:
+1. Inspect `examples/SAR/main.cpp`, `examples/SAR/src/sar_benchmark.cpp`, SAR CMake/test setup, and existing SAR runtime tests relevant to PR5.
+2. Add direct test coverage for the `examples/SAR/main.cpp` executable path.
+3. Ensure the test runs a tiny/stable SAR config path, preferably `examples/SAR/config/sar_stripmap_definitive.json` unless a smaller existing fixture is more appropriate.
+4. Assert stable output indicating:
+   - executable starts successfully,
+   - graph loads nodes/edges,
+   - execution completes successfully,
+   - completion is signaled,
+   - basic diagnostics/performance-related metrics are printed.
+5. Keep detailed benchmark logic in `sar_benchmark.cpp`; do not move benchmark comparison logic into `main.cpp`.
+6. If `main.cpp` already reports minimal diagnostics, preserve the existing output shape unless tests require small stable additions.
+7. If `main.cpp` does not report required minimal metrics, add the smallest runtime-behavior-preserving output needed from already available graph/diagnostics data.
+8. Add CTest or unit-test coverage using the built SAR example executable, consistent with existing test conventions.
+9. Preserve PR1-PR4 behavior and tests.
+10. Do not implement PR6 merge-diagnostics refactoring.
+
+Files likely affected:
+- `examples/SAR/src/main.cpp`
+- `examples/SAR/src/sar_benchmark.cpp` only if needed to clarify boundaries, not to refactor
+- `examples/SAR/test/CMakeLists.txt`
+- Existing SAR runtime/CI lane tests under `examples/SAR/test`
+
+Acceptance criteria:
+- `examples/SAR/main.cpp` executable path is test-covered.
+- Main reports basic performance/diagnostic metrics already available from token/diagnostics/graph metrics.
+- Main does not absorb benchmark-only graph-vs-direct comparison logic.
+- Existing SAR runtime behavior is preserved.
+- PR1 resolver labels remain intact.
+- PR2 centralized helper semantics remain intact.
+- PR3 sidecar-preservation tests remain intact.
+- PR4 compatibility alias migration path remains intact.
+- No external dependencies are added.
+- No PR6+ work is implemented.
+
+Focused verification to run:
+- Build affected targets.
+- New main executable test or CTest entry.
+- SAR JSON/runtime tests affected by executable path.
+- SAR token/alias contract tests if touched.
+- Full SAR unit test binary if available.
+- `./build/examples/SAR/sar_example examples/SAR/config/sar_stripmap_definitive.json build/examples/SAR/plugins`
+- `ctest` entry for the SAR example executable if added.
+
+Stop after PR5 is implemented and verified.
+
+Save the implementation report as:
+- `plan/reviews/SAR_IMPL_PR5_1.md`
+
+Report:
+- Files changed.
+- Tests added or updated.
+- Tests run and results.
+- Any output/diagnostic fields added to `main.cpp`.
+- Confirmation that benchmark-only logic stayed in `sar_benchmark.cpp`.
+- Any skipped tests and why.
+- Any risks or follow-up left for later PRs.
