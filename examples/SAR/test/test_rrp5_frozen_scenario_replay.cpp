@@ -205,6 +205,7 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     const auto graphx_contract_path = output_dir / "graphx" / "graphx_output_contract.json";
     WriteJson(graphx_contract_path, nlohmann::json{
         {"source_tool", "graphx"},
+        {"provenance_class", "graphx_runtime"},
         {"scenario_id", "scenario_001"},
         {"format", "float32_raster"},
         {"layout", "row_major"},
@@ -226,7 +227,8 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
 
     const auto reference_contract_path = output_dir / "reference" / "deterministic_reference_contract.json";
     WriteJson(reference_contract_path, nlohmann::json{
-        {"source_tool", "gotcha-back"},
+        {"source_tool", "deterministic-reference"},
+        {"provenance_class", "deterministic_internal_reference"},
         {"scenario_id", "scenario_001"},
         {"format", "float32_raster"},
         {"layout", "row_major"},

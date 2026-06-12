@@ -100,9 +100,13 @@ TEST(Rrp3GotchaBackAdapterTest, Scenario001ProducesPinnedInvocationSpec) {
     EXPECT_EQ(script.find("\n+  --pass"), std::string::npos);
 
     const auto contract = LoadJson(contract_path);
+    EXPECT_EQ(contract.at("source_tool").get<std::string>(), "gotcha-back");
+    EXPECT_EQ(contract.at("provenance_class").get<std::string>(), "external_baseline");
+    EXPECT_EQ(contract.at("scenario_id").get<std::string>(), "scenario_001");
     EXPECT_EQ(contract.at("format").get<std::string>(), "float32_raster");
     EXPECT_EQ(contract.at("layout").get<std::string>(), "row_major");
     EXPECT_EQ(contract.at("artifact_kind").get<std::string>(), "materialized_image");
+    EXPECT_EQ(contract.at("dtype").get<std::string>(), "float32");
     EXPECT_EQ(contract.at("width").get<int>(), 16);
     EXPECT_EQ(contract.at("height").get<int>(), 16);
 }
@@ -131,6 +135,7 @@ TEST(Rrp3GotchaBackAdapterTest, NormalizesRawFloat32OutputArtifactForScenario001
 
     const auto normalized = LoadJson(normalized_path);
     EXPECT_EQ(normalized.at("source_tool").get<std::string>(), "gotcha-back");
+    EXPECT_EQ(normalized.at("provenance_class").get<std::string>(), "external_baseline");
     EXPECT_EQ(normalized.at("scenario_id").get<std::string>(), "scenario_001");
     EXPECT_EQ(normalized.at("format").get<std::string>(), "float32_raster");
     EXPECT_EQ(normalized.at("layout").get<std::string>(), "row_major");

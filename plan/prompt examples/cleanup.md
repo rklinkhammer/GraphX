@@ -551,3 +551,133 @@ Report:
 - Confirmation that benchmark-only logic stayed in `sar_benchmark.cpp`.
 - Any skipped tests and why.
 - Any risks or follow-up left for later PRs.
+
+I’ll pull the latest inspector and planner report details for PR6 first, then draft a ready-to-use IMPLEMENTER prompt aligned to that exact scope.
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_INSPECTOR_REPORT.md)
+
+Read [](file:///Users/rklinkhammer/workspace/GraphX/plan/reviews/SAR_PLANNER_REPORT.md)
+
+Act as IMPLEMENTER using GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_PLANNER_REPORT.md
+- current repository state
+- current test output
+
+Task:
+Implement PR6 only.
+
+PR6 title:
+Isolate merge semantics from accel-ticket diagnostics
+
+PR6 scope:
+- Bound merge diagnostics and ticket synthesis by separating sidecar merge finalization from diagnostic and ticket construction inside ImageTileMergeNode.cpp.
+- Preserve current runtime behavior and emitted token fields.
+- Keep SAR-specific logic in SAR code; do not move SAR semantics into generic GPU code.
+- Add focused regression coverage for merge sidecar finalization and ticket/diagnostic field preservation in existing merge-related SAR tests.
+
+Likely files to touch:
+- ImageTileMergeNode.cpp
+- SarMessages.hpp only if strictly required for non-breaking clarity
+- merge-related tests under test
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not add compatibility shims.
+- Do not preserve obsolete behavior if PR6 requires cleanup.
+- Do not implement PR7 or external baseline work.
+- Do not change resolver contract behavior from PR1-PR5.
+- Preserve SAR accel-token identity semantics.
+- Preserve sidecar identity semantics and transport-opacity semantics.
+- Keep behavior CI-safe.
+- Treat unrelated dirty working-tree changes as out of scope.
+
+Acceptance criteria:
+1. Merge output token behavior is unchanged versus pre-PR6 behavior.
+2. Sidecar merge finalization is separable and reasoned about independently from ticket/diagnostic synthesis.
+3. Merge diagnostics and ticket fields remain preserved and correct.
+4. Existing SAR runtime behavior remains preserved.
+5. No external SAR dependencies are added.
+6. No PR7+ work is implemented.
+
+Required verification:
+- Build affected SAR targets.
+- Run merge-focused SAR tests.
+- Run SAR tests that consume merge output (materialized image/replay path as applicable).
+- Run full SAR unit test binary if available.
+- Report exact commands and outcomes.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests updated/removed.
+5. Build commands run.
+6. Test commands run.
+7. Acceptance criteria status (pass/fail per item).
+8. Risks or follow-up items (if any, non-blocking only unless truly blocking).
+
+Act as IMPLEMENTER using GRAPHX_SAR_AGENT_ROLES.md.
+
+Inputs:
+- SAR_INSPECTOR_REPORT.md
+- SAR_PLANNER_REPORT.md
+- current repository state
+- current test output
+
+Task:
+Implement PR7 only.
+
+PR7 title:
+External SAR baseline boundary documentation and harness checks
+
+PR7 scope:
+- Make the external baseline boundary explicit and enforceable in-repo.
+- Keep external package usage at artifact-comparison boundary only.
+- Add harness checks that distinguish deterministic generated references from externally executed baselines.
+- Do not implement external execution adapters in this PR.
+- Keep CI safe with no new required external tools or datasets.
+
+Likely files to touch:
+- SAR_EXTERNAL_BASELINE_POLICY.md
+- SAR_BASELINE_PACKAGE_REGISTRY.json
+- rrp3_gotcha_back_adapter.py
+- rrp4_image_comparator.py
+- baseline-related tests under test
+
+Rules:
+- Do not redesign.
+- Do not broaden scope.
+- Do not add compatibility shims.
+- Do not implement PR8 or later.
+- Do not modify SAR core token architecture.
+- Do not alter resolver contract behavior from PR1-PR6.
+- Do not add mandatory external package dependencies for CI.
+- Treat unrelated dirty working-tree changes as out of scope unless they block PR7.
+
+Acceptance criteria:
+1. Repository clearly distinguishes deterministic internal references from external package outputs.
+2. External package assumptions do not leak into core GraphX contracts or SAR accel-token semantics.
+3. Comparator/harness checks enforce artifact-level boundary expectations.
+4. No new required external dependency is introduced for CI.
+5. PR7 remains documentation and boundary-validation focused; no external runtime integration is implemented.
+
+Required verification:
+1. Build affected SAR targets.
+2. Run baseline/comparator-related SAR tests.
+3. Run any registry or schema validation tests if present.
+4. Run full SAR unit test binary if available.
+5. Report exact commands and outcomes.
+
+Required output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests updated or removed.
+5. Build commands run.
+6. Test commands run.
+7. Acceptance criteria status with pass or fail per item.
+8. Risks or follow-up items (non-blocking unless truly blocking).

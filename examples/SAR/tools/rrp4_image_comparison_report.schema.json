@@ -35,6 +35,7 @@
       "type": "object",
       "required": [
         "source_tool",
+        "provenance_class",
         "scenario_id",
         "format",
         "layout",
@@ -49,6 +50,7 @@
       ],
       "properties": {
         "source_tool": {"type": "string"},
+        "provenance_class": {"type": "string"},
         "scenario_id": {"type": "string"},
         "format": {"type": "string"},
         "layout": {"type": "string"},
@@ -67,6 +69,7 @@
       "type": "object",
       "required": [
         "source_tool",
+        "provenance_class",
         "scenario_id",
         "format",
         "layout",
@@ -81,6 +84,7 @@
       ],
       "properties": {
         "source_tool": {"type": "string"},
+        "provenance_class": {"type": "string"},
         "scenario_id": {"type": "string"},
         "format": {"type": "string"},
         "layout": {"type": "string"},

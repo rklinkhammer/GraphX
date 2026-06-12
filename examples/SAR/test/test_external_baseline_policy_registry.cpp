@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -84,6 +85,24 @@ TEST(ExternalBaselinePolicyRegistryTest, EncodesLicensingAndArchitectureBoundari
     EXPECT_TRUE(architecture.at("no_graphx_core_api_mimicry").get<bool>());
     EXPECT_TRUE(architecture.at("no_graphx_core_contract_changes_for_external_packages").get<bool>());
 
+    ASSERT_TRUE(registry.contains("reference_provenance"));
+    const auto& provenance = registry.at("reference_provenance");
+    EXPECT_EQ(provenance.at("graphx_output_required_class").get<std::string>(), "graphx_runtime");
+    ASSERT_TRUE(provenance.at("allowed_reference_classes").is_array());
+    EXPECT_NE(std::find(
+                  provenance.at("allowed_reference_classes").begin(),
+                  provenance.at("allowed_reference_classes").end(),
+                  "deterministic_internal_reference"),
+              provenance.at("allowed_reference_classes").end());
+    EXPECT_NE(std::find(
+                  provenance.at("allowed_reference_classes").begin(),
+                  provenance.at("allowed_reference_classes").end(),
+                  "external_baseline"),
+              provenance.at("allowed_reference_classes").end());
+    EXPECT_TRUE(provenance.at("require_contract_provenance_label").get<bool>());
+    EXPECT_TRUE(provenance.at("deterministic_reference_is_not_external_execution").get<bool>());
+    EXPECT_TRUE(provenance.at("forbid_external_baseline_dependency_in_core_runtime").get<bool>());
+
     ASSERT_TRUE(registry.contains("licensing_boundaries"));
     const auto& licensing = registry.at("licensing_boundaries");
     EXPECT_TRUE(licensing.at("registry_mandatory_license_field").get<bool>());
@@ -95,6 +114,14 @@ TEST(ExternalBaselinePolicyRegistryTest, EncodesLicensingAndArchitectureBoundari
         EXPECT_TRUE(pkg.contains("license"));
         EXPECT_FALSE(pkg.at("license").get<std::string>().empty());
     }
+
+    const auto packages = PackageMap(registry);
+    ASSERT_TRUE(packages.contains("OpenSAR"));
+    ASSERT_TRUE(packages.contains("OpenSARLab"));
+    EXPECT_EQ(packages.at("OpenSAR").at("role").get<std::string>(), "survey-candidate");
+    EXPECT_EQ(packages.at("OpenSAR").at("status").get<std::string>(), "survey-only");
+    EXPECT_EQ(packages.at("OpenSARLab").at("role").get<std::string>(), "survey-candidate");
+    EXPECT_EQ(packages.at("OpenSARLab").at("status").get<std::string>(), "survey-only");
 }
 
 TEST(ExternalBaselinePolicyRegistryTest, PolicyDeclaresComparatorOnlyBoundaries) {
@@ -106,4 +133,9 @@ TEST(ExternalBaselinePolicyRegistryTest, PolicyDeclaresComparatorOnlyBoundaries)
     EXPECT_NE(policy.find("gotcha-back"), std::string::npos);
     EXPECT_NE(policy.find("Do not modify `libgraph` or `libgpu` contracts"), std::string::npos);
     EXPECT_NE(policy.find("AccelControlToken<SarSidecar>"), std::string::npos);
+    EXPECT_NE(policy.find("deterministic_internal_reference"), std::string::npos);
+    EXPECT_NE(policy.find("external_baseline"), std::string::npos);
+    EXPECT_NE(policy.find("graphx_runtime"), std::string::npos);
+    EXPECT_NE(policy.find("OpenSAR"), std::string::npos);
+    EXPECT_NE(policy.find("OpenSARLab"), std::string::npos);
 }

@@ -54,12 +54,14 @@ void WriteFloat32Raster(const std::filesystem::path& path, const std::vector<flo
 }
 
 nlohmann::json MakeContract(std::string source_tool,
+                            std::string provenance_class,
                             const std::filesystem::path& raw_path,
                             std::uint32_t width,
                             std::uint32_t height,
                             std::string scenario_id = "scenario_001") {
     return {
         {"source_tool", std::move(source_tool)},
+        {"provenance_class", std::move(provenance_class)},
         {"scenario_id", std::move(scenario_id)},
         {"format", "float32_raster"},
         {"layout", "row_major"},
@@ -88,8 +90,12 @@ TEST(Rrp4ImageComparatorTest, MatchingImageContractsProducePassReport) {
 
     const auto graphx_contract_path = temp_dir / "graphx_contract.json";
     const auto reference_contract_path = temp_dir / "reference_contract.json";
-    WriteJson(graphx_contract_path, MakeContract("graphx", graphx_raw, 16u, 16u));
-    WriteJson(reference_contract_path, MakeContract("gotcha-back", reference_raw, 16u, 16u));
+    WriteJson(
+        graphx_contract_path,
+        MakeContract("graphx", "graphx_runtime", graphx_raw, 16u, 16u));
+    WriteJson(
+        reference_contract_path,
+        MakeContract("gotcha-back", "external_baseline", reference_raw, 16u, 16u));
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
@@ -132,8 +138,12 @@ TEST(Rrp4ImageComparatorTest, MismatchedImageContractsProduceFailReport) {
 
     const auto graphx_contract_path = temp_dir / "graphx_contract.json";
     const auto reference_contract_path = temp_dir / "reference_contract.json";
-    WriteJson(graphx_contract_path, MakeContract("graphx", graphx_raw, 16u, 16u));
-    WriteJson(reference_contract_path, MakeContract("gotcha-back", reference_raw, 16u, 16u));
+    WriteJson(
+        graphx_contract_path,
+        MakeContract("graphx", "graphx_runtime", graphx_raw, 16u, 16u));
+    WriteJson(
+        reference_contract_path,
+        MakeContract("gotcha-back", "external_baseline", reference_raw, 16u, 16u));
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
@@ -171,4 +181,39 @@ TEST(Rrp4ImageComparatorTest, ReportSchemaDeclaresPassFailShape) {
     EXPECT_NE(std::find(required.begin(), required.end(), "verdict"), required.end());
     EXPECT_NE(std::find(required.begin(), required.end(), "checks"), required.end());
     EXPECT_NE(std::find(required.begin(), required.end(), "metrics"), required.end());
+}
+
+TEST(Rrp4ImageComparatorTest, DeterministicInternalReferenceIsAcceptedByBoundaryChecks) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_comparator_deterministic_ref";
+    std::error_code remove_error;
+    std::filesystem::remove_all(temp_dir, remove_error);
+    ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
+
+    const std::vector<float> pixels(8u * 8u, 0.125f);
+    const auto graphx_raw = temp_dir / "graphx.bin";
+    const auto reference_raw = temp_dir / "deterministic_reference.bin";
+    WriteFloat32Raster(graphx_raw, pixels);
+    WriteFloat32Raster(reference_raw, pixels);
+
+    const auto graphx_contract_path = temp_dir / "graphx_contract.json";
+    const auto reference_contract_path = temp_dir / "reference_contract.json";
+    WriteJson(
+        graphx_contract_path,
+        MakeContract("graphx", "graphx_runtime", graphx_raw, 8u, 8u));
+    WriteJson(
+        reference_contract_path,
+        MakeContract("deterministic-reference", "deterministic_internal_reference", reference_raw, 8u, 8u));
+
+    const auto report_path = temp_dir / "comparison_report.json";
+    const std::string command =
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        " compare --graphx-contract " + Quote(graphx_contract_path) +
+        " --reference-contract " + Quote(reference_contract_path) +
+        " --report-json " + Quote(report_path) +
+        " > /dev/null";
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    const auto report = LoadJson(report_path);
+    EXPECT_EQ(report.at("verdict").get<std::string>(), "pass");
+    EXPECT_TRUE(report.at("passed").get<bool>());
 }

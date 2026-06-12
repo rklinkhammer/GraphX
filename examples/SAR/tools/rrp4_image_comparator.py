@@ -67,6 +67,7 @@ def build_artifact_contract(contract_path: Path, contract: dict[str, Any]) -> di
     image_hash = hash_raw_bytes(raw_path)
     return {
         "source_tool": contract.get("source_tool", "unknown"),
+        "provenance_class": contract["provenance_class"],
         "scenario_id": contract["scenario_id"],
         "format": contract["format"],
         "layout": contract["layout"],
@@ -98,8 +99,29 @@ def compare_contracts(graphx_contract_path: Path, reference_contract_path: Path)
             reasons.append(f"{name}: {detail}")
 
     add_check(
-        "source_tool_match",
-        graphx["source_tool"] == "graphx" and reference["source_tool"] == "gotcha-back",
+        "graphx_source_tool",
+        graphx["source_tool"] == "graphx",
+        f"graphx={graphx['source_tool']}",
+    )
+    add_check(
+        "graphx_provenance_class",
+        graphx["provenance_class"] == "graphx_runtime",
+        f"graphx={graphx['provenance_class']}",
+    )
+    add_check(
+        "reference_provenance_class_allowed",
+        reference["provenance_class"] in {"external_baseline", "deterministic_internal_reference"},
+        f"reference={reference['provenance_class']}",
+    )
+    add_check(
+        "reference_source_tool_and_provenance_alignment",
+        (
+            (reference["provenance_class"] == "external_baseline" and reference["source_tool"] != "graphx")
+            or (
+                reference["provenance_class"] == "deterministic_internal_reference"
+                and reference["source_tool"] in {"deterministic-reference", "graphx-deterministic-reference"}
+            )
+        ),
         f"graphx={graphx['source_tool']}, reference={reference['source_tool']}",
     )
     add_check(

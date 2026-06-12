@@ -51,6 +51,9 @@ def build_invocation_spec(scenario_path: Path, scenario: dict[str, Any], referen
         "pinned_profile": profile,
         "command": command,
         "expected_output": {
+            "source_tool": "gotcha-back",
+            "provenance_class": "external_baseline",
+            "scenario_id": scenario_id,
             "raw_path": str(raw_output_path),
             "normalized_path": str(normalized_output_path),
             "width": image_grid["width"],
@@ -58,6 +61,7 @@ def build_invocation_spec(scenario_path: Path, scenario: dict[str, Any], referen
             "format": output["format"],
             "layout": output["layout"],
             "artifact_kind": output["artifact_kind"],
+            "dtype": "float32",
         },
     }
 
@@ -103,6 +107,7 @@ def normalize_output(raw_path: Path, scenario_path: Path, output_json_path: Path
     normalized = {
         "format_version": 1,
         "source_tool": "gotcha-back",
+        "provenance_class": "external_baseline",
         "scenario_id": scenario_id_from_path(scenario_path),
         "format": output["format"],
         "layout": output["layout"],
