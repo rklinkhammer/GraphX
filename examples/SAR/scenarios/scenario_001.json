@@ -1,10 +1,18 @@
 {
+  "schema": "graphx.sar.compare_scenario.v1",
   "version": "graphx.sar.scenario.v1",
+  "scenario_id": "scenario_001",
+  "comparison_level": "internal_image_formation_correctness",
   "dataset": {
     "name": "AFRL GOTCHA Challenge Problem",
     "subset": "scenario_001_local_manual",
     "source_kind": "external_local_manual",
     "normalization_schema": "graphx.sar.gotcha.normalized.v1"
+  },
+  "fixture": {
+    "fixture_id": "deterministic_iq_phase_history_fixture_v1",
+    "kind": "deterministic_iq_phase_history",
+    "source": "repository_managed_fixture"
   },
   "pulse_range": {
     "start": 0,
@@ -27,7 +35,10 @@
   },
   "algorithm": {
     "name": "backprojection",
-    "implementation_target": "graphx_sar_and_gotcha_back_reference"
+    "implementation_target": "graphx_sar_and_cpu_reference",
+    "type": "backprojection",
+    "reference": "cpu_reference_backprojection",
+    "graphx": "graphx_sar_pipeline"
   },
   "window": {
     "name": "hann",
@@ -39,7 +50,30 @@
   },
   "output": {
     "format": "float32_raster",
+    "dtype": "float32",
     "layout": "row_major",
     "artifact_kind": "materialized_image"
+  },
+  "output_artifact_contract": {
+    "format": "float32_raster",
+    "dtype": "float32",
+    "layout": "row_major",
+    "dimensions": {
+      "width": 16,
+      "height": 16
+    }
+  },
+  "comparator_profile": {
+    "mode": "deterministic",
+    "strict": true,
+    "metrics_expected_later": [
+      "l_inf",
+      "rms",
+      "relative_l2"
+    ]
+  },
+  "immutability_rule": {
+    "mutable": false,
+    "changes_require": "scenario_002"
   }
 }

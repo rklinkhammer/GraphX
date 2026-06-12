@@ -35,8 +35,12 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
     }
 
     const std::vector<std::string> required_fields = {
+        "schema",
         "version",
+        "scenario_id",
+        "comparison_level",
         "dataset",
+        "fixture",
         "pulse_range",
         "range_bins",
         "image_grid",
@@ -45,6 +49,9 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
         "window",
         "range_compression",
         "output",
+        "output_artifact_contract",
+        "comparator_profile",
+        "immutability_rule",
     };
 
     for (const auto& field : required_fields) {
@@ -62,6 +69,21 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
         fail("unsupported scenario manifest version");
     }
 
+    if (!manifest.at("schema").is_string() || manifest.at("schema").get<std::string>().empty()) {
+        fail("schema must be a non-empty string");
+    }
+
+    if (!manifest.at("scenario_id").is_string() ||
+        manifest.at("scenario_id").get<std::string>() != "scenario_001") {
+        fail("scenario_id must be deterministic and equal to scenario_001");
+    }
+
+    if (!manifest.at("comparison_level").is_string() ||
+        manifest.at("comparison_level").get<std::string>() !=
+            "internal_image_formation_correctness") {
+        fail("comparison_level must be internal_image_formation_correctness");
+    }
+
     const auto require_object = [&fail, &manifest](const char* field_name) {
         if (!manifest.at(field_name).is_object()) {
             fail(std::string(field_name) + " must be an object");
@@ -69,6 +91,7 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
     };
 
     require_object("dataset");
+    require_object("fixture");
     require_object("pulse_range");
     require_object("range_bins");
     require_object("image_grid");
@@ -77,6 +100,9 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
     require_object("window");
     require_object("range_compression");
     require_object("output");
+    require_object("output_artifact_contract");
+    require_object("comparator_profile");
+    require_object("immutability_rule");
 
     if (!result.valid) {
         return result;
@@ -100,6 +126,10 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
     require_member(pulse_range, "pulse_range", "start");
     require_member(pulse_range, "pulse_range", "count");
 
+    const auto& fixture = manifest.at("fixture");
+    require_member(fixture, "fixture", "fixture_id");
+    require_member(fixture, "fixture", "kind");
+
     const auto& range_bins = manifest.at("range_bins");
     require_member(range_bins, "range_bins", "start");
     require_member(range_bins, "range_bins", "count");
@@ -117,6 +147,14 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
 
     const auto& algorithm = manifest.at("algorithm");
     require_member(algorithm, "algorithm", "name");
+    require_member(algorithm, "algorithm", "type");
+    require_member(algorithm, "algorithm", "reference");
+    require_member(algorithm, "algorithm", "graphx");
+    if (algorithm.contains("type") &&
+        algorithm.at("type").is_string() &&
+        algorithm.at("type").get<std::string>() != "backprojection") {
+        fail("algorithm.type must be backprojection");
+    }
 
     const auto& window = manifest.at("window");
     require_member(window, "window", "name");
@@ -128,8 +166,32 @@ ValidationResult ValidateScenarioManifest(const nlohmann::json& manifest) {
 
     const auto& output = manifest.at("output");
     require_member(output, "output", "format");
+    require_member(output, "output", "dtype");
     require_member(output, "output", "layout");
     require_member(output, "output", "artifact_kind");
+
+    const auto& output_contract = manifest.at("output_artifact_contract");
+    require_member(output_contract, "output_artifact_contract", "format");
+    require_member(output_contract, "output_artifact_contract", "dtype");
+    require_member(output_contract, "output_artifact_contract", "layout");
+    require_member(output_contract, "output_artifact_contract", "dimensions");
+
+    if (output_contract.contains("dimensions") && output_contract.at("dimensions").is_object()) {
+        require_member(output_contract.at("dimensions"), "output_artifact_contract.dimensions", "width");
+        require_member(output_contract.at("dimensions"), "output_artifact_contract.dimensions", "height");
+    }
+
+    const auto& comparator_profile = manifest.at("comparator_profile");
+    require_member(comparator_profile, "comparator_profile", "mode");
+    require_member(comparator_profile, "comparator_profile", "strict");
+
+    const auto& immutability_rule = manifest.at("immutability_rule");
+    require_member(immutability_rule, "immutability_rule", "changes_require");
+    if (immutability_rule.contains("changes_require") &&
+        immutability_rule.at("changes_require").is_string() &&
+        immutability_rule.at("changes_require").get<std::string>() != "scenario_002") {
+        fail("immutability_rule.changes_require must be scenario_002");
+    }
 
     return result;
 }
@@ -164,24 +226,38 @@ TEST(ScenarioManifestTest, Scenario001DefinesRequiredFields) {
 
     ASSERT_TRUE(validation.valid) << ::testing::PrintToString(validation.errors);
     EXPECT_EQ(manifest.at("version").get<std::string>(), "graphx.sar.scenario.v1");
+    EXPECT_EQ(manifest.at("scenario_id").get<std::string>(), "scenario_001");
+    EXPECT_EQ(
+        manifest.at("comparison_level").get<std::string>(),
+        "internal_image_formation_correctness");
 }
 
 TEST(ScenarioManifestTest, Scenario001MarkdownDocumentsRequiredItems) {
     const auto text = LoadScenarioMarkdown();
 
     EXPECT_NE(text.find("Purpose"), std::string::npos);
+    EXPECT_NE(text.find("Comparison Level"), std::string::npos);
+    EXPECT_NE(text.find("Fixture Description"), std::string::npos);
+    EXPECT_NE(text.find("Expected Future Flow"), std::string::npos);
     EXPECT_NE(text.find("Dataset"), std::string::npos);
     EXPECT_NE(text.find("Pulse Range"), std::string::npos);
     EXPECT_NE(text.find("Range Bins"), std::string::npos);
     EXPECT_NE(text.find("Output Format"), std::string::npos);
+    EXPECT_NE(text.find("Output Artifact Contract"), std::string::npos);
     EXPECT_NE(text.find("Algorithm"), std::string::npos);
     EXPECT_NE(text.find("Immutability Rule"), std::string::npos);
+    EXPECT_NE(text.find("scenario_002"), std::string::npos);
+    EXPECT_NE(text.find("does not"), std::string::npos);
 }
 
 TEST(ScenarioManifestTest, RejectsUnsupportedVersionAndIncompleteManifest) {
     nlohmann::json unsupported = {
+        {"schema", "graphx.sar.compare_scenario.v1"},
         {"version", "graphx.sar.scenario.v0"},
+        {"scenario_id", "scenario_001"},
+        {"comparison_level", "internal_image_formation_correctness"},
         {"dataset", nlohmann::json::object()},
+        {"fixture", nlohmann::json::object()},
         {"pulse_range", nlohmann::json::object()},
         {"range_bins", nlohmann::json::object()},
         {"image_grid", nlohmann::json::object()},
@@ -190,6 +266,9 @@ TEST(ScenarioManifestTest, RejectsUnsupportedVersionAndIncompleteManifest) {
         {"window", nlohmann::json::object()},
         {"range_compression", nlohmann::json::object()},
         {"output", nlohmann::json::object()},
+        {"output_artifact_contract", nlohmann::json::object()},
+        {"comparator_profile", nlohmann::json::object()},
+        {"immutability_rule", nlohmann::json::object()},
     };
     const auto unsupported_validation = ValidateScenarioManifest(unsupported);
     EXPECT_FALSE(unsupported_validation.valid);
