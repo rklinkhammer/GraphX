@@ -817,3 +817,133 @@ Phase 9
 GraphX comparison
 
 Stop after the planner report.
+
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Update the top-level README.md to document all examples/SAR testing information related to GOTCHA.
+
+Scope:
+- Edit README.md only unless a README link target is missing and a minimal docs link fix is required.
+- Do not implement code.
+- Do not add dependencies.
+- Do not change tests or CMake behavior.
+- Do not download datasets.
+- Do not check in GOTCHA data.
+- Preserve existing README structure and add a clear SAR/GOTCHA testing section.
+
+Content to include:
+1. SAR test target overview:
+   - Build target: `test_sar_example_unit`
+   - Executable: `build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit`
+   - CTest lanes:
+     - `sar_example_unit`
+     - `sar_example_ci_lane`
+     - `sar_example_main_executable`
+     - `sar_example_sarpy_probe_lane`
+     - `sar_example_sarpy_integration_lane`
+     - `sar_real_gotcha_local_validation` as disabled/local-only/real-data/gated
+
+2. CI-safe GOTCHA/SAR tests:
+   - Tiny synthetic fixtures and normalized replay fixtures are used in CI.
+   - No real GOTCHA `.mat` files are required for CI.
+   - No MATLAB dependency exists or should be added.
+   - `graphx-crsd-lite` is permanent, non-standard, and distinct from full CRSD.
+   - Full CRSD validation is not required for lite lanes.
+
+3. Important focused test commands:
+   - Build SAR unit tests:
+     `cmake --build build-ninja/ninja-debug --target test_sar_example_unit`
+   - Run all SAR unit tests:
+     `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit`
+   - GOTCHA CLI tests:
+     `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit '--gtest_filter=GraphxGotchaToCrsdCliTest.*'`
+   - End-to-end lite lane:
+     `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit '--gtest_filter=Pr16GraphxCrsdLiteLaneTest.*'`
+   - GraphX image comparison lane:
+     `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit '--gtest_filter=Pr17GraphxImageComparisonLaneTest.*'`
+   - Local GOTCHA validation gate:
+     `./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit '--gtest_filter=Pr18LocalGotchaValidationTest.*'`
+
+4. GOTCHA conversion CLI examples:
+   - Help:
+     `build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd --help`
+   - Synthetic/local lite conversion example using:
+     `--input-dir`
+     `--output-dir`
+     `--collection-id`
+     `--max-output-size-mb`
+     `--sort lexical|manifest`
+     `--manifest`
+     `--mode graphx-crsd-lite`
+     `--validate`
+     `--emit-index`
+   - Explain generated lite outputs:
+     - `gotcha_crsd_index.json`
+     - `conversion_report.json`
+     - `conversion_warnings.log`
+     - `gotcha_crsd_chunk_*.graphx-crsd-lite/`
+
+5. Environment variables:
+   - `GRAPHX_SAR_ALLOW_EXTERNAL_DATA`
+     - Used to allow external fixture paths in local/manual replay-style tests.
+   - `GRAPHX_SAR_GOTCHA_DATASET`
+     - Required for real local GOTCHA `.mat` validation.
+   - `GRAPHX_SAR_GOTCHA_MANIFEST`
+     - Optional override, defaults to `${GRAPHX_SAR_GOTCHA_DATASET}/manifest.json`.
+   - `GRAPHX_SAR_GOTCHA_CHECKSUMS`
+     - Optional override, defaults to `${GRAPHX_SAR_GOTCHA_DATASET}/checksums.sha256`.
+   - `GRAPHX_SAR_GOTCHA_TO_CRSD_BIN`
+     - Optional override for `graphx-gotcha-to-crsd`.
+   - `GRAPHX_SAR_GOTCHA_OUTPUT_DIR`
+     - Optional local validation output directory.
+   - `GRAPHX_SAR_GOTCHA_COLLECTION_ID`
+     - Optional collection id for local validation.
+   - `GRAPHX_SAR_GOTCHA_MAX_OUTPUT_SIZE_MB`
+     - Optional chunk size limit for local validation.
+   - `GRAPHX_SARPY_CRSD_FILE`
+     - Optional local-only CRSD smoke validation input.
+   - `GOTCHA_DIR`
+     - Used by gotcha-back local reference scripts.
+   - `GOTCHA_BACK_BIN`
+     - Used by gotcha-back local reference scripts.
+
+6. Local-only real GOTCHA workflow:
+   - Document `scripts/verify_gotcha_dataset.sh`.
+   - Document `examples/SAR/tools/local_gotcha_validation.sh`.
+   - Show setup:
+     `export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/gotcha_mat_directory`
+     `export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/manifest.json`
+     `export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/checksums.sha256`
+     `bash scripts/verify_gotcha_dataset.sh`
+     `bash examples/SAR/tools/local_gotcha_validation.sh`
+   - State this workflow is disabled by default, local-only, and never required by normal CI.
+
+7. Python/SarPy reference and comparison tools:
+   - Mention `tools/sarpy/reference_image_from_gotcha.py`
+   - Mention `tools/sarpy/compare_images.py`
+   - Mention `tools/sarpy/validate_crsd.py`
+   - Mention `tools/sarpy/reference_image_from_crsd.py`
+   - State these are local/reference tooling and do not alter GraphX runtime contracts.
+   - Include probe command examples.
+
+8. gotcha-back local reference workflow:
+   - Mention `examples/SAR/tools/rrp3_gotcha_back_adapter.py`
+   - Mention `GOTCHA_DIR` and `GOTCHA_BACK_BIN`
+   - State it is comparator/reference tooling only and not required by CI.
+
+Validation:
+- Run a README-focused grep or markdown sanity check if available.
+- Do not run real GOTCHA validation unless `GRAPHX_SAR_GOTCHA_DATASET` is already set.
+- If tests are run, prefer README-adjacent focused checks only; do not modify code to satisfy docs.
+
+Output the standard IMPLEMENTER summary:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed.
+5. Build/test command, if any.
+6. Remaining follow-up work.
+```
