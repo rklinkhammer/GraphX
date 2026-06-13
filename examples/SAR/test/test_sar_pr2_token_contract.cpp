@@ -79,7 +79,7 @@ TEST(SarPr2TokenContractTest, DefinitiveTopologyDeclaresTokenContractThroughSpli
     EXPECT_EQ(node_types.at("window"), "RangeWindowNode");
     EXPECT_EQ(node_types.at("compression"), "RangeCompressionNode");
     EXPECT_EQ(node_types.at("split"), "AzimuthTileSplitNode");
-    EXPECT_EQ(node_types.at("h2d"), "H2DAsyncNode");
+    EXPECT_EQ(node_types.at("h2d"), "H2DAsyncAccelNode");
 
     EXPECT_TRUE(HasEdge(config, "src", "window"));
     EXPECT_TRUE(HasEdge(config, "window", "compression"));

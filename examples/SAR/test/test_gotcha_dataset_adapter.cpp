@@ -149,7 +149,7 @@ nlohmann::json MakeGotchaPr3Topology() {
             },
             {
                 {"id", "h2d"},
-                {"type", "H2DAsyncNode"},
+                {"type", "H2DAsyncAccelNode"},
                 {"node_config", {
                     {"override_backend", false},
                     {"backend_id", 0}
@@ -157,7 +157,7 @@ nlohmann::json MakeGotchaPr3Topology() {
             },
             {
                 {"id", "bp"},
-                {"type", "SarBackprojectionTransformNode"},
+                {"type", "SarBackprojectionTransformAccelNode"},
                 {"node_config", {
                     {"image_width", 16},
                     {"backend_id", 0},
@@ -167,7 +167,7 @@ nlohmann::json MakeGotchaPr3Topology() {
             },
             {
                 {"id", "d2h"},
-                {"type", "D2HAsyncNode"},
+                {"type", "D2HAsyncAccelNode"},
                 {"node_config", {
                     {"override_backend", false},
                     {"backend_id", 0}

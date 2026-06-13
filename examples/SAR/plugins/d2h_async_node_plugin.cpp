@@ -1,15 +1,15 @@
 #include <memory>
 
 #include "plugins/NodePluginTemplate.hpp"
-#include "sar/D2HAsyncNode.hpp"
+#include "sar/D2HAsyncAccelNode.hpp"
 
 using namespace graph;
 
 namespace {
 
-struct D2HAsyncNodePolicy : PluginPolicy<sar::D2HAsyncNode> {};
+struct D2HAsyncAccelNodePolicy : PluginPolicy<sar::D2HAsyncAccelNode> {};
 
-using Glue = PluginGlue<sar::D2HAsyncNode, D2HAsyncNodePolicy>;
+using Glue = PluginGlue<sar::D2HAsyncAccelNode, D2HAsyncAccelNodePolicy>;
 static const NodeFacade d2h_async_node_facade = Glue::MakeFacade();
 
 } // namespace
@@ -18,18 +18,18 @@ extern "C" {
 
 void* plugin_create_d2h_async_node() {
     try {
-        auto node = std::make_shared<sar::D2HAsyncNode>();
-        return new NodePluginInstance<sar::D2HAsyncNode>(
+        auto node = std::make_shared<sar::D2HAsyncAccelNode>();
+        return new NodePluginInstance<sar::D2HAsyncAccelNode>(
             node,
-            "D2HAsyncNode",
-            "plugin.D2HAsyncNode");
+            "D2HAsyncAccelNode",
+            "plugin.D2HAsyncAccelNode");
     } catch (...) {
         return nullptr;
     }
 }
 
 const char* plugin_get_info() {
-    return "D2HAsyncNode|SAR device-to-host async transfer stage|1.0|"
+    return "D2HAsyncAccelNode|SAR device-to-host async transfer stage|1.0|"
            "plugin_create_d2h_async_node|"
 #ifdef _LIBCPP_VERSION
            "libc++_v1";

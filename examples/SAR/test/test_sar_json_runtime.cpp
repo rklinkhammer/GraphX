@@ -40,14 +40,14 @@ void AssertPortableIntents(const nlohmann::json& config) {
         ASSERT_TRUE(node.contains("type"));
         const auto type = node.at("type").get<std::string>();
         EXPECT_FALSE(type.ends_with("Metal")) << "preset must keep portable node intent types";
-        if (type == "H2DAsyncNode" || type == "SarBackprojectionTransformNode" || type == "D2HAsyncNode") {
+        if (type == "H2DAsyncAccelNode" || type == "SarBackprojectionTransformAccelNode" || type == "D2HAsyncAccelNode") {
             seen_intents.insert(type);
         }
     }
 
-    EXPECT_TRUE(seen_intents.contains("H2DAsyncNode"));
-    EXPECT_TRUE(seen_intents.contains("SarBackprojectionTransformNode"));
-    EXPECT_TRUE(seen_intents.contains("D2HAsyncNode"));
+    EXPECT_TRUE(seen_intents.contains("H2DAsyncAccelNode"));
+    EXPECT_TRUE(seen_intents.contains("SarBackprojectionTransformAccelNode"));
+    EXPECT_TRUE(seen_intents.contains("D2HAsyncAccelNode"));
 
     ASSERT_TRUE(config.contains("resolver_mappings"));
     ASSERT_TRUE(config.at("resolver_mappings").is_array());
@@ -60,7 +60,7 @@ void AssertPortableIntents(const nlohmann::json& config) {
         ASSERT_TRUE(mapping.contains("output_token_type"));
         EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarAccelControlToken");
         EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarAccelControlToken");
-        if (mapping.at("intent_type").get<std::string>() == "SarBackprojectionTransformNode") {
+        if (mapping.at("intent_type").get<std::string>() == "SarBackprojectionTransformAccelNode") {
             has_backprojection_mapping = true;
             ASSERT_TRUE(mapping.contains("variants"));
             ASSERT_TRUE(mapping.at("variants").is_array());
@@ -74,9 +74,9 @@ void AssertDefinitiveSarAccelResolverMappings(const nlohmann::json& config) {
     ASSERT_TRUE(config.at("resolver_mappings").is_array());
 
     const std::set<std::string> expected_intents{
-        "H2DAsyncNode",
-        "SarBackprojectionTransformNode",
-        "D2HAsyncNode",
+        "H2DAsyncAccelNode",
+        "SarBackprojectionTransformAccelNode",
+        "D2HAsyncAccelNode",
     };
     std::set<std::string> seen_intents;
 
@@ -98,11 +98,16 @@ void AssertDefinitiveSarAccelResolverMappings(const nlohmann::json& config) {
     EXPECT_EQ(seen_intents, expected_intents);
 }
 
-void AssertCompatibilityNamesStaySinglePath(const nlohmann::json& config) {
+void AssertSarAccelIntentNamesStayExplicit(const nlohmann::json& config) {
     ASSERT_TRUE(config.contains("resolver_mappings"));
     ASSERT_TRUE(config.at("resolver_mappings").is_array());
 
-    const std::set<std::string> compatibility_names{
+    const std::set<std::string> canonical_names{
+        "H2DAsyncAccelNode",
+        "SarBackprojectionTransformAccelNode",
+        "D2HAsyncAccelNode",
+    };
+    const std::set<std::string> legacy_names{
         "H2DAsyncNode",
         "SarBackprojectionTransformNode",
         "D2HAsyncNode",
@@ -111,7 +116,8 @@ void AssertCompatibilityNamesStaySinglePath(const nlohmann::json& config) {
     for (const auto& mapping : config.at("resolver_mappings")) {
         ASSERT_TRUE(mapping.is_object());
         const auto intent = mapping.value("intent_type", "");
-        if (!compatibility_names.contains(intent)) {
+        EXPECT_FALSE(legacy_names.contains(intent)) << "legacy SAR GPU intent name must not be used";
+        if (!canonical_names.contains(intent)) {
             continue;
         }
 
@@ -120,7 +126,7 @@ void AssertCompatibilityNamesStaySinglePath(const nlohmann::json& config) {
         for (const auto& variant : mapping.at("variants")) {
             ASSERT_TRUE(variant.contains("concrete_type"));
             EXPECT_EQ(variant.at("concrete_type").get<std::string>(), intent)
-                << intent << " must remain a compatibility alias to the canonical accel implementation";
+                << intent << " must resolve directly to the explicit SAR-token accel node";
         }
     }
 }
@@ -267,7 +273,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetKeepsStrictResolverContractAndPortableI
 
     AssertPortableIntents(config);
     AssertDefinitiveSarAccelResolverMappings(config);
-    AssertCompatibilityNamesStaySinglePath(config);
+    AssertSarAccelIntentNamesStayExplicit(config);
 }
 
 TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
@@ -406,7 +412,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     const std::set<std::string> available_types(available->begin(), available->end());
     EXPECT_TRUE(available_types.contains("H2DAsyncNodeMetal"));
     EXPECT_TRUE(available_types.contains("D2HAsyncNodeMetal"));
-    EXPECT_TRUE(available_types.contains("SarBackprojectionTransformNode"));
+    EXPECT_TRUE(available_types.contains("SarBackprojectionTransformAccelNode"));
 
     auto graph_cap = std::make_shared<capabilities::GraphCapability>();
     graph_cap->SetNodeProvider(bootstrap->provider);
@@ -418,26 +424,26 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     EXPECT_EQ(build_result.node_count, metal_config.at("nodes").size());
     EXPECT_EQ(build_result.edge_count, metal_config.at("edges").size());
 
-    const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode");
+    const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncAccelNode");
     ASSERT_NE(h2d, nullptr);
-    EXPECT_EQ(h2d->concrete_type, "H2DAsyncNode");
+    EXPECT_EQ(h2d->concrete_type, "H2DAsyncAccelNode");
     EXPECT_EQ(h2d->selected_backend, "metal");
     EXPECT_EQ(h2d->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(h2d->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(h2d->fallback_used);
 
-    const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode");
+    const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncAccelNode");
     ASSERT_NE(d2h, nullptr);
-    EXPECT_EQ(d2h->concrete_type, "D2HAsyncNode");
+    EXPECT_EQ(d2h->concrete_type, "D2HAsyncAccelNode");
     EXPECT_EQ(d2h->selected_backend, "metal");
     EXPECT_EQ(d2h->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(d2h->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(d2h->fallback_used);
 
     const auto* bp = FindResolverDiagnostic(
-        build_result.resolver_diagnostics, "SarBackprojectionTransformNode");
+        build_result.resolver_diagnostics, "SarBackprojectionTransformAccelNode");
     ASSERT_NE(bp, nullptr);
-    EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformNode");
+    EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformAccelNode");
     EXPECT_EQ(bp->selected_backend, "metal");
     EXPECT_EQ(bp->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(bp->output_token_type, "SarAccelControlToken");
@@ -515,14 +521,16 @@ TEST(SarJsonRuntimeTest, ResolverSelectedDeviceStagesPreserveSidecarIdentityAndO
     ASSERT_TRUE(build_result.success) << build_result.error_message;
 
     const auto* h2d_diagnostic = FindResolverDiagnostic(
-        build_result.resolver_diagnostics, "H2DAsyncNode");
+        build_result.resolver_diagnostics, "H2DAsyncAccelNode");
     const auto* bp_diagnostic = FindResolverDiagnostic(
-        build_result.resolver_diagnostics, "SarBackprojectionTransformNode");
+        build_result.resolver_diagnostics, "SarBackprojectionTransformAccelNode");
     const auto* d2h_diagnostic = FindResolverDiagnostic(
-        build_result.resolver_diagnostics, "D2HAsyncNode");
+        build_result.resolver_diagnostics, "D2HAsyncAccelNode");
     ASSERT_NE(h2d_diagnostic, nullptr);
     ASSERT_NE(bp_diagnostic, nullptr);
     ASSERT_NE(d2h_diagnostic, nullptr);
+    EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode"), nullptr);
+    EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode"), nullptr);
 
     EXPECT_EQ(h2d_diagnostic->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(h2d_diagnostic->output_token_type, "SarAccelControlToken");

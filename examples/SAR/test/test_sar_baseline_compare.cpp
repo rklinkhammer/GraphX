@@ -3,11 +3,11 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/AzimuthTileSplitNode.hpp"
-#include "sar/D2HAsyncNode.hpp"
-#include "sar/H2DAsyncNode.hpp"
+#include "sar/D2HAsyncAccelNode.hpp"
+#include "sar/H2DAsyncAccelNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
 #include "sar/RangeWindowNode.hpp"
-#include "sar/SarBackprojectionTransformNode.hpp"
+#include "sar/SarBackprojectionTransformAccelNode.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SyntheticApertureIqSourceNode.hpp"
@@ -33,7 +33,7 @@ sar::SarDiagnosticsSnapshot RunBaselinePipeline() {
     split_cfg.backend_id = 0;
     split_cfg.backend = sar::SarBackendKind::Host;
 
-    sar::SarBackprojectionTransformConfig bp_cfg{};
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = 16;
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
@@ -49,9 +49,9 @@ sar::SarDiagnosticsSnapshot RunBaselinePipeline() {
     sar::SyntheticApertureIqSourceNode src(source_cfg);
     sar::RangeWindowNode window;
     sar::AzimuthTileSplitNode split(split_cfg);
-    sar::H2DAsyncNode h2d;
-    sar::SarBackprojectionTransformNode bp(bp_cfg);
-    sar::D2HAsyncNode d2h;
+    sar::H2DAsyncAccelNode h2d;
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+    sar::D2HAsyncAccelNode d2h;
     sar::ImageTileMergeNode merge(merge_cfg);
     sar::SarDiagnosticsSinkNode sink;
 
@@ -144,9 +144,9 @@ sar::SarDiagnosticsSnapshot RunFanoutBaselinePipeline() {
     sar::SyntheticApertureIqSourceNode src(source_cfg);
     sar::RangeWindowNode window;
     std::array<sar::AzimuthTileSplitNode, kTileCount> split_nodes{};
-    std::array<sar::H2DAsyncNode, kTileCount> h2d_nodes{};
-    std::array<sar::SarBackprojectionTransformNode, kTileCount> bp_nodes{};
-    std::array<sar::D2HAsyncNode, kTileCount> d2h_nodes{};
+    std::array<sar::H2DAsyncAccelNode, kTileCount> h2d_nodes{};
+    std::array<sar::SarBackprojectionTransformAccelNode, kTileCount> bp_nodes{};
+    std::array<sar::D2HAsyncAccelNode, kTileCount> d2h_nodes{};
     sar::ImageTileMergeNode merge(merge_cfg);
     sar::SarDiagnosticsSinkNode sink;
 
@@ -158,7 +158,7 @@ sar::SarDiagnosticsSnapshot RunFanoutBaselinePipeline() {
         split_cfg.backend = sar::SarBackendKind::Host;
         split_nodes[tile].SetConfig(split_cfg);
 
-        sar::SarBackprojectionTransformConfig bp_cfg{};
+        sar::SarBackprojectionTransformAccelConfig bp_cfg{};
         bp_cfg.image_width = 16;
         bp_cfg.backend_id = 0;
         bp_cfg.queue_id = static_cast<std::uint32_t>(tile);

@@ -6,25 +6,25 @@
   "edge_contract": "accel-token",
   "resolver_mappings": [
     {
-      "intent_type": "SarBackprojectionTransformNode",
+      "intent_type": "SarBackprojectionTransformAccelNode",
       "input_token_type": "SarAccelControlToken",
       "output_token_type": "SarAccelControlToken",
       "variants": [
         {
           "backend": "metal",
-          "concrete_type": "SarBackprojectionTransformNode"
+          "concrete_type": "SarBackprojectionTransformAccelNode"
         },
         {
           "backend": "stub",
-          "concrete_type": "SarBackprojectionTransformNode"
+          "concrete_type": "SarBackprojectionTransformAccelNode"
         },
         {
           "backend": "cuda",
-          "concrete_type": "SarBackprojectionTransformNode"
+          "concrete_type": "SarBackprojectionTransformAccelNode"
         },
         {
           "backend": "sycl",
-          "concrete_type": "SarBackprojectionTransformNode"
+          "concrete_type": "SarBackprojectionTransformAccelNode"
         }
       ]
     }
@@ -58,7 +58,7 @@
     },
     {
       "id": "h2d",
-      "type": "H2DAsyncNode",
+      "type": "H2DAsyncAccelNode",
       "node_config": {
         "override_backend": false,
         "backend_id": 0,
@@ -67,7 +67,7 @@
     },
     {
       "id": "bp",
-      "type": "SarBackprojectionTransformNode",
+      "type": "SarBackprojectionTransformAccelNode",
       "node_config": {
         "image_width": 16,
         "backend_id": 0,
@@ -78,7 +78,7 @@
     },
     {
       "id": "d2h",
-      "type": "D2HAsyncNode",
+      "type": "D2HAsyncAccelNode",
       "node_config": {
         "override_backend": false,
         "backend_id": 0,

@@ -1,12 +1,12 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/AzimuthTileSplitNode.hpp"
-#include "sar/D2HAsyncNode.hpp"
-#include "sar/H2DAsyncNode.hpp"
+#include "sar/D2HAsyncAccelNode.hpp"
+#include "sar/H2DAsyncAccelNode.hpp"
 #include "sar/ImageTileMergeNode.hpp"
 #include "sar/RangeCompressionNode.hpp"
 #include "sar/RangeWindowNode.hpp"
-#include "sar/SarBackprojectionTransformNode.hpp"
+#include "sar/SarBackprojectionTransformAccelNode.hpp"
 #include "sar/SarCpuReference.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
@@ -144,7 +144,7 @@ std::string_view TypeToken(std::string_view type_name) {
 }
 
 struct BackprojectionResolution {
-    std::shared_ptr<sar::SarBackprojectionTransformNode> node;
+    std::shared_ptr<sar::SarBackprojectionTransformAccelNode> node;
     std::string concrete_type{"unknown"};
 };
 
@@ -163,12 +163,12 @@ BackprojectionResolution ResolveBackprojectionNode(
 
         const auto runtime_type = wrapper->GetType();
         const auto runtime_token = TypeToken(runtime_type);
-        if (runtime_token != "SarBackprojectionTransformNode" &&
+        if (runtime_token != "SarBackprojectionTransformAccelNode" &&
             runtime_token != "SarBackprojectionTransformAccelNode") {
             continue;
         }
 
-        auto typed_node = wrapper->GetNode<sar::SarBackprojectionTransformNode>();
+        auto typed_node = wrapper->GetNode<sar::SarBackprojectionTransformAccelNode>();
         if (!typed_node) {
             continue;
         }
@@ -334,7 +334,7 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
             },
             {
                 {"id", "h2d"},
-                {"type", "H2DAsyncNode"},
+                {"type", "H2DAsyncAccelNode"},
                 {"node_config", {
                     {"override_backend", false},
                     {"backend_id", 0},
@@ -342,7 +342,7 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
             },
             {
                 {"id", "bp"},
-                {"type", "SarBackprojectionTransformNode"},
+                {"type", "SarBackprojectionTransformAccelNode"},
                 {"node_config", {
                     {"image_width", 16},
                     {"backend_id", 0},
@@ -352,7 +352,7 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
             },
             {
                 {"id", "d2h"},
-                {"type", "D2HAsyncNode"},
+                {"type", "D2HAsyncAccelNode"},
                 {"node_config", {
                     {"override_backend", false},
                     {"backend_id", 0},
@@ -638,7 +638,7 @@ BaselineRunResult RunBaselineOnce(const BenchmarkOptions& options) {
     split_cfg.backend_id = 0;
     split_cfg.backend = sar::SarBackendKind::Host;
 
-    sar::SarBackprojectionTransformConfig bp_cfg{};
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = 16;
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
@@ -657,9 +657,9 @@ BaselineRunResult RunBaselineOnce(const BenchmarkOptions& options) {
     sar::RangeWindowNode window;
     sar::RangeCompressionNode compression;
     sar::AzimuthTileSplitNode split(split_cfg);
-    sar::H2DAsyncNode h2d;
-    sar::SarBackprojectionTransformNode bp(bp_cfg);
-    sar::D2HAsyncNode d2h;
+    sar::H2DAsyncAccelNode h2d;
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+    sar::D2HAsyncAccelNode d2h;
     sar::ImageTileMergeNode merge(merge_cfg);
     sar::SarDiagnosticsSinkNode sink;
 
@@ -756,7 +756,7 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
     split_cfg.backend_id = 0;
     split_cfg.backend = sar::SarBackendKind::Host;
 
-    sar::SarBackprojectionTransformConfig bp_cfg{};
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = 16;
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
@@ -769,9 +769,9 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
     sar::RangeWindowNode window;
     sar::RangeCompressionNode compression;
     sar::AzimuthTileSplitNode split(split_cfg);
-    sar::H2DAsyncNode h2d;
-    sar::SarBackprojectionTransformNode bp(bp_cfg);
-    sar::D2HAsyncNode d2h;
+    sar::H2DAsyncAccelNode h2d;
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
+    sar::D2HAsyncAccelNode d2h;
 
     std::unordered_set<std::uint32_t> seen_tiles;
     std::uint32_t received_tiles = 0;
@@ -1210,15 +1210,15 @@ void WriteTraceJson(const std::filesystem::path& path,
         {"token_lifecycle", TokenLifecycleToJson(last_graph.last_token)},
         {"resolved_nodes", nlohmann::json::array({
             {
-                {"intent_type", "H2DAsyncNode"},
-                {"concrete_type", "H2DAsyncNode"},
+                {"intent_type", "H2DAsyncAccelNode"},
+                {"concrete_type", "H2DAsyncAccelNode"},
                 {"selected_backend", last_graph.resolved_execution_backend},
                 {"fallback_reason", options.native_backend ? "none" : "ci-stub-profile"},
                 {"input_token_type", "HostPinnedBufferView"},
                 {"output_token_type", "DeviceBufferView"},
             },
             {
-                {"intent_type", "SarBackprojectionTransformNode"},
+                {"intent_type", "SarBackprojectionTransformAccelNode"},
                 {"concrete_type", last_graph.backprojection_concrete_type},
                 {"selected_backend", last_graph.resolved_execution_backend},
                 {"fallback_reason", options.native_backend ? "none" : "ci-stub-profile"},
@@ -1226,8 +1226,8 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"output_token_type", "DeviceBufferView"},
             },
             {
-                {"intent_type", "D2HAsyncNode"},
-                {"concrete_type", "D2HAsyncNode"},
+                {"intent_type", "D2HAsyncAccelNode"},
+                {"concrete_type", "D2HAsyncAccelNode"},
                 {"selected_backend", last_graph.resolved_execution_backend},
                 {"fallback_reason", options.native_backend ? "none" : "ci-stub-profile"},
                 {"input_token_type", "DeviceBufferView"},

@@ -7,9 +7,9 @@ This report compares the deterministic GraphX SAR JSON pipeline against a determ
 1. SyntheticApertureIqSourceNode
 2. RangeWindowNode or RangeCompressionNode (PR3 selectable stage)
 3. AzimuthTileSplitNode
-4. H2DAsyncNode
-5. SarBackprojectionTransformNode
-6. D2HAsyncNode
+4. H2DAsyncAccelNode
+5. SarBackprojectionTransformAccelNode
+6. D2HAsyncAccelNode
 7. ImageTileMergeNode
 8. SarDiagnosticsSinkNode
 

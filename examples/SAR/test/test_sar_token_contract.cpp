@@ -1,11 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "sar/D2HAsyncNode.hpp"
 #include "sar/D2HAsyncAccelNode.hpp"
-#include "sar/H2DAsyncNode.hpp"
 #include "sar/H2DAsyncAccelNode.hpp"
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
-#include "sar/SarBackprojectionTransformNode.hpp"
 #include "sar/SarMessages.hpp"
 
 #include <type_traits>
@@ -68,35 +65,16 @@ TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
     EXPECT_FALSE(token.has_lease);
 }
 
-TEST(SarTokenContractTest, WrapperAliasesUseCanonicalTokenType) {
+TEST(SarTokenContractTest, SarAccelTokenUsesSarSidecar) {
     EXPECT_TRUE((std::is_same_v<sar::SarAccelControlToken,
                                 sar::AccelControlToken<sar::SarSidecar>>));
-    EXPECT_TRUE((std::is_same_v<sar::H2DAsyncInputToken, sar::SarAccelControlToken>));
-    EXPECT_TRUE((std::is_same_v<sar::H2DAsyncOutputToken, sar::SarAccelControlToken>));
-    EXPECT_TRUE((std::is_same_v<sar::D2HAsyncInputToken, sar::SarAccelControlToken>));
-    EXPECT_TRUE((std::is_same_v<sar::D2HAsyncOutputToken, sar::SarAccelControlToken>));
-    EXPECT_TRUE((std::is_same_v<sar::SarBackprojectionInputToken, sar::SarAccelControlToken>));
-    EXPECT_TRUE((std::is_same_v<sar::SarBackprojectionOutputToken, sar::SarAccelControlToken>));
 }
 
-TEST(SarTokenContractTest, CompatibilityAliasesUseCanonicalAccelImplementations) {
-    EXPECT_TRUE((std::is_same_v<sar::H2DAsyncConfig, sar::H2DAsyncAccelConfig>));
-    EXPECT_TRUE((std::is_same_v<sar::H2DAsyncNode, sar::H2DAsyncAccelNode>));
-
-    EXPECT_TRUE((std::is_same_v<sar::D2HAsyncConfig, sar::D2HAsyncAccelConfig>));
-    EXPECT_TRUE((std::is_same_v<sar::D2HAsyncNode, sar::D2HAsyncAccelNode>));
-
-    EXPECT_TRUE((std::is_same_v<sar::SarBackprojectionTransformConfig,
-                                sar::SarBackprojectionTransformAccelConfig>));
-    EXPECT_TRUE((std::is_same_v<sar::SarBackprojectionTransformNode,
-                                sar::SarBackprojectionTransformAccelNode>));
-}
-
-TEST(SarTokenContractTest, CompatibilityAliasesDoNotCreateSecondGpuPath) {
-    EXPECT_EQ(sar::H2DAsyncNode::TypeName(), sar::H2DAsyncAccelNode::TypeName());
-    EXPECT_EQ(sar::D2HAsyncNode::TypeName(), sar::D2HAsyncAccelNode::TypeName());
-    EXPECT_EQ(sar::SarBackprojectionTransformNode::TypeName(),
-              sar::SarBackprojectionTransformAccelNode::TypeName());
+TEST(SarTokenContractTest, CanonicalSarGpuStagesUseExplicitAccelTypeNames) {
+    EXPECT_EQ(sar::H2DAsyncAccelNode::TypeName(), "H2DAsyncAccelNode");
+    EXPECT_EQ(sar::D2HAsyncAccelNode::TypeName(), "D2HAsyncAccelNode");
+    EXPECT_EQ(sar::SarBackprojectionTransformAccelNode::TypeName(),
+              "SarBackprojectionTransformAccelNode");
 }
 
 } // namespace

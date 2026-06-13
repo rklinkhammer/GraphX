@@ -14,7 +14,7 @@ This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for
   - RangeCompressionNode
   - SarPulseFanoutNode
   - AzimuthTileSplitNode
-  - SarBackprojectionTransformNode
+  - SarBackprojectionTransformAccelNode
   - ImageTileMergeNode
 
 ## Architecture
@@ -24,9 +24,9 @@ flowchart LR
    SRC[SyntheticApertureIqSourceNode]
    WINDOW[RangeWindowNode]
    SPLIT[AzimuthTileSplitNode]
-   H2D[H2DAsyncNode]
-   BP[SarBackprojectionTransformNode]
-   D2H[D2HAsyncNode]
+   H2D[H2DAsyncAccelNode]
+   BP[SarBackprojectionTransformAccelNode]
+   D2H[D2HAsyncAccelNode]
    MERGE[ImageTileMergeNode]
    SINK[SarDiagnosticsSinkNode]
 
@@ -43,7 +43,7 @@ ResolverConfig dynamically replaces eligible portable intent nodes with METAL eq
 
 Current METAL-equivalent resolution from definitive topology intent nodes:
 
-1. `SarBackprojectionTransformNode` is mapped by the SAR preset `resolver_mappings`, remains the SAR adapter, and delegates native-device work to libgpu `DeviceKernelNodeMetal` when Metal is selected.
+1. `SarBackprojectionTransformAccelNode` is mapped by the SAR preset `resolver_mappings`, remains the SAR adapter, and delegates native-device work to libgpu `DeviceKernelNodeMetal` when Metal is selected.
 2. `H2DAsyncNodeMetal` and `D2HAsyncNodeMetal` remain canonical common nodes in libgpu and are not duplicated in examples/SAR.
 3. When a run needs both common libgpu Metal plugins and SAR-local plugins, pass the shared plugin directory as an additional plugin directory instead of copying or duplicating nodes.
 
@@ -250,7 +250,7 @@ No configurable node_config parameters. The node performs graph-visible 4-way fa
 | backend_id | integer | 0 | Backend device index |
 | backend | integer | 0 | Backend kind enum |
 
-`H2DAsyncNode` (`H2DAsyncAccelNode`):
+`H2DAsyncAccelNode` (`H2DAsyncAccelNode`):
 
 | Parameter | Type | Default | Purpose |
 | --- | --- | --- | --- |
@@ -259,7 +259,7 @@ No configurable node_config parameters. The node performs graph-visible 4-way fa
 | queue_id | integer | 0 | Queue id, 0 resolves to backend_id + 1 |
 | backend | integer | 0 | Backend kind enum for override mode |
 
-`SarBackprojectionTransformNode` (`SarBackprojectionTransformAccelNode`):
+`SarBackprojectionTransformAccelNode` (`SarBackprojectionTransformAccelNode`):
 
 | Parameter | Type | Default | Purpose |
 | --- | --- | --- | --- |
@@ -273,7 +273,7 @@ No configurable node_config parameters. The node performs graph-visible 4-way fa
 | phase_aperture_scale | number | 0.2 | Aperture phase scale |
 | backend | integer | 1 | Backend kind enum |
 
-`D2HAsyncNode` (`D2HAsyncAccelNode`):
+`D2HAsyncAccelNode` (`D2HAsyncAccelNode`):
 
 | Parameter | Type | Default | Purpose |
 | --- | --- | --- | --- |
@@ -348,7 +348,7 @@ PR3 follow-up adds Metal-oriented JSON SAR presets as a backend validation path,
 
 PR9 upgrades the PR7 materialized-image path to explicit token-carried deterministic materialization in the simulated backend lane.
 
-1. `SarBackprojectionTransformNode` preserves sidecar metadata and payload-size context on `SarAccelControlToken` through transfer stages.
+1. `SarBackprojectionTransformAccelNode` preserves sidecar metadata and payload-size context on `SarAccelControlToken` through transfer stages.
 2. `SarMaterializedImageSinkNode` captures deterministic reference image samples directly from token-carried fields (`sequence_id`, `tile_id`, payload bytes) plus kernel-ticket validity.
 3. No global token-id keyed payload registry is required in the primary path.
 

@@ -16,7 +16,7 @@
 #include "gpu/metal/nodes/D2HAsyncNodeMetal.hpp"
 #include "gpu/metal/nodes/H2DAsyncNodeMetal.hpp"
 #include "graph/CapabilityBus.hpp"
-#include "sar/SarBackprojectionTransformNode.hpp"
+#include "sar/SarBackprojectionTransformAccelNode.hpp"
 #endif
 
 namespace {
@@ -208,7 +208,7 @@ TEST(SarCpuReferenceTest, BackprojectionAdapterReferenceMatchesNativeMetalWhenAv
     ref_cfg.phase_tap_scale = 0.35;
     ref_cfg.phase_aperture_scale = 0.2;
 
-    sar::SarBackprojectionTransformConfig bp_cfg{};
+    sar::SarBackprojectionTransformAccelConfig bp_cfg{};
     bp_cfg.image_width = static_cast<std::uint32_t>(range_tile.size());
     bp_cfg.backend_id = 0;
     bp_cfg.queue_id = 0;
@@ -219,7 +219,7 @@ TEST(SarCpuReferenceTest, BackprojectionAdapterReferenceMatchesNativeMetalWhenAv
     bp_cfg.phase_aperture_scale = static_cast<float>(ref_cfg.phase_aperture_scale);
     bp_cfg.backend = sar::SarBackendKind::NativeDevice;
 
-    sar::SarBackprojectionTransformNode bp(bp_cfg);
+    sar::SarBackprojectionTransformAccelNode bp(bp_cfg);
     ASSERT_TRUE(bp.BindGpuCapabilities(bus));
     ASSERT_TRUE(bp.native_kernel_bound());
 

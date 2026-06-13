@@ -178,9 +178,9 @@ void ValidateAccelTokenResolverMetadata(const std::filesystem::path& config_path
     EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
     const std::set<std::string> generic_intents{
-        "H2DAsyncNode",
-        "SarBackprojectionTransformNode",
-        "D2HAsyncNode",
+        "H2DAsyncAccelNode",
+        "SarBackprojectionTransformAccelNode",
+        "D2HAsyncAccelNode",
     };
     std::set<std::string> seen_intents;
 
