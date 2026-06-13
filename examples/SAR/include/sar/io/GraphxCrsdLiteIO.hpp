@@ -1,15 +1,14 @@
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
+#include "sar/io/SarIoUtilities.hpp"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -24,6 +23,7 @@ struct GraphxCrsdLiteOptions {
         "non_standard_intermediate_format",
         "derived_from_normalized_sar_product",
     };
+    std::vector<std::string> warnings{};
 };
 
 class GraphxCrsdLiteWriter final : public ISarWriter {
@@ -63,10 +63,10 @@ public:
             };
         }
 
-        std::uint64_t checksum_state = kFNVOffsetBasis;
+        std::uint64_t checksum_state = SarIoUtilities::kFNVOffsetBasis;
         std::uint64_t offset_bytes = 0;
 
-        nlohmann::json entries = nlohmann::json::array();
+        std::vector<SarIndexEntry> entries{};
         nlohmann::json channels = nlohmann::json::array();
 
         for (std::size_t channel_index = 0; channel_index < product.channels.size(); ++channel_index) {
@@ -87,15 +87,15 @@ public:
                 for (const auto& sample : pulse.samples) {
                     signal_stream.write(reinterpret_cast<const char*>(&sample.real), sizeof(sample.real));
                     signal_stream.write(reinterpret_cast<const char*>(&sample.imag), sizeof(sample.imag));
-                    checksum_state = UpdateFNV1a(checksum_state, sample.real);
-                    checksum_state = UpdateFNV1a(checksum_state, sample.imag);
+                    checksum_state = SarIoUtilities::UpdateFNV1a(checksum_state, sample.real);
+                    checksum_state = SarIoUtilities::UpdateFNV1a(checksum_state, sample.imag);
                 }
 
-                entries.push_back(nlohmann::json{
-                    {"channel_index", channel_index},
-                    {"pulse_index", pulse_index},
-                    {"byte_offset", offset_bytes},
-                    {"sample_count", sample_count},
+                entries.push_back(SarIndexEntry{
+                    .channel_index = channel_index,
+                    .pulse_index = pulse_index,
+                    .byte_offset = offset_bytes,
+                    .sample_count = sample_count,
                 });
 
                 channel_json["pulses"].push_back(nlohmann::json{
@@ -122,7 +122,7 @@ public:
             };
         }
 
-        const auto checksum_hex = ToHex(checksum_state);
+        const auto checksum_hex = SarIoUtilities::ToHex(checksum_state);
         const auto shape = product.Shape();
 
         const nlohmann::json metadata{
@@ -139,30 +139,43 @@ public:
             {"channels", channels},
         };
 
-        const nlohmann::json index{
-            {"schema", kIndexSchema},
-            {"format", kFormatName},
-            {"label", kNonStandardLabel},
-            {"signal_file", kSignalFile},
-            {"signal_checksum_fnv1a64", checksum_hex},
-            {"entries", entries},
-        };
+        const auto index = SarIoUtilities::BuildLiteIndexJson(
+            kIndexSchema,
+            kFormatName,
+            kNonStandardLabel,
+            kSignalFile,
+            checksum_hex,
+            entries);
 
-        const nlohmann::json report{
-            {"schema", kConversionReportSchema},
-            {"format", kFormatName},
-            {"label", kNonStandardLabel},
-            {"status", "ok"},
-            {"assumptions", options_.assumptions},
-            {"provenance", product.collection.provenance_label},
-            {"source_ordering", product.collection.source_ordering},
-            {"signal_checksum_fnv1a64", checksum_hex},
-            {"metadata_file", kMetadataFile},
-            {"index_file", kIndexFile},
-            {"signal_file", kSignalFile},
-        };
+        const auto report = SarIoUtilities::BuildConversionReportJson(ConversionReportBuildInput{
+            .format = kFormatName,
+            .label = kNonStandardLabel,
+            .selected_mode = kFormatName,
+            .validation_status = "ok",
+            .provenance = product.collection.provenance_label,
+            .source_ordering = product.collection.source_ordering,
+            .assumptions = options_.assumptions,
+            .warnings = options_.warnings,
+            .outputs = {
+                SarOutputSummary{
+                    .output_name = kSignalFile,
+                    .checksum_fnv1a64 = checksum_hex,
+                    .pulse_start = 0U,
+                    .pulse_end = shape.pulse_count == 0 ? 0U : shape.pulse_count - 1,
+                    .pulse_count = shape.pulse_count,
+                    .channel_count = shape.channel_count,
+                    .max_sample_count = shape.max_sample_count,
+                },
+            },
+            .metadata_file = kMetadataFile,
+            .index_file = kIndexFile,
+        });
 
-        if (!WriteJson(metadata_path, metadata) || !WriteJson(index_path, index) || !WriteJson(report_path, report)) {
+        const auto warnings_path = output_directory / kWarningsLogFile;
+        if (!SarIoUtilities::WriteJson(metadata_path, metadata) ||
+            !SarIoUtilities::WriteJson(index_path, index) ||
+            !SarIoUtilities::WriteJson(report_path, report) ||
+            !SarIoUtilities::WriteWarningsLog(warnings_path, options_.warnings)) {
             return SarWriteResult{
                 .success = false,
                 .message = "metadata_write_failed",
@@ -177,26 +190,7 @@ public:
 
     [[nodiscard]] static std::string ComputeSignalChecksum(
         const std::filesystem::path& signal_path) {
-        std::ifstream stream{signal_path, std::ios::binary};
-        if (!stream) {
-            return {};
-        }
-
-        std::uint64_t state = kFNVOffsetBasis;
-        std::array<char, 4096> buffer{};
-        while (stream.good()) {
-            stream.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-            const auto count = stream.gcount();
-            if (count <= 0) {
-                break;
-            }
-            for (std::streamsize i = 0; i < count; ++i) {
-                state ^= static_cast<std::uint8_t>(buffer[static_cast<std::size_t>(i)]);
-                state *= kFNVPrime;
-            }
-        }
-
-        return ToHex(state);
+        return SarIoUtilities::ComputeFileChecksumFNV1a64(signal_path);
     }
 
     static constexpr const char* kFormatName = "graphx-crsd-lite";
@@ -205,22 +199,11 @@ public:
     static constexpr const char* kMetadataFile = "metadata.json";
     static constexpr const char* kIndexFile = "index.json";
     static constexpr const char* kConversionReportFile = "conversion_report.json";
+    static constexpr const char* kWarningsLogFile = "conversion_warnings.log";
     static constexpr const char* kMetadataSchema = "graphx.sar.graphx_crsd_lite.metadata.v1";
     static constexpr const char* kIndexSchema = "graphx.sar.graphx_crsd_lite.index.v1";
-    static constexpr const char* kConversionReportSchema = "graphx.sar.graphx_crsd_lite.conversion_report.v1";
 
 private:
-    [[nodiscard]] static bool WriteJson(
-        const std::filesystem::path& path,
-        const nlohmann::json& value) {
-        std::ofstream stream{path, std::ios::trunc};
-        if (!stream) {
-            return false;
-        }
-        stream << value.dump(2) << '\n';
-        return stream.good();
-    }
-
     [[nodiscard]] static nlohmann::json WaveformToJson(const WaveformMetadata& waveform) {
         return nlohmann::json{
             {"waveform_id", waveform.waveform_id},
@@ -245,25 +228,6 @@ private:
             {"source_ordering", collection.source_ordering},
         };
     }
-
-    template <typename T>
-    [[nodiscard]] static std::uint64_t UpdateFNV1a(std::uint64_t state, const T& value) {
-        const auto* bytes = reinterpret_cast<const std::uint8_t*>(&value);
-        for (std::size_t i = 0; i < sizeof(T); ++i) {
-            state ^= bytes[i];
-            state *= kFNVPrime;
-        }
-        return state;
-    }
-
-    [[nodiscard]] static std::string ToHex(std::uint64_t value) {
-        std::ostringstream oss;
-        oss << "0x" << std::hex << std::setfill('0') << std::setw(16) << value;
-        return oss.str();
-    }
-
-    static constexpr std::uint64_t kFNVOffsetBasis = 14695981039346656037ULL;
-    static constexpr std::uint64_t kFNVPrime = 1099511628211ULL;
 
     GraphxCrsdLiteOptions options_{};
 };

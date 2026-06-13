@@ -101,11 +101,13 @@ TEST_F(GraphxCrsdLiteIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
     const auto metadata_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile;
     const auto index_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kIndexFile;
     const auto report_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile;
+    const auto warnings_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kWarningsLogFile;
 
     EXPECT_TRUE(std::filesystem::exists(signal_path));
     EXPECT_TRUE(std::filesystem::exists(metadata_path));
     EXPECT_TRUE(std::filesystem::exists(index_path));
     EXPECT_TRUE(std::filesystem::exists(report_path));
+    EXPECT_TRUE(std::filesystem::exists(warnings_path));
 
     const auto metadata = ReadJson(metadata_path);
     const auto index = ReadJson(index_path);
@@ -118,12 +120,14 @@ TEST_F(GraphxCrsdLiteIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
 
     EXPECT_EQ(report.at("provenance"), "derived_from_gotcha_phase_history");
     EXPECT_EQ(report.at("source_ordering"), "manifest");
-    EXPECT_EQ(report.at("status"), "ok");
+    EXPECT_EQ(report.at("validation_status"), "ok");
 
     const auto checksum = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path);
     ASSERT_FALSE(checksum.empty());
     EXPECT_EQ(index.at("signal_checksum_fnv1a64"), checksum);
-    EXPECT_EQ(report.at("signal_checksum_fnv1a64"), checksum);
+    ASSERT_TRUE(report.contains("outputs"));
+    ASSERT_EQ(report.at("outputs").size(), 1u);
+    EXPECT_EQ(report.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
 }
 
 TEST_F(GraphxCrsdLiteIoTest, ReaderRoundTripsNormalizedProductAndPulseOrdering) {

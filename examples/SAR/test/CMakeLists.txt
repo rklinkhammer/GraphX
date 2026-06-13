@@ -49,6 +49,8 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_inspector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_crsd_lite_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_chunker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_io_utilities.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
