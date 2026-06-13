@@ -32,6 +32,13 @@ add_executable(sar_benchmark
     src/SyntheticApertureIqSourceNode.cpp
 )
 
+add_executable(graphx_gotcha_to_crsd
+    src/graphx_gotcha_to_crsd.cpp
+)
+set_target_properties(graphx_gotcha_to_crsd PROPERTIES
+    OUTPUT_NAME "graphx-gotcha-to-crsd"
+)
+
 target_compile_features(sar_example PRIVATE cxx_std_26)
 target_link_libraries(sar_example PRIVATE graph gpu dsp log4cxx)
 target_compile_definitions(sar_example PRIVATE
@@ -44,6 +51,9 @@ target_compile_definitions(sar_benchmark PRIVATE
     SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
 )
 
+target_compile_features(graphx_gotcha_to_crsd PRIVATE cxx_std_26)
+target_link_libraries(graphx_gotcha_to_crsd PRIVATE graph gpu dsp log4cxx)
+
 target_include_directories(sar_example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -52,7 +62,12 @@ target_include_directories(sar_benchmark PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+target_include_directories(graphx_gotcha_to_crsd PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
 install(TARGETS sar_example
     sar_benchmark
+    graphx_gotcha_to_crsd
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

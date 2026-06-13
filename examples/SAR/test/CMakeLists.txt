@@ -43,6 +43,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_main_executable.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_gotcha_to_crsd_cli.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_normalized_sar_product.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_validator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_input_ordering.cpp
@@ -89,6 +90,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach_pr1.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
     SAR_EXAMPLE_EXECUTABLE_PATH="$<TARGET_FILE:sar_example>"
+    SAR_GOTCHA_TO_CRSD_EXECUTABLE_PATH="$<TARGET_FILE:graphx_gotcha_to_crsd>"
     SAR_EXTERNAL_BASELINE_POLICY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
     SAR_BASELINE_PACKAGE_REGISTRY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
     SAR_GOTCHA_INPUT_MANIFEST_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/sar/gotcha_input_manifest_schema.md"
@@ -137,6 +139,7 @@ add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit gotcha_replay_source_node)
 add_dependencies(test_sar_example_unit sar_benchmark)
 add_dependencies(test_sar_example_unit sar_example)
+add_dependencies(test_sar_example_unit graphx_gotcha_to_crsd)
 if(TARGET metal_h2d_async_node)
     add_dependencies(test_sar_example_unit metal_h2d_async_node)
 endif()
