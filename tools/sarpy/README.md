@@ -49,6 +49,15 @@ python3 tools/sarpy/compare_images.py \
   --output-phase-difference-png /tmp/phase_difference.png
 ```
 
+The comparison report includes magnitude RMSE, phase RMSE, peak magnitude error,
+magnitude correlation, and deterministic global magnitude SSIM. The PR17
+GraphX image comparison lane uses tiny synthetic GraphX/Python image fixtures
+and writes:
+
+- `comparison_report.json`
+- `difference_magnitude.png`
+- `phase_difference.png`
+
 ## Environment Probe
 
 ```bash

@@ -86,6 +86,33 @@ def _safe_correlation(numpy, a_flat, b_flat) -> float:
     return float(numpy.dot(a_centered, b_centered) / (a_norm * b_norm))
 
 
+def _global_ssim(numpy, candidate_mag, reference_mag) -> float:
+    candidate = candidate_mag.astype(numpy.float64)
+    reference = reference_mag.astype(numpy.float64)
+    dynamic_range = float(max(candidate.max(), reference.max()) - min(candidate.min(), reference.min()))
+    if dynamic_range == 0.0:
+        return 1.0 if numpy.array_equal(candidate, reference) else 0.0
+
+    k1 = 0.01
+    k2 = 0.03
+    c1 = (k1 * dynamic_range) ** 2
+    c2 = (k2 * dynamic_range) ** 2
+
+    candidate_mean = float(numpy.mean(candidate))
+    reference_mean = float(numpy.mean(reference))
+    candidate_var = float(numpy.mean((candidate - candidate_mean) ** 2))
+    reference_var = float(numpy.mean((reference - reference_mean) ** 2))
+    covariance = float(numpy.mean((candidate - candidate_mean) * (reference - reference_mean)))
+
+    numerator = (2.0 * candidate_mean * reference_mean + c1) * (2.0 * covariance + c2)
+    denominator = (candidate_mean ** 2 + reference_mean ** 2 + c1) * (
+        candidate_var + reference_var + c2
+    )
+    if denominator == 0.0:
+        return 1.0 if numpy.array_equal(candidate, reference) else 0.0
+    return float(numerator / denominator)
+
+
 def compare_images(
     reference_npy: Path,
     candidate_npy: Path,
@@ -117,6 +144,7 @@ def compare_images(
     phase_rmse = float(numpy.sqrt(numpy.mean(phase_diff ** 2)))
     peak_error = float(abs(float(numpy.max(candidate_mag)) - float(numpy.max(reference_mag))))
     correlation = _safe_correlation(numpy, candidate_mag.ravel(), reference_mag.ravel())
+    ssim = _global_ssim(numpy, candidate_mag, reference_mag)
 
     output_diff_magnitude_png.parent.mkdir(parents=True, exist_ok=True)
     output_phase_difference_png.parent.mkdir(parents=True, exist_ok=True)
@@ -139,6 +167,7 @@ def compare_images(
             "phase_rmse_radians": phase_rmse,
             "peak_error_magnitude": peak_error,
             "magnitude_correlation": correlation,
+            "ssim_magnitude": ssim,
         },
         "difference_magnitude_sha256": digest,
     }

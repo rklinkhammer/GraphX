@@ -71,6 +71,8 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr13_sarpy_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr14_sarpy_crsd_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr16_graphx_crsd_lite_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr17_graphx_image_comparison_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr18_local_gotcha_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -117,6 +119,10 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR14_VALIDATE_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/validate_crsd.py"
     SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_crsd.py"
     SAR_PR14_SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
+    SAR_PR17_REFERENCE_IMAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
+    SAR_PR17_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"
+    SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.sh"
+    SAR_PR18_LOCAL_GOTCHA_VALIDATION_DOC_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.md"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
@@ -172,3 +178,9 @@ set_tests_properties(sar_example_sarpy_probe_lane PROPERTIES LABELS "sar;sarpy;p
 add_test(NAME sar_example_sarpy_integration_lane
     COMMAND test_sar_example_unit --gtest_filter=Pr13SarpyToolsTest.*:Pr14SarpyCrsdHarnessTest.*)
 set_tests_properties(sar_example_sarpy_integration_lane PROPERTIES LABELS "sar;sarpy;integration;local-only;gated")
+
+add_test(NAME sar_real_gotcha_local_validation
+    COMMAND test_sar_example_unit --gtest_filter=Pr18LocalGotchaValidationTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet)
+set_tests_properties(sar_real_gotcha_local_validation PROPERTIES
+    DISABLED TRUE
+    LABELS "sar;gotcha;real-data;local-only;gated")
