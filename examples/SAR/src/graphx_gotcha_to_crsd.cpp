@@ -369,6 +369,13 @@ int Run(const CliOptions& options) {
         }
     }
 
+    if (options.mode == "crsd") {
+        graphx::sar::CrsdWriter writer;
+        const auto crsd_probe = writer.Write(options.output_dir, read.product);
+        std::cerr << crsd_probe.message << '\n';
+        return 1;
+    }
+
     const auto max_chunk_bytes =
         static_cast<std::uint64_t>(options.max_output_size_mb * 1024.0 * 1024.0);
     const auto chunk_plan = graphx::sar::SarProductChunker::BuildPlan(
@@ -426,78 +433,6 @@ int Run(const CliOptions& options) {
                 .channel_count = read.product.Shape().channel_count,
                 .max_sample_count = read.product.Shape().max_sample_count,
             });
-        }
-    } else {
-        selected_format = "crsd";
-        label = "STANDARDS-TARGETED";
-        assumptions = {
-            "standards_targeted_crsd_metadata",
-            "standards_targeted_signal_array",
-            "standards_targeted_pvp",
-        };
-        metadata_file = "metadata.json";
-        index_file = "chunk_index.json";
-
-        graphx::sar::CrsdWriter writer(graphx::sar::CrsdWriterOptions{
-            .assumptions = assumptions,
-            .warnings = warnings,
-        });
-
-        std::vector<std::filesystem::path> chunk_dirs{};
-        chunk_dirs.reserve(chunk_plan.chunks.size());
-
-        for (const auto& chunk : chunk_plan.chunks) {
-            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
-            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
-            const auto write = writer.Write(chunk_dir, chunk_product);
-            if (!write.success) {
-                std::cerr << "crsd_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
-                return 1;
-            }
-
-            const auto signal_path = chunk_dir / graphx::sar::CrsdWriter::kSignalFile;
-            output_summaries.push_back(graphx::sar::SarOutputSummary{
-                .output_name = chunk_dir.filename().generic_string(),
-                .checksum_fnv1a64 = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path),
-                .pulse_start = chunk.pulse_start,
-                .pulse_end = chunk.pulse_end,
-                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
-                .channel_count = read.product.Shape().channel_count,
-                .max_sample_count = read.product.Shape().max_sample_count,
-            });
-            chunk_dirs.push_back(chunk_dir);
-        }
-
-        bool sarpy_ran = false;
-        bool sarpy_ok = false;
-        for (std::size_t chunk_index = 0; chunk_index < chunk_dirs.size(); ++chunk_index) {
-            const auto& chunk_dir = chunk_dirs[chunk_index];
-            const auto scratch = options.output_dir / (".sarpy_validation_" + std::to_string(chunk_index));
-            const auto validation = ValidateCrsdWithSarpyIfAvailable(chunk_dir, scratch);
-            if (validation.ran) {
-                sarpy_ran = true;
-                if (!validation.ok) {
-                    std::error_code cleanup_error{};
-                    std::filesystem::remove_all(options.output_dir, cleanup_error);
-                    std::cerr << validation.message << '\n';
-                    return 1;
-                }
-                sarpy_ok = true;
-            }
-            if (!validation.ok) {
-                warnings.push_back(validation.message);
-            }
-        }
-
-        if (sarpy_ran && !sarpy_ok) {
-            std::error_code cleanup_error{};
-            std::filesystem::remove_all(options.output_dir, cleanup_error);
-            std::cerr << "sarpy_validation_failed:no_valid_crsd_outputs" << '\n';
-            return 1;
-        }
-
-        if (!sarpy_ran) {
-            warnings.push_back("sarpy_validation_skipped:no_sarpy_runtime_available");
         }
     }
 

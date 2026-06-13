@@ -70,6 +70,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_sarpy_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr13_sarpy_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr14_sarpy_crsd_harness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr16_graphx_crsd_lite_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )

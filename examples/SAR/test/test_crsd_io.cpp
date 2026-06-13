@@ -4,10 +4,7 @@
 
 #include <chrono>
 #include <filesystem>
-#include <fstream>
 #include <string>
-
-#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -78,64 +75,18 @@ protected:
         return product;
     }
 
-    [[nodiscard]] static nlohmann::json ReadJson(const std::filesystem::path& path) {
-        std::ifstream stream{path};
-        EXPECT_TRUE(stream.good()) << path;
-        nlohmann::json value{};
-        stream >> value;
-        return value;
-    }
-
     std::filesystem::path root_{};
 };
 
-TEST_F(CrsdIoTest, WriterEmitsCrsdArtifactsIncludingPvpAndChunkIndex) {
+TEST_F(CrsdIoTest, WriterFailsBeforeEmittingMisleadingCrsdArtifacts) {
     const auto out_dir = Path("crsd_out");
     const auto product = MakeProduct();
 
     graphx::sar::CrsdWriter writer;
     const auto write = writer.Write(out_dir, product);
-    ASSERT_TRUE(write.success) << write.message;
-
-    const auto signal_path = out_dir / graphx::sar::CrsdWriter::kSignalFile;
-    const auto metadata_path = out_dir / graphx::sar::CrsdWriter::kMetadataFile;
-    const auto pvp_path = out_dir / graphx::sar::CrsdWriter::kPvpFile;
-    const auto provenance_path = out_dir / graphx::sar::CrsdWriter::kProvenanceFile;
-    const auto chunk_index_path = out_dir / graphx::sar::CrsdWriter::kChunkIndexFile;
-
-    EXPECT_TRUE(std::filesystem::exists(signal_path));
-    EXPECT_TRUE(std::filesystem::exists(metadata_path));
-    EXPECT_TRUE(std::filesystem::exists(pvp_path));
-    EXPECT_TRUE(std::filesystem::exists(provenance_path));
-    EXPECT_TRUE(std::filesystem::exists(chunk_index_path));
-
-    const auto metadata = ReadJson(metadata_path);
-    const auto pvp = ReadJson(pvp_path);
-    const auto provenance = ReadJson(provenance_path);
-    const auto chunk_index = ReadJson(chunk_index_path);
-
-    EXPECT_EQ(metadata.at("format"), graphx::sar::CrsdWriter::kFormatName);
-    EXPECT_EQ(metadata.at("label"), graphx::sar::CrsdWriter::kStandardsTargetedLabel);
-    EXPECT_EQ(metadata.at("shape").at("pulse_count"), 2);
-    EXPECT_EQ(metadata.at("shape").at("channel_count"), 1);
-
-    ASSERT_TRUE(pvp.contains("channels"));
-    ASSERT_EQ(pvp.at("channels").size(), 1u);
-    ASSERT_TRUE(pvp.at("channels").at(0).contains("vectors"));
-    ASSERT_EQ(pvp.at("channels").at(0).at("vectors").size(), 2u);
-
-    EXPECT_EQ(provenance.at("collection_id"), "collection-crsd-001");
-    EXPECT_EQ(provenance.at("source_ordering"), "lexical");
-
-    EXPECT_EQ(chunk_index.at("schema"), graphx::sar::CrsdWriter::kChunkIndexSchema);
-    EXPECT_EQ(chunk_index.at("pulse_range").at("start"), 0);
-    EXPECT_EQ(chunk_index.at("pulse_range").at("end"), 1);
-    ASSERT_TRUE(chunk_index.contains("entries"));
-    ASSERT_EQ(chunk_index.at("entries").size(), 2u);
-
-    const auto checksum = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path);
-    ASSERT_FALSE(checksum.empty());
-    EXPECT_EQ(chunk_index.at("signal_checksum_fnv1a64"), checksum);
+    EXPECT_FALSE(write.success);
+    EXPECT_EQ(write.message, graphx::sar::CrsdWriter::kUnavailableMessage);
+    EXPECT_FALSE(std::filesystem::exists(out_dir));
 }
 
 TEST_F(CrsdIoTest, WriterFailsForMissingRequiredFields) {
