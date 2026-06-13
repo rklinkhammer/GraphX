@@ -1,0 +1,91 @@
+name: SarPy Integration (Opt-In)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gotchaDatasetPath:
+        description: "Absolute path on runner to GOTCHA dataset root"
+        required: true
+        type: string
+      gotchaManifestPath:
+        description: "Optional manifest path (defaults to <dataset>/manifest.json)"
+        required: false
+        default: ""
+        type: string
+      gotchaChecksumsPath:
+        description: "Optional checksum file path (defaults to <dataset>/checksums.sha256)"
+        required: false
+        default: ""
+        type: string
+      crsdFilePath:
+        description: "Absolute path on runner to a CRSD file used by PR14 smoke test"
+        required: true
+        type: string
+
+jobs:
+  sarpy-integration:
+    # This job expects local datasets; prefer a self-hosted runner with dataset access.
+    runs-on: self-hosted
+
+    env:
+      GRAPHX_SAR_GOTCHA_DATASET: ${{ inputs.gotchaDatasetPath }}
+      GRAPHX_SARPY_CRSD_FILE: ${{ inputs.crsdFilePath }}
+      GRAPHX_SAR_GOTCHA_MANIFEST: ${{ inputs.gotchaManifestPath }}
+      GRAPHX_SAR_GOTCHA_CHECKSUMS: ${{ inputs.gotchaChecksumsPath }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set optional env defaults
+        shell: bash
+        run: |
+          if [[ -z "${GRAPHX_SAR_GOTCHA_MANIFEST}" ]]; then
+            echo "GRAPHX_SAR_GOTCHA_MANIFEST=${GRAPHX_SAR_GOTCHA_DATASET}/manifest.json" >> "$GITHUB_ENV"
+          fi
+          if [[ -z "${GRAPHX_SAR_GOTCHA_CHECKSUMS}" ]]; then
+            echo "GRAPHX_SAR_GOTCHA_CHECKSUMS=${GRAPHX_SAR_GOTCHA_DATASET}/checksums.sha256" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install system dependencies
+        shell: bash
+        run: |
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y \
+              ninja-build \
+              gcc-14 \
+              g++-14 \
+              nlohmann-json3-dev \
+              libeigen3-dev \
+              liblog4cxx-dev \
+              libgtest-dev \
+              python3 \
+              python3-pip
+          fi
+
+      - name: Install Python dependencies for SarPy lane
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r tools/sarpy/requirements.txt
+
+      - name: Verify GOTCHA dataset manifest and checksums
+        shell: bash
+        run: |
+          bash scripts/verify_gotcha_dataset.sh
+
+      - name: Configure
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake --preset ninja-debug
+
+      - name: Build SAR unit test target
+        run: |
+          cmake --build --preset build-debug --target test_sar_example_unit
+
+      - name: Run labeled SarPy lanes
+        run: |
+          ctest --test-dir build-ninja/ninja-debug -L sarpy --output-on-failure

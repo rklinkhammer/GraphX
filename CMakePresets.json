@@ -95,6 +95,14 @@
       "name": "build-debug-metal-native-strict",
       "displayName": "Build Debug (Metal Native, Strict)",
       "configurePreset": "ninja-debug-metal-native-strict"
+    },
+    {
+      "name": "build-sar-example-unit",
+      "displayName": "Build SAR Example Unit",
+      "configurePreset": "ninja-debug-metal-native",
+      "targets": [
+        "test_sar_example_unit"
+      ]
     }
   ],
   "testPresets": [
@@ -134,6 +142,19 @@
       "filter": {
         "include": {
           "name": "libgpu_metal_runtime"
+        }
+      }
+    },
+    {
+      "name": "test-sar-sarpy-lane",
+      "displayName": "Run SarPy-labeled SAR tests",
+      "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "sarpy"
         }
       }
     }

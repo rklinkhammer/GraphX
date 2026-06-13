@@ -90,3 +90,43 @@ python3 tools/sarpy/reference_image_from_crsd.py \
 
 - No CRSD writer is implemented here.
 - SarPy remains local-only tooling and not a GraphX runtime dependency.
+
+## Automated Gated Testing
+
+Use labeled CTest lanes for SarPy-specific automation:
+
+```bash
+ctest --test-dir build-ninja/ninja-debug-metal-native -L sarpy --output-on-failure
+```
+
+Defined SarPy labels/lane tests:
+
+- `sar_example_sarpy_probe_lane`
+- `sar_example_sarpy_integration_lane`
+
+### Dataset Preflight (manifest + checksums)
+
+Before running data-backed SarPy integration tests, validate your dataset:
+
+```bash
+export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
+export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
+export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
+bash scripts/verify_gotcha_dataset.sh
+```
+
+The checksum file is expected in this format per line:
+
+```text
+<sha256> <relative-path-from-dataset-root>
+```
+
+### Optional PR14 smoke prerequisites
+
+- `GRAPHX_SARPY_CRSD_FILE` must point to a readable CRSD file for the PR14 smoke test to execute.
+- If not set, the smoke test is skipped by design.
+
+### CI template
+
+An opt-in workflow template is available at `.github/workflows/sarpy-integration.yml`.
+It is designed for a self-hosted runner with access to local GOTCHA/CRSD data.

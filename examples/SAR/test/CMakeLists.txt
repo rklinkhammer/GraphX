@@ -162,3 +162,11 @@ add_test(NAME sar_example_unit COMMAND test_sar_example_unit)
 add_test(NAME sar_example_ci_lane COMMAND test_sar_example_unit --gtest_filter=Rrp7CiValidationLaneTest.*)
 add_test(NAME sar_example_main_executable
     COMMAND test_sar_example_unit --gtest_filter=SarMainExecutableTest.*)
+
+add_test(NAME sar_example_sarpy_probe_lane
+    COMMAND test_sar_example_unit --gtest_filter=Pr13SarpyToolsTest.ProbeCommandsAreLocalOnlyAndNonBlocking:Pr14SarpyCrsdHarnessTest.ProbeCommandsDeclareLocalOnlyHarness)
+set_tests_properties(sar_example_sarpy_probe_lane PROPERTIES LABELS "sar;sarpy;probe;local-only;gated")
+
+add_test(NAME sar_example_sarpy_integration_lane
+    COMMAND test_sar_example_unit --gtest_filter=Pr13SarpyToolsTest.*:Pr14SarpyCrsdHarnessTest.*)
+set_tests_properties(sar_example_sarpy_integration_lane PROPERTIES LABELS "sar;sarpy;integration;local-only;gated")
