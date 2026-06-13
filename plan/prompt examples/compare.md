@@ -1406,3 +1406,124 @@ Required output format from IMPLEMENTOR:
 10. Explicit confirmation that RRP7+ work was not implemented.
 ```
 
+========
+
+Use this as the IMPLEMENTOR prompt for RRP7:
+
+```text
+Act as IMPLEMENTOR using plan/reviews/SAR_INSPECTOR_REPORT.md and plan/reviews/SAR_PLANNER_REPORT.md.
+
+Task:
+Implement RRP7 only.
+
+RRP7 title:
+SarPy Product/Metadata Harness.
+
+Inputs:
+- plan/reviews/SAR_INSPECTOR_REPORT.md
+- plan/reviews/SAR_PLANNER_REPORT.md
+- plan/roadmap/SAR_COMPARE_ROADMAP.md
+- plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md
+- plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json
+- examples/SAR/scenarios/scenario_001.json
+- current RRP0-RRP6 outputs/code
+- current repository state
+
+Repository inspection overrides assumptions.
+
+RRP7 purpose:
+Add a lightweight external-package validation harness for product/metadata contract handling using SarPy, while keeping GraphX core isolated from SarPy types and preserving the artifact-based comparison boundary.
+
+Required flow for this PR:
+
+SarPy local-only harness
+-> product/metadata artifact extraction or normalization
+-> GraphX-compatible artifact/metadata contract
+-> validation test or smoke harness
+
+Important boundary:
+Do not implement RRP8+.
+Do not implement ISCE3 or Sentinel-1 product comparison.
+Do not add gotcha-back execution to CI.
+Do not modify GraphX core runtime architecture.
+Do not let SarPy APIs, types, or assumptions leak into libgraph, libgpu, libdsp, or GraphX core SAR contracts.
+Do not require SarPy installation for normal CI.
+Do not require network downloads in CI.
+Do not require CUDA.
+
+Scope:
+Implement SarPy harness scaffolding, local-only setup/documentation, registry or policy alignment if needed, and tests that validate the harness boundaries only.
+
+Preferred implementation locations:
+- examples/SAR/tools
+- examples/SAR/test
+- plan/reviews
+- tools/external if needed for local-only setup notes or scripts
+
+Do not promote logic into:
+- libgraph
+- libgpu
+- libdsp
+
+Required implementation:
+1. Add a local-only SarPy harness entry point or script.
+2. Keep SarPy setup isolated to local/manual usage.
+3. Define or normalize the SarPy-side output into an artifact or metadata contract that GraphX-side tooling can reason about later.
+4. Reuse existing artifact/report conventions where practical instead of inventing a parallel schema.
+5. Ensure the package registry and policy documents remain consistent with the actual harness boundary if updates are required.
+6. Make the harness explicitly local-only unless a tiny legal fixture already exists and is already accepted by the repository.
+7. Ensure any emitted metadata/product contract clearly states that this is product/metadata validation, not proof of GraphX phase-history image-formation correctness.
+
+Required boundary rules:
+- SarPy must validate artifacts or metadata only.
+- SarPy must not define GraphX internal node, token, resolver, or sidecar contracts.
+- External package setup must stay outside GraphX core.
+- Large datasets must not be committed.
+- Manual data paths or optional virtualenv usage are acceptable only for local/manual runs.
+
+Required tests:
+Add or update tests to validate:
+1. The SarPy harness entry point exists.
+2. Registry/policy classification remains comparator-only or product-harness-only as appropriate.
+3. The harness is explicitly marked local-only when SarPy is absent.
+4. The harness does not become a CI dependency.
+5. No SarPy imports are required by core GraphX build or normal SAR unit lanes.
+6. Any normalized metadata/product contract shape is validated.
+7. Documentation or harness output clearly states scope boundaries and non-goals.
+
+Preferred test files:
+- extend existing external-baseline or policy tests if they already cover this boundary
+- otherwise add a focused test such as:
+  - examples/SAR/test/test_rrp7_sarpy_harness.cpp
+
+If similar tests already exist:
+extend them minimally instead of duplicating harness-boundary logic.
+
+Acceptance criteria:
+1. A SarPy local-only harness exists.
+2. SarPy setup is isolated from GraphX core and normal CI.
+3. Package registry/policy/docs accurately describe the SarPy harness boundary.
+4. Tests verify that the harness is local-only and non-invasive.
+5. No GraphX core, accel-token, GPU, Metal, or resolver architecture changes are introduced unless clearly unavoidable and documented.
+6. RRP8+ is not implemented.
+
+Failure handling requirements:
+- If SarPy is not installed, fail or skip in a clearly local-only manner without breaking CI.
+- If dataset paths or local environment requirements are missing, report that explicitly.
+- Do not silently downgrade a local-only harness into a no-op.
+- Do not claim image-formation parity from metadata/product-only checks.
+
+Required output format from IMPLEMENTOR:
+1. Files added.
+2. Files changed.
+3. SarPy harness summary.
+4. Local-only setup summary.
+5. Artifact or metadata contract summary.
+6. Tests added or updated.
+7. Build command run.
+8. Test command run.
+9. Any missing fields, assumptions, or blockers.
+10. Explicit confirmation that RRP8+ work was not implemented.
+```
+
+If you want, I can also produce a shorter paste-ready version tailored for compare.md.

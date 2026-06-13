@@ -383,7 +383,7 @@ Output:
 Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
-- SAR_INSPECTOR_REPORT.md
+- SAR_COMPARE_ROADMAP.md
 - SAR_SIMPLIFIER_REPORT.md
 - SAR_PR_ROADMAP.md
 - PR1 - PR4 verifier reports

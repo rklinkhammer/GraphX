@@ -33,8 +33,9 @@
       "license": "MIT",
       "role": "primary",
       "comparator_only": true,
-      "lane": "ci-safe",
-      "focus": "SICD/CPHD/CRSD conformance and metadata integrity"
+      "lane": "local-only",
+      "status": "local-only-harness",
+      "focus": "SICD/CPHD/CRSD conformance and product metadata integrity"
     },
     {
       "name": "ISCE3",

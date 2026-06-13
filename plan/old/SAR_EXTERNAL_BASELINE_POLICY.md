@@ -20,6 +20,9 @@ The authoritative machine-readable registry is:
 - Secondary comparator: ISCE3 (`isce-framework/isce3`)
 - Secondary comparator: gotcha-back (`tbensonatl/gotcha-back`)
 
+SarPy is currently approved as a local-only product/metadata harness.
+It is not a normal CI dependency and does not prove GraphX phase-history image-formation correctness.
+
 ## Architecture Protection Rules
 
 1. Comparator-only stance is mandatory for all registered external packages.
@@ -41,6 +44,7 @@ The authoritative machine-readable registry is:
 1. CI-safe lanes must use deterministic tiny fixtures and bounded runtime.
 2. Large datasets and heavy toolchains stay local-only unless explicitly promoted.
 3. Promotion from local-only to CI requires policy and registry update plus tests.
+4. SarPy harness execution is local-only first, even though policy survey work may reference it as a primary comparator candidate.
 
 ## Reference Provenance Boundary
 

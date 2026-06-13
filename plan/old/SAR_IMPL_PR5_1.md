@@ -1,99 +1,89 @@
-# SAR_IMPL_PR5_1
+# SAR Implementation Report: PR5
 
-## Task
-Implement PR5 only.
+Role: `IMPLEMENTER` requested against `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`.
 
-**PR5 title:** Delete Obsolete SAR Message Abstractions
+Implemented PR5 from `plan/reviews/SAR_PLANNER_REPORT.md`: Split Benchmark And Main Validation Responsibilities.
 
-**PR5 scope:**
-- Remove non-canonical legacy edge abstractions after token path is complete.
+## Summary
 
-## Result
-PR5 is implemented and validated.
+PR5 adds direct test coverage for the `examples/SAR/main.cpp` executable path without changing SAR runtime behavior. `main.cpp` already reported the stable runtime and diagnostic lines required by PR5, so no executable output changes were needed.
 
-The definitive SAR runtime path now uses canonical accel-token and sidecar state only. The removed legacy SAR message abstractions are no longer present in the definitive runtime path. Remaining legacy SAR message names are retained only as intentional string-based parser and negative-validation guardrails.
-
-## Acceptance Criteria Check
-
-### 1. Removed legacy message abstractions are absent from definitive runtime path
-Satisfied.
-
-Implemented changes:
-- Removed legacy runtime message structs from the shared SAR type surface in `examples/SAR/include/sar/SarMessages.hpp`:
-  - `SarPulseBlockMessage`
-  - `SarMergeStatusMessage`
-  - `SarDiagnosticsMessage`
-- Replaced message-style diagnostics projection with canonical state:
-  - `SarDiagnosticsSinkNode::last_status()` removed
-  - `SarDiagnosticsSinkNode::last_token()` added
-  - diagnostics sink now stores the canonical `SarAccelControlToken`
-  - diagnostics sink now exposes `SarDiagnosticsSnapshot` instead of `SarDiagnosticsMessage`
-- Updated benchmark/runtime/test consumers to use canonical token and sidecar state directly rather than message wrappers.
-
-### 2. Parser negative-validation artifacts may remain as strings only where intentionally required for guardrails
-Satisfied.
-
-Intentional retained string-only guardrails remain in:
-- `libgraph/src/graph/GraphConfigParser.cpp`
-- `examples/SAR/test/test_sar_accel_token_guardrails.cpp`
-- `examples/SAR/test/test_sar_json_runtime.cpp`
-
-These references are negative-validation artifacts only and are not part of the runtime edge contract.
+Benchmark-only comparison and trace logic remains in `examples/SAR/src/sar_benchmark.cpp`.
 
 ## Files Changed
-- `examples/SAR/include/sar/SarMessages.hpp`
-- `examples/SAR/include/sar/SarDiagnosticsSinkNode.hpp`
-- `examples/SAR/src/SarDiagnosticsSinkNode.cpp`
-- `examples/SAR/src/sar_benchmark.cpp`
-- `examples/SAR/src/main.cpp`
-- `examples/SAR/test/test_sar_baseline_compare.cpp`
-- `examples/SAR/test/test_sar_diagnostics_contract.cpp`
-- `examples/SAR/test/test_sar_json_pipeline.cpp`
-- `examples/SAR/test/test_sar_json_runtime.cpp`
-- `examples/SAR/test/test_sar_pr2_fanout_json.cpp`
-- `examples/SAR/test/test_sar_pr3_metal_json.cpp`
-- `examples/SAR/test/test_sar_projectile_scenario.cpp`
-- `examples/SAR/test/test_gotcha_dataset_adapter.cpp`
+
+- `examples/SAR/test/CMakeLists.txt`
+- `examples/SAR/test/test_sar_main_executable.cpp`
 
 ## Files Deleted
+
 None.
 
-## Tests Added
-None.
+## Tests Added Or Updated
 
-## Tests Removed Or Replaced
-No test files were deleted.
+- Added `SarMainExecutableTest.DefinitiveConfigReportsRuntimeAndDiagnostics`.
+  - Runs the built `sar_example` executable.
+  - Uses `sar_stripmap_definitive.json`.
+  - Uses the SAR plugin output directory from the current build.
+  - Captures stdout/stderr.
+  - Asserts stable output for:
+    - executable start banner,
+    - topology config,
+    - plugin directory,
+    - loaded node count,
+    - loaded edge count,
+    - successful execution,
+    - completion signal,
+    - diagnostics queue backpressure metric,
+    - diagnostics peak queue depth metric.
+- Added `SAR_EXAMPLE_EXECUTABLE_PATH` compile definition for the SAR unit test binary.
+- Added `test_sar_example_unit` dependency on `sar_example`.
+- Added CTest entry `sar_example_main_executable`.
 
-Obsolete message-based assertions were replaced with canonical token and diagnostics snapshot assertions in:
-- `examples/SAR/test/test_sar_diagnostics_contract.cpp`
-- `examples/SAR/test/test_sar_json_pipeline.cpp`
-- `examples/SAR/test/test_sar_json_runtime.cpp`
-- `examples/SAR/test/test_sar_pr2_fanout_json.cpp`
-- `examples/SAR/test/test_sar_pr3_metal_json.cpp`
-- `examples/SAR/test/test_sar_baseline_compare.cpp`
-- `examples/SAR/test/test_sar_projectile_scenario.cpp`
-- `examples/SAR/test/test_gotcha_dataset_adapter.cpp`
+## Verification
 
-## Build Commands Run
-Used CMake Tools build targets:
-- `sar_benchmark`
-- `sar_example`
-- `test_sar_example_unit`
+- `cmake --build build --target test_sar_example_unit sar_example`
+  - Passed.
 
-## Test Commands Run
-Used CMake Tools CTest run on the active build tree.
+- `./build/examples/SAR/test/test_sar_example_unit --gtest_filter='SarMainExecutableTest.*'`
+  - Passed: 1 test.
 
-Result:
-- `libgraph_unit` passed
-- `libgraph_integration` passed
-- `libgpu_stub_unit` passed
-- `libgpu_metal_runtime` passed
-- `sar_example_unit` passed
+- `ctest --test-dir build -R '^sar_example_main_executable$' --output-on-failure`
+  - Passed: 1 CTest entry.
 
-Summary:
-- 5/5 tests passed
+- `./build/examples/SAR/test/test_sar_example_unit --gtest_filter='SarMainExecutableTest.*:SarJsonRuntimeTest.*:SarTokenContractTest.*'`
+  - Passed: 16 tests.
 
-## Remaining Follow-up Items
-None required for PR5 scope.
+- `./build/examples/SAR/test/test_sar_example_unit`
+  - Passed: 135 tests passed, 1 skipped.
+  - Skipped: `SarCpuReferenceTest.BackprojectionAdapterReferenceMatchesNativeMetalWhenAvailable`.
+  - Skip reason reported by test: native Metal unavailable because no active/default device was enumerated in this environment.
 
-The only remaining legacy SAR message names are intentional string-based rejection artifacts for parser guardrails, which is permitted by the PR5 acceptance criteria.
+- `./build/examples/SAR/sar_example examples/SAR/config/sar_stripmap_definitive.json build/examples/SAR/plugins`
+  - Passed.
+  - Output included successful execution, completion signaled, 9 loaded nodes, 8 loaded edges, and diagnostics metrics.
+
+## Output And Benchmark Boundary
+
+- No output fields were added to `examples/SAR/src/main.cpp`.
+- Existing main output already includes:
+  - `Diagnostics queue_backpressure_events`
+  - `Diagnostics peak_queue_depth`
+- `examples/SAR/src/sar_benchmark.cpp` was not changed. Benchmark-only graph-vs-direct comparison and trace logic stayed there.
+
+## Acceptance Notes
+
+- `examples/SAR/main.cpp` executable path is now directly test-covered.
+- Basic runtime diagnostics from available graph/diagnostics data are asserted.
+- Existing SAR runtime behavior is preserved.
+- PR1 resolver labels remain intact.
+- PR2 centralized helper semantics remain intact.
+- PR3 sidecar-preservation tests remain intact.
+- PR4 compatibility alias migration path remains intact.
+- No external dependencies were added.
+- No PR6+ work was implemented.
+
+## Risks And Follow-Up
+
+- The subprocess test asserts stable text labels rather than exact diagnostic values, because queue depth can vary by scheduler timing.
+- Existing unrelated dirty-tree item remains outside PR5 scope: `plan/prompt examples/cleanup.md`.
