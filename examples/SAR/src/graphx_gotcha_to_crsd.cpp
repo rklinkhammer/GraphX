@@ -1,20 +1,25 @@
 #include "sar/io/GotchaInputOrdering.hpp"
 #include "sar/io/GotchaMatInspector.hpp"
 #include "sar/io/GotchaMatReader.hpp"
+#include "sar/io/CrsdIO.hpp"
 #include "sar/io/GraphxCrsdLiteIO.hpp"
 #include "sar/io/SarIoUtilities.hpp"
 #include "sar/io/SarProductChunker.hpp"
 #include "sar/io/SarProductValidator.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -199,12 +204,132 @@ void PrintHelp() {
     return sliced;
 }
 
-int Run(const CliOptions& options) {
-    if (options.mode == "crsd") {
-        std::cerr << "crsd_mode_not_implemented: full CRSD writer is not available yet" << '\n';
-        return 1;
+[[nodiscard]] std::string ShellQuote(const std::filesystem::path& path) {
+    const std::string raw = path.generic_string();
+    std::string quoted{"'"};
+    for (const char ch : raw) {
+        if (ch == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += ch;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+[[nodiscard]] bool CommandExists(const std::string& name) {
+    const std::string command = "command -v " + name + " >/dev/null 2>&1";
+    return std::system(command.c_str()) == 0;
+}
+
+[[nodiscard]] std::optional<nlohmann::json> LoadJson(const std::filesystem::path& path) {
+    std::ifstream stream{path};
+    if (!stream) {
+        return std::nullopt;
+    }
+    try {
+        nlohmann::json value{};
+        stream >> value;
+        return value;
+    } catch (const nlohmann::json::exception&) {
+        return std::nullopt;
+    }
+}
+
+struct SarpyValidationOutcome {
+    bool ran{false};
+    bool ok{false};
+    std::string message{"skipped"};
+};
+
+[[nodiscard]] SarpyValidationOutcome ValidateCrsdWithSarpyIfAvailable(
+    const std::filesystem::path& crsd_directory,
+    const std::filesystem::path& scratch_directory) {
+    SarpyValidationOutcome outcome{};
+
+    if (!CommandExists("python3")) {
+        outcome.message = "sarpy_validation_skipped:python3_not_found";
+        return outcome;
     }
 
+    const auto tool_path = std::filesystem::path{"tools/sarpy/validate_crsd.py"};
+    if (!std::filesystem::exists(tool_path)) {
+        outcome.message = "sarpy_validation_skipped:validate_crsd_tool_missing";
+        return outcome;
+    }
+
+    const auto signal_path = crsd_directory / graphx::sar::CrsdWriter::kSignalFile;
+    if (!std::filesystem::exists(signal_path)) {
+        outcome.message = "sarpy_validation_error:crsd_signal_missing";
+        return outcome;
+    }
+
+    std::error_code fs_error{};
+    std::filesystem::create_directories(scratch_directory, fs_error);
+    if (fs_error) {
+        outcome.message = "sarpy_validation_error:scratch_directory_error";
+        return outcome;
+    }
+
+    const auto probe_json = scratch_directory / "sarpy_probe.json";
+    const auto probe_command =
+        "python3 " + ShellQuote(tool_path) +
+        " probe-environment --output-json " + ShellQuote(probe_json) +
+        " >/dev/null 2>&1";
+    if (std::system(probe_command.c_str()) != 0) {
+        outcome.message = "sarpy_validation_skipped:probe_failed";
+        return outcome;
+    }
+
+    const auto probe = LoadJson(probe_json);
+    if (!probe.has_value()) {
+        outcome.message = "sarpy_validation_skipped:probe_json_invalid";
+        return outcome;
+    }
+
+    const bool has_sarpy =
+        probe->contains("packages") &&
+        (*probe)["packages"].contains("sarpy") &&
+        (*probe)["packages"]["sarpy"].contains("installed") &&
+        (*probe)["packages"]["sarpy"]["installed"].is_boolean() &&
+        (*probe)["packages"]["sarpy"]["installed"].get<bool>();
+    if (!has_sarpy) {
+        outcome.message = "sarpy_validation_skipped:sarpy_not_installed";
+        return outcome;
+    }
+
+    const auto report_json = scratch_directory / "sarpy_crsd_validation_report.json";
+    const auto validate_command =
+        "python3 " + ShellQuote(tool_path) +
+        " validate --input-crsd " + ShellQuote(signal_path) +
+        " --output-json " + ShellQuote(report_json) +
+        " >/dev/null 2>&1";
+
+    outcome.ran = true;
+    const int validate_exit = std::system(validate_command.c_str());
+    const auto report = LoadJson(report_json);
+    if (validate_exit != 0 || !report.has_value()) {
+        outcome.ok = false;
+        outcome.message = "sarpy_validation_failed:validation_command_failed";
+        return outcome;
+    }
+
+    if (report->contains("validation") &&
+        (*report)["validation"].contains("status") &&
+        (*report)["validation"]["status"].is_string() &&
+        (*report)["validation"]["status"].get<std::string>() == "ok") {
+        outcome.ok = true;
+        outcome.message = "sarpy_validation_ok";
+        return outcome;
+    }
+
+    outcome.ok = false;
+    outcome.message = "sarpy_validation_failed:report_status_not_ok";
+    return outcome;
+}
+
+int Run(const CliOptions& options) {
     const auto ordering = DiscoverInputs(options);
     if (const auto error = FindOrderingErrorMessage(ordering); error.has_value()) {
         std::cerr << *error << '\n';
@@ -263,30 +388,117 @@ int Run(const CliOptions& options) {
     std::vector<graphx::sar::SarOutputSummary> output_summaries{};
     output_summaries.reserve(chunk_plan.chunks.size());
 
-    graphx::sar::GraphxCrsdLiteWriter writer(graphx::sar::GraphxCrsdLiteOptions{
-        .assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"},
-        .warnings = chunk_plan.warnings,
-    });
+    std::string selected_format{};
+    std::string label{};
+    std::vector<std::string> assumptions{};
+    std::vector<std::string> warnings = chunk_plan.warnings;
+    std::string metadata_file{};
+    std::string index_file{};
 
-    for (const auto& chunk : chunk_plan.chunks) {
-        const auto chunk_dir = options.output_dir / (chunk.output_stem + ".graphx-crsd-lite");
-        const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
-        const auto write = writer.Write(chunk_dir, chunk_product);
-        if (!write.success) {
-            std::cerr << "lite_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+    if (options.mode == "graphx-crsd-lite") {
+        selected_format = "graphx-crsd-lite";
+        label = "NON-STANDARD";
+        assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"};
+        metadata_file = "metadata.json";
+        index_file = "gotcha_crsd_index.json";
+
+        graphx::sar::GraphxCrsdLiteWriter writer(graphx::sar::GraphxCrsdLiteOptions{
+            .assumptions = assumptions,
+            .warnings = warnings,
+        });
+
+        for (const auto& chunk : chunk_plan.chunks) {
+            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".graphx-crsd-lite");
+            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
+            const auto write = writer.Write(chunk_dir, chunk_product);
+            if (!write.success) {
+                std::cerr << "lite_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+                return 1;
+            }
+
+            const auto signal_path = chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile;
+            output_summaries.push_back(graphx::sar::SarOutputSummary{
+                .output_name = chunk_dir.filename().generic_string(),
+                .checksum_fnv1a64 = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path),
+                .pulse_start = chunk.pulse_start,
+                .pulse_end = chunk.pulse_end,
+                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
+                .channel_count = read.product.Shape().channel_count,
+                .max_sample_count = read.product.Shape().max_sample_count,
+            });
+        }
+    } else {
+        selected_format = "crsd";
+        label = "STANDARDS-TARGETED";
+        assumptions = {
+            "standards_targeted_crsd_metadata",
+            "standards_targeted_signal_array",
+            "standards_targeted_pvp",
+        };
+        metadata_file = "metadata.json";
+        index_file = "chunk_index.json";
+
+        graphx::sar::CrsdWriter writer(graphx::sar::CrsdWriterOptions{
+            .assumptions = assumptions,
+            .warnings = warnings,
+        });
+
+        std::vector<std::filesystem::path> chunk_dirs{};
+        chunk_dirs.reserve(chunk_plan.chunks.size());
+
+        for (const auto& chunk : chunk_plan.chunks) {
+            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
+            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
+            const auto write = writer.Write(chunk_dir, chunk_product);
+            if (!write.success) {
+                std::cerr << "crsd_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+                return 1;
+            }
+
+            const auto signal_path = chunk_dir / graphx::sar::CrsdWriter::kSignalFile;
+            output_summaries.push_back(graphx::sar::SarOutputSummary{
+                .output_name = chunk_dir.filename().generic_string(),
+                .checksum_fnv1a64 = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path),
+                .pulse_start = chunk.pulse_start,
+                .pulse_end = chunk.pulse_end,
+                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
+                .channel_count = read.product.Shape().channel_count,
+                .max_sample_count = read.product.Shape().max_sample_count,
+            });
+            chunk_dirs.push_back(chunk_dir);
+        }
+
+        bool sarpy_ran = false;
+        bool sarpy_ok = false;
+        for (std::size_t chunk_index = 0; chunk_index < chunk_dirs.size(); ++chunk_index) {
+            const auto& chunk_dir = chunk_dirs[chunk_index];
+            const auto scratch = options.output_dir / (".sarpy_validation_" + std::to_string(chunk_index));
+            const auto validation = ValidateCrsdWithSarpyIfAvailable(chunk_dir, scratch);
+            if (validation.ran) {
+                sarpy_ran = true;
+                if (!validation.ok) {
+                    std::error_code cleanup_error{};
+                    std::filesystem::remove_all(options.output_dir, cleanup_error);
+                    std::cerr << validation.message << '\n';
+                    return 1;
+                }
+                sarpy_ok = true;
+            }
+            if (!validation.ok) {
+                warnings.push_back(validation.message);
+            }
+        }
+
+        if (sarpy_ran && !sarpy_ok) {
+            std::error_code cleanup_error{};
+            std::filesystem::remove_all(options.output_dir, cleanup_error);
+            std::cerr << "sarpy_validation_failed:no_valid_crsd_outputs" << '\n';
             return 1;
         }
 
-        const auto signal_path = chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile;
-        output_summaries.push_back(graphx::sar::SarOutputSummary{
-            .output_name = chunk_dir.filename().generic_string(),
-            .checksum_fnv1a64 = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path),
-            .pulse_start = chunk.pulse_start,
-            .pulse_end = chunk.pulse_end,
-            .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
-            .channel_count = read.product.Shape().channel_count,
-            .max_sample_count = read.product.Shape().max_sample_count,
-        });
+        if (!sarpy_ran) {
+            warnings.push_back("sarpy_validation_skipped:no_sarpy_runtime_available");
+        }
     }
 
     if (options.emit_index) {
@@ -303,34 +515,53 @@ int Run(const CliOptions& options) {
                 .provenance = read.product.collection.provenance_label,
                 .outputs = output_summaries,
                 .frequency_axis_hz = frequency_axis,
-                .assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"},
-                .warnings = chunk_plan.warnings,
+                .assumptions = assumptions,
+                .warnings = warnings,
             });
+
+        std::string validation_status = options.validate ? "ok" : "skipped";
+        if (options.mode == "crsd") {
+            bool has_sarpy_skip = false;
+            bool has_sarpy_error = false;
+            for (const auto& warning : warnings) {
+                if (warning.rfind("sarpy_validation_failed:", 0) == 0) {
+                    has_sarpy_error = true;
+                }
+                if (warning.rfind("sarpy_validation_skipped:", 0) == 0) {
+                    has_sarpy_skip = true;
+                }
+            }
+            if (has_sarpy_error) {
+                validation_status = "error";
+            } else if (has_sarpy_skip) {
+                validation_status = "unavailable";
+            }
+        }
 
         const auto report_json = graphx::sar::SarIoUtilities::BuildConversionReportJson(
             graphx::sar::ConversionReportBuildInput{
-                .format = "graphx-crsd-lite",
-                .label = "NON-STANDARD",
-                .selected_mode = "graphx-crsd-lite",
-                .validation_status = options.validate ? "ok" : "skipped",
+                .format = selected_format,
+                .label = label,
+                .selected_mode = options.mode,
+                .validation_status = validation_status,
                 .provenance = read.product.collection.provenance_label,
                 .source_ordering = read.product.collection.source_ordering,
-                .assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"},
-                .warnings = chunk_plan.warnings,
+                .assumptions = assumptions,
+                .warnings = warnings,
                 .outputs = output_summaries,
-                .metadata_file = "metadata.json",
-                .index_file = "gotcha_crsd_index.json",
+                .metadata_file = metadata_file,
+                .index_file = index_file,
             });
 
         if (!graphx::sar::SarIoUtilities::WriteJson(options.output_dir / "gotcha_crsd_index.json", index_json) ||
             !graphx::sar::SarIoUtilities::WriteJson(options.output_dir / "conversion_report.json", report_json) ||
-            !graphx::sar::SarIoUtilities::WriteWarningsLog(options.output_dir / "conversion_warnings.log", chunk_plan.warnings)) {
+            !graphx::sar::SarIoUtilities::WriteWarningsLog(options.output_dir / "conversion_warnings.log", warnings)) {
             std::cerr << "report_write_failed:" << options.output_dir.generic_string() << '\n';
             return 1;
         }
     }
 
-    std::cout << "conversion_successful: mode=graphx-crsd-lite chunks=" << output_summaries.size() << '\n';
+    std::cout << "conversion_successful: mode=" << options.mode << " chunks=" << output_summaries.size() << '\n';
     return 0;
 }
 

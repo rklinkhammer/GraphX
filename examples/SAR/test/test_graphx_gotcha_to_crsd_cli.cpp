@@ -203,7 +203,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         malformed_manifest.output.find("empty_manifest") != std::string::npos);
 }
 
-TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatAndCrsdModeFailClearly) {
+TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeWorksOnTinyFixture) {
     const auto input_dir = Path("unsupported");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));
     WriteMatStub("unsupported/classic.mat", false);
@@ -217,13 +217,31 @@ TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatAndCrsdModeFailClearly) {
     EXPECT_NE(unsupported.exit_code, 0);
     EXPECT_NE(unsupported.output.find("unsupported_mat_format"), std::string::npos);
 
+    const auto crsd_input = Path("crsd-input");
+    const auto crsd_output = Path("crsd-output");
+    ASSERT_TRUE(std::filesystem::create_directories(crsd_input));
+    WriteMatStub("crsd-input/pulse_01.mat", true);
+    WriteSidecar("crsd-input/pulse_01.mat", 11);
+
     const auto crsd_mode = RunCommand(
         CliBase() +
-        " --input-dir " + ShellQuote(input_dir) +
-        " --output-dir " + ShellQuote(Path("out-e")) +
+        " --input-dir " + ShellQuote(crsd_input) +
+        " --output-dir " + ShellQuote(crsd_output) +
         " --collection-id c5 --max-output-size-mb 1 --sort lexical --mode crsd 2>&1");
-    EXPECT_NE(crsd_mode.exit_code, 0);
-    EXPECT_NE(crsd_mode.output.find("crsd_mode_not_implemented"), std::string::npos);
+
+    if (crsd_mode.exit_code == 0) {
+        EXPECT_NE(crsd_mode.output.find("conversion_successful: mode=crsd"), std::string::npos);
+        const auto chunk_dir = crsd_output / "gotcha_crsd_chunk_0000.crsd";
+        EXPECT_TRUE(std::filesystem::exists(chunk_dir / "signal.bin"));
+        EXPECT_TRUE(std::filesystem::exists(chunk_dir / "metadata.json"));
+        EXPECT_TRUE(std::filesystem::exists(chunk_dir / "pvp.json"));
+        EXPECT_TRUE(std::filesystem::exists(chunk_dir / "provenance.json"));
+        EXPECT_TRUE(std::filesystem::exists(chunk_dir / "chunk_index.json"));
+    } else {
+        EXPECT_NE(crsd_mode.output.find("sarpy_validation_failed:"), std::string::npos)
+            << crsd_mode.output;
+        EXPECT_FALSE(std::filesystem::exists(crsd_output));
+    }
 }
 
 } // namespace
