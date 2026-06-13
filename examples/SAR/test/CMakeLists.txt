@@ -68,6 +68,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_ci_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_sarpy_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_pr13_sarpy_tools.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr14_sarpy_crsd_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -111,6 +112,9 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR13_REFERENCE_IMAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
     SAR_PR13_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"
     SAR_PR13_SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
+    SAR_PR14_VALIDATE_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/validate_crsd.py"
+    SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_crsd.py"
+    SAR_PR14_SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
