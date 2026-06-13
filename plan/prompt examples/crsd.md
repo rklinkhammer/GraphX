@@ -1,5 +1,5 @@
 
-Act as IMPLEMENTOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Goal:
 Implement a GraphX command-line utility that converts ordered GOTCHA MATLAB `.mat` phase-history files into ordered CRSD received-signal files, and define a SarPy-based Python reference workflow for generating reference imagery for later GraphX comparison.
@@ -7,6 +7,9 @@ Implement a GraphX command-line utility that converts ordered GOTCHA MATLAB `.ma
 Use these reports as context:
 - `plan/reviews/SAR_INSPECTOR_REPORT.md`
 - `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/reviews/SAR_SIMPLIFIER_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+
 
 Important constraint:
 Do not use MATLAB directly. MATLAB must not be a build-time or runtime dependency. GOTCHA `.mat` files must be read from C++ using open file-format support:
@@ -477,3 +480,6 @@ Do not let GOTCHA-specific field names leak throughout GraphX. GOTCHA is an impo
         -> CrsdWriter
         -> SarPy validation
         -> reference image comparison
+
+Stop after the planner report.
+Save the report as `plan/reviews/SAR_PLANNER_REPORT.md`.

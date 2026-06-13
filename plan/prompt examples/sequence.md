@@ -7,9 +7,7 @@ Analyze the current repository only. Do not redesign or implement. Stop after th
 Act as INSPECTOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
-
-====
-save inspector output to plan/reviews/SAR_INSPECTOR_REPORT.md
+Save inspector output to plan/reviews/SAR_INSPECTOR_REPORT.md
 ====
 Act as SIMPLIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
@@ -26,8 +24,7 @@ Prefer deletion over compatibility.
 Your task:
 - Convert the Inspector observations into a clean target architecture.
 - Identify what to delete, keep, rename, and replace.
-- Resolve the path toward exactly one canonical SAR GPU flow:
-  AccelControlToken<SarSidecar>.
+
 
 Produce only:
 1. Target type model.
@@ -383,10 +380,9 @@ Output:
 Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
-- SAR_COMPARE_ROADMAP.md
-- SAR_SIMPLIFIER_REPORT.md
-- SAR_PR_ROADMAP.md
-- PR1 - PR4 verifier reports
+- `plan/reviews/SAR_INSPECTOR_REPORT.md`
+- `plan/reviews/SAR_PLANNER_REPORT.md`
+- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
 - current repo state
 
 Question:
