@@ -67,6 +67,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_tiny_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_ci_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_sarpy_harness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr13_sarpy_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -107,6 +108,9 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp5_frozen_scenario_replay.md"
     SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
     SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+    SAR_PR13_REFERENCE_IMAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
+    SAR_PR13_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"
+    SAR_PR13_SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
