@@ -42,6 +42,8 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_trace_schema.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_main_executable.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_normalized_sar_product.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_validator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
