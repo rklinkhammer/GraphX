@@ -33,6 +33,7 @@ struct WaveformMetadata {
     double sample_rate_hz{0.0};
     std::string sample_type{"complex_f32"};
     std::string polarization{};
+    std::vector<double> frequency_axis_hz{};
 };
 
 struct PulseVector {
@@ -52,6 +53,9 @@ struct CollectionMetadata {
     std::string collection_id{};
     std::string coordinate_frame{};
     std::string time_basis{};
+    std::vector<std::string> source_files{};
+    std::string provenance_label{};
+    std::string source_ordering{};
 };
 
 struct ReferenceGeometry {

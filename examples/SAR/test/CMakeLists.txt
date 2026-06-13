@@ -1,6 +1,7 @@
 find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
 find_package(log4cxx REQUIRED)
+find_package(HDF5 COMPONENTS C QUIET)
 
 set(SAR_LOG4CXX_LIB log4cxx)
 if(TARGET log4cxx::log4cxx)
@@ -44,6 +45,9 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_main_executable.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_normalized_sar_product.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_validator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_input_ordering.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_inspector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
@@ -84,6 +88,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_EXAMPLE_EXECUTABLE_PATH="$<TARGET_FILE:sar_example>"
     SAR_EXTERNAL_BASELINE_POLICY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
     SAR_BASELINE_PACKAGE_REGISTRY_PATH="${CMAKE_SOURCE_DIR}/plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
+    SAR_GOTCHA_INPUT_MANIFEST_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/sar/gotcha_input_manifest_schema.md"
     SAR_SCENARIO_001_JSON_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.json"
     SAR_SCENARIO_001_MD_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.md"
     SAR_SCENARIO_001_FIXTURE_MANIFEST_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/fixture_manifest.json"
@@ -107,6 +112,13 @@ target_link_libraries(test_sar_example_unit PRIVATE
     Threads::Threads
     graphx_project_options
 )
+if(HDF5_FOUND)
+    target_compile_definitions(test_sar_example_unit PRIVATE GRAPHX_SAR_HAS_HDF5=1)
+    target_include_directories(test_sar_example_unit PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(test_sar_example_unit PRIVATE ${HDF5_LIBRARIES})
+else()
+    target_compile_definitions(test_sar_example_unit PRIVATE GRAPHX_SAR_HAS_HDF5=0)
+endif()
 add_dependencies(test_sar_example_unit azimuth_tile_split_node)
 add_dependencies(test_sar_example_unit d2h_async_node)
 add_dependencies(test_sar_example_unit h2d_async_node)
