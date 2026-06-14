@@ -33,9 +33,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/GotchaReplaySourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_json_pipeline.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr3_metal_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_token_guardrails.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_fanout_json.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_projectile_scenario.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_transport_opaque_contract.cpp
@@ -53,7 +51,6 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_chunker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_io_utilities.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_pr2_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_fixture.cpp

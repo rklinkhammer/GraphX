@@ -32,6 +32,8 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Implement exactly PR1 from plan/SAR_NAMING_CLEANUP_PLANNER_REPORT.md: Quarantine Historical Planning Artifacts.
 
+Use the implementor prompt from:  plan/agents/SAR_NAMING_CLEANUP_PR_AGENTS.md
+
 Scope:
 - Move SAR implementation/verifier history files out of active plan/reviews and into plan/history/reviews.
 - Move only the historical implementation/verifier artifacts identified by the planner.
