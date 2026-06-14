@@ -205,7 +205,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         malformed_manifest.output.find("empty_manifest") != std::string::npos);
 }
 
-TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeFailsBeforeMisleadingOutput) {
+TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeProducesSarpyOpenableOutput) {
     const auto input_dir = Path("unsupported");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));
     WriteMatStub("unsupported/classic.mat", false);
@@ -229,13 +229,19 @@ TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeFailsBefo
         CliBase() +
         " --input-dir " + ShellQuote(crsd_input) +
         " --output-dir " + ShellQuote(crsd_output) +
-        " --collection-id c5 --max-output-size-mb 1 --sort lexical --mode crsd 2>&1");
+        " --collection-id c5 --max-output-size-mb 1 --sort lexical --mode crsd --validate --emit-index 2>&1");
 
-    EXPECT_NE(crsd_mode.exit_code, 0);
-    EXPECT_NE(
-        crsd_mode.output.find(graphx::sar::CrsdWriter::kUnavailableMessage),
-        std::string::npos) << crsd_mode.output;
-    EXPECT_FALSE(std::filesystem::exists(crsd_output));
+    EXPECT_EQ(crsd_mode.exit_code, 0) << crsd_mode.output;
+    EXPECT_NE(crsd_mode.output.find("conversion_successful"), std::string::npos);
+    const auto chunk_dir = crsd_output / "gotcha_crsd_chunk_0000.crsd";
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::CrsdWriter::kSignalFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::CrsdWriter::kMetadataFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::CrsdWriter::kPvpFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::CrsdWriter::kProvenanceFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::CrsdWriter::kChunkIndexFile));
+    EXPECT_TRUE(std::filesystem::exists(crsd_output / "gotcha_crsd_index.json"));
+    EXPECT_TRUE(std::filesystem::exists(crsd_output / "conversion_report.json"));
+    EXPECT_TRUE(std::filesystem::exists(crsd_output / "conversion_warnings.log"));
 }
 
 } // namespace

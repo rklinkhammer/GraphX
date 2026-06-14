@@ -3,6 +3,7 @@
 #include "sar/io/CrsdIO.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 
@@ -72,21 +73,49 @@ protected:
         channel.pulses.push_back(std::move(pulse0));
         channel.pulses.push_back(std::move(pulse1));
         product.channels.push_back(std::move(channel));
+        product.reference_geometry.scene_center_m = {0.0, 0.0, 0.0};
+        product.reference_geometry.reference_platform = product.channels.front().pulses.front().parameters.platform;
         return product;
+    }
+
+    [[nodiscard]] static std::string ShellQuote(const std::filesystem::path& path) {
+        std::string raw = path.string();
+        std::string quoted{"'"};
+        for (const char ch : raw) {
+            if (ch == '\'') {
+                quoted += "'\\''";
+            } else {
+                quoted += ch;
+            }
+        }
+        quoted += "'";
+        return quoted;
     }
 
     std::filesystem::path root_{};
 };
 
-TEST_F(CrsdIoTest, WriterFailsBeforeEmittingMisleadingCrsdArtifacts) {
+TEST_F(CrsdIoTest, WriterProducesSarpyOpenableCrsdProduct) {
     const auto out_dir = Path("crsd_out");
     const auto product = MakeProduct();
 
     graphx::sar::CrsdWriter writer;
     const auto write = writer.Write(out_dir, product);
-    EXPECT_FALSE(write.success);
-    EXPECT_EQ(write.message, graphx::sar::CrsdWriter::kUnavailableMessage);
-    EXPECT_FALSE(std::filesystem::exists(out_dir));
+    ASSERT_TRUE(write.success) << write.message;
+    EXPECT_TRUE(std::filesystem::exists(out_dir / graphx::sar::CrsdWriter::kSignalFile));
+    EXPECT_TRUE(std::filesystem::exists(out_dir / graphx::sar::CrsdWriter::kMetadataFile));
+    EXPECT_TRUE(std::filesystem::exists(out_dir / graphx::sar::CrsdWriter::kPvpFile));
+    EXPECT_TRUE(std::filesystem::exists(out_dir / graphx::sar::CrsdWriter::kProvenanceFile));
+    EXPECT_TRUE(std::filesystem::exists(out_dir / graphx::sar::CrsdWriter::kChunkIndexFile));
+
+    const auto validation_report = Path("sarpy_validation.json");
+    const auto command =
+        std::string{"python3 tools/sarpy/validate_crsd.py validate --input-crsd "} +
+        ShellQuote(out_dir / graphx::sar::CrsdWriter::kSignalFile) +
+        " --output-json " + ShellQuote(validation_report) +
+        " >/dev/null 2>&1";
+    EXPECT_EQ(std::system(command.c_str()), 0);
+    EXPECT_TRUE(std::filesystem::exists(validation_report));
 }
 
 TEST_F(CrsdIoTest, WriterFailsForMissingRequiredFields) {

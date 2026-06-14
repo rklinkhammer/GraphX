@@ -33,6 +33,7 @@ struct CliOptions {
     std::string mode{"graphx-crsd-lite"};
     bool validate{false};
     bool emit_index{false};
+    bool allow_classic_mat_with_sidecar{false};
     bool help{false};
 };
 
@@ -53,6 +54,7 @@ void PrintHelp() {
         << "  --manifest             Manifest path when --sort manifest\n"
         << "  --mode                 Output mode: graphx-crsd-lite or crsd\n"
         << "  --validate             Run normalized product validation before export\n"
+        << "  --allow-classic-mat-with-sidecar  Allow classic MAT input when sidecar JSON is present\n"
         << "  --emit-index           Emit gotcha_crsd_index.json and conversion_report.json\n";
 }
 
@@ -111,6 +113,10 @@ void PrintHelp() {
             options.validate = true;
             continue;
         }
+        if (IsFlag(arg, "--allow-classic-mat-with-sidecar")) {
+            options.allow_classic_mat_with_sidecar = true;
+            continue;
+        }
         if (IsFlag(arg, "--emit-index")) {
             options.emit_index = true;
             continue;
@@ -167,11 +173,19 @@ void PrintHelp() {
 
 [[nodiscard]] bool EnsureSupportedMatFormats(
     const std::vector<std::filesystem::path>& files,
+    bool allow_classic_mat_with_sidecar,
     std::string& failure_message) {
     for (const auto& path : files) {
         if (!graphx::sar::GotchaMatInspector::HasHdf5Signature(path)) {
-            failure_message = "unsupported_mat_format:" + path.generic_string();
-            return false;
+            if (!allow_classic_mat_with_sidecar) {
+                failure_message = "unsupported_mat_format:" + path.generic_string();
+                return false;
+            }
+            const auto sidecar_path = std::filesystem::path{path.string() + ".json"};
+            if (!std::filesystem::exists(sidecar_path)) {
+                failure_message = "classic_mat_requires_sidecar:" + sidecar_path.generic_string();
+                return false;
+            }
         }
     }
     return true;
@@ -337,7 +351,10 @@ int Run(const CliOptions& options) {
     }
 
     std::string mat_failure{};
-    if (!EnsureSupportedMatFormats(ordering.files, mat_failure)) {
+    if (!EnsureSupportedMatFormats(
+            ordering.files,
+            options.allow_classic_mat_with_sidecar,
+            mat_failure)) {
         std::cerr << mat_failure << '\n';
         return 1;
     }
@@ -367,13 +384,6 @@ int Run(const CliOptions& options) {
             std::cerr << "validation_failed:" << first.code << ":" << first.path << '\n';
             return 1;
         }
-    }
-
-    if (options.mode == "crsd") {
-        graphx::sar::CrsdWriter writer;
-        const auto crsd_probe = writer.Write(options.output_dir, read.product);
-        std::cerr << crsd_probe.message << '\n';
-        return 1;
     }
 
     const auto max_chunk_bytes =
@@ -427,6 +437,48 @@ int Run(const CliOptions& options) {
             output_summaries.push_back(graphx::sar::SarOutputSummary{
                 .output_name = chunk_dir.filename().generic_string(),
                 .checksum_fnv1a64 = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path),
+                .pulse_start = chunk.pulse_start,
+                .pulse_end = chunk.pulse_end,
+                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
+                .channel_count = read.product.Shape().channel_count,
+                .max_sample_count = read.product.Shape().max_sample_count,
+            });
+        }
+    } else if (options.mode == "crsd") {
+        selected_format = "crsd";
+        label = "STANDARDS-TARGETED";
+        assumptions = {
+            "standards_targeted_crsd_metadata",
+            "standards_targeted_signal_array",
+            "standards_targeted_pvp",
+        };
+        metadata_file = graphx::sar::CrsdWriter::kMetadataFile;
+        index_file = graphx::sar::CrsdWriter::kChunkIndexFile;
+
+        graphx::sar::CrsdWriter writer;
+        for (const auto& chunk : chunk_plan.chunks) {
+            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
+            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
+            const auto write = writer.Write(chunk_dir, chunk_product);
+            if (!write.success) {
+                std::cerr << "crsd_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+                return 1;
+            }
+
+            const auto sarpy_validation = ValidateCrsdWithSarpyIfAvailable(
+                chunk_dir,
+                chunk_dir / "sarpy_validation");
+            warnings.push_back(sarpy_validation.message);
+            if (!sarpy_validation.ran || !sarpy_validation.ok) {
+                std::cerr << "crsd_validation_failed:" << chunk_dir.generic_string() << ":" <<
+                    sarpy_validation.message << '\n';
+                return 1;
+            }
+
+            const auto signal_path = chunk_dir / graphx::sar::CrsdWriter::kSignalFile;
+            output_summaries.push_back(graphx::sar::SarOutputSummary{
+                .output_name = chunk_dir.filename().generic_string(),
+                .checksum_fnv1a64 = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path),
                 .pulse_start = chunk.pulse_start,
                 .pulse_end = chunk.pulse_end,
                 .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
