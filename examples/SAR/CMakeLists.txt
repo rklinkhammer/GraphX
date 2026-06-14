@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.23)
 project(graphx_sar_example LANGUAGES CXX)
 
 find_package(log4cxx REQUIRED)
+find_package(HDF5 COMPONENTS C QUIET)
 
 add_executable(sar_example
     src/main.cpp
@@ -53,6 +54,13 @@ target_compile_definitions(sar_benchmark PRIVATE
 
 target_compile_features(graphx_gotcha_to_crsd PRIVATE cxx_std_26)
 target_link_libraries(graphx_gotcha_to_crsd PRIVATE graph gpu dsp log4cxx)
+if(HDF5_FOUND)
+    target_compile_definitions(graphx_gotcha_to_crsd PRIVATE GRAPHX_SAR_HAS_HDF5=1)
+    target_include_directories(graphx_gotcha_to_crsd PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(graphx_gotcha_to_crsd PRIVATE ${HDF5_LIBRARIES})
+else()
+    target_compile_definitions(graphx_gotcha_to_crsd PRIVATE GRAPHX_SAR_HAS_HDF5=0)
+endif()
 
 target_include_directories(sar_example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

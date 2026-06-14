@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): Historical planning/prompt artifact. It may reference deprecated GraphX SAR conversion lanes or naming. Use plan/prompt examples/doc.md for current CRSD-only operational guidance.
+
 # SAR PR Implementor And Verifier Agents
 
 Source roadmap: `plan/reviews/SAR_PLANNER_REPORT.md`

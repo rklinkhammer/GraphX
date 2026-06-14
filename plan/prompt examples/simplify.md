@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): Historical planning/prompt artifact. It may reference deprecated GraphX SAR conversion lanes or naming. Use plan/prompt examples/doc.md for current CRSD-only operational guidance.
+
 Yes: use **SIMPLIFIER first**, then **PLANNER**.
 
 The role file does not define a “principal architect” agent. This is architecture cleanup, but the decision is straightforward: remove PR-history naming from final repo artifacts. SIMPLIFIER should define the clean target naming model and deletion/rename rules. PLANNER should then split it into reviewable PRs. IMPLEMENTER comes after.

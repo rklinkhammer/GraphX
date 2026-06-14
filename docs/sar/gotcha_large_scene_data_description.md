@@ -64,8 +64,8 @@ The project should account for the following dataset facts:
 ## Local Validation and Conversion
 
 When a local copy of the GOTCHA dataset is available, use the full-aperture
-conversion workflow to ingest all pulses from all ten files and generate
-`graphx-sar-normalized` (lite) output.
+conversion workflow to ingest all pulses from all ten files and generate CRSD
+output.
 
 ### Required Environment
 
@@ -84,14 +84,14 @@ checksums.sha256
 ### Full-Aperture Conversion
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/local/subData /tmp/gotcha_crsd_out
 ```
 
 This script:
 
 - Verifies the dataset integrity using `scripts/verify_gotcha_dataset.sh`.
 - Runs `graphx-gotcha-to-crsd` in full-aperture mode.
-- Outputs `graphx-sar-normalized` lite format with all pulses from all files.
+- Outputs CRSD products (`*/product.crsd`) with all pulses from all files.
 - Emits `conversion_report.json` with aperture accounting showing total files
   read, total pulses read, and per-file pulse counts.
 - Does not download any data or require MATLAB.
@@ -104,7 +104,7 @@ validation tests that verify:
 - All ten GOTCHA files are processed.
 - The conversion preserves all pulses from each file.
 - The conversion report correctly accounts for total and per-file pulse counts.
-- Lite output metadata is valid and complete.
+- CRSD output metadata is valid and complete.
 
 Run tests with:
 

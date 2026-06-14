@@ -1,6 +1,8 @@
 #pragma once
 
+#include "sar/io/GotchaHdf5PhdataReader.hpp"
 #include "sar/io/GotchaInputOrdering.hpp"
+#include "sar/io/GotchaMatInspector.hpp"
 #include "sar/io/GotchaToCrsdMetadataMapper.hpp"
 #include "sar/io/NormalizedSarProduct.hpp"
 
@@ -100,6 +102,59 @@ public:
         // Full-aperture mode: iterate through each file and read all Np pulses per file
         for (std::size_t file_index = 0; file_index < ordering.files.size(); ++file_index) {
             const auto& source_file = ordering.files[file_index];
+
+            // Preferred path: read all pulses directly from the HDF5 MAT file.
+            // This extracts the full phdata array and per-pulse geometry, bypassing
+            // the sidecar JSON which only contains a single representative pulse.
+            if (GotchaHdf5PhdataReader::IsAvailable() &&
+                GotchaMatInspector::HasHdf5Signature(source_file)) {
+                const auto hdf5 = GotchaHdf5PhdataReader::Read(source_file);
+                if (!hdf5.success) {
+                    result.diagnostics.issues.push_back(GotchaMatReaderIssue{
+                        .code    = "hdf5_phdata_read_failed",
+                        .path    = source_file,
+                        .message = hdf5.message,
+                    });
+                    continue;
+                }
+
+                // Set waveform metadata from the first file that yields data.
+                if (channel.waveform.carrier_hz == 0.0 && hdf5.waveform.carrier_hz != 0.0) {
+                    channel.waveform.carrier_hz     = hdf5.waveform.carrier_hz;
+                    channel.waveform.bandwidth_hz   = hdf5.waveform.bandwidth_hz;
+                    channel.waveform.sample_rate_hz = hdf5.waveform.sample_rate_hz;
+                    if (channel.waveform.frequency_axis_hz.empty() &&
+                        hdf5.waveform.k_samples > 0) {
+                        channel.waveform.frequency_axis_hz = {
+                            hdf5.waveform.min_f,
+                            hdf5.waveform.min_f +
+                                hdf5.waveform.delta_f *
+                                    static_cast<double>(hdf5.waveform.k_samples - 1),
+                        };
+                    }
+                }
+
+                for (std::size_t pi = 0; pi < hdf5.pulses.size(); ++pi) {
+                    const auto& hp = hdf5.pulses[pi];
+                    PulseVector pulse{};
+                    pulse.parameters.vector_index        = global_pulse_index;
+                    pulse.parameters.time_seconds        = hp.pulse_time;
+                    pulse.parameters.range_sample_start  = 0;
+                    pulse.parameters.source_file_index   =
+                        static_cast<std::uint64_t>(file_index);
+                    pulse.parameters.source_pulse_index  =
+                        static_cast<std::uint64_t>(pi);
+                    pulse.parameters.reference_range_m   = hp.reference_range_m;
+                    pulse.parameters.platform.position_m = hp.antenna_position_m;
+                    pulse.samples = hp.samples;
+                    channel.pulses.push_back(std::move(pulse));
+                    ++global_pulse_index;
+                }
+                continue;  // skip sidecar path for this file
+            }
+
+            // Fallback: sidecar JSON path (used when HDF5 is unavailable or
+            // the file is classic MAT format).
             const auto sidecar_path = std::filesystem::path{source_file.string() + ".json"};
             const auto sidecar = LoadSidecar(sidecar_path, result.diagnostics.issues);
             if (!sidecar.has_value()) {

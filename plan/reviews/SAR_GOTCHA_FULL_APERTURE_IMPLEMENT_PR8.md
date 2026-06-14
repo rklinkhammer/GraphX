@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): This document is kept for historical traceability. It may reference deprecated GraphX SAR conversion lanes, flags, or scripts. Use the active CRSD-only workflow in plan/prompt examples/doc.md and scripts/convert_gotcha_subdata_to_crsd.sh.
+
 # PR8 Implementation Report: Local-Only Real GOTCHA Multi-File Validation
 
 **Status:** ✅ COMPLETE

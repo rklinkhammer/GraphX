@@ -304,7 +304,6 @@ private:
             {"mat_format", format},
             {"matlab_dependency", "not_used"},
             {"normalized_product_emitted", false},
-            {"graphx_sar_normalized_emitted", false},
             {"crsd_emitted", false},
             {"classic_mat_policy", "deterministic_unsupported_error"},
             {"assumptions", nlohmann::json::array({

@@ -163,7 +163,7 @@ The following file areas are consistent with the current repository layout, but
 they should be created only in the implementation PRs that own them:
 
 - `docs/sar/crsd_definition.md` for the CRSD definition document.
-- `examples/SAR/include/sar/io/...` for future GOTCHA MAT, graphx-sar-normalized, and
+- `examples/SAR/include/sar/io/...` for GOTCHA MAT and
   CRSD public C++ interfaces if the project keeps this work under the SAR
   example tree.
 - `examples/SAR/src/...` for future converter, reader, writer, chunking, and
@@ -172,10 +172,10 @@ they should be created only in the implementation PRs that own them:
 - `examples/SAR/tools/...` for future local-only validation helpers, including
   SarPy-based checks if needed.
 
-Likely future implementation units include a GOTCHA MAT reader, a permanent
-`graphx-sar-normalized` reader/writer, a CRSD writer, product chunking utilities, a
-SarPy validation harness, and a C++ `graphx-gotcha-to-crsd` CLI. These names are
-discovery outputs, not files created by this PR.
+Likely implementation units include a GOTCHA MAT reader, a CRSD writer,
+product chunking utilities, a SarPy validation harness, and a C++
+`graphx-gotcha-to-crsd` CLI. These names are discovery outputs, not files
+created by this PR.
 
 ## Follow-Up Decisions
 
@@ -188,5 +188,4 @@ The following decisions block detailed implementation planning in later PRs:
 - The final namespace and target naming for GOTCHA-to-CRSD code under the current
   `examples/SAR` structure.
 - The shape and size limits for CI-safe synthetic or reduced GOTCHA fixtures.
-- The precise boundary between permanent `graphx-sar-normalized` interchange and
-  standards-oriented CRSD export.
+- CRSD validation and interchange scope boundaries for long-term maintenance.

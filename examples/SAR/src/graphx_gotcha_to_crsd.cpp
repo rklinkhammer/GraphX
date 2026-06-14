@@ -2,7 +2,6 @@
 #include "sar/io/GotchaMatInspector.hpp"
 #include "sar/io/GotchaMatReader.hpp"
 #include "sar/io/CrsdIO.hpp"
-#include "sar/io/GraphxSarNormalizedIO.hpp"
 #include "sar/io/SarIoUtilities.hpp"
 #include "sar/io/SarProductChunker.hpp"
 #include "sar/io/SarProductValidator.hpp"
@@ -30,10 +29,9 @@ struct CliOptions {
     double max_output_size_mb{0.0};
     std::string sort{"lexical"};
     std::filesystem::path manifest{};
-    std::string mode{"graphx-sar-normalized"};
+    std::string mode{"crsd"};
     bool validate{false};
     bool emit_index{false};
-    bool allow_classic_mat_with_sidecar{false};
     bool help{false};
 };
 
@@ -43,7 +41,7 @@ void PrintHelp() {
         << "Usage:\n"
         << "  graphx-gotcha-to-crsd --input-dir <dir> --output-dir <dir> --collection-id <id> \\\n"
         << "      --max-output-size-mb <mb> --sort <lexical|manifest> [--manifest <path>] \\\n"
-        << "      --mode <graphx-sar-normalized|crsd> [--validate] [--emit-index]\n\n"
+        << "      [--mode crsd] [--validate] [--emit-index]\n\n"
         << "Options:\n"
         << "  --help                 Show this help message\n"
         << "  --input-dir            Input GOTCHA MAT directory\n"
@@ -52,10 +50,8 @@ void PrintHelp() {
         << "  --max-output-size-mb   Max output chunk size in MB (0 disables split)\n"
         << "  --sort                 Ordering mode: lexical or manifest\n"
         << "  --manifest             Manifest path when --sort manifest\n"
-        << "  --mode                 Output mode: graphx-sar-normalized or crsd\n"
-        << "                         graphx-sar-normalized is NON-STANDARD and is not CRSD\n"
-        << "  --validate             Run normalized product validation before export\n"
-        << "  --allow-classic-mat-with-sidecar  Allow classic MAT input when sidecar JSON is present\n"
+        << "  --mode                 Output mode (supported: crsd)\n"
+        << "  --validate             Run normalized product validation before CRSD export\n"
         << "  --emit-index           Emit mode-specific index JSON and conversion_report.json\n";
 }
 
@@ -114,10 +110,6 @@ void PrintHelp() {
             options.validate = true;
             continue;
         }
-        if (IsFlag(arg, "--allow-classic-mat-with-sidecar")) {
-            options.allow_classic_mat_with_sidecar = true;
-            continue;
-        }
         if (IsFlag(arg, "--emit-index")) {
             options.emit_index = true;
             continue;
@@ -143,7 +135,7 @@ void PrintHelp() {
     if (options.sort == "manifest" && options.manifest.empty()) {
         throw std::invalid_argument("missing_required:--manifest");
     }
-    if (options.mode != "graphx-sar-normalized" && options.mode != "crsd") {
+    if (options.mode != "crsd") {
         throw std::invalid_argument("invalid_value:--mode");
     }
 
@@ -174,19 +166,11 @@ void PrintHelp() {
 
 [[nodiscard]] bool EnsureSupportedMatFormats(
     const std::vector<std::filesystem::path>& files,
-    bool allow_classic_mat_with_sidecar,
     std::string& failure_message) {
     for (const auto& path : files) {
         if (!graphx::sar::GotchaMatInspector::HasHdf5Signature(path)) {
-            if (!allow_classic_mat_with_sidecar) {
                 failure_message = "unsupported_mat_format:" + path.generic_string();
                 return false;
-            }
-            const auto sidecar_path = std::filesystem::path{path.string() + ".json"};
-            if (!std::filesystem::exists(sidecar_path)) {
-                failure_message = "classic_mat_requires_sidecar:" + sidecar_path.generic_string();
-                return false;
-            }
         }
     }
     return true;
@@ -344,35 +328,6 @@ struct SarpyValidationOutcome {
     return outcome;
 }
 
-[[nodiscard]] bool ValidateGotchaFieldsPreFlight(
-    const std::vector<std::filesystem::path>& files,
-    std::string& failure_message) {
-    for (const auto& mat_file : files) {
-        const auto sidecar_path = std::filesystem::path{mat_file.string() + ".json"};
-        if (!std::filesystem::exists(sidecar_path)) {
-            // Only validate if sidecar exists; inspector will handle missing sidecars
-            continue;
-        }
-
-        const auto validation = graphx::sar::GotchaMatInspector::ValidateRequiredFields(sidecar_path);
-        if (!validation.is_valid()) {
-            // Report the first validation error
-            if (!validation.missing_fields.empty()) {
-                const auto& error = validation.missing_fields.front();
-                failure_message = "missing_required_field:" + error.field_name + ":" + sidecar_path.generic_string();
-                return false;
-            }
-            if (!validation.type_errors.empty()) {
-                const auto& error = validation.type_errors.front();
-                failure_message = "invalid_field_type:" + error.field_name + ":" + sidecar_path.generic_string() +
-                                 ":" + error.expected_type;
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 int Run(const CliOptions& options) {
     const auto ordering = DiscoverInputs(options);
     if (const auto error = FindOrderingErrorMessage(ordering); error.has_value()) {
@@ -383,15 +338,8 @@ int Run(const CliOptions& options) {
     std::string mat_failure{};
     if (!EnsureSupportedMatFormats(
             ordering.files,
-            options.allow_classic_mat_with_sidecar,
             mat_failure)) {
         std::cerr << mat_failure << '\n';
-        return 1;
-    }
-
-    std::string field_failure{};
-    if (!ValidateGotchaFieldsPreFlight(ordering.files, field_failure)) {
-        std::cerr << field_failure << '\n';
         return 1;
     }
 
@@ -424,12 +372,11 @@ int Run(const CliOptions& options) {
 
     const auto max_chunk_bytes =
         static_cast<std::uint64_t>(options.max_output_size_mb * 1024.0 * 1024.0);
-    const auto output_prefix = options.mode == "crsd" ? "gotcha_crsd_chunk" : "gotcha_sar_normalized_chunk";
     const auto chunk_plan = graphx::sar::SarProductChunker::BuildPlan(
         read.product,
         graphx::sar::SarChunkerOptions{
             .max_chunk_bytes = max_chunk_bytes,
-            .output_prefix = output_prefix,
+            .output_prefix = "gotcha_crsd_chunk",
         });
 
     std::error_code fs_error{};
@@ -442,90 +389,48 @@ int Run(const CliOptions& options) {
     std::vector<graphx::sar::SarOutputSummary> output_summaries{};
     output_summaries.reserve(chunk_plan.chunks.size());
 
-    std::string selected_format{};
-    std::string label{};
-    std::vector<std::string> assumptions{};
+    std::string selected_format{"crsd"};
+    std::string label{"STANDARDS-TARGETED"};
+    std::vector<std::string> assumptions{
+        "standards_targeted_crsd_metadata",
+        "standards_targeted_signal_array",
+        "standards_targeted_pvp",
+    };
     std::vector<std::string> warnings = chunk_plan.warnings;
-    std::string metadata_file{};
-    std::string index_file{};
-    std::string root_index_file{};
+    std::string metadata_file{graphx::sar::CrsdWriter::kMetadataFile};
+    std::string index_file{graphx::sar::CrsdWriter::kChunkIndexFile};
+    std::string root_index_file{"gotcha_crsd_index.json"};
 
-    if (options.mode == "graphx-sar-normalized") {
-        selected_format = "graphx-sar-normalized";
-        label = "NON-STANDARD";
-        assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"};
-        metadata_file = "metadata.json";
-        index_file = "gotcha_sar_normalized_index.json";
-        root_index_file = "gotcha_sar_normalized_index.json";
+    graphx::sar::CrsdWriter writer;
+    for (const auto& chunk : chunk_plan.chunks) {
+        const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
+        const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
+        const auto write = writer.Write(chunk_dir, chunk_product);
+        if (!write.success) {
+            std::cerr << "crsd_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+            return 1;
+        }
 
-        graphx::sar::GraphxSarNormalizedWriter writer(graphx::sar::GraphxSarNormalizedOptions{
-            .assumptions = assumptions,
-            .warnings = warnings,
+        const auto sarpy_validation = ValidateCrsdWithSarpyIfAvailable(
+            chunk_dir,
+            chunk_dir / "sarpy_validation");
+        warnings.push_back(sarpy_validation.message);
+        if (!sarpy_validation.ran || !sarpy_validation.ok) {
+            std::cerr << "crsd_validation_failed:" << chunk_dir.generic_string() << ":" <<
+                sarpy_validation.message << '\n';
+            return 1;
+        }
+
+        const auto signal_path = chunk_dir / graphx::sar::CrsdWriter::kSignalFile;
+        output_summaries.push_back(graphx::sar::SarOutputSummary{
+            .output_name = chunk_dir.filename().generic_string(),
+            .checksum_fnv1a64 = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path),
+            .pulse_start = chunk.pulse_start,
+            .pulse_end = chunk.pulse_end,
+            .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
+            .channel_count = read.product.Shape().channel_count,
+            .max_sample_count = read.product.Shape().max_sample_count,
         });
-
-        for (const auto& chunk : chunk_plan.chunks) {
-            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".graphx-sar-normalized");
-            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
-            const auto write = writer.Write(chunk_dir, chunk_product);
-            if (!write.success) {
-                std::cerr << "sar_normalized_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
-                return 1;
-            }
-
-            const auto signal_path = chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile;
-            output_summaries.push_back(graphx::sar::SarOutputSummary{
-                .output_name = chunk_dir.filename().generic_string(),
-                .checksum_fnv1a64 = graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(signal_path),
-                .pulse_start = chunk.pulse_start,
-                .pulse_end = chunk.pulse_end,
-                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
-                .channel_count = read.product.Shape().channel_count,
-                .max_sample_count = read.product.Shape().max_sample_count,
-            });
-        }
-    } else if (options.mode == "crsd") {
-        selected_format = "crsd";
-        label = "STANDARDS-TARGETED";
-        assumptions = {
-            "standards_targeted_crsd_metadata",
-            "standards_targeted_signal_array",
-            "standards_targeted_pvp",
-        };
-        metadata_file = graphx::sar::CrsdWriter::kMetadataFile;
-        index_file = graphx::sar::CrsdWriter::kChunkIndexFile;
-        root_index_file = "gotcha_crsd_index.json";
-
-        graphx::sar::CrsdWriter writer;
-        for (const auto& chunk : chunk_plan.chunks) {
-            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
-            const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
-            const auto write = writer.Write(chunk_dir, chunk_product);
-            if (!write.success) {
-                std::cerr << "crsd_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
-                return 1;
-            }
-
-            const auto sarpy_validation = ValidateCrsdWithSarpyIfAvailable(
-                chunk_dir,
-                chunk_dir / "sarpy_validation");
-            warnings.push_back(sarpy_validation.message);
-            if (!sarpy_validation.ran || !sarpy_validation.ok) {
-                std::cerr << "crsd_validation_failed:" << chunk_dir.generic_string() << ":" <<
-                    sarpy_validation.message << '\n';
-                return 1;
-            }
-
-            const auto signal_path = chunk_dir / graphx::sar::CrsdWriter::kSignalFile;
-            output_summaries.push_back(graphx::sar::SarOutputSummary{
-                .output_name = chunk_dir.filename().generic_string(),
-                .checksum_fnv1a64 = graphx::sar::CrsdWriter::ComputeSignalChecksum(signal_path),
-                .pulse_start = chunk.pulse_start,
-                .pulse_end = chunk.pulse_end,
-                .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
-                .channel_count = read.product.Shape().channel_count,
-                .max_sample_count = read.product.Shape().max_sample_count,
-            });
-        }
     }
 
     if (options.emit_index) {
@@ -534,9 +439,7 @@ int Run(const CliOptions& options) {
             frequency_axis = read.product.channels.front().waveform.frequency_axis_hz;
         }
 
-        const auto index_schema = options.mode == "crsd"
-            ? "graphx.sar.gotcha_crsd_index.v1"
-            : "graphx.sar.gotcha_sar_normalized_index.v1";
+        const auto index_schema = "graphx.sar.gotcha_crsd_index.v1";
         const auto index_json = graphx::sar::SarIoUtilities::BuildGotchaOutputIndexJson(
             graphx::sar::GotchaOutputIndexBuildInput{
                 .schema = index_schema,
@@ -551,22 +454,20 @@ int Run(const CliOptions& options) {
             });
 
         std::string validation_status = options.validate ? "ok" : "skipped";
-        if (options.mode == "crsd") {
-            bool has_sarpy_skip = false;
-            bool has_sarpy_error = false;
-            for (const auto& warning : warnings) {
-                if (warning.rfind("sarpy_validation_failed:", 0) == 0) {
-                    has_sarpy_error = true;
-                }
-                if (warning.rfind("sarpy_validation_skipped:", 0) == 0) {
-                    has_sarpy_skip = true;
-                }
+        bool has_sarpy_skip = false;
+        bool has_sarpy_error = false;
+        for (const auto& warning : warnings) {
+            if (warning.rfind("sarpy_validation_failed:", 0) == 0) {
+                has_sarpy_error = true;
             }
-            if (has_sarpy_error) {
-                validation_status = "error";
-            } else if (has_sarpy_skip) {
-                validation_status = "unavailable";
+            if (warning.rfind("sarpy_validation_skipped:", 0) == 0) {
+                has_sarpy_skip = true;
             }
+        }
+        if (has_sarpy_error) {
+            validation_status = "error";
+        } else if (has_sarpy_skip) {
+            validation_status = "unavailable";
         }
 
         const auto report_json = graphx::sar::SarIoUtilities::BuildConversionReportJson(

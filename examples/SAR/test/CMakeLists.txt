@@ -50,9 +50,6 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_to_crsd_metadata_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_full_pulse_ingestion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_full_aperture_integration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_conversion_report_pulse_accounting.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_chunker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_io_utilities.cpp
@@ -72,9 +69,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_metadata_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_real_full_aperture_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
@@ -123,8 +118,6 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
     SARPY_VALIDATE_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/validate_crsd.py"
     SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_crsd.py"
-    SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.sh"
-    SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.md"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph

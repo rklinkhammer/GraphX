@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): This prompt template is retained for historical context and contains deprecated lane names/flags. Use the active CRSD-only operations guide at `plan/prompt examples/doc.md`.
+
 Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Goal:
@@ -912,13 +914,10 @@ Content to include:
 
 6. Local-only real GOTCHA workflow:
    - Document `scripts/verify_gotcha_dataset.sh`.
-   - Document `examples/SAR/tools/local_gotcha_validation.sh`.
+   - Document `scripts/convert_gotcha_subdata_to_crsd.sh`.
    - Show setup:
      `export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/gotcha_mat_directory`
-     `export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/manifest.json`
-     `export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/checksums.sha256`
-     `bash scripts/verify_gotcha_dataset.sh`
-     `bash examples/SAR/tools/local_gotcha_validation.sh`
+     `bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/local/gotcha_mat_directory /tmp/gotcha_crsd_out`
    - State this workflow is disabled by default, local-only, and never required by normal CI.
 
 7. Python/SarPy reference and comparison tools:

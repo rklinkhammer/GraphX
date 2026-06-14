@@ -112,21 +112,14 @@ Defined SarPy labels/lane tests:
 - `sar_example_sarpy_probe_lane`
 - `sar_example_sarpy_integration_lane`
 
-### Dataset Preflight (manifest + checksums)
+### Dataset Preflight
 
-Before running data-backed SarPy integration tests, validate your dataset:
+Before running data-backed SarPy integration tests, ensure the dataset path
+contains readable `.mat` inputs:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
-export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
-bash scripts/verify_gotcha_dataset.sh
-```
-
-The checksum file is expected in this format per line:
-
-```text
-<sha256> <relative-path-from-dataset-root>
+find "$GRAPHX_SAR_GOTCHA_DATASET" -maxdepth 1 -type f -name '*.mat' | head
 ```
 
 ### Optional CRSD smoke prerequisites

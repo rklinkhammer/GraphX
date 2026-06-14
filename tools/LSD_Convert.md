@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): Historical conversion snapshot. Some steps reference legacy sidecar-era preparation artifacts and are not required for the current CRSD-only operational lane.
+
 # LSD Convert Report
 
 Date: 2026-06-13
@@ -24,20 +26,11 @@ The following files were generated in the dataset directory:
 
 Repository scripts/tools created for this conversion flow:
 
-- tools/sarpy/generate_gotcha_subdata_sidecars.py
-- scripts/prepare_gotcha_subdata_json.sh
 - scripts/convert_gotcha_subdata_to_crsd.sh
-- scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh
 
 ## Commands
 
-### 1) Generate sidecars + manifest + checksums
-
-```bash
-bash scripts/prepare_gotcha_subdata_json.sh /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData
-```
-
-### 2) Attempt CRSD conversion
+### 1) Attempt CRSD conversion
 
 ```bash
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
@@ -45,23 +38,20 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output
 ```
 
-### 3) Run working conversion now (graphx-sar-normalized)
+### 2) Run conversion to CRSD
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh \
+bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData \
-  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_sar_normalized_output
+  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output
 ```
 
 ## Observed Results
 
 - JSON artifact generation: successful.
-- graphx-sar-normalized conversion: successful.
-- CRSD conversion mode: currently fails fast with a clear writer-unavailable message.
+- CRSD conversion: successful.
 
 ## Output Locations
 
-- graphx-sar-normalized output:
-  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_sar_normalized_output
-- CRSD attempt output directory:
+- CRSD output directory:
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output

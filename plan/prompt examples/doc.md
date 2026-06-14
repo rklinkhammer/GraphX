@@ -6,20 +6,20 @@ Minimum sequence for a first successful local run (CI-safe, no real GOTCHA data 
 
 ```bash
 # 1) Configure + build
-cmake --preset ninja-debug
+cmake --preset ninja-debug-metal-native
 cmake --build --preset build-debug
 
 # 2) Run core CTest lanes
-ctest --preset test-libgraph-unit
+ctest --preset test-libgraph-unit --output-on-failure
 ctest --preset test-libgpu-metal-runtime --output-on-failure
 
 # 3) Build and run SAR unit binary
 cmake --build --preset build-sar-example-unit
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
 
-# 4) Optional: if you have local GOTCHA dataset, run full-aperture local conversion
+# 4) Optional: if you have local GOTCHA dataset, generate CRSD input for SAR processors
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/root /tmp/gotcha_crsd_out
 ```
 
 MATLAB is not required.
@@ -72,8 +72,8 @@ flowchart LR
 
 GOTCHA conversion path (current implemented behavior):
 
-- Input `.mat` + sidecars -> ordering/validation -> normalized SAR product -> non-standard GraphX intermediate output + reports.
-- Local-only validation path exists and is environment-gated.
+- Input `.mat` -> direct HDF5 pulse extraction -> CRSD chunk(s) -> optional SarPy validation/report artifacts.
+- CRSD is the only supported external interchange path for SAR ingest and image comparison workflows.
 
 ### Runtime/Plugin/Resolver Model
 
@@ -83,20 +83,10 @@ GOTCHA conversion path (current implemented behavior):
 - Backend preference supports `auto` and explicit backend selection with fallback policy.
 - Plugin loading is dynamic; SAR plugins and shared GPU plugins can be provided via plugin directories.
 
-### Standard Vs Non-Standard Output Format
+### Conversion Format
 
-- Non-standard intermediate format is explicitly used for the implemented conversion lane.
-- Repository documents and tests indicate the non-standard lane is the operational path today.
-- Standards CRSD writer path is represented in CLI mode surface but repository state documents unresolved/limited implementation status.
-
-Important ambiguity in repo docs/scripts:
-
-- Some docs/scripts use `graphx-crsd-lite` naming.
-- Other docs/scripts use `graphx-sar-normalized` naming.
-
-Safest operational guidance:
-
-- Use the maintained script `scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh` and inspect output metadata/index labels to confirm actual format fields in your build.
+- CRSD is the supported conversion output format.
+- Non-standard GraphX intermediate conversion lanes are deprecated and removed from the active operational path.
 
 ## 2. Build Instructions
 
@@ -113,8 +103,15 @@ Safest operational guidance:
 Recommended debug configure:
 
 ```bash
-cmake --preset ninja-debug
+cmake --preset ninja-debug-metal-native
 ```
+
+Note on preset pairing:
+
+- `build-debug` is paired with `ninja-debug-metal-native`.
+- If you configure with `ninja-debug` instead, build with either:
+	- `cmake --build build-ninja/ninja-debug`
+	- or a matching build preset such as `build-libgraph-unit` (when appropriate).
 
 Recommended debug Metal-native configure:
 
@@ -194,7 +191,7 @@ Common outputs:
 
 ```bash
 # smoke: list converter options
-build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd --help || true
+build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd --help || true
 
 # run SAR unit binary
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
@@ -250,10 +247,6 @@ SAR unit binary full run:
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
 	--gtest_filter='GraphxGotchaToCrsdCliTest.*'
 
-# Non-standard conversion lane
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
-	--gtest_filter='GraphxSarNormalizedLaneTest.*'
-
 # Local real-data full-aperture validation (requires env var)
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
 	--gtest_filter='RealGotchaFullApertureValidationTest.*'
@@ -285,21 +278,31 @@ Common skip gates:
 
 - Real GOTCHA tests: `GRAPHX_SAR_GOTCHA_DATASET` not set.
 - SarPy smoke/integration: SarPy packages not installed or CRSD input env var not set.
+- External fixture adapter gate: `GRAPHX_SAR_ALLOW_EXTERNAL_DATA` should be unset unless explicitly testing local external fixtures.
+
+```bash
+export GRAPHX_SAR_GOTCHA_DATASET=/Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData
+```
 
 Enable local-only GOTCHA tests:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
-export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
-bash scripts/verify_gotcha_dataset.sh
 ```
 
 Enable optional SarPy CRSD smoke:
 
 ```bash
 python3 -m pip install -r tools/sarpy/requirements.txt
-export GRAPHX_SARPY_CRSD_FILE=/path/to/local/file.crsd
+export GRAPHX_SARPY_CRSD_FILE=data/crsd/file.crsd
+```
+
+Run the SAR suite with local-data gates explicitly cleared (recommended for CI-safe behavior):
+
+```bash
+env -u GRAPHX_SAR_ALLOW_EXTERNAL_DATA \
+	-u GRAPHX_SAR_GOTCHA_DATASET \
+	./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
 ```
 
 ## 4. GOTCHA To CRSD Conversion Instructions
@@ -307,9 +310,7 @@ export GRAPHX_SARPY_CRSD_FILE=/path/to/local/file.crsd
 ### Required Inputs And Dataset Assumptions
 
 - Local GOTCHA dataset directory with `.mat` files (commonly `subData01.mat` ... `subData10.mat`).
-- Dataset-side artifacts expected by preflight scripts:
-	- `manifest.json`
-	- `checksums.sha256`
+- IQ phase-history samples are read directly from the HDF5 binary in each `.mat` file (MAT v7.3 format).
 - Source data is treated as processed phase history.
 
 ### Required Environment Variables
@@ -323,45 +324,48 @@ export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
 Recommended explicit preflight variables:
 
 ```bash
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
-export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
+export SORT_MODE=manifest
+export MANIFEST_PATH=/path/to/gotcha/root/manifest.json
 ```
 
 Optional overrides:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_TO_CRSD_BIN=/path/to/graphx-gotcha-to-crsd
-export GRAPHX_SAR_GOTCHA_OUTPUT_DIR=/tmp/graphx_crsd_lite_full_aperture_conversion
+export GRAPHX_SAR_GOTCHA_OUTPUT_DIR=/tmp/gotcha_crsd_out
 export GRAPHX_SAR_GOTCHA_COLLECTION_ID=local-gotcha-example
 export GRAPHX_SAR_GOTCHA_MAX_OUTPUT_SIZE_MB=512
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
 ```
 
 ### Preflight Checks
 
-```bash
-bash scripts/verify_gotcha_dataset.sh
-```
+Minimal CRSD-first lane requires only a directory of `.mat` files.
 
-If sidecars/manifest/checksums need generation:
-
-```bash
-bash scripts/prepare_gotcha_subdata_json.sh /path/to/gotcha/subData
-```
+Optional deterministic ordering preflight requires only a manifest file when `SORT_MODE=manifest`.
 
 ### Command(s) To Run Conversion
 
-Recommended local full-aperture script:
+Recommended local full-aperture script for CRSD output:
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/subData /tmp/gotcha_crsd_out
 ```
 
-Alternative wrappers:
+Default behavior of this script is intentionally minimal:
+
+- `SORT_MODE=lexical`
+- `MAX_MB=0` (attempt single CRSD output)
+- `ENABLE_VALIDATE=0`
+- `ENABLE_EMIT_INDEX=0`
+
+Enable compatibility features only when needed:
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh /path/to/gotcha/subData /tmp/out
-bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/subData /tmp/out
+SORT_MODE=manifest \
+MANIFEST_PATH=/path/to/gotcha/subData/manifest.json \
+ENABLE_VALIDATE=1 \
+ENABLE_EMIT_INDEX=1 \
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/subData /tmp/gotcha_crsd_out
 ```
 
 Direct CLI invocation:
@@ -374,10 +378,9 @@ build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd \
 	--max-output-size-mb 512 \
 	--sort manifest \
 	--manifest /path/to/gotcha/subData/manifest.json \
-	--mode graphx-sar-normalized \
+	--mode crsd \
 	--validate \
-	--emit-index \
-	--allow-classic-mat-with-sidecar
+	--emit-index
 ```
 
 ### Meaning Of Key CLI Options
@@ -388,19 +391,21 @@ build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd \
 - `--max-output-size-mb`: chunking threshold.
 - `--sort manifest|lexical`: ordering mode.
 - `--manifest`: manifest file path when manifest sort is used.
-- `--mode`: output mode (`graphx-sar-normalized` or `crsd`, depending on build support).
-- `--validate`: run normalized product validation.
+- `--mode`: output mode (supported: `crsd`).
+- `--validate`: run product validation before CRSD export.
 - `--emit-index`: emit root-level index/report artifacts.
-- `--allow-classic-mat-with-sidecar`: allow sidecar-assisted classic MAT handling.
 
 ### Output Files Produced And How To Validate Them
 
-Typical output artifacts:
+CRSD conversion outputs (mode=crsd) typically include one or more CRSD products:
 
-- `gotcha_sar_normalized_index.json`
+- `*/product.crsd`
+
+When `ENABLE_EMIT_INDEX=1`, additional report artifacts are emitted:
+
+- `gotcha_crsd_index.json`
 - `conversion_report.json`
 - `conversion_warnings.log`
-- chunk directories such as `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/`
 
 Validate outputs:
 
@@ -415,14 +420,10 @@ Check aperture accounting in report:
 - `total_pulses_read`
 - `pulses_per_file`
 
-### Distinguish graphx-sar-normalized/lite Outputs Vs Standards CRSD Outputs
+### CRSD Output Policy
 
-- Non-standard GraphX intermediate output is the operationally documented path.
-- Standards CRSD output path exists in interface/docs/scripts but repository docs also indicate incomplete writer support.
-- Safest fallback when strict standards CRSD output is required:
-	- run non-standard conversion lane for deterministic artifacts,
-	- then run SarPy probe/validation commands against candidate CRSD files you already have,
-	- treat CRSD conversion mode as experimental until validated in your exact build lane.
+- CRSD is the expected input format for SAR processor ingest and for SarPy CRSD image generation workflows.
+- If CRSD generation fails in your build lane, treat it as a build/runtime capability issue to resolve.
 
 ## 5. SarPy Image Creation From CRSD
 
@@ -518,10 +519,7 @@ python3 tools/sarpy/compare_images.py \
 ### Conversion Failures (Manifest/Order/Field Validation)
 
 - Preflight failures:
-	- Verify dataset root, manifest path, checksums path.
-	- Run `scripts/verify_gotcha_dataset.sh` before conversion.
-- Missing required sidecar fields:
-	- Regenerate sidecars using `scripts/prepare_gotcha_subdata_json.sh`.
+	- Verify dataset root and manifest path (when using manifest sort).
 - Ordering/manifest mismatch:
 	- Use explicit `--sort` and `--manifest` parameters.
 

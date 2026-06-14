@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): This document is kept for historical traceability. It may reference deprecated GraphX SAR conversion lanes, flags, or scripts. Use the active CRSD-only workflow in plan/prompt examples/doc.md and scripts/convert_gotcha_subdata_to_crsd.sh.
+
 # Why There Is No Real GOTCHA-To-CRSD Converter Yet
 
 Inspector role source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`

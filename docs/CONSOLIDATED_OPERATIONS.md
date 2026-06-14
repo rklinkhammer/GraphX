@@ -119,9 +119,6 @@ ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
   --gtest_filter='GraphxGotchaToCrsdCliTest.*'
 
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='GraphxSarNormalizedLaneTest.*'
-
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
   --gtest_filter='GraphxImageComparisonLaneTest.*'
 ```
 
@@ -136,45 +133,25 @@ ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
 For authoritative GOTCHA field documentation and full-aperture conversion instructions, see:
 [docs/sar/gotcha_large_scene_data_description.md](../sar/gotcha_large_scene_data_description.md)
 
-### GOTCHA Preflight (Required for Local Data-Backed Workflows)
+### GOTCHA Preflight (Local Data-Backed Workflows)
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/gotcha/root/manifest.json
-export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
-bash scripts/verify_gotcha_dataset.sh
 ```
 
-### Generate Deterministic Sidecars + Manifest + Checksums
-
-```bash
-bash scripts/prepare_gotcha_subdata_json.sh /path/to/gotcha/subData
-```
-
-### Full-Aperture GOTCHA Conversion to Lite Format
+### Full-Aperture GOTCHA Conversion to CRSD
 
 When a local GOTCHA dataset is available, convert all pulses from all files using:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/root /tmp/gotcha_crsd_out
 ```
 
 This performs:
 - Full-aperture read (all `Np` pulses from every ordered file)
-- Validation using PR1 required-field checks
-- Output to `graphx-sar-normalized` (lite) format with all pulses preserved
-- Aperture accounting in `conversion_report.json` showing:
-  - `total_files_read`: Number of input files
-  - `total_pulses_read`: Sum of Np across all files
-  - `pulses_per_file`: Per-file pulse counts with filenames
-
-Expected outputs in `$GRAPHX_SAR_GOTCHA_OUTPUT_DIR` (default: `/tmp/graphx_crsd_lite_full_aperture_conversion`):
-
-- `gotcha_sar_normalized_index.json` — Product index and metadata
-- `conversion_report.json` — Conversion results with aperture accounting
-- `conversion_warnings.log` — Any warnings from the conversion
-- `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/` — Signal data chunks
+- Output to CRSD chunk directories (`*/product.crsd`)
+- Optional report artifacts when enabled (`ENABLE_EMIT_INDEX=1`)
 
 ### Local Full-Aperture Validation Tests (Optional, Local-Only)
 
@@ -188,25 +165,10 @@ When `GRAPHX_SAR_GOTCHA_DATASET` is set, run validation tests that verify:
 Tests:
 - Verify all files are read and processed
 - Confirm all pulses are preserved in conversion
-- Validate lite output structure and metadata
+- Validate CRSD output structure and metadata
 - Check aperture accounting in conversion report
 
 **Note:** These tests are **skipped in CI** when `GRAPHX_SAR_GOTCHA_DATASET` is not set. No dataset download is performed. This is a local-only optional workflow not required by CI.
-
-### Legacy Real GOTCHA Validation (graphx-sar-normalized lane, Deprecated)
-
-```bash
-bash examples/SAR/tools/local_gotcha_validation.sh
-```
-
-Expected outputs include:
-
-- `gotcha_sar_normalized_index.json`
-- `conversion_report.json`
-- `conversion_warnings.log`
-- `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/`
-
-**Note:** Prefer `scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh` for full-aperture conversion.
 
 ### Local Frozen Scenario Replay Harness
 
@@ -270,25 +232,14 @@ python3 examples/SAR/tools/sarpy_metadata_harness.py \
 
 ## 6) CRSD Conversion And Testing
 
-### Modes
+### Mode
 
-`graphx-gotcha-to-crsd` supports:
-
-- `--mode graphx-sar-normalized` (non-standard GraphX intermediate)
-- `--mode crsd` (standards-targeted/export path)
+`graphx-gotcha-to-crsd` supports CRSD conversion for the supported operational lane.
 
 ### Build converter if needed
 
 ```bash
 cmake --build build-ninja/ninja-debug --target graphx_gotcha_to_crsd -j8
-```
-
-### Convert to graphx-sar-normalized
-
-```bash
-bash scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh \
-  /path/to/gotcha/subData \
-  /tmp/gotcha_graphx_sar_normalized_output
 ```
 
 ### Convert to CRSD
@@ -306,20 +257,15 @@ build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
   --input-dir /path/to/gotcha/subData \
   --output-dir /tmp/gotcha_output \
   --collection-id local-gotcha-example \
-  --max-output-size-mb 512 \
-  --sort manifest \
-  --manifest /path/to/gotcha/subData/manifest.json \
-  --mode graphx-sar-normalized \
-  --validate \
-  --emit-index \
-  --allow-classic-mat-with-sidecar
+  --max-output-size-mb 0 \
+  --sort lexical \
+  --mode crsd
 ```
 
 ### Expected conversion root artifacts
 
-- `gotcha_sar_normalized_index.json`
-- `conversion_report.json`
-- `conversion_warnings.log`
+- `*/product.crsd`
+- Optional (when enabled): `gotcha_crsd_index.json`, `conversion_report.json`, `conversion_warnings.log`
 
 ### CRSD validation testing (SarPy local-only)
 
@@ -333,19 +279,16 @@ python3 tools/sarpy/validate_crsd.py \
 ### C++ tests to validate conversion lanes
 
 - `GraphxGotchaToCrsdCliTest.*`
-- `GraphxSarNormalizedLaneTest.*`
-- `LocalGotchaValidationLaneTest.*`
 
 Run from the SAR unit binary:
 
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='GraphxGotchaToCrsdCliTest.*:GraphxSarNormalizedLaneTest.*:LocalGotchaValidationLaneTest.*'
+  --gtest_filter='GraphxGotchaToCrsdCliTest.*'
 ```
 
 ## Notes and boundaries
 
 - MATLAB is not a GraphX build/runtime/test dependency.
 - SarPy tools are optional, local-only, and intended for validation/comparison.
-- `graphx-sar-normalized` is a permanent non-standard GraphX intermediate format.
 - For local data-backed lanes, keep dataset artifacts external to the repository.

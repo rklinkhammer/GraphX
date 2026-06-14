@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): Historical conversion snapshot. Some steps reference legacy sidecar-era preparation artifacts and are not required for the current CRSD-only operational lane.
+
 # CRSD Convert Report
 
 Date: 2026-06-13
@@ -31,22 +33,12 @@ The GOTCHA dataset directory was refreshed with deterministic sidecar and orderi
 
 The conversion flow is driven by:
 
-- `tools/sarpy/generate_gotcha_subdata_sidecars.py`
 - `tools/sarpy/write_crsd_from_graphx_product.py`
-- `scripts/prepare_gotcha_subdata_json.sh`
 - `scripts/convert_gotcha_subdata_to_crsd.sh`
-- `scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh`
 
 ## Commands
 
-Generate sidecars, manifest, and checksums:
-
-```bash
-bash scripts/prepare_gotcha_subdata_json.sh \
-  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData
-```
-
-Convert GOTCHA sidecar-backed inputs to CRSD:
+Convert GOTCHA MAT inputs to CRSD:
 
 ```bash
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
@@ -57,7 +49,6 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
 ## Observed Results
 
 - MAT files discovered: 10
-- Sidecars written: 10
 - CRSD conversion status: successful
 - Conversion mode: `crsd`
 - CRSD chunks: 1

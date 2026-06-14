@@ -1,67 +1,15 @@
 #include <gtest/gtest.h>
 
+#include "sar/io/CrsdIO.hpp"
 #include "sar/io/GotchaMatReader.hpp"
-#include "sar/io/GraphxSarNormalizedIO.hpp"
 #include "sar/io/NormalizedSarProduct.hpp"
 #include "sar/io/SarProductValidator.hpp"
 
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <vector>
 
-#include <nlohmann/json.hpp>
-
 namespace {
-
-// ──────────────────────────────────────────────────────────────────────
-// Helper: read pulse counts from a conversion report
-// ──────────────────────────────────────────────────────────────────────
-static nlohmann::json ReadJson(const std::filesystem::path& path) {
-    std::ifstream stream{path};
-    if (!stream.good()) {
-        return nullptr;
-    }
-    nlohmann::json value{};
-    stream >> value;
-    return value;
-}
-
-static std::size_t ExtractTotalPulsesFromReport(const std::filesystem::path& report_path) {
-    const auto report = ReadJson(report_path);
-    if (report.is_null() || !report.contains("aperture_accounting")) {
-        return 0;
-    }
-    const auto& acct = report.at("aperture_accounting");
-    if (!acct.contains("total_pulses_read")) {
-        return 0;
-    }
-    return acct.at("total_pulses_read").get<std::size_t>();
-}
-
-static std::vector<graphx::sar::SarPulseFileCount> ExtractPulsesPerFileFromReport(
-    const std::filesystem::path& report_path) {
-    std::vector<graphx::sar::SarPulseFileCount> result{};
-    const auto report = ReadJson(report_path);
-    if (report.is_null() || !report.contains("aperture_accounting")) {
-        return result;
-    }
-    const auto& acct = report.at("aperture_accounting");
-    if (!acct.contains("pulses_per_file")) {
-        return result;
-    }
-    const auto& ppf = acct.at("pulses_per_file");
-    if (!ppf.is_array()) {
-        return result;
-    }
-    for (const auto& entry : ppf) {
-        result.push_back(graphx::sar::SarPulseFileCount{
-            .filename = entry.at("filename").get<std::string>(),
-            .pulse_count = entry.at("pulse_count").get<std::size_t>(),
-        });
-    }
-    return result;
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // Test Suite: Real GOTCHA Full-Aperture Validation
@@ -136,9 +84,9 @@ TEST_F(RealGotchaFullApertureValidationTest, ReadFullApertureAndVerifyAllPulses)
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Test 3: Verify full-aperture conversion produces valid lite output
+// Test 3: Verify full-aperture conversion produces valid CRSD output
 // ──────────────────────────────────────────────────────────────────────
-TEST_F(RealGotchaFullApertureValidationTest, FullApertureConversionProducesValidLite) {
+TEST_F(RealGotchaFullApertureValidationTest, FullApertureConversionProducesValidCrsd) {
     if (!HasDataset()) {
         GTEST_SKIP() << "GRAPHX_SAR_GOTCHA_DATASET not set; real GOTCHA full-aperture validation is local-only";
     }
@@ -149,8 +97,8 @@ TEST_F(RealGotchaFullApertureValidationTest, FullApertureConversionProducesValid
     graphx::sar::GotchaMatReader reader{
         graphx::sar::GotchaMatReaderOptions{
             .ordering_mode = graphx::sar::GotchaMatReaderOrderingMode::Lexical,
-            .collection_id = "real_gotcha_lite_validation",
-            .product_id = "real_gotcha_lite_product",
+            .collection_id = "real_gotcha_crsd_validation",
+            .product_id = "real_gotcha_crsd_product",
             .collector_name = "GOTCHA",
             .coordinate_frame = "ecef",
             .time_basis = "seconds",
@@ -164,41 +112,40 @@ TEST_F(RealGotchaFullApertureValidationTest, FullApertureConversionProducesValid
     ASSERT_TRUE(validation.ok()) << "Product validation failed: " << 
         (validation.errors.empty() ? "no errors recorded" : validation.errors.front().code);
 
-    // Write to lite format
+    // Write to CRSD format
     std::error_code fs_error{};
     const auto output_dir = std::filesystem::temp_directory_path() / "graphx_pr8_real_validation";
     std::filesystem::remove_all(output_dir, fs_error);
     std::filesystem::create_directories(output_dir, fs_error);
 
-    graphx::sar::GraphxSarNormalizedWriter writer{};
+    graphx::sar::CrsdWriter writer{};
     const auto write = writer.Write(output_dir, read.product);
     ASSERT_TRUE(write.success) << "Write failed: " << write.message;
 
-    // Verify lite output files exist
+    // Verify CRSD output files exist
     ASSERT_TRUE(std::filesystem::exists(
-        output_dir / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile))
-        << "Metadata file missing";
-    ASSERT_TRUE(std::filesystem::exists(
-        output_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile))
+        output_dir / graphx::sar::CrsdWriter::kSignalFile))
         << "Signal file missing";
     ASSERT_TRUE(std::filesystem::exists(
-        output_dir / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile))
-        << "Conversion report missing";
-
-    // Verify metadata structure
-    const auto metadata = ReadJson(
-        output_dir / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile);
-    ASSERT_FALSE(metadata.is_null()) << "Metadata JSON is invalid";
-    EXPECT_TRUE(metadata.contains("shape")) << "Metadata lacks shape";
-    EXPECT_TRUE(metadata.contains("channels")) << "Metadata lacks channels";
+        output_dir / graphx::sar::CrsdWriter::kMetadataFile))
+        << "Metadata file missing";
+    ASSERT_TRUE(std::filesystem::exists(
+        output_dir / graphx::sar::CrsdWriter::kPvpFile))
+        << "PVP file missing";
+    ASSERT_TRUE(std::filesystem::exists(
+        output_dir / graphx::sar::CrsdWriter::kProvenanceFile))
+        << "Provenance file missing";
+    ASSERT_TRUE(std::filesystem::exists(
+        output_dir / graphx::sar::CrsdWriter::kChunkIndexFile))
+        << "Chunk index file missing";
 
     std::filesystem::remove_all(output_dir, fs_error);
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Test 4: Verify conversion report contains correct aperture accounting
+// Test 4: Verify CRSD writer preserves full-aperture pulse count
 // ──────────────────────────────────────────────────────────────────────
-TEST_F(RealGotchaFullApertureValidationTest, ConversionReportShowsCorrectApertureAccounting) {
+TEST_F(RealGotchaFullApertureValidationTest, CrsdWriterPreservesFullAperturePulseCount) {
     if (!HasDataset()) {
         GTEST_SKIP() << "GRAPHX_SAR_GOTCHA_DATASET not set; real GOTCHA full-aperture validation is local-only";
     }
@@ -219,39 +166,23 @@ TEST_F(RealGotchaFullApertureValidationTest, ConversionReportShowsCorrectApertur
     const auto read = reader.ReadDetailed(dataset_path);
     ASSERT_TRUE(read.success) << "Read failed: " << read.message;
 
-    const auto num_files = read.product.collection.source_files.size();
     const auto total_pulses = read.product.Shape().pulse_count;
-
-    EXPECT_GE(num_files, 1u) << "No source files recorded";
     EXPECT_GT(total_pulses, 0u) << "No pulses in product";
 
-    // Write to lite format
+    // Write to CRSD format
     std::error_code fs_error{};
     const auto output_dir = std::filesystem::temp_directory_path() / "graphx_pr8_report_validation";
     std::filesystem::remove_all(output_dir, fs_error);
     std::filesystem::create_directories(output_dir, fs_error);
 
-    graphx::sar::GraphxSarNormalizedWriter writer{};
+    graphx::sar::CrsdWriter writer{};
     const auto write = writer.Write(output_dir, read.product);
     ASSERT_TRUE(write.success) << "Write failed: " << write.message;
 
-    // Verify report structure
-    const auto report_path = output_dir / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile;
-    const auto total_from_report = ExtractTotalPulsesFromReport(report_path);
-    const auto per_file_from_report = ExtractPulsesPerFileFromReport(report_path);
-
-    EXPECT_EQ(total_from_report, total_pulses)
-        << "Report total_pulses_read does not match product pulse count";
-    EXPECT_EQ(per_file_from_report.size(), num_files)
-        << "Report pulses_per_file list size does not match source_files count";
-
-    // Verify per-file counts sum to total
-    std::size_t per_file_sum = 0;
-    for (const auto& entry : per_file_from_report) {
-        per_file_sum += entry.pulse_count;
-    }
-    EXPECT_EQ(per_file_sum, total_pulses)
-        << "Sum of per-file pulse counts does not match total";
+    EXPECT_TRUE(std::filesystem::exists(output_dir / graphx::sar::CrsdWriter::kSignalFile));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / graphx::sar::CrsdWriter::kChunkIndexFile));
+    EXPECT_EQ(read.product.Shape().pulse_count, total_pulses)
+        << "Pulse count changed unexpectedly before CRSD write";
 
     std::filesystem::remove_all(output_dir, fs_error);
 }

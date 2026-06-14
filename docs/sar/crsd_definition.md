@@ -4,18 +4,15 @@
 
 This document defines the target concepts for future GOTCHA-to-CRSD work in
 GraphX. It is a documentation-only artifact. It does not add a MAT
-reader, command-line tool, graphx-sar-normalized writer, CRSD writer, Python helper,
+reader, command-line tool, CRSD writer, Python helper,
 dependency, fixture, or test.
 
 MATLAB is not used by this work and must not become a build-time, runtime, or
 test-time dependency. GOTCHA `.mat` files must be read by C++ format readers in
 later PRs, not by MATLAB.
 
-GOTCHA is compensated phase history data. Because GraphX does not yet have a
-standards-targeted CRSD writer, the first export path may be a single-channel
-pseudo-CRSD representation or the permanent `graphx-sar-normalized` representation.
-Any pseudo-CRSD output must be labeled as non-standard until a later PR adds and
-validates a full CRSD writer.
+GOTCHA is compensated phase history data. GraphX conversion policy is CRSD-only
+for supported external interchange.
 
 ## CRSD Overview
 
@@ -24,11 +21,10 @@ data together with the metadata needed to interpret that signal data: collection
 identity, transmit and receive timing, channel definitions, per-vector
 parameters, support arrays, signal arrays, geometry, and antenna metadata.
 
-For this project, CRSD is the standards-oriented export target. It is distinct
-from GraphX internal SAR messages and distinct from the permanent
-`graphx-sar-normalized` interchange format. GraphX internal structures may be shaped
-for deterministic processing and testing; CRSD output must be shaped for product
-interchange and external validation once the full writer exists.
+For this project, CRSD is the standards-oriented and supported export target.
+It is distinct from GraphX internal SAR messages. GraphX internal structures may
+be shaped for deterministic processing and testing; CRSD output must be shaped
+for product interchange and external validation.
 
 ## CRSD, CPHD, And SICD Placement
 
@@ -43,16 +39,15 @@ The SAR product levels relevant to this work are:
 
 GOTCHA is closest to the CPHD level because it is compensated phase history. The
 conversion path therefore has to describe GOTCHA phase history in a CRSD-shaped
-or graphx-sar-normalized-shaped product without pretending that the source is raw,
-uncompensated collection signal data.
+product without pretending that the source is raw, uncompensated collection
+signal data.
 
 The intended data flow is:
 
 ```text
 GOTCHA MAT data
   -> GraphX normalized GOTCHA pulse model
-  -> graphx-sar-normalized or single-channel pseudo-CRSD
-  -> standards-targeted CRSD only after the full CRSD writer and validation exist
+  -> standards-targeted CRSD
 ```
 
 SICD is not the output of the converter described here. SICD appears later only
@@ -196,7 +191,7 @@ The mapping has three layers:
 
 1. GOTCHA source data.
 2. GraphX normalized GOTCHA pulse records.
-3. CRSD-shaped or graphx-sar-normalized product records.
+3. CRSD product records.
 
 The GraphX normalized layer is the contract between MAT ingestion and product
 writing. It prevents C++ MAT reader details from leaking into CRSD writer logic.
@@ -324,7 +319,7 @@ updates this document.
     "mat_reader": "hdf5|classic|unsupported|unknown"
   },
   "output": {
-    "kind": "graphx-sar-normalized|pseudo-crsd|crsd",
+    "kind": "crsd",
     "root": "string",
     "metadata_path": "string",
     "signal_path": "string",
@@ -388,7 +383,7 @@ not for product consumption.
     "reader": "hdf5|classic|unsupported|unknown"
   },
   "output": {
-    "kind": "graphx-sar-normalized|pseudo-crsd|crsd",
+    "kind": "crsd",
     "root": "string",
     "index_path": "string"
   },
@@ -435,26 +430,8 @@ Required top-level fields are `schema`, `product_id`, `status`, `input`,
 `output`, `counts`, `assumptions`, `derived_fields`, `missing_fields`,
 `warnings`, `errors`, and `checksums`.
 
-For pseudo-CRSD or graphx-sar-normalized outputs, the report must state that the
-output is not a standards-validated CRSD product. For full CRSD output, the
-report must name the validation method and validation result.
-
-## Permanent SAR-Normalized Boundary
-
-`graphx-sar-normalized` is a permanent GraphX interchange representation. It is not a
-temporary debug dump and it is not a claim of CRSD compliance.
-
-SAR-normalized output may use the same conceptual model as CRSD, including collection,
-channel, PVP, support, and signal arrays, but it may omit standard-specific XML
-structure, binary packing, naming, or validation requirements until a later full
-CRSD writer PR owns them.
-
-Future code must keep these outputs distinct:
-
-- `graphx-sar-normalized`: permanent GraphX interchange.
-- `pseudo-crsd`: a transitional, clearly labeled CRSD-shaped product.
-- `crsd`: standards-targeted output produced only after full writer and
-  validation support exists.
+For CRSD output, the report must name the validation method and validation
+result.
 
 ## Open Mapping Risks
 

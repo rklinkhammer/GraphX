@@ -214,9 +214,7 @@ not require real GOTCHA `.mat` data, MATLAB, or CRSD validation. MATLAB is not a
 GraphX build-time, runtime, or test-time dependency and should not be added as
 one.
 
-`graphx-sar-normalized` is a permanent, non-standard GraphX intermediate format. It
-is distinct from full CRSD, and full CRSD validation is not required for
-`graphx-sar-normalized` lanes.
+CRSD is the supported conversion output for SAR ingest and SarPy comparison flows.
 
 Useful focused commands:
 
@@ -228,17 +226,9 @@ Useful focused commands:
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
   '--gtest_filter=GraphxGotchaToCrsdCliTest.*'
 
-# End-to-end GOTCHA -> normalized product -> graphx-sar-normalized -> reports.
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=GraphxSarNormalizedLaneTest.*'
-
 # GraphX image output comparison against Python reference outputs.
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
   '--gtest_filter=GraphxImageComparisonLaneTest.*'
-
-# Local GOTCHA validation gate. Real-data smoke skips unless explicitly enabled.
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=LocalGotchaValidationLaneTest.*'
 ```
 
 ### GOTCHA Conversion CLI
@@ -249,33 +239,25 @@ The GOTCHA conversion utility is:
 build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd --help
 ```
 
-Example `graphx-sar-normalized` conversion:
+Example CRSD conversion:
 
 ```bash
-build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
-  --input-dir /path/to/gotcha_or_synthetic_mat_dir \
-  --output-dir /tmp/graphx_gotcha_lite \
-  --collection-id local-gotcha-example \
-  --max-output-size-mb 512 \
-  --sort manifest \
-  --manifest /path/to/manifest.json \
-  --mode graphx-sar-normalized \
-  --validate \
-  --emit-index
+bash scripts/convert_gotcha_subdata_to_crsd.sh \
+  /path/to/gotcha_or_synthetic_mat_dir \
+  /tmp/gotcha_crsd_out
 ```
 
-Use `--sort lexical` when deterministic filename ordering is sufficient. Use
-`--sort manifest --manifest <path>` when the input order must be pinned by a
-manifest.
+Use `SORT_MODE=lexical` for the minimal path. Use `SORT_MODE=manifest` with
+`MANIFEST_PATH=<path>` only when input order must be pinned by a manifest.
 
-The SAR-normalized conversion emits:
+CRSD conversion emits:
 
 | Output | Description |
 |---|---|
-| `gotcha_sar_normalized_index.json` | Deterministic root index for converted outputs. |
-| `conversion_report.json` | Root conversion summary, validation status, and checksums. |
-| `conversion_warnings.log` | Deterministic warning log, or `none`. |
-| `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/` | Non-standard SAR-normalized chunk directories. |
+| `*/product.crsd` | Standards-targeted CRSD product chunks for SAR ingest. |
+| `gotcha_crsd_index.json` | Optional root index when `ENABLE_EMIT_INDEX=1`. |
+| `conversion_report.json` | Optional conversion summary when `ENABLE_EMIT_INDEX=1`. |
+| `conversion_warnings.log` | Optional warning log when `ENABLE_EMIT_INDEX=1`. |
 
 ### GOTCHA Environment Variables
 
@@ -283,8 +265,6 @@ The SAR-normalized conversion emits:
 |---|---|
 | `GRAPHX_SAR_ALLOW_EXTERNAL_DATA` | Allows external fixture paths in local/manual replay-style tests. |
 | `GRAPHX_SAR_GOTCHA_DATASET` | Required for real local GOTCHA `.mat` validation. |
-| `GRAPHX_SAR_GOTCHA_MANIFEST` | Optional manifest override; defaults to `${GRAPHX_SAR_GOTCHA_DATASET}/manifest.json`. |
-| `GRAPHX_SAR_GOTCHA_CHECKSUMS` | Optional checksum override; defaults to `${GRAPHX_SAR_GOTCHA_DATASET}/checksums.sha256`. |
 | `GRAPHX_SAR_GOTCHA_TO_CRSD_BIN` | Optional override for the `graphx-gotcha-to-crsd` executable. |
 | `GRAPHX_SAR_GOTCHA_OUTPUT_DIR` | Optional output directory for local real-data validation. |
 | `GRAPHX_SAR_GOTCHA_COLLECTION_ID` | Optional collection id for local real-data validation. |
@@ -299,31 +279,13 @@ Real GOTCHA `.mat` validation is explicitly local-only and disabled by default.
 It is never required by normal CI, performs no dataset download, and must not add
 or check in GOTCHA data.
 
-Preflight checks are handled by:
-
-```bash
-scripts/verify_gotcha_dataset.sh
-```
-
 The local conversion workflow is:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/gotcha_mat_directory
-export GRAPHX_SAR_GOTCHA_MANIFEST=/path/to/manifest.json
-export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/checksums.sha256
-
-bash scripts/verify_gotcha_dataset.sh
-bash examples/SAR/tools/local_gotcha_validation.sh
-```
-
-`examples/SAR/tools/local_gotcha_validation.sh` runs the existing
-`graphx-gotcha-to-crsd` `graphx-sar-normalized` lane, verifies root report artifacts,
-and requires `GRAPHX_SAR_GOTCHA_DATASET` before doing any work.
-
-To inspect the disabled CTest lane:
-
-```bash
-ctest --test-dir build-ninja/ninja-debug -N -V | grep sar_real_gotcha_local_validation
+bash scripts/convert_gotcha_subdata_to_crsd.sh \
+  "$GRAPHX_SAR_GOTCHA_DATASET" \
+  /tmp/gotcha_crsd_out
 ```
 
 ### Python/SarPy Reference Tools

@@ -14,7 +14,7 @@ When a local GOTCHA dataset is available:
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/subData
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/subData /tmp/gotcha_crsd_out
 ```
 
 See [docs/sar/gotcha_large_scene_data_description.md#local-validation-and-conversion](../../docs/sar/gotcha_large_scene_data_description.md#local-validation-and-conversion) for setup and validation test instructions.

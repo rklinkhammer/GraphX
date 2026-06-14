@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-14): Historical planning/prompt artifact. It may reference deprecated GraphX SAR conversion lanes or naming. Use plan/prompt examples/doc.md for current CRSD-only operational guidance.
+
 # SAR GOTCHA Full-Aperture Implementor And Verifier Agents
 
 Source roadmap: `plan/reviews/SAR_GOTCHA_FULL_APERTURE_PLANNER_REPORT.md`
@@ -366,7 +368,7 @@ Implement exactly PR8 from plan/reviews/SAR_GOTCHA_FULL_APERTURE_PLANNER_REPORT.
 
 Scope:
 - Add a local-only real GOTCHA full-aperture validation test/workflow gated by GRAPHX_SAR_GOTCHA_DATASET.
-- Update scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh only as needed to use the full-aperture path.
+- Update scripts/convert_gotcha_subdata_to_crsd.sh only as needed to use the full-aperture path.
 - Verify local workflow reads and converts all pulses from all ten files when the dataset is provided.
 - Ensure CI skips cleanly when the environment variable is not set.
 - Link docs/sar/gotcha_large_scene_data_description.md to the validation instructions.

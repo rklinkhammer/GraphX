@@ -137,7 +137,6 @@ TEST_F(GotchaMatInspectorTest, ConversionAssumptionsReportHasStableInspectionOnl
     EXPECT_EQ(assumptions.at("schema"), "graphx.sar.conversion_assumptions.v1");
     EXPECT_EQ(assumptions.at("matlab_dependency"), "not_used");
     EXPECT_EQ(assumptions.at("normalized_product_emitted"), false);
-    EXPECT_EQ(assumptions.at("graphx_sar_normalized_emitted"), false);
     EXPECT_EQ(assumptions.at("crsd_emitted"), false);
     ASSERT_TRUE(assumptions.at("assumptions").is_array());
 }

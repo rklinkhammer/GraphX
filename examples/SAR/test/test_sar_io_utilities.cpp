@@ -34,14 +34,14 @@ protected:
 TEST_F(SarIoUtilitiesTest, BuildsGotchaOutputIndexSchemaWithRequiredFields) {
     const auto json = graphx::sar::SarIoUtilities::BuildGotchaOutputIndexJson(
         graphx::sar::GotchaOutputIndexBuildInput{
-            .schema = "graphx.sar.gotcha_sar_normalized_index.v1",
+            .schema = "graphx.sar.gotcha_crsd_index.v1",
             .collection_id = "collection-001",
             .source_files = {"a.mat", "b.mat"},
             .source_ordering = "manifest",
             .provenance = "derived_from_gotcha_phase_history",
             .outputs = {
                 graphx::sar::SarOutputSummary{
-                    .output_name = "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized",
+                    .output_name = "gotcha_crsd_chunk_0000.crsd",
                     .checksum_fnv1a64 = "0x0000000000000001",
                     .pulse_start = 0,
                     .pulse_end = 7,
@@ -51,11 +51,11 @@ TEST_F(SarIoUtilitiesTest, BuildsGotchaOutputIndexSchemaWithRequiredFields) {
                 },
             },
             .frequency_axis_hz = {9.599e9, 9.600e9},
-            .assumptions = {"non_standard_intermediate_format"},
+            .assumptions = {"standards_targeted_crsd_metadata"},
             .warnings = {"first warning"},
         });
 
-    EXPECT_EQ(json.at("schema"), "graphx.sar.gotcha_sar_normalized_index.v1");
+    EXPECT_EQ(json.at("schema"), "graphx.sar.gotcha_crsd_index.v1");
     EXPECT_EQ(json.at("collection_id"), "collection-001");
     EXPECT_EQ(json.at("source_ordering"), "manifest");
     ASSERT_TRUE(json.contains("outputs"));
@@ -70,13 +70,13 @@ TEST_F(SarIoUtilitiesTest, BuildsGotchaOutputIndexSchemaWithRequiredFields) {
 TEST_F(SarIoUtilitiesTest, BuildsConversionReportSchemaWithValidationStatusAndChecksums) {
     const auto json = graphx::sar::SarIoUtilities::BuildConversionReportJson(
         graphx::sar::ConversionReportBuildInput{
-            .format = "graphx-sar-normalized",
-            .label = "NON-STANDARD",
-            .selected_mode = "graphx-sar-normalized",
+            .format = "crsd",
+            .label = "STANDARDS-TARGETED",
+            .selected_mode = "crsd",
             .validation_status = "ok",
             .provenance = "derived_from_gotcha_phase_history",
             .source_ordering = "manifest",
-            .assumptions = {"non_standard_intermediate_format"},
+            .assumptions = {"standards_targeted_crsd_metadata"},
             .warnings = {"warning-a"},
             .outputs = {
                 graphx::sar::SarOutputSummary{
