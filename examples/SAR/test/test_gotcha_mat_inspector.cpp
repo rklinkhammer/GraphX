@@ -44,7 +44,7 @@ protected:
     void WriteClassicMatHeaderFixture(const std::string& relative) const {
         std::ofstream stream{Path(relative), std::ios::binary};
         ASSERT_TRUE(stream);
-        std::string header = "MATLAB 5.0 MAT-file, Platform: GraphX, Created by PR8 test";
+        std::string header = "MATLAB 5.0 MAT-file, Platform: GraphX, Created by naming lint test";
         header.resize(128, ' ');
         stream.write(header.data(), static_cast<std::streamsize>(header.size()));
     }

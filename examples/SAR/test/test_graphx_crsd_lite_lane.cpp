@@ -132,7 +132,7 @@ protected:
         const auto command = CliBase() +
             " --input-dir " + ShellQuote(Path("input")) +
             " --output-dir " + ShellQuote(Path(output_relative)) +
-            " --collection-id pr16-tiny-collection"
+            " --collection-id tiny-collection"
             " --max-output-size-mb 1"
             " --sort lexical"
             " --mode graphx-crsd-lite"

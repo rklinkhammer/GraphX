@@ -245,7 +245,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
     EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
 }
 
-// PR7 gate: correctness is measured only by CPU-reference parity metrics,
+// The CPU-reference validation gate measures correctness independently from transport diagnostics.
 // intentionally independent of transport-side diagnostics assertions.
 TEST(SarJsonPipelineTest, Pr7CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
     const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};

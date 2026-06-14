@@ -6,7 +6,7 @@
 
 namespace {
 
-// PR2: Freeze Opaque Transport Semantics for host_ptr and ready_event
+// Freeze opaque transport semantics for host_ptr and ready_event.
 //
 // These tests validate that transport fields (device_view.ready_event and host_view.host_ptr)
 // are truly opaque to SAR identity semantics. SAR identity derives ONLY from the sidecar.

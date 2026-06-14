@@ -18,7 +18,7 @@ on:
         default: ""
         type: string
       crsdFilePath:
-        description: "Absolute path on runner to a CRSD file used by PR14 smoke test"
+        description: "Absolute path on runner to a CRSD file used by optional local smoke test"
         required: true
         type: string
 

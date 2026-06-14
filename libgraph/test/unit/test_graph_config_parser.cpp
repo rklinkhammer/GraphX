@@ -260,8 +260,7 @@ TEST(GraphConfigParserExpectedTest, ParseSafePreservesDeclaredPayloadContract) {
 }
 
 TEST(GraphConfigParserExpectedTest, ParseSafeRejectsLegacySarPayloadContractForAccelTokenGraph) {
-    // PR4 note: legacy-name literals are retained only for negative validation.
-    // Expanded list coverage is PR6-aligned guardrail hardening.
+  // Legacy-name literals are retained only for negative validation coverage.
     const std::array<const char*, 7> legacy_payload_contracts = {
         "SarPulseBlockMessage",
         "SarRangeTileMessage",

@@ -24,8 +24,7 @@ TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMod
 
     nlohmann::json config;
     in >> config;
-    // PR4 note: these legacy-name literals are intentional negative-validation
-    // artifacts, not runtime contracts. Expanded coverage aligns with PR6 guardrails.
+    // Legacy-name literals are intentional negative-validation artifacts, not runtime contracts.
     const std::array<const char*, 7> legacy_payload_contracts = {
         "SarPulseBlockMessage",
         "SarRangeTileMessage",
@@ -42,7 +41,7 @@ TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMod
         config["edges"][0]["payload_contract"] = legacy_payload_contracts[i];
 
         const auto temp_path = std::filesystem::temp_directory_path() /
-                               (std::string("sar_pr6_legacy_payload_contract_") +
+                               (std::string("sar_legacy_payload_contract_") +
                                 std::to_string(i) + ".json");
         {
             std::ofstream out(temp_path, std::ios::trunc);

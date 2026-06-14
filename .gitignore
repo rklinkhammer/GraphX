@@ -10,6 +10,7 @@ cmake_install.cmake
 CMakeFiles/
 CMakeCache.txt
 */__pycache__/*
+__pycache__/
 # Generated files
 compile_commands.json
 *.so
