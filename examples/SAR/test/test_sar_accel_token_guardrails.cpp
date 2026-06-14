@@ -11,12 +11,12 @@
 
 namespace {
 
-#ifndef SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH
-#define SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr6_matched_filter.json"
+#ifndef SAR_MATCHED_FILTER_JSON_CONFIG_PATH
+#define SAR_MATCHED_FILTER_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_matched_filter.json"
 #endif
 
 TEST(SarAccelTokenGuardrailsTest, RejectsLegacyPayloadContractUnderAccelTokenMode) {
-    const std::filesystem::path input_path{SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH};
+    const std::filesystem::path input_path{SAR_MATCHED_FILTER_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(input_path));
 
     std::ifstream in(input_path);

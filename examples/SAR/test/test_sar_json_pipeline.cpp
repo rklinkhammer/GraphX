@@ -81,11 +81,11 @@ void AssertEosSidecarIdentity(const sar::SarAccelControlToken& status,
 #endif
 
 #ifndef SAR_JSON_CONFIG_PATH
-#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr1.json"
+#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_simulated.json"
 #endif
 
-#ifndef SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH
-#define SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr7_materialized_image.json"
+#ifndef SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH
+#define SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_materialized_image.json"
 #endif
 
 TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
@@ -127,7 +127,7 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
 }
 
 TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) {
-    const std::filesystem::path config_path{SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
+    const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
     const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
@@ -176,7 +176,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
 }
 
 TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
-    const std::filesystem::path config_path{SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
+    const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
     const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
@@ -248,7 +248,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
 // PR7 gate: correctness is measured only by CPU-reference parity metrics,
 // intentionally independent of transport-side diagnostics assertions.
 TEST(SarJsonPipelineTest, Pr7CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
-    const std::filesystem::path config_path{SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
+    const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
     const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};

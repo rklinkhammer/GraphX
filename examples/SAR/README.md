@@ -33,7 +33,7 @@ flowchart LR
    SRC --> WINDOW --> SPLIT --> H2D --> BP --> D2H --> MERGE --> SINK
 ```
 
-Runtime topology source: examples/SAR/config/sar_stripmap_pr1.json
+Runtime topology source: examples/SAR/config/sar_stripmap_simulated.json
 
 Definitive main.cpp pipeline config:
 
@@ -47,17 +47,17 @@ Current METAL-equivalent resolution from definitive topology intent nodes:
 2. `H2DAsyncNodeMetal` and `D2HAsyncNodeMetal` remain canonical common nodes in libgpu and are not duplicated in examples/SAR.
 3. When a run needs both common libgpu Metal plugins and SAR-local plugins, pass the shared plugin directory as an additional plugin directory instead of copying or duplicating nodes.
 
-Additional demo scenario: examples/SAR/config/sar_projectile_approach_pr1.json
+Additional demo scenario: examples/SAR/config/sar_projectile_approach.json
 
 The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
 
-PR2 graph-visible fan-out topology: examples/SAR/config/sar_stripmap_pr2_fanout.json
+PR2 graph-visible fan-out topology: examples/SAR/config/sar_stripmap_fanout.json
 
 PR3 Metal-oriented SAR topologies:
 
-1. examples/SAR/config/sar_stripmap_pr3_metal_window.json
-2. examples/SAR/config/sar_stripmap_pr3_metal_compression.json
-3. examples/SAR/config/sar_stripmap_pr3_metal_fanout.json
+1. examples/SAR/config/sar_stripmap_metal_window.json
+2. examples/SAR/config/sar_stripmap_metal_compression.json
+3. examples/SAR/config/sar_stripmap_metal_fanout.json
 
 PR8 non-CI external-data manual topology scaffold:
 
@@ -93,7 +93,7 @@ To force METAL resolution, copy the definitive config and set `execution_backend
 
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/sar_example \
-  /tmp/sar_stripmap_definitive_metal.json \
+  /tmp/sar_stripmap_definitive_runtime_metal.json \
   ./build-ninja/ninja-debug/examples/SAR/plugins \
   ./build-ninja/ninja-debug/plugins
 ```
@@ -228,8 +228,8 @@ What this means now:
 
 Range-stage runtime presets currently supported:
 
-1. Window stage runtime preset: `examples/SAR/config/sar_stripmap_pr3_metal_window.json`
-2. Compression stage runtime preset: `examples/SAR/config/sar_stripmap_pr3_metal_compression.json`
+1. Window stage runtime preset: `examples/SAR/config/sar_stripmap_metal_window.json`
+2. Compression stage runtime preset: `examples/SAR/config/sar_stripmap_metal_compression.json`
 
 Deferred work:
 

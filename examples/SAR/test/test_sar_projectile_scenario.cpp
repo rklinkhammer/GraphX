@@ -62,7 +62,7 @@ std::shared_ptr<sar::SarVisualizationSinkNode> ResolveVisualizationNode(
 #endif
 
 #ifndef SAR_PROJECTILE_JSON_CONFIG_PATH
-#define SAR_PROJECTILE_JSON_CONFIG_PATH "examples/SAR/config/sar_projectile_approach_pr1.json"
+#define SAR_PROJECTILE_JSON_CONFIG_PATH "examples/SAR/config/sar_projectile_approach.json"
 #endif
 
 TEST(SarProjectileScenarioTest, ExecutesMovingTargetScenarioFromJsonConfig) {

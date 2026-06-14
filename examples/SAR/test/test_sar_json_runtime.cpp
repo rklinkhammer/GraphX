@@ -153,7 +153,7 @@ const graph::NodeResolutionDiagnostic* FindResolverDiagnostic(
 #endif
 
 #ifndef SAR_JSON_CONFIG_PATH
-#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr1.json"
+#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_simulated.json"
 #endif
 
 #ifndef SAR_DEFINITIVE_JSON_CONFIG_PATH
@@ -214,12 +214,12 @@ TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExpli
 
     const std::vector<PresetExpectation> presets{
         {SAR_JSON_CONFIG_PATH, "auto"},
-        {SAR_PR2_FANOUT_JSON_CONFIG_PATH, "auto"},
-        {SAR_PR3_METAL_WINDOW_JSON_CONFIG_PATH, "metal"},
-        {SAR_PR3_METAL_COMPRESSION_JSON_CONFIG_PATH, "metal"},
-        {SAR_PR3_METAL_FANOUT_JSON_CONFIG_PATH, "metal"},
-        {SAR_PR6_MATCHED_FILTER_JSON_CONFIG_PATH, "metal"},
-        {SAR_PR7_MATERIALIZED_IMAGE_JSON_CONFIG_PATH, "auto"},
+        {SAR_FANOUT_JSON_CONFIG_PATH, "auto"},
+        {SAR_METAL_WINDOW_JSON_CONFIG_PATH, "metal"},
+        {SAR_METAL_COMPRESSION_JSON_CONFIG_PATH, "metal"},
+        {SAR_METAL_FANOUT_JSON_CONFIG_PATH, "metal"},
+        {SAR_MATCHED_FILTER_JSON_CONFIG_PATH, "metal"},
+        {SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH, "auto"},
         {SAR_PROJECTILE_JSON_CONFIG_PATH, "auto"},
     };
 

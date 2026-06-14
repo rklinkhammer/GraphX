@@ -244,11 +244,11 @@ sar::SarDiagnosticsSnapshot RunFanoutBaselinePipeline() {
 #endif
 
 #ifndef SAR_JSON_CONFIG_PATH
-#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr1.json"
+#define SAR_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_simulated.json"
 #endif
 
-#ifndef SAR_PR2_FANOUT_JSON_CONFIG_PATH
-#define SAR_PR2_FANOUT_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_pr2_fanout.json"
+#ifndef SAR_FANOUT_JSON_CONFIG_PATH
+#define SAR_FANOUT_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_fanout.json"
 #endif
 
 TEST(SarBaselineCompareTest, GraphPipelineMatchesDirectBaselineWithinTolerance) {
@@ -287,7 +287,7 @@ TEST(SarBaselineCompareTest, GraphPipelineMatchesDirectBaselineWithinTolerance) 
 }
 
 TEST(SarBaselineCompareTest, FanoutGraphPipelineMatchesDirectBaselineWithinTolerance) {
-    const std::filesystem::path config_path{SAR_PR2_FANOUT_JSON_CONFIG_PATH};
+    const std::filesystem::path config_path{SAR_FANOUT_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
     const std::filesystem::path plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
