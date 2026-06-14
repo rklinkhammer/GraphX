@@ -397,6 +397,7 @@ Required checks:
 - No standards CRSD writer, MATLAB dependency, or new external dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 ---
