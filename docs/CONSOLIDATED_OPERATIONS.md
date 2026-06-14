@@ -64,6 +64,18 @@ cmake --build --preset build-debug-metal-native-strict
 
 ```bash
 cmake --build --preset build-debug --target sar_example test_sar_example_unit graphx_gotcha_to_crsd
+cmake --build --preset build-debug-metal-native --target sar_example test_sar_example_unit graphx_gotcha_to_crsd
+```
+
+### Build libgraph unit test executable
+
+```bash
+cmake --build --preset build-libgraph-unit
+cmake --build --preset build-libgraph-unit-metal-native
+cmake --build --preset build-libgraph-unit-metal-native-strict
+cmake --build --preset build-sar-example-unit
+cmake --build --preset build-sar-example-unit-metal-native
+cmake --build --preset build-sar-example-unit-metal-native-strict
 ```
 
 ## 2) Install
@@ -102,9 +114,21 @@ python3 -m pip install -r tools/sarpy/requirements.txt
 
 ```bash
 ctest --preset test-libgraph-unit
+ctest --preset test-libgraph-unit-metal-native
+ctest --preset test-libgraph-unit-metal-native-strict
+ctest --preset test-sar-example-unit
+ctest --preset test-sar-example-unit-metal-native
+ctest --preset test-sar-example-unit-metal-native-strict
 ctest --preset test-libgpu-metal-runtime --output-on-failure
 ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
 ```
+
+`test-libgraph-unit` uses the plain `ninja-debug` configure preset.
+`test-libgraph-unit-metal-native` uses `ninja-debug-metal-native` and matches the default `build-debug` lane.
+`test-libgraph-unit-metal-native-strict` uses `ninja-debug-metal-native-strict`.
+`test-sar-example-unit` uses the plain `ninja-debug` configure preset.
+`test-sar-example-unit-metal-native` uses `ninja-debug-metal-native`.
+`test-sar-example-unit-metal-native-strict` uses `ninja-debug-metal-native-strict`.
 
 ### SAR unit test binary
 

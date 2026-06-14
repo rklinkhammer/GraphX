@@ -84,17 +84,33 @@
     {
       "name": "build-debug",
       "displayName": "Build Debug",
-      "configurePreset": "ninja-debug-metal-native"
+      "configurePreset": "ninja-debug"
     },
     {
       "name": "build-release",
       "displayName": "Build Release",
-      "configurePreset": "ninja-release-metal-native"
+      "configurePreset": "ninja-release"
     },
     {
       "name": "build-libgraph-unit",
       "displayName": "Build test_libgraph_unit",
       "configurePreset": "ninja-debug",
+      "targets": [
+        "test_libgraph_unit"
+      ]
+    },
+    {
+      "name": "build-libgraph-unit-metal-native",
+      "displayName": "Build test_libgraph_unit (Metal Native)",
+      "configurePreset": "ninja-debug-metal-native",
+      "targets": [
+        "test_libgraph_unit"
+      ]
+    },
+    {
+      "name": "build-libgraph-unit-metal-native-strict",
+      "displayName": "Build test_libgraph_unit (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
       "targets": [
         "test_libgraph_unit"
       ]
@@ -112,7 +128,23 @@
     {
       "name": "build-sar-example-unit",
       "displayName": "Build SAR Example Unit",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "test_sar_example_unit"
+      ]
+    },
+    {
+      "name": "build-sar-example-unit-metal-native",
+      "displayName": "Build SAR Example Unit (Metal Native)",
       "configurePreset": "ninja-debug-metal-native",
+      "targets": [
+        "test_sar_example_unit"
+      ]
+    },
+    {
+      "name": "build-sar-example-unit-metal-native-strict",
+      "displayName": "Build SAR Example Unit (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
       "targets": [
         "test_sar_example_unit"
       ]
@@ -128,6 +160,32 @@
       "name": "test-libgraph-unit",
       "displayName": "Run libgraph unit tests",
       "configurePreset": "ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgraph_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libgraph-unit-metal-native",
+      "displayName": "Run libgraph unit tests (Metal Native Debug)",
+      "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgraph_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libgraph-unit-metal-native-strict",
+      "displayName": "Run libgraph unit tests (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
       "output": {
         "outputOnFailure": true
       },
@@ -160,6 +218,45 @@
       "filter": {
         "include": {
           "name": "libgpu_metal_runtime"
+        }
+      }
+    },
+    {
+      "name": "test-sar-example-unit",
+      "displayName": "Run SAR example unit tests",
+      "configurePreset": "ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "sar_example_unit"
+        }
+      }
+    },
+    {
+      "name": "test-sar-example-unit-metal-native",
+      "displayName": "Run SAR example unit tests (Metal Native)",
+      "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "sar_example_unit"
+        }
+      }
+    },
+    {
+      "name": "test-sar-example-unit-metal-native-strict",
+      "displayName": "Run SAR example unit tests (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "sar_example_unit"
         }
       }
     },
