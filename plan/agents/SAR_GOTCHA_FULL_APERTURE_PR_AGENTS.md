@@ -143,6 +143,7 @@ Do not add real-data tests.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent

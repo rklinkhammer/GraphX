@@ -19,7 +19,7 @@ if ! find "${dataset_root}" -maxdepth 1 -type f -name '*.mat' -print -quit | gre
   exit 4
 fi
 
-"${repo_root}/scripts/verify_gotcha_dataset.sh" >/dev/null
+bash "${repo_root}/scripts/verify_gotcha_dataset.sh" >/dev/null
 
 runner_bin="${GRAPHX_SAR_GOTCHA_TO_CRSD_BIN:-${repo_root}/build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd}"
 if [[ ! -x "${runner_bin}" ]]; then
@@ -45,7 +45,8 @@ mkdir -p "${output_dir}"
   --manifest "${manifest_path}" \
   --mode graphx-crsd-lite \
   --validate \
-  --emit-index
+  --emit-index \
+  --allow-classic-mat-with-sidecar
 
 test -f "${output_dir}/gotcha_crsd_index.json"
 test -f "${output_dir}/conversion_report.json"

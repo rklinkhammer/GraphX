@@ -89,6 +89,23 @@ TEST_F(GotchaInputOrderingTest, LexicalOrderingSortsOpaqueMatFilesByFilename) {
                                        }));
 }
 
+TEST_F(GotchaInputOrderingTest, LexicalOrderingPreservesContiguousGotchaApertureSequence) {
+    Touch("subData04.mat");
+    Touch("subData02.mat");
+    Touch("subData01.mat");
+    Touch("subData03.mat");
+
+    const auto result = graphx::sar::GotchaInputOrdering::DiscoverLexical(root_);
+
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(Filenames(result.files), std::vector<std::string>({
+                                           "subData01.mat",
+                                           "subData02.mat",
+                                           "subData03.mat",
+                                           "subData04.mat",
+                                       }));
+}
+
 TEST_F(GotchaInputOrderingTest, ManifestOrderingUsesManifestOrder) {
     Touch("first_on_disk.mat");
     Touch("second_on_disk.mat");
@@ -111,6 +128,57 @@ TEST_F(GotchaInputOrderingTest, ManifestOrderingUsesManifestOrder) {
                                            "first_on_disk.mat",
                                            "second_on_disk.mat",
                                        }));
+}
+
+TEST_F(GotchaInputOrderingTest, LexicalOrderingReportsGapInGotchaApertureSequence) {
+    Touch("subData01.mat");
+    Touch("subData03.mat");
+
+    const auto result = graphx::sar::GotchaInputOrdering::DiscoverLexical(root_);
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_TRUE(result.files.empty());
+    EXPECT_EQ(ErrorCodes(result), std::vector<std::string>{"aperture_sequence_gap"});
+}
+
+TEST_F(GotchaInputOrderingTest, ManifestOrderingReportsOutOfOrderGotchaApertureSequence) {
+    Touch("subData01.mat");
+    Touch("subData02.mat");
+    Touch("subData03.mat");
+    WriteManifest("gotcha_input_manifest.json", nlohmann::json{
+        {"schema", graphx::sar::GotchaInputOrdering::kSchemaName},
+        {"files", nlohmann::json::array({
+                      nlohmann::json{{"path", "subData02.mat"}},
+                      nlohmann::json{{"path", "subData01.mat"}},
+                      nlohmann::json{{"path", "subData03.mat"}},
+                  })},
+    });
+
+    const auto result = graphx::sar::GotchaInputOrdering::DiscoverManifest(
+        root_, Path("gotcha_input_manifest.json"));
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_TRUE(result.files.empty());
+    EXPECT_EQ(ErrorCodes(result), std::vector<std::string>{"aperture_sequence_out_of_order"});
+}
+
+TEST_F(GotchaInputOrderingTest, ManifestOrderingReportsDuplicateGotchaApertureSequence) {
+    Touch("a/subData01.mat");
+    Touch("b/subData01.mat");
+    WriteManifest("gotcha_input_manifest.json", nlohmann::json{
+        {"schema", graphx::sar::GotchaInputOrdering::kSchemaName},
+        {"files", nlohmann::json::array({
+                      nlohmann::json{{"path", "a/subData01.mat"}},
+                      nlohmann::json{{"path", "b/subData01.mat"}},
+                  })},
+    });
+
+    const auto result = graphx::sar::GotchaInputOrdering::DiscoverManifest(
+        root_, Path("gotcha_input_manifest.json"));
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_TRUE(result.files.empty());
+    EXPECT_EQ(ErrorCodes(result), std::vector<std::string>{"duplicate_aperture_sequence"});
 }
 
 TEST_F(GotchaInputOrderingTest, MissingManifestFileReportsDeterministicError) {

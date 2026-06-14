@@ -1,8 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <set>
 #include <string>
 #include <system_error>
@@ -89,9 +91,11 @@ public:
                 .path = input_directory,
                 .message = "no input files matched extension " + extension,
             });
+            return result;
         }
 
-        return result;
+        ValidateApertureSequence(result.files, result.errors);
+        return ClearFilesOnError(result);
     }
 
     [[nodiscard]] static GotchaInputOrderingResult DiscoverManifest(
@@ -227,12 +231,86 @@ public:
             result.files.push_back(resolved_path);
         }
 
+        ValidateApertureSequence(result.files, result.errors);
         return ClearFilesOnError(result);
     }
 
     static constexpr const char* kSchemaName = "graphx.gotcha.input_manifest.v1";
 
 private:
+    [[nodiscard]] static std::optional<int> ParseGotchaApertureIndex(
+        const std::filesystem::path& path) {
+        const auto filename = path.filename().generic_string();
+        if (filename.size() != 13) {
+            return std::nullopt;
+        }
+        if (filename.rfind("subData", 0) != 0 || filename.substr(9) != ".mat") {
+            return std::nullopt;
+        }
+        if (!std::isdigit(static_cast<unsigned char>(filename[7])) ||
+            !std::isdigit(static_cast<unsigned char>(filename[8]))) {
+            return std::nullopt;
+        }
+        return ((filename[7] - '0') * 10) + (filename[8] - '0');
+    }
+
+    static void ValidateApertureSequence(
+        const std::vector<std::filesystem::path>& files,
+        std::vector<GotchaInputOrderingError>& errors) {
+        std::vector<std::pair<std::filesystem::path, int>> aperture_files{};
+        aperture_files.reserve(files.size());
+
+        bool all_files_are_gotcha_aperture = true;
+        for (const auto& file : files) {
+            const auto aperture_index = ParseGotchaApertureIndex(file);
+            if (!aperture_index.has_value()) {
+                all_files_are_gotcha_aperture = false;
+                break;
+            }
+            aperture_files.push_back({file, *aperture_index});
+        }
+
+        if (!all_files_are_gotcha_aperture || aperture_files.size() < 2) {
+            return;
+        }
+
+        std::set<int> seen_indices{};
+        seen_indices.insert(aperture_files.front().second);
+        int previous_index = aperture_files.front().second;
+
+        for (std::size_t index = 1; index < aperture_files.size(); ++index) {
+            const auto& [path, aperture_index] = aperture_files[index];
+            if (!seen_indices.insert(aperture_index).second) {
+                errors.push_back(GotchaInputOrderingError{
+                    .code = "duplicate_aperture_sequence",
+                    .path = path,
+                    .message = "aperture file sequence index appears more than once",
+                });
+                continue;
+            }
+
+            if (aperture_index <= previous_index) {
+                errors.push_back(GotchaInputOrderingError{
+                    .code = "aperture_sequence_out_of_order",
+                    .path = path,
+                    .message = "aperture file sequence is not strictly increasing",
+                });
+                continue;
+            }
+
+            if (aperture_index != previous_index + 1) {
+                errors.push_back(GotchaInputOrderingError{
+                    .code = "aperture_sequence_gap",
+                    .path = path,
+                    .message = "aperture file sequence has a gap before this file",
+                });
+                continue;
+            }
+
+            previous_index = aperture_index;
+        }
+    }
+
     [[nodiscard]] static bool RequireDirectory(
         const std::filesystem::path& input_directory,
         GotchaInputOrderingResult& result) {

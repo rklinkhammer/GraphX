@@ -214,6 +214,22 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         malformed_manifest.output.find("empty_manifest") != std::string::npos);
 }
 
+TEST_F(GraphxGotchaToCrsdCliTest, GotchaApertureOrderingErrorsFailBeforeReaderInCliPath) {
+    const auto input_dir = Path("gapped-aperture");
+    ASSERT_TRUE(std::filesystem::create_directories(input_dir));
+    WriteMatStub("gapped-aperture/subData01.mat");
+    WriteMatStub("gapped-aperture/subData03.mat");
+
+    const auto result = RunCommand(
+        CliBase() +
+        " --input-dir " + ShellQuote(input_dir) +
+        " --output-dir " + ShellQuote(Path("out-gap")) +
+        " --collection-id gap-case --max-output-size-mb 1 --sort lexical --mode graphx-crsd-lite 2>&1");
+
+    EXPECT_NE(result.exit_code, 0);
+    EXPECT_NE(result.output.find("aperture_sequence_gap"), std::string::npos);
+}
+
 TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeProducesSarpyOpenableOutput) {
     const auto input_dir = Path("unsupported");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));

@@ -28,6 +28,12 @@ def _to_array(value) -> np.ndarray:
     return np.asarray([value])
 
 
+def _scalar_or_default(values: np.ndarray, default: float = 0.0) -> float:
+    if values.size == 0:
+        return float(default)
+    return float(values.reshape(-1)[0])
+
+
 def _index_or_last(values: np.ndarray, index: int, default: float = 0.0) -> float:
     if values.size == 0:
         return default
@@ -69,7 +75,8 @@ def _build_sidecar(path: Path, pulse_index: int) -> dict:
     ant_x = _to_array(getattr(s, "AntX", np.array([0.0])))
     ant_y = _to_array(getattr(s, "AntY", np.array([0.0])))
     ant_z = _to_array(getattr(s, "AntZ", np.array([0.0])))
-    npulses = _to_array(getattr(s, "Np", np.array([used_pulse_index])))
+    pulse_numbers = _to_array(getattr(s, "Np", np.array([used_pulse_index])))
+    r0 = _to_array(getattr(s, "R0", np.array([0.0])))
 
     position = [
         _index_or_last(ant_x, used_pulse_index, 0.0),
@@ -83,6 +90,15 @@ def _build_sidecar(path: Path, pulse_index: int) -> dict:
     ]
 
     return {
+        "Np": 1,
+        "K": k,
+        "deltaF": delta_f,
+        "minF": min_f,
+        "AntX": position[0],
+        "AntY": position[1],
+        "AntZ": position[2],
+        "R0": _index_or_last(r0, used_pulse_index, _scalar_or_default(r0, 0.0)),
+        "phdata": "subData.phdata selected pulse exported in iq_samples",
         "carrier_hz": carrier,
         "bandwidth_hz": bandwidth,
         "sample_rate_hz": sample_rate,
@@ -92,10 +108,19 @@ def _build_sidecar(path: Path, pulse_index: int) -> dict:
         ],
         "platform_position_m": position,
         "platform_velocity_mps": [0.0, 0.0, 0.0],
-        "pulse_time_seconds": _index_or_last(npulses, used_pulse_index, float(used_pulse_index)),
+        "pulse_time_seconds": _index_or_last(pulse_numbers, used_pulse_index, float(used_pulse_index)),
         "range_sample_start": 0,
         "iq_samples": iq_samples,
         "source_field_names": {
+            "Np": "generated sidecar pulse count",
+            "K": "subData.K",
+            "deltaF": "subData.deltaF",
+            "minF": "subData.minF",
+            "AntX": "subData.AntX",
+            "AntY": "subData.AntY",
+            "AntZ": "subData.AntZ",
+            "R0": "subData.R0",
+            "phdata": "subData.phdata",
             "iq_samples": "subData.phdata",
             "carrier_hz": "subData.minF + subData.deltaF * subData.K / 2",
             "bandwidth_hz": "subData.deltaF * subData.K",
