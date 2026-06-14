@@ -2,7 +2,7 @@
 #include "sar/io/GotchaMatInspector.hpp"
 #include "sar/io/GotchaMatReader.hpp"
 #include "sar/io/CrsdIO.hpp"
-#include "sar/io/GraphxCrsdLiteIO.hpp"
+#include "sar/io/GraphxSarNormalizedIO.hpp"
 #include "sar/io/SarIoUtilities.hpp"
 #include "sar/io/SarProductChunker.hpp"
 #include "sar/io/SarProductValidator.hpp"
@@ -30,7 +30,7 @@ struct CliOptions {
     double max_output_size_mb{0.0};
     std::string sort{"lexical"};
     std::filesystem::path manifest{};
-    std::string mode{"graphx-crsd-lite"};
+    std::string mode{"graphx-sar-normalized"};
     bool validate{false};
     bool emit_index{false};
     bool allow_classic_mat_with_sidecar{false};
@@ -43,7 +43,7 @@ void PrintHelp() {
         << "Usage:\n"
         << "  graphx-gotcha-to-crsd --input-dir <dir> --output-dir <dir> --collection-id <id> \\\n"
         << "      --max-output-size-mb <mb> --sort <lexical|manifest> [--manifest <path>] \\\n"
-        << "      --mode <graphx-crsd-lite|crsd> [--validate] [--emit-index]\n\n"
+        << "      --mode <graphx-sar-normalized|crsd> [--validate] [--emit-index]\n\n"
         << "Options:\n"
         << "  --help                 Show this help message\n"
         << "  --input-dir            Input GOTCHA MAT directory\n"
@@ -52,10 +52,11 @@ void PrintHelp() {
         << "  --max-output-size-mb   Max output chunk size in MB (0 disables split)\n"
         << "  --sort                 Ordering mode: lexical or manifest\n"
         << "  --manifest             Manifest path when --sort manifest\n"
-        << "  --mode                 Output mode: graphx-crsd-lite or crsd\n"
+        << "  --mode                 Output mode: graphx-sar-normalized or crsd\n"
+        << "                         graphx-sar-normalized is NON-STANDARD and is not CRSD\n"
         << "  --validate             Run normalized product validation before export\n"
         << "  --allow-classic-mat-with-sidecar  Allow classic MAT input when sidecar JSON is present\n"
-        << "  --emit-index           Emit gotcha_crsd_index.json and conversion_report.json\n";
+        << "  --emit-index           Emit mode-specific index JSON and conversion_report.json\n";
 }
 
 [[nodiscard]] bool IsFlag(const std::string& arg, const std::string& key) {
@@ -142,7 +143,7 @@ void PrintHelp() {
     if (options.sort == "manifest" && options.manifest.empty()) {
         throw std::invalid_argument("missing_required:--manifest");
     }
-    if (options.mode != "graphx-crsd-lite" && options.mode != "crsd") {
+    if (options.mode != "graphx-sar-normalized" && options.mode != "crsd") {
         throw std::invalid_argument("invalid_value:--mode");
     }
 
@@ -423,11 +424,12 @@ int Run(const CliOptions& options) {
 
     const auto max_chunk_bytes =
         static_cast<std::uint64_t>(options.max_output_size_mb * 1024.0 * 1024.0);
+    const auto output_prefix = options.mode == "crsd" ? "gotcha_crsd_chunk" : "gotcha_sar_normalized_chunk";
     const auto chunk_plan = graphx::sar::SarProductChunker::BuildPlan(
         read.product,
         graphx::sar::SarChunkerOptions{
             .max_chunk_bytes = max_chunk_bytes,
-            .output_prefix = "gotcha_crsd_chunk",
+            .output_prefix = output_prefix,
         });
 
     std::error_code fs_error{};
@@ -446,32 +448,34 @@ int Run(const CliOptions& options) {
     std::vector<std::string> warnings = chunk_plan.warnings;
     std::string metadata_file{};
     std::string index_file{};
+    std::string root_index_file{};
 
-    if (options.mode == "graphx-crsd-lite") {
-        selected_format = "graphx-crsd-lite";
+    if (options.mode == "graphx-sar-normalized") {
+        selected_format = "graphx-sar-normalized";
         label = "NON-STANDARD";
         assumptions = {"non_standard_intermediate_format", "derived_from_normalized_sar_product"};
         metadata_file = "metadata.json";
-        index_file = "gotcha_crsd_index.json";
+        index_file = "gotcha_sar_normalized_index.json";
+        root_index_file = "gotcha_sar_normalized_index.json";
 
-        graphx::sar::GraphxCrsdLiteWriter writer(graphx::sar::GraphxCrsdLiteOptions{
+        graphx::sar::GraphxSarNormalizedWriter writer(graphx::sar::GraphxSarNormalizedOptions{
             .assumptions = assumptions,
             .warnings = warnings,
         });
 
         for (const auto& chunk : chunk_plan.chunks) {
-            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".graphx-crsd-lite");
+            const auto chunk_dir = options.output_dir / (chunk.output_stem + ".graphx-sar-normalized");
             const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
             const auto write = writer.Write(chunk_dir, chunk_product);
             if (!write.success) {
-                std::cerr << "lite_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
+                std::cerr << "sar_normalized_write_failed:" << chunk_dir.generic_string() << ":" << write.message << '\n';
                 return 1;
             }
 
-            const auto signal_path = chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile;
+            const auto signal_path = chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile;
             output_summaries.push_back(graphx::sar::SarOutputSummary{
                 .output_name = chunk_dir.filename().generic_string(),
-                .checksum_fnv1a64 = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path),
+                .checksum_fnv1a64 = graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(signal_path),
                 .pulse_start = chunk.pulse_start,
                 .pulse_end = chunk.pulse_end,
                 .pulse_count = chunk.pulse_end >= chunk.pulse_start ? (chunk.pulse_end - chunk.pulse_start + 1) : 0,
@@ -489,6 +493,7 @@ int Run(const CliOptions& options) {
         };
         metadata_file = graphx::sar::CrsdWriter::kMetadataFile;
         index_file = graphx::sar::CrsdWriter::kChunkIndexFile;
+        root_index_file = "gotcha_crsd_index.json";
 
         graphx::sar::CrsdWriter writer;
         for (const auto& chunk : chunk_plan.chunks) {
@@ -529,8 +534,12 @@ int Run(const CliOptions& options) {
             frequency_axis = read.product.channels.front().waveform.frequency_axis_hz;
         }
 
-        const auto index_json = graphx::sar::SarIoUtilities::BuildGotchaCrsdIndexJson(
-            graphx::sar::GotchaCrsdIndexBuildInput{
+        const auto index_schema = options.mode == "crsd"
+            ? "graphx.sar.gotcha_crsd_index.v1"
+            : "graphx.sar.gotcha_sar_normalized_index.v1";
+        const auto index_json = graphx::sar::SarIoUtilities::BuildGotchaOutputIndexJson(
+            graphx::sar::GotchaOutputIndexBuildInput{
+                .schema = index_schema,
                 .collection_id = read.product.collection.collection_id,
                 .source_files = read.product.collection.source_files,
                 .source_ordering = read.product.collection.source_ordering,
@@ -575,7 +584,7 @@ int Run(const CliOptions& options) {
                 .index_file = index_file,
             });
 
-        if (!graphx::sar::SarIoUtilities::WriteJson(options.output_dir / "gotcha_crsd_index.json", index_json) ||
+        if (!graphx::sar::SarIoUtilities::WriteJson(options.output_dir / root_index_file, index_json) ||
             !graphx::sar::SarIoUtilities::WriteJson(options.output_dir / "conversion_report.json", report_json) ||
             !graphx::sar::SarIoUtilities::WriteWarningsLog(options.output_dir / "conversion_warnings.log", warnings)) {
             std::cerr << "report_write_failed:" << options.output_dir.generic_string() << '\n';

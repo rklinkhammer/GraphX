@@ -1,7 +1,7 @@
 # Local-Only Real GOTCHA Validation
 
 This workflow validates a local GOTCHA `.mat` directory through the existing
-`graphx-gotcha-to-crsd` `graphx-crsd-lite` lane.
+`graphx-gotcha-to-crsd` `graphx-sar-normalized` lane.
 
 It is explicitly local-only:
 
@@ -50,11 +50,11 @@ bash examples/SAR/tools/local_gotcha_validation.sh
 Expected outputs in `GRAPHX_SAR_GOTCHA_OUTPUT_DIR`:
 
 ```text
-gotcha_crsd_index.json
+gotcha_sar_normalized_index.json
 conversion_report.json
 conversion_warnings.log
-gotcha_crsd_chunk_*.graphx-crsd-lite/
+gotcha_sar_normalized_chunk_*.graphx-sar-normalized/
 ```
 
-The output format is `graphx-crsd-lite`, a permanent non-standard GraphX
+The output format is `graphx-sar-normalized`, a permanent non-standard GraphX
 intermediate format.

@@ -34,7 +34,8 @@ struct SarOutputSummary {
     std::size_t max_sample_count{0};
 };
 
-struct GotchaCrsdIndexBuildInput {
+struct GotchaOutputIndexBuildInput {
+    std::string schema{};
     std::string collection_id{};
     std::vector<std::string> source_files{};
     std::string source_ordering{};
@@ -64,7 +65,7 @@ public:
     static constexpr std::uint64_t kFNVOffsetBasis = 14695981039346656037ULL;
     static constexpr std::uint64_t kFNVPrime = 1099511628211ULL;
 
-    [[nodiscard]] static nlohmann::json BuildLiteIndexJson(
+    [[nodiscard]] static nlohmann::json BuildSarPackageIndexJson(
         const std::string& schema,
         const std::string& format,
         const std::string& label,
@@ -91,8 +92,8 @@ public:
         };
     }
 
-    [[nodiscard]] static nlohmann::json BuildGotchaCrsdIndexJson(
-        const GotchaCrsdIndexBuildInput& input) {
+    [[nodiscard]] static nlohmann::json BuildGotchaOutputIndexJson(
+        const GotchaOutputIndexBuildInput& input) {
         nlohmann::json outputs_json = nlohmann::json::array();
         for (const auto& output : input.outputs) {
             outputs_json.push_back(nlohmann::json{
@@ -108,7 +109,7 @@ public:
         }
 
         return nlohmann::json{
-            {"schema", "graphx.sar.gotcha_crsd_index.v1"},
+            {"schema", input.schema},
             {"collection_id", input.collection_id},
             {"source_files", input.source_files},
             {"source_ordering", input.source_ordering},

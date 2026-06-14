@@ -74,8 +74,8 @@ TEST(LocalGotchaValidationLaneTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnly
 
     EXPECT_NE(script.find("GRAPHX_SAR_GOTCHA_DATASET must be set"), std::string::npos);
     EXPECT_NE(script.find("scripts/verify_gotcha_dataset.sh"), std::string::npos);
-    EXPECT_NE(script.find("--mode graphx-crsd-lite"), std::string::npos);
-    EXPECT_NE(script.find("gotcha_crsd_index.json"), std::string::npos);
+    EXPECT_NE(script.find("--mode graphx-sar-normalized"), std::string::npos);
+    EXPECT_NE(script.find("gotcha_sar_normalized_index.json"), std::string::npos);
     EXPECT_EQ(script.find("curl "), std::string::npos);
     EXPECT_EQ(script.find("wget "), std::string::npos);
     EXPECT_EQ(script.find("git clone"), std::string::npos);
@@ -85,7 +85,7 @@ TEST(LocalGotchaValidationLaneTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnly
     EXPECT_NE(doc.find("No GOTCHA data is checked into the repository"), std::string::npos);
     EXPECT_NE(doc.find("CI does not require this workflow"), std::string::npos);
     EXPECT_NE(doc.find("GRAPHX_SAR_GOTCHA_DATASET"), std::string::npos);
-    EXPECT_NE(doc.find("graphx-crsd-lite"), std::string::npos);
+    EXPECT_NE(doc.find("graphx-sar-normalized"), std::string::npos);
 
     const auto no_env = RunCommand(
         "env -u GRAPHX_SAR_GOTCHA_DATASET -u GRAPHX_SAR_GOTCHA_MANIFEST "

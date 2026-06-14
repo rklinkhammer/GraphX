@@ -18,7 +18,7 @@
 
 namespace graphx::sar {
 
-struct GraphxCrsdLiteOptions {
+struct GraphxSarNormalizedOptions {
     std::vector<std::string> assumptions{
         "non_standard_intermediate_format",
         "derived_from_normalized_sar_product",
@@ -26,9 +26,9 @@ struct GraphxCrsdLiteOptions {
     std::vector<std::string> warnings{};
 };
 
-class GraphxCrsdLiteWriter final : public ISarWriter {
+class GraphxSarNormalizedWriter final : public ISarWriter {
 public:
-    explicit GraphxCrsdLiteWriter(GraphxCrsdLiteOptions options = {})
+    explicit GraphxSarNormalizedWriter(GraphxSarNormalizedOptions options = {})
         : options_(std::move(options)) {}
 
     [[nodiscard]] SarWriteResult Write(
@@ -139,7 +139,7 @@ public:
             {"channels", channels},
         };
 
-        const auto index = SarIoUtilities::BuildLiteIndexJson(
+        const auto index = SarIoUtilities::BuildSarPackageIndexJson(
             kIndexSchema,
             kFormatName,
             kNonStandardLabel,
@@ -193,15 +193,15 @@ public:
         return SarIoUtilities::ComputeFileChecksumFNV1a64(signal_path);
     }
 
-    static constexpr const char* kFormatName = "graphx-crsd-lite";
+    static constexpr const char* kFormatName = "graphx-sar-normalized";
     static constexpr const char* kNonStandardLabel = "NON-STANDARD";
     static constexpr const char* kSignalFile = "signal.bin";
     static constexpr const char* kMetadataFile = "metadata.json";
     static constexpr const char* kIndexFile = "index.json";
     static constexpr const char* kConversionReportFile = "conversion_report.json";
     static constexpr const char* kWarningsLogFile = "conversion_warnings.log";
-    static constexpr const char* kMetadataSchema = "graphx.sar.graphx_crsd_lite.metadata.v1";
-    static constexpr const char* kIndexSchema = "graphx.sar.graphx_crsd_lite.index.v1";
+    static constexpr const char* kMetadataSchema = "graphx.sar.graphx_sar_normalized.metadata.v1";
+    static constexpr const char* kIndexSchema = "graphx.sar.graphx_sar_normalized.index.v1";
 
 private:
     [[nodiscard]] static nlohmann::json WaveformToJson(const WaveformMetadata& waveform) {
@@ -229,16 +229,16 @@ private:
         };
     }
 
-    GraphxCrsdLiteOptions options_{};
+    GraphxSarNormalizedOptions options_{};
 };
 
-class GraphxCrsdLiteReader final : public ISarReader {
+class GraphxSarNormalizedReader final : public ISarReader {
 public:
     [[nodiscard]] SarReadResult Read(const std::filesystem::path& input_directory) const override {
-        const auto metadata_path = input_directory / GraphxCrsdLiteWriter::kMetadataFile;
-        const auto index_path = input_directory / GraphxCrsdLiteWriter::kIndexFile;
-        const auto report_path = input_directory / GraphxCrsdLiteWriter::kConversionReportFile;
-        const auto signal_path = input_directory / GraphxCrsdLiteWriter::kSignalFile;
+        const auto metadata_path = input_directory / GraphxSarNormalizedWriter::kMetadataFile;
+        const auto index_path = input_directory / GraphxSarNormalizedWriter::kIndexFile;
+        const auto report_path = input_directory / GraphxSarNormalizedWriter::kConversionReportFile;
+        const auto signal_path = input_directory / GraphxSarNormalizedWriter::kSignalFile;
 
         const auto metadata = ReadJson(metadata_path);
         const auto index = ReadJson(index_path);
@@ -246,18 +246,18 @@ public:
         if (!metadata.has_value() || !index.has_value() || !report.has_value()) {
             return SarReadResult{
                 .success = false,
-                .message = "lite_metadata_missing_or_invalid",
+                .message = "sar_normalized_metadata_missing_or_invalid",
             };
         }
 
         if (!HasRequiredLabel(*metadata) || !HasRequiredLabel(*index) || !HasRequiredLabel(*report)) {
             return SarReadResult{
                 .success = false,
-                .message = "lite_non_standard_label_missing",
+                .message = "sar_normalized_non_standard_label_missing",
             };
         }
 
-        const auto checksum = GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path);
+        const auto checksum = GraphxSarNormalizedWriter::ComputeSignalChecksum(signal_path);
         if (checksum.empty()) {
             return SarReadResult{
                 .success = false,
@@ -370,9 +370,9 @@ private:
 
     [[nodiscard]] static bool HasRequiredLabel(const nlohmann::json& json) {
         return json.contains("format") && json.at("format").is_string() &&
-               json.at("format").get<std::string>() == GraphxCrsdLiteWriter::kFormatName &&
+               json.at("format").get<std::string>() == GraphxSarNormalizedWriter::kFormatName &&
                json.contains("label") && json.at("label").is_string() &&
-               json.at("label").get<std::string>() == GraphxCrsdLiteWriter::kNonStandardLabel;
+               json.at("label").get<std::string>() == GraphxSarNormalizedWriter::kNonStandardLabel;
     }
 
     [[nodiscard]] static bool ParseCollection(

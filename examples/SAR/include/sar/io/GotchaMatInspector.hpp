@@ -304,13 +304,13 @@ private:
             {"mat_format", format},
             {"matlab_dependency", "not_used"},
             {"normalized_product_emitted", false},
-            {"graphx_crsd_lite_emitted", false},
+            {"graphx_sar_normalized_emitted", false},
             {"crsd_emitted", false},
             {"classic_mat_policy", "deterministic_unsupported_error"},
             {"assumptions", nlohmann::json::array({
                                 "inspection_only_no_normalized_product",
                                 "matlab_not_used",
-                                "no_lite_or_crsd_output",
+                                "no_intermediate_or_crsd_output",
                             })},
             {"errors", nlohmann::json::array()},
         };

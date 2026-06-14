@@ -27,7 +27,7 @@ Repository scripts/tools created for this conversion flow:
 - tools/sarpy/generate_gotcha_subdata_sidecars.py
 - scripts/prepare_gotcha_subdata_json.sh
 - scripts/convert_gotcha_subdata_to_crsd.sh
-- scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+- scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh
 
 ## Commands
 
@@ -45,23 +45,23 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output
 ```
 
-### 3) Run working conversion now (graphx-crsd-lite)
+### 3) Run working conversion now (graphx-sar-normalized)
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh \
+bash scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh \
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData \
-  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_crsd_lite_output
+  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_sar_normalized_output
 ```
 
 ## Observed Results
 
 - JSON artifact generation: successful.
-- graphx-crsd-lite conversion: successful.
+- graphx-sar-normalized conversion: successful.
 - CRSD conversion mode: currently fails fast with a clear writer-unavailable message.
 
 ## Output Locations
 
-- graphx-crsd-lite output:
-  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_crsd_lite_output
+- graphx-sar-normalized output:
+  /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_sar_normalized_output
 - CRSD attempt output directory:
   /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output

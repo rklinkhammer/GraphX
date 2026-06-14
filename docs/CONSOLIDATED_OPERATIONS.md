@@ -119,10 +119,10 @@ ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
   --gtest_filter='GraphxGotchaToCrsdCliTest.*'
 
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='Pr16GraphxCrsdLiteLaneTest.*'
+  --gtest_filter='GraphxSarNormalizedLaneTest.*'
 
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='Pr17GraphxImageComparisonLaneTest.*'
+  --gtest_filter='GraphxImageComparisonLaneTest.*'
 ```
 
 ### Main executable coverage test
@@ -146,7 +146,7 @@ bash scripts/verify_gotcha_dataset.sh
 bash scripts/prepare_gotcha_subdata_json.sh /path/to/gotcha/subData
 ```
 
-### Local-only real GOTCHA validation (graphx-crsd-lite lane)
+### Local-only real GOTCHA validation (graphx-sar-normalized lane)
 
 ```bash
 bash examples/SAR/tools/local_gotcha_validation.sh
@@ -154,10 +154,10 @@ bash examples/SAR/tools/local_gotcha_validation.sh
 
 Expected outputs include:
 
-- `gotcha_crsd_index.json`
+- `gotcha_sar_normalized_index.json`
 - `conversion_report.json`
 - `conversion_warnings.log`
-- `gotcha_crsd_chunk_*.graphx-crsd-lite/`
+- `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/`
 
 ### Local frozen scenario replay harness
 
@@ -225,7 +225,7 @@ python3 examples/SAR/tools/sarpy_metadata_harness.py \
 
 `graphx-gotcha-to-crsd` supports:
 
-- `--mode graphx-crsd-lite` (non-standard GraphX intermediate)
+- `--mode graphx-sar-normalized` (non-standard GraphX intermediate)
 - `--mode crsd` (standards-targeted/export path)
 
 ### Build converter if needed
@@ -234,12 +234,12 @@ python3 examples/SAR/tools/sarpy_metadata_harness.py \
 cmake --build build-ninja/ninja-debug --target graphx_gotcha_to_crsd -j8
 ```
 
-### Convert to graphx-crsd-lite
+### Convert to graphx-sar-normalized
 
 ```bash
-bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh \
+bash scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh \
   /path/to/gotcha/subData \
-  /tmp/gotcha_graphx_crsd_lite_output
+  /tmp/gotcha_graphx_sar_normalized_output
 ```
 
 ### Convert to CRSD
@@ -260,7 +260,7 @@ build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
   --max-output-size-mb 512 \
   --sort manifest \
   --manifest /path/to/gotcha/subData/manifest.json \
-  --mode graphx-crsd-lite \
+  --mode graphx-sar-normalized \
   --validate \
   --emit-index \
   --allow-classic-mat-with-sidecar
@@ -268,7 +268,7 @@ build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
 
 ### Expected conversion root artifacts
 
-- `gotcha_crsd_index.json`
+- `gotcha_sar_normalized_index.json`
 - `conversion_report.json`
 - `conversion_warnings.log`
 
@@ -284,19 +284,19 @@ python3 tools/sarpy/validate_crsd.py \
 ### C++ tests to validate conversion lanes
 
 - `GraphxGotchaToCrsdCliTest.*`
-- `Pr16GraphxCrsdLiteLaneTest.*`
-- `Pr18LocalGotchaValidationTest.*`
+- `GraphxSarNormalizedLaneTest.*`
+- `LocalGotchaValidationLaneTest.*`
 
 Run from the SAR unit binary:
 
 ```bash
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='GraphxGotchaToCrsdCliTest.*:Pr16GraphxCrsdLiteLaneTest.*:Pr18LocalGotchaValidationTest.*'
+  --gtest_filter='GraphxGotchaToCrsdCliTest.*:GraphxSarNormalizedLaneTest.*:LocalGotchaValidationLaneTest.*'
 ```
 
 ## Notes and boundaries
 
 - MATLAB is not a GraphX build/runtime/test dependency.
 - SarPy tools are optional, local-only, and intended for validation/comparison.
-- `graphx-crsd-lite` is a permanent non-standard GraphX intermediate format.
+- `graphx-sar-normalized` is a permanent non-standard GraphX intermediate format.
 - For local data-backed lanes, keep dataset artifacts external to the repository.

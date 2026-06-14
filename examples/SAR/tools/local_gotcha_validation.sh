@@ -43,12 +43,12 @@ mkdir -p "${output_dir}"
   --max-output-size-mb "${max_output_size_mb}" \
   --sort manifest \
   --manifest "${manifest_path}" \
-  --mode graphx-crsd-lite \
+  --mode graphx-sar-normalized \
   --validate \
   --emit-index \
   --allow-classic-mat-with-sidecar
 
-test -f "${output_dir}/gotcha_crsd_index.json"
+test -f "${output_dir}/gotcha_sar_normalized_index.json"
 test -f "${output_dir}/conversion_report.json"
 test -f "${output_dir}/conversion_warnings.log"
 

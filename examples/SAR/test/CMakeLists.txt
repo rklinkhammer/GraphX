@@ -49,7 +49,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_field_inventory_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_full_pulse_ingestion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_crsd_lite_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_chunker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_io_utilities.cpp
@@ -69,7 +69,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_metadata_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_crsd_lite_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp

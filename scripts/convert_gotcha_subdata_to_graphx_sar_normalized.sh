@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
 DATASET_DIR="${1:-/Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData}"
-OUTPUT_DIR="${2:-/Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_crsd_lite_output}"
+OUTPUT_DIR="${2:-/Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_graphx_sar_normalized_output}"
 COLLECTION_ID="${COLLECTION_ID:-gotcha-large-scene-subdata}"
 MAX_MB="${MAX_MB:-256}"
 BUILD_DIR="${GRAPHX_BUILD_DIR:-build-ninja/ninja-debug}"
@@ -30,7 +30,7 @@ fi
   --max-output-size-mb "${MAX_MB}" \
   --sort manifest \
   --manifest "${DATASET_DIR}/manifest.json" \
-  --mode graphx-crsd-lite \
+  --mode graphx-sar-normalized \
   --validate \
   --emit-index \
   --allow-classic-mat-with-sidecar

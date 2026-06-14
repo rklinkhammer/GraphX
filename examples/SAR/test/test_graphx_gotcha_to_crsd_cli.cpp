@@ -140,11 +140,12 @@ TEST_F(GraphxGotchaToCrsdCliTest, HelpDocumentsRequiredOptions) {
     EXPECT_NE(result.output.find("--sort"), std::string::npos);
     EXPECT_NE(result.output.find("--manifest"), std::string::npos);
     EXPECT_NE(result.output.find("--mode"), std::string::npos);
+    EXPECT_NE(result.output.find("graphx-sar-normalized is NON-STANDARD and is not CRSD"), std::string::npos);
     EXPECT_NE(result.output.find("--validate"), std::string::npos);
     EXPECT_NE(result.output.find("--emit-index"), std::string::npos);
 }
 
-TEST_F(GraphxGotchaToCrsdCliTest, GraphxCrsdLiteModeWorksOnTinyFixture) {
+TEST_F(GraphxGotchaToCrsdCliTest, GraphxSarNormalizedModeWorksOnTinyFixture) {
     const auto input_dir = Path("input");
     const auto output_dir = Path("output");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));
@@ -158,7 +159,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, GraphxCrsdLiteModeWorksOnTinyFixture) {
                          " --collection-id tiny-collection" +
                          " --max-output-size-mb 1" +
                          " --sort lexical" +
-                         " --mode graphx-crsd-lite" +
+                         " --mode graphx-sar-normalized" +
                          " --validate" +
                          " --emit-index 2>&1";
 
@@ -166,12 +167,12 @@ TEST_F(GraphxGotchaToCrsdCliTest, GraphxCrsdLiteModeWorksOnTinyFixture) {
     EXPECT_EQ(result.exit_code, 0) << result.output;
     EXPECT_NE(result.output.find("conversion_successful"), std::string::npos);
 
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite" / "signal.bin"));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite" / "metadata.json"));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite" / "index.json"));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite" / "conversion_report.json"));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite" / "conversion_warnings.log"));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_index.json"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized" / "signal.bin"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized" / "metadata.json"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized" / "index.json"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized" / "conversion_report.json"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized" / "conversion_warnings.log"));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_index.json"));
     EXPECT_TRUE(std::filesystem::exists(output_dir / "conversion_report.json"));
     EXPECT_TRUE(std::filesystem::exists(output_dir / "conversion_warnings.log"));
 }
@@ -181,7 +182,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         CliBase() +
         " --input-dir " + ShellQuote(Path("no-such-dir")) +
         " --output-dir " + ShellQuote(Path("out-a")) +
-        " --collection-id c1 --max-output-size-mb 1 --sort lexical --mode graphx-crsd-lite 2>&1");
+        " --collection-id c1 --max-output-size-mb 1 --sort lexical --mode graphx-sar-normalized 2>&1");
     EXPECT_NE(missing.exit_code, 0);
     EXPECT_NE(missing.output.find("input_directory_not_found"), std::string::npos);
 
@@ -191,7 +192,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         CliBase() +
         " --input-dir " + ShellQuote(empty_dir) +
         " --output-dir " + ShellQuote(Path("out-b")) +
-        " --collection-id c2 --max-output-size-mb 1 --sort lexical --mode graphx-crsd-lite 2>&1");
+        " --collection-id c2 --max-output-size-mb 1 --sort lexical --mode graphx-sar-normalized 2>&1");
     EXPECT_NE(empty.exit_code, 0);
     EXPECT_NE(empty.output.find("empty_input_directory"), std::string::npos);
 
@@ -207,7 +208,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, InvalidInputAndEmptyInputAndMalformedManifestF
         " --output-dir " + ShellQuote(Path("out-c")) +
         " --collection-id c3 --max-output-size-mb 1 --sort manifest --manifest " +
         ShellQuote(Path("bad_manifest.json")) +
-        " --mode graphx-crsd-lite 2>&1");
+        " --mode graphx-sar-normalized 2>&1");
     EXPECT_NE(malformed_manifest.exit_code, 0);
     EXPECT_TRUE(
         malformed_manifest.output.find("manifest_schema_error") != std::string::npos ||
@@ -224,7 +225,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, GotchaApertureOrderingErrorsFailBeforeReaderIn
         CliBase() +
         " --input-dir " + ShellQuote(input_dir) +
         " --output-dir " + ShellQuote(Path("out-gap")) +
-        " --collection-id gap-case --max-output-size-mb 1 --sort lexical --mode graphx-crsd-lite 2>&1");
+        " --collection-id gap-case --max-output-size-mb 1 --sort lexical --mode graphx-sar-normalized 2>&1");
 
     EXPECT_NE(result.exit_code, 0);
     EXPECT_NE(result.output.find("aperture_sequence_gap"), std::string::npos);
@@ -240,7 +241,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeProducesS
         CliBase() +
         " --input-dir " + ShellQuote(input_dir) +
         " --output-dir " + ShellQuote(Path("out-d")) +
-        " --collection-id c4 --max-output-size-mb 1 --sort lexical --mode graphx-crsd-lite 2>&1");
+        " --collection-id c4 --max-output-size-mb 1 --sort lexical --mode graphx-sar-normalized 2>&1");
     EXPECT_NE(unsupported.exit_code, 0);
     EXPECT_NE(unsupported.output.find("unsupported_mat_format"), std::string::npos);
 

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sar/io/GraphxCrsdLiteIO.hpp"
+#include "sar/io/GraphxSarNormalizedIO.hpp"
 
 #include <array>
 #include <chrono>
@@ -53,12 +53,12 @@ CommandResult RunCommand(const std::string& command) {
     return CommandResult{.exit_code = pclose(pipe), .output = output};
 }
 
-class GraphxCrsdLiteLaneTest : public ::testing::Test {
+class GraphxSarNormalizedLaneTest : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::temp_directory_path() /
-            ("graphx_crsd_lite_lane_" + std::to_string(ticks));
+            ("graphx_sar_normalized_lane_" + std::to_string(ticks));
         ASSERT_TRUE(std::filesystem::create_directories(root_));
     }
 
@@ -137,14 +137,14 @@ protected:
         WriteSidecar("input/pulse_01.mat", 10);
     }
 
-    [[nodiscard]] CommandResult RunLiteConversion(const std::string& output_relative) const {
+    [[nodiscard]] CommandResult RunSarNormalizedConversion(const std::string& output_relative) const {
         const auto command = CliBase() +
             " --input-dir " + ShellQuote(Path("input")) +
             " --output-dir " + ShellQuote(Path(output_relative)) +
             " --collection-id tiny-collection"
             " --max-output-size-mb 1"
             " --sort lexical"
-            " --mode graphx-crsd-lite"
+            " --mode graphx-sar-normalized"
             " --validate"
             " --emit-index 2>&1";
         return RunCommand(command);
@@ -171,34 +171,34 @@ protected:
 
 } // namespace
 
-TEST_F(GraphxCrsdLiteLaneTest, EndToEndTinySyntheticConversionEmitsReportsAndChecksums) {
+TEST_F(GraphxSarNormalizedLaneTest, EndToEndTinySyntheticConversionEmitsReportsAndChecksums) {
     WriteTinySyntheticInput();
 
-    const auto result = RunLiteConversion("run_a");
+    const auto result = RunSarNormalizedConversion("run_a");
     ASSERT_EQ(result.exit_code, 0) << result.output;
-    EXPECT_NE(result.output.find("conversion_successful: mode=graphx-crsd-lite"), std::string::npos);
+    EXPECT_NE(result.output.find("conversion_successful: mode=graphx-sar-normalized"), std::string::npos);
 
     const auto output_dir = Path("run_a");
-    const auto chunk_dir = output_dir / "gotcha_crsd_chunk_0000.graphx-crsd-lite";
-    const auto signal_path = chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile;
+    const auto chunk_dir = output_dir / "gotcha_sar_normalized_chunk_0000.graphx-sar-normalized";
+    const auto signal_path = chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile;
 
     EXPECT_TRUE(std::filesystem::exists(signal_path));
-    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile));
-    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kIndexFile));
-    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile));
-    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kWarningsLogFile));
-    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_index.json"));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kIndexFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile));
+    EXPECT_TRUE(std::filesystem::exists(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kWarningsLogFile));
+    EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_sar_normalized_index.json"));
     EXPECT_TRUE(std::filesystem::exists(output_dir / "conversion_report.json"));
     EXPECT_TRUE(std::filesystem::exists(output_dir / "conversion_warnings.log"));
 
-    const auto metadata = ReadJson(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile);
-    const auto chunk_index = ReadJson(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kIndexFile);
-    const auto chunk_report = ReadJson(chunk_dir / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile);
-    const auto root_index = ReadJson(output_dir / "gotcha_crsd_index.json");
+    const auto metadata = ReadJson(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile);
+    const auto chunk_index = ReadJson(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kIndexFile);
+    const auto chunk_report = ReadJson(chunk_dir / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile);
+    const auto root_index = ReadJson(output_dir / "gotcha_sar_normalized_index.json");
     const auto root_report = ReadJson(output_dir / "conversion_report.json");
-    const auto checksum = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path);
+    const auto checksum = graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(signal_path);
 
-    EXPECT_EQ(metadata.at("format"), "graphx-crsd-lite");
+    EXPECT_EQ(metadata.at("format"), "graphx-sar-normalized");
     EXPECT_EQ(metadata.at("label"), "NON-STANDARD");
     EXPECT_EQ(metadata.at("shape").at("pulse_count"), 2);
     EXPECT_EQ(metadata.at("shape").at("channel_count"), 1);
@@ -207,47 +207,47 @@ TEST_F(GraphxCrsdLiteLaneTest, EndToEndTinySyntheticConversionEmitsReportsAndChe
     EXPECT_EQ(chunk_report.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
     EXPECT_EQ(root_index.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
     EXPECT_EQ(root_report.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
-    EXPECT_EQ(root_report.at("format"), "graphx-crsd-lite");
+    EXPECT_EQ(root_report.at("format"), "graphx-sar-normalized");
     EXPECT_EQ(root_report.at("label"), "NON-STANDARD");
-    EXPECT_EQ(root_report.at("selected_mode"), "graphx-crsd-lite");
+    EXPECT_EQ(root_report.at("selected_mode"), "graphx-sar-normalized");
     EXPECT_EQ(root_report.at("validation_status"), "ok");
     EXPECT_EQ(root_index.at("outputs").at(0).at("pulse_range").at("start"), 0);
     EXPECT_EQ(root_index.at("outputs").at(0).at("pulse_range").at("end"), 1);
     EXPECT_EQ(ReadText(output_dir / "conversion_warnings.log"), "none\n");
 }
 
-TEST_F(GraphxCrsdLiteLaneTest, RepeatedTinySyntheticConversionIsDeterministic) {
+TEST_F(GraphxSarNormalizedLaneTest, RepeatedTinySyntheticConversionIsDeterministic) {
     WriteTinySyntheticInput();
 
-    const auto first = RunLiteConversion("run_a");
+    const auto first = RunSarNormalizedConversion("run_a");
     ASSERT_EQ(first.exit_code, 0) << first.output;
-    const auto second = RunLiteConversion("run_b");
+    const auto second = RunSarNormalizedConversion("run_b");
     ASSERT_EQ(second.exit_code, 0) << second.output;
 
-    const auto chunk_a = Path("run_a/gotcha_crsd_chunk_0000.graphx-crsd-lite");
-    const auto chunk_b = Path("run_b/gotcha_crsd_chunk_0000.graphx-crsd-lite");
+    const auto chunk_a = Path("run_a/gotcha_sar_normalized_chunk_0000.graphx-sar-normalized");
+    const auto chunk_b = Path("run_b/gotcha_sar_normalized_chunk_0000.graphx-sar-normalized");
 
     EXPECT_EQ(
-        ReadJson(Path("run_a/gotcha_crsd_index.json")),
-        ReadJson(Path("run_b/gotcha_crsd_index.json")));
+        ReadJson(Path("run_a/gotcha_sar_normalized_index.json")),
+        ReadJson(Path("run_b/gotcha_sar_normalized_index.json")));
     EXPECT_EQ(
         ReadJson(Path("run_a/conversion_report.json")),
         ReadJson(Path("run_b/conversion_report.json")));
     EXPECT_EQ(
-        ReadJson(chunk_a / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile),
-        ReadJson(chunk_b / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile));
+        ReadJson(chunk_a / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile),
+        ReadJson(chunk_b / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile));
     EXPECT_EQ(
-        ReadJson(chunk_a / graphx::sar::GraphxCrsdLiteWriter::kIndexFile),
-        ReadJson(chunk_b / graphx::sar::GraphxCrsdLiteWriter::kIndexFile));
+        ReadJson(chunk_a / graphx::sar::GraphxSarNormalizedWriter::kIndexFile),
+        ReadJson(chunk_b / graphx::sar::GraphxSarNormalizedWriter::kIndexFile));
     EXPECT_EQ(
-        ReadJson(chunk_a / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile),
-        ReadJson(chunk_b / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile));
+        ReadJson(chunk_a / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile),
+        ReadJson(chunk_b / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile));
     EXPECT_EQ(
         ReadText(Path("run_a/conversion_warnings.log")),
         ReadText(Path("run_b/conversion_warnings.log")));
     EXPECT_EQ(
-        graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(
-            chunk_a / graphx::sar::GraphxCrsdLiteWriter::kSignalFile),
-        graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(
-            chunk_b / graphx::sar::GraphxCrsdLiteWriter::kSignalFile));
+        graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(
+            chunk_a / graphx::sar::GraphxSarNormalizedWriter::kSignalFile),
+        graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(
+            chunk_b / graphx::sar::GraphxSarNormalizedWriter::kSignalFile));
 }

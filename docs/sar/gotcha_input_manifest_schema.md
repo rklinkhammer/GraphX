@@ -1,6 +1,6 @@
 # GOTCHA Input Manifest Schema
 
-This document defines the manifest used by the future GOTCHA importer to impose deterministic input file ordering. The manifest is an ordering contract only: GraphX does not use MATLAB, does not parse MAT contents in this step, and does not add HDF5, MAT reader, lite writer, CRSD writer, CLI, or Python tooling here.
+This document defines the manifest used by the future GOTCHA importer to impose deterministic input file ordering. The manifest is an ordering contract only: GraphX does not use MATLAB, does not parse MAT contents in this step, and does not add HDF5, MAT reader, intermediate writer, CRSD writer, CLI, or Python tooling here.
 
 ## Schema
 

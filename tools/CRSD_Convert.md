@@ -35,7 +35,7 @@ The conversion flow is driven by:
 - `tools/sarpy/write_crsd_from_graphx_product.py`
 - `scripts/prepare_gotcha_subdata_json.sh`
 - `scripts/convert_gotcha_subdata_to_crsd.sh`
-- `scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh`
+- `scripts/convert_gotcha_subdata_to_graphx_sar_normalized.sh`
 
 ## Commands
 

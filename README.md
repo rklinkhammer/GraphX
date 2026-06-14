@@ -214,9 +214,9 @@ not require real GOTCHA `.mat` data, MATLAB, or CRSD validation. MATLAB is not a
 GraphX build-time, runtime, or test-time dependency and should not be added as
 one.
 
-`graphx-crsd-lite` is a permanent, non-standard GraphX intermediate format. It
+`graphx-sar-normalized` is a permanent, non-standard GraphX intermediate format. It
 is distinct from full CRSD, and full CRSD validation is not required for
-`graphx-crsd-lite` lanes.
+`graphx-sar-normalized` lanes.
 
 Useful focused commands:
 
@@ -228,17 +228,17 @@ Useful focused commands:
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
   '--gtest_filter=GraphxGotchaToCrsdCliTest.*'
 
-# End-to-end GOTCHA -> normalized product -> graphx-crsd-lite -> reports.
+# End-to-end GOTCHA -> normalized product -> graphx-sar-normalized -> reports.
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=Pr16GraphxCrsdLiteLaneTest.*'
+  '--gtest_filter=GraphxSarNormalizedLaneTest.*'
 
 # GraphX image output comparison against Python reference outputs.
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=Pr17GraphxImageComparisonLaneTest.*'
+  '--gtest_filter=GraphxImageComparisonLaneTest.*'
 
 # Local GOTCHA validation gate. Real-data smoke skips unless explicitly enabled.
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=Pr18LocalGotchaValidationTest.*'
+  '--gtest_filter=LocalGotchaValidationLaneTest.*'
 ```
 
 ### GOTCHA Conversion CLI
@@ -249,7 +249,7 @@ The GOTCHA conversion utility is:
 build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd --help
 ```
 
-Example `graphx-crsd-lite` conversion:
+Example `graphx-sar-normalized` conversion:
 
 ```bash
 build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
@@ -259,7 +259,7 @@ build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd \
   --max-output-size-mb 512 \
   --sort manifest \
   --manifest /path/to/manifest.json \
-  --mode graphx-crsd-lite \
+  --mode graphx-sar-normalized \
   --validate \
   --emit-index
 ```
@@ -268,14 +268,14 @@ Use `--sort lexical` when deterministic filename ordering is sufficient. Use
 `--sort manifest --manifest <path>` when the input order must be pinned by a
 manifest.
 
-The lite conversion emits:
+The SAR-normalized conversion emits:
 
 | Output | Description |
 |---|---|
-| `gotcha_crsd_index.json` | Deterministic root index for converted outputs. |
+| `gotcha_sar_normalized_index.json` | Deterministic root index for converted outputs. |
 | `conversion_report.json` | Root conversion summary, validation status, and checksums. |
 | `conversion_warnings.log` | Deterministic warning log, or `none`. |
-| `gotcha_crsd_chunk_*.graphx-crsd-lite/` | Non-standard lite chunk directories. |
+| `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/` | Non-standard SAR-normalized chunk directories. |
 
 ### GOTCHA Environment Variables
 
@@ -317,7 +317,7 @@ bash examples/SAR/tools/local_gotcha_validation.sh
 ```
 
 `examples/SAR/tools/local_gotcha_validation.sh` runs the existing
-`graphx-gotcha-to-crsd` `graphx-crsd-lite` lane, verifies root report artifacts,
+`graphx-gotcha-to-crsd` `graphx-sar-normalized` lane, verifies root report artifacts,
 and requires `GRAPHX_SAR_GOTCHA_DATASET` before doing any work.
 
 To inspect the disabled CTest lane:

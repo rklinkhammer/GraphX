@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sar/io/GraphxCrsdLiteIO.hpp"
+#include "sar/io/GraphxSarNormalizedIO.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -11,12 +11,12 @@
 
 namespace {
 
-class GraphxCrsdLiteIoTest : public ::testing::Test {
+class GraphxSarNormalizedIoTest : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::temp_directory_path() /
-            ("graphx_crsd_lite_io_" + std::to_string(now));
+            ("graphx_sar_normalized_io_" + std::to_string(now));
         ASSERT_TRUE(std::filesystem::create_directories(root_));
     }
 
@@ -31,7 +31,7 @@ protected:
 
     [[nodiscard]] static graphx::sar::NormalizedSarProduct MakeProduct() {
         graphx::sar::NormalizedSarProduct product{};
-        product.collection.product_id = "product-graphx-lite";
+        product.collection.product_id = "product-graphx-sar-normalized";
         product.collection.collector_name = "GOTCHA";
         product.collection.collection_id = "collection-001";
         product.collection.coordinate_frame = "ecef";
@@ -89,19 +89,19 @@ protected:
     std::filesystem::path root_{};
 };
 
-TEST_F(GraphxCrsdLiteIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
+TEST_F(GraphxSarNormalizedIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
     const auto product = MakeProduct();
-    const auto out_dir = Path("lite_out");
+    const auto out_dir = Path("sar_normalized_out");
 
-    graphx::sar::GraphxCrsdLiteWriter writer;
+    graphx::sar::GraphxSarNormalizedWriter writer;
     const auto write = writer.Write(out_dir, product);
     ASSERT_TRUE(write.success) << write.message;
 
-    const auto signal_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile;
-    const auto metadata_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kMetadataFile;
-    const auto index_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kIndexFile;
-    const auto report_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kConversionReportFile;
-    const auto warnings_path = out_dir / graphx::sar::GraphxCrsdLiteWriter::kWarningsLogFile;
+    const auto signal_path = out_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile;
+    const auto metadata_path = out_dir / graphx::sar::GraphxSarNormalizedWriter::kMetadataFile;
+    const auto index_path = out_dir / graphx::sar::GraphxSarNormalizedWriter::kIndexFile;
+    const auto report_path = out_dir / graphx::sar::GraphxSarNormalizedWriter::kConversionReportFile;
+    const auto warnings_path = out_dir / graphx::sar::GraphxSarNormalizedWriter::kWarningsLogFile;
 
     EXPECT_TRUE(std::filesystem::exists(signal_path));
     EXPECT_TRUE(std::filesystem::exists(metadata_path));
@@ -113,16 +113,16 @@ TEST_F(GraphxCrsdLiteIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
     const auto index = ReadJson(index_path);
     const auto report = ReadJson(report_path);
 
-    EXPECT_EQ(metadata.at("format"), graphx::sar::GraphxCrsdLiteWriter::kFormatName);
-    EXPECT_EQ(metadata.at("label"), graphx::sar::GraphxCrsdLiteWriter::kNonStandardLabel);
-    EXPECT_EQ(index.at("label"), graphx::sar::GraphxCrsdLiteWriter::kNonStandardLabel);
-    EXPECT_EQ(report.at("label"), graphx::sar::GraphxCrsdLiteWriter::kNonStandardLabel);
+    EXPECT_EQ(metadata.at("format"), graphx::sar::GraphxSarNormalizedWriter::kFormatName);
+    EXPECT_EQ(metadata.at("label"), graphx::sar::GraphxSarNormalizedWriter::kNonStandardLabel);
+    EXPECT_EQ(index.at("label"), graphx::sar::GraphxSarNormalizedWriter::kNonStandardLabel);
+    EXPECT_EQ(report.at("label"), graphx::sar::GraphxSarNormalizedWriter::kNonStandardLabel);
 
     EXPECT_EQ(report.at("provenance"), "derived_from_gotcha_phase_history");
     EXPECT_EQ(report.at("source_ordering"), "manifest");
     EXPECT_EQ(report.at("validation_status"), "ok");
 
-    const auto checksum = graphx::sar::GraphxCrsdLiteWriter::ComputeSignalChecksum(signal_path);
+    const auto checksum = graphx::sar::GraphxSarNormalizedWriter::ComputeSignalChecksum(signal_path);
     ASSERT_FALSE(checksum.empty());
     EXPECT_EQ(index.at("signal_checksum_fnv1a64"), checksum);
     ASSERT_TRUE(report.contains("outputs"));
@@ -130,14 +130,14 @@ TEST_F(GraphxCrsdLiteIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) {
     EXPECT_EQ(report.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
 }
 
-TEST_F(GraphxCrsdLiteIoTest, ReaderRoundTripsNormalizedProductAndPulseOrdering) {
+TEST_F(GraphxSarNormalizedIoTest, ReaderRoundTripsNormalizedProductAndPulseOrdering) {
     const auto product = MakeProduct();
-    const auto out_dir = Path("lite_roundtrip");
+    const auto out_dir = Path("sar_normalized_roundtrip");
 
-    graphx::sar::GraphxCrsdLiteWriter writer;
+    graphx::sar::GraphxSarNormalizedWriter writer;
     ASSERT_TRUE(writer.Write(out_dir, product).success);
 
-    graphx::sar::GraphxCrsdLiteReader reader;
+    graphx::sar::GraphxSarNormalizedReader reader;
     const auto read = reader.Read(out_dir);
     ASSERT_TRUE(read.success) << read.message;
 
@@ -164,14 +164,14 @@ TEST_F(GraphxCrsdLiteIoTest, ReaderRoundTripsNormalizedProductAndPulseOrdering) 
     EXPECT_FLOAT_EQ(channel.pulses[1].samples[1].imag, -4.0f);
 }
 
-TEST_F(GraphxCrsdLiteIoTest, ReaderRejectsChecksumMismatch) {
+TEST_F(GraphxSarNormalizedIoTest, ReaderRejectsChecksumMismatch) {
     const auto product = MakeProduct();
-    const auto out_dir = Path("lite_corrupt");
+    const auto out_dir = Path("sar_normalized_corrupt");
 
-    graphx::sar::GraphxCrsdLiteWriter writer;
+    graphx::sar::GraphxSarNormalizedWriter writer;
     ASSERT_TRUE(writer.Write(out_dir, product).success);
 
-    std::ofstream signal(out_dir / graphx::sar::GraphxCrsdLiteWriter::kSignalFile,
+    std::ofstream signal(out_dir / graphx::sar::GraphxSarNormalizedWriter::kSignalFile,
                          std::ios::binary | std::ios::in | std::ios::out);
     ASSERT_TRUE(signal.good());
     signal.seekp(0, std::ios::beg);
@@ -179,7 +179,7 @@ TEST_F(GraphxCrsdLiteIoTest, ReaderRejectsChecksumMismatch) {
     signal.write(reinterpret_cast<const char*>(&replacement), sizeof(replacement));
     signal.flush();
 
-    graphx::sar::GraphxCrsdLiteReader reader;
+    graphx::sar::GraphxSarNormalizedReader reader;
     const auto read = reader.Read(out_dir);
     EXPECT_FALSE(read.success);
     EXPECT_EQ(read.message, "signal_checksum_mismatch");
