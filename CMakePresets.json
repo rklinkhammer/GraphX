@@ -65,18 +65,31 @@
       "cacheVariables": {
         "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "ON"
       }
+    },
+    {
+      "name": "ninja-release-metal-native",
+      "displayName": "Ninja Release (Metal Native)",
+      "description": "Release build with native Metal runtime requested via metal-cpp",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_GRAPH_NODES": "ON",
+        "ENABLE_METAL_NATIVE_RUNTIME": "ON",
+        "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "build-debug",
       "displayName": "Build Debug",
-      "configurePreset": "ninja-debug"
+      "configurePreset": "ninja-debug-metal-native"
     },
     {
       "name": "build-release",
       "displayName": "Build Release",
-      "configurePreset": "ninja-release"
+      "configurePreset": "ninja-release-metal-native"
     },
     {
       "name": "build-libgraph-unit",
@@ -103,6 +116,11 @@
       "targets": [
         "test_sar_example_unit"
       ]
+    },
+    {
+      "name": "build-release-metal-native",
+      "displayName": "Build Release (Metal Native)",
+      "configurePreset": "ninja-release-metal-native"
     }
   ],
   "testPresets": [
