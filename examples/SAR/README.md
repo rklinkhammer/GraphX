@@ -2,6 +2,8 @@
 
 This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX with optional GPU acceleration
 
+For consolidated build/install/test/GOTCHA/SarPy/CRSD operations across the repository, see `docs/CONSOLIDATED_OPERATIONS.md`.
+
 ## Current Goals
 
 1. Keep SAR-specific implementation under examples/SAR.

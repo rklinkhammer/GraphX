@@ -67,26 +67,65 @@ def _read_reference_array(reader: Any):
     if numpy is None:
         raise RuntimeError("numpy is not installed")
 
+    def _as_nonempty_2d(value: Any):
+        arr = numpy.asarray(value)
+        if arr.size == 0:
+            return None
+        if arr.ndim == 1:
+            return arr.reshape(1, -1)
+        if arr.ndim == 2:
+            return arr
+        return arr.reshape(arr.shape[-2], arr.shape[-1])
+
+    data_size = getattr(reader, "data_size", None)
+    if data_size is None:
+        method = getattr(reader, "get_data_size_as_tuple", None)
+        if callable(method):
+            try:
+                data_size = method()
+                if isinstance(data_size, tuple) and len(data_size) == 1:
+                    data_size = data_size[0]
+            except Exception:
+                data_size = None
+
     # Best-effort extraction from SarPy reader APIs.
     method = getattr(reader, "read", None)
     if callable(method):
+        if isinstance(data_size, tuple) and len(data_size) == 2:
+            rows = min(int(data_size[0]), 64)
+            cols = min(int(data_size[1]), 256)
+            try:
+                arr = _as_nonempty_2d(method(slice(0, rows), slice(0, cols)))
+                if arr is not None:
+                    return arr
+            except Exception:
+                pass
+
         try:
             arr = method(slice(0, 1), slice(0, 1), slice(0, 256))
-            arr = numpy.asarray(arr)
-            if arr.size > 0:
-                return arr.reshape(1, -1)
+            arr = _as_nonempty_2d(arr)
+            if arr is not None:
+                return arr
         except Exception:
             pass
 
     method = getattr(reader, "read_chip", None)
     if callable(method):
+        if isinstance(data_size, tuple) and len(data_size) == 2:
+            rows = min(int(data_size[0]), 64)
+            cols = min(int(data_size[1]), 256)
+            try:
+                arr = _as_nonempty_2d(method((0, rows), (0, cols)))
+                if arr is not None:
+                    return arr
+            except Exception:
+                pass
+
         try:
             arr = method(0, (0, 64), (0, 64))
-            arr = numpy.asarray(arr)
-            if arr.ndim == 2 and arr.size > 0:
+            arr = _as_nonempty_2d(arr)
+            if arr is not None:
                 return arr
-            if arr.ndim > 2 and arr.size > 0:
-                return arr.reshape(arr.shape[-2], arr.shape[-1])
         except Exception:
             pass
 

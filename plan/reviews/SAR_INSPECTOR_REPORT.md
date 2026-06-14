@@ -1,120 +1,118 @@
 # SAR Inspector Report
 
-Inspector role source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`
+Inspector role source: plan/agents/GRAPHX_SAR_AGENT_ROLES.md
 
-Scope: current repository inspection only. This report does not redesign or implement.
+Scope: current repository inspection only. No redesign and no implementation.
 
 ## 1. Current Type Model
 
-- Observed: SAR declares `SarBackendKind`, `SarFrameMarker`, `SarTransferDirection`, `SarStageTimingMetrics`, `SarSidecar`, `AccelControlToken<SidecarT>`, `SarAccelControlToken`, `SarDiagnosticsSnapshot`, and `SarIqSample` in `examples/SAR/include/sar/SarMessages.hpp`.
-- Observed: `SarSidecar` carries SAR identity and diagnostics fields: sequence, batch, aperture, pulse range, stream, tile, backend, marker, synthetic flag, payload byte count, queue IDs, merge counters, transfer/kernel counters, watermark/merge completion, and stage timings.
-- Observed: `AccelControlToken<SidecarT>` carries `token_id`, `sidecar`, `BufferLease`, `DeviceBufferView`, `HostPinnedBufferView`, `TransferTicket`, `KernelTicket`, and presence flags.
-- Observed: The comment contract in `SarMessages.hpp` states that SAR identity must come only from sidecar fields and that `device_view.ready_event` and `host_view.host_ptr` are opaque transport metadata, not identity fields.
-- Observed: `libgpu/include/gpu/accel/types/AccelTypes.hpp` defines the generic GPU transport types used inside the SAR token: `DeviceBufferView`, `HostPinnedBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`, `TensorLayout`, and related backend/data-type enums.
-- Observed: GOTCHA support currently models normalized JSON replay records, not direct MATLAB input. `GotchaNormalizedPulseRecord` contains frame/pass/pulse/range/aperture fields, platform position/velocity, scene center, RF metadata, calibration fields, polarization, coordinate frame, sample layout, endianness, and IQ samples.
-- Inferred: The canonical SAR runtime payload in the current example is already `SarAccelControlToken`, but several type names retain older config-facing names through aliases.
-- Unknown: Whether any downstream external consumers rely on the alias names; comments explicitly say the aliases are retained until maintained presets/downstream users migrate.
+- Observed: The canonical SAR message/types header is examples/SAR/include/sar/SarMessages.hpp.
+- Observed: SAR core enums are present: SarBackendKind, SarFrameMarker, SarTransferDirection.
+- Observed: SarSidecar exists and carries SAR identity and runtime diagnostics fields, including sequence/batch/aperture/range identity, stream/tile identity, backend metadata, transfer queue IDs, transfer/kernel counters, merge counters, watermark/completion, and stage timings.
+- Observed: AccelControlToken<SidecarT> exists and includes token_id, sidecar, BufferLease, DeviceBufferView, HostPinnedBufferView, TransferTicket, KernelTicket, plus presence flags.
+- Observed: SarAccelControlToken is a concrete alias of AccelControlToken<SarSidecar>.
+- Observed: SarDiagnosticsSnapshot is a sink/report structure that mirrors sidecar-derived diagnostics and graph queue metrics.
+- Observed: Contract comments in SarMessages.hpp explicitly state SAR identity must come from sidecar fields and that host_view.host_ptr / device_view.ready_event are opaque transport metadata.
+- Observed: Standard-layout static_assert checks exist for SarSidecar, SarAccelControlToken, and SarDiagnosticsSnapshot.
+- Inferred: Current typing is intentionally centered on explicit token+sidecar transport rather than legacy payload-specific message structs.
+- Unknown: Whether any downstream non-repo consumer still depends on older SAR message names from prior phases.
 
 ## 2. Current Node Model
 
-- Observed: SAR source nodes include `SyntheticApertureIqSourceNode` and `GotchaReplaySourceNode`.
-- Observed: SAR DSP/source-side nodes include `RangeWindowNode`, `RangeCompressionNode`, `AzimuthTileSplitNode`, and `SarPulseFanoutNode`.
-- Observed: SAR GPU-edge nodes include `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, and `D2HAsyncAccelNode`.
-- Observed: SAR sink/merge/diagnostic nodes include `ImageTileMergeNode`, `SarDiagnosticsSinkNode`, `SarVisualizationSinkNode`, and `SarMaterializedImageSinkNode`.
-- Observed: Config-facing aliases remain:
-  - `H2DAsyncNode = H2DAsyncAccelNode`
-  - `D2HAsyncNode = D2HAsyncAccelNode`
-  - `SarBackprojectionTransformNode = SarBackprojectionTransformAccelNode`
-- Observed: libgpu also has generic backend nodes such as `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, `DeviceKernelNodeMetal`, `DeviceTransformNodeMetal`, `DeviceReduceNodeMetal`, `QueueSyncNodeMetal`, and SYCL/CUDA analogs.
-- Observed: Generic Metal H2D/D2H nodes use `HostPinnedBufferView -> DeviceBufferView` and `DeviceBufferView -> HostPinnedBufferView`, while SAR H2D/D2H accel nodes use `SarAccelControlToken -> SarAccelControlToken`.
-- Inferred: There are two conceptual GPU transfer models in the repo: generic libgpu transfer nodes and SAR-local transfer wrappers that preserve SAR sidecars.
+- Observed: The definitive configured runtime topology in examples/SAR/config/sar_stripmap_definitive.json is:
+  SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncAccelNode -> SarBackprojectionTransformAccelNode -> D2HAsyncAccelNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode.
+- Observed: Source nodes include SyntheticApertureIqSourceNode and GotchaReplaySourceNode.
+- Observed: Pre-GPU SAR pipeline nodes include RangeWindowNode, RangeCompressionNode, AzimuthTileSplitNode, and SarPulseFanoutNode.
+- Observed: SAR GPU-edge/token nodes include H2DAsyncAccelNode, SarBackprojectionTransformAccelNode, and D2HAsyncAccelNode.
+- Observed: Post-GPU nodes include ImageTileMergeNode, SarDiagnosticsSinkNode, SarVisualizationSinkNode, and SarMaterializedImageSinkNode.
+- Observed: Plugin build wiring in examples/SAR/plugins/CMakeLists.txt compiles these SAR nodes as dynamic plugins in examples/SAR/plugins.
+- Observed: SarBackprojectionTransformAccelNode has dual runtime behavior inside one node: simulated token/device-view path and native Metal path via libgpu DeviceKernelNodeMetal when capabilities are bound.
+- Inferred: The current node model is a SAR-owned token path that delegates native kernel execution to libgpu rather than replacing the node with a generic kernel node in definitive config.
+- Unknown: Whether all non-definitive scenario configs in examples/SAR/config are still active in maintained workflows.
 
 ## 3. Current Token/Data Flow
 
-- Observed: The definitive SAR topology is `SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncNode -> SarBackprojectionTransformNode -> D2HAsyncNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode`.
-- Observed: `examples/SAR/config/sar_stripmap_definitive.json` declares `edge_contract: "accel-token"` and resolver mappings for `H2DAsyncNode`, `SarBackprojectionTransformNode`, and `D2HAsyncNode` with `input_token_type` and `output_token_type` set to `SarAccelControlToken`.
-- Observed: `SyntheticApertureIqSourceNode` produces `SarAccelControlToken` values.
-- Observed: `GotchaReplaySourceNode` reads normalized JSON fixture records and produces `SarAccelControlToken` values; external fixture paths are blocked unless `allow_external_fixture=true` and `GRAPHX_SAR_ALLOW_EXTERNAL_DATA=1`.
-- Observed: `H2DAsyncAccelNode` requires `has_host_view`, creates a synthetic `DeviceBufferView`, sets opaque `ready_event = 0`, creates transfer/lease metadata, and updates `sidecar.backend_id`, `sidecar.backend`, `sidecar.h2d_queue_id`, and H2D timing.
-- Observed: `SarBackprojectionTransformAccelNode` has two paths:
-  - Native path: when `backend == NativeDevice` and native Metal kernel capabilities are bound, it calls `DeviceKernelNodeMetal` and then re-wraps the returned `DeviceBufferView` in the same SAR token.
-  - Simulated path: it creates a synthetic `DeviceBufferView`, a `KernelTicket`, opaque ready event, and updates sidecar backend/kernel timing fields.
-- Observed: `D2HAsyncAccelNode` requires a valid device view, creates a synthetic/opaque host view, creates transfer/lease metadata, and updates `sidecar.backend_id`, `sidecar.backend`, `sidecar.d2h_queue_id`, and D2H timing.
-- Observed: `ImageTileMergeNode` reads sidecar marker, tile, sequence, stream, and payload byte count; it aggregates sidecar timing and transfer counters and emits completion state.
-- Inferred: The runtime path preserves SAR identity through sidecar fields rather than through `host_ptr` or `ready_event`.
-- Unknown: Whether all dynamically loaded plugins outside the inspected SAR plugin set preserve that same sidecar discipline.
+- Observed: SyntheticApertureIqSourceNode and GotchaReplaySourceNode both emit SarAccelControlToken values with sidecar identity populated and host_view present.
+- Observed: AzimuthTileSplitNode produces new token_id values and updates sidecar tile identity; it sets host_view.host_ptr using runtime::OpaqueHostPointer().
+- Observed: H2DAsyncAccelNode requires has_host_view, emits device_view, lease, transfer_ticket, and writes sidecar backend/h2d_queue/timing fields.
+- Observed: SarBackprojectionTransformAccelNode requires has_device_view, emits updated device_view and kernel_ticket, and writes sidecar backend/kernel_queue/timing fields.
+- Observed: D2HAsyncAccelNode requires valid device_view, emits host_view, lease, transfer_ticket, and writes sidecar backend/d2h_queue/timing fields.
+- Observed: ImageTileMergeNode aggregates tile/stream/marker state from sidecar and accumulates transfer counters and stage timing totals into sidecar.
+- Observed: SarDiagnosticsSinkNode consumes merged tokens and publishes diagnostics from sidecar plus graph queue metrics.
+- Observed: runtime::OpaqueHostPointer(), runtime::OpaqueReadyEventNotSignaled(), and runtime::NextOpaqueEventId() are centralized in examples/SAR/include/sar/SarRuntimeHelpers.hpp.
+- Observed: runtime::SyntheticDevicePointer() constructs synthetic pointer values from byte count and sequence, used by H2D/backprojection simulated paths.
+- Inferred: SAR identity propagation is sidecar-first through the entire configured path.
+- Unknown: Whether any optional/experimental SAR path bypasses sidecar propagation under plugin combinations not used by definitive config.
 
 ## 4. Resolver Substitution Flow
 
-- Observed: `NodeResolutionRegistry::CreateDefault()` maps generic intents:
-  - `H2DAsyncNode`: `HostPinnedBufferView -> DeviceBufferView`, variants `H2DAsyncNodeMetal`, `H2DAsyncNodeSycl`, `H2DAsyncNode`, `H2DAsyncNode`.
-  - `D2HAsyncNode`: `DeviceBufferView -> HostPinnedBufferView`, variants `D2HAsyncNodeMetal`, `D2HAsyncNodeSycl`, `D2HAsyncNode`, `D2HAsyncNode`.
-  - `DeviceKernelNode`: `DeviceBufferView -> DeviceBufferView`, metal variant `DeviceKernelNodeMetal`.
-- Observed: Config-provided resolver mappings are added after defaults and overwrite contracts by intent type.
-- Observed: SAR configs override `H2DAsyncNode` and `D2HAsyncNode` mappings to use `SarAccelControlToken -> SarAccelControlToken` and currently resolve to SAR-local `H2DAsyncNode`/`D2HAsyncNode` aliases.
-- Observed: `ResolvingNodeProvider` chooses backends in auto order `metal`, `sycl`, `stub`, `cuda`; strict mode only checks the requested backend, while fallback mode appends remaining backends.
-- Observed: `GraphConfigParser` accepts only `edge_contract: "accel-token"` when a non-empty edge contract is present.
-- Observed: `GraphConfigParser` rejects resolver mappings and edge payload contracts that use legacy SAR payload names when the graph declares `edge_contract: "accel-token"`.
-- Inferred: Resolver metadata can say a node intent is tokenized while still selecting a config-facing compatibility alias whose concrete implementation is SAR-specific.
-- Unknown: Whether resolver diagnostics are consumed by CI beyond assertions in SAR JSON/runtime tests.
+- Observed: Graph config parser accepts resolver fields execution_backend, backend_fallback_policy, resolver_diagnostics, edge_contract, resolver_mappings in libgraph/src/graph/GraphConfigParser.cpp.
+- Observed: edge_contract currently validates to empty or accel-token; invalid values are rejected.
+- Observed: With edge_contract=accel-token, parser rejects legacy SAR payload contracts in resolver mappings and edge payload_contract fields.
+- Observed: GraphBuilder constructs default NodeResolutionRegistry then calls AddMappings(parsed_config.resolver_mappings), so JSON mappings can add/override contracts before ResolvingNodeProvider creation.
+- Observed: ResolvingNodeProvider backend preference order is metal -> sycl -> stub -> cuda for auto; strict mode does not fallback unless allow_fallback is set.
+- Observed: Definitive SAR JSON defines resolver_mappings directly for H2DAsyncAccelNode, SarBackprojectionTransformAccelNode, and D2HAsyncAccelNode with SarAccelControlToken input/output types.
+- Observed: Default NodeResolutionRegistry contracts in libgraph/src/graph/NodeResolutionRegistry.cpp are generic GPU intent names (for example H2DAsyncNode, D2HAsyncNode, DeviceKernelNode) with DeviceBufferView/HostPinnedBufferView contracts.
+- Inferred: SAR definitive flow relies on SAR intent names and mappings, while generic default contracts remain available for non-SAR graphs.
+- Unknown: Runtime prevalence of fallback decisions outside tested presets.
 
 ## 5. Violations Of Accel-Token Architecture
 
-- Observed: No direct current implementation use was found where SAR identity is derived from `host_ptr` or `ready_event`; inspected SAR nodes use sidecar fields for identity and explicitly comment that transport fields are opaque.
-- Observed: Test files include guardrails that mutate `host_ptr`/`ready_event` and assert sidecar identity remains stable.
-- Observed: `H2DAsyncNode.hpp`, `D2HAsyncNode.hpp`, and `SarBackprojectionTransformNode.hpp` preserve compatibility aliases for config-facing names.
-- Observed: The default generic resolver contracts for `H2DAsyncNode`/`D2HAsyncNode` are not SAR-token contracts; SAR configs must override them.
-- Inferred: The existence of SAR-local transfer nodes plus generic libgpu transfer nodes is a dual abstraction surface, even though the active SAR config uses tokenized SAR aliases.
-- Observed: `examples/SAR/config/sar_stripmap_definitive_metal.json` and `sar_stripmap_definitive_nonmetal.json` are marked deprecated but remain in the repo.
-- Unknown: Whether any non-definitive SAR config is still required for supported workflows.
+- Observed: No production SAR node inspected derives SAR identity from host_ptr or ready_event.
+- Observed: Multiple SAR node comments explicitly state host_ptr/ready_event are opaque transport metadata and sidecar carries identity.
+- Observed: Guardrail tests exist for transport opacity in examples/SAR/test/test_sar_transport_opaque_contract.cpp.
+- Observed: JSON/runtime tests assert sequence identity is not encoded as transfer completion events or host pointer values in examples/SAR/test/test_sar_json_runtime.cpp.
+- Observed: Token guardrail and accel-node tests exist in examples/SAR/test/test_sar_accel_token_guardrails.cpp and examples/SAR/test/test_sar_accel_nodes.cpp.
+- Inferred: Current inspected path is aligned with accel-token architecture intent.
+- Unknown: Whether uninspected plugins outside examples/SAR might still contain legacy identity assumptions.
 
 ## 6. Obsolete Abstractions
 
-- Observed: Compatibility aliases remain for `H2DAsyncNode`, `D2HAsyncNode`, and `SarBackprojectionTransformNode`.
-- Observed: Deprecated definitive metal/nonmetal configs remain with `deprecated: true` and replacement notices pointing to `sar_stripmap_definitive.json`.
-- Observed: Multiple PR-era configs remain (`sar_stripmap_pr1.json`, `sar_stripmap_pr2_fanout.json`, `sar_stripmap_pr3_*`, `sar_stripmap_pr6_matched_filter.json`, `sar_stripmap_pr7_materialized_image.json`).
-- Observed: `GotchaReplaySourceNode.hpp` contains a TODO stating that fixture-based replay should eventually be replaced with a direct AFRL Gotcha reader after raw layout, calibration metadata, and redistribution constraints are confirmed.
-- Inferred: PR-era configs and alias headers likely exist as compatibility/testing artifacts rather than as a single canonical runtime surface.
+- Observed: Generic default resolver contracts for H2DAsyncNode/D2HAsyncNode/DeviceKernelNode still exist in libgraph, separate from SAR accel-token node intents.
+- Observed: SAR config set includes multiple scenario and specialized configs beyond definitive, including metal/fanout/materialized/external-manual variants.
+- Observed: sar_gotcha_external_manual.json is present as a non-default external/manual topology scaffold.
+- Observed: Current SarMessages.hpp no longer defines legacy SAR payload message structs; the active surface is token/sidecar-centric.
+- Inferred: The main residual abstraction overlap is architectural surface area (generic resolver contracts plus SAR-specific token contracts), not duplicate legacy message structs in current SAR headers.
+- Unknown: Which non-definitive configs are still required versus retained for historical/testing support.
 
 ## 7. Complexity Hotspots
 
-- Observed: `SarBackprojectionTransformAccelNode` mixes SAR token preservation, simulated kernel metadata, native Metal capability binding, Metal kernel descriptor creation, inline Metal source generation, and fallback launch behavior in one node.
-- Observed: Resolver behavior is split across JSON config, `GraphConfigParser`, `NodeResolutionRegistry`, `ResolvingNodeProvider`, plugin availability, and `GraphBuilder`.
-- Observed: The SAR test target compiles a broad set of architecture, fixture, external-baseline, JSON, runtime, benchmark, and image-comparison tests into one executable.
-- Observed: External baseline paths in the SAR test CMake target point to `plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md` and `plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json`, but `plan/reviews` is currently empty.
-- Observed: `sar_benchmark.cpp` is a large performance and reporting executable with trace JSON, metrics, external/reference language, and runtime execution paths.
-- Observed: GOTCHA support currently spans scenarios, fixtures, replay source, local runner scripts, gotcha-back adapter, image comparator, and SarPy metadata harness.
-- Inferred: Current complexity is concentrated around transitional architecture evidence and local-only validation tooling.
+- Observed: SarBackprojectionTransformAccelNode combines SAR token semantics, simulated kernel metadata, native Metal capability binding, and inline Metal source generation.
+- Observed: ImageTileMergeNode owns completion policy, ordering/duplication accounting, transfer counter accumulation, and stage timing rollups.
+- Observed: Resolver behavior spans config JSON, parser validation, registry overlays, provider selection, and plugin availability.
+- Observed: SAR benchmarking logic in examples/SAR/src/sar_benchmark.cpp is extensive and includes profile generation, execution traces, and reporting logic.
+- Observed: External comparison tooling spans Python tools and C++ harness tests (SarPy tools, local runner, comparator contracts, baseline policy/registry validation).
+- Inferred: Current complexity is concentrated in boundary layers (resolver + benchmark + comparison harnesses) rather than in token type definitions.
+- Unknown: Operational complexity impact in CI/runtime environments with differing plugin availability.
 
-## 8. Blockers For `AccelControlToken<SarSidecar>`
+## 8. Blockers For AccelControlToken<SarSidecar>
 
-- Observed: `AccelControlToken<SarSidecar>` already exists and is used by the current SAR nodes.
-- Observed: The active definitive SAR config declares `edge_contract: "accel-token"` and SAR token resolver mappings.
-- Observed: Parser guardrails reject legacy SAR payload contracts under `edge_contract: "accel-token"`.
-- Observed: Config-facing aliases and default generic resolver contracts still leave room for ambiguity between generic H2D/D2H node names and SAR-token H2D/D2H aliases.
-- Observed: `plan/reviews` is empty while tests reference external baseline policy/registry files under that directory; this can block the full SAR unit test suite independent of the accel token implementation.
-- Observed: Direct GOTCHA MATLAB ingestion does not exist in the current repo; current GOTCHA path is normalized JSON replay.
-- Unknown: Whether native Metal capability binding is available in all target CI environments; the code has native and simulated paths.
+- Observed: The type exists and is used end-to-end in definitive SAR config and runtime nodes.
+- Observed: Parser guardrails enforce accel-token compatibility and reject legacy payload contracts under accel-token mode.
+- Observed: Transport-opaque contract tests are present and exercised in SAR unit suite files.
+- Observed: Native-backend behavior depends on capability binding for SarBackprojectionTransformAccelNode; code supports fallback/simulated path.
+- Inferred: There is no obvious structural blocker to using AccelControlToken<SarSidecar> as the canonical SAR contract in current inspected code.
+- Unknown: Environment-specific blockers (for example missing plugin/capability combinations) outside repository inspection scope.
 
 ## 9. Existing External Comparison/Baseline Hooks
 
-- Observed: `examples/SAR/tools/rrp1_local_runner.py` scaffolds a local-only GOTCHA reproduction layout, writes GraphX config artifacts, and prepares a gotcha-back reference invocation script.
-- Observed: `examples/SAR/tools/rrp3_gotcha_back_adapter.py` creates pinned gotcha-back invocation specs and can normalize raw gotcha-back output into comparison metadata.
-- Observed: `examples/SAR/tools/rrp4_image_comparator.py` exists for image comparison and has C++ tests around comparator behavior.
-- Observed: `examples/SAR/tools/rrp7_sarpy_harness.py` is a local-only SarPy metadata harness; its own notes say the comparison scope is product metadata validation only and does not prove GraphX phase-history image-formation correctness.
-- Observed: `examples/SAR/scenarios/scenario_001.json` and `examples/SAR/fixtures/scenario_001/*` provide deterministic scenario/fixture artifacts.
-- Observed: `examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json` provides a CI-safe tiny GOTCHA fixture path for replay-style tests.
-- Observed: External baseline policy/registry tests exist, but their expected policy/registry files are absent from current `plan/reviews`.
-- Inferred: External SAR packages are currently integrated as comparison/scaffolding artifacts, not as core GraphX runtime dependencies.
+- Observed: Policy and registry artifacts exist at plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md and plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json.
+- Observed: Policy/registry enforcement tests exist in examples/SAR/test/test_external_baseline_policy_registry.cpp.
+- Observed: Local-only scenario runner scaffolding exists in examples/SAR/tools/sar_local_runner.py.
+- Observed: gotcha-back adapter and invocation scaffolding exist in examples/SAR/tools/gotcha_back_adapter.py and related tests.
+- Observed: SarPy probe/compare toolchain is present with tests in examples/SAR/test/test_sarpy_reference_compare_tools.cpp and examples/SAR/test/test_sarpy_metadata_harness.cpp.
+- Observed: Additional baseline/fixture comparison tests exist (for example test_sar_baseline_compare.cpp, test_graphx_image_comparison_lane.cpp, test_local_gotcha_validation_lane.cpp).
+- Inferred: External baselines are integrated as comparison harnesses and policy-controlled artifacts, not as core GraphX runtime contracts.
+- Unknown: Real-world parity status versus external baselines, since this inspection did not run benchmark or parity lanes.
 
-## Current-State Summary
+## Focus Checks Requested In Role
 
-- Observed: The repo has an explicit `AccelControlToken<SarSidecar>` SAR token model and the active SAR topology uses an `accel-token` JSON contract.
-- Observed: SAR identity is documented and mostly implemented through sidecar fields, with opaque `host_ptr`/`ready_event` transport semantics.
-- Observed: Transitional artifacts remain: compatibility aliases, deprecated configs, PR-era configs, SAR-local H2D/D2H wrappers, and generic libgpu H2D/D2H nodes.
-- Observed: `examples/SAR/main.cpp` is tested through `test_sar_main_executable.cpp`, and it reports runtime status plus limited diagnostics counters.
-- Observed: Detailed performance reporting exists in `sar_benchmark`, not in `main.cpp`.
-- Observed: Direct MATLAB/GOTCHA ingestion and CRSD conversion are not present in the current repo; current GOTCHA support is normalized JSON replay plus external local-only harnesses.
-- Observed: `plan/reviews` is currently empty despite test compile definitions pointing at baseline policy and registry artifacts there.
+- Observed: host_ptr usage in SAR nodes is present as opaque sentinel assignment, not identity derivation.
+- Observed: ready_event usage in SAR nodes is present as opaque transport metadata/event ticket field.
+- Observed: accel-token tests and transport-opaque tests are present.
+- Observed: examples/SAR/src/main.cpp has executable coverage via examples/SAR/test/test_sar_main_executable.cpp.
+- Observed: examples/SAR/src/main.cpp prints runtime status and two diagnostics counters (queue_backpressure_events, peak_queue_depth).
+- Observed: Detailed performance reporting is implemented in examples/SAR/src/sar_benchmark.cpp, not in main.cpp.
+- Observed: Duplicate elapsedUs helper functions were not found in inspected SAR code; one helper exists in examples/SAR/include/sar/SarRuntimeHelpers.hpp.
 
-Stop point: current-state inspection only.
+Stop point: current-state report only.
