@@ -162,6 +162,7 @@ Required checks:
 - No metadata mapper, report schema expansion, real-data workflow, CRSD writer, or MATLAB dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 ---
@@ -175,6 +176,8 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Implement exactly PR4 from plan/reviews/SAR_GOTCHA_FULL_APERTURE_PLANNER_REPORT.md: Update Normalized Product For Full-Aperture Pulse Metadata.
 
+Note plan/reviews/SAR_RENAME_CRSD_LITE_IMPLEMENTER_REPORT.md for post PR3 changes.
+
 Scope:
 - Review and minimally extend NormalizedSarProduct, PulseVector, and PerVectorParameters only as needed for full-aperture pulse/file metadata.
 - Extend SarProductValidator for pulse-count consistency, shape consistency, frequency metadata consistency, and geometry completeness.
@@ -187,6 +190,7 @@ Do not add real-data tests.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent
@@ -205,6 +209,7 @@ Required checks:
 - No lite metadata mapper, real-data workflow, CRSD writer, or MATLAB dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 ---
@@ -217,6 +222,9 @@ Stop after verifier report.
 Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Implement exactly PR5 from plan/reviews/SAR_GOTCHA_FULL_APERTURE_PLANNER_REPORT.md: Map GOTCHA Metadata To CRSD/Lite Fields.
+
+Note plan/reviews/SAR_RENAME_CRSD_LITE_IMPLEMENTER_REPORT.md for post PR3 changes.
+
 
 Scope:
 - Add a focused GOTCHA-to-product metadata mapper in the SAR IO area.

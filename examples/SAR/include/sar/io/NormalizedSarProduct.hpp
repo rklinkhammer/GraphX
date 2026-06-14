@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,8 @@ struct PerVectorParameters {
     std::uint64_t vector_index{0};
     double time_seconds{0.0};
     std::uint64_t range_sample_start{0};
+    std::optional<std::uint64_t> source_file_index{};
+    std::optional<std::uint64_t> source_pulse_index{};
     PlatformState platform{};
 };
 
@@ -54,6 +57,7 @@ struct CollectionMetadata {
     std::string coordinate_frame{};
     std::string time_basis{};
     std::vector<std::string> source_files{};
+    std::optional<std::uint64_t> expected_pulse_count{};
     std::string provenance_label{};
     std::string source_ordering{};
 };

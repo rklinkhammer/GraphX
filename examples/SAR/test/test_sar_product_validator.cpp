@@ -111,6 +111,7 @@ TEST(SarProductValidatorTest, ReportsNaNAndInfInMetadataAndSamples) {
                                          "non_finite_value|reference_geometry.scene_center_m[2]|value must be finite",
                                          "non_finite_value|channels[0].waveform.bandwidth_hz|value must be finite",
                                          "non_finite_value|channels[1].pulses[2].parameters.platform.velocity_mps[0]|value must be finite",
+                                         "frequency_metadata_mismatch|channels[1].waveform|frequency metadata must match the first channel",
                                          "non_finite_value|channels[1].pulses[2].samples[3].imag|value must be finite",
                                      }));
 }
@@ -156,4 +157,76 @@ TEST(SarProductValidatorTest, ReportsUnsupportedSampleTypeAndMissingSamples) {
                                          "shape_mismatch|channels[1].pulses[0].samples|pulse sample count does not match the first pulse",
                                          "unsupported_sample_type|channels[0].waveform.sample_type|normalized SAR product samples must be complex_f32",
                                      }));
+}
+
+TEST(SarProductValidatorTest, ReportsPulseCountConsistencyErrors) {
+    auto product = MakeValidProduct(1, 3, 4);
+    product.collection.expected_pulse_count = 5;
+    product.collection.source_files = {"subData01.mat", "subData02.mat", "subData03.mat", "subData04.mat"};
+
+    const auto result = graphx::sar::SarProductValidator::Validate(product);
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(IssueSummaries(result), std::vector<std::string>({
+                                         "pulse_count_mismatch|collection.expected_pulse_count|shape pulse count does not match collection.expected_pulse_count",
+                                         "pulse_count_inconsistent|collection.source_files|pulse count is smaller than source file count",
+                                     }));
+}
+
+TEST(SarProductValidatorTest, ReportsFrequencyMetadataConsistencyErrors) {
+    auto product = MakeValidProduct(2, 3, 4);
+    product.channels[0].waveform.frequency_axis_hz = {9.599e9, 9.600e9, 9.601e9};
+    product.channels[1].waveform.frequency_axis_hz = {9.601e9, 9.600e9, 9.599e9};
+    product.channels[1].waveform.carrier_hz = 9.7e9;
+
+    const auto result = graphx::sar::SarProductValidator::Validate(product);
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(IssueSummaries(result), std::vector<std::string>({
+                                         "frequency_axis_not_strictly_increasing|channels[1].waveform.frequency_axis_hz|frequency_axis_hz must be strictly increasing",
+                                         "frequency_metadata_mismatch|channels[1].waveform|frequency metadata must match the first channel",
+                                         "frequency_axis_mismatch|channels[1].waveform.frequency_axis_hz|frequency_axis_hz must match the first channel",
+                                     }));
+}
+
+TEST(SarProductValidatorTest, ReportsPulseFileMetadataCompletenessAndOrderingErrors) {
+    auto product = MakeValidProduct(1, 3, 4);
+    product.collection.source_files = {"subData01.mat", "subData02.mat"};
+
+    product.channels[0].pulses[0].parameters.source_file_index = 0;
+    product.channels[0].pulses[0].parameters.source_pulse_index = 0;
+    product.channels[0].pulses[1].parameters.source_file_index = 1;
+    product.channels[0].pulses[1].parameters.source_pulse_index = 0;
+    product.channels[0].pulses[2].parameters.source_file_index = 1;
+    product.channels[0].pulses[2].parameters.source_pulse_index = 0;
+
+    const auto result = graphx::sar::SarProductValidator::Validate(product);
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(IssueSummaries(result), std::vector<std::string>({
+                                         "pulse_file_sequence_mismatch|channels[0].pulses[2].parameters|(source_file_index, source_pulse_index) must be strictly increasing in vector order",
+                                     }));
+}
+
+TEST(SarProductValidatorTest, ReportsGeometryCompletenessErrors) {
+    auto product = MakeValidProduct(1, 2, 4);
+    product.channels[0].pulses[0].parameters.platform.position_m = {0.0, 0.0, 0.0};
+
+    const auto result = graphx::sar::SarProductValidator::Validate(product);
+
+    EXPECT_FALSE(result.ok());
+    EXPECT_EQ(IssueSummaries(result), std::vector<std::string>({
+                                         "geometry_incomplete|channels[0].pulses[0].parameters.platform.position_m|platform.position_m must be populated for every pulse",
+                                     }));
+}
+
+TEST(SarProductValidatorTest, EmitsInformationalWarningForPerPulsePlatformVariation) {
+    auto product = MakeValidProduct(1, 3, 4);
+
+    const auto result = graphx::sar::SarProductValidator::Validate(product);
+
+    EXPECT_TRUE(result.ok());
+    ASSERT_EQ(result.warnings.size(), 1u);
+    EXPECT_EQ(result.warnings[0].code, "platform_state_varies_per_pulse");
+    EXPECT_EQ(result.warnings[0].path, "channels[0]");
 }

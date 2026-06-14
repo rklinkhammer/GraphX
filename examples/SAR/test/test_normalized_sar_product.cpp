@@ -168,6 +168,35 @@ TEST(NormalizedSarProductTest, ReportsMissingRequiredFieldsDeterministically) {
                        }));
 }
 
+TEST(NormalizedSarProductTest, SupportsFullAperturePulseFileMetadataFields) {
+    auto product = MakeProduct(1, 5, 3);
+    product.collection.source_files = {
+        "subData01.mat",
+        "subData02.mat",
+    };
+    product.collection.expected_pulse_count = 5;
+
+    product.channels[0].pulses[0].parameters.source_file_index = 0;
+    product.channels[0].pulses[0].parameters.source_pulse_index = 0;
+    product.channels[0].pulses[1].parameters.source_file_index = 0;
+    product.channels[0].pulses[1].parameters.source_pulse_index = 1;
+    product.channels[0].pulses[2].parameters.source_file_index = 1;
+    product.channels[0].pulses[2].parameters.source_pulse_index = 0;
+    product.channels[0].pulses[3].parameters.source_file_index = 1;
+    product.channels[0].pulses[3].parameters.source_pulse_index = 1;
+    product.channels[0].pulses[4].parameters.source_file_index = 1;
+    product.channels[0].pulses[4].parameters.source_pulse_index = 2;
+
+    const auto shape = product.Shape();
+    EXPECT_EQ(shape.pulse_count, 5u);
+    ASSERT_TRUE(product.collection.expected_pulse_count.has_value());
+    EXPECT_EQ(*product.collection.expected_pulse_count, 5u);
+    ASSERT_TRUE(product.channels[0].pulses[4].parameters.source_file_index.has_value());
+    ASSERT_TRUE(product.channels[0].pulses[4].parameters.source_pulse_index.has_value());
+    EXPECT_EQ(*product.channels[0].pulses[4].parameters.source_file_index, 1u);
+    EXPECT_EQ(*product.channels[0].pulses[4].parameters.source_pulse_index, 2u);
+}
+
 TEST(NormalizedSarProductTest, ReaderAndWriterInterfacesUseNormalizedProductBoundary) {
     const auto input = MakeProduct(1, 2, 3);
     const CapturingReader reader{input};
