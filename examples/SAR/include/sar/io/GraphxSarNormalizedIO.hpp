@@ -163,6 +163,7 @@ public:
             checksum_hex,
             entries);
 
+        const auto pulses_per_file = SarIoUtilities::ComputePulsesPerFile(product);
         const auto report = SarIoUtilities::BuildConversionReportJson(ConversionReportBuildInput{
             .format = kFormatName,
             .label = kNonStandardLabel,
@@ -185,6 +186,10 @@ public:
             },
             .metadata_file = kMetadataFile,
             .index_file = kIndexFile,
+            .total_files_read = product.collection.source_files.size(),
+            .total_pulses_read = shape.pulse_count,
+            .pulses_per_file = pulses_per_file,
+            .aperture_mode = "full_aperture",
         });
 
         const auto warnings_path = output_directory / kWarningsLogFile;

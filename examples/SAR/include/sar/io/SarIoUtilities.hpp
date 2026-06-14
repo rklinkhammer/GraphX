@@ -46,6 +46,11 @@ struct GotchaOutputIndexBuildInput {
     std::vector<std::string> warnings{};
 };
 
+struct SarPulseFileCount {
+    std::string filename{};
+    std::size_t pulse_count{0};
+};
+
 struct ConversionReportBuildInput {
     std::string format{};
     std::string label{};
@@ -58,6 +63,11 @@ struct ConversionReportBuildInput {
     std::vector<SarOutputSummary> outputs{};
     std::string metadata_file{};
     std::string index_file{};
+    std::size_t total_files_read{0};
+    std::size_t total_pulses_read{0};
+    std::vector<SarPulseFileCount> pulses_per_file{};
+    std::string aperture_mode{"full_aperture"};
+    std::string pulse_selection_method{};
 };
 
 class SarIoUtilities {
@@ -137,6 +147,24 @@ public:
             });
         }
 
+        nlohmann::json pulses_per_file_json = nlohmann::json::array();
+        for (const auto& entry : input.pulses_per_file) {
+            pulses_per_file_json.push_back(nlohmann::json{
+                {"filename", entry.filename},
+                {"pulse_count", entry.pulse_count},
+            });
+        }
+
+        nlohmann::json aperture_accounting = nlohmann::json{
+            {"total_files_read", input.total_files_read},
+            {"total_pulses_read", input.total_pulses_read},
+            {"pulses_per_file", std::move(pulses_per_file_json)},
+            {"aperture_mode", input.aperture_mode},
+        };
+        if (!input.pulse_selection_method.empty()) {
+            aperture_accounting["pulse_selection_method"] = input.pulse_selection_method;
+        }
+
         return nlohmann::json{
             {"schema", "graphx.sar.conversion_report.v1"},
             {"format", input.format},
@@ -150,7 +178,68 @@ public:
             {"outputs", std::move(outputs_json)},
             {"metadata_file", input.metadata_file},
             {"index_file", input.index_file},
+            {"aperture_accounting", std::move(aperture_accounting)},
         };
+    }
+
+    [[nodiscard]] static std::vector<SarPulseFileCount> ComputePulsesPerFile(
+        const NormalizedSarProduct& product) {
+        const auto& source_files = product.collection.source_files;
+        const auto num_files = source_files.size();
+
+        if (product.channels.empty()) {
+            return {};
+        }
+
+        const auto& pulses = product.channels.front().pulses;
+
+        // If source_file_index is populated on pulses, use it for precise accounting.
+        const bool has_provenance = !pulses.empty() &&
+            pulses.front().parameters.source_file_index.has_value();
+
+        if (has_provenance && num_files > 0) {
+            std::vector<std::size_t> counts(num_files, 0u);
+            for (const auto& pulse : pulses) {
+                if (pulse.parameters.source_file_index.has_value()) {
+                    const auto idx = static_cast<std::size_t>(
+                        *pulse.parameters.source_file_index);
+                    if (idx < counts.size()) {
+                        ++counts[idx];
+                    }
+                }
+            }
+            std::vector<SarPulseFileCount> result;
+            result.reserve(num_files);
+            for (std::size_t i = 0; i < num_files; ++i) {
+                const auto filename = std::filesystem::path{source_files[i]}.filename().generic_string();
+                result.push_back(SarPulseFileCount{
+                    .filename = filename.empty() ? source_files[i] : filename,
+                    .pulse_count = counts[i],
+                });
+            }
+            return result;
+        }
+
+        // Fallback: attribute all pulses to the single source file (single-file case).
+        if (num_files == 1) {
+            const auto filename = std::filesystem::path{source_files[0]}.filename().generic_string();
+            return {SarPulseFileCount{
+                .filename = filename.empty() ? source_files[0] : filename,
+                .pulse_count = pulses.size(),
+            }};
+        }
+
+        // No provenance available for multi-file product: emit files with unknown counts.
+        std::vector<SarPulseFileCount> result;
+        result.reserve(num_files);
+        for (const auto& sf : source_files) {
+            const auto filename = std::filesystem::path{sf}.filename().generic_string();
+            result.push_back(SarPulseFileCount{
+                .filename = filename.empty() ? sf : filename,
+                .pulse_count = 0,
+            });
+        }
+        return result;
     }
 
     [[nodiscard]] static bool WriteJson(

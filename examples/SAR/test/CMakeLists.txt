@@ -51,6 +51,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_to_crsd_metadata_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_full_pulse_ingestion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_full_aperture_integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_conversion_report_pulse_accounting.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_chunker.cpp
@@ -74,6 +75,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_sar_normalized_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_real_full_aperture_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )

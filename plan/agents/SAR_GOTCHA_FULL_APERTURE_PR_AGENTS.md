@@ -331,6 +331,7 @@ Do not add standards CRSD writer work.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent
@@ -349,6 +350,7 @@ Required checks:
 - No real-data workflow, standards CRSD writer, MATLAB dependency, or new external dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 ---
@@ -376,6 +378,7 @@ Do not add standards CRSD writer work.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent

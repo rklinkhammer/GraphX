@@ -582,6 +582,10 @@ int Run(const CliOptions& options) {
                 .outputs = output_summaries,
                 .metadata_file = metadata_file,
                 .index_file = index_file,
+                .total_files_read = read.product.collection.source_files.size(),
+                .total_pulses_read = read.product.Shape().pulse_count,
+                .pulses_per_file = graphx::sar::SarIoUtilities::ComputePulsesPerFile(read.product),
+                .aperture_mode = "full_aperture",
             });
 
         if (!graphx::sar::SarIoUtilities::WriteJson(options.output_dir / root_index_file, index_json) ||

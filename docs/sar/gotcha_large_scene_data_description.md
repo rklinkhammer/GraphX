@@ -61,6 +61,63 @@ The project should account for the following dataset facts:
   calibration terms beyond the listed fields. Those CRSD fields must therefore
   be derived, marked unknown/not modeled, or supplied by an additional source.
 
+## Local Validation and Conversion
+
+When a local copy of the GOTCHA dataset is available, use the full-aperture
+conversion workflow to ingest all pulses from all ten files and generate
+`graphx-sar-normalized` (lite) output.
+
+### Required Environment
+
+```bash
+export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/subData
+```
+
+The dataset directory must contain top-level `.mat` files (`subData01.mat`
+through `subData10.mat`) and manifest/checksum artifacts:
+
+```text
+manifest.json
+checksums.sha256
+```
+
+### Full-Aperture Conversion
+
+```bash
+bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+```
+
+This script:
+
+- Verifies the dataset integrity using `scripts/verify_gotcha_dataset.sh`.
+- Runs `graphx-gotcha-to-crsd` in full-aperture mode.
+- Outputs `graphx-sar-normalized` lite format with all pulses from all files.
+- Emits `conversion_report.json` with aperture accounting showing total files
+  read, total pulses read, and per-file pulse counts.
+- Does not download any data or require MATLAB.
+
+### Local Test Suite
+
+When `GRAPHX_SAR_GOTCHA_DATASET` is set, the test suite includes additional
+validation tests that verify:
+
+- All ten GOTCHA files are processed.
+- The conversion preserves all pulses from each file.
+- The conversion report correctly accounts for total and per-file pulse counts.
+- Lite output metadata is valid and complete.
+
+Run tests with:
+
+```bash
+# Full-aperture validation tests (requires GRAPHX_SAR_GOTCHA_DATASET)
+export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/subData
+./build/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='RealGotchaFullApertureValidationTest.*'
+```
+
+Tests are skipped gracefully in CI and default builds when the environment
+variable is not set.
+
 ## Follow-Up Work To Consider
 
 - Update GOTCHA ingestion so the normalized product can represent every pulse in
