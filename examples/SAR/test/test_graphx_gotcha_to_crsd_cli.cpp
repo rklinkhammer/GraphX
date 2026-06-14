@@ -88,6 +88,15 @@ protected:
     void WriteSidecar(const std::string& mat_relative, int base) const {
         const auto sidecar_path = Path(mat_relative + ".json");
         nlohmann::json sidecar{
+                {"Np", 1},
+                {"K", 2},
+                {"deltaF", 1.0e6},
+                {"minF", 9.599e9},
+                {"AntX", 1.0},
+                {"AntY", 2.0},
+                {"AntZ", 3.0},
+                {"R0", 1000.0 + static_cast<double>(base)},
+                {"phdata", "synthetic_phdata"},
             {"carrier_hz", 9.6e9},
             {"bandwidth_hz", 640.0e6},
             {"sample_rate_hz", 1.0e9},

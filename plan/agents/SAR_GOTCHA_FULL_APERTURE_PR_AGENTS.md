@@ -69,6 +69,7 @@ Required checks:
 - No full-pulse reader, aperture concatenation, lite writer, or CRSD writer work was added.
 
 Stop after verifier report.
+Save report
 ```
 
 ---
@@ -95,6 +96,7 @@ Do not change report schemas except as required for existing tests to compile.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent
@@ -113,6 +115,7 @@ Required checks:
 - No aperture concatenation validator, metadata mapper, report schema expansion, CRSD writer, or MATLAB dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 ---
@@ -425,3 +428,41 @@ Required checks:
 Stop after verifier report.
 ```
 
+
+
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Fix the PR2 verifier failure documented in:
+
+plan/reviews/SAR_GOTCHA_FULL_APERTURE_VERIFY_PR2.md
+
+Context:
+PR2 full-pulse reader behavior passed, but the full SAR unit binary failed because older conversion-lane tests generate synthetic GOTCHA sidecars that are missing the PR1-required `Np` field.
+
+Scope:
+- Update only the failing conversion-lane test fixtures/helpers so their generated sidecar JSON includes all PR1-required GOTCHA fields, especially `Np`.
+- Target the failing tests named in the verifier report:
+  - `GraphxGotchaToCrsdCliTest.GraphxCrsdLiteModeWorksOnTinyFixture`
+  - `GraphxGotchaToCrsdCliTest.UnsupportedMatFailsClearlyAndCrsdModeProducesSarpyOpenableOutput`
+  - `GraphxCrsdLiteLaneTest.EndToEndTinySyntheticConversionEmitsReportsAndChecksums`
+  - `GraphxCrsdLiteLaneTest.RepeatedTinySyntheticConversionIsDeterministic`
+- Preserve the intended test behavior and assertions.
+- Keep the fixtures synthetic, tiny, deterministic, and CI-safe.
+- Run the focused failing test filter and the full SAR unit binary.
+
+Do not change `GotchaMatReader` behavior.
+Do not weaken PR1 required-field validation.
+Do not add compatibility shims or default missing required fields in production code.
+Do not implement aperture concatenation validation, metadata mapper work, report schema expansion, CRSD writer changes, or real-data workflow changes.
+Do not add MATLAB or new external dependencies.
+
+Output:
+1. Files changed.
+2. Files deleted.
+3. Tests added.
+4. Tests removed.
+5. Build/test command and result.
+6. Remaining follow-up work.
+
+save report

@@ -94,59 +94,73 @@ public:
         channel.waveform.sample_type = "complex_f32";
         channel.waveform.polarization = "unknown";
 
-        for (std::size_t pulse_index = 0; pulse_index < ordering.files.size(); ++pulse_index) {
-            const auto& source_file = ordering.files[pulse_index];
+        std::uint64_t global_pulse_index = 0;
+
+        // Full-aperture mode: iterate through each file and read all Np pulses per file
+        for (std::size_t file_index = 0; file_index < ordering.files.size(); ++file_index) {
+            const auto& source_file = ordering.files[file_index];
             const auto sidecar_path = std::filesystem::path{source_file.string() + ".json"};
             const auto sidecar = LoadSidecar(sidecar_path, result.diagnostics.issues);
             if (!sidecar.has_value()) {
                 continue;
             }
 
-            const auto samples = ParseSamples(*sidecar, sidecar_path, result.diagnostics.issues);
-            if (samples.empty()) {
-                continue;
+            // Read Np (number of pulses) from sidecar; default to 1 for backward compatibility
+            const auto np = ParseOptionalUnsigned(*sidecar, "Np").value_or(1u);
+
+            // Process each pulse within this file
+            for (std::uint64_t pulse_within_file = 0; pulse_within_file < np; ++pulse_within_file) {
+                const auto samples = ParseSamples(*sidecar, sidecar_path, result.diagnostics.issues);
+                if (samples.empty()) {
+                    // On first pulse failure per file, skip remaining pulses from this file
+                    break;
+                }
+
+                // Set frequency axis only once per file
+                if (channel.waveform.frequency_axis_hz.empty()) {
+                    channel.waveform.frequency_axis_hz = ParseOptionalDoubleArray(*sidecar, "frequency_axis_hz");
+                }
+
+                const auto carrier = ParseOptionalFiniteDouble(*sidecar, "carrier_hz");
+                if (carrier.has_value()) {
+                    channel.waveform.carrier_hz = *carrier;
+                }
+                const auto bandwidth = ParseOptionalFiniteDouble(*sidecar, "bandwidth_hz");
+                if (bandwidth.has_value()) {
+                    channel.waveform.bandwidth_hz = *bandwidth;
+                }
+                const auto sample_rate = ParseOptionalFiniteDouble(*sidecar, "sample_rate_hz");
+                if (sample_rate.has_value()) {
+                    channel.waveform.sample_rate_hz = *sample_rate;
+                }
+                const auto polarization = ParseOptionalNonEmptyString(*sidecar, "polarization");
+                if (polarization.has_value()) {
+                    channel.waveform.polarization = *polarization;
+                }
+
+                const auto position = ParseVector3(*sidecar, "platform_position_m", sidecar_path, result.diagnostics.issues);
+                if (!position.has_value()) {
+                    break;
+                }
+                const auto velocity = ParseOptionalVector3(*sidecar, "platform_velocity_mps");
+
+                const auto pulse_time = ParseOptionalFiniteDouble(*sidecar, "pulse_time_seconds")
+                                            .value_or(static_cast<double>(global_pulse_index));
+                const auto range_start = ParseOptionalUnsigned(*sidecar, "range_sample_start").value_or(0u);
+
+                PulseVector pulse{};
+                pulse.parameters.vector_index = global_pulse_index;
+                pulse.parameters.time_seconds = pulse_time;
+                pulse.parameters.range_sample_start = range_start;
+                pulse.parameters.platform.position_m = *position;
+                pulse.parameters.platform.velocity_mps = velocity.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
+                pulse.samples = samples;
+                channel.pulses.push_back(std::move(pulse));
+
+                global_pulse_index++;
             }
 
-            if (channel.waveform.frequency_axis_hz.empty()) {
-                channel.waveform.frequency_axis_hz = ParseOptionalDoubleArray(*sidecar, "frequency_axis_hz");
-            }
-
-            const auto carrier = ParseOptionalFiniteDouble(*sidecar, "carrier_hz");
-            if (carrier.has_value()) {
-                channel.waveform.carrier_hz = *carrier;
-            }
-            const auto bandwidth = ParseOptionalFiniteDouble(*sidecar, "bandwidth_hz");
-            if (bandwidth.has_value()) {
-                channel.waveform.bandwidth_hz = *bandwidth;
-            }
-            const auto sample_rate = ParseOptionalFiniteDouble(*sidecar, "sample_rate_hz");
-            if (sample_rate.has_value()) {
-                channel.waveform.sample_rate_hz = *sample_rate;
-            }
-            const auto polarization = ParseOptionalNonEmptyString(*sidecar, "polarization");
-            if (polarization.has_value()) {
-                channel.waveform.polarization = *polarization;
-            }
-
-            const auto position = ParseVector3(*sidecar, "platform_position_m", sidecar_path, result.diagnostics.issues);
-            if (!position.has_value()) {
-                continue;
-            }
-            const auto velocity = ParseOptionalVector3(*sidecar, "platform_velocity_mps");
-
-            const auto pulse_time = ParseOptionalFiniteDouble(*sidecar, "pulse_time_seconds")
-                                        .value_or(static_cast<double>(pulse_index));
-            const auto range_start = ParseOptionalUnsigned(*sidecar, "range_sample_start").value_or(0u);
-
-            PulseVector pulse{};
-            pulse.parameters.vector_index = static_cast<std::uint64_t>(pulse_index);
-            pulse.parameters.time_seconds = pulse_time;
-            pulse.parameters.range_sample_start = range_start;
-            pulse.parameters.platform.position_m = *position;
-            pulse.parameters.platform.velocity_mps = velocity.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
-            pulse.samples = samples;
-            channel.pulses.push_back(std::move(pulse));
-
+            // Collect field diagnostics only once per file
             CollectFieldDiagnostics(*sidecar, source_file, result.diagnostics.original_field_names);
         }
 
