@@ -236,6 +236,13 @@ TEST_F(GotchaFullPulseIngestionTest, TotalPulseCountEqualsSum) {
 TEST_F(GotchaFullPulseIngestionTest, ChannelMetadataPreservedWithMultiplePulses) {
     WriteMatStub("metadata_test.mat");
     nlohmann::json sidecar = MakeSidecarWithNp(3, 100);
+    sidecar.erase("K");
+    sidecar.erase("deltaF");
+    sidecar.erase("minF");
+    sidecar.erase("AntX");
+    sidecar.erase("AntY");
+    sidecar.erase("AntZ");
+    sidecar.erase("R0");
     sidecar["carrier_hz"] = 9.65e9;
     sidecar["bandwidth_hz"] = 750.0e6;
     sidecar["sample_rate_hz"] = 1.5e9;
@@ -262,7 +269,15 @@ TEST_F(GotchaFullPulseIngestionTest, ChannelMetadataPreservedWithMultiplePulses)
 // Test 8: Platform position and velocity are accessible per pulse
 TEST_F(GotchaFullPulseIngestionTest, PlatformParametersAccessibleForAllPulses) {
     WriteMatStub("platform_test.mat");
-    WriteSidecar("platform_test.mat", MakeSidecarWithNp(3, 100));
+    auto sidecar = MakeSidecarWithNp(3, 100);
+    sidecar.erase("K");
+    sidecar.erase("deltaF");
+    sidecar.erase("minF");
+    sidecar.erase("AntX");
+    sidecar.erase("AntY");
+    sidecar.erase("AntZ");
+    sidecar.erase("R0");
+    WriteSidecar("platform_test.mat", sidecar);
 
     graphx::sar::GotchaMatReader reader{
         graphx::sar::GotchaMatReaderOptions{

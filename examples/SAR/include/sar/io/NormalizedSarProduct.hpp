@@ -26,6 +26,7 @@ struct PerVectorParameters {
     std::uint64_t range_sample_start{0};
     std::optional<std::uint64_t> source_file_index{};
     std::optional<std::uint64_t> source_pulse_index{};
+    std::optional<double> reference_range_m{};
     PlatformState platform{};
 };
 

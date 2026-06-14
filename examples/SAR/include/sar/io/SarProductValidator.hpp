@@ -128,6 +128,12 @@ private:
                     pulse.parameters.platform.velocity_mps,
                     pulse_prefix + ".parameters.platform.velocity_mps",
                     result);
+                if (pulse.parameters.reference_range_m.has_value()) {
+                    ValidateFinite(
+                        *pulse.parameters.reference_range_m,
+                        pulse_prefix + ".parameters.reference_range_m",
+                        result);
+                }
             }
         }
     }

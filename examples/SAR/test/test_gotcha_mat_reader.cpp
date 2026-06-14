@@ -185,6 +185,44 @@ TEST_F(GotchaMatReaderTest, ManifestOrderingIsPreservedInPulseVectorOrder) {
     EXPECT_FLOAT_EQ(product.Pulse(1, 0).samples[0].real, 10.0f);
 }
 
+TEST_F(GotchaMatReaderTest, RawGotchaMetadataMapsToWaveformAndLocalGeometry) {
+    WriteMatStub("raw_gotcha.mat");
+    auto sidecar = MakeSidecar(0, 0.5, "HH");
+    sidecar.erase("carrier_hz");
+    sidecar.erase("bandwidth_hz");
+    sidecar.erase("sample_rate_hz");
+    sidecar.erase("frequency_axis_hz");
+    sidecar.erase("platform_position_m");
+    sidecar["K"] = 4;
+    sidecar["deltaF"] = 2.0e6;
+    sidecar["minF"] = 9.590e9;
+    sidecar["AntX"] = -10.0;
+    sidecar["AntY"] = 20.0;
+    sidecar["AntZ"] = 300.0;
+    sidecar["R0"] = 765.25;
+    WriteSidecar("raw_gotcha.mat", sidecar);
+
+    graphx::sar::GotchaMatReader reader;
+    const auto result = reader.ReadDetailed(root_);
+
+    ASSERT_TRUE(result.success) << result.message;
+    EXPECT_EQ(result.product.collection.coordinate_frame, "gotcha_local_cartesian");
+    ASSERT_EQ(result.product.channels.size(), 1u);
+    const auto& channel = result.product.Channel(0);
+    EXPECT_DOUBLE_EQ(channel.waveform.carrier_hz, 9.593e9);
+    EXPECT_DOUBLE_EQ(channel.waveform.bandwidth_hz, 8.0e6);
+    EXPECT_DOUBLE_EQ(channel.waveform.sample_rate_hz, 8.0e6);
+    ASSERT_EQ(channel.waveform.frequency_axis_hz.size(), 4u);
+    EXPECT_DOUBLE_EQ(channel.waveform.frequency_axis_hz[3], 9.596e9);
+
+    const auto& pulse = result.product.Pulse(0, 0);
+    EXPECT_DOUBLE_EQ(pulse.parameters.platform.position_m[0], -10.0);
+    EXPECT_DOUBLE_EQ(pulse.parameters.platform.position_m[1], 20.0);
+    EXPECT_DOUBLE_EQ(pulse.parameters.platform.position_m[2], 300.0);
+    ASSERT_TRUE(pulse.parameters.reference_range_m.has_value());
+    EXPECT_DOUBLE_EQ(*pulse.parameters.reference_range_m, 765.25);
+}
+
 TEST_F(GotchaMatReaderTest, MissingSidecarProducesDeterministicError) {
     WriteMatStub("only.mat");
 

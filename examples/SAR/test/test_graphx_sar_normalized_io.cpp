@@ -54,6 +54,7 @@ protected:
         pulse0.parameters.vector_index = 0;
         pulse0.parameters.time_seconds = 0.25;
         pulse0.parameters.range_sample_start = 10;
+        pulse0.parameters.reference_range_m = 1234.5;
         pulse0.parameters.platform.position_m = {1.0, 2.0, 3.0};
         pulse0.parameters.platform.velocity_mps = {0.1, 0.2, 0.3};
         pulse0.samples = {
@@ -65,6 +66,7 @@ protected:
         pulse1.parameters.vector_index = 1;
         pulse1.parameters.time_seconds = 1.25;
         pulse1.parameters.range_sample_start = 20;
+        pulse1.parameters.reference_range_m = 2234.5;
         pulse1.parameters.platform.position_m = {4.0, 5.0, 6.0};
         pulse1.parameters.platform.velocity_mps = {0.4, 0.5, 0.6};
         pulse1.samples = {
@@ -128,6 +130,15 @@ TEST_F(GraphxSarNormalizedIoTest, WriterEmitsRequiredFilesAndNonStandardLabels) 
     ASSERT_TRUE(report.contains("outputs"));
     ASSERT_EQ(report.at("outputs").size(), 1u);
     EXPECT_EQ(report.at("outputs").at(0).at("checksum_fnv1a64"), checksum);
+
+    ASSERT_TRUE(metadata.contains("geometry"));
+    EXPECT_EQ(metadata.at("geometry").at("coordinate_frame"), "ecef");
+    ASSERT_TRUE(metadata.at("channels").is_array());
+    const auto& pulse_json = metadata.at("channels").at(0).at("pulses").at(0);
+    EXPECT_EQ(pulse_json.at("local_geometry_frame"), "ecef");
+    EXPECT_DOUBLE_EQ(pulse_json.at("antenna_xyz").at(0).get<double>(), 1.0);
+    EXPECT_DOUBLE_EQ(pulse_json.at("antenna_phase_center_m").at(1).get<double>(), 2.0);
+    EXPECT_DOUBLE_EQ(pulse_json.at("reference_range_m").get<double>(), 1234.5);
 }
 
 TEST_F(GraphxSarNormalizedIoTest, ReaderRoundTripsNormalizedProductAndPulseOrdering) {
@@ -157,6 +168,10 @@ TEST_F(GraphxSarNormalizedIoTest, ReaderRoundTripsNormalizedProductAndPulseOrder
     EXPECT_EQ(channel.pulses[1].parameters.vector_index, 1u);
     EXPECT_DOUBLE_EQ(channel.pulses[0].parameters.time_seconds, 0.25);
     EXPECT_DOUBLE_EQ(channel.pulses[1].parameters.time_seconds, 1.25);
+    ASSERT_TRUE(channel.pulses[0].parameters.reference_range_m.has_value());
+    ASSERT_TRUE(channel.pulses[1].parameters.reference_range_m.has_value());
+    EXPECT_DOUBLE_EQ(*channel.pulses[0].parameters.reference_range_m, 1234.5);
+    EXPECT_DOUBLE_EQ(*channel.pulses[1].parameters.reference_range_m, 2234.5);
 
     EXPECT_FLOAT_EQ(channel.pulses[0].samples[0].real, 1.0f);
     EXPECT_FLOAT_EQ(channel.pulses[0].samples[0].imag, -1.0f);

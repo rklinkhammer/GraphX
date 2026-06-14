@@ -4,6 +4,7 @@
 #include "sar/io/SarIoUtilities.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -98,15 +99,24 @@ public:
                     .sample_count = sample_count,
                 });
 
-                channel_json["pulses"].push_back(nlohmann::json{
+                nlohmann::json pulse_json{
                     {"pulse_index", pulse_index},
                     {"vector_index", pulse.parameters.vector_index},
                     {"time_seconds", pulse.parameters.time_seconds},
                     {"range_sample_start", pulse.parameters.range_sample_start},
-                    {"platform_position_m", pulse.parameters.platform.position_m},
-                    {"platform_velocity_mps", pulse.parameters.platform.velocity_mps},
+                    {"platform_position_m", Array3ToJson(pulse.parameters.platform.position_m)},
+                    {"platform_velocity_mps", Array3ToJson(pulse.parameters.platform.velocity_mps)},
+                    {"local_geometry_frame", product.collection.coordinate_frame},
+                    {"antenna_phase_center_m", Array3ToJson(pulse.parameters.platform.position_m)},
+                    {"antenna_xyz", Array3ToJson(pulse.parameters.platform.position_m)},
                     {"sample_count", sample_count},
-                });
+                };
+                if (pulse.parameters.reference_range_m.has_value()) {
+                    pulse_json["reference_range_m"] = *pulse.parameters.reference_range_m;
+                } else {
+                    pulse_json["reference_range_m"] = nullptr;
+                }
+                channel_json["pulses"].push_back(std::move(pulse_json));
 
                 offset_bytes += static_cast<std::uint64_t>(bytes_written);
             }
@@ -136,6 +146,12 @@ public:
                           {"max_sample_count", shape.max_sample_count},
                       }},
             {"collection", CollectionToJson(product.collection)},
+            {"geometry", nlohmann::json{
+                             {"coordinate_frame", product.collection.coordinate_frame},
+                             {"antenna_position_frame", product.collection.coordinate_frame},
+                             {"antenna_position_semantics", "local Cartesian antenna phase center"},
+                             {"reference_range_units", "m"},
+                         }},
             {"channels", channels},
         };
 
@@ -217,7 +233,7 @@ private:
     }
 
     [[nodiscard]] static nlohmann::json CollectionToJson(const CollectionMetadata& collection) {
-        return nlohmann::json{
+        nlohmann::json out{
             {"product_id", collection.product_id},
             {"collector_name", collection.collector_name},
             {"collection_id", collection.collection_id},
@@ -227,6 +243,17 @@ private:
             {"provenance_label", collection.provenance_label},
             {"source_ordering", collection.source_ordering},
         };
+        if (collection.expected_pulse_count.has_value()) {
+            out["expected_pulse_count"] = *collection.expected_pulse_count;
+        } else {
+            out["expected_pulse_count"] = nullptr;
+        }
+        return out;
+    }
+
+    template <typename T>
+    [[nodiscard]] static nlohmann::json Array3ToJson(const std::array<T, 3>& values) {
+        return nlohmann::json::array({values[0], values[1], values[2]});
     }
 
     GraphxSarNormalizedOptions options_{};
@@ -402,6 +429,13 @@ private:
             }
             collection.source_files.push_back(source.get<std::string>());
         }
+        collection.expected_pulse_count.reset();
+        if (in.contains("expected_pulse_count") && !in.at("expected_pulse_count").is_null()) {
+            if (!in.at("expected_pulse_count").is_number_unsigned()) {
+                return false;
+            }
+            collection.expected_pulse_count = in.at("expected_pulse_count").get<std::uint64_t>();
+        }
 
         return true;
     }
@@ -473,6 +507,13 @@ private:
         params.vector_index = pulse_json.at("vector_index").get<std::uint64_t>();
         params.time_seconds = pulse_json.at("time_seconds").get<double>();
         params.range_sample_start = pulse_json.at("range_sample_start").get<std::uint64_t>();
+        params.reference_range_m.reset();
+        if (pulse_json.contains("reference_range_m") && !pulse_json.at("reference_range_m").is_null()) {
+            if (!pulse_json.at("reference_range_m").is_number()) {
+                return false;
+            }
+            params.reference_range_m = pulse_json.at("reference_range_m").get<double>();
+        }
 
         if (!ParseArray3(pulse_json.at("platform_position_m"), params.platform.position_m) ||
             !ParseArray3(pulse_json.at("platform_velocity_mps"), params.platform.velocity_mps)) {

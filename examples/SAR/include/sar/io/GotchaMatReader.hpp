@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sar/io/GotchaInputOrdering.hpp"
+#include "sar/io/GotchaToCrsdMetadataMapper.hpp"
 #include "sar/io/NormalizedSarProduct.hpp"
 
 #include <array>
@@ -107,6 +108,11 @@ public:
 
             // Read Np (number of pulses) from sidecar; default to 1 for backward compatibility
             const auto np = ParseOptionalUnsigned(*sidecar, "Np").value_or(1u);
+            const auto mapped_metadata = GotchaToCrsdMetadataMapper::Map(*sidecar);
+            if (mapped_metadata.has_value()) {
+                GotchaToCrsdMetadataMapper::ApplyToProductCollection(*mapped_metadata, product.collection);
+                GotchaToCrsdMetadataMapper::ApplyToWaveform(*mapped_metadata, channel.waveform);
+            }
 
             // Process each pulse within this file
             for (std::uint64_t pulse_within_file = 0; pulse_within_file < np; ++pulse_within_file) {
@@ -116,18 +122,19 @@ public:
                     break;
                 }
 
-                // Set frequency axis only once per file
-                if (channel.waveform.frequency_axis_hz.empty()) {
+                if (!mapped_metadata.has_value() && channel.waveform.frequency_axis_hz.empty()) {
                     channel.waveform.frequency_axis_hz = ParseOptionalDoubleArray(*sidecar, "frequency_axis_hz");
                 }
 
-                const auto carrier = ParseOptionalFiniteDouble(*sidecar, "carrier_hz");
-                if (carrier.has_value()) {
-                    channel.waveform.carrier_hz = *carrier;
-                }
-                const auto bandwidth = ParseOptionalFiniteDouble(*sidecar, "bandwidth_hz");
-                if (bandwidth.has_value()) {
-                    channel.waveform.bandwidth_hz = *bandwidth;
+                if (!mapped_metadata.has_value()) {
+                    const auto carrier = ParseOptionalFiniteDouble(*sidecar, "carrier_hz");
+                    if (carrier.has_value()) {
+                        channel.waveform.carrier_hz = *carrier;
+                    }
+                    const auto bandwidth = ParseOptionalFiniteDouble(*sidecar, "bandwidth_hz");
+                    if (bandwidth.has_value()) {
+                        channel.waveform.bandwidth_hz = *bandwidth;
+                    }
                 }
                 const auto sample_rate = ParseOptionalFiniteDouble(*sidecar, "sample_rate_hz");
                 if (sample_rate.has_value()) {
@@ -138,9 +145,19 @@ public:
                     channel.waveform.polarization = *polarization;
                 }
 
-                const auto position = ParseVector3(*sidecar, "platform_position_m", sidecar_path, result.diagnostics.issues);
-                if (!position.has_value()) {
-                    break;
+                std::array<double, 3> position{};
+                if (mapped_metadata.has_value()) {
+                    position = mapped_metadata->antenna_xyz_m;
+                } else {
+                    const auto parsed_position = ParseVector3(
+                        *sidecar,
+                        "platform_position_m",
+                        sidecar_path,
+                        result.diagnostics.issues);
+                    if (!parsed_position.has_value()) {
+                        break;
+                    }
+                    position = *parsed_position;
                 }
                 const auto velocity = ParseOptionalVector3(*sidecar, "platform_velocity_mps");
 
@@ -152,8 +169,13 @@ public:
                 pulse.parameters.vector_index = global_pulse_index;
                 pulse.parameters.time_seconds = pulse_time;
                 pulse.parameters.range_sample_start = range_start;
-                pulse.parameters.platform.position_m = *position;
+                pulse.parameters.source_file_index = static_cast<std::uint64_t>(file_index);
+                pulse.parameters.source_pulse_index = pulse_within_file;
+                pulse.parameters.platform.position_m = position;
                 pulse.parameters.platform.velocity_mps = velocity.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
+                if (mapped_metadata.has_value()) {
+                    GotchaToCrsdMetadataMapper::ApplyToPulse(*mapped_metadata, pulse.parameters);
+                }
                 pulse.samples = samples;
                 channel.pulses.push_back(std::move(pulse));
 
@@ -183,6 +205,7 @@ public:
             channel.waveform.sample_rate_hz = 1.0;
         }
 
+        product.collection.expected_pulse_count = static_cast<std::uint64_t>(channel.pulses.size());
         product.channels.push_back(std::move(channel));
         result.product = std::move(product);
         result.success = true;
