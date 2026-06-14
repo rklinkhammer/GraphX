@@ -131,7 +131,12 @@ ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
 
 ## 4) GOTCHA
 
-### GOTCHA preflight (required for local data-backed workflows)
+### Dataset Reference
+
+For authoritative GOTCHA field documentation and full-aperture conversion instructions, see:
+[docs/sar/gotcha_large_scene_data_description.md](../sar/gotcha_large_scene_data_description.md)
+
+### GOTCHA Preflight (Required for Local Data-Backed Workflows)
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
@@ -140,13 +145,55 @@ export GRAPHX_SAR_GOTCHA_CHECKSUMS=/path/to/gotcha/root/checksums.sha256
 bash scripts/verify_gotcha_dataset.sh
 ```
 
-### Generate deterministic sidecars + manifest + checksums
+### Generate Deterministic Sidecars + Manifest + Checksums
 
 ```bash
 bash scripts/prepare_gotcha_subdata_json.sh /path/to/gotcha/subData
 ```
 
-### Local-only real GOTCHA validation (graphx-sar-normalized lane)
+### Full-Aperture GOTCHA Conversion to Lite Format
+
+When a local GOTCHA dataset is available, convert all pulses from all files using:
+
+```bash
+export GRAPHX_SAR_GOTCHA_DATASET=/path/to/gotcha/root
+bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+```
+
+This performs:
+- Full-aperture read (all `Np` pulses from every ordered file)
+- Validation using PR1 required-field checks
+- Output to `graphx-sar-normalized` (lite) format with all pulses preserved
+- Aperture accounting in `conversion_report.json` showing:
+  - `total_files_read`: Number of input files
+  - `total_pulses_read`: Sum of Np across all files
+  - `pulses_per_file`: Per-file pulse counts with filenames
+
+Expected outputs in `$GRAPHX_SAR_GOTCHA_OUTPUT_DIR` (default: `/tmp/graphx_crsd_lite_full_aperture_conversion`):
+
+- `gotcha_sar_normalized_index.json` — Product index and metadata
+- `conversion_report.json` — Conversion results with aperture accounting
+- `conversion_warnings.log` — Any warnings from the conversion
+- `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/` — Signal data chunks
+
+### Local Full-Aperture Validation Tests (Optional, Local-Only)
+
+When `GRAPHX_SAR_GOTCHA_DATASET` is set, run validation tests that verify:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='RealGotchaFullApertureValidationTest.*'
+```
+
+Tests:
+- Verify all files are read and processed
+- Confirm all pulses are preserved in conversion
+- Validate lite output structure and metadata
+- Check aperture accounting in conversion report
+
+**Note:** These tests are **skipped in CI** when `GRAPHX_SAR_GOTCHA_DATASET` is not set. No dataset download is performed. This is a local-only optional workflow not required by CI.
+
+### Legacy Real GOTCHA Validation (graphx-sar-normalized lane, Deprecated)
 
 ```bash
 bash examples/SAR/tools/local_gotcha_validation.sh
@@ -159,7 +206,9 @@ Expected outputs include:
 - `conversion_warnings.log`
 - `gotcha_sar_normalized_chunk_*.graphx-sar-normalized/`
 
-### Local frozen scenario replay harness
+**Note:** Prefer `scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh` for full-aperture conversion.
+
+### Local Frozen Scenario Replay Harness
 
 ```bash
 python3 examples/SAR/tools/sar_local_runner.py \

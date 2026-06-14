@@ -201,8 +201,46 @@ The mapping has three layers:
 The GraphX normalized layer is the contract between MAT ingestion and product
 writing. It prevents C++ MAT reader details from leaking into CRSD writer logic.
 
+### GOTCHA Source Fields
+
+GOTCHA `.mat` files contain the following authoritative fields (see
+[docs/sar/gotcha_large_scene_data_description.md](gotcha_large_scene_data_description.md)):
+
+| Field | Type | Purpose | Mapping Target |
+| --- | --- | --- | --- |
+| `Np` | integer | Number of pulses in file | `pulse_count` in conversion report |
+| `K` | integer | Frequency samples per pulse | Signal array dimensions, frequency axis |
+| `deltaF` | number (Hz) | Frequency sample spacing | bandwidth and frequency axis derivation |
+| `minF` | number (Hz) | Lowest frequency sample | carrier frequency reference |
+| `AntX`, `AntY`, `AntZ` | number (m) | Antenna phase center position | Geometry metadata, PVP |
+| `R0` | number (m) | Reference range to scene center | Reference geometry |
+| `phdata` | array | Compensated phase history | Signal payload |
+
+Frequency derivation:
+```
+carrier_hz ≈ minF + (K - 1) * deltaF / 2
+bandwidth_hz = (K - 1) * deltaF
+sample_count = K
+```
+
+Geometry:
+```
+antenna_position_m = [AntX, AntY, AntZ]  (local Cartesian)
+reference_range_m = R0
+coordinate_frame = "local_cartesian_scene_center"
+```
+
+### Normalized Field Mapping
+
 | GOTCHA concept | GraphX normalized field | CRSD or SAR-normalized target |
 | --- | --- | --- |
+| Np (pulse count) | `Shape().pulse_count`, `PulseVector` array size | Product acquisition count, PVP |
+| K (sample count) | `Waveform.sample_count`, signal array dimension | Signal array length, frequency grid |
+| deltaF (frequency step) | `Waveform.sample_rate_hz`, derived from bandwidth | Channel bandwidth and frequency spacing |
+| minF (frequency minimum) | `Waveform.carrier_hz` reference | Carrier frequency derivation |
+| AntX/AntY/AntZ (antenna position) | `geometry.antenna_position_m` | Platform/antenna phase center geometry |
+| R0 (reference range) | `geometry.reference_range_m` | Scene center range |
+| phdata (signal array) | `ChannelSignal.iq_samples` | Signal payload and data type |
 | pass | `pass_id` | collection grouping or channel grouping metadata |
 | frame | `frame_id` | collection segment or product provenance metadata |
 | pulse block | `pulse_block_id` | PVP vector grouping |
@@ -216,21 +254,53 @@ writing. It prevents C++ MAT reader details from leaking into CRSD writer logic.
 | platform position | `platform_position_m` | geometry support array or PVP |
 | platform velocity | `platform_velocity_mps` | geometry support array or PVP |
 | scene center | `scene_center_m` | collection and geometry metadata |
-| carrier | `carrier_hz` | channel RF metadata |
-| bandwidth | `bandwidth_hz` | channel RF metadata |
-| sample rate | `sample_rate_hz` | signal sampling metadata |
 | calibration gain | `calibration_gain` | calibration support array or PVP |
 | calibration phase | `calibration_phase_rad` | calibration support array or PVP |
 | polarization | `polarization` | channel polarization metadata |
 | coordinate frame | `coordinate_frame` | geometry coordinate frame declaration |
 | sample layout | `sample_layout` | signal array encoding metadata |
 | byte order | `endianness` | signal array byte order metadata |
-| I/Q data | `iq_samples` | signal array payload |
 
-`SarSidecar` and `SarAccelControlToken` are runtime GraphX transport and
-identity structures. They should not become the file format model. Future
-writers may copy relevant sidecar provenance into reports, but CRSD identity and
-signal metadata should come from the normalized product model.
+### Full-Aperture Conversion
+
+When GOTCHA data is converted in full-aperture mode (all pulses from all input files):
+
+1. **Multi-file ordering:** Input files (subData01.mat through subData10.mat) are ordered lexically or by manifest.
+2. **Pulse concatenation:** All `Np` pulses from each file are ingested in order.
+3. **Provenance tracking:** Each pulse retains its source file index (`source_file_index`).
+4. **Aperture accounting:** Conversion report tracks:
+   - `total_files_read`: Number of input .mat files
+   - `total_pulses_read`: Sum of all Np across files
+   - `pulses_per_file`: Array of {filename, pulse_count} pairs
+   - `aperture_mode`: "full_aperture" or "subset"
+
+### Coordinate Frame Handling
+
+GOTCHA source data uses a **local Cartesian frame** with scene center as origin:
+- Antenna position [AntX, AntY, AntZ] is in meters relative to scene center
+- Reference range R0 is the distance from antenna to scene center
+- No absolute geodetic position is provided by the MAT files
+
+GraphX products preserve this local frame explicitly:
+- `coordinate_frame = "local_cartesian_scene_center"`
+- Geometry metadata documents that the frame is derived/local
+- Any mapping to geodetic coordinates must be external and documented
+
+### Missing Metadata Boundaries
+
+The following CRSD fields are not directly available from GOTCHA source data and must be handled explicitly:
+
+| CRSD Field | Status | Recommendation |
+| --- | --- | --- |
+| Absolute collection time | Not available | Use relative timeline anchored at zero; report time_basis as relative |
+| Transmit waveform details | Not available | Report as unknown/not modeled |
+| Antenna pattern | Not available | Use minimal antenna declaration with "not modeled" status |
+| Polarization diversity | Not available | Default to single-polarization; report actual polarization from source |
+| Platform velocity | Potentially missing | Derive from position records if available; otherwise mark as unknown |
+| Calibration parameters | Potentially missing | Use source values; mark derived values in conversion report |
+| Geodetic scene center | Not available | Supply externally if needed; default to local frame |
+
+All derived, missing, or uncertain fields **must be documented in `conversion_report.json`** rather than silently invented.
 
 ## `gotcha_crsd_index.json` Schema
 

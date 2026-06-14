@@ -1,8 +1,23 @@
 # GraphX SAR Example
 
-This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX with optional GPU acceleration
+This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for GraphX with optional GPU acceleration.
 
-For consolidated build/install/test/GOTCHA/SarPy/CRSD operations across the repository, see `docs/CONSOLIDATED_OPERATIONS.md`.
+## Quick Links
+
+- **Consolidated Operations Guide:** [docs/CONSOLIDATED_OPERATIONS.md](../../docs/CONSOLIDATED_OPERATIONS.md) — Build, test, GOTCHA conversion, and SarPy workflows
+- **GOTCHA Dataset Reference:** [docs/sar/gotcha_large_scene_data_description.md](../../docs/sar/gotcha_large_scene_data_description.md) — Field inventory and full-aperture conversion instructions
+- **CRSD Mapping:** [docs/sar/crsd_definition.md](../../docs/sar/crsd_definition.md) — GOTCHA-to-normalized-to-CRSD concepts
+
+## Full-Aperture GOTCHA Conversion (Local-Only)
+
+When a local GOTCHA dataset is available:
+
+```bash
+export GRAPHX_SAR_GOTCHA_DATASET=/path/to/subData
+bash scripts/convert_gotcha_subdata_to_graphx_crsd_lite.sh
+```
+
+See [docs/sar/gotcha_large_scene_data_description.md#local-validation-and-conversion](../../docs/sar/gotcha_large_scene_data_description.md#local-validation-and-conversion) for setup and validation test instructions.
 
 ## Current Goals
 
