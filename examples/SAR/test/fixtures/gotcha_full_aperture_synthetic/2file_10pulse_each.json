@@ -1,0 +1,40 @@
+{
+  "fixture_id": "2file_10pulse_each",
+  "description": "CI-safe synthetic GOTCHA full-aperture fixture with two files and ten pulses per file.",
+  "files": [
+    {
+      "path": "subData01.mat",
+      "Np": 10,
+      "K": 4,
+      "deltaF": 2000000.0,
+      "minF": 9590000000.0,
+      "AntX": 10.0,
+      "AntY": 11.0,
+      "AntZ": 12.0,
+      "R0": 1010.0,
+      "iq_samples": [
+        {"real": 1.0, "imag": -1.0},
+        {"real": 2.0, "imag": -2.0},
+        {"real": 3.0, "imag": -3.0},
+        {"real": 4.0, "imag": -4.0}
+      ]
+    },
+    {
+      "path": "subData02.mat",
+      "Np": 10,
+      "K": 4,
+      "deltaF": 2000000.0,
+      "minF": 9590000000.0,
+      "AntX": 20.0,
+      "AntY": 21.0,
+      "AntZ": 22.0,
+      "R0": 2020.0,
+      "iq_samples": [
+        {"real": 5.0, "imag": -5.0},
+        {"real": 6.0, "imag": -6.0},
+        {"real": 7.0, "imag": -7.0},
+        {"real": 8.0, "imag": -8.0}
+      ]
+    }
+  ]
+}

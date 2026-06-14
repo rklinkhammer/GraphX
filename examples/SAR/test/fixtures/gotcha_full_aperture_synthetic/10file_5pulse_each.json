@@ -1,0 +1,16 @@
+{
+  "fixture_id": "10file_5pulse_each",
+  "description": "CI-safe synthetic GOTCHA full-aperture fixture with ten files and five pulses per file.",
+  "files": [
+    {"path": "subData01.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 101.0, "AntY": 201.0, "AntZ": 301.0, "R0": 1001.0, "iq_samples": [{"real": 11.0, "imag": -1.0}, {"real": 12.0, "imag": -2.0}, {"real": 13.0, "imag": -3.0}]},
+    {"path": "subData02.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 102.0, "AntY": 202.0, "AntZ": 302.0, "R0": 1002.0, "iq_samples": [{"real": 21.0, "imag": -1.0}, {"real": 22.0, "imag": -2.0}, {"real": 23.0, "imag": -3.0}]},
+    {"path": "subData03.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 103.0, "AntY": 203.0, "AntZ": 303.0, "R0": 1003.0, "iq_samples": [{"real": 31.0, "imag": -1.0}, {"real": 32.0, "imag": -2.0}, {"real": 33.0, "imag": -3.0}]},
+    {"path": "subData04.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 104.0, "AntY": 204.0, "AntZ": 304.0, "R0": 1004.0, "iq_samples": [{"real": 41.0, "imag": -1.0}, {"real": 42.0, "imag": -2.0}, {"real": 43.0, "imag": -3.0}]},
+    {"path": "subData05.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 105.0, "AntY": 205.0, "AntZ": 305.0, "R0": 1005.0, "iq_samples": [{"real": 51.0, "imag": -1.0}, {"real": 52.0, "imag": -2.0}, {"real": 53.0, "imag": -3.0}]},
+    {"path": "subData06.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 106.0, "AntY": 206.0, "AntZ": 306.0, "R0": 1006.0, "iq_samples": [{"real": 61.0, "imag": -1.0}, {"real": 62.0, "imag": -2.0}, {"real": 63.0, "imag": -3.0}]},
+    {"path": "subData07.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 107.0, "AntY": 207.0, "AntZ": 307.0, "R0": 1007.0, "iq_samples": [{"real": 71.0, "imag": -1.0}, {"real": 72.0, "imag": -2.0}, {"real": 73.0, "imag": -3.0}]},
+    {"path": "subData08.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 108.0, "AntY": 208.0, "AntZ": 308.0, "R0": 1008.0, "iq_samples": [{"real": 81.0, "imag": -1.0}, {"real": 82.0, "imag": -2.0}, {"real": 83.0, "imag": -3.0}]},
+    {"path": "subData09.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 109.0, "AntY": 209.0, "AntZ": 309.0, "R0": 1009.0, "iq_samples": [{"real": 91.0, "imag": -1.0}, {"real": 92.0, "imag": -2.0}, {"real": 93.0, "imag": -3.0}]},
+    {"path": "subData10.mat", "Np": 5, "K": 3, "deltaF": 1000000.0, "minF": 9599000000.0, "AntX": 110.0, "AntY": 210.0, "AntZ": 310.0, "R0": 1010.0, "iq_samples": [{"real": 101.0, "imag": -1.0}, {"real": 102.0, "imag": -2.0}, {"real": 103.0, "imag": -3.0}]}
+  ]
+}

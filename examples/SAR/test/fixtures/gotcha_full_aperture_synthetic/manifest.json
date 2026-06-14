@@ -1,0 +1,15 @@
+{
+  "schema": "graphx.gotcha.input_manifest.v1",
+  "files": [
+    {"path": "subData01.mat"},
+    {"path": "subData02.mat"},
+    {"path": "subData03.mat"},
+    {"path": "subData04.mat"},
+    {"path": "subData05.mat"},
+    {"path": "subData06.mat"},
+    {"path": "subData07.mat"},
+    {"path": "subData08.mat"},
+    {"path": "subData09.mat"},
+    {"path": "subData10.mat"}
+  ]
+}
