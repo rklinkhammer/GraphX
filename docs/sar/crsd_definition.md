@@ -3,7 +3,7 @@
 ## Scope
 
 This document defines the target concepts for future GOTCHA-to-CRSD work in
-GraphX. It is a documentation-only artifact for PR2. It does not add a MAT
+GraphX. It is a documentation-only artifact. It does not add a MAT
 reader, command-line tool, graphx-crsd-lite writer, CRSD writer, Python helper,
 dependency, fixture, or test.
 

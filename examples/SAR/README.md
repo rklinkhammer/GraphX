@@ -51,19 +51,19 @@ Additional demo scenario: examples/SAR/config/sar_projectile_approach.json
 
 The projectile scenario also wires a visualization sink node (`SarVisualizationSinkNode`) that writes tile artifacts to `sar_viz_output/` using configurable `pgm` or `csv` output.
 
-PR2 graph-visible fan-out topology: examples/SAR/config/sar_stripmap_fanout.json
+Graph-visible fan-out topology: examples/SAR/config/sar_stripmap_fanout.json
 
-PR3 Metal-oriented SAR topologies:
+Metal-oriented SAR validation topologies:
 
 1. examples/SAR/config/sar_stripmap_metal_window.json
 2. examples/SAR/config/sar_stripmap_metal_compression.json
 3. examples/SAR/config/sar_stripmap_metal_fanout.json
 
-PR8 non-CI external-data manual topology scaffold:
+Non-CI external-data manual topology scaffold:
 
 1. examples/SAR/config/sar_gotcha_external_manual.json
 
-The PR2 topology uses `SarPulseFanoutNode` to expose four branch lanes:
+The fan-out topology uses `SarPulseFanoutNode` to expose four branch lanes:
 
 ```text
 fanout -> split_tile0 -> h2d_tile0 -> bp_tile0 -> d2h_tile0 \
@@ -157,7 +157,7 @@ Primary knobs:
 5. Backend metadata:
   - backend
   - backend_id
-6. PR2 tile identity metadata:
+6. Tile identity metadata:
   - batch_id
   - aperture_id
   - pulse_range_start
@@ -216,7 +216,7 @@ Top-level JSON graph contract fields:
 | range_origin_m | number | 0.0 | Reserved range-origin metadata |
 | range_spacing_m | number | 0.25 | Reserved range-bin spacing metadata |
 
-## PR2-F1 Range-Stage Semantics Decision
+## Range-Stage Semantics Decision
 
 Decision: pre-GPU `RangeWindowNode` and `RangeCompressionNode` are currently token-only/timing placeholder stages.
 
@@ -233,7 +233,7 @@ Range-stage runtime presets currently supported:
 
 Deferred work:
 
-1. Re-introducing numerically meaningful host-side window/compression behavior is deferred to a future PR.
+1. Re-introducing numerically meaningful host-side window/compression behavior is deferred to future work.
 2. Any future numerical DSP reintroduction must define payload representation and add explicit parity/fidelity tests.
 
 `SarPulseFanoutNode`:
@@ -340,13 +340,13 @@ SAR tile messages also carry optional `graph::gpu::accel` metadata at the backen
 
 Native backend tuning and specialization (CUDA/SYCL/Metal) remain follow-up work for backend-specific kernel implementations.
 
-PR3 kickoff adds feature-gated native backend benchmarking mode and real transfer/kernel timing telemetry while keeping CI defaults on the simulated backend path.
+Feature-gated native-backend benchmarking mode and transfer/kernel timing telemetry are available while CI defaults remain on the simulated backend path.
 
-PR3 follow-up adds Metal-oriented JSON SAR presets as a backend validation path, not as the default public SAR node surface.
+Metal-oriented JSON SAR presets remain a backend validation path, not the default public SAR node surface.
 
-## PR9 Materialized Image Output
+## Materialized Image Output
 
-PR9 upgrades the PR7 materialized-image path to explicit token-carried deterministic materialization in the simulated backend lane.
+The materialized-image path uses explicit token-carried deterministic materialization in the simulated backend lane.
 
 1. `SarBackprojectionTransformAccelNode` preserves sidecar metadata and payload-size context on `SarAccelControlToken` through transfer stages.
 2. `SarMaterializedImageSinkNode` captures deterministic reference image samples directly from token-carried fields (`sequence_id`, `tile_id`, payload bytes) plus kernel-ticket validity.
@@ -367,7 +367,7 @@ cmake --build --preset build-debug --target sar_benchmark
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression
-./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_pr3_native_trace.json
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_native_range_compression_trace.json
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
 ```
 
@@ -391,7 +391,7 @@ and reports per-run milliseconds plus avg/min/max timing for each profile, plus 
 
 ## External Data Lane (Non-CI)
 
-PR8 keeps CI deterministic by default and requires explicit local/manual opt-in for larger external replay fixtures.
+The external-data lane keeps CI deterministic by default and requires explicit local/manual opt-in for larger external replay fixtures.
 
 CI/default behavior:
 
@@ -431,5 +431,5 @@ Notes:
 1. Native backend-specialized kernels and transfer overlap tuning.
 2. Backend-specialized implementation details for Metal/CUDA/SYCL execution stages beyond the shared SAR node path.
 3. Extended execution tracing and richer performance attribution.
-4. PR2 fan-out graph-vs-baseline comparison harness.
+4. Fan-out graph-vs-baseline comparison harness.
 5. Multi-device heterogeneous routing and balancing.

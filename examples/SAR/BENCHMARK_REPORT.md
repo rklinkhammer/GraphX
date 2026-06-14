@@ -5,7 +5,7 @@
 This report compares the deterministic GraphX SAR JSON pipeline against a deterministic non-graph baseline path that executes the same stage sequence:
 
 1. SyntheticApertureIqSourceNode
-2. RangeWindowNode or RangeCompressionNode (PR3 selectable stage)
+2. RangeWindowNode or RangeCompressionNode (selectable stage)
 3. AzimuthTileSplitNode
 4. H2DAsyncAccelNode
 5. SarBackprojectionTransformAccelNode
@@ -66,13 +66,13 @@ Optional JSON trace export:
 # Feature-gated DeviceReduce prototype evaluation
 ./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
 
-# PR3 native + FFT-backed range compression profile
-./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_pr3_native_trace.json
+# Native + FFT-backed range compression profile
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_native_range_compression_trace.json
 ```
 
 The trace uses schema `graphx.sar.benchmark.trace.v1` and records profile metadata, graph build/run/lifecycle timing summaries, baseline timing, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
 
-PR3 traces also include selected `range_stage` and `native_backend` flags in the profile payload and expose measured transfer/kernel timing counters.
+Native-backend traces also include selected `range_stage` and `native_backend` flags in the profile payload and expose measured transfer/kernel timing counters.
 
 When `--evaluate-device-reduce` is enabled, trace output also includes `device_reduce_evaluation` with diagnostics parity, prototype runtime stats, and keep/defer decision rationale.
 
@@ -114,9 +114,9 @@ Current CI-profile evidence:
 
 1. Diagnostics parity: true
 2. Prototype median speedup: below keep threshold
-3. Decision: defer to PR3
+3. Decision: defer-generic-reduce
 
-Rationale: keep deterministic contract parity in PR2 while deferring generic runtime DeviceReduce wiring and native backend integration to PR3.
+Rationale: keep deterministic diagnostics parity while deferring generic runtime DeviceReduce wiring until a broader runtime integration pass.
 
 ## CI Gate Guidance
 

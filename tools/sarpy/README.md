@@ -1,4 +1,4 @@
-# GraphX PR13 SarPy Tools (Local-Only)
+# GraphX SarPy Tools (Local-Only)
 
 This directory contains local-only Python reference and comparison tooling.
 
@@ -7,7 +7,7 @@ Scope boundaries:
 - These scripts are for reference/comparison workflows only.
 - They are not GraphX runtime dependencies.
 - MATLAB is not required.
-- SarPy CRSD validation is out of scope for PR13.
+- SarPy CRSD validation remains local-only and optional.
 
 ## Setup
 
@@ -50,9 +50,8 @@ python3 tools/sarpy/compare_images.py \
 ```
 
 The comparison report includes magnitude RMSE, phase RMSE, peak magnitude error,
-magnitude correlation, and deterministic global magnitude SSIM. The PR17
-GraphX image comparison lane uses tiny synthetic GraphX/Python image fixtures
-and writes:
+magnitude correlation, and deterministic global magnitude SSIM. The GraphX image
+comparison lane uses tiny synthetic GraphX/Python image fixtures and writes:
 
 - `comparison_report.json`
 - `difference_magnitude.png`
@@ -67,7 +66,7 @@ python3 tools/sarpy/validate_crsd.py probe-environment --output-json /tmp/crsd_v
 python3 tools/sarpy/reference_image_from_crsd.py probe-environment --output-json /tmp/crsd_ref_probe.json
 ```
 
-## 4) CRSD Validation Harness (PR14, local-only)
+## 4) CRSD Validation Harness (local-only)
 
 ```bash
 python3 tools/sarpy/validate_crsd.py \
@@ -85,7 +84,7 @@ The validation JSON includes best-effort CRSD metadata fields:
 - PVP array summary
 - validation status and errors
 
-## 5) Reference Magnitude Image From CRSD (PR14, local-only)
+## 5) Reference Magnitude Image From CRSD (local-only)
 
 ```bash
 python3 tools/sarpy/reference_image_from_crsd.py \
@@ -95,7 +94,7 @@ python3 tools/sarpy/reference_image_from_crsd.py \
   --output-metadata-json /tmp/crsd_reference_metadata.json
 ```
 
-## Scope Boundary For PR14
+## Scope Boundary
 
 - No CRSD writer is implemented here.
 - SarPy remains local-only tooling and not a GraphX runtime dependency.
@@ -130,9 +129,9 @@ The checksum file is expected in this format per line:
 <sha256> <relative-path-from-dataset-root>
 ```
 
-### Optional PR14 smoke prerequisites
+### Optional CRSD smoke prerequisites
 
-- `GRAPHX_SARPY_CRSD_FILE` must point to a readable CRSD file for the PR14 smoke test to execute.
+- `GRAPHX_SARPY_CRSD_FILE` must point to a readable CRSD file for the optional smoke test to execute.
 - If not set, the smoke test is skipped by design.
 
 ### CI template

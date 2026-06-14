@@ -60,9 +60,8 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     nlohmann::json trace;
     in >> trace;
 
-    // PR8 compatibility matrix: these keys define the benchmark trace contract
-    // that native-metal parity finalization must preserve.
-    const std::array<const char*, 13> required_pr8_top_level_keys{{
+    // These keys define the benchmark trace contract that native-backend parity must preserve.
+    const std::array<const char*, 13> required_trace_top_level_keys{{
         "schema",
         "timing_ms",
         "profile",
@@ -70,15 +69,15 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
         "queue",
         "overhead_attribution",
         "overhead_ms",
-        "pr5_accuracy_fidelity",
+        "matched_filter_fidelity",
         "execution_outcome",
         "token_lifecycle",
         "resolved_nodes",
         "native_execution_evidence",
-        "pr8_native_parity",
+        "native_backend_parity",
     }};
-    for (const char* key : required_pr8_top_level_keys) {
-        EXPECT_TRUE(trace.contains(key)) << "Missing required PR8 trace key: " << key;
+    for (const char* key : required_trace_top_level_keys) {
+        EXPECT_TRUE(trace.contains(key)) << "Missing required trace key: " << key;
     }
 
     ASSERT_TRUE(trace.contains("schema"));
@@ -197,30 +196,30 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     ASSERT_TRUE(claim_policy.at("no_speedup_claim_from").is_array());
     EXPECT_GE(claim_policy.at("no_speedup_claim_from").size(), 2u);
 
-    ASSERT_TRUE(trace.contains("pr5_accuracy_fidelity"));
-    const auto& pr5 = trace.at("pr5_accuracy_fidelity");
-    ASSERT_TRUE(pr5.contains("matched_filter_reference"));
-    ASSERT_TRUE(pr5.contains("runtime_matched_filter"));
-    ASSERT_TRUE(pr5.contains("image_metrics"));
-    ASSERT_TRUE(pr5.contains("graph_direct_metric_deltas"));
+    ASSERT_TRUE(trace.contains("matched_filter_fidelity"));
+    const auto& fidelity = trace.at("matched_filter_fidelity");
+    ASSERT_TRUE(fidelity.contains("matched_filter_reference"));
+    ASSERT_TRUE(fidelity.contains("runtime_matched_filter"));
+    ASSERT_TRUE(fidelity.contains("image_metrics"));
+    ASSERT_TRUE(fidelity.contains("graph_direct_metric_deltas"));
 
-    const std::array<const char*, 4> required_pr6_pr5_keys{{
+    const std::array<const char*, 4> required_fidelity_keys{{
         "matched_filter_reference",
         "runtime_matched_filter",
         "image_metrics",
         "graph_direct_metric_deltas",
     }};
-    for (const char* key : required_pr6_pr5_keys) {
-        EXPECT_TRUE(pr5.contains(key)) << "Missing required PR6 pr5_accuracy_fidelity key: " << key;
+    for (const char* key : required_fidelity_keys) {
+        EXPECT_TRUE(fidelity.contains(key)) << "Missing required matched_filter_fidelity key: " << key;
     }
 
-    const auto& matched_filter = pr5.at("matched_filter_reference");
+    const auto& matched_filter = fidelity.at("matched_filter_reference");
     EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), reference_parity::kMatchedFilterVectorLength);
     EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), reference_parity::kMatchedFilterPeakBin);
     EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), reference_parity::kMatchedFilterPeakValue, 1.0e-5);
     EXPECT_GE(matched_filter.at("reference_time_ms").get<double>(), 0.0);
 
-    const auto& runtime_filter = pr5.at("runtime_matched_filter");
+    const auto& runtime_filter = fidelity.at("runtime_matched_filter");
     EXPECT_EQ(runtime_filter.at("mode").get<std::string>(), "matched_filter");
     EXPECT_EQ(runtime_filter.at("output").get<std::string>(), "magnitude");
     EXPECT_GE(runtime_filter.at("runtime_time_ms").get<double>(), 0.0);
@@ -228,12 +227,12 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), reference_parity::kMatchedFilterReferenceRmsTolerance);
     EXPECT_EQ(runtime_filter.at("parity_status").get<std::string>(), "pass");
 
-    const auto& image_metrics = pr5.at("image_metrics");
+    const auto& image_metrics = fidelity.at("image_metrics");
     EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), reference_parity::kImagePeakLocationErrorTolerancePixels);
     EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), reference_parity::kImageDynamicRangeMinDb);
     EXPECT_NE(image_metrics.at("image_hash").get<std::uint64_t>(), 0u);
 
-    const auto& metric_deltas = pr5.at("graph_direct_metric_deltas");
+    const auto& metric_deltas = fidelity.at("graph_direct_metric_deltas");
     EXPECT_DOUBLE_EQ(metric_deltas.at("peak_location_delta_pixels").get<double>(), 0.0);
     EXPECT_DOUBLE_EQ(metric_deltas.at("peak_value_delta").get<double>(), 0.0);
 
@@ -385,20 +384,20 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     EXPECT_GT(native.at("kernel_ticket_id").get<std::uint64_t>(), 0u);
     EXPECT_GT(native.at("kernel_ticket_queue_id").get<std::uint64_t>(), 0u);
 
-    ASSERT_TRUE(trace.contains("pr8_native_parity"));
-    const auto& pr8_parity = trace.at("pr8_native_parity");
-    EXPECT_TRUE(pr8_parity.contains("canonical_token_path_locked"));
-    EXPECT_TRUE(pr8_parity.contains("dual_path_artifacts_detected"));
-    EXPECT_TRUE(pr8_parity.contains("portable_intent_types_only"));
-    EXPECT_TRUE(pr8_parity.contains("native_backend_requested"));
-    EXPECT_TRUE(pr8_parity.contains("native_backend_resolved"));
-    EXPECT_TRUE(pr8_parity.contains("backprojection_native_kernel_executed"));
-    EXPECT_TRUE(pr8_parity.at("canonical_token_path_locked").get<bool>());
-    EXPECT_FALSE(pr8_parity.at("dual_path_artifacts_detected").get<bool>());
-    EXPECT_TRUE(pr8_parity.at("portable_intent_types_only").get<bool>());
-    EXPECT_TRUE(pr8_parity.at("native_backend_requested").get<bool>());
-    EXPECT_TRUE(pr8_parity.at("native_backend_resolved").get<bool>());
-    EXPECT_TRUE(pr8_parity.at("backprojection_native_kernel_executed").get<bool>());
+    ASSERT_TRUE(trace.contains("native_backend_parity"));
+    const auto& native_parity = trace.at("native_backend_parity");
+    EXPECT_TRUE(native_parity.contains("canonical_token_path_locked"));
+    EXPECT_TRUE(native_parity.contains("dual_path_artifacts_detected"));
+    EXPECT_TRUE(native_parity.contains("portable_intent_types_only"));
+    EXPECT_TRUE(native_parity.contains("native_backend_requested"));
+    EXPECT_TRUE(native_parity.contains("native_backend_resolved"));
+    EXPECT_TRUE(native_parity.contains("backprojection_native_kernel_executed"));
+    EXPECT_TRUE(native_parity.at("canonical_token_path_locked").get<bool>());
+    EXPECT_FALSE(native_parity.at("dual_path_artifacts_detected").get<bool>());
+    EXPECT_TRUE(native_parity.at("portable_intent_types_only").get<bool>());
+    EXPECT_TRUE(native_parity.at("native_backend_requested").get<bool>());
+    EXPECT_TRUE(native_parity.at("native_backend_resolved").get<bool>());
+    EXPECT_TRUE(native_parity.at("backprojection_native_kernel_executed").get<bool>());
 }
 
 } // namespace

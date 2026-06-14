@@ -25,7 +25,7 @@ Scenario 001 is the baseline for a fair comparison where the same known determin
 
 - Fixture id: `deterministic_iq_phase_history_fixture_v1`
 - Fixture kind: deterministic IQ/phase-history
-- Fixture source: repository-managed fixture contract (no external download in RRP0)
+- Fixture source: repository-managed fixture contract (no external download in this CI-safe scenario)
 
 ## Pulse Range
 
@@ -79,9 +79,9 @@ Reference image artifact + GraphX image artifact
 `scenario_001.json` is the frozen experiment definition for the first reference reproduction path.
 Changes to dataset selection, fixture identity, pulse range, range bins, image grid, scene center, algorithm, comparator profile, or output artifact contract must be introduced as `scenario_002` rather than by mutating `scenario_001`.
 
-## RRP0 Explicit Non-Goals
+## Explicit Non-Goals
 
-RRP0 does not:
+This scenario does not:
 
 - download external data,
 - run external packages,

@@ -2,8 +2,8 @@
 
 ## Scope
 
-This document records the current repository state for PR1, "Repository Discovery
-For GOTCHA To CRSD". It is discovery only: no code, dependency, build, test, or
+This document records the current repository state for GOTCHA-to-CRSD repository
+discovery. It is discovery only: no code, dependency, build, test, or
 CRSD definition changes are included here.
 
 MATLAB is not used by this repository for this work and must not become a
@@ -162,7 +162,7 @@ CRSD output path.
 The following file areas are consistent with the current repository layout, but
 they should be created only in the implementation PRs that own them:
 
-- `docs/sar/crsd_definition.md` for the PR2 CRSD definition document.
+- `docs/sar/crsd_definition.md` for the CRSD definition document.
 - `examples/SAR/include/sar/io/...` for future GOTCHA MAT, graphx-crsd-lite, and
   CRSD public C++ interfaces if the project keeps this work under the SAR
   example tree.

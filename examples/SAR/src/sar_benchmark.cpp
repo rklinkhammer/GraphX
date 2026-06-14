@@ -300,7 +300,7 @@ std::filesystem::path WriteProfiledJsonConfig(const BenchmarkOptions& options) {
     }
 
     nlohmann::json config = {
-        {"name", "sar_stripmap_pr1_benchmark"},
+        {"name", "sar_stripmap_benchmark"},
         {"execution_backend", execution_backend},
         {"backend_fallback_policy", "allow_fallback"},
         {"resolver_diagnostics", true},
@@ -1025,7 +1025,7 @@ void PrintSummary(const BenchmarkProfile& profile,
     std::cout << "- provider/plugin lookup: represented by graph build timing above\n";
     std::cout << "- diagnostics collection: deterministic contract emission at sink (consume_count > 0)\n";
     std::cout << "- backend synchronization: proxy e2e_latency_ms=" << last_graph.diagnostics.e2e_latency_ms << "\n";
-    std::cout << "- PR4 cost buckets: algorithm_baseline_ms=" << baseline_exec.median_ms
+    std::cout << "- cost buckets: algorithm_baseline_ms=" << baseline_exec.median_ms
               << ", dsp_range_stage="
               << (options.range_stage == RangeStageKind::Compression ? "compression" : "window")
               << ", transfer_payload_bytes="
@@ -1033,14 +1033,14 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", kernel_dispatches=" << last_graph.diagnostics.kernel_dispatches
               << ", graph_overhead_ms=" << scheduling_overhead_ms
               << ", diagnostics_contract=sink-status\n";
-    std::cout << "- PR5 accuracy/fidelity: matched_filter_peak_bin="
+    std::cout << "- accuracy/fidelity metrics: matched_filter_peak_bin="
               << pr5_reference.matched_filter_peak_bin
               << ", peak_error_px=" << pr5_reference.peak_location_error_pixels
               << ", pslr_db=" << pr5_reference.peak_sidelobe_ratio_db
               << ", islr_db=" << pr5_reference.integrated_sidelobe_ratio_db
               << ", dynamic_range_db=" << pr5_reference.dynamic_range_db
               << ", image_hash=" << pr5_reference.image_hash << "\n";
-    std::cout << "- PR6 runtime matched filter: mode="
+    std::cout << "- runtime matched-filter fidelity: mode="
               << pr5_reference.runtime_compression_mode
               << ", runtime_ms=" << pr5_reference.range_compression_runtime_ms
               << ", reference_ms=" << pr5_reference.range_compression_reference_ms
@@ -1245,7 +1245,7 @@ void WriteTraceJson(const std::filesystem::path& path,
             {"kernel_ticket_queue_id", last_graph.backprojection_last_kernel_ticket.execution_queue_id},
             {"kernel_ticket_arg_count", last_graph.backprojection_last_kernel_ticket.arg_count},
         }},
-        {"pr8_native_parity", {
+        {"native_backend_parity", {
             {"canonical_token_path_locked", true},
             {"dual_path_artifacts_detected", false},
             {"portable_intent_types_only", true},
@@ -1305,7 +1305,7 @@ void WriteTraceJson(const std::filesystem::path& path,
                 "overhead_ms.lifecycle_join_last",
             })},
         }},
-        {"pr5_accuracy_fidelity", {
+        {"matched_filter_fidelity", {
             {"matched_filter_reference", {
                 {"sample_rate_hz", 16.0e6},
                 {"bandwidth_hz", 4.0e6},
@@ -1460,11 +1460,11 @@ int main(int argc, char** argv) {
                        std::max(0.0001, device_reduce_eval.prototype_exec_stats.median_ms));
 
             if (device_reduce_eval.diagnostics_match && speedup_ratio > 1.15) {
-                device_reduce_eval.decision = "keep-for-pr2";
+                device_reduce_eval.decision = "keep-native";
                 device_reduce_eval.rationale =
                     "Prototype path preserved diagnostics and exceeded 15% median baseline speedup.";
             } else {
-                device_reduce_eval.decision = "defer-to-pr3";
+                device_reduce_eval.decision = "defer-generic-reduce";
                 device_reduce_eval.rationale =
                     "Prototype did not show sufficient deterministic gain and generic DeviceReduceNode is not yet available in GraphX runtime.";
             }

@@ -164,7 +164,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
     last_kernel_ticket_.completion_event = runtime::NextOpaqueEventId();
-    // PR2: ready_event is opaque transport metadata only. SAR identity derives from sidecar.
+    // ready_event is opaque transport metadata only. SAR identity derives from sidecar.
     output.ready_event = runtime::OpaqueReadyEventNotSignaled();
 
     if (!graph::gpu::accel::IsValidView(output) ||

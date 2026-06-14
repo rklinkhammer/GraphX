@@ -51,7 +51,7 @@ std::optional<SarAccelControlToken> D2HAsyncAccelNode::Transfer(
 
     graph::gpu::accel::HostPinnedBufferView output{};
     output.backend = accel_backend;
-    // PR2: host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
+    // host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
     output.host_ptr = runtime::OpaqueHostPointer();
     output.bytes = device_view.bytes;
     output.dtype = device_view.dtype;
