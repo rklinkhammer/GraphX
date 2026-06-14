@@ -4,6 +4,13 @@ Inspector role source: plan/agents/GRAPHX_SAR_AGENT_ROLES.md
 
 Scope: current repository inspection only. No redesign and no implementation.
 
+Repository state at inspection time:
+
+- Observed: Working tree is dirty with modified planning/prompt artifacts:
+  - `plan/agents/SAR_GOTCHA_FULL_APERTURE_PR_AGENTS.md`
+  - `plan/prompt examples/sequence.md`
+- Inferred: Runtime SAR/GPU implementation conclusions below are based on checked-in code paths, not on these two uncommitted prompt-document edits.
+
 ## 1. Current Type Model
 
 - Observed: The canonical SAR message/types header is examples/SAR/include/sar/SarMessages.hpp.
@@ -101,6 +108,7 @@ Scope: current repository inspection only. No redesign and no implementation.
 - Observed: Local-only scenario runner scaffolding exists in examples/SAR/tools/sar_local_runner.py.
 - Observed: gotcha-back adapter and invocation scaffolding exist in examples/SAR/tools/gotcha_back_adapter.py and related tests.
 - Observed: SarPy probe/compare toolchain is present with tests in examples/SAR/test/test_sarpy_reference_compare_tools.cpp and examples/SAR/test/test_sarpy_metadata_harness.cpp.
+- Observed: SarPy CRSD validation harness tests exist in examples/SAR/test/test_sarpy_crsd_validation_harness.cpp and are environment-gated for local-only smoke runs.
 - Observed: Additional baseline/fixture comparison tests exist (for example test_sar_baseline_compare.cpp, test_graphx_image_comparison_lane.cpp, test_local_gotcha_validation_lane.cpp).
 - Inferred: External baselines are integrated as comparison harnesses and policy-controlled artifacts, not as core GraphX runtime contracts.
 - Unknown: Real-world parity status versus external baselines, since this inspection did not run benchmark or parity lanes.

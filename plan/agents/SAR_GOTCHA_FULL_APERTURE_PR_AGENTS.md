@@ -424,6 +424,7 @@ Do not add standards CRSD writer work.
 Do not add MATLAB or new external dependencies.
 
 Output the standard IMPLEMENTER summary.
+save report
 ```
 
 ### Verifier Agent
@@ -443,6 +444,7 @@ Required checks:
 - No implementation code, standards CRSD writer work, MATLAB dependency, or new external dependency was added.
 
 Stop after verifier report.
+save report
 ```
 
 

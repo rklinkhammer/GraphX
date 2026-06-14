@@ -36,7 +36,6 @@ Produce only:
 
 Do not implement code.
 Do not produce a PR plan yet.
-========
 save simplifer output to plan/reviews/SAR_SIMPLIFIER_REPORT.md
 ========
 Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
@@ -380,9 +379,7 @@ Output:
 Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Inputs:
-- `plan/reviews/SAR_INSPECTOR_REPORT.md`
-- `plan/reviews/SAR_PLANNER_REPORT.md`
-- `plan/roadmap/SAR_COMPARE_ROADMAP.md`
+- plan/reviews/*.md
 - current repo state
 
 Question:

@@ -1,108 +1,69 @@
 # SAR Simplifier Report
 
-Source input: `plan/reviews/SAR_INSPECTOR_REPORT.md`
+Source input: plan/reviews/SAR_INSPECTOR_REPORT.md
 
-Scope: target architecture only. No implementation or PR plan.
+Scope: target architecture only. No implementation and no PR plan.
 
 ## 1. Target Type Model
 
-- `SarSidecar` remains the only SAR identity and diagnostics carrier.
-- `AccelControlToken<SarSidecar>` / `SarAccelControlToken` remains the only SAR GPU-edge payload type.
-- Generic GPU transport types remain in `libgpu`: `DeviceBufferView`, `HostPinnedBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`, `TensorLayout`.
-- `host_ptr` and `ready_event` remain transport-only fields and must never encode SAR identity.
-- SAR source/DSP/merge types may use SAR concepts, but GPU transfer/kernel mechanics must use the generic accel transport model.
-- GOTCHA replay fixture types stay example-local unless direct dataset ingestion becomes an approved feature.
-- No legacy SAR payload message types, aliases, or compatibility type names remain in the target model.
+- Keep `SarSidecar` as the only SAR identity/diagnostics carrier.
+- Keep `AccelControlToken<SidecarT>` as the canonical transport contract template.
+- Keep `SarAccelControlToken = AccelControlToken<SarSidecar>` as the only SAR GPU-edge payload.
+- Keep generic accel transport primitives in `libgpu` (`DeviceBufferView`, `HostPinnedBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`, `TensorLayout`).
+- Keep `host_ptr` and `ready_event` strictly transport-opaque and non-identity.
+- Keep SAR-specific semantic fields in `SarSidecar`; keep transport state in accel views/tickets.
+- Keep `SarDiagnosticsSnapshot` as sink-facing aggregate output, sourced from sidecar + graph metrics.
+- Remove reliance on any legacy payload-contract names under accel-token mode.
 
 ## 2. Target Node Model
 
-Canonical flow:
+Canonical runtime path:
 
-```text
-SAR source / DSP nodes
-  -> SarAccelControlToken
-  -> generic sidecar-preserving GPU adapter over libgpu transfer/kernel nodes
-  -> SarAccelControlToken
-  -> SAR merge / diagnostics / materialization nodes
-```
+`Synthetic/Replay SAR source` -> `SAR DSP/prep` -> `SarAccelControlToken` -> `GPU transfer/kernel stage (token-preserving)` -> `SarAccelControlToken` -> `SAR merge/diagnostics/sinks`
 
-Target SAR nodes that stay example-local:
+Concrete target for maintained definitive topology:
 
-- `SyntheticApertureIqSourceNode`
-- `GotchaReplaySourceNode`, fixture-only for now
-- `RangeWindowNode`
-- `RangeCompressionNode`
-- `AzimuthTileSplitNode`
-- `SarPulseFanoutNode`, only if the canonical config needs fanout
-- `ImageTileMergeNode`
-- `SarDiagnosticsSinkNode`
-- `SarMaterializedImageSinkNode`
-- `SarVisualizationSinkNode`, if still useful for example output
-
-Target GPU boundary:
-
-- SAR no longer owns separate H2D/D2H transfer implementations.
-- SAR uses a small sidecar-preserving wrapper/adaptor pattern around generic libgpu nodes.
-- Backprojection should be represented as SAR-side configuration plus generic `DeviceKernelNode`/Metal kernel execution, not as a mixed SAR/Metal/inline-kernel mega-node.
+- Keep source/prep nodes: `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode`, `AzimuthTileSplitNode`.
+- Keep GPU-edge intent nodes in SAR config as explicit token contracts: `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, `D2HAsyncAccelNode`.
+- Keep completion/diagnostics nodes: `ImageTileMergeNode`, `SarDiagnosticsSinkNode`.
+- Keep optional/example-local nodes as non-definitive: `GotchaReplaySourceNode`, `SarPulseFanoutNode`, `SarVisualizationSinkNode`, `SarMaterializedImageSinkNode`.
+- Keep backend realization in resolver/capability layers; keep definitive JSON portable and intent-based.
 
 ## 3. Deletion List
 
-- Delete compatibility alias headers:
-  - `examples/SAR/include/sar/H2DAsyncNode.hpp`
-  - `examples/SAR/include/sar/D2HAsyncNode.hpp`
-  - `examples/SAR/include/sar/SarBackprojectionTransformNode.hpp`
-- Delete SAR-local duplicate transfer implementations once replaced:
-  - `H2DAsyncAccelNode`
-  - `D2HAsyncAccelNode`
-- Delete config-facing compatibility plugin names for SAR H2D/D2H/backprojection aliases.
-- Delete deprecated definitive split configs:
-  - `sar_stripmap_definitive_metal.json`
-  - `sar_stripmap_definitive_nonmetal.json`
-- Delete PR-era topology configs once their coverage is folded into focused tests:
-  - `sar_stripmap_pr1.json`
-  - `sar_stripmap_pr2_fanout.json`
-  - `sar_stripmap_pr3_*`
-  - `sar_stripmap_pr6_matched_filter.json`
-  - `sar_stripmap_pr7_materialized_image.json`
-- Delete tests whose only purpose is preserving old aliases, deprecated configs, or legacy resolver behavior.
-- Delete references to absent `plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md` and `plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json` from normal SAR tests unless those files are restored as real source artifacts.
-- Delete any remaining legacy SAR payload contract allowances under `edge_contract: "accel-token"`.
+- Delete compatibility or legacy payload-contract references from maintained SAR runtime/topology surfaces (if still present outside negative-validation tests).
+- Delete non-definitive SAR configs that are no longer required for maintained workflows once equivalent focused tests exist.
+- Delete external-manual topology scaffolds from maintained runtime surface if they are not actively used (`sar_gotcha_external_manual.json` class of artifacts).
+- Delete obsolete tests whose only value is preserving legacy alias names or deprecated compatibility behavior.
+- Delete duplicate architecture-policy checks if they are enforced in multiple places with no additional signal.
 
 ## 4. Replacement List
 
-- Replace `H2DAsyncNode` config usage with an explicit sidecar-preserving SAR GPU ingress node name, or with a generic token adapter whose only job is:
-  - unwrap host view from `SarAccelControlToken`
-  - call generic GPU H2D behavior
-  - reattach unchanged `SarSidecar`
-- Replace `D2HAsyncNode` config usage with the symmetric sidecar-preserving GPU egress adapter.
-- Replace `SarBackprojectionTransformNode` alias with one explicit canonical name.
-- Replace mixed simulated/native logic inside `SarBackprojectionTransformAccelNode` with a simpler split:
-  - SAR backprojection descriptor/config builder
-  - generic device kernel execution
-  - sidecar preservation
-- Replace many PR-era JSON configs with one canonical config plus small targeted fixtures/tests.
-- Replace external baseline policy tests that depend on missing `plan/reviews` files with either checked-in policy artifacts or tests scoped to existing scripts/fixtures.
-- Replace normalized GOTCHA replay naming with clearer fixture wording until direct MATLAB/GOTCHA ingestion exists.
+- Replace any remaining generic/legacy runtime intent usage in maintained SAR configs with explicit SAR token intents and resolver mappings.
+- Replace mixed identity interpretation opportunities with strict sidecar-only identity checks in tests and diagnostics.
+- Replace ad-hoc scenario coverage with one definitive topology plus focused behavior tests (token preservation, resolver contract, diagnostics propagation).
+- Replace dual-purpose runtime artifacts with explicit classification:
+  - maintained definitive runtime path
+  - optional local-only/baseline/comparison harness path
+- Replace implicit external-baseline assumptions with explicit policy/registry contract assertions only.
 
 ## 5. Architecture Invariants
 
-- Exactly one SAR GPU-edge contract exists: `AccelControlToken<SarSidecar>`.
+- Exactly one SAR GPU-edge contract in runtime: `AccelControlToken<SarSidecar>`.
 - SAR identity is sidecar-only.
-- `host_ptr`, `device_ptr`, `ready_event`, transfer IDs, kernel IDs, and queue IDs are never identity.
-- Generic GPU nodes stay SAR-unaware.
-- SAR nodes may interpret `SarSidecar`; libgpu nodes may not.
-- Resolver mappings must not make generic node names mean different payload contracts in different contexts.
-- No compatibility aliases survive merely because old configs or tests reference them.
-- `examples/SAR/main.cpp` remains tested.
-- Performance reporting must be explicit: either `main.cpp` reports required metrics or benchmark-only metrics are not claimed as main runtime reporting.
-- External SAR tools remain comparison/harness artifacts only; they do not shape GraphX core contracts.
-- GOTCHA replay fixtures are not treated as direct GOTCHA dataset ingestion.
+- `host_ptr`, `device_ptr`, `ready_event`, transfer IDs, kernel IDs, queue IDs are transport metadata, never SAR identity.
+- Resolver contract for maintained SAR topology is explicit (`edge_contract: "accel-token"`) with SAR token type mappings.
+- Generic GPU nodes and accel transport types remain SAR-unaware.
+- SAR semantics remain in SAR nodes and sidecar fields.
+- Definitive topology remains portable intent names; backend-specific realization stays in resolver/capability layers.
+- `examples/SAR/main.cpp` remains covered by executable test and emits runtime diagnostics.
+- External baselines (SarPy/gotcha-back/etc.) remain local-only comparison infrastructure and must not define GraphX core runtime contracts.
 
 ## 6. Open Questions That Block Planning
 
-- Should the canonical sidecar-preserving GPU boundary be implemented as generic templated token adapters in `libgpu`, or as SAR-local adapters that call libgpu nodes?
-- Is `SarPulseFanoutNode` required in the single canonical topology, or should the definitive config remain linear?
-- Should `examples/SAR/main.cpp` itself report stage/performance metrics, or is `sar_benchmark` the accepted performance surface?
-- Are the missing external baseline policy/registry files intentionally removed, or should those tests be deleted?
-- Which current SAR configs are still user-facing, if any, besides `sar_stripmap_definitive.json`?
-- Should direct GOTCHA MATLAB ingestion be considered in this cleanup sequence, or kept out until after architecture cleanup?
+- Which non-definitive SAR configs are truly maintained versus historical test scaffolds?
+- Should `SarBackprojectionTransformAccelNode` stay as a dual simulated/native node, or be split into clearer adaptor + backend execution responsibilities?
+- What is the minimal retained set of baseline/comparison tests that preserves policy guarantees without duplicate coverage?
+- Which optional SAR nodes (`SarPulseFanoutNode`, visualization/materialized sinks, replay sources) are required in maintained CI lanes versus local-only workflows?
+- Should external-manual topology artifacts remain in-tree as examples or move to docs/local scripts only?
+- Is current `main.cpp` diagnostics output considered sufficient performance reporting, or must benchmark-only metrics be promoted into the runtime executable output contract?
