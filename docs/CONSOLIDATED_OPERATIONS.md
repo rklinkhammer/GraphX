@@ -236,6 +236,13 @@ python3 examples/SAR/tools/sarpy_metadata_harness.py \
 
 `graphx-gotcha-to-crsd` supports CRSD conversion for the supported operational lane.
 
+Important input constraint:
+
+- HDF5-backed MAT v7.3 input is consumed directly.
+- Classic MATLAB MAT v5 input is now auto-preprocessed to HDF5-backed MAT files by `scripts/convert_gotcha_subdata_to_crsd.sh` before conversion.
+- Set `PREPROCESS_CLASSIC_MAT=0` to disable auto-preprocessing and enforce strict HDF5-only input.
+- The converter binary must be built with HDF5 support; when preprocessing is enabled, the script will attempt to reconfigure the selected build directory with `HDF5_ROOT` (or Homebrew `hdf5` on macOS).
+
 ### Build converter if needed
 
 ```bash
@@ -248,6 +255,14 @@ cmake --build build-ninja/ninja-debug --target graphx_gotcha_to_crsd -j8
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /path/to/gotcha/subData \
   /tmp/gotcha_crsd_output
+```
+
+Optional preprocessing controls:
+
+```bash
+PREPROCESS_CLASSIC_MAT=1 \
+PREPROCESS_OUTPUT_DIR=/tmp/gotcha_hdf5_preprocessed \
+bash scripts/convert_gotcha_subdata_to_crsd.sh /path/to/gotcha/subData /tmp/gotcha_crsd_output
 ```
 
 ### Direct converter invocation

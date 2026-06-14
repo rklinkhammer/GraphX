@@ -12,6 +12,10 @@
 
 #include <nlohmann/json.hpp>
 
+#if defined(GRAPHX_SAR_HAS_HDF5) && GRAPHX_SAR_HAS_HDF5
+#include <hdf5.h>
+#endif
+
 #ifndef SAR_GOTCHA_TO_CRSD_EXECUTABLE_PATH
 #define SAR_GOTCHA_TO_CRSD_EXECUTABLE_PATH "./graphx-gotcha-to-crsd"
 #endif
@@ -85,36 +89,65 @@ protected:
         stream << " stub";
     }
 
-    void WriteSidecar(const std::string& mat_relative, int base) const {
-        const auto sidecar_path = Path(mat_relative + ".json");
-        nlohmann::json sidecar{
-                {"Np", 1},
-                {"K", 2},
-                {"deltaF", 1.0e6},
-                {"minF", 9.599e9},
-                {"AntX", 1.0},
-                {"AntY", 2.0},
-                {"AntZ", 3.0},
-                {"R0", 1000.0 + static_cast<double>(base)},
-                {"phdata", "synthetic_phdata"},
-            {"carrier_hz", 9.6e9},
-            {"bandwidth_hz", 640.0e6},
-            {"sample_rate_hz", 1.0e9},
-            {"frequency_axis_hz", nlohmann::json::array({9.599e9, 9.600e9})},
-            {"platform_position_m", nlohmann::json::array({1.0, 2.0, 3.0})},
-            {"platform_velocity_mps", nlohmann::json::array({0.1, 0.2, 0.3})},
-            {"pulse_time_seconds", static_cast<double>(base)},
-            {"range_sample_start", static_cast<std::uint64_t>(base)},
-            {"iq_samples", nlohmann::json::array({
-                               nlohmann::json{{"real", static_cast<float>(base + 1)}, {"imag", -1.0f}},
-                               nlohmann::json{{"real", static_cast<float>(base + 2)}, {"imag", -2.0f}},
-                           })},
-            {"source_field_names", nlohmann::json{{"iq_samples", "DATA.IQ"}}},
+    void WriteHdf5Mat(const std::string& relative, int base) const {
+#if defined(GRAPHX_SAR_HAS_HDF5) && GRAPHX_SAR_HAS_HDF5
+        const auto path = Path(relative);
+        const hid_t file_id = H5Fcreate(path.string().c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        ASSERT_GE(file_id, 0);
+
+        const hid_t group_id = H5Gcreate2(file_id, "subData", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        ASSERT_GE(group_id, 0);
+
+        struct Complex128 {
+            double real;
+            double imag;
         };
 
-        std::ofstream stream{sidecar_path};
-        ASSERT_TRUE(stream.good());
-        stream << sidecar.dump(2) << '\n';
+        const hid_t complex_type = H5Tcreate(H5T_COMPOUND, sizeof(Complex128));
+        ASSERT_GE(complex_type, 0);
+        ASSERT_GE(H5Tinsert(complex_type, "real", HOFFSET(Complex128, real), H5T_NATIVE_DOUBLE), 0);
+        ASSERT_GE(H5Tinsert(complex_type, "imag", HOFFSET(Complex128, imag), H5T_NATIVE_DOUBLE), 0);
+
+        const hsize_t ph_dims[2]{1, 2};
+        const hid_t ph_space = H5Screate_simple(2, ph_dims, nullptr);
+        ASSERT_GE(ph_space, 0);
+        const hid_t ph_dset = H5Dcreate2(group_id, "phdata", complex_type, ph_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        ASSERT_GE(ph_dset, 0);
+        const std::array<Complex128, 2> phdata{{
+            {static_cast<double>(base + 1), -1.0},
+            {static_cast<double>(base + 2), -2.0},
+        }};
+        ASSERT_GE(H5Dwrite(ph_dset, complex_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, phdata.data()), 0);
+        H5Dclose(ph_dset);
+        H5Sclose(ph_space);
+        H5Tclose(complex_type);
+
+        const hsize_t vec_dims[1]{1};
+        const hid_t vec_space = H5Screate_simple(1, vec_dims, nullptr);
+        ASSERT_GE(vec_space, 0);
+        const auto write_vec = [&](const char* name, double value) {
+            const hid_t dset = H5Dcreate2(group_id, name, H5T_NATIVE_DOUBLE, vec_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            ASSERT_GE(dset, 0);
+            ASSERT_GE(H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &value), 0);
+            H5Dclose(dset);
+        };
+
+        write_vec("AntX", 1.0);
+        write_vec("AntY", 2.0);
+        write_vec("AntZ", 3.0);
+        write_vec("R0", 1000.0 + static_cast<double>(base));
+        write_vec("Np", static_cast<double>(base));
+        write_vec("K", 2.0);
+        write_vec("deltaF", 1.0e6);
+        write_vec("minF", 9.599e9);
+
+        H5Sclose(vec_space);
+        H5Gclose(group_id);
+        H5Fclose(file_id);
+#else
+        (void)base;
+        WriteMatStub(relative, true);
+#endif
     }
 
     void WriteManifest(const std::string& relative, const nlohmann::json& manifest) const {
@@ -146,12 +179,14 @@ TEST_F(GraphxGotchaToCrsdCliTest, HelpDocumentsRequiredOptions) {
 }
 
 TEST_F(GraphxGotchaToCrsdCliTest, CrsdModeWorksOnTinyFixture) {
+#if !defined(GRAPHX_SAR_HAS_HDF5) || !GRAPHX_SAR_HAS_HDF5
+    GTEST_SKIP() << "HDF5 support is required for CRSD conversion fixtures.";
+#endif
     const auto input_dir = Path("input");
     const auto output_dir = Path("output");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));
 
-    WriteMatStub("input/pulse_01.mat", true);
-    WriteSidecar("input/pulse_01.mat", 1);
+    WriteHdf5Mat("input/pulse_01.mat", 1);
 
     const auto command = CliBase() +
                          " --input-dir " + ShellQuote(input_dir) +
@@ -229,10 +264,12 @@ TEST_F(GraphxGotchaToCrsdCliTest, GotchaApertureOrderingErrorsFailBeforeReaderIn
 }
 
 TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeProducesSarpyOpenableOutput) {
+#if !defined(GRAPHX_SAR_HAS_HDF5) || !GRAPHX_SAR_HAS_HDF5
+    GTEST_SKIP() << "HDF5 support is required for CRSD conversion fixtures.";
+#endif
     const auto input_dir = Path("unsupported");
     ASSERT_TRUE(std::filesystem::create_directories(input_dir));
     WriteMatStub("unsupported/classic.mat", false);
-    WriteSidecar("unsupported/classic.mat", 7);
 
     const auto unsupported = RunCommand(
         CliBase() +
@@ -245,8 +282,7 @@ TEST_F(GraphxGotchaToCrsdCliTest, UnsupportedMatFailsClearlyAndCrsdModeProducesS
     const auto crsd_input = Path("crsd-input");
     const auto crsd_output = Path("crsd-output");
     ASSERT_TRUE(std::filesystem::create_directories(crsd_input));
-    WriteMatStub("crsd-input/pulse_01.mat", true);
-    WriteSidecar("crsd-input/pulse_01.mat", 11);
+    WriteHdf5Mat("crsd-input/pulse_01.mat", 11);
 
     const auto crsd_mode = RunCommand(
         CliBase() +

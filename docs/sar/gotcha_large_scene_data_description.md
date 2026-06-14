@@ -1,6 +1,6 @@
 # GOTCHA Large Scene Data Description Summary
 
-**Authoritative Reference:** This document is the authoritative reference for GOTCHA field validation in GraphX. The field inventory, names, and types defined below are used to validate GOTCHA sidecars and ensure conversion completeness.
+**Authoritative Reference:** This document is the authoritative reference for GOTCHA field validation in GraphX. The field inventory, names, and types defined below are used to validate GOTCHA MAT ingestion and ensure conversion completeness.
 
 Source reviewed:
 

@@ -3,7 +3,6 @@
 #include "sar/io/GotchaHdf5PhdataReader.hpp"
 #include "sar/io/GotchaInputOrdering.hpp"
 #include "sar/io/GotchaMatInspector.hpp"
-#include "sar/io/GotchaToCrsdMetadataMapper.hpp"
 #include "sar/io/NormalizedSarProduct.hpp"
 
 #include <array>
@@ -14,8 +13,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 namespace graphx::sar {
 
@@ -41,15 +38,8 @@ struct GotchaMatReaderIssue {
     std::string message{};
 };
 
-struct GotchaFieldNameDiagnostic {
-    std::string normalized_field{};
-    std::string original_field_name{};
-    std::filesystem::path source_file{};
-};
-
 struct GotchaMatReaderDiagnostics {
     std::vector<std::string> source_files{};
-    std::vector<GotchaFieldNameDiagnostic> original_field_names{};
     std::vector<GotchaMatReaderIssue> issues{};
 };
 
@@ -103,146 +93,70 @@ public:
         for (std::size_t file_index = 0; file_index < ordering.files.size(); ++file_index) {
             const auto& source_file = ordering.files[file_index];
 
-            // Preferred path: read all pulses directly from the HDF5 MAT file.
-            // This extracts the full phdata array and per-pulse geometry, bypassing
-            // the sidecar JSON which only contains a single representative pulse.
-            if (GotchaHdf5PhdataReader::IsAvailable() &&
-                GotchaMatInspector::HasHdf5Signature(source_file)) {
-                const auto hdf5 = GotchaHdf5PhdataReader::Read(source_file);
-                if (!hdf5.success) {
-                    result.diagnostics.issues.push_back(GotchaMatReaderIssue{
-                        .code    = "hdf5_phdata_read_failed",
-                        .path    = source_file,
-                        .message = hdf5.message,
-                    });
-                    continue;
-                }
-
-                // Set waveform metadata from the first file that yields data.
-                if (channel.waveform.carrier_hz == 0.0 && hdf5.waveform.carrier_hz != 0.0) {
-                    channel.waveform.carrier_hz     = hdf5.waveform.carrier_hz;
-                    channel.waveform.bandwidth_hz   = hdf5.waveform.bandwidth_hz;
-                    channel.waveform.sample_rate_hz = hdf5.waveform.sample_rate_hz;
-                    if (channel.waveform.frequency_axis_hz.empty() &&
-                        hdf5.waveform.k_samples > 0) {
-                        channel.waveform.frequency_axis_hz = {
-                            hdf5.waveform.min_f,
-                            hdf5.waveform.min_f +
-                                hdf5.waveform.delta_f *
-                                    static_cast<double>(hdf5.waveform.k_samples - 1),
-                        };
-                    }
-                }
-
-                for (std::size_t pi = 0; pi < hdf5.pulses.size(); ++pi) {
-                    const auto& hp = hdf5.pulses[pi];
-                    PulseVector pulse{};
-                    pulse.parameters.vector_index        = global_pulse_index;
-                    pulse.parameters.time_seconds        = hp.pulse_time;
-                    pulse.parameters.range_sample_start  = 0;
-                    pulse.parameters.source_file_index   =
-                        static_cast<std::uint64_t>(file_index);
-                    pulse.parameters.source_pulse_index  =
-                        static_cast<std::uint64_t>(pi);
-                    pulse.parameters.reference_range_m   = hp.reference_range_m;
-                    pulse.parameters.platform.position_m = hp.antenna_position_m;
-                    pulse.samples = hp.samples;
-                    channel.pulses.push_back(std::move(pulse));
-                    ++global_pulse_index;
-                }
-                continue;  // skip sidecar path for this file
-            }
-
-            // Fallback: sidecar JSON path (used when HDF5 is unavailable or
-            // the file is classic MAT format).
-            const auto sidecar_path = std::filesystem::path{source_file.string() + ".json"};
-            const auto sidecar = LoadSidecar(sidecar_path, result.diagnostics.issues);
-            if (!sidecar.has_value()) {
+            if (!GotchaHdf5PhdataReader::IsAvailable()) {
+                result.diagnostics.issues.push_back(GotchaMatReaderIssue{
+                    .code = "hdf5_support_not_compiled",
+                    .path = source_file,
+                    .message = "HDF5 support is required for GOTCHA MAT ingestion",
+                });
                 continue;
             }
 
-            // Read Np (number of pulses) from sidecar; default to 1 for backward compatibility
-            const auto np = ParseOptionalUnsigned(*sidecar, "Np").value_or(1u);
-            const auto mapped_metadata = GotchaToCrsdMetadataMapper::Map(*sidecar);
-            if (mapped_metadata.has_value()) {
-                GotchaToCrsdMetadataMapper::ApplyToProductCollection(*mapped_metadata, product.collection);
-                GotchaToCrsdMetadataMapper::ApplyToWaveform(*mapped_metadata, channel.waveform);
+            if (!GotchaMatInspector::HasHdf5Signature(source_file)) {
+                result.diagnostics.issues.push_back(GotchaMatReaderIssue{
+                    .code = "unsupported_mat_format",
+                    .path = source_file,
+                    .message = "only HDF5-backed MAT v7.3 files are supported",
+                });
+                continue;
             }
 
-            // Process each pulse within this file
-            for (std::uint64_t pulse_within_file = 0; pulse_within_file < np; ++pulse_within_file) {
-                const auto samples = ParseSamples(*sidecar, sidecar_path, result.diagnostics.issues);
-                if (samples.empty()) {
-                    // On first pulse failure per file, skip remaining pulses from this file
-                    break;
-                }
+            const auto hdf5 = GotchaHdf5PhdataReader::Read(source_file);
+            if (!hdf5.success) {
+                result.diagnostics.issues.push_back(GotchaMatReaderIssue{
+                    .code    = "hdf5_phdata_read_failed",
+                    .path    = source_file,
+                    .message = hdf5.message,
+                });
+                continue;
+            }
 
-                if (!mapped_metadata.has_value() && channel.waveform.frequency_axis_hz.empty()) {
-                    channel.waveform.frequency_axis_hz = ParseOptionalDoubleArray(*sidecar, "frequency_axis_hz");
+            // Set waveform metadata from the first file that yields data.
+            if (channel.waveform.carrier_hz == 0.0 && hdf5.waveform.carrier_hz != 0.0) {
+                channel.waveform.carrier_hz     = hdf5.waveform.carrier_hz;
+                channel.waveform.bandwidth_hz   = hdf5.waveform.bandwidth_hz;
+                channel.waveform.sample_rate_hz = hdf5.waveform.sample_rate_hz;
+                if (channel.waveform.frequency_axis_hz.empty() &&
+                    hdf5.waveform.k_samples > 0) {
+                    channel.waveform.frequency_axis_hz = {
+                        hdf5.waveform.min_f,
+                        hdf5.waveform.min_f +
+                            hdf5.waveform.delta_f *
+                                static_cast<double>(hdf5.waveform.k_samples - 1),
+                    };
                 }
+            }
 
-                if (!mapped_metadata.has_value()) {
-                    const auto carrier = ParseOptionalFiniteDouble(*sidecar, "carrier_hz");
-                    if (carrier.has_value()) {
-                        channel.waveform.carrier_hz = *carrier;
-                    }
-                    const auto bandwidth = ParseOptionalFiniteDouble(*sidecar, "bandwidth_hz");
-                    if (bandwidth.has_value()) {
-                        channel.waveform.bandwidth_hz = *bandwidth;
-                    }
-                }
-                const auto sample_rate = ParseOptionalFiniteDouble(*sidecar, "sample_rate_hz");
-                if (sample_rate.has_value()) {
-                    channel.waveform.sample_rate_hz = *sample_rate;
-                }
-                const auto polarization = ParseOptionalNonEmptyString(*sidecar, "polarization");
-                if (polarization.has_value()) {
-                    channel.waveform.polarization = *polarization;
-                }
-
-                std::array<double, 3> position{};
-                if (mapped_metadata.has_value()) {
-                    position = mapped_metadata->antenna_xyz_m;
-                } else {
-                    const auto parsed_position = ParseVector3(
-                        *sidecar,
-                        "platform_position_m",
-                        sidecar_path,
-                        result.diagnostics.issues);
-                    if (!parsed_position.has_value()) {
-                        break;
-                    }
-                    position = *parsed_position;
-                }
-                const auto velocity = ParseOptionalVector3(*sidecar, "platform_velocity_mps");
-
-                const auto pulse_time = ParseOptionalFiniteDouble(*sidecar, "pulse_time_seconds")
-                                            .value_or(static_cast<double>(global_pulse_index));
-                const auto range_start = ParseOptionalUnsigned(*sidecar, "range_sample_start").value_or(0u);
-
+            for (std::size_t pi = 0; pi < hdf5.pulses.size(); ++pi) {
+                const auto& hp = hdf5.pulses[pi];
                 PulseVector pulse{};
-                pulse.parameters.vector_index = global_pulse_index;
-                pulse.parameters.time_seconds = pulse_time;
-                pulse.parameters.range_sample_start = range_start;
-                pulse.parameters.source_file_index = static_cast<std::uint64_t>(file_index);
-                pulse.parameters.source_pulse_index = pulse_within_file;
-                pulse.parameters.platform.position_m = position;
-                pulse.parameters.platform.velocity_mps = velocity.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
-                if (mapped_metadata.has_value()) {
-                    GotchaToCrsdMetadataMapper::ApplyToPulse(*mapped_metadata, pulse.parameters);
-                }
-                pulse.samples = samples;
+                pulse.parameters.vector_index        = global_pulse_index;
+                pulse.parameters.time_seconds        = hp.pulse_time;
+                pulse.parameters.range_sample_start  = 0;
+                pulse.parameters.source_file_index   =
+                    static_cast<std::uint64_t>(file_index);
+                pulse.parameters.source_pulse_index  =
+                    static_cast<std::uint64_t>(pi);
+                pulse.parameters.reference_range_m   = hp.reference_range_m;
+                pulse.parameters.platform.position_m = hp.antenna_position_m;
+                pulse.samples = hp.samples;
                 channel.pulses.push_back(std::move(pulse));
-
-                global_pulse_index++;
+                ++global_pulse_index;
             }
-
-            // Collect field diagnostics only once per file
-            CollectFieldDiagnostics(*sidecar, source_file, result.diagnostics.original_field_names);
         }
 
         if (!result.diagnostics.issues.empty()) {
-            result.message = BuildFailureMessage(result.diagnostics.issues, "mat sidecar parsing failed");
+            result.message = BuildFailureMessage(result.diagnostics.issues, "gotcha_mat_read_failed");
             return result;
         }
 
@@ -252,7 +166,7 @@ public:
                 .path = input_path,
                 .message = "no pulses were produced from ordered MAT inputs",
             });
-            result.message = BuildFailureMessage(result.diagnostics.issues, "mat sidecar parsing failed");
+            result.message = BuildFailureMessage(result.diagnostics.issues, "gotcha_mat_read_failed");
             return result;
         }
 
@@ -294,193 +208,6 @@ private:
         }
 
         return product;
-    }
-
-    [[nodiscard]] static std::optional<nlohmann::json> LoadSidecar(
-        const std::filesystem::path& sidecar_path,
-        std::vector<GotchaMatReaderIssue>& issues) {
-        std::ifstream stream{sidecar_path};
-        if (!stream) {
-            issues.push_back(GotchaMatReaderIssue{
-                .code = "sidecar_missing",
-                .path = sidecar_path,
-                .message = "expected sidecar JSON beside MAT file",
-            });
-            return std::nullopt;
-        }
-
-        try {
-            nlohmann::json value{};
-            stream >> value;
-            if (!value.is_object()) {
-                issues.push_back(GotchaMatReaderIssue{
-                    .code = "sidecar_schema_error",
-                    .path = sidecar_path,
-                    .message = "sidecar root must be a JSON object",
-                });
-                return std::nullopt;
-            }
-            return value;
-        } catch (const nlohmann::json::exception& ex) {
-            issues.push_back(GotchaMatReaderIssue{
-                .code = "sidecar_json_error",
-                .path = sidecar_path,
-                .message = ex.what(),
-            });
-            return std::nullopt;
-        }
-    }
-
-    [[nodiscard]] static std::vector<ComplexSample> ParseSamples(
-        const nlohmann::json& sidecar,
-        const std::filesystem::path& path,
-        std::vector<GotchaMatReaderIssue>& issues) {
-        std::vector<ComplexSample> samples{};
-        const auto it = sidecar.find("iq_samples");
-        if (it == sidecar.end() || !it->is_array() || it->empty()) {
-            issues.push_back(GotchaMatReaderIssue{
-                .code = "missing_iq_samples",
-                .path = path,
-                .message = "iq_samples must be a non-empty array",
-            });
-            return samples;
-        }
-
-        samples.reserve(it->size());
-        for (std::size_t i = 0; i < it->size(); ++i) {
-            const auto& value = (*it)[i];
-            if (!value.is_object() || !value.contains("real") || !value.contains("imag") ||
-                !value.at("real").is_number() || !value.at("imag").is_number()) {
-                issues.push_back(GotchaMatReaderIssue{
-                    .code = "invalid_iq_sample",
-                    .path = path,
-                    .message = "iq_samples entries must have numeric real and imag",
-                });
-                samples.clear();
-                return samples;
-            }
-            samples.push_back(ComplexSample{
-                .real = value.at("real").get<float>(),
-                .imag = value.at("imag").get<float>(),
-            });
-        }
-
-        return samples;
-    }
-
-    [[nodiscard]] static std::optional<std::array<double, 3>> ParseVector3(
-        const nlohmann::json& sidecar,
-        const char* key,
-        const std::filesystem::path& path,
-        std::vector<GotchaMatReaderIssue>& issues) {
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end() || !it->is_array() || it->size() != 3 ||
-            !(*it)[0].is_number() || !(*it)[1].is_number() || !(*it)[2].is_number()) {
-            issues.push_back(GotchaMatReaderIssue{
-                .code = std::string{"invalid_"} + key,
-                .path = path,
-                .message = std::string{key} + " must be an array of three numbers",
-            });
-            return std::nullopt;
-        }
-
-        return std::array<double, 3>{
-            (*it)[0].get<double>(),
-            (*it)[1].get<double>(),
-            (*it)[2].get<double>(),
-        };
-    }
-
-    [[nodiscard]] static std::optional<std::array<double, 3>> ParseOptionalVector3(
-        const nlohmann::json& sidecar,
-        const char* key) {
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end()) {
-            return std::nullopt;
-        }
-        if (!it->is_array() || it->size() != 3 || !(*it)[0].is_number() || !(*it)[1].is_number() ||
-            !(*it)[2].is_number()) {
-            return std::nullopt;
-        }
-        return std::array<double, 3>{
-            (*it)[0].get<double>(),
-            (*it)[1].get<double>(),
-            (*it)[2].get<double>(),
-        };
-    }
-
-    [[nodiscard]] static std::optional<double> ParseOptionalFiniteDouble(
-        const nlohmann::json& sidecar,
-        const char* key) {
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end() || !it->is_number()) {
-            return std::nullopt;
-        }
-        return it->get<double>();
-    }
-
-    [[nodiscard]] static std::optional<std::uint64_t> ParseOptionalUnsigned(
-        const nlohmann::json& sidecar,
-        const char* key) {
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end() || !it->is_number_unsigned()) {
-            return std::nullopt;
-        }
-        return it->get<std::uint64_t>();
-    }
-
-    [[nodiscard]] static std::optional<std::string> ParseOptionalNonEmptyString(
-        const nlohmann::json& sidecar,
-        const char* key) {
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end() || !it->is_string()) {
-            return std::nullopt;
-        }
-        const auto value = it->get<std::string>();
-        if (value.empty()) {
-            return std::nullopt;
-        }
-        return value;
-    }
-
-    [[nodiscard]] static std::vector<double> ParseOptionalDoubleArray(
-        const nlohmann::json& sidecar,
-        const char* key) {
-        std::vector<double> values{};
-        const auto it = sidecar.find(key);
-        if (it == sidecar.end() || !it->is_array()) {
-            return values;
-        }
-        values.reserve(it->size());
-        for (const auto& entry : *it) {
-            if (!entry.is_number()) {
-                values.clear();
-                return values;
-            }
-            values.push_back(entry.get<double>());
-        }
-        return values;
-    }
-
-    static void CollectFieldDiagnostics(
-        const nlohmann::json& sidecar,
-        const std::filesystem::path& source_file,
-        std::vector<GotchaFieldNameDiagnostic>& output) {
-        const auto fields_it = sidecar.find("source_field_names");
-        if (fields_it == sidecar.end() || !fields_it->is_object()) {
-            return;
-        }
-
-        for (const auto& [normalized_field, original_field] : fields_it->items()) {
-            if (!original_field.is_string()) {
-                continue;
-            }
-            output.push_back(GotchaFieldNameDiagnostic{
-                .normalized_field = normalized_field,
-                .original_field_name = original_field.get<std::string>(),
-                .source_file = source_file,
-            });
-        }
     }
 
     [[nodiscard]] static std::string BuildFailureMessage(
