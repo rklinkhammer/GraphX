@@ -42,6 +42,23 @@ struct GotchaMatInspectionResult {
     }
 };
 
+struct GotchaFieldValidationError {
+    std::string field_name{};
+    std::string expected_type{};
+    std::string message{};
+    std::filesystem::path source_path{};
+};
+
+struct GotchaFieldValidationResult {
+    bool ok{true};
+    std::vector<GotchaFieldValidationError> missing_fields{};
+    std::vector<GotchaFieldValidationError> type_errors{};
+
+    [[nodiscard]] bool is_valid() const noexcept {
+        return ok && missing_fields.empty() && type_errors.empty();
+    }
+};
+
 class GotchaMatInspector {
 public:
     [[nodiscard]] static GotchaMatInspectionResult Inspect(
@@ -119,6 +136,91 @@ public:
 #else
         return false;
 #endif
+    }
+
+    // Validate GOTCHA required fields according to docs/sar/gotcha_large_scene_data_description.md
+    // These are the required fields that must be present in a GOTCHA sidecar JSON or MAT inspection.
+    // See https://github.com/... for the field specification.
+    [[nodiscard]] static GotchaFieldValidationResult ValidateRequiredFields(
+        const std::filesystem::path& sidecar_path) {
+        GotchaFieldValidationResult result{};
+
+        std::ifstream stream{sidecar_path};
+        if (!stream) {
+            result.ok = false;
+            result.missing_fields.push_back(GotchaFieldValidationError{
+                .field_name = "sidecar_json",
+                .expected_type = "file",
+                .message = "sidecar JSON file could not be opened",
+                .source_path = sidecar_path,
+            });
+            return result;
+        }
+
+        nlohmann::json json{};
+        try {
+            stream >> json;
+        } catch (const nlohmann::json::exception& ex) {
+            result.ok = false;
+            result.type_errors.push_back(GotchaFieldValidationError{
+                .field_name = "sidecar_json",
+                .expected_type = "valid_json",
+                .message = std::string{"sidecar JSON parsing failed: "} + ex.what(),
+                .source_path = sidecar_path,
+            });
+            return result;
+        }
+
+        // Required GOTCHA fields per docs/sar/gotcha_large_scene_data_description.md:
+        // Np, K, deltaF, minF, AntX, AntY, AntZ, R0, phdata
+        const std::vector<std::pair<std::string, std::string>> required_fields{
+            {"Np", "number"},
+            {"K", "number"},
+            {"deltaF", "number"},
+            {"minF", "number"},
+            {"AntX", "number"},
+            {"AntY", "number"},
+            {"AntZ", "number"},
+            {"R0", "number"},
+            {"phdata", "array|object|string"},
+        };
+
+        for (const auto& [field_name, expected_type] : required_fields) {
+            if (!json.contains(field_name)) {
+                result.ok = false;
+                result.missing_fields.push_back(GotchaFieldValidationError{
+                    .field_name = field_name,
+                    .expected_type = expected_type,
+                    .message = "required GOTCHA field is missing from sidecar JSON",
+                    .source_path = sidecar_path,
+                });
+                continue;
+            }
+
+            const auto& value = json[field_name];
+
+            // Type validation
+            bool type_ok = false;
+            if (expected_type == "number") {
+                type_ok = value.is_number();
+            } else if (expected_type == "array|object|string") {
+                // phdata can be array, object, or string representation
+                type_ok = value.is_array() || value.is_object() || value.is_string();
+            }
+
+            if (!type_ok) {
+                result.ok = false;
+                result.type_errors.push_back(GotchaFieldValidationError{
+                    .field_name = field_name,
+                    .expected_type = expected_type,
+                    .message = "field has incorrect type (expected " + expected_type + ", got " +
+                               value.type_name() + ")",
+                    .source_path = sidecar_path,
+                });
+            }
+        }
+
+        return result;
     }
 
 private:

@@ -343,6 +343,35 @@ struct SarpyValidationOutcome {
     return outcome;
 }
 
+[[nodiscard]] bool ValidateGotchaFieldsPreFlight(
+    const std::vector<std::filesystem::path>& files,
+    std::string& failure_message) {
+    for (const auto& mat_file : files) {
+        const auto sidecar_path = std::filesystem::path{mat_file.string() + ".json"};
+        if (!std::filesystem::exists(sidecar_path)) {
+            // Only validate if sidecar exists; inspector will handle missing sidecars
+            continue;
+        }
+
+        const auto validation = graphx::sar::GotchaMatInspector::ValidateRequiredFields(sidecar_path);
+        if (!validation.is_valid()) {
+            // Report the first validation error
+            if (!validation.missing_fields.empty()) {
+                const auto& error = validation.missing_fields.front();
+                failure_message = "missing_required_field:" + error.field_name + ":" + sidecar_path.generic_string();
+                return false;
+            }
+            if (!validation.type_errors.empty()) {
+                const auto& error = validation.type_errors.front();
+                failure_message = "invalid_field_type:" + error.field_name + ":" + sidecar_path.generic_string() +
+                                 ":" + error.expected_type;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 int Run(const CliOptions& options) {
     const auto ordering = DiscoverInputs(options);
     if (const auto error = FindOrderingErrorMessage(ordering); error.has_value()) {
@@ -356,6 +385,12 @@ int Run(const CliOptions& options) {
             options.allow_classic_mat_with_sidecar,
             mat_failure)) {
         std::cerr << mat_failure << '\n';
+        return 1;
+    }
+
+    std::string field_failure{};
+    if (!ValidateGotchaFieldsPreFlight(ordering.files, field_failure)) {
+        std::cerr << field_failure << '\n';
         return 1;
     }
 

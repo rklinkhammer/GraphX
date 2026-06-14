@@ -46,6 +46,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_product_validator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_input_ordering.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_inspector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_field_inventory_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_mat_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_crsd_lite_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_io.cpp

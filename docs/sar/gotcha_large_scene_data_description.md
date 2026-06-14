@@ -1,5 +1,7 @@
 # GOTCHA Large Scene Data Description Summary
 
+**Authoritative Reference:** This document is the authoritative reference for GOTCHA field validation in GraphX. The field inventory, names, and types defined below are used to validate GOTCHA sidecars and ensure conversion completeness.
+
 Source reviewed:
 
 - `/Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData/Data_Description.pdf`
@@ -12,17 +14,17 @@ combined size of about 5.9 GB.
 
 Each file contains the same data fields:
 
-| Field | Meaning |
-| --- | --- |
-| `Np` | Number of pulses in the file |
-| `K` | Number of data samples per pulse |
-| `deltaF` | Frequency step size between samples, in hertz |
-| `minF` | Frequency of the first sample, in hertz |
-| `AntX` | Radar antenna phase-center x position relative to scene center, in meters |
-| `AntY` | Radar antenna phase-center y position relative to scene center, in meters |
-| `AntZ` | Radar antenna phase-center z position relative to scene center, in meters |
-| `R0` | Distance from radar antenna phase center to scene center, in meters |
-| `phdata` | Processed radar phase-history data array |
+| Field | Meaning | Type | Required |
+| --- | --- | --- | --- |
+| `Np` | Number of pulses in the file | integer | ✅ |
+| `K` | Number of data samples per pulse | integer | ✅ |
+| `deltaF` | Frequency step size between samples, in hertz | number | ✅ |
+| `minF` | Frequency of the first sample, in hertz | number | ✅ |
+| `AntX` | Radar antenna phase-center x position relative to scene center, in meters | number | ✅ |
+| `AntY` | Radar antenna phase-center y position relative to scene center, in meters | number | ✅ |
+| `AntZ` | Radar antenna phase-center z position relative to scene center, in meters | number | ✅ |
+| `R0` | Distance from radar antenna phase center to scene center, in meters | number | ✅ |
+| `phdata` | Processed radar phase-history data array | array/object/string | ✅ |
 
 The antenna phase-center coordinates are in a local Cartesian coordinate system
 whose origin is the scene center. The PDF text spells the z-coordinate field as
