@@ -55,6 +55,8 @@ Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
 
 Verify exactly PR1 from plan/SAR_NAMING_CLEANUP_PLANNER_REPORT.md.
 
+Use the verifier prompt from:  plan/agents/SAR_NAMING_CLEANUP_PR_AGENTS.md
+
 Required checks:
 - SAR_IMPL_PR* and SAR_VERIFY_PR* reports that were in plan/reviews are now under plan/history/reviews.
 - plan/reviews retains active architecture/policy reports only.

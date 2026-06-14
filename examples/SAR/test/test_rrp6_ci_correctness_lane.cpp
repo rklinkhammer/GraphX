@@ -29,8 +29,8 @@ namespace {
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
 #endif
 
-#ifndef SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH
-#define SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+#ifndef SAR_CI_TINY_GOTCHA_FIXTURE_PATH
+#define SAR_CI_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
 #ifndef SAR_IMAGE_COMPARATOR_PATH
@@ -91,7 +91,7 @@ struct CiLaneResult {
 
 CiLaneResult RunCiSafeCorrectnessLane(const std::filesystem::path& output_dir) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
-    const auto tiny_fixture_path = std::filesystem::path{SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH};
+    const auto tiny_fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};
     const auto comparator_path = std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH};
 

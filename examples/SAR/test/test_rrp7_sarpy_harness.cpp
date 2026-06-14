@@ -9,8 +9,13 @@
 
 namespace {
 
-constexpr const char* kHarnessPath = "examples/SAR/tools/sarpy_metadata_harness.py";
-constexpr const char* kHarnessGuidePath = "examples/SAR/tools/sarpy_metadata_harness.md";
+#ifndef SARPY_METADATA_HARNESS_PATH
+#define SARPY_METADATA_HARNESS_PATH "examples/SAR/tools/sarpy_metadata_harness.py"
+#endif
+
+#ifndef SARPY_METADATA_HARNESS_GUIDE_PATH
+#define SARPY_METADATA_HARNESS_GUIDE_PATH "examples/SAR/tools/sarpy_metadata_harness.md"
+#endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
@@ -45,7 +50,7 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Rrp7SarpyHarnessTest, HarnessEntryPointExistsAndProbeIsLocalOnlyFriendly) {
-    const auto harness_path = std::filesystem::path{kHarnessPath};
+    const auto harness_path = std::filesystem::path{SARPY_METADATA_HARNESS_PATH};
     ASSERT_TRUE(std::filesystem::exists(harness_path));
 
     const auto output_path = std::filesystem::temp_directory_path() / "graphx_rrp7_sarpy_probe.json";
@@ -68,7 +73,7 @@ TEST(Rrp7SarpyHarnessTest, HarnessEntryPointExistsAndProbeIsLocalOnlyFriendly) {
 }
 
 TEST(Rrp7SarpyHarnessTest, MetadataNormalizationProducesGraphxCompatibleContract) {
-    const auto harness_path = std::filesystem::path{kHarnessPath};
+    const auto harness_path = std::filesystem::path{SARPY_METADATA_HARNESS_PATH};
     ASSERT_TRUE(std::filesystem::exists(harness_path));
 
     const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp7_sarpy_normalize";
@@ -118,7 +123,7 @@ TEST(Rrp7SarpyHarnessTest, MetadataNormalizationProducesGraphxCompatibleContract
 TEST(Rrp7SarpyHarnessTest, PolicyAndRegistryDeclareSarpyLocalOnlyHarnessBoundary) {
     const auto registry = LoadJson(std::filesystem::path{SAR_BASELINE_PACKAGE_REGISTRY_PATH});
     const auto policy = ReadText(std::filesystem::path{SAR_EXTERNAL_BASELINE_POLICY_PATH});
-    const auto guide = ReadText(std::filesystem::path{kHarnessGuidePath});
+    const auto guide = ReadText(std::filesystem::path{SARPY_METADATA_HARNESS_GUIDE_PATH});
 
     bool found_sarpy = false;
     for (const auto& pkg : registry.at("packages")) {

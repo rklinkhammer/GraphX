@@ -12,8 +12,8 @@
 
 namespace {
 
-#ifndef SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH
-#define SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+#ifndef SAR_CI_TINY_GOTCHA_FIXTURE_PATH
+#define SAR_CI_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
 nlohmann::json LoadJson(const std::filesystem::path& path) {
@@ -28,7 +28,7 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Rrp6TinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
-    const auto fixture_path = std::filesystem::path{SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH};
+    const auto fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(fixture_path));
 
     const auto fixture = LoadJson(fixture_path);
@@ -73,7 +73,7 @@ TEST(Rrp6TinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
 }
 
 TEST(Rrp6TinyFixtureTest, GotchaReplaySourceAcceptsCiSafeTinyFixtureWithoutExternalOptIn) {
-    const auto fixture_path = std::filesystem::path{SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH};
+    const auto fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(fixture_path));
 
     sar::GotchaReplaySourceNode node;

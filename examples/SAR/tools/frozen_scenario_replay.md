@@ -22,7 +22,7 @@ python3 examples/SAR/tools/sar_local_runner.py \
 #    (handled by the C++ executor in the test suite below)
 
 # 4. Write graphx_output_contract.json and deterministic_reference_contract.json
-#    (handled by the test suite: test_sar_example_unit --gtest_filter=Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
+#    (handled by the test suite: test_sar_example_unit --gtest_filter=*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
 
 # 5. Run the comparator directly against the produced contracts:
 python3 examples/SAR/tools/sar_image_comparator.py \
@@ -33,15 +33,16 @@ python3 examples/SAR/tools/sar_image_comparator.py \
 ```
 
 The comparison report at `reports/ci_safe_comparison_report.json` contains:
+
 - `"verdict": "pass"` or `"verdict": "fail"`
 - Pixel metrics: `l_inf`, `rms`, `relative_l2`
 - Per-check breakdown: source_tool, scenario_id, format, layout, dimensions, byte_count, pixel_count
 
-The full CI-safe integration test (`Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator`) exercises this entire chain automatically from the test suite:
+The full CI-safe integration test (`*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator`) exercises this entire chain automatically from the test suite:
 
 ```bash
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
-  --gtest_filter='Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator' -v
+  --gtest_filter='*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator' -v
 ```
 
 ## Purpose
@@ -64,7 +65,7 @@ export GOTCHA_DIR=/path/to/unpacked/GOTCHA
 export GOTCHA_BACK_BIN=/path/to/gotcha-back/sarbp
 ```
 
-2. Prepare the frozen scenario layout:
+1. Prepare the frozen scenario layout:
 
 ```bash
 python3 examples/SAR/tools/sar_local_runner.py \
@@ -72,25 +73,25 @@ python3 examples/SAR/tools/sar_local_runner.py \
   --output-dir /tmp/graphx_sar_scenario_001
 ```
 
-3. Update the generated GraphX config before running GraphX:
+1. Update the generated GraphX config before running GraphX:
 
 - Open `/tmp/graphx_sar_scenario_001/graphx/graphx_config.json`
 - Set the source fixture path to the local GOTCHA replay fixture
 - Keep the generated `SarMaterializedImageSinkNode` materialization path intact
 
-4. Run the GraphX side of the replay:
+1. Run the GraphX side of the replay:
 
 ```bash
 /tmp/graphx_sar_scenario_001/graphx/run_graphx.sh
 ```
 
-5. Run the pinned gotcha-back reference side:
+1. Run the pinned gotcha-back reference side:
 
 ```bash
 /tmp/graphx_sar_scenario_001/reference/run_gotcha_back.sh
 ```
 
-6. Normalize the reference output if needed:
+1. Normalize the reference output if needed:
 
 ```bash
 python3 examples/SAR/tools/gotcha_back_adapter.py \
@@ -100,7 +101,7 @@ python3 examples/SAR/tools/gotcha_back_adapter.py \
   --output-json /tmp/graphx_sar_scenario_001/reference/normalized_reference.json
 ```
 
-7. Compare GraphX and reference artifacts:
+1. Compare GraphX and reference artifacts:
 
 ```bash
 python3 examples/SAR/tools/sar_image_comparator.py \

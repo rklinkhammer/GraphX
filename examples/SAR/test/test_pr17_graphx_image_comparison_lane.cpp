@@ -15,12 +15,12 @@
 
 #include <nlohmann/json.hpp>
 
-#ifndef SAR_PR17_REFERENCE_IMAGE_TOOL_PATH
-#define SAR_PR17_REFERENCE_IMAGE_TOOL_PATH "tools/sarpy/reference_image_from_gotcha.py"
+#ifndef SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH
+#define SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH "tools/sarpy/reference_image_from_gotcha.py"
 #endif
 
-#ifndef SAR_PR17_COMPARE_IMAGES_TOOL_PATH
-#define SAR_PR17_COMPARE_IMAGES_TOOL_PATH "tools/sarpy/compare_images.py"
+#ifndef SARPY_COMPARE_IMAGES_TOOL_PATH
+#define SARPY_COMPARE_IMAGES_TOOL_PATH "tools/sarpy/compare_images.py"
 #endif
 
 namespace {
@@ -148,7 +148,7 @@ protected:
     bool HasPythonImageDependencies() const {
         const auto probe_json = Path("probe.json");
         const std::string command =
-            PythonCommand() + " " + QuotePath(std::filesystem::path{SAR_PR17_COMPARE_IMAGES_TOOL_PATH}) +
+            PythonCommand() + " " + QuotePath(std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH}) +
             " probe-environment --output-json " + QuotePath(probe_json) +
             " > /dev/null";
         EXPECT_EQ(RunCommand(command), 0);
@@ -162,7 +162,7 @@ protected:
                      const std::filesystem::path& output_png,
                      const std::filesystem::path& output_metadata) const {
         const std::string command =
-            PythonCommand() + " " + QuotePath(std::filesystem::path{SAR_PR17_REFERENCE_IMAGE_TOOL_PATH}) +
+            PythonCommand() + " " + QuotePath(std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH}) +
             " generate-reference --input-json " + QuotePath(input_json) +
             " --output-reference-npy " + QuotePath(output_npy) +
             " --output-magnitude-png " + QuotePath(output_png) +
@@ -173,7 +173,7 @@ protected:
 
     void CompareImages(const std::filesystem::path& report_path) const {
         const std::string command =
-            PythonCommand() + " " + QuotePath(std::filesystem::path{SAR_PR17_COMPARE_IMAGES_TOOL_PATH}) +
+            PythonCommand() + " " + QuotePath(std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH}) +
             " compare --reference-npy " + QuotePath(Path("python_reference/reference_image.npy")) +
             " --candidate-npy " + QuotePath(Path("graphx_candidate/candidate_image.npy")) +
             " --output-report-json " + QuotePath(report_path) +

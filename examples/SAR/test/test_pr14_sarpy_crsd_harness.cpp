@@ -10,16 +10,16 @@
 
 namespace {
 
-#ifndef SAR_PR14_VALIDATE_CRSD_TOOL_PATH
-#define SAR_PR14_VALIDATE_CRSD_TOOL_PATH "tools/sarpy/validate_crsd.py"
+#ifndef SARPY_VALIDATE_CRSD_TOOL_PATH
+#define SARPY_VALIDATE_CRSD_TOOL_PATH "tools/sarpy/validate_crsd.py"
 #endif
 
-#ifndef SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH
-#define SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH "tools/sarpy/reference_image_from_crsd.py"
+#ifndef SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH
+#define SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH "tools/sarpy/reference_image_from_crsd.py"
 #endif
 
-#ifndef SAR_PR14_SARPY_REQUIREMENTS_PATH
-#define SAR_PR14_SARPY_REQUIREMENTS_PATH "tools/sarpy/requirements.txt"
+#ifndef SARPY_REQUIREMENTS_PATH
+#define SARPY_REQUIREMENTS_PATH "tools/sarpy/requirements.txt"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -44,9 +44,9 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Pr14SarpyCrsdHarnessTest, RequiredFilesExistAndRequirementsContainSarpy) {
-    const auto validate_tool = std::filesystem::path{SAR_PR14_VALIDATE_CRSD_TOOL_PATH};
-    const auto reference_tool = std::filesystem::path{SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
-    const auto requirements = std::filesystem::path{SAR_PR14_SARPY_REQUIREMENTS_PATH};
+    const auto validate_tool = std::filesystem::path{SARPY_VALIDATE_CRSD_TOOL_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
+    const auto requirements = std::filesystem::path{SARPY_REQUIREMENTS_PATH};
 
     ASSERT_TRUE(std::filesystem::exists(validate_tool));
     ASSERT_TRUE(std::filesystem::exists(reference_tool));
@@ -57,8 +57,8 @@ TEST(Pr14SarpyCrsdHarnessTest, RequiredFilesExistAndRequirementsContainSarpy) {
 }
 
 TEST(Pr14SarpyCrsdHarnessTest, ProbeCommandsDeclareLocalOnlyHarness) {
-    const auto validate_tool = std::filesystem::path{SAR_PR14_VALIDATE_CRSD_TOOL_PATH};
-    const auto reference_tool = std::filesystem::path{SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
+    const auto validate_tool = std::filesystem::path{SARPY_VALIDATE_CRSD_TOOL_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
 
     const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr14_sarpy_probe";
     std::error_code remove_error;
@@ -90,8 +90,8 @@ TEST(Pr14SarpyCrsdHarnessTest, ProbeCommandsDeclareLocalOnlyHarness) {
 }
 
 TEST(Pr14SarpyCrsdHarnessTest, OptionalLocalSmokeRunsWhenSarpyAndCrsdPathAreAvailable) {
-    const auto validate_tool = std::filesystem::path{SAR_PR14_VALIDATE_CRSD_TOOL_PATH};
-    const auto reference_tool = std::filesystem::path{SAR_PR14_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
+    const auto validate_tool = std::filesystem::path{SARPY_VALIDATE_CRSD_TOOL_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
 
     const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr14_sarpy_smoke";
     std::error_code remove_error;

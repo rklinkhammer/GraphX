@@ -35,8 +35,8 @@ namespace pr7 = sar::test::pr7;
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
 #endif
 
-#ifndef SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH
-#define SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+#ifndef SAR_CI_TINY_GOTCHA_FIXTURE_PATH
+#define SAR_CI_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -93,7 +93,7 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
-    const auto tiny_fixture_path = std::filesystem::path{SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH};
+    const auto tiny_fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(tiny_fixture_path));
 
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};

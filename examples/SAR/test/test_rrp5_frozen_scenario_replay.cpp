@@ -31,8 +31,8 @@ namespace {
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
 #endif
 
-#ifndef SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH
-#define SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+#ifndef SAR_CI_TINY_GOTCHA_FIXTURE_PATH
+#define SAR_CI_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
 #ifndef SAR_IMAGE_COMPARATOR_PATH
@@ -138,7 +138,7 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
-    const auto tiny_fixture_path = std::filesystem::path{SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH};
+    const auto tiny_fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(tiny_fixture_path));
 
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};

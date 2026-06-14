@@ -10,16 +10,16 @@
 
 namespace {
 
-#ifndef SAR_PR13_REFERENCE_IMAGE_TOOL_PATH
-#define SAR_PR13_REFERENCE_IMAGE_TOOL_PATH "tools/sarpy/reference_image_from_gotcha.py"
+#ifndef SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH
+#define SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH "tools/sarpy/reference_image_from_gotcha.py"
 #endif
 
-#ifndef SAR_PR13_COMPARE_IMAGES_TOOL_PATH
-#define SAR_PR13_COMPARE_IMAGES_TOOL_PATH "tools/sarpy/compare_images.py"
+#ifndef SARPY_COMPARE_IMAGES_TOOL_PATH
+#define SARPY_COMPARE_IMAGES_TOOL_PATH "tools/sarpy/compare_images.py"
 #endif
 
-#ifndef SAR_PR13_SARPY_REQUIREMENTS_PATH
-#define SAR_PR13_SARPY_REQUIREMENTS_PATH "tools/sarpy/requirements.txt"
+#ifndef SARPY_REQUIREMENTS_PATH
+#define SARPY_REQUIREMENTS_PATH "tools/sarpy/requirements.txt"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -44,9 +44,9 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Pr13SarpyToolsTest, RequiredFilesExistAndRequirementsDeclareExpectedPackages) {
-    const auto reference_tool = std::filesystem::path{SAR_PR13_REFERENCE_IMAGE_TOOL_PATH};
-    const auto compare_tool = std::filesystem::path{SAR_PR13_COMPARE_IMAGES_TOOL_PATH};
-    const auto requirements = std::filesystem::path{SAR_PR13_SARPY_REQUIREMENTS_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
+    const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
+    const auto requirements = std::filesystem::path{SARPY_REQUIREMENTS_PATH};
 
     ASSERT_TRUE(std::filesystem::exists(reference_tool));
     ASSERT_TRUE(std::filesystem::exists(compare_tool));
@@ -61,8 +61,8 @@ TEST(Pr13SarpyToolsTest, RequiredFilesExistAndRequirementsDeclareExpectedPackage
 }
 
 TEST(Pr13SarpyToolsTest, ProbeCommandsAreLocalOnlyAndNonBlocking) {
-    const auto reference_tool = std::filesystem::path{SAR_PR13_REFERENCE_IMAGE_TOOL_PATH};
-    const auto compare_tool = std::filesystem::path{SAR_PR13_COMPARE_IMAGES_TOOL_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
+    const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
 
     const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr13_sarpy_probe";
     std::error_code remove_error;
@@ -94,8 +94,8 @@ TEST(Pr13SarpyToolsTest, ProbeCommandsAreLocalOnlyAndNonBlocking) {
 }
 
 TEST(Pr13SarpyToolsTest, GeneratesReferenceAndDeterministicComparisonMetrics) {
-    const auto reference_tool = std::filesystem::path{SAR_PR13_REFERENCE_IMAGE_TOOL_PATH};
-    const auto compare_tool = std::filesystem::path{SAR_PR13_COMPARE_IMAGES_TOOL_PATH};
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
+    const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
 
     const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr13_sarpy_metrics";
     std::error_code remove_error;
