@@ -49,11 +49,11 @@ std::string ReadText(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Rrp7SarpyHarnessTest, HarnessEntryPointExistsAndProbeIsLocalOnlyFriendly) {
+TEST(SarpyMetadataHarnessTest, HarnessEntryPointExistsAndProbeIsLocalOnlyFriendly) {
     const auto harness_path = std::filesystem::path{SARPY_METADATA_HARNESS_PATH};
     ASSERT_TRUE(std::filesystem::exists(harness_path));
 
-    const auto output_path = std::filesystem::temp_directory_path() / "graphx_rrp7_sarpy_probe.json";
+    const auto output_path = std::filesystem::temp_directory_path() / "graphx_sarpy_metadata_probe.json";
     std::error_code ec;
     std::filesystem::remove(output_path, ec);
 
@@ -72,11 +72,11 @@ TEST(Rrp7SarpyHarnessTest, HarnessEntryPointExistsAndProbeIsLocalOnlyFriendly) {
     EXPECT_EQ(probe.at("comparison_scope").get<std::string>(), "product_metadata_validation_only");
 }
 
-TEST(Rrp7SarpyHarnessTest, MetadataNormalizationProducesGraphxCompatibleContract) {
+TEST(SarpyMetadataHarnessTest, MetadataNormalizationProducesGraphxCompatibleContract) {
     const auto harness_path = std::filesystem::path{SARPY_METADATA_HARNESS_PATH};
     ASSERT_TRUE(std::filesystem::exists(harness_path));
 
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp7_sarpy_normalize";
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_sarpy_metadata_normalize";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -120,7 +120,7 @@ TEST(Rrp7SarpyHarnessTest, MetadataNormalizationProducesGraphxCompatibleContract
     ASSERT_TRUE(contract.at("metadata_fields").is_object());
 }
 
-TEST(Rrp7SarpyHarnessTest, PolicyAndRegistryDeclareSarpyLocalOnlyHarnessBoundary) {
+TEST(SarpyMetadataHarnessTest, PolicyAndRegistryDeclareSarpyLocalOnlyHarnessBoundary) {
     const auto registry = LoadJson(std::filesystem::path{SAR_BASELINE_PACKAGE_REGISTRY_PATH});
     const auto policy = ReadText(std::filesystem::path{SAR_EXTERNAL_BASELINE_POLICY_PATH});
     const auto guide = ReadText(std::filesystem::path{SARPY_METADATA_HARNESS_GUIDE_PATH});

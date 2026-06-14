@@ -262,8 +262,8 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
 
 } // namespace
 
-TEST(Rrp4ImageComparatorTest, MatchingImageContractsProducePassReport) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_comparator_pass";
+TEST(ImageComparatorContractTest, MatchingImageContractsProducePassReport) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_pass";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -307,8 +307,8 @@ TEST(Rrp4ImageComparatorTest, MatchingImageContractsProducePassReport) {
     EXPECT_DOUBLE_EQ(metrics.at("relative_l2").get<double>(), 0.0);
 }
 
-TEST(Rrp4ImageComparatorTest, RealScenarioArtifactsProduceDeterministicFailReportWithReasons) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_real_compare_pass";
+TEST(ImageComparatorContractTest, RealScenarioArtifactsProduceDeterministicFailReportWithReasons) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_real_compare_pass";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -357,8 +357,8 @@ TEST(Rrp4ImageComparatorTest, RealScenarioArtifactsProduceDeterministicFailRepor
     EXPECT_TRUE(metrics.at("relative_l2").is_null());
 }
 
-TEST(Rrp4ImageComparatorTest, MissingRequiredContractFieldIsReportedExplicitly) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_missing_field";
+TEST(ImageComparatorContractTest, MissingRequiredContractFieldIsReportedExplicitly) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_missing_field";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -390,8 +390,8 @@ TEST(Rrp4ImageComparatorTest, MissingRequiredContractFieldIsReportedExplicitly) 
     EXPECT_NE(stderr_text.find("graphx_contract.raw_path is required"), std::string::npos);
 }
 
-TEST(Rrp4ImageComparatorTest, RepeatedRunsProduceIdenticalReportsForEqualArtifacts) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_repeatable_reports";
+TEST(ImageComparatorContractTest, RepeatedRunsProduceIdenticalReportsForEqualArtifacts) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_repeatable_reports";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -431,8 +431,8 @@ TEST(Rrp4ImageComparatorTest, RepeatedRunsProduceIdenticalReportsForEqualArtifac
     EXPECT_EQ(report_1.dump(), report_2.dump());
 }
 
-TEST(Rrp4ImageComparatorTest, MismatchedImageContractsProduceFailReport) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_comparator_fail";
+TEST(ImageComparatorContractTest, MismatchedImageContractsProduceFailReport) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_fail";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -477,7 +477,7 @@ TEST(Rrp4ImageComparatorTest, MismatchedImageContractsProduceFailReport) {
     EXPECT_GT(metrics.at("relative_l2").get<double>(), 0.0);
 }
 
-TEST(Rrp4ImageComparatorTest, ReportSchemaDeclaresPassFailShape) {
+TEST(ImageComparatorContractTest, ReportSchemaDeclaresPassFailShape) {
     const auto schema_path = std::filesystem::path{SAR_IMAGE_COMPARISON_SCHEMA_PATH};
     ASSERT_TRUE(std::filesystem::exists(schema_path));
 
@@ -493,8 +493,8 @@ TEST(Rrp4ImageComparatorTest, ReportSchemaDeclaresPassFailShape) {
     EXPECT_NE(std::find(required.begin(), required.end(), "metrics"), required.end());
 }
 
-TEST(Rrp4ImageComparatorTest, DeterministicInternalReferenceIsAcceptedByBoundaryChecks) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp4_comparator_deterministic_ref";
+TEST(ImageComparatorContractTest, DeterministicInternalReferenceIsAcceptedByBoundaryChecks) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_comparator_contract_deterministic_ref";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));

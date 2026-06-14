@@ -6,7 +6,7 @@
 #include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
-#include "sar_pr7_parity_fixture.hpp"
+#include "sar_reference_parity_fixture.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -21,7 +21,7 @@
 
 namespace {
 
-namespace pr7 = sar::test::pr7;
+namespace reference_parity = sar::test::reference_parity;
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
@@ -89,7 +89,7 @@ sar::reference::Image ToImage(const std::vector<float>& pixels) {
 
 } // namespace
 
-TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExternalDownload) {
+TEST(CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExternalDownload) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
@@ -99,7 +99,7 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};
     ASSERT_TRUE(std::filesystem::exists(plugin_dir));
 
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp7_ci_validation_lane";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_ci_validation_lane";
     std::error_code remove_error;
     std::filesystem::remove_all(output_dir, remove_error);
 
@@ -153,9 +153,9 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
     ASSERT_EQ(reference_pixels.size(), graph_pixels.size());
 
     const auto error = sar::reference::CompareVectors(graph_pixels, reference_pixels);
-    EXPECT_LE(error.l_inf, pr7::kMaterializedImageLInfTolerance);
-    EXPECT_LE(error.rms, pr7::kMaterializedImageRmsTolerance);
-    EXPECT_LE(error.relative_l2, pr7::kMaterializedImageRelativeL2Tolerance);
+    EXPECT_LE(error.l_inf, reference_parity::kMaterializedImageLInfTolerance);
+    EXPECT_LE(error.rms, reference_parity::kMaterializedImageRmsTolerance);
+    EXPECT_LE(error.relative_l2, reference_parity::kMaterializedImageRelativeL2Tolerance);
 
     const auto graph_image = ToImage(graph_pixels);
     const auto reference_image = ToImage(reference_pixels);
@@ -166,13 +166,13 @@ TEST(Rrp7CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExte
                                       (static_cast<int>(graph_peak.x) - static_cast<int>(ref_peak.x)) +
                                       (static_cast<int>(graph_peak.y) - static_cast<int>(ref_peak.y)) *
                                       (static_cast<int>(graph_peak.y) - static_cast<int>(ref_peak.y))));
-    EXPECT_LE(peak_location_error_pixels, pr7::kImagePeakLocationErrorTolerancePixels);
+    EXPECT_LE(peak_location_error_pixels, reference_parity::kImagePeakLocationErrorTolerancePixels);
 
     const auto graph_metrics = sar::reference::MeasureImageQuality(graph_image, graph_peak.x, graph_peak.y);
     const auto ref_metrics = sar::reference::MeasureImageQuality(reference_image, ref_peak.x, ref_peak.y);
     const auto dynamic_range_delta = std::abs(graph_metrics.dynamic_range_db - ref_metrics.dynamic_range_db);
-    EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb);
-    EXPECT_GE(graph_metrics.dynamic_range_db, pr7::kImageDynamicRangeMinDb);
+    EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb);
+    EXPECT_GE(graph_metrics.dynamic_range_db, reference_parity::kImageDynamicRangeMinDb);
 
     ASSERT_FALSE(graph_pixels.empty());
     for (const auto value : graph_pixels) {

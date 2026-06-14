@@ -54,11 +54,11 @@ void WriteFloat32Raster(const std::filesystem::path& path, std::size_t count) {
 
 } // namespace
 
-TEST(Rrp3GotchaBackAdapterTest, Scenario001ProducesPinnedInvocationSpec) {
+TEST(GotchaBackAdapterContractTest, Scenario001ProducesPinnedInvocationSpec) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
-    const auto reference_dir = std::filesystem::temp_directory_path() / "graphx_rrp3_reference_scaffold";
+    const auto reference_dir = std::filesystem::temp_directory_path() / "graphx_gotcha_back_adapter_reference_scaffold";
     std::error_code remove_error;
     std::filesystem::remove_all(reference_dir, remove_error);
 
@@ -111,11 +111,11 @@ TEST(Rrp3GotchaBackAdapterTest, Scenario001ProducesPinnedInvocationSpec) {
     EXPECT_EQ(contract.at("height").get<int>(), 16);
 }
 
-TEST(Rrp3GotchaBackAdapterTest, NormalizesRawFloat32OutputArtifactForScenario001) {
+TEST(GotchaBackAdapterContractTest, NormalizesRawFloat32OutputArtifactForScenario001) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp3_normalize_output";
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_gotcha_back_adapter_normalize_output";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));

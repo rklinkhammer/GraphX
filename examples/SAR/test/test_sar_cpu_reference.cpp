@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sar_pr7_parity_fixture.hpp"
+#include "sar_reference_parity_fixture.hpp"
 #include "sar/SarCpuReference.hpp"
 
 #include <cmath>
@@ -21,12 +21,12 @@
 
 namespace {
 
-namespace pr7 = sar::test::pr7;
+namespace reference_parity = sar::test::reference_parity;
 
 } // namespace
 
 TEST(SarCpuReferenceTest, PointTargetBackprojectionFocusesAtKnownPixel) {
-    const auto geometry = pr7::TinyPointTargetGeometry();
+    const auto geometry = reference_parity::TinyPointTargetGeometry();
     const sar::reference::PointTarget target{
         .x_m = 0.0,
         .y_m = 0.0,
@@ -37,20 +37,20 @@ TEST(SarCpuReferenceTest, PointTargetBackprojectionFocusesAtKnownPixel) {
     const auto image = sar::reference::BackprojectNearestRange(geometry, phase_history);
     const auto peak = sar::reference::FindPeak(image);
 
-    EXPECT_EQ(peak.x, pr7::kTinyPointPeakX);
-    EXPECT_EQ(peak.y, pr7::kTinyPointPeakY);
-    EXPECT_NEAR(peak.value, pr7::kTinyPointPeakValue, pr7::kTinyPointPeakValueTolerance);
+    EXPECT_EQ(peak.x, reference_parity::kTinyPointPeakX);
+    EXPECT_EQ(peak.y, reference_parity::kTinyPointPeakY);
+    EXPECT_NEAR(peak.value, reference_parity::kTinyPointPeakValue, reference_parity::kTinyPointPeakValueTolerance);
 
     const auto center_index =
         static_cast<std::size_t>(peak.y) * image.width + peak.x;
     ASSERT_LT(center_index, image.pixels.size());
     EXPECT_EQ(image.pixels[center_index], peak.value);
 
-    EXPECT_EQ(sar::reference::QuantizedImageHash(image), pr7::kTinyPointImageHash);
+    EXPECT_EQ(sar::reference::QuantizedImageHash(image), reference_parity::kTinyPointImageHash);
 }
 
 TEST(SarCpuReferenceTest, ImageComparisonReportsParityMetrics) {
-    const auto geometry = pr7::TinyPointTargetGeometry();
+    const auto geometry = reference_parity::TinyPointTargetGeometry();
     const sar::reference::PointTarget target{
         .x_m = 0.0,
         .y_m = 0.0,
@@ -77,7 +77,7 @@ TEST(SarCpuReferenceTest, ImageComparisonReportsParityMetrics) {
 
 TEST(SarCpuReferenceTest, MatchedFilterKnownVectorFindsDelayedEcho) {
     sar::reference::ChirpReferenceConfig cfg{};
-    cfg.sample_count = pr7::kMatchedFilterVectorLength;
+    cfg.sample_count = reference_parity::kMatchedFilterVectorLength;
     cfg.sample_rate_hz = 16.0e6;
     cfg.bandwidth_hz = 4.0e6;
     cfg.chirp_duration_s = 1.0e-6;
@@ -87,20 +87,20 @@ TEST(SarCpuReferenceTest, MatchedFilterKnownVectorFindsDelayedEcho) {
     const auto chirp = sar::reference::GenerateLinearFmChirp(cfg);
     const auto echo = sar::reference::GenerateDelayedEcho(chirp, 3u, 0.75);
     const auto compressed = sar::reference::MatchedFilterRangeCompress(echo, chirp);
-    const auto image = sar::reference::MagnitudeImage(pr7::kMatchedFilterVectorLength, 1u, compressed);
-    const auto metrics = sar::reference::MeasureImageQuality(image, pr7::kMatchedFilterPeakBin, 0u);
+    const auto image = sar::reference::MagnitudeImage(reference_parity::kMatchedFilterVectorLength, 1u, compressed);
+    const auto metrics = sar::reference::MeasureImageQuality(image, reference_parity::kMatchedFilterPeakBin, 0u);
 
-    EXPECT_EQ(metrics.peak.x, pr7::kMatchedFilterPeakBin);
+    EXPECT_EQ(metrics.peak.x, reference_parity::kMatchedFilterPeakBin);
     EXPECT_EQ(metrics.peak.y, 0u);
-    EXPECT_NEAR(metrics.peak.value, static_cast<float>(pr7::kMatchedFilterPeakValue), pr7::kTinyPointPeakValueTolerance);
-    EXPECT_DOUBLE_EQ(metrics.peak_location_error_pixels, pr7::kImagePeakLocationErrorTolerancePixels);
-    EXPECT_GE(metrics.dynamic_range_db, pr7::kImageDynamicRangeMinDb);
+    EXPECT_NEAR(metrics.peak.value, static_cast<float>(reference_parity::kMatchedFilterPeakValue), reference_parity::kTinyPointPeakValueTolerance);
+    EXPECT_DOUBLE_EQ(metrics.peak_location_error_pixels, reference_parity::kImagePeakLocationErrorTolerancePixels);
+    EXPECT_GE(metrics.dynamic_range_db, reference_parity::kImageDynamicRangeMinDb);
     EXPECT_LT(metrics.peak_sidelobe_ratio_db, 0.0);
     EXPECT_NE(metrics.image_hash, 0u);
 }
 
 TEST(SarCpuReferenceTest, ImageQualityMetricsTrackOffGridPointTarget) {
-    const auto geometry = pr7::TinyPointTargetGeometry();
+    const auto geometry = reference_parity::TinyPointTargetGeometry();
     const sar::reference::PointTarget target{
         .x_m = 0.25,
         .y_m = 0.0,
@@ -118,7 +118,7 @@ TEST(SarCpuReferenceTest, ImageQualityMetricsTrackOffGridPointTarget) {
 }
 
 TEST(SarCpuReferenceTest, TwoPointTargetFixtureHasStableRelativePeaks) {
-    const auto geometry = pr7::TinyPointTargetGeometry();
+    const auto geometry = reference_parity::TinyPointTargetGeometry();
     const std::vector<sar::reference::PointTarget> targets{
         sar::reference::PointTarget{.x_m = 0.0, .y_m = 0.0, .reflectivity = 1.0},
         sar::reference::PointTarget{.x_m = 1.0, .y_m = 0.0, .reflectivity = 0.5},

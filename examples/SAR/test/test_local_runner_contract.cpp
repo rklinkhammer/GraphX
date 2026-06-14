@@ -31,11 +31,11 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Rrp1LocalRunnerTest, CreatesExpectedArtifactLayoutFromScenario001) {
+TEST(LocalRunnerContractTest, CreatesExpectedArtifactLayoutFromScenario001) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp1_runner_test_output";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_local_runner_contract_output";
     std::error_code remove_error;
     std::filesystem::remove_all(output_dir, remove_error);
 
@@ -60,8 +60,8 @@ TEST(Rrp1LocalRunnerTest, CreatesExpectedArtifactLayoutFromScenario001) {
     EXPECT_FALSE(plan.at("requires_external_reference_binary").get<bool>());
 }
 
-TEST(Rrp1LocalRunnerTest, RejectsMissingScenarioPath) {
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp1_runner_missing_scenario";
+TEST(LocalRunnerContractTest, RejectsMissingScenarioPath) {
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_local_runner_contract_missing_scenario";
     std::error_code remove_error;
     std::filesystem::remove_all(output_dir, remove_error);
 

@@ -109,8 +109,8 @@ std::string BuildCompareCommand(const std::filesystem::path& temp_dir,
 
 } // namespace
 
-TEST(Rrp5ComparatorMetricsTest, StrictModePassesForIdenticalArtifactsAndIsDeterministic) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_strict_identical";
+TEST(ImageComparatorMetricsTest, StrictModePassesForIdenticalArtifactsAndIsDeterministic) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_metrics_strict_identical";
     const std::vector<float> pixels{
         0.0f, 0.1f, 0.0f, 0.0f,
         0.2f, 1.0f, 0.2f, 0.0f,
@@ -140,8 +140,8 @@ TEST(Rrp5ComparatorMetricsTest, StrictModePassesForIdenticalArtifactsAndIsDeterm
     EXPECT_TRUE(metrics.contains("islr_db"));
 }
 
-TEST(Rrp5ComparatorMetricsTest, ConfiguredThresholdsAllowBoundedMismatchAndReportPeakDelta) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_configured_thresholds";
+TEST(ImageComparatorMetricsTest, ConfiguredThresholdsAllowBoundedMismatchAndReportPeakDelta) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_metrics_configured_thresholds";
     const std::vector<float> graphx_pixels{
         0.0f, 0.1f, 0.0f, 0.0f,
         0.2f, 0.0f, 1.02f, 0.2f,
@@ -183,8 +183,8 @@ TEST(Rrp5ComparatorMetricsTest, ConfiguredThresholdsAllowBoundedMismatchAndRepor
     EXPECT_DOUBLE_EQ(metrics.at("peak_coordinate_delta_pixels").get<double>(), 1.0);
 }
 
-TEST(Rrp5ComparatorMetricsTest, StrictModeFailsWhenMetricThresholdsAreExceeded) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_strict_fail";
+TEST(ImageComparatorMetricsTest, StrictModeFailsWhenMetricThresholdsAreExceeded) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_metrics_strict_fail";
     const std::vector<float> graphx_pixels{
         0.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
@@ -209,8 +209,8 @@ TEST(Rrp5ComparatorMetricsTest, StrictModeFailsWhenMetricThresholdsAreExceeded) 
     EXPECT_NE(reasons.find("peak_coordinate_delta_within_threshold"), std::string::npos);
 }
 
-TEST(Rrp5ComparatorMetricsTest, MalformedThresholdConfigurationFailsExplicitly) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_bad_thresholds";
+TEST(ImageComparatorMetricsTest, MalformedThresholdConfigurationFailsExplicitly) {
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_image_metrics_bad_thresholds";
     const std::vector<float> pixels(16u, 0.25f);
     WriteArtifactsAndContracts(temp_dir, pixels, pixels, 4u, 4u);
 

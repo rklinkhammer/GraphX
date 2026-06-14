@@ -195,8 +195,8 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
 
 } // namespace
 
-TEST(Rrp3GraphxScenarioRunnerTest, ExecutesScenario001AndEmitsGraphxArtifactContract) {
-    const auto out_dir = std::filesystem::temp_directory_path() / "graphx_rrp3_graphx_runner";
+TEST(GraphxScenarioRunnerContractTest, ExecutesScenario001AndEmitsGraphxArtifactContract) {
+    const auto out_dir = std::filesystem::temp_directory_path() / "graphx_scenario_runner_contract";
     const auto capture = RunScenario001Graphx(out_dir);
 
     ASSERT_TRUE(std::filesystem::exists(capture.artifact_bin_path));
@@ -217,9 +217,9 @@ TEST(Rrp3GraphxScenarioRunnerTest, ExecutesScenario001AndEmitsGraphxArtifactCont
     EXPECT_EQ(contract.at("deterministic_hash").get<std::string>(), capture.hash);
 }
 
-TEST(Rrp3GraphxScenarioRunnerTest, OutputIsFiniteNonZeroAndDeterministicAcrossRuns) {
-    const auto out_dir_1 = std::filesystem::temp_directory_path() / "graphx_rrp3_graphx_runner_1";
-    const auto out_dir_2 = std::filesystem::temp_directory_path() / "graphx_rrp3_graphx_runner_2";
+TEST(GraphxScenarioRunnerContractTest, OutputIsFiniteNonZeroAndDeterministicAcrossRuns) {
+    const auto out_dir_1 = std::filesystem::temp_directory_path() / "graphx_scenario_runner_contract_1";
+    const auto out_dir_2 = std::filesystem::temp_directory_path() / "graphx_scenario_runner_contract_2";
 
     const auto first = RunScenario001Graphx(out_dir_1);
     const auto second = RunScenario001Graphx(out_dir_2);
@@ -251,7 +251,7 @@ TEST(Rrp3GraphxScenarioRunnerTest, OutputIsFiniteNonZeroAndDeterministicAcrossRu
     EXPECT_EQ(first_peak, second_peak);
 }
 
-TEST(Rrp3GraphxScenarioRunnerTest, MissingRequiredFixtureFieldReportsExactFieldName) {
+TEST(GraphxScenarioRunnerContractTest, MissingRequiredFixtureFieldReportsExactFieldName) {
     const auto fixture_path = std::filesystem::path{SAR_SCENARIO_001_FIXTURE_DATA_PATH};
     ASSERT_TRUE(std::filesystem::exists(fixture_path));
 

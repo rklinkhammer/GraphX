@@ -73,7 +73,7 @@ std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
 
 }  // namespace
 
-TEST(Rrp2ScenarioImagePathTest, ScenarioDrivenConfigCapturesMaterializedImage) {
+TEST(ScenarioImagePathContractTest, ScenarioDrivenConfigCapturesMaterializedImage) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
@@ -83,7 +83,7 @@ TEST(Rrp2ScenarioImagePathTest, ScenarioDrivenConfigCapturesMaterializedImage) {
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};
     ASSERT_TRUE(std::filesystem::exists(plugin_dir));
 
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp2_scenario_image_path";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_scenario_image_path_contract";
     std::error_code remove_error;
     std::filesystem::remove_all(output_dir, remove_error);
 

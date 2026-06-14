@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "sar_pr7_parity_fixture.hpp"
+#include "sar_reference_parity_fixture.hpp"
 
 #include <cstdlib>
 #include <array>
@@ -15,7 +15,7 @@
 
 namespace {
 
-namespace pr7 = sar::test::pr7;
+namespace reference_parity = sar::test::reference_parity;
 
 #ifndef SAR_BENCHMARK_EXECUTABLE_PATH
 #define SAR_BENCHMARK_EXECUTABLE_PATH "./sar_benchmark"
@@ -215,22 +215,22 @@ TEST(SarTraceSchemaTest, BenchmarkTraceContainsRequiredSchemaAndDiagnosticsField
     }
 
     const auto& matched_filter = pr5.at("matched_filter_reference");
-    EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), pr7::kMatchedFilterVectorLength);
-    EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), pr7::kMatchedFilterPeakBin);
-    EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), pr7::kMatchedFilterPeakValue, 1.0e-5);
+    EXPECT_EQ(matched_filter.at("vector_length").get<std::uint32_t>(), reference_parity::kMatchedFilterVectorLength);
+    EXPECT_EQ(matched_filter.at("peak_bin").get<std::uint32_t>(), reference_parity::kMatchedFilterPeakBin);
+    EXPECT_NEAR(matched_filter.at("peak_value").get<double>(), reference_parity::kMatchedFilterPeakValue, 1.0e-5);
     EXPECT_GE(matched_filter.at("reference_time_ms").get<double>(), 0.0);
 
     const auto& runtime_filter = pr5.at("runtime_matched_filter");
     EXPECT_EQ(runtime_filter.at("mode").get<std::string>(), "matched_filter");
     EXPECT_EQ(runtime_filter.at("output").get<std::string>(), "magnitude");
     EXPECT_GE(runtime_filter.at("runtime_time_ms").get<double>(), 0.0);
-    EXPECT_LT(runtime_filter.at("reference_l_inf").get<double>(), pr7::kMatchedFilterReferenceLInfTolerance);
-    EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), pr7::kMatchedFilterReferenceRmsTolerance);
+    EXPECT_LT(runtime_filter.at("reference_l_inf").get<double>(), reference_parity::kMatchedFilterReferenceLInfTolerance);
+    EXPECT_LT(runtime_filter.at("reference_rms").get<double>(), reference_parity::kMatchedFilterReferenceRmsTolerance);
     EXPECT_EQ(runtime_filter.at("parity_status").get<std::string>(), "pass");
 
     const auto& image_metrics = pr5.at("image_metrics");
-    EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), pr7::kImagePeakLocationErrorTolerancePixels);
-    EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), pr7::kImageDynamicRangeMinDb);
+    EXPECT_DOUBLE_EQ(image_metrics.at("peak_location_error_pixels").get<double>(), reference_parity::kImagePeakLocationErrorTolerancePixels);
+    EXPECT_GE(image_metrics.at("dynamic_range_db").get<double>(), reference_parity::kImageDynamicRangeMinDb);
     EXPECT_NE(image_metrics.at("image_hash").get<std::uint64_t>(), 0u);
 
     const auto& metric_deltas = pr5.at("graph_direct_metric_deltas");

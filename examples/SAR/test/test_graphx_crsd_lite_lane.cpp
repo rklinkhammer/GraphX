@@ -53,12 +53,12 @@ CommandResult RunCommand(const std::string& command) {
     return CommandResult{.exit_code = pclose(pipe), .output = output};
 }
 
-class Pr16GraphxCrsdLiteLaneTest : public ::testing::Test {
+class GraphxCrsdLiteLaneTest : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::temp_directory_path() /
-            ("graphx_pr16_lite_lane_" + std::to_string(ticks));
+            ("graphx_crsd_lite_lane_" + std::to_string(ticks));
         ASSERT_TRUE(std::filesystem::create_directories(root_));
     }
 
@@ -162,7 +162,7 @@ protected:
 
 } // namespace
 
-TEST_F(Pr16GraphxCrsdLiteLaneTest, EndToEndTinySyntheticConversionEmitsReportsAndChecksums) {
+TEST_F(GraphxCrsdLiteLaneTest, EndToEndTinySyntheticConversionEmitsReportsAndChecksums) {
     WriteTinySyntheticInput();
 
     const auto result = RunLiteConversion("run_a");
@@ -207,7 +207,7 @@ TEST_F(Pr16GraphxCrsdLiteLaneTest, EndToEndTinySyntheticConversionEmitsReportsAn
     EXPECT_EQ(ReadText(output_dir / "conversion_warnings.log"), "none\n");
 }
 
-TEST_F(Pr16GraphxCrsdLiteLaneTest, RepeatedTinySyntheticConversionIsDeterministic) {
+TEST_F(GraphxCrsdLiteLaneTest, RepeatedTinySyntheticConversionIsDeterministic) {
     WriteTinySyntheticInput();
 
     const auto first = RunLiteConversion("run_a");

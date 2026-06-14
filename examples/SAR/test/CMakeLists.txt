@@ -54,22 +54,22 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_manifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_fixture.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp1_local_runner.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp2_scenario_image_path.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_graphx_scenario_runner.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp3_gotcha_back_adapter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp4_image_comparator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_comparator_metrics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp5_frozen_scenario_replay.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_ci_correctness_lane.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp6_tiny_fixture.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_ci_validation_lane.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rrp7_sarpy_harness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr13_sarpy_tools.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr14_sarpy_crsd_harness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr16_graphx_crsd_lite_lane.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr17_graphx_image_comparison_lane.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pr18_local_gotcha_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_local_runner_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_image_path_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_scenario_runner_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_back_adapter_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_image_comparator_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_image_comparator_metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_frozen_scenario_replay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_ci_correctness_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_ci_tiny_fixture.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_ci_validation_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_metadata_harness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_crsd_lite_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
@@ -163,20 +163,20 @@ if(TARGET metal_device_kernel_node)
 endif()
 
 add_test(NAME sar_example_unit COMMAND test_sar_example_unit)
-add_test(NAME sar_example_ci_lane COMMAND test_sar_example_unit --gtest_filter=Rrp7CiValidationLaneTest.*)
+add_test(NAME sar_example_ci_lane COMMAND test_sar_example_unit --gtest_filter=CiValidationLaneTest.*)
 add_test(NAME sar_example_main_executable
     COMMAND test_sar_example_unit --gtest_filter=SarMainExecutableTest.*)
 
 add_test(NAME sar_example_sarpy_probe_lane
-    COMMAND test_sar_example_unit --gtest_filter=Pr13SarpyToolsTest.ProbeCommandsAreLocalOnlyAndNonBlocking:Pr14SarpyCrsdHarnessTest.ProbeCommandsDeclareLocalOnlyHarness)
+    COMMAND test_sar_example_unit --gtest_filter=SarpyReferenceCompareToolsTest.ProbeCommandsAreLocalOnlyAndNonBlocking:SarpyCrsdValidationHarnessTest.ProbeCommandsDeclareLocalOnlyHarness)
 set_tests_properties(sar_example_sarpy_probe_lane PROPERTIES LABELS "sar;sarpy;probe;local-only;gated")
 
 add_test(NAME sar_example_sarpy_integration_lane
-    COMMAND test_sar_example_unit --gtest_filter=Pr13SarpyToolsTest.*:Pr14SarpyCrsdHarnessTest.*)
+    COMMAND test_sar_example_unit --gtest_filter=SarpyReferenceCompareToolsTest.*:SarpyCrsdValidationHarnessTest.*)
 set_tests_properties(sar_example_sarpy_integration_lane PROPERTIES LABELS "sar;sarpy;integration;local-only;gated")
 
 add_test(NAME sar_real_gotcha_local_validation
-    COMMAND test_sar_example_unit --gtest_filter=Pr18LocalGotchaValidationTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet)
+    COMMAND test_sar_example_unit --gtest_filter=LocalGotchaValidationLaneTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet)
 set_tests_properties(sar_real_gotcha_local_validation PROPERTIES
     DISABLED TRUE
     LABELS "sar;gotcha;real-data;local-only;gated")

@@ -244,8 +244,8 @@ CiLaneResult RunCiSafeCorrectnessLane(const std::filesystem::path& output_dir) {
 
 } // namespace
 
-TEST(Rrp6CiCorrectnessLaneTest, EndToEndLaneEmitsArtifactsAndStrictPassReport) {
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp6_ci_correctness_lane";
+TEST(CiCorrectnessLaneTest, EndToEndLaneEmitsArtifactsAndStrictPassReport) {
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_ci_correctness_lane";
     const auto result = RunCiSafeCorrectnessLane(output_dir);
 
     ASSERT_TRUE(std::filesystem::exists(result.graphx_contract_path));
@@ -268,9 +268,9 @@ TEST(Rrp6CiCorrectnessLaneTest, EndToEndLaneEmitsArtifactsAndStrictPassReport) {
     EXPECT_DOUBLE_EQ(metrics.at("peak_coordinate_delta_pixels").get<double>(), 0.0);
 }
 
-TEST(Rrp6CiCorrectnessLaneTest, LaneIsDeterministicAcrossRepeatedRunsAndReportPathIsStable) {
-    const auto output_dir_1 = std::filesystem::temp_directory_path() / "graphx_rrp6_ci_correctness_lane_run1";
-    const auto output_dir_2 = std::filesystem::temp_directory_path() / "graphx_rrp6_ci_correctness_lane_run2";
+TEST(CiCorrectnessLaneTest, LaneIsDeterministicAcrossRepeatedRunsAndReportPathIsStable) {
+    const auto output_dir_1 = std::filesystem::temp_directory_path() / "graphx_ci_correctness_lane_run1";
+    const auto output_dir_2 = std::filesystem::temp_directory_path() / "graphx_ci_correctness_lane_run2";
 
     const auto first = RunCiSafeCorrectnessLane(output_dir_1);
     const auto second = RunCiSafeCorrectnessLane(output_dir_2);

@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace sar::test::pr7 {
+namespace sar::test::reference_parity {
 
 inline constexpr std::uint32_t kDeterministicTotalPulses = 32u;
 inline constexpr std::uint32_t kDeterministicSamplesPerPulse = 256u;
@@ -49,4 +49,4 @@ inline sar::reference::Geometry TinyPointTargetGeometry() {
     return geometry;
 }
 
-} // namespace sar::test::pr7
+} // namespace sar::test::reference_parity

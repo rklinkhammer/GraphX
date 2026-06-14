@@ -62,7 +62,7 @@ std::string ReadText(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Pr18LocalGotchaValidationTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnlyBoundaries) {
+TEST(LocalGotchaValidationLaneTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnlyBoundaries) {
     const auto script_path = std::filesystem::path{SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH};
     const auto doc_path = std::filesystem::path{SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH};
 
@@ -96,7 +96,7 @@ TEST(Pr18LocalGotchaValidationTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnly
         << no_env.output;
 }
 
-TEST(Pr18LocalGotchaValidationTest, OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet) {
+TEST(LocalGotchaValidationLaneTest, OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet) {
     const char* dataset = std::getenv("GRAPHX_SAR_GOTCHA_DATASET");
     if (dataset == nullptr || std::string{dataset}.empty()) {
         GTEST_SKIP() << "GRAPHX_SAR_GOTCHA_DATASET is not set; real GOTCHA validation is local-only";

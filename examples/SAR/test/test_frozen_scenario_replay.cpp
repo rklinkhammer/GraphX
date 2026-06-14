@@ -69,7 +69,7 @@ void WriteFloat32Raster(const std::filesystem::path& path, const std::vector<flo
     }
 }
 
-std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSinkPr5(
+std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSinkFrozenReplay(
     const std::shared_ptr<graph::GraphManager>& graph_manager) {
     if (!graph_manager) {
         return nullptr;
@@ -92,7 +92,7 @@ std::string ReadText(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Rrp5FrozenScenarioReplayTest, GuideDescribesExactLocalSetupAndArtifactLayout) {
+TEST(FrozenScenarioReplayTest, GuideDescribesExactLocalSetupAndArtifactLayout) {
     const auto guide_path = std::filesystem::path{SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
     ASSERT_TRUE(std::filesystem::exists(guide_path));
 
@@ -108,14 +108,14 @@ TEST(Rrp5FrozenScenarioReplayTest, GuideDescribesExactLocalSetupAndArtifactLayou
     EXPECT_NE(guide.find("examples/SAR/tools/sar_image_comparator.py"), std::string::npos);
     EXPECT_NE(guide.find("<output-dir>/\n  manifest/\n    scenario_001.json"), std::string::npos);
     EXPECT_NE(guide.find("reports/image_comparison_report.json"), std::string::npos);
-    // PR5: CI-safe command path must also be documented
+    // CI-safe command path must also be documented
     EXPECT_NE(guide.find("CI-Safe Local Replay Command Path"), std::string::npos);
     EXPECT_NE(guide.find("graphx_output_contract.json"), std::string::npos);
     EXPECT_NE(guide.find("deterministic_reference_contract.json"), std::string::npos);
     EXPECT_NE(guide.find("ci_safe_comparison_report.json"), std::string::npos);
 }
 
-TEST(Rrp5FrozenScenarioReplayTest, GuideStatesReplayExpectationsAndScopeBoundaries) {
+TEST(FrozenScenarioReplayTest, GuideStatesReplayExpectationsAndScopeBoundaries) {
     const auto guide_path = std::filesystem::path{SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
     ASSERT_TRUE(std::filesystem::exists(guide_path));
 
@@ -130,11 +130,11 @@ TEST(Rrp5FrozenScenarioReplayTest, GuideStatesReplayExpectationsAndScopeBoundari
     EXPECT_NE(guide.find("does not introduce a CI dependency on GOTCHA data"), std::string::npos);
 }
 
-// PR5: Local Runner-to-Comparator Integration
+// Local runner to comparator integration
 // Validates the full CI-safe chain:
 //   sar_local_runner → GraphX in-process → write contracts → sar_image_comparator → structured pass/fail
 // Uses the tiny fixture and deterministic reference; no external data required.
-TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPassesComparator) {
+TEST(FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPassesComparator) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     ASSERT_TRUE(std::filesystem::exists(scenario_path));
 
@@ -148,7 +148,7 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     ASSERT_TRUE(std::filesystem::exists(comparator_path));
 
     // Step 1: Scaffold layout with sar_local_runner
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_ci_safe_replay";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_frozen_ci_safe_replay";
     {
         std::error_code ec;
         std::filesystem::remove_all(output_dir, ec);
@@ -187,7 +187,7 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
     // Step 4: Extract materialized image from sink
-    auto materialized_sink = ResolveMaterializedSinkPr5(executor->GetGraphManager());
+    auto materialized_sink = ResolveMaterializedSinkFrozenReplay(executor->GetGraphManager());
     ASSERT_NE(materialized_sink, nullptr);
     ASSERT_TRUE(materialized_sink->has_materialized_image());
 

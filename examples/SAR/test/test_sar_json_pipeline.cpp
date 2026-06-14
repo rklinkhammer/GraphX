@@ -6,7 +6,7 @@
 #include "sar/SarRuntimeHelpers.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarMaterializedImageSinkNode.hpp"
-#include "sar_pr7_parity_fixture.hpp"
+#include "sar_reference_parity_fixture.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -16,7 +16,7 @@
 
 namespace {
 
-namespace pr7 = sar::test::pr7;
+namespace reference_parity = sar::test::reference_parity;
 
 sar::reference::Image ToImage(const std::vector<float>& pixels) {
     sar::reference::Image image{};
@@ -238,11 +238,11 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
                   << ", peak_location_error_pixels=" << peak_location_error_pixels
                   << ", dynamic_range_delta_db=" << dynamic_range_delta;
 
-    EXPECT_LE(error.l_inf, pr7::kMaterializedImageLInfTolerance) << metric_report.str();
-    EXPECT_LE(error.rms, pr7::kMaterializedImageRmsTolerance) << metric_report.str();
-    EXPECT_LE(error.relative_l2, pr7::kMaterializedImageRelativeL2Tolerance) << metric_report.str();
-    EXPECT_LE(peak_location_error_pixels, pr7::kImagePeakLocationErrorTolerancePixels) << metric_report.str();
-    EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
+    EXPECT_LE(error.l_inf, reference_parity::kMaterializedImageLInfTolerance) << metric_report.str();
+    EXPECT_LE(error.rms, reference_parity::kMaterializedImageRmsTolerance) << metric_report.str();
+    EXPECT_LE(error.relative_l2, reference_parity::kMaterializedImageRelativeL2Tolerance) << metric_report.str();
+    EXPECT_LE(peak_location_error_pixels, reference_parity::kImagePeakLocationErrorTolerancePixels) << metric_report.str();
+    EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
 }
 
 // PR7 gate: correctness is measured only by CPU-reference parity metrics,
@@ -310,9 +310,9 @@ TEST(SarJsonPipelineTest, Pr7CpuReferenceValidationGateIsIndependentFromTranspor
                   << ", peak_location_error_pixels=" << peak_location_error_pixels
                   << ", dynamic_range_delta_db=" << dynamic_range_delta;
 
-    EXPECT_LE(error.l_inf, pr7::kMaterializedImageLInfTolerance) << metric_report.str();
-    EXPECT_LE(error.rms, pr7::kMaterializedImageRmsTolerance) << metric_report.str();
-    EXPECT_LE(error.relative_l2, pr7::kMaterializedImageRelativeL2Tolerance) << metric_report.str();
-    EXPECT_LE(peak_location_error_pixels, pr7::kImagePeakLocationErrorTolerancePixels) << metric_report.str();
-    EXPECT_LE(dynamic_range_delta, pr7::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
+    EXPECT_LE(error.l_inf, reference_parity::kMaterializedImageLInfTolerance) << metric_report.str();
+    EXPECT_LE(error.rms, reference_parity::kMaterializedImageRmsTolerance) << metric_report.str();
+    EXPECT_LE(error.relative_l2, reference_parity::kMaterializedImageRelativeL2Tolerance) << metric_report.str();
+    EXPECT_LE(peak_location_error_pixels, reference_parity::kImagePeakLocationErrorTolerancePixels) << metric_report.str();
+    EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
 }

@@ -43,7 +43,7 @@ std::string ReadText(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Pr13SarpyToolsTest, RequiredFilesExistAndRequirementsDeclareExpectedPackages) {
+TEST(SarpyReferenceCompareToolsTest, RequiredFilesExistAndRequirementsDeclareExpectedPackages) {
     const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
     const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
     const auto requirements = std::filesystem::path{SARPY_REQUIREMENTS_PATH};
@@ -60,11 +60,11 @@ TEST(Pr13SarpyToolsTest, RequiredFilesExistAndRequirementsDeclareExpectedPackage
     EXPECT_NE(requirements_text.find("sarpy"), std::string::npos);
 }
 
-TEST(Pr13SarpyToolsTest, ProbeCommandsAreLocalOnlyAndNonBlocking) {
+TEST(SarpyReferenceCompareToolsTest, ProbeCommandsAreLocalOnlyAndNonBlocking) {
     const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
     const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
 
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr13_sarpy_probe";
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_sarpy_reference_probe";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
@@ -93,11 +93,11 @@ TEST(Pr13SarpyToolsTest, ProbeCommandsAreLocalOnlyAndNonBlocking) {
     EXPECT_FALSE(compare_probe.at("ci_safe").get<bool>());
 }
 
-TEST(Pr13SarpyToolsTest, GeneratesReferenceAndDeterministicComparisonMetrics) {
+TEST(SarpyReferenceCompareToolsTest, GeneratesReferenceAndDeterministicComparisonMetrics) {
     const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
     const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
 
-    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_pr13_sarpy_metrics";
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_sarpy_reference_metrics";
     std::error_code remove_error;
     std::filesystem::remove_all(temp_dir, remove_error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_dir));

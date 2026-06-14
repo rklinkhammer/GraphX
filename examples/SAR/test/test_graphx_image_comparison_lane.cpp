@@ -127,12 +127,12 @@ int RunCommand(const std::string& command) {
     return std::system(command.c_str());
 }
 
-class Pr17GraphxImageComparisonLaneTest : public ::testing::Test {
+class GraphxImageComparisonLaneTest : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::temp_directory_path() /
-            ("graphx_pr17_image_comparison_" + std::to_string(ticks));
+            ("graphx_image_comparison_lane_" + std::to_string(ticks));
         ASSERT_TRUE(std::filesystem::create_directories(root_));
     }
 
@@ -188,7 +188,7 @@ protected:
 
 } // namespace
 
-TEST_F(Pr17GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeterministically) {
+TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeterministically) {
     if (!HasPythonImageDependencies()) {
         GTEST_SKIP() << "numpy/matplotlib not installed in local environment";
     }

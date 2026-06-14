@@ -27,7 +27,7 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST(Rrp6TinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
+TEST(CiTinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
     const auto fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(fixture_path));
 
@@ -72,7 +72,7 @@ TEST(Rrp6TinyFixtureTest, TinyFixtureIsTraceableToScenario001AndCiSafe) {
     EXPECT_EQ(records.front().pulse_block_id, 9000u);
 }
 
-TEST(Rrp6TinyFixtureTest, GotchaReplaySourceAcceptsCiSafeTinyFixtureWithoutExternalOptIn) {
+TEST(CiTinyFixtureTest, GotchaReplaySourceAcceptsCiSafeTinyFixtureWithoutExternalOptIn) {
     const auto fixture_path = std::filesystem::path{SAR_CI_TINY_GOTCHA_FIXTURE_PATH};
     ASSERT_TRUE(std::filesystem::exists(fixture_path));
 
