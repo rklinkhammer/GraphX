@@ -1,4 +1,4 @@
-# RRP5 Frozen Scenario Replay Guide
+# Frozen Scenario Replay Guide
 
 This guide documents the exact local steps for replaying `scenario_001` without having to infer the script structure from the implementation files.
 
@@ -8,12 +8,12 @@ The following sequence materializes both artifact contracts and runs the compara
 
 ```bash
 # 1. Scaffold the runner layout from the frozen scenario
-python3 examples/SAR/tools/rrp1_local_runner.py \
+python3 examples/SAR/tools/sar_local_runner.py \
   --scenario examples/SAR/scenarios/scenario_001.json \
-  --output-dir /tmp/graphx_rrp5_ci_safe_replay
+  --output-dir /tmp/graphx_sar_ci_safe_replay
 
 # 2. Inject the CI-safe tiny fixture into the scaffolded config
-#    (edit /tmp/graphx_rrp5_ci_safe_replay/graphx/graphx_config.json:
+#    (edit /tmp/graphx_sar_ci_safe_replay/graphx/graphx_config.json:
 #     set src.node_config.fixture_path to the tiny fixture path)
 #    The tiny fixture is at:
 #    examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json
@@ -25,11 +25,11 @@ python3 examples/SAR/tools/rrp1_local_runner.py \
 #    (handled by the test suite: test_sar_example_unit --gtest_filter=Rrp5FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
 
 # 5. Run the comparator directly against the produced contracts:
-python3 examples/SAR/tools/rrp4_image_comparator.py \
+python3 examples/SAR/tools/sar_image_comparator.py \
   compare \
-  --graphx-contract /tmp/graphx_rrp5_ci_safe_replay/graphx/graphx_output_contract.json \
-  --reference-contract /tmp/graphx_rrp5_ci_safe_replay/reference/deterministic_reference_contract.json \
-  --report-json /tmp/graphx_rrp5_ci_safe_replay/reports/ci_safe_comparison_report.json
+  --graphx-contract /tmp/graphx_sar_ci_safe_replay/graphx/graphx_output_contract.json \
+  --reference-contract /tmp/graphx_sar_ci_safe_replay/reference/deterministic_reference_contract.json \
+  --report-json /tmp/graphx_sar_ci_safe_replay/reports/ci_safe_comparison_report.json
 ```
 
 The comparison report at `reports/ci_safe_comparison_report.json` contains:
@@ -46,7 +46,7 @@ The full CI-safe integration test (`Rrp5FrozenScenarioReplayTest.CiSafeLocalRepl
 
 ## Purpose
 
-Replay the frozen SAR scenario locally, capture one GraphX image artifact, capture the pinned gotcha-back reference artifact, and compare the two using the deterministic RRP4 comparator.
+Replay the frozen SAR scenario locally, capture one GraphX image artifact, capture the pinned gotcha-back reference artifact, and compare the two using the deterministic image comparator.
 
 ## Prerequisites
 
@@ -67,47 +67,47 @@ export GOTCHA_BACK_BIN=/path/to/gotcha-back/sarbp
 2. Prepare the frozen scenario layout:
 
 ```bash
-python3 examples/SAR/tools/rrp1_local_runner.py \
+python3 examples/SAR/tools/sar_local_runner.py \
   --scenario examples/SAR/scenarios/scenario_001.json \
-  --output-dir /tmp/graphx_rrp1_scenario_001
+  --output-dir /tmp/graphx_sar_scenario_001
 ```
 
 3. Update the generated GraphX config before running GraphX:
 
-- Open `/tmp/graphx_rrp1_scenario_001/graphx/graphx_config.json`
+- Open `/tmp/graphx_sar_scenario_001/graphx/graphx_config.json`
 - Set the source fixture path to the local GOTCHA replay fixture
 - Keep the generated `SarMaterializedImageSinkNode` materialization path intact
 
 4. Run the GraphX side of the replay:
 
 ```bash
-/tmp/graphx_rrp1_scenario_001/graphx/run_graphx.sh
+/tmp/graphx_sar_scenario_001/graphx/run_graphx.sh
 ```
 
 5. Run the pinned gotcha-back reference side:
 
 ```bash
-/tmp/graphx_rrp1_scenario_001/reference/run_gotcha_back.sh
+/tmp/graphx_sar_scenario_001/reference/run_gotcha_back.sh
 ```
 
 6. Normalize the reference output if needed:
 
 ```bash
-python3 examples/SAR/tools/rrp3_gotcha_back_adapter.py \
+python3 examples/SAR/tools/gotcha_back_adapter.py \
   normalize-output \
   --scenario examples/SAR/scenarios/scenario_001.json \
-  --input-raw /tmp/graphx_rrp1_scenario_001/reference/gotcha_back_image.bin \
-  --output-json /tmp/graphx_rrp1_scenario_001/reference/normalized_reference.json
+  --input-raw /tmp/graphx_sar_scenario_001/reference/gotcha_back_image.bin \
+  --output-json /tmp/graphx_sar_scenario_001/reference/normalized_reference.json
 ```
 
 7. Compare GraphX and reference artifacts:
 
 ```bash
-python3 examples/SAR/tools/rrp4_image_comparator.py \
+python3 examples/SAR/tools/sar_image_comparator.py \
   compare \
-  --graphx-contract /tmp/graphx_rrp1_scenario_001/graphx/graphx_output_contract.json \
-  --reference-contract /tmp/graphx_rrp1_scenario_001/reference/reference_output_contract.json \
-  --report-json /tmp/graphx_rrp1_scenario_001/reports/image_comparison_report.json
+  --graphx-contract /tmp/graphx_sar_scenario_001/graphx/graphx_output_contract.json \
+  --reference-contract /tmp/graphx_sar_scenario_001/reference/reference_output_contract.json \
+  --report-json /tmp/graphx_sar_scenario_001/reports/image_comparison_report.json
 ```
 
 ## Artifact Layout

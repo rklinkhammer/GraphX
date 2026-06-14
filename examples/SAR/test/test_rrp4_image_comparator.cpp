@@ -25,12 +25,12 @@
 
 namespace {
 
-#ifndef SAR_RRP4_IMAGE_COMPARATOR_PATH
-#define SAR_RRP4_IMAGE_COMPARATOR_PATH "examples/SAR/tools/rrp4_image_comparator.py"
+#ifndef SAR_IMAGE_COMPARATOR_PATH
+#define SAR_IMAGE_COMPARATOR_PATH "examples/SAR/tools/sar_image_comparator.py"
 #endif
 
-#ifndef SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH
-#define SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH "examples/SAR/tools/rrp4_image_comparison_report.schema.json"
+#ifndef SAR_IMAGE_COMPARISON_SCHEMA_PATH
+#define SAR_IMAGE_COMPARISON_SCHEMA_PATH "examples/SAR/tools/sar_image_comparison_report.schema.json"
 #endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
@@ -184,12 +184,12 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
     std::filesystem::remove_all(output_dir, remove_error);
 
     const std::string scaffold_command =
-        "python3 " + ShellQuote(std::filesystem::path{SAR_RRP1_LOCAL_RUNNER_PATH}) +
+        "python3 " + ShellQuote(std::filesystem::path{SAR_LOCAL_RUNNER_PATH}) +
         " --scenario " + ShellQuote(scenario_path) +
         " --output-dir " + ShellQuote(output_dir) +
         " > /dev/null";
     if (std::system(scaffold_command.c_str()) != 0) {
-        throw std::invalid_argument("rrp1_local_runner failed to scaffold graphx layout");
+        throw std::invalid_argument("sar_local_runner failed to scaffold graphx layout");
     }
 
     const auto phase_fixture = sar::scenario001::graphx::LoadJsonFile(phase_fixture_path);
@@ -285,7 +285,7 @@ TEST(Rrp4ImageComparatorTest, MatchingImageContractsProducePassReport) {
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(report_path) +
@@ -336,7 +336,7 @@ TEST(Rrp4ImageComparatorTest, RealScenarioArtifactsProduceDeterministicFailRepor
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_capture.artifact_contract_path) +
         " --reference-contract " + Quote(reference_paths.contract_path) +
         " --report-json " + Quote(report_path) +
@@ -378,7 +378,7 @@ TEST(Rrp4ImageComparatorTest, MissingRequiredContractFieldIsReportedExplicitly) 
 
     const auto stderr_path = temp_dir / "stderr.log";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(temp_dir / "comparison_report.json") +
@@ -411,13 +411,13 @@ TEST(Rrp4ImageComparatorTest, RepeatedRunsProduceIdenticalReportsForEqualArtifac
     const auto report_path_2 = temp_dir / "comparison_report_2.json";
 
     const std::string command_1 =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(report_path_1) +
         " > /dev/null";
     const std::string command_2 =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(report_path_2) +
@@ -457,7 +457,7 @@ TEST(Rrp4ImageComparatorTest, MismatchedImageContractsProduceFailReport) {
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(report_path) +
@@ -478,7 +478,7 @@ TEST(Rrp4ImageComparatorTest, MismatchedImageContractsProduceFailReport) {
 }
 
 TEST(Rrp4ImageComparatorTest, ReportSchemaDeclaresPassFailShape) {
-    const auto schema_path = std::filesystem::path{SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH};
+    const auto schema_path = std::filesystem::path{SAR_IMAGE_COMPARISON_SCHEMA_PATH};
     ASSERT_TRUE(std::filesystem::exists(schema_path));
 
     const auto schema = LoadJson(schema_path);
@@ -516,7 +516,7 @@ TEST(Rrp4ImageComparatorTest, DeterministicInternalReferenceIsAcceptedByBoundary
 
     const auto report_path = temp_dir / "comparison_report.json";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(graphx_contract_path) +
         " --reference-contract " + Quote(reference_contract_path) +
         " --report-json " + Quote(report_path) +

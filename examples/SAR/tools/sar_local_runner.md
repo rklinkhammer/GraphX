@@ -1,13 +1,13 @@
-# RRP1 Local GOTCHA Reproduction Runner
+# Local GOTCHA Reproduction Runner
 
-RRP1 adds the smallest local-only harness that consumes `scenario_001` and prepares the GraphX and external reference execution boundaries.
+This local-only harness consumes `scenario_001` and prepares the GraphX and external reference execution boundaries.
 
 ## Command
 
 ```bash
-python3 examples/SAR/tools/rrp1_local_runner.py \
+python3 examples/SAR/tools/sar_local_runner.py \
   --scenario examples/SAR/scenarios/scenario_001.json \
-  --output-dir /tmp/graphx_rrp1_scenario_001
+  --output-dir /tmp/graphx_sar_scenario_001
 ```
 
 ## What It Does

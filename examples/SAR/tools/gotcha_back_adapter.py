@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from rrp1_scenario_to_run import load_json, scenario_id_from_path, write_json, write_text
+from sar_scenario_to_run import load_json, scenario_id_from_path, write_json, write_text
 
 
 PINNED_GOTCHA_BACK_PROFILES: dict[str, dict[str, Any]] = {
@@ -123,7 +123,7 @@ def normalize_output(raw_path: Path, scenario_path: Path, output_json_path: Path
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="RRP3 gotcha-back scenario adapter")
+    parser = argparse.ArgumentParser(description="gotcha-back scenario adapter")
     subparsers = parser.add_subparsers(dest="command_name", required=True)
 
     scaffold = subparsers.add_parser("scaffold-reference", help="Write pinned gotcha-back invocation artifacts")

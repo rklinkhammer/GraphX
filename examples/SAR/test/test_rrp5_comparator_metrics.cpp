@@ -12,8 +12,8 @@
 
 namespace {
 
-#ifndef SAR_RRP4_IMAGE_COMPARATOR_PATH
-#define SAR_RRP4_IMAGE_COMPARATOR_PATH "examples/SAR/tools/rrp4_image_comparator.py"
+#ifndef SAR_IMAGE_COMPARATOR_PATH
+#define SAR_IMAGE_COMPARATOR_PATH "examples/SAR/tools/sar_image_comparator.py"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -96,7 +96,7 @@ std::filesystem::path WriteArtifactsAndContracts(const std::filesystem::path& te
 std::string BuildCompareCommand(const std::filesystem::path& temp_dir,
                                 const std::string& extra_args = std::string()) {
     std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(temp_dir / "graphx_contract.json") +
         " --reference-contract " + Quote(temp_dir / "reference_contract.json") +
         " --report-json " + Quote(temp_dir / "report.json");
@@ -227,7 +227,7 @@ TEST(Rrp5ComparatorMetricsTest, MalformedThresholdConfigurationFailsExplicitly) 
 
     const auto stderr_path = temp_dir / "stderr.log";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH}) +
         " compare --graphx-contract " + Quote(temp_dir / "graphx_contract.json") +
         " --reference-contract " + Quote(temp_dir / "reference_contract.json") +
         " --thresholds-json " + Quote(temp_dir / "thresholds.json") +

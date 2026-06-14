@@ -8,12 +8,12 @@
 #include <iterator>
 #include <string>
 
-#ifndef SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH
-#define SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH "examples/SAR/tools/local_gotcha_validation.sh"
+#ifndef SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH
+#define SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH "examples/SAR/tools/local_gotcha_validation.sh"
 #endif
 
-#ifndef SAR_PR18_LOCAL_GOTCHA_VALIDATION_DOC_PATH
-#define SAR_PR18_LOCAL_GOTCHA_VALIDATION_DOC_PATH "examples/SAR/tools/local_gotcha_validation.md"
+#ifndef SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH
+#define SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH "examples/SAR/tools/local_gotcha_validation.md"
 #endif
 
 namespace {
@@ -63,8 +63,8 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Pr18LocalGotchaValidationTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnlyBoundaries) {
-    const auto script_path = std::filesystem::path{SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH};
-    const auto doc_path = std::filesystem::path{SAR_PR18_LOCAL_GOTCHA_VALIDATION_DOC_PATH};
+    const auto script_path = std::filesystem::path{SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH};
+    const auto doc_path = std::filesystem::path{SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH};
 
     ASSERT_TRUE(std::filesystem::exists(script_path));
     ASSERT_TRUE(std::filesystem::exists(doc_path));
@@ -99,10 +99,10 @@ TEST(Pr18LocalGotchaValidationTest, RunnerIsExplicitlyGatedAndDocumentsLocalOnly
 TEST(Pr18LocalGotchaValidationTest, OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet) {
     const char* dataset = std::getenv("GRAPHX_SAR_GOTCHA_DATASET");
     if (dataset == nullptr || std::string{dataset}.empty()) {
-        GTEST_SKIP() << "GRAPHX_SAR_GOTCHA_DATASET is not set; PR18 real GOTCHA validation is local-only";
+        GTEST_SKIP() << "GRAPHX_SAR_GOTCHA_DATASET is not set; real GOTCHA validation is local-only";
     }
 
-    const auto script_path = std::filesystem::path{SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH};
+    const auto script_path = std::filesystem::path{SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH};
     const auto result = RunCommand("bash " + ShellQuote(script_path) + " 2>&1");
     EXPECT_EQ(result.exit_code, 0) << result.output;
     EXPECT_NE(result.output.find("local_gotcha_validation_ok"), std::string::npos) << result.output;

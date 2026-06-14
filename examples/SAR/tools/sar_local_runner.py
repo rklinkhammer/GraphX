@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from rrp1_scenario_to_run import (
+from sar_scenario_to_run import (
     build_graphx_config,
     ensure_layout,
     load_json,
@@ -17,12 +17,12 @@ from rrp1_scenario_to_run import (
     write_json,
     write_text,
 )
-from rrp3_gotcha_back_adapter import build_invocation_spec, build_run_script
+from gotcha_back_adapter import build_invocation_spec, build_run_script
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Prepare the local-only RRP1 GOTCHA reproduction layout from a frozen scenario"
+        description="Prepare the local-only GOTCHA reproduction layout from a frozen scenario"
     )
     parser.add_argument("--scenario", required=True, help="Path to a scenario manifest JSON file")
     parser.add_argument("--output-dir", required=True, help="Directory where the runner should scaffold artifacts")
@@ -105,7 +105,7 @@ def main() -> int:
                 "output_contract": str(reference_contract_path),
             },
             "notes": [
-                "RRP1 prepares boundaries only and does not execute GraphX or gotcha-back.",
+                "The local runner prepares boundaries only and does not execute GraphX or gotcha-back.",
                 "Populate fixture_path in graphx_config.json before manual local runs.",
             ],
         },

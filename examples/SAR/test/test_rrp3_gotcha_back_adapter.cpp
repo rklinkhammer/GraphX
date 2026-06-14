@@ -8,8 +8,8 @@
 
 namespace {
 
-#ifndef SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH
-#define SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH "examples/SAR/tools/rrp3_gotcha_back_adapter.py"
+#ifndef SAR_GOTCHA_BACK_ADAPTER_PATH
+#define SAR_GOTCHA_BACK_ADAPTER_PATH "examples/SAR/tools/gotcha_back_adapter.py"
 #endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
@@ -63,7 +63,7 @@ TEST(Rrp3GotchaBackAdapterTest, Scenario001ProducesPinnedInvocationSpec) {
     std::filesystem::remove_all(reference_dir, remove_error);
 
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_GOTCHA_BACK_ADAPTER_PATH}) +
         " scaffold-reference --scenario " + Quote(scenario_path) +
         " --reference-dir " + Quote(reference_dir) +
         " > /dev/null";
@@ -125,7 +125,7 @@ TEST(Rrp3GotchaBackAdapterTest, NormalizesRawFloat32OutputArtifactForScenario001
 
     const auto normalized_path = temp_dir / "normalized_reference.json";
     const std::string command =
-        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH}) +
+        PythonCommandPrefix() + " " + Quote(std::filesystem::path{SAR_GOTCHA_BACK_ADAPTER_PATH}) +
         " normalize-output --scenario " + Quote(scenario_path) +
         " --input-raw " + Quote(raw_path) +
         " --output-json " + Quote(normalized_path) +

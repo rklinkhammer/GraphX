@@ -19,12 +19,12 @@
 
 namespace {
 
-#ifndef SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH
-#define SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH "examples/SAR/tools/rrp5_frozen_scenario_replay.md"
+#ifndef SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH
+#define SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH "examples/SAR/tools/frozen_scenario_replay.md"
 #endif
 
-#ifndef SAR_RRP1_LOCAL_RUNNER_PATH
-#define SAR_RRP1_LOCAL_RUNNER_PATH "examples/SAR/tools/rrp1_local_runner.py"
+#ifndef SAR_LOCAL_RUNNER_PATH
+#define SAR_LOCAL_RUNNER_PATH "examples/SAR/tools/sar_local_runner.py"
 #endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
@@ -35,8 +35,8 @@ namespace {
 #define SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
-#ifndef SAR_RRP4_IMAGE_COMPARATOR_PATH
-#define SAR_RRP4_IMAGE_COMPARATOR_PATH "examples/SAR/tools/rrp4_image_comparator.py"
+#ifndef SAR_IMAGE_COMPARATOR_PATH
+#define SAR_IMAGE_COMPARATOR_PATH "examples/SAR/tools/sar_image_comparator.py"
 #endif
 
 #ifndef PLUGIN_OUTPUT_DIRECTORY
@@ -93,19 +93,19 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Rrp5FrozenScenarioReplayTest, GuideDescribesExactLocalSetupAndArtifactLayout) {
-    const auto guide_path = std::filesystem::path{SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
+    const auto guide_path = std::filesystem::path{SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
     ASSERT_TRUE(std::filesystem::exists(guide_path));
 
     const auto guide = ReadText(guide_path);
 
-    EXPECT_NE(guide.find("# RRP5 Frozen Scenario Replay Guide"), std::string::npos);
+    EXPECT_NE(guide.find("# Frozen Scenario Replay Guide"), std::string::npos);
     EXPECT_NE(guide.find("export GOTCHA_DIR=/path/to/unpacked/GOTCHA"), std::string::npos);
     EXPECT_NE(guide.find("export GOTCHA_BACK_BIN=/path/to/gotcha-back/sarbp"), std::string::npos);
-    EXPECT_NE(guide.find("python3 examples/SAR/tools/rrp1_local_runner.py"), std::string::npos);
-    EXPECT_NE(guide.find("/tmp/graphx_rrp1_scenario_001/graphx/run_graphx.sh"), std::string::npos);
-    EXPECT_NE(guide.find("/tmp/graphx_rrp1_scenario_001/reference/run_gotcha_back.sh"), std::string::npos);
-    EXPECT_NE(guide.find("examples/SAR/tools/rrp3_gotcha_back_adapter.py"), std::string::npos);
-    EXPECT_NE(guide.find("examples/SAR/tools/rrp4_image_comparator.py"), std::string::npos);
+    EXPECT_NE(guide.find("python3 examples/SAR/tools/sar_local_runner.py"), std::string::npos);
+    EXPECT_NE(guide.find("/tmp/graphx_sar_scenario_001/graphx/run_graphx.sh"), std::string::npos);
+    EXPECT_NE(guide.find("/tmp/graphx_sar_scenario_001/reference/run_gotcha_back.sh"), std::string::npos);
+    EXPECT_NE(guide.find("examples/SAR/tools/gotcha_back_adapter.py"), std::string::npos);
+    EXPECT_NE(guide.find("examples/SAR/tools/sar_image_comparator.py"), std::string::npos);
     EXPECT_NE(guide.find("<output-dir>/\n  manifest/\n    scenario_001.json"), std::string::npos);
     EXPECT_NE(guide.find("reports/image_comparison_report.json"), std::string::npos);
     // PR5: CI-safe command path must also be documented
@@ -116,7 +116,7 @@ TEST(Rrp5FrozenScenarioReplayTest, GuideDescribesExactLocalSetupAndArtifactLayou
 }
 
 TEST(Rrp5FrozenScenarioReplayTest, GuideStatesReplayExpectationsAndScopeBoundaries) {
-    const auto guide_path = std::filesystem::path{SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
+    const auto guide_path = std::filesystem::path{SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH};
     ASSERT_TRUE(std::filesystem::exists(guide_path));
 
     const auto guide = ReadText(guide_path);
@@ -132,7 +132,7 @@ TEST(Rrp5FrozenScenarioReplayTest, GuideStatesReplayExpectationsAndScopeBoundari
 
 // PR5: Local Runner-to-Comparator Integration
 // Validates the full CI-safe chain:
-//   rrp1_local_runner → GraphX in-process → write contracts → rrp4_image_comparator → structured pass/fail
+//   sar_local_runner → GraphX in-process → write contracts → sar_image_comparator → structured pass/fail
 // Uses the tiny fixture and deterministic reference; no external data required.
 TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPassesComparator) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
@@ -144,10 +144,10 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};
     ASSERT_TRUE(std::filesystem::exists(plugin_dir));
 
-    const auto comparator_path = std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH};
+    const auto comparator_path = std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH};
     ASSERT_TRUE(std::filesystem::exists(comparator_path));
 
-    // Step 1: Scaffold layout with rrp1_local_runner
+    // Step 1: Scaffold layout with sar_local_runner
     const auto output_dir = std::filesystem::temp_directory_path() / "graphx_rrp5_ci_safe_replay";
     {
         std::error_code ec;
@@ -155,7 +155,7 @@ TEST(Rrp5FrozenScenarioReplayTest, CiSafeLocalReplayChainProducesArtifactsAndPas
     }
 
     const std::string scaffold_command =
-        "python3 " + Quote(std::filesystem::path{SAR_RRP1_LOCAL_RUNNER_PATH}) +
+        "python3 " + Quote(std::filesystem::path{SAR_LOCAL_RUNNER_PATH}) +
         " --scenario " + Quote(scenario_path) +
         " --output-dir " + Quote(output_dir) +
         " > /dev/null";

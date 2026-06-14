@@ -15,8 +15,8 @@
 
 namespace {
 
-#ifndef SAR_RRP1_LOCAL_RUNNER_PATH
-#define SAR_RRP1_LOCAL_RUNNER_PATH "examples/SAR/tools/rrp1_local_runner.py"
+#ifndef SAR_LOCAL_RUNNER_PATH
+#define SAR_LOCAL_RUNNER_PATH "examples/SAR/tools/sar_local_runner.py"
 #endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
@@ -88,7 +88,7 @@ TEST(Rrp2ScenarioImagePathTest, ScenarioDrivenConfigCapturesMaterializedImage) {
     std::filesystem::remove_all(output_dir, remove_error);
 
     const std::string command =
-        "python3 " + Quote(std::filesystem::path{SAR_RRP1_LOCAL_RUNNER_PATH}) +
+        "python3 " + Quote(std::filesystem::path{SAR_LOCAL_RUNNER_PATH}) +
         " --scenario " + Quote(scenario_path) +
         " --output-dir " + Quote(output_dir) +
         " > /dev/null";

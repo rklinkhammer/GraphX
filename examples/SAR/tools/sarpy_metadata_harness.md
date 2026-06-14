@@ -1,4 +1,4 @@
-# RRP7 SarPy Product Metadata Harness
+# SarPy Product Metadata Harness
 
 This harness is local-only.
 
@@ -22,19 +22,19 @@ It is not proof of GraphX phase-history image-formation correctness.
 Probe the local environment:
 
 ```bash
-python3 examples/SAR/tools/rrp7_sarpy_harness.py \
+python3 examples/SAR/tools/sarpy_metadata_harness.py \
   probe-environment \
-  --output-json /tmp/graphx_rrp7_sarpy_probe.json
+  --output-json /tmp/graphx_sarpy_metadata_probe.json
 ```
 
 Normalize SarPy-side metadata JSON into a GraphX-compatible contract:
 
 ```bash
-python3 examples/SAR/tools/rrp7_sarpy_harness.py \
+python3 examples/SAR/tools/sarpy_metadata_harness.py \
   normalize-metadata \
   --scenario examples/SAR/scenarios/scenario_001.json \
   --input-json /path/to/local/sarpy_metadata.json \
-  --output-json /tmp/graphx_rrp7_sarpy_contract.json
+  --output-json /tmp/graphx_sarpy_metadata_contract.json
 ```
 
 ## Expected input JSON for normalization

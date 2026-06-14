@@ -21,8 +21,8 @@ namespace {
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
 
-#ifndef SAR_RRP1_LOCAL_RUNNER_PATH
-#define SAR_RRP1_LOCAL_RUNNER_PATH "examples/SAR/tools/rrp1_local_runner.py"
+#ifndef SAR_LOCAL_RUNNER_PATH
+#define SAR_LOCAL_RUNNER_PATH "examples/SAR/tools/sar_local_runner.py"
 #endif
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
@@ -33,8 +33,8 @@ namespace {
 #define SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH "examples/SAR/test/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
 #endif
 
-#ifndef SAR_RRP4_IMAGE_COMPARATOR_PATH
-#define SAR_RRP4_IMAGE_COMPARATOR_PATH "examples/SAR/tools/rrp4_image_comparator.py"
+#ifndef SAR_IMAGE_COMPARATOR_PATH
+#define SAR_IMAGE_COMPARATOR_PATH "examples/SAR/tools/sar_image_comparator.py"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -93,7 +93,7 @@ CiLaneResult RunCiSafeCorrectnessLane(const std::filesystem::path& output_dir) {
     const auto scenario_path = std::filesystem::path{SAR_SCENARIO_001_JSON_PATH};
     const auto tiny_fixture_path = std::filesystem::path{SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH};
     const auto plugin_dir = std::filesystem::path{PLUGIN_OUTPUT_DIRECTORY};
-    const auto comparator_path = std::filesystem::path{SAR_RRP4_IMAGE_COMPARATOR_PATH};
+    const auto comparator_path = std::filesystem::path{SAR_IMAGE_COMPARATOR_PATH};
 
     if (!std::filesystem::exists(scenario_path)) {
         throw std::invalid_argument("missing scenario file");
@@ -112,12 +112,12 @@ CiLaneResult RunCiSafeCorrectnessLane(const std::filesystem::path& output_dir) {
     std::filesystem::remove_all(output_dir, remove_error);
 
     const std::string scaffold_command =
-        "python3 " + Quote(std::filesystem::path{SAR_RRP1_LOCAL_RUNNER_PATH}) +
+        "python3 " + Quote(std::filesystem::path{SAR_LOCAL_RUNNER_PATH}) +
         " --scenario " + Quote(scenario_path) +
         " --output-dir " + Quote(output_dir) +
         " > /dev/null";
     if (std::system(scaffold_command.c_str()) != 0) {
-        throw std::invalid_argument("rrp1_local_runner failed to scaffold CI-safe lane layout");
+        throw std::invalid_argument("sar_local_runner failed to scaffold CI-safe lane layout");
     }
 
     const auto orchestration_plan = LoadJson(output_dir / "reports" / "orchestration_plan.json");

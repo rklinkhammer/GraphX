@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from rrp1_scenario_to_run import load_json, write_json
+from sar_scenario_to_run import load_json, write_json
 
 
 SCHEMA_VERSION = "graphx.sar.image_comparison_report.v1"
@@ -436,7 +436,7 @@ def compare_contracts(
     return {
         "schema_version": SCHEMA_VERSION,
         "comparator": {
-            "name": "rrp4_image_comparator",
+            "name": "sar_image_comparator",
             "version": 1,
         },
         "scenario_id": graphx["scenario_id"],

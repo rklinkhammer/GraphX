@@ -363,7 +363,7 @@ export GRAPHX_SARPY_CRSD_FILE=/path/to/local/file.crsd
 
 ### gotcha-back Reference Workflow
 
-`examples/SAR/tools/rrp3_gotcha_back_adapter.py` prepares local gotcha-back
+`examples/SAR/tools/gotcha_back_adapter.py` prepares local gotcha-back
 reference invocations and normalizes gotcha-back output artifacts for comparison.
 This is comparator/reference tooling only and is not required by CI.
 

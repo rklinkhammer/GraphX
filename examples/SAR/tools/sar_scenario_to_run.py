@@ -50,7 +50,7 @@ def scenario_id_from_path(path: Path) -> str:
 
 def build_graphx_config(scenario: dict[str, Any], manual_template: dict[str, Any]) -> dict[str, Any]:
     config = json.loads(json.dumps(manual_template))
-    config["name"] = f"rrp2_{scenario['dataset']['subset']}"
+    config["name"] = f"sar_scenario_{scenario['dataset']['subset']}"
 
     image_grid = scenario["image_grid"]
     pulse_range = scenario["pulse_range"]

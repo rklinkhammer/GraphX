@@ -103,11 +103,11 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_SCENARIO_001_FIXTURE_PROVENANCE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/provenance.md"
     SAR_SCENARIO_001_FIXTURE_CHECKSUMS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/checksums.txt"
     SAR_SCENARIO_001_FIXTURE_DATA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/deterministic_iq_phase_history_fixture_v1.json"
-    SAR_RRP1_LOCAL_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp1_local_runner.py"
-    SAR_RRP3_GOTCHA_BACK_ADAPTER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp3_gotcha_back_adapter.py"
-    SAR_RRP4_IMAGE_COMPARATOR_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparator.py"
-    SAR_RRP4_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp4_image_comparison_report.schema.json"
-    SAR_RRP5_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/rrp5_frozen_scenario_replay.md"
+    SAR_LOCAL_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_local_runner.py"
+    SAR_GOTCHA_BACK_ADAPTER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/gotcha_back_adapter.py"
+    SAR_IMAGE_COMPARATOR_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_image_comparator.py"
+    SAR_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_image_comparison_report.schema.json"
+    SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/frozen_scenario_replay.md"
     SAR_RRP6_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
     SAR_RRP7_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
     SAR_PR13_REFERENCE_IMAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
@@ -118,8 +118,8 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_PR14_SARPY_REQUIREMENTS_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/requirements.txt"
     SAR_PR17_REFERENCE_IMAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
     SAR_PR17_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"
-    SAR_PR18_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.sh"
-    SAR_PR18_LOCAL_GOTCHA_VALIDATION_DOC_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.md"
+    SAR_LOCAL_GOTCHA_VALIDATION_SCRIPT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.sh"
+    SAR_LOCAL_GOTCHA_VALIDATION_DOC_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/local_gotcha_validation.md"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph

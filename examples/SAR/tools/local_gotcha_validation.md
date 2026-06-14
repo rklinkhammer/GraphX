@@ -1,4 +1,4 @@
-# PR18 Local-Only Real GOTCHA Validation
+# Local-Only Real GOTCHA Validation
 
 This workflow validates a local GOTCHA `.mat` directory through the existing
 `graphx-gotcha-to-crsd` `graphx-crsd-lite` lane.

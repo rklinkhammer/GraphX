@@ -9,8 +9,8 @@
 
 namespace {
 
-constexpr const char* kHarnessPath = "examples/SAR/tools/rrp7_sarpy_harness.py";
-constexpr const char* kHarnessGuidePath = "examples/SAR/tools/rrp7_sarpy_harness.md";
+constexpr const char* kHarnessPath = "examples/SAR/tools/sarpy_metadata_harness.py";
+constexpr const char* kHarnessGuidePath = "examples/SAR/tools/sarpy_metadata_harness.md";
 
 #ifndef SAR_SCENARIO_001_JSON_PATH
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"

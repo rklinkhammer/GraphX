@@ -1,16 +1,16 @@
-# RRP2 CPU Reference Backprojection
+# CPU Reference Backprojection
 
 This document describes the deterministic CPU reference image-formation path introduced for Scenario 001.
 
 ## Scope
 
-RRP2 provides only the reference-image side:
+This path provides only the reference-image side:
 
 Scenario 001 deterministic IQ / phase-history fixture
     -> CPU reference backprojection
     -> reference image artifact
 
-RRP2 does not run GraphX SAR comparison. That begins in RRP3.
+It does not run GraphX SAR comparison; comparison is handled by the image comparator workflow.
 
 ## Implementation Notes
 
@@ -45,7 +45,7 @@ where:
 Assumptions:
 
 - fixture range bins are centered around the pulse-wise scene-center slant range,
-- nearest-neighbor range-bin sampling is sufficient for RRP2 baseline,
+- nearest-neighbor range-bin sampling is sufficient for this deterministic baseline,
 - flat pixel plane at scenario scene_center.z.
 
 Expected limitations:

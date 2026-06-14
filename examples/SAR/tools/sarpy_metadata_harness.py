@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from rrp1_scenario_to_run import load_json, write_json
+from sar_scenario_to_run import load_json, write_json
 
 
 CONTRACT_SCHEMA = "graphx.sar.product_metadata_contract.v1"
