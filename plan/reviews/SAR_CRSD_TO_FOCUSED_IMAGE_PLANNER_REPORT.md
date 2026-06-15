@@ -10,12 +10,14 @@ This plan defines a small, reviewable path to add CRSD input to the GraphX SAR p
 
 Key decisions:
 - First CRSD ingestion path should be a dedicated SAR source node with JSON-configured file paths, matching existing SAR source-node conventions.
+- SarAccelControlToken is the required edge contract for all SAR-related graph edges so GPU backfill (H2D/kernel/D2H execution metadata and transport semantics) remains intact end-to-end.
 - No GraphX runtime dependency on SarPy. SarPy remains local-only/gated for validation and reference generation.
 - CI uses tiny deterministic CRSD fixtures and deterministic acceptance thresholds.
 - Real GOTCHA-derived CRSD validation remains local-only and explicitly gated.
 - The output must be a focused SAR image product path (not CRSD signal magnitude quick-look).
 - Tests must prove that CRSD signal/PVP content enters the graph, affects the focused image, and is not replaced by synthetic placeholder processing.
 - Metal support must be demonstrated with explicit transfer/kernel execution evidence when the Metal lane is selected.
+- Parallelizable focused-image computation should be planned with explicit split/merge nodes so branch-level work can execute concurrently while preserving deterministic merge semantics.
 
 Planned delivery is split into 10 independent PRs, each with one primary concern, compile/test integrity, and explicit rollback boundaries.
 
@@ -58,28 +60,39 @@ Planning conclusion:
 
 Target data path for CRSD-focused image formation:
 
+Canonical focused-image lane:
+- CrsdInputSourceNode -> CrsdPhaseHistoryAdapterNode -> SarSplitNode -> FocusedImageTransformNode -> SarMergeNode -> FocusedImageOutputSinkNode
+
 1. CrsdInputSourceNode
 - Input: CRSD file path (JSON node_config), optional channel/polarization selectors, deterministic limits.
 - Output: CRSD-derived phase-history messages/tokens carrying required metadata and per-vector signal context.
-- Required proof: emitted payload hashes, vector counts, sample counts, and selected PVP fields must match the CRSD fixture.
+- Required proof: emitted payload hashes, vector counts, sample counts, selected PVP fields, and selected geometry fields must match the CRSD fixture.
 
 2. CrsdPhaseHistoryAdapterNode
 - Converts CRSD domain model to the SAR phase-history model expected by focused image transform.
 - Ensures explicit geometry/sampling assumptions and deterministic ordering.
 
-3. FocusedImageTransformNode (initial CPU-deterministic path)
+3. SarSplitNode (parallel fan-out)
+- Splits SarAccelControlToken phase-history flow into deterministic parallel branches (for example tile, aperture, or pulse-block partitioning).
+- Guarantees branch partition metadata and ordering contract required by merge.
+
+4. FocusedImageTransformNode (initial CPU-deterministic path)
 - Performs actual SAR focusing/backprojection from adapted phase history.
 - Produces focused image grid + metadata contract.
 - Keeps current accel-token contracts intact elsewhere; no runtime redesign.
-- Required proof: changing CRSD signal or PVP fields must change the focused image output.
+- Required proof: changing CRSD signal samples or relevant PVP/geometry fields must change the focused image output.
 
-4. FocusedImageOutputSinkNode
+5. SarMergeNode (parallel fan-in)
+- Merges branch outputs from SarSplitNode/FocusedImageTransformNode branches.
+- Enforces deterministic completion criteria (expected branch count, EOS handling, stable output ordering).
+
+6. FocusedImageOutputSinkNode
 - Emits deterministic artifacts:
   - focused_image.bin (float32 row-major)
   - focused_image.json (shape, spacing, geometry assumptions, hashes)
   - convenience visualization: focused_image.pgm or focused_image.png
 
-5. Local-only SarPy reference lane
+7. Local-only SarPy reference lane
 - Uses same CRSD input file to generate reference artifact(s) with local-only scripts.
 - Compares GraphX focused image vs reference and emits:
   - comparison_report.json
@@ -90,6 +103,7 @@ Boundary rules:
 - GraphX runtime remains pure C++ (no SarPy dependency).
 - SarPy scripts stay in local/gated tooling and tests.
 - CI default remains SarPy-free; optional/gated lanes cover local reference comparison.
+- All SAR-related graph edges must carry SarAccelControlToken to preserve GPU backfill and resolver/transport compatibility.
 - CRSD signal magnitude quick-look images are not acceptable substitutes for focused SAR images.
 - Diagnostic-only graph execution is not acceptable; focused-image tests must verify data-dependent output artifacts.
 
@@ -110,14 +124,20 @@ Required new/extended models for planned PRs:
 - Explicit payload ownership/transport rules:
   - CRSD complex samples must be carried in a typed phase-history frame or in an explicitly described host/device buffer view with TensorLayout.
   - SarSidecar fields remain routing, identity, progress, and diagnostics fields; they must not be used as a substitute for CRSD physics.
+  - SarAccelControlToken remains the graph-edge envelope for all SAR nodes; typed phase-history payload is attached to or referenced by the token contract, not sent through a separate non-token edge type.
   - H2D/D2H nodes move sample/image buffers only; algorithm decisions must come from the typed phase-history metadata and payload.
   - Tests must verify payload checksums before and after adapter/transport boundaries.
 
-3. Focused image product model (examples/SAR/include/sar)
+3. Parallel execution model (examples/SAR/include/sar)
+- SarSplitPartitionMetadata (partition id/count, pulse/vector range, deterministic ordering key)
+- SarMergeCompletionPolicy (expected_partitions, EOS policy, stable reduction order)
+- Deterministic merge contract proving identical output across repeated parallel runs
+
+4. Focused image product model (examples/SAR/include/sar)
 - FocusedImageGrid metadata (width, height, pixel spacing, coordinate frame assumptions, dtype/layout).
 - FocusedImageArtifactContract for sink/comparison lanes.
 
-4. Validation thresholds/config model
+5. Validation thresholds/config model
 - Threshold config for RMSE, phase RMSE, peak error, correlation, optional SSIM.
 - CI-safe deterministic defaults and local override support.
 
@@ -214,6 +234,7 @@ Tests to add:
   - emitted sample count equals CRSD sample count
   - payload checksum/hash matches CRSD signal data
   - first/last vector PVP metadata matches the fixture
+  - first/last vector geometry metadata (for example platform position/velocity or mapped equivalent) matches the fixture
   - missing/unsupported CRSD fields fail with deterministic diagnostics
 
 Tests to delete:
@@ -224,6 +245,7 @@ Acceptance criteria:
 - Node reads CRSD metadata + signal + required PVP subset through C++ reader interfaces.
 - CI fixture strategy is defined and enforced without requiring real GOTCHA data.
 - Tests prove the node emits CRSD-derived signal payload and PVP metadata, not synthetic placeholder tokens.
+- Tests prove CRSD geometry metadata required for focused image formation is emitted and validated.
 - The node exposes clear unsupported-format diagnostics for CRSD files outside the initial supported subset.
 
 Risks:
@@ -265,6 +287,7 @@ Tests to add:
   - SarSidecar is used only for routing/identity/diagnostics
   - sample payload checksum survives adapter boundaries
   - vector index/channel/sample ordering survives adapter boundaries
+  - SarAccelControlToken is preserved on all SAR edges through adapter output topology
 
 Tests to delete:
 - None
@@ -275,6 +298,7 @@ Acceptance criteria:
 - Deterministic ordering and repeatability are demonstrated in CI.
 - The report/docs for this PR explain exactly how token-based messages carry CRSD samples, PVP fields, geometry, and EOS/control markers.
 - Tests fail if the adapter drops payload data and emits only diagnostic/control tokens.
+- Split/merge partition metadata contract is defined so PR4 can parallelize transform branches without changing edge type.
 
 Risks:
 - Mapping ambiguity between CRSD field names and existing SAR model assumptions.
@@ -314,7 +338,12 @@ Tests to add:
   - known tiny coherent fixture produces a deterministic peak location
   - changing one CRSD sample changes the focused image hash
   - changing relevant PVP/platform geometry changes the focused image output
+  - output change is verified with artifact hash delta and image-metric delta (at minimum RMSE or peak location/value delta)
   - CRSD signal magnitude quick-look output is rejected as a focused-image result
+- Parallel split/merge tests:
+  - split branches preserve SarAccelControlToken contract per branch
+  - merge enforces deterministic output given identical branch inputs
+  - parallel branch count > 1 yields same output as single-branch baseline (within tolerance)
 
 Tests to delete:
 - None
@@ -325,6 +354,8 @@ Acceptance criteria:
 - Image dimensions, geometry assumptions, and output dtype/layout are explicit and stable.
 - Focused-image output is data-dependent on CRSD signal and PVP/geometry fields.
 - Tests prove actual processing happens, not diagnostic-only token forwarding or synthetic placeholder image generation.
+- Focused-image topology supports split/merge parallel execution with SarAccelControlToken preserved on every SAR edge.
+- Tests provide explicit evidence that changing CRSD samples changes the produced focused-image artifacts.
 
 Risks:
 - Algorithmic mismatch if adapter assumptions are incomplete.
@@ -369,6 +400,7 @@ Acceptance criteria:
 - Metal execution reports nonzero transfer and kernel diagnostics.
 - Metal output matches CPU baseline within documented deterministic tolerances.
 - The lane remains optional/gated where native Metal is unavailable, without weakening CPU CI coverage.
+- Metal split/merge lane keeps SarAccelControlToken edge flow and preserves GPU backfill diagnostics across branch fan-out/fan-in.
 
 Risks:
 - Native Metal availability varies by platform/build preset.
@@ -574,6 +606,8 @@ Tests to add:
 - Config example validation tests (tiny CI and local GOTCHA-derived)
 - Guardrail tests that reject diagnostic-only graph execution in the focused-image lane.
 - Guardrail tests that verify CRSD input payload hashes and focused output hashes are recorded in artifacts.
+- Guardrail tests that fail if any SAR-related topology edge switches away from SarAccelControlToken.
+- Guardrail tests that verify split/merge parallel topology remains deterministic and preserves GPU backfill evidence.
 
 Tests to delete:
 - Obsolete tests tied to superseded pre-CRSD focused-image assumptions (if any, determined during implementation)
@@ -583,6 +617,7 @@ Acceptance criteria:
 - End-to-end config examples exist for tiny CI fixture and local GOTCHA-derived CRSD.
 - Guardrails enforce planning rules (no MATLAB dependency, no SarPy runtime dependency, local-only real-data lane).
 - Documentation explains token-based CRSD phase-history flow, CPU focused-image path, Metal focused-image path, and required processing evidence.
+- Documentation and config examples include split/merge parallel topology guidance and explicitly require SarAccelControlToken on all SAR edges.
 
 Risks:
 - Documentation drift if implementation details change late.
