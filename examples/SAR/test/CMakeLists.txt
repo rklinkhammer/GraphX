@@ -77,6 +77,7 @@ target_include_directories(test_sar_example_unit PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 target_compile_definitions(test_sar_example_unit PRIVATE
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     GPU_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_simulated.json"

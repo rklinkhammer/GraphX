@@ -176,8 +176,8 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
     const auto scenario_id = gotcha_fixture.at("derived_from_scenario").get<std::string>();
     const auto fixture_id = gotcha_fixture.at("source_fixture_id").get<std::string>();
 
-    out.artifact_bin_path = output_dir / "graphx" / "graphx_output_rrp3.bin";
-    out.artifact_contract_path = output_dir / "graphx" / "graphx_output_contract_rrp3.json";
+    out.artifact_bin_path = output_dir / "graphx" / "graphx_output_runtime.bin";
+    out.artifact_contract_path = output_dir / "graphx" / "graphx_output_contract_runtime.json";
 
     sar::scenario001::graphx::WriteFloat32Raster(out.artifact_bin_path, out.pixels);
     sar::scenario001::graphx::WriteJson(

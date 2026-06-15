@@ -222,6 +222,14 @@ void PrintHelp() {
     return std::system(command.c_str()) == 0;
 }
 
+[[nodiscard]] std::filesystem::path ResolveSarpyValidateToolPath() {
+#ifdef GRAPHX_SOURCE_ROOT
+    return std::filesystem::path{GRAPHX_SOURCE_ROOT} / "tools/sarpy/validate_crsd.py";
+#else
+    return std::filesystem::path{"tools/sarpy/validate_crsd.py"};
+#endif
+}
+
 [[nodiscard]] std::optional<nlohmann::json> LoadJson(const std::filesystem::path& path) {
     std::ifstream stream{path};
     if (!stream) {
@@ -252,7 +260,7 @@ struct SarpyValidationOutcome {
         return outcome;
     }
 
-    const auto tool_path = std::filesystem::path{"tools/sarpy/validate_crsd.py"};
+    const auto tool_path = ResolveSarpyValidateToolPath();
     if (!std::filesystem::exists(tool_path)) {
         outcome.message = "sarpy_validation_skipped:validate_crsd_tool_missing";
         return outcome;

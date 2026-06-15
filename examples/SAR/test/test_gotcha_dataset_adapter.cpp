@@ -39,7 +39,7 @@ std::string GotchaReplaySourcePluginFilename() {
 }
 
 std::filesystem::path WriteTempTopologyFile(const nlohmann::json& topology) {
-    const auto path = std::filesystem::temp_directory_path() / "gotcha_replay_pr3_metal_topology.json";
+    const auto path = std::filesystem::temp_directory_path() / "gotcha_replay_metal_topology.json";
     std::ofstream output(path);
     output << topology.dump(2) << '\n';
     return path;
@@ -114,7 +114,7 @@ private:
 
 nlohmann::json MakeGotchaPr3Topology() {
     return nlohmann::json{
-        {"name", "sar_gotcha_replay_pr3_metal"},
+        {"name", "sar_gotcha_replay_metal"},
         {"execution_backend", "metal"},
         {"backend_fallback_policy", "allow_fallback"},
         {"resolver_diagnostics", true},

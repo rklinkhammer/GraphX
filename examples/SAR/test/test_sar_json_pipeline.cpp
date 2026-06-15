@@ -126,7 +126,7 @@ TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
     AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 
-TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) {
+TEST(SarJsonPipelineTest, MaterializedImagePathCapturesDeterministicSamples) {
     const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -175,7 +175,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImagePathCapturesDeterministicSamples) 
     AssertEosSidecarIdentity(status, 32u, 0u, 4u, 0u);
 }
 
-TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
+TEST(SarJsonPipelineTest, MaterializedImageParityMetricsMatchReference) {
     const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -247,7 +247,7 @@ TEST(SarJsonPipelineTest, Pr7MaterializedImageParityMetricsMatchReference) {
 
 // The CPU-reference validation gate measures correctness independently from transport diagnostics.
 // intentionally independent of transport-side diagnostics assertions.
-TEST(SarJsonPipelineTest, Pr7CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
+TEST(SarJsonPipelineTest, CpuReferenceValidationGateIsIndependentFromTransportDiagnostics) {
     const std::filesystem::path config_path{SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 

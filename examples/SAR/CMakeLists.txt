@@ -43,17 +43,22 @@ set_target_properties(graphx_gotcha_to_crsd PROPERTIES
 target_compile_features(sar_example PRIVATE cxx_std_26)
 target_link_libraries(sar_example PRIVATE graph gpu dsp log4cxx)
 target_compile_definitions(sar_example PRIVATE
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
 )
 
 target_compile_features(sar_benchmark PRIVATE cxx_std_26)
 target_link_libraries(sar_benchmark PRIVATE graph gpu dsp log4cxx)
 target_compile_definitions(sar_benchmark PRIVATE
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     SAR_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
 )
 
 target_compile_features(graphx_gotcha_to_crsd PRIVATE cxx_std_26)
 target_link_libraries(graphx_gotcha_to_crsd PRIVATE graph gpu dsp log4cxx)
+target_compile_definitions(graphx_gotcha_to_crsd PRIVATE
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+)
 if(HDF5_FOUND)
     target_compile_definitions(graphx_gotcha_to_crsd PRIVATE GRAPHX_SAR_HAS_HDF5=1)
     target_include_directories(graphx_gotcha_to_crsd PRIVATE ${HDF5_INCLUDE_DIRS})

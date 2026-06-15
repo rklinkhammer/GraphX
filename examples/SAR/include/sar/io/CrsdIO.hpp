@@ -156,7 +156,11 @@ private:
             }
             return std::filesystem::path{override_path};
         }
+#ifdef GRAPHX_SOURCE_ROOT
+        return std::filesystem::path{GRAPHX_SOURCE_ROOT} / "tools/sarpy/write_crsd_from_graphx_product.py";
+#else
         return std::filesystem::path{"tools/sarpy/write_crsd_from_graphx_product.py"};
+#endif
     }
 
     [[nodiscard]] static std::string ShellQuote(const std::filesystem::path& path) {

@@ -114,7 +114,7 @@ TEST_F(RealGotchaFullApertureValidationTest, FullApertureConversionProducesValid
 
     // Write to CRSD format
     std::error_code fs_error{};
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_pr8_real_validation";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_real_validation";
     std::filesystem::remove_all(output_dir, fs_error);
     std::filesystem::create_directories(output_dir, fs_error);
 
@@ -171,7 +171,7 @@ TEST_F(RealGotchaFullApertureValidationTest, CrsdWriterPreservesFullAperturePuls
 
     // Write to CRSD format
     std::error_code fs_error{};
-    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_pr8_report_validation";
+    const auto output_dir = std::filesystem::temp_directory_path() / "graphx_report_validation";
     std::filesystem::remove_all(output_dir, fs_error);
     std::filesystem::create_directories(output_dir, fs_error);
 

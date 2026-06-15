@@ -111,7 +111,7 @@ struct DeviceReduceEvaluation {
     std::string rationale{};
 };
 
-struct Pr5ReferenceMetrics {
+struct ReferenceFidelityMetrics {
     double range_compression_reference_ms{0.0};
     double range_compression_runtime_ms{0.0};
     double image_metric_ms{0.0};
@@ -418,8 +418,8 @@ BenchmarkStats ComputeStats(const std::vector<double>& samples_ms) {
     return stats;
 }
 
-Pr5ReferenceMetrics MeasurePr5ReferenceMetrics() {
-    Pr5ReferenceMetrics out{};
+ReferenceFidelityMetrics MeasureReferenceFidelityMetrics() {
+    ReferenceFidelityMetrics out{};
 
     sar::reference::ChirpReferenceConfig cfg{};
     cfg.sample_count = 16;
@@ -967,7 +967,7 @@ void PrintSummary(const BenchmarkProfile& profile,
                   const BenchmarkStats& baseline_exec,
                   const GraphRunResult& last_graph,
                   const DeviceReduceEvaluation& device_reduce_eval,
-                  const Pr5ReferenceMetrics& pr5_reference,
+                  const ReferenceFidelityMetrics& reference_fidelity,
                   const BenchmarkOptions& options) {
     const double scheduling_overhead_ms =
         std::max(0.0, graph_run.median_ms - baseline_exec.median_ms);
@@ -1034,19 +1034,19 @@ void PrintSummary(const BenchmarkProfile& profile,
               << ", graph_overhead_ms=" << scheduling_overhead_ms
               << ", diagnostics_contract=sink-status\n";
     std::cout << "- accuracy/fidelity metrics: matched_filter_peak_bin="
-              << pr5_reference.matched_filter_peak_bin
-              << ", peak_error_px=" << pr5_reference.peak_location_error_pixels
-              << ", pslr_db=" << pr5_reference.peak_sidelobe_ratio_db
-              << ", islr_db=" << pr5_reference.integrated_sidelobe_ratio_db
-              << ", dynamic_range_db=" << pr5_reference.dynamic_range_db
-              << ", image_hash=" << pr5_reference.image_hash << "\n";
+              << reference_fidelity.matched_filter_peak_bin
+              << ", peak_error_px=" << reference_fidelity.peak_location_error_pixels
+              << ", pslr_db=" << reference_fidelity.peak_sidelobe_ratio_db
+              << ", islr_db=" << reference_fidelity.integrated_sidelobe_ratio_db
+              << ", dynamic_range_db=" << reference_fidelity.dynamic_range_db
+              << ", image_hash=" << reference_fidelity.image_hash << "\n";
     std::cout << "- runtime matched-filter fidelity: mode="
-              << pr5_reference.runtime_compression_mode
-              << ", runtime_ms=" << pr5_reference.range_compression_runtime_ms
-              << ", reference_ms=" << pr5_reference.range_compression_reference_ms
-              << ", l_inf=" << pr5_reference.runtime_reference_l_inf
-              << ", rms=" << pr5_reference.runtime_reference_rms
-              << ", relative_l2=" << pr5_reference.runtime_reference_relative_l2 << "\n";
+              << reference_fidelity.runtime_compression_mode
+              << ", runtime_ms=" << reference_fidelity.range_compression_runtime_ms
+              << ", reference_ms=" << reference_fidelity.range_compression_reference_ms
+              << ", l_inf=" << reference_fidelity.runtime_reference_l_inf
+              << ", rms=" << reference_fidelity.runtime_reference_rms
+              << ", relative_l2=" << reference_fidelity.runtime_reference_relative_l2 << "\n";
 
     if (device_reduce_eval.enabled) {
         std::cout << "\nDeviceReduce prototype evaluation:\n";
@@ -1136,7 +1136,7 @@ void WriteTraceJson(const std::filesystem::path& path,
                     const BenchmarkStats& baseline_exec,
                     const GraphRunResult& last_graph,
                     const DeviceReduceEvaluation& device_reduce_eval,
-                    const Pr5ReferenceMetrics& pr5_reference) {
+                    const ReferenceFidelityMetrics& reference_fidelity) {
     const auto& profile = options.profile;
     const auto parent = path.parent_path();
     if (!parent.empty()) {
@@ -1277,11 +1277,11 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"kernel_dispatches", last_graph.diagnostics.kernel_dispatches},
                 {"graph_overhead_ms", graph_overhead_ms},
                 {"diagnostics_contract", "sink-token"},
-                {"range_compression_reference_ms", pr5_reference.range_compression_reference_ms},
-                {"range_compression_runtime_ms", pr5_reference.range_compression_runtime_ms},
-                {"matched_filter_vector_length", pr5_reference.matched_filter_vector_length},
-                {"image_metric_ms", pr5_reference.image_metric_ms},
-                {"graph_direct_peak_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
+                {"range_compression_reference_ms", reference_fidelity.range_compression_reference_ms},
+                {"range_compression_runtime_ms", reference_fidelity.range_compression_runtime_ms},
+                {"matched_filter_vector_length", reference_fidelity.matched_filter_vector_length},
+                {"image_metric_ms", reference_fidelity.image_metric_ms},
+                {"graph_direct_peak_delta_pixels", reference_fidelity.graph_direct_peak_delta_pixels},
             }},
         }},
         {"performance_claim_policy", {
@@ -1310,35 +1310,35 @@ void WriteTraceJson(const std::filesystem::path& path,
                 {"sample_rate_hz", 16.0e6},
                 {"bandwidth_hz", 4.0e6},
                 {"chirp_duration_s", 1.0e-6},
-                {"vector_length", pr5_reference.matched_filter_vector_length},
-                {"peak_bin", pr5_reference.matched_filter_peak_bin},
-                {"peak_value", pr5_reference.matched_filter_peak_value},
-                {"reference_time_ms", pr5_reference.range_compression_reference_ms},
+                {"vector_length", reference_fidelity.matched_filter_vector_length},
+                {"peak_bin", reference_fidelity.matched_filter_peak_bin},
+                {"peak_value", reference_fidelity.matched_filter_peak_value},
+                {"reference_time_ms", reference_fidelity.range_compression_reference_ms},
             }},
             {"runtime_matched_filter", {
-                {"mode", pr5_reference.runtime_compression_mode},
+                {"mode", reference_fidelity.runtime_compression_mode},
                 {"sample_rate_hz", 16.0e6},
                 {"bandwidth_hz", 4.0e6},
                 {"chirp_duration_s", 1.0e-6},
                 {"output", "magnitude"},
-                {"runtime_time_ms", pr5_reference.range_compression_runtime_ms},
-                {"reference_l_inf", pr5_reference.runtime_reference_l_inf},
-                {"reference_rms", pr5_reference.runtime_reference_rms},
-                {"reference_relative_l2", pr5_reference.runtime_reference_relative_l2},
-                {"parity_status", pr5_reference.runtime_reference_l_inf < 1.0e-4 ? "pass" : "fail"},
+                {"runtime_time_ms", reference_fidelity.range_compression_runtime_ms},
+                {"reference_l_inf", reference_fidelity.runtime_reference_l_inf},
+                {"reference_rms", reference_fidelity.runtime_reference_rms},
+                {"reference_relative_l2", reference_fidelity.runtime_reference_relative_l2},
+                {"parity_status", reference_fidelity.runtime_reference_l_inf < 1.0e-4 ? "pass" : "fail"},
             }},
             {"image_metrics", {
-                {"peak_location_error_pixels", pr5_reference.peak_location_error_pixels},
-                {"impulse_response_width_pixels", pr5_reference.impulse_response_width_pixels},
-                {"peak_sidelobe_ratio_db", pr5_reference.peak_sidelobe_ratio_db},
-                {"integrated_sidelobe_ratio_db", pr5_reference.integrated_sidelobe_ratio_db},
-                {"dynamic_range_db", pr5_reference.dynamic_range_db},
-                {"image_hash", pr5_reference.image_hash},
-                {"metric_time_ms", pr5_reference.image_metric_ms},
+                {"peak_location_error_pixels", reference_fidelity.peak_location_error_pixels},
+                {"impulse_response_width_pixels", reference_fidelity.impulse_response_width_pixels},
+                {"peak_sidelobe_ratio_db", reference_fidelity.peak_sidelobe_ratio_db},
+                {"integrated_sidelobe_ratio_db", reference_fidelity.integrated_sidelobe_ratio_db},
+                {"dynamic_range_db", reference_fidelity.dynamic_range_db},
+                {"image_hash", reference_fidelity.image_hash},
+                {"metric_time_ms", reference_fidelity.image_metric_ms},
             }},
             {"graph_direct_metric_deltas", {
-                {"peak_location_delta_pixels", pr5_reference.graph_direct_peak_delta_pixels},
-                {"peak_value_delta", pr5_reference.graph_direct_peak_value_delta},
+                {"peak_location_delta_pixels", reference_fidelity.graph_direct_peak_delta_pixels},
+                {"peak_value_delta", reference_fidelity.graph_direct_peak_value_delta},
                 {"basis", "deterministic CPU reference fixture; runtime graph currently emits diagnostics rather than image samples"},
             }},
         }},
@@ -1438,7 +1438,7 @@ int main(int argc, char** argv) {
         const auto graph_run_stats = ComputeStats(graph_run_samples_ms);
         const auto graph_lifecycle_stats = ComputeStats(graph_lifecycle_samples_ms);
         const auto baseline_exec_stats = ComputeStats(baseline_exec_samples_ms);
-        const auto pr5_reference_metrics = MeasurePr5ReferenceMetrics();
+        const auto reference_fidelity_metrics = MeasureReferenceFidelityMetrics();
 
         if (options.evaluate_device_reduce) {
             device_reduce_eval.enabled = true;
@@ -1478,7 +1478,7 @@ int main(int argc, char** argv) {
             baseline_exec_stats,
             last_graph,
             device_reduce_eval,
-            pr5_reference_metrics,
+            reference_fidelity_metrics,
             options);
 
         if (options.trace_output_path) {
@@ -1491,7 +1491,7 @@ int main(int argc, char** argv) {
                 baseline_exec_stats,
                 last_graph,
                 device_reduce_eval,
-                pr5_reference_metrics);
+                reference_fidelity_metrics);
             std::cout << "\nTrace written: " << options.trace_output_path->string() << "\n";
         }
 

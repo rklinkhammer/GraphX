@@ -7,6 +7,10 @@
 #include <filesystem>
 #include <string>
 
+#ifndef SARPY_VALIDATE_CRSD_TOOL_PATH
+#define SARPY_VALIDATE_CRSD_TOOL_PATH "tools/sarpy/validate_crsd.py"
+#endif
+
 namespace {
 
 class CrsdIoTest : public ::testing::Test {
@@ -110,7 +114,8 @@ TEST_F(CrsdIoTest, WriterProducesSarpyOpenableCrsdProduct) {
 
     const auto validation_report = Path("sarpy_validation.json");
     const auto command =
-        std::string{"python3 tools/sarpy/validate_crsd.py validate --input-crsd "} +
+        std::string{"python3 "} + SARPY_VALIDATE_CRSD_TOOL_PATH +
+        " validate --input-crsd " +
         ShellQuote(out_dir / graphx::sar::CrsdWriter::kSignalFile) +
         " --output-json " + ShellQuote(validation_report) +
         " >/dev/null 2>&1";

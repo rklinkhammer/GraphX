@@ -4,21 +4,21 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-forbidden_filename_regex='(pr|PR|rrp|RRP)[0-9]+|SAR_IMPL_PR|SAR_VERIFY_PR|SAR_PR[0-9]+|SAR_RRP[0-9]+'
-forbidden_content_regex='\b(pr[0-9]+|PR[0-9]+|rrp[0-9]+|RRP[0-9]+)\b|SAR_IMPL_PR|SAR_VERIFY_PR|SAR_PR[0-9]+|SAR_RRP[0-9]+'
+forbidden_filename_regex='(^|[^[:alnum:]])(Pr|pr|PR|Rrp|rrp|RRP)[0-9]+([A-Za-z_][A-Za-z0-9_]*)?|SAR_IMPL_PR|SAR_VERIFY_PR|SAR_PR[0-9]+|SAR_RRP[0-9]+'
+forbidden_content_regex='(^|[^[:alnum:]])(Pr|pr|PR|Rrp|rrp|RRP)[0-9]+[A-Za-z0-9_]*|SAR_IMPL_PR|SAR_VERIFY_PR|SAR_PR[0-9]+|SAR_RRP[0-9]+'
 
 is_allowed_historical_path() {
     local path="$1"
     case "$path" in
+        scripts/check_sar_naming_hygiene.sh) return 0 ;;
         plan/history/*) return 0 ;;
         plan/old/*) return 0 ;;
         plan/agents/*) return 0 ;;
+        plan/reviews/*) return 0 ;;
         plan/prompt\ examples/*) return 0 ;;
         plan/SAR_SIMPLIFIER_REPORT.md) return 0 ;;
         plan/SAR_NAMING_CLEANUP_PLANNER_REPORT.md) return 0 ;;
         plan/reviews/SAR_PLANNER_REPORT.md) return 0 ;;
-        plan/reviews/SAR_GOTCHA_TO_CRSD_CURRENT_STATE.md) return 0 ;;
-        doc/architecture/CUDA_GRAPH_NODE_IMPLEMENTATION_PLAN.md) return 0 ;;
         *) return 1 ;;
     esac
 }

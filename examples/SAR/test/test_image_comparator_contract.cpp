@@ -243,8 +243,8 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
     out.width = static_cast<std::uint32_t>(metadata.element_count);
     out.height = 1u;
     out.hash = sar::scenario001::graphx::Fnv1a64Hex(out.pixels);
-    out.artifact_bin_path = output_dir / "graphx_output_rrp4.bin";
-    out.artifact_contract_path = output_dir / "graphx_output_contract_rrp4.json";
+    out.artifact_bin_path = output_dir / "graphx_output_runtime.bin";
+    out.artifact_contract_path = output_dir / "graphx_output_contract_runtime.json";
 
     sar::scenario001::graphx::WriteFloat32Raster(out.artifact_bin_path, out.pixels);
     sar::scenario001::graphx::WriteJson(

@@ -363,7 +363,7 @@ Optional CRSD smoke validation is gated by `GRAPHX_SARPY_CRSD_FILE`:
 ```bash
 export GRAPHX_SARPY_CRSD_FILE=/path/to/local/file.crsd
 ./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=Pr14SarpyCrsdHarnessTest.OptionalLocalSmokeRunsWhenSarpyAndCrsdPathAreAvailable'
+  '--gtest_filter=SarpyCrsdValidationHarnessTest.OptionalLocalSmokeRunsWhenSarpyAndCrsdPathAreAvailable'
 ```
 
 ### gotcha-back Reference Workflow

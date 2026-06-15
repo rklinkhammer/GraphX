@@ -118,7 +118,7 @@ TEST(CpuReferenceBackprojectionTest, WritesNormalizedReferenceArtifactContract) 
         scenario_path,
         fixture_path);
 
-    const auto out_dir = std::filesystem::temp_directory_path() / "graphx_rrp2_reference_artifact";
+    const auto out_dir = std::filesystem::temp_directory_path() / "graphx_reference_artifact";
     {
         std::error_code ec;
         std::filesystem::remove_all(out_dir, ec);
@@ -149,7 +149,7 @@ TEST(CpuReferenceBackprojectionTest, MissingRequiredFixtureFieldIsReported) {
     auto broken = LoadJson(fixture_path);
     broken["geometry"].erase("carrier_hz");
 
-    const auto broken_path = std::filesystem::temp_directory_path() / "graphx_rrp2_broken_fixture.json";
+    const auto broken_path = std::filesystem::temp_directory_path() / "graphx_broken_fixture.json";
     {
         std::ofstream out(broken_path, std::ios::binary | std::ios::trunc);
         ASSERT_TRUE(out.good());

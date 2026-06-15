@@ -46,7 +46,7 @@ Out of scope (initial phase):
 6. GPU behavior belongs behind CUDA/SYCL/Metal/simulated capability boundaries.
 7. SAR is an example package, not a new framework layer.
 8. SAR-specific types stay under `examples/SAR` unless promoted deliberately.
-9. PR1 must demonstrate the architecture, not perfect SAR math.
+9. Phase 1 must demonstrate the architecture, not perfect SAR math.
 
 ## Existing GraphX Hooks Used
 
