@@ -8,6 +8,21 @@ This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for
 - **GOTCHA Dataset Reference:** [docs/sar/gotcha_large_scene_data_description.md](../../docs/sar/gotcha_large_scene_data_description.md) — Field inventory and full-aperture conversion instructions
 - **CRSD Mapping:** [docs/sar/crsd_definition.md](../../docs/sar/crsd_definition.md) — GOTCHA-to-normalized-to-CRSD concepts
 
+## Canonical SAR Lanes
+
+Use these three lanes to avoid mixing deprecated/archival flows:
+
+1. GOTCHA -> CRSD conversion
+  - `bash scripts/convert_gotcha_subdata_to_crsd.sh <gotcha_input_dir> <output_dir>`
+2. CRSD quick-look validation (local-only)
+  - `python3 tools/sarpy/reference_image_from_crsd.py generate-reference ...`
+3. CRSD -> focused GraphX image
+  - Run focused-image GraphX lane/tests and compare artifacts against reference tooling.
+
+Boundary:
+- Quick-look magnitude outputs are for CRSD inspection only.
+- Focused-image acceptance requires data-dependent GraphX focused-image artifacts.
+
 ## Full-Aperture GOTCHA Conversion (Local-Only)
 
 When a local GOTCHA dataset is available:

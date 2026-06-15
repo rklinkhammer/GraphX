@@ -9,6 +9,21 @@ This is the consolidated operational documentation for GraphX, grouped by:
 5. SarPy
 6. CRSD conversion and testing
 
+## Canonical SAR Lanes
+
+Use these three lanes as the canonical SAR workflow model:
+
+1. GOTCHA -> CRSD conversion
+  - Primary command: `bash scripts/convert_gotcha_subdata_to_crsd.sh <input_dir> <output_dir>`
+2. CRSD quick-look validation (local-only)
+  - Primary command: `python3 tools/sarpy/reference_image_from_crsd.py generate-reference ...`
+3. CRSD -> focused GraphX image
+  - Primary lane: focused SAR test/config execution (for example `GraphxImageComparisonLaneTest.*`)
+
+Boundary:
+- Quick-look output is validation/inspection only and not a focused-image substitute.
+- Focused-image evidence must come from GraphX focused-image path tests/artifacts.
+
 Primary source docs used for this consolidation:
 
 - README.md
@@ -22,7 +37,6 @@ Primary source docs used for this consolidation:
 - examples/SAR/tools/local_gotcha_validation.md
 - examples/SAR/tools/sar_local_runner.md
 - examples/SAR/tools/sarpy_metadata_harness.md
-- plan/reviews/SAR_GOTCHA_TO_CRSD_CURRENT_STATE.md
 
 ## 1) Build
 
@@ -177,6 +191,8 @@ This performs:
 - Output to CRSD chunk directories (`*/product.crsd`)
 - Optional report artifacts when enabled (`ENABLE_EMIT_INDEX=1`)
 
+This is lane 1 of the canonical SAR workflow.
+
 ### Local Full-Aperture Validation Tests (Optional, Local-Only)
 
 When `GRAPHX_SAR_GOTCHA_DATASET` is set, run validation tests that verify:
@@ -207,6 +223,8 @@ This scaffolds GraphX and reference boundary scripts/contracts without auto-runn
 ## 5) SarPy
 
 SarPy integration is local-only and optional. It is not a GraphX runtime dependency.
+
+This section primarily describes lane 2 (CRSD quick-look validation).
 
 ### Environment probes
 
@@ -259,6 +277,8 @@ python3 examples/SAR/tools/sarpy_metadata_harness.py \
 ### Mode
 
 `graphx-gotcha-to-crsd` supports CRSD conversion for the supported operational lane.
+
+This section plus focused SAR unit lanes represent lane 3 (CRSD -> focused GraphX image).
 
 Important input constraint:
 

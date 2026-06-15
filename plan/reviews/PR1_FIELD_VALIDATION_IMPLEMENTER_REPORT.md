@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-15): This document is kept for historical traceability and may reference obsolete conversion-lane assumptions. Do not use for active focused-image planning; use plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md.
+
 # PR1 Implementation Report: Extend GOTCHA Field Inventory Validation
 
 **Date:** 2026-06-14  

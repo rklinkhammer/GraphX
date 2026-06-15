@@ -11,6 +11,16 @@ This README is the top-level build guide and CMake option reference.
 For a consolidated operational guide across build, install, test, GOTCHA, SarPy,
 and CRSD conversion/testing, see `docs/CONSOLIDATED_OPERATIONS.md`.
 
+## Canonical SAR Lanes
+
+Active SAR operations are organized into three lanes:
+
+1. GOTCHA -> CRSD conversion
+2. CRSD quick-look validation (local-only reference tooling)
+3. CRSD -> focused GraphX image
+
+Use `docs/CONSOLIDATED_OPERATIONS.md` as the authoritative command reference for these lanes.
+
 ## Requirements
 
 - CMake 3.23 or newer
@@ -259,6 +269,27 @@ CRSD conversion emits:
 | `conversion_report.json` | Optional conversion summary when `ENABLE_EMIT_INDEX=1`. |
 | `conversion_warnings.log` | Optional warning log when `ENABLE_EMIT_INDEX=1`. |
 
+### CRSD Quick-Look Validation (Local-Only)
+
+Quick-look is for validation/inspection only and is not a focused-image lane.
+
+```bash
+python3 tools/sarpy/reference_image_from_crsd.py \
+  generate-reference \
+  --input-crsd /path/to/product.crsd \
+  --output-magnitude-png /tmp/crsd_reference_magnitude.png \
+  --output-metadata-json /tmp/crsd_reference_metadata.json
+```
+
+### CRSD -> Focused GraphX Image
+
+Run focused-image validation from the SAR unit binary lanes:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=GraphxImageComparisonLaneTest.*'
+```
+
 ### GOTCHA Environment Variables
 
 | Variable | Use |
@@ -380,23 +411,3 @@ Installed under:
   - Use strict preset to enforce fail-fast behavior.
 - CUDA or SYCL lane requested but not activated:
   - Check toolkit/compiler prerequisites and configure output warnings.
-
-
-# NOTES
-## Generating images from CRSD using SarPy.
-
-```bash
-python3 tools/sarpy/reference_image_from_crsd.py \
-  generate-reference \
-  --input-crsd /path/to/product.crsd \
-  --output-magnitude-png /tmp/crsd_reference_magnitude.png \
-  --output-metadata-json /tmp/crsd_reference_metadata.json
-```
-
-```bash
-python3 tools/sarpy/reference_image_from_crsd.py \
-  generate-reference \
-  --input-crsd /Users/rklinkhammer/workspace/Gotcha-Large-Scene-Data/subData_crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd \
-  --output-magnitude-png /tmp/gotcha_crsd_reference_magnitude.png \
-  --output-metadata-json /tmp/gotcha_crsd_reference_metadata.json
-```

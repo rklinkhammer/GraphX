@@ -1,3 +1,5 @@
+> ARCHIVAL STATUS (2026-06-15): This document is kept for historical traceability and includes obsolete planner assumptions (including graphx-crsd-lite behavior). Do not use for active planning; use plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md and current CRSD-only docs/scripts.
+
 # SAR Planner Report
 
 Source inputs:

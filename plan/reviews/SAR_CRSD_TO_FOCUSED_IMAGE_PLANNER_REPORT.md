@@ -16,6 +16,7 @@ Key decisions:
 - Real GOTCHA-derived CRSD validation remains local-only and explicitly gated.
 - The output must be a focused SAR image product path (not CRSD signal magnitude quick-look).
 - Tests must prove that CRSD signal/PVP content enters the graph, affects the focused image, and is not replaced by synthetic placeholder processing.
+- Focused-image correctness tests are failure-oriented: they must fail if execution is diagnostics-only or if CRSD samples/PVP are ignored.
 - Metal support must be demonstrated with explicit transfer/kernel execution evidence when the Metal lane is selected.
 - Parallelizable focused-image computation should be planned with explicit split/merge nodes so branch-level work can execute concurrently while preserving deterministic merge semantics.
 
@@ -107,6 +108,14 @@ Boundary rules:
 - CRSD signal magnitude quick-look images are not acceptable substitutes for focused SAR images.
 - Diagnostic-only graph execution is not acceptable; focused-image tests must verify data-dependent output artifacts.
 
+Focused-image processing proof matrix (required):
+- all-zero CRSD signal fixture -> near-zero focused image response
+- known coherent tiny fixture -> deterministic expected peak location/value envelope
+- one-sample CRSD perturbation -> focused image hash/metric delta from baseline
+- relevant PVP/geometry perturbation -> focused image shift/delta from baseline
+- repeated identical input runs -> deterministic identical output hashes and peak location
+- These tests must fail if the pipeline only forwards tokens/timing metadata and does not numerically process CRSD payloads.
+
 ## 5. Required Type/Model Changes
 
 Required new/extended models for planned PRs:
@@ -121,12 +130,18 @@ Required new/extended models for planned PRs:
 2. SAR phase-history transfer model (examples/SAR/include/sar)
 - SarPhaseHistoryFrame or equivalent message contract for focused-image transform input.
 - Deterministic ordering fields (vector index, pulse index, channel id, sample count).
+- Explicit frame contract requirements:
+  - Ownership: frame payload must declare ownership mode (owned host buffer, shared immutable buffer view, or device-backed buffer view with lifetime ticket).
+  - Buffer layout: frame payload must declare TensorLayout-like shape/stride and complex sample representation (complex_f32 interleaved or explicitly documented equivalent).
+  - Integrity: frame payload must carry deterministic checksum/hash over the signal payload for boundary verification.
+  - Control semantics: EOS/watermark/control frames must be explicit frame markers and must not carry ambiguous synthetic sample payloads.
+  - Physics boundary: CRSD physics fields (samples, timing, PVP, geometry) must be read from frame payload/metadata contract, not inferred from SarSidecar.
 - Explicit payload ownership/transport rules:
   - CRSD complex samples must be carried in a typed phase-history frame or in an explicitly described host/device buffer view with TensorLayout.
   - SarSidecar fields remain routing, identity, progress, and diagnostics fields; they must not be used as a substitute for CRSD physics.
   - SarAccelControlToken remains the graph-edge envelope for all SAR nodes; typed phase-history payload is attached to or referenced by the token contract, not sent through a separate non-token edge type.
   - H2D/D2H nodes move sample/image buffers only; algorithm decisions must come from the typed phase-history metadata and payload.
-  - Tests must verify payload checksums before and after adapter/transport boundaries.
+  - Tests must verify payload checksums before and after adapter/split/merge/transport boundaries.
 
 3. Parallel execution model (examples/SAR/include/sar)
 - SarSplitPartitionMetadata (partition id/count, pulse/vector range, deterministic ordering key)
@@ -162,7 +177,9 @@ Initial algorithm definition for fully focused image:
 Metal execution requirements:
 - CPU focused-image output is the correctness baseline.
 - Metal execution is a separate, explicit lane using the same CRSD-derived phase-history contract.
+- A tiny CRSD fixture lane must run both CPU and Metal focused-image paths from the same input fixture and compare outputs.
 - Metal tests must verify resolver selection, bytes_h2d > 0, bytes_d2h > 0, kernel_dispatches > 0, and CPU-vs-Metal output parity within documented tolerances.
+- Dual-lane evidence must include input checksum, CPU output hash, Metal output hash, and parity metrics (at minimum RMSE and peak location/value deltas).
 - A passing Metal lane must prove actual kernel execution, not just token forwarding.
 
 ## 6. Planned PRs
@@ -284,6 +301,10 @@ Tests to add:
 - Adapter EOS/control-marker propagation tests
 - Token/payload contract tests proving:
   - CRSD samples are carried in SarPhaseHistoryFrame or an explicitly described host/device buffer payload
+  - SarPhaseHistoryFrame ownership mode is explicit and enforced (no dangling/implicit ownership)
+  - SarPhaseHistoryFrame buffer layout metadata is explicit and validated at adapter output
+  - payload checksum is stable at adapter output and preserved across split/merge boundaries
+  - EOS/control markers propagate through adapter/split/merge without sample payload corruption
   - SarSidecar is used only for routing/identity/diagnostics
   - sample payload checksum survives adapter boundaries
   - vector index/channel/sample ordering survives adapter boundaries
@@ -299,6 +320,8 @@ Acceptance criteria:
 - The report/docs for this PR explain exactly how token-based messages carry CRSD samples, PVP fields, geometry, and EOS/control markers.
 - Tests fail if the adapter drops payload data and emits only diagnostic/control tokens.
 - Split/merge partition metadata contract is defined so PR4 can parallelize transform branches without changing edge type.
+- SarPhaseHistoryFrame (or equivalent) contract is documented with explicit ownership, buffer layout, checksum, EOS semantics, and sidecar-vs-physics boundaries.
+- Tests fail if physics/algorithm logic reads CRSD semantics from sidecar-only metadata instead of typed phase-history payload.
 
 Risks:
 - Mapping ambiguity between CRSD field names and existing SAR model assumptions.
@@ -340,6 +363,9 @@ Tests to add:
   - changing relevant PVP/platform geometry changes the focused image output
   - output change is verified with artifact hash delta and image-metric delta (at minimum RMSE or peak location/value delta)
   - CRSD signal magnitude quick-look output is rejected as a focused-image result
+- Diagnostics-only failure tests:
+  - token-forwarding/timing-only execution path must fail focused-image correctness assertions
+  - fixture payload ignored/mocked path must fail hash/peak-change assertions
 - Parallel split/merge tests:
   - split branches preserve SarAccelControlToken contract per branch
   - merge enforces deterministic output given identical branch inputs
@@ -356,6 +382,8 @@ Acceptance criteria:
 - Tests prove actual processing happens, not diagnostic-only token forwarding or synthetic placeholder image generation.
 - Focused-image topology supports split/merge parallel execution with SarAccelControlToken preserved on every SAR edge.
 - Tests provide explicit evidence that changing CRSD samples changes the produced focused-image artifacts.
+- The focused-image proof matrix (all-zero, coherent peak, one-sample perturbation, PVP perturbation, deterministic peak repeatability) passes in CI.
+- A diagnostics-only or payload-ignored implementation fails the PR4 suite.
 
 Risks:
 - Algorithmic mismatch if adapter assumptions are incomplete.
@@ -379,6 +407,7 @@ Files to touch:
 - examples/SAR/src/CrsdFocusedImageTransformMetal.cpp (or equivalent)
 - examples/SAR/plugins/crsd_focused_image_transform_node_plugin.cpp
 - examples/SAR/plugins/CMakeLists.txt
+- examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json
 - examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json
 - examples/SAR/test/test_crsd_focused_image_metal.cpp
 - examples/SAR/test/CMakeLists.txt
@@ -390,6 +419,7 @@ Tests to add:
 - Resolver-selection test proving the Metal lane selects Metal-capable H2D/kernel/D2H nodes.
 - Metal execution diagnostics test requiring bytes_h2d > 0, bytes_d2h > 0, and kernel_dispatches > 0.
 - CPU-vs-Metal focused-image parity test on the same tiny CRSD fixture.
+- Tiny dual-lane runner test that executes CPU then Metal paths and emits a comparison evidence bundle (checksums/hashes/metrics).
 - Negative guardrail test that fails if the Metal lane only forwards tokens without kernel execution.
 
 Tests to delete:
@@ -401,6 +431,7 @@ Acceptance criteria:
 - Metal output matches CPU baseline within documented deterministic tolerances.
 - The lane remains optional/gated where native Metal is unavailable, without weakening CPU CI coverage.
 - Metal split/merge lane keeps SarAccelControlToken edge flow and preserves GPU backfill diagnostics across branch fan-out/fan-in.
+- A tiny-fixture CPU+Metal focused-image lane runs in automation and records the same input checksum with explicit CPU/Metal output hashes and parity metrics.
 
 Risks:
 - Native Metal availability varies by platform/build preset.
@@ -618,6 +649,7 @@ Acceptance criteria:
 - Guardrails enforce planning rules (no MATLAB dependency, no SarPy runtime dependency, local-only real-data lane).
 - Documentation explains token-based CRSD phase-history flow, CPU focused-image path, Metal focused-image path, and required processing evidence.
 - Documentation and config examples include split/merge parallel topology guidance and explicitly require SarAccelControlToken on all SAR edges.
+- Documentation includes the focused-image processing proof matrix and explicitly states that placeholder/timing-only stages are insufficient for focused-image acceptance.
 
 Risks:
 - Documentation drift if implementation details change late.
