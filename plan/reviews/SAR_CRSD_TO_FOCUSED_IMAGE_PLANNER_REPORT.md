@@ -6,15 +6,16 @@ Scope: PR plan only. No implementation.
 
 ## 1. Executive Summary
 
-This plan defines a small, reviewable path to add CRSD input to the GraphX SAR pipeline and produce fully focused SAR images that can be validated against reference outputs generated from the same CRSD input with local-only SarPy tooling.
+This plan defines a small, reviewable path to add CRSD input to the GraphX SAR pipeline and produce a fully focused SAR image that can be validated against reference outputs generated from the same ordered CRSD input set with local-only SarPy/reference tooling.
 
 Key decisions:
-- First CRSD ingestion path should be a dedicated SAR source node with JSON-configured file paths, matching existing SAR source-node conventions.
+- First CRSD ingestion path should be a dedicated SAR source node with JSON-configured CRSD file paths or a CRSD directory plus ordering policy, matching existing SAR source-node conventions.
+- The real generated `data/crsd` layout represents one logical GOTCHA scene/image split across 10 per-file CRSD products (`subData01` through `subData10`), not 10 independent final images.
 - SarAccelControlToken is the required edge contract for all SAR-related graph edges so GPU backfill (H2D/kernel/D2H execution metadata and transport semantics) remains intact end-to-end.
 - No GraphX runtime dependency on SarPy. SarPy remains local-only/gated for validation and reference generation.
 - CI uses tiny deterministic CRSD fixtures and deterministic acceptance thresholds.
 - Real GOTCHA-derived CRSD validation remains local-only and explicitly gated.
-- The output must be a focused SAR image product path (not CRSD signal magnitude quick-look).
+- The local GOTCHA-derived lane must assemble the ordered CRSD aperture set into one focused SAR image product path (not CRSD signal magnitude quick-look and not one image per CRSD segment).
 - Tests must prove that CRSD signal/PVP content enters the graph, affects the focused image, and is not replaced by synthetic placeholder processing.
 - Focused-image correctness tests are failure-oriented: they must fail if execution is diagnostics-only or if CRSD samples/PVP are ignored.
 - Metal support must be demonstrated with explicit transfer/kernel execution evidence when the Metal lane is selected.
@@ -34,6 +35,10 @@ Observed:
   - CRSD sample block magnitude export (tools/sarpy/reference_image_from_crsd.py)
   - image comparison metrics and artifacts (tools/sarpy/compare_images.py)
 - Existing GOTCHA-to-CRSD path writes CRSD via C++ writer interface plus SarPy writer adapter (CrsdIO + write_crsd_from_graphx_product.py) and emits metadata/pvp/provenance/chunk artifacts.
+- Generated real-data CRSD output under `data/crsd` is one logical scene split across per-file CRSD output directories:
+  - each `subDataNN.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd` is a CRSD phase-history segment for the same final image,
+  - each segment has sidecar JSON (`metadata.json`, `pvp.json`, `chunk_index.json`, `provenance.json`) and SarPy validation JSON,
+  - the sidecar JSON files are supporting evidence/preflight/provenance, while `product.crsd` is the authoritative signal/PVP/metadata container for focused image formation.
 - Existing SAR tests and CTest lanes already separate CI-safe lanes from local-only/gated SarPy lanes.
 
 Inferred:
@@ -44,6 +49,7 @@ Unknowns requiring explicit PR investigation/closure:
 - Exact minimum CRSD metadata/PVP subset required for first deterministic focused-image path across tiny fixture and real GOTCHA-derived CRSD.
 - Whether first focused image should be single-channel/single-pol only (recommended for initial scope) or multi-channel from day one.
 - Whether SarPy can produce a true focused image directly from CRSD in the local environment. If not, the reference lane must use an explicitly documented local reference image-formation implementation rather than a CRSD signal quick-look.
+- Whether all 10 generated CRSD segments have sufficient pulse/PVP continuity to form one deterministic full-aperture image without additional external metadata.
 
 ## 3. CSV Input Node Pattern Findings
 
@@ -53,7 +59,7 @@ Observed CSV/source-node patterns in GraphX:
 - SAR source nodes in examples/SAR are node-local and JSON-configurable (fixture_path, stream sizing, backend metadata, etc.), and are registered as standard plugins.
 
 Planning conclusion:
-- For first CRSD ingestion, use a dedicated SAR source node with JSON-configured crsd_path and focused-image-relevant parameters.
+- For first CRSD ingestion, use a dedicated SAR source node with JSON-configured `crsd_paths`, a `crsd_directory`, or a manifest path plus focused-image-relevant parameters.
 - Do not copy CSV injection policy architecture into SAR CRSD ingestion v1.
 - Keep future optional generalization open (if cross-domain file-injection standardization becomes a separate effort), but not in this scope.
 
@@ -62,23 +68,28 @@ Planning conclusion:
 Target data path for CRSD-focused image formation:
 
 Canonical focused-image lane:
-- CrsdInputSourceNode -> CrsdPhaseHistoryAdapterNode -> SarSplitNode -> FocusedImageTransformNode -> SarMergeNode -> FocusedImageOutputSinkNode
+- OrderedCrsdSetInputSourceNode -> CrsdApertureAssemblyAdapterNode -> SarSplitNode -> FocusedImageTransformNode -> SarMergeNode -> FocusedImageOutputSinkNode
 
-1. CrsdInputSourceNode
-- Input: CRSD file path (JSON node_config), optional channel/polarization selectors, deterministic limits.
-- Output: CRSD-derived phase-history messages/tokens carrying required metadata and per-vector signal context.
-- Required proof: emitted payload hashes, vector counts, sample counts, selected PVP fields, and selected geometry fields must match the CRSD fixture.
+Generated-data target:
+- `data/crsd/subData01.crsd_output/.../product.crsd` through `subData10.crsd_output/.../product.crsd` form one ordered aperture set for one focused image.
+- The first local real-data workflow must produce one focused image artifact set from all selected CRSD segments.
 
-2. CrsdPhaseHistoryAdapterNode
-- Converts CRSD domain model to the SAR phase-history model expected by focused image transform.
-- Ensures explicit geometry/sampling assumptions and deterministic ordering.
+1. OrderedCrsdSetInputSourceNode
+- Input: ordered CRSD file paths, CRSD directory plus lexical ordering, or manifest plus optional channel/polarization selectors and deterministic limits.
+- Output: CRSD-derived aperture-segment messages/tokens carrying required metadata and per-vector signal context.
+- Required proof: emitted payload hashes, per-segment vector counts, total vector count, sample counts, selected PVP fields, and selected geometry fields must match the CRSD fixture/set.
+- `product.crsd` is authoritative. Sidecar JSON may be used only for fast preflight, provenance, and expected-count sanity checks.
+
+2. CrsdApertureAssemblyAdapterNode
+- Converts the ordered CRSD segment set to the SAR phase-history model expected by focused image transform.
+- Ensures explicit geometry/sampling assumptions, deterministic segment ordering, pulse/vector continuity checks, and full-aperture accounting.
 
 3. SarSplitNode (parallel fan-out)
 - Splits SarAccelControlToken phase-history flow into deterministic parallel branches (for example tile, aperture, or pulse-block partitioning).
 - Guarantees branch partition metadata and ordering contract required by merge.
 
 4. FocusedImageTransformNode (initial CPU-deterministic path)
-- Performs actual SAR focusing/backprojection from adapted phase history.
+- Performs actual SAR focusing/backprojection from the assembled full-aperture phase history.
 - Produces focused image grid + metadata contract.
 - Keeps current accel-token contracts intact elsewhere; no runtime redesign.
 - Required proof: changing CRSD signal samples or relevant PVP/geometry fields must change the focused image output.
@@ -88,13 +99,13 @@ Canonical focused-image lane:
 - Enforces deterministic completion criteria (expected branch count, EOS handling, stable output ordering).
 
 6. FocusedImageOutputSinkNode
-- Emits deterministic artifacts:
+- Emits one deterministic focused-image artifact set for the ordered CRSD aperture set:
   - focused_image.bin (float32 row-major)
   - focused_image.json (shape, spacing, geometry assumptions, hashes)
   - convenience visualization: focused_image.pgm or focused_image.png
 
 7. Local-only SarPy reference lane
-- Uses same CRSD input file to generate reference artifact(s) with local-only scripts.
+- Uses the same ordered CRSD input set to generate reference artifact(s) with local-only scripts.
 - Compares GraphX focused image vs reference and emits:
   - comparison_report.json
   - difference_magnitude.png
@@ -107,12 +118,23 @@ Boundary rules:
 - All SAR-related graph edges must carry SarAccelControlToken to preserve GPU backfill and resolver/transport compatibility.
 - CRSD signal magnitude quick-look images are not acceptable substitutes for focused SAR images.
 - Diagnostic-only graph execution is not acceptable; focused-image tests must verify data-dependent output artifacts.
+- The real-data lane produces one focused image from the ordered CRSD set. Producing one unrelated image per CRSD segment is not acceptable unless explicitly marked as a segment-level diagnostic mode.
+- Generated sidecar JSON files are not authoritative signal/PVP sources. They are optional validation/reporting aids.
+
+Generated JSON sidecar classification:
+- `metadata.json`: optional preflight/report comparison for dimensions, frequency bounds, channel id, source files.
+- `pvp.json`: optional field-list/byte-size sanity check only; it does not contain PVP arrays.
+- `chunk_index.json`: optional pulse-range and sample-count sanity check per CRSD segment.
+- `provenance.json`: optional lineage/reporting input.
+- `sarpy_validation/*.json`: optional local validation evidence only.
+- `_preprocessed_hdf5_mat/*`: conversion staging only; not focused-image input.
 
 Focused-image processing proof matrix (required):
 - all-zero CRSD signal fixture -> near-zero focused image response
 - known coherent tiny fixture -> deterministic expected peak location/value envelope
 - one-sample CRSD perturbation -> focused image hash/metric delta from baseline
 - relevant PVP/geometry perturbation -> focused image shift/delta from baseline
+- dropping, duplicating, or reordering a CRSD segment -> deterministic failure or changed focused-image artifact according to configured policy
 - repeated identical input runs -> deterministic identical output hashes and peak location
 - These tests must fail if the pipeline only forwards tokens/timing metadata and does not numerically process CRSD payloads.
 
@@ -126,6 +148,8 @@ Required new/extended models for planned PRs:
 - CrsdChannelSelection
 - CrsdVectorRecord (signal samples + minimal PVP fields)
 - CrsdMetadataSummary (collection/channel timing/frequency/geometry subset)
+- CrsdSegmentRecord (segment path, segment index, vector range, sample count, signal checksum, optional sidecar summaries)
+- OrderedCrsdSetReadResult (ordered segment records, total vector count, common channel/sample/frequency metadata, aperture continuity diagnostics)
 
 2. SAR phase-history transfer model (examples/SAR/include/sar)
 - SarPhaseHistoryFrame or equivalent message contract for focused-image transform input.
@@ -162,9 +186,11 @@ Minimum CRSD metadata/PVP fields for first focused-image path:
 - Platform position and velocity vectors (or equivalent geometry terms)
 - Frequency metadata (reference/carrier + receive band bounds)
 - Sufficient indexing to preserve deterministic vector order
+- Segment identity and vector-range accounting across the ordered CRSD set
+- Consistent sample count, channel id, signal array format, and frequency metadata across all segments unless an explicit documented mode supports variation
 
 Initial algorithm definition for fully focused image:
-- Deterministic backprojection-based image formation from CRSD phase history into a 2D image grid.
+- Deterministic backprojection-based image formation from the ordered CRSD aperture set into one 2D image grid.
 - Explicit documented geometry assumptions (single channel/pol for v1, fixed frame assumptions, row-major output).
 - The transform must consume CRSD-derived complex samples and PVP/geometry fields; synthetic fallback output is forbidden in the focused-image path.
 - Deterministic tolerances for validation:
@@ -177,7 +203,7 @@ Initial algorithm definition for fully focused image:
 Metal execution requirements:
 - CPU focused-image output is the correctness baseline.
 - Metal execution is a separate, explicit lane using the same CRSD-derived phase-history contract.
-- A tiny CRSD fixture lane must run both CPU and Metal focused-image paths from the same input fixture and compare outputs.
+- A tiny multi-segment CRSD fixture lane must run both CPU and Metal focused-image paths from the same ordered input fixture and compare outputs.
 - Metal tests must verify resolver selection, bytes_h2d > 0, bytes_d2h > 0, kernel_dispatches > 0, and CPU-vs-Metal output parity within documented tolerances.
 - Dual-lane evidence must include input checksum, CPU output hash, Metal output hash, and parity metrics (at minimum RMSE and peak location/value deltas).
 - A passing Metal lane must prove actual kernel execution, not just token forwarding.
@@ -206,7 +232,7 @@ Tests to delete:
 - None
 
 Acceptance criteria:
-- Discovery doc maps CSV injection vs SAR source-node patterns and justifies JSON-configured CrsdInputSourceNode-first approach.
+- Discovery doc maps CSV injection vs SAR source-node patterns and justifies JSON-configured OrderedCrsdSetInputSourceNode-first approach.
 - Discovery doc enumerates existing SAR plugin registration and fixture/test conventions.
 - Discovery doc records CRSD writer/validator/reference tool hooks and local-only SarPy boundaries.
 
@@ -222,51 +248,57 @@ CI-safe or local-only classification:
 ## PR2
 
 Title:
-CRSD reader/source-node interface and tiny fixture strategy
+Ordered CRSD set reader/source-node interface and tiny fixture strategy
 
 Purpose:
-Introduce non-invasive interfaces and node contract for CRSD file ingestion with deterministic tiny-fixture support.
+Introduce non-invasive interfaces and node contract for ordered CRSD set ingestion with deterministic tiny-fixture support.
 
 Files to touch:
-- examples/SAR/include/sar/CrsdInputSourceNode.hpp
-- examples/SAR/src/CrsdInputSourceNode.cpp
+- examples/SAR/include/sar/OrderedCrsdSetInputSourceNode.hpp
+- examples/SAR/src/OrderedCrsdSetInputSourceNode.cpp
 - examples/SAR/plugins/crsd_input_source_node_plugin.cpp
 - examples/SAR/plugins/CMakeLists.txt
 - examples/SAR/include/sar/io/CrsdReader.hpp
 - examples/SAR/src/io/CrsdReader.cpp
 - examples/SAR/test/test_crsd_input_source_node.cpp
 - examples/SAR/test/CMakeLists.txt
-- examples/SAR/config/sar_crsd_tiny_fixture_input.json
+- examples/SAR/config/sar_crsd_tiny_fixture_set_input.json
 
 Files to delete:
 - None
 
 Tests to add:
-- CrsdInputSourceNode configuration/validation tests
-- Tiny CRSD fixture ingestion tests (shape/order/type checks)
-- Plugin load + JSON topology smoke test for CrsdInputSourceNode
+- OrderedCrsdSetInputSourceNode configuration/validation tests for `crsd_paths`, `crsd_directory`, and manifest modes.
+- Tiny multi-segment CRSD fixture ingestion tests (segment order, per-segment shape, total vector count, type checks).
+- Plugin load + JSON topology smoke test for OrderedCrsdSetInputSourceNode.
 - Focused CRSD input-node contract test proving:
-  - the configured CRSD file path is used
-  - emitted vector count equals CRSD vector count
-  - emitted sample count equals CRSD sample count
-  - payload checksum/hash matches CRSD signal data
+  - the configured CRSD file set or directory is used
+  - emitted total vector count equals the sum of CRSD segment vector counts
+  - emitted per-segment vector ranges are deterministic and contiguous
+  - emitted sample count equals CRSD sample count for every segment
+  - payload checksum/hash matches CRSD signal data per segment and for the ordered set
   - first/last vector PVP metadata matches the fixture
   - first/last vector geometry metadata (for example platform position/velocity or mapped equivalent) matches the fixture
+  - sidecar JSON is treated as optional preflight/report data, not as authoritative signal/PVP data
+  - duplicate, missing, or out-of-order CRSD segments fail deterministically unless an explicit manifest orders them
   - missing/unsupported CRSD fields fail with deterministic diagnostics
 
 Tests to delete:
 - None
 
 Acceptance criteria:
-- CrsdInputSourceNode accepts CRSD path via node_config.
-- Node reads CRSD metadata + signal + required PVP subset through C++ reader interfaces.
+- OrderedCrsdSetInputSourceNode accepts ordered CRSD paths, CRSD directory, or manifest via node_config.
+- Node reads CRSD metadata + signal + required PVP subset from each `product.crsd` through C++ reader interfaces.
+- Node emits one ordered aperture-set stream intended to produce one focused image, not one focused image per segment.
 - CI fixture strategy is defined and enforced without requiring real GOTCHA data.
 - Tests prove the node emits CRSD-derived signal payload and PVP metadata, not synthetic placeholder tokens.
 - Tests prove CRSD geometry metadata required for focused image formation is emitted and validated.
+- Tests prove generated sidecars (`metadata.json`, `pvp.json`, `chunk_index.json`, `provenance.json`, validation JSON) are optional sanity/provenance inputs only.
 - The node exposes clear unsupported-format diagnostics for CRSD files outside the initial supported subset.
 
 Risks:
 - CRSD parser subset may initially be narrow; clear unsupported diagnostics required.
+- Directory-based discovery may accidentally include non-product files unless discovery is constrained to `*/product.crsd` or manifest entries.
 
 Rollback plan:
 - Revert new node/reader/plugin and tests.
@@ -277,14 +309,14 @@ CI-safe or local-only classification:
 ## PR3
 
 Title:
-CRSD-to-SAR phase-history adapter/model
+CRSD aperture assembly to SAR phase-history adapter/model
 
 Purpose:
-Bridge CRSD ingest model to SAR phase-history model consumed by focused-image transform, without changing GraphX runtime contracts globally.
+Bridge ordered CRSD segment ingest model to a full-aperture SAR phase-history model consumed by focused-image transform, without changing GraphX runtime contracts globally.
 
 Files to touch:
-- examples/SAR/include/sar/CrsdPhaseHistoryAdapterNode.hpp
-- examples/SAR/src/CrsdPhaseHistoryAdapterNode.cpp
+- examples/SAR/include/sar/CrsdApertureAssemblyAdapterNode.hpp
+- examples/SAR/src/CrsdApertureAssemblyAdapterNode.cpp
 - examples/SAR/plugins/crsd_phase_history_adapter_node_plugin.cpp
 - examples/SAR/plugins/CMakeLists.txt
 - examples/SAR/include/sar/SarPhaseHistoryMessages.hpp
@@ -296,7 +328,7 @@ Files to delete:
 - None
 
 Tests to add:
-- Adapter ordering and determinism tests
+- Adapter segment ordering, full-aperture accounting, and determinism tests
 - Adapter metadata/PVP mapping correctness tests
 - Adapter EOS/control-marker propagation tests
 - Token/payload contract tests proving:
@@ -309,12 +341,17 @@ Tests to add:
   - sample payload checksum survives adapter boundaries
   - vector index/channel/sample ordering survives adapter boundaries
   - SarAccelControlToken is preserved on all SAR edges through adapter output topology
+- Ordered-aperture tests proving:
+  - total output vector count equals sum of segment vectors
+  - sample/channel/frequency metadata consistency is enforced across segments
+  - segment gaps, duplicates, and unexpected ordering produce deterministic diagnostics
+  - segment sidecar pulse ranges are used only as optional cross-checks
 
 Tests to delete:
 - None
 
 Acceptance criteria:
-- Adapter emits SAR phase-history messages/tokens compatible with downstream focused-image transform.
+- Adapter emits assembled full-aperture SAR phase-history messages/tokens compatible with downstream focused-image transform.
 - Required geometry/sampling fields are present and validated.
 - Deterministic ordering and repeatability are demonstrated in CI.
 - The report/docs for this PR explain exactly how token-based messages carry CRSD samples, PVP fields, geometry, and EOS/control markers.
@@ -322,6 +359,7 @@ Acceptance criteria:
 - Split/merge partition metadata contract is defined so PR4 can parallelize transform branches without changing edge type.
 - SarPhaseHistoryFrame (or equivalent) contract is documented with explicit ownership, buffer layout, checksum, EOS semantics, and sidecar-vs-physics boundaries.
 - Tests fail if physics/algorithm logic reads CRSD semantics from sidecar-only metadata instead of typed phase-history payload.
+- Tests fail if the adapter treats each CRSD segment as a separate final image instead of one ordered aperture.
 
 Risks:
 - Mapping ambiguity between CRSD field names and existing SAR model assumptions.
@@ -357,10 +395,11 @@ Tests to add:
 - Geometry assumption tests (grid dimensions and coordinate mapping)
 - Basic image quality sanity tests (finite, non-zero, stable peak)
 - Input-dependence tests:
-  - all-zero CRSD signal produces a near-zero image
-  - known tiny coherent fixture produces a deterministic peak location
-  - changing one CRSD sample changes the focused image hash
+  - all-zero ordered CRSD set produces a near-zero image
+  - known tiny coherent multi-segment fixture produces one deterministic peak location
+  - changing one CRSD sample in one segment changes the focused image hash
   - changing relevant PVP/platform geometry changes the focused image output
+  - dropping or reordering a segment fails or changes the focused image according to policy
   - output change is verified with artifact hash delta and image-metric delta (at minimum RMSE or peak location/value delta)
   - CRSD signal magnitude quick-look output is rejected as a focused-image result
 - Diagnostics-only failure tests:
@@ -375,7 +414,7 @@ Tests to delete:
 - None
 
 Acceptance criteria:
-- GraphX path computes a real focused SAR image from CRSD-derived phase history.
+- GraphX path computes one real focused SAR image from the ordered CRSD-derived full-aperture phase history.
 - Path is not a CRSD magnitude quick-look.
 - Image dimensions, geometry assumptions, and output dtype/layout are explicit and stable.
 - Focused-image output is data-dependent on CRSD signal and PVP/geometry fields.
@@ -384,6 +423,7 @@ Acceptance criteria:
 - Tests provide explicit evidence that changing CRSD samples changes the produced focused-image artifacts.
 - The focused-image proof matrix (all-zero, coherent peak, one-sample perturbation, PVP perturbation, deterministic peak repeatability) passes in CI.
 - A diagnostics-only or payload-ignored implementation fails the PR4 suite.
+- Tests fail if the implementation writes one final focused image per CRSD segment instead of one focused image for the ordered aperture set.
 
 Risks:
 - Algorithmic mismatch if adapter assumptions are incomplete.
@@ -418,7 +458,7 @@ Files to delete:
 Tests to add:
 - Resolver-selection test proving the Metal lane selects Metal-capable H2D/kernel/D2H nodes.
 - Metal execution diagnostics test requiring bytes_h2d > 0, bytes_d2h > 0, and kernel_dispatches > 0.
-- CPU-vs-Metal focused-image parity test on the same tiny CRSD fixture.
+- CPU-vs-Metal focused-image parity test on the same tiny multi-segment CRSD fixture.
 - Tiny dual-lane runner test that executes CPU then Metal paths and emits a comparison evidence bundle (checksums/hashes/metrics).
 - Negative guardrail test that fails if the Metal lane only forwards tokens without kernel execution.
 
@@ -431,7 +471,7 @@ Acceptance criteria:
 - Metal output matches CPU baseline within documented deterministic tolerances.
 - The lane remains optional/gated where native Metal is unavailable, without weakening CPU CI coverage.
 - Metal split/merge lane keeps SarAccelControlToken edge flow and preserves GPU backfill diagnostics across branch fan-out/fan-in.
-- A tiny-fixture CPU+Metal focused-image lane runs in automation and records the same input checksum with explicit CPU/Metal output hashes and parity metrics.
+- A tiny multi-segment-fixture CPU+Metal focused-image lane runs in automation and records the same ordered-set input checksum with explicit CPU/Metal output hashes and parity metrics.
 
 Risks:
 - Native Metal availability varies by platform/build preset.
@@ -474,7 +514,7 @@ Tests to delete:
 Acceptance criteria:
 - Sink writes deterministic binary/JSON artifact pair and convenience image output.
 - Metadata needed for comparison is preserved (shape, spacing, assumptions, hashes, provenance).
-- Artifact contract records whether the image came from CPU or Metal execution and includes input payload/output hashes sufficient to prove processing lineage.
+- Artifact contract records whether the image came from CPU or Metal execution and includes ordered CRSD segment list, per-segment input hashes, ordered-set hash, output hash, and enough lineage to prove one image was formed from the complete aperture set.
 
 Risks:
 - Cross-platform file encoding/hashing drift if serialization rules are underspecified.
@@ -491,7 +531,7 @@ Title:
 SarPy/reference focused-image generation harness from CRSD
 
 Purpose:
-Provide local-only/gated reference generation from the same CRSD input, producing a focused reference image artifact compatible with comparison lane.
+Provide local-only/gated reference generation from the same ordered CRSD input set, producing one focused reference image artifact compatible with comparison lane.
 
 Files to touch:
 - tools/sarpy/reference_image_from_crsd.py
@@ -513,10 +553,10 @@ Tests to delete:
 - None
 
 Acceptance criteria:
-- SarPy reference script can generate reference-focused artifact metadata from CRSD input.
+- SarPy/reference script can generate reference-focused artifact metadata from an ordered CRSD input set.
 - SarPy workflow remains local-only/gated and does not become runtime dependency.
 - If SarPy cannot generate a true focused image from CRSD, this PR must document the limitation and provide or select an independent local reference image-formation harness instead.
-- Reference output must be generated from the same CRSD signal/PVP/geometry fields used by GraphX.
+- Reference output must be generated from the same ordered CRSD signal/PVP/geometry fields used by GraphX and must produce one focused image for the set.
 
 Risks:
 - SarPy API variation across local environments.
@@ -555,10 +595,10 @@ Tests to delete:
 - None
 
 Acceptance criteria:
-- Same CRSD input is used by both GraphX focused-image path and reference lane.
+- Same ordered CRSD input set is used by both GraphX focused-image path and reference lane.
 - Comparison outputs include required JSON + diff images.
 - Threshold evaluation is deterministic and documented.
-- Comparison lane records the exact CRSD input checksum, GraphX output hash, reference output hash, and focused-image algorithm/geometry assumptions.
+- Comparison lane records exact per-segment CRSD input checksums, ordered-set checksum, GraphX output hash, reference output hash, and focused-image algorithm/geometry assumptions.
 
 Risks:
 - Metric threshold instability if fixtures or scaling normalization are not frozen.
@@ -591,6 +631,11 @@ Files to delete:
 Tests to add:
 - Disabled-by-default local-only end-to-end validation test using env-gated dataset path
 - Local workflow smoke checks for required artifacts and reports
+- Local real-data test using the generated layout:
+  - `data/crsd/subData01.crsd_output/.../product.crsd` through `subData10.../product.crsd`
+  - verifies all selected CRSD products are treated as one ordered aperture set
+  - verifies one final focused image artifact set is emitted
+  - verifies dropping/reordering one segment fails or changes output deterministically
 
 Tests to delete:
 - None
@@ -598,8 +643,9 @@ Tests to delete:
 Acceptance criteria:
 - Real-data workflow is explicitly local-only and opt-in.
 - CI remains independent of real GOTCHA datasets and SarPy installation.
-- Workflow reuses same CRSD input for GraphX focused-image and reference comparison.
-- Workflow proves processing happened by checking focused-image artifacts, nonzero image metrics, and input/output checksums for each selected CRSD file.
+- Workflow reuses the same ordered CRSD input set for GraphX focused-image and reference comparison.
+- Workflow proves processing happened by checking one focused-image artifact set, nonzero image metrics, per-segment input checksums, ordered-set checksum, and output checksum.
+- Workflow treats `metadata.json`, `pvp.json`, `chunk_index.json`, `provenance.json`, and SarPy validation JSON as optional sidecar evidence, not required signal/PVP input.
 
 Risks:
 - User environment variability (dataset layout, package availability, platform tooling).
