@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <utility>
@@ -30,6 +31,7 @@ struct GotchaMatReaderOptions {
     std::string collector_name{"GOTCHA"};
     std::string coordinate_frame{"ecef"};
     std::string time_basis{"seconds"};
+    bool emit_progress{false};
 };
 
 struct GotchaMatReaderIssue {
@@ -81,6 +83,10 @@ public:
         }
 
         auto product = BuildProductSkeleton(ordering.files);
+        if (options_.emit_progress) {
+            std::cerr << "info: gotcha_reader: discovered " << ordering.files.size()
+                      << " ordered MAT file(s)\n";
+        }
         ChannelSignal channel{};
         channel.channel_id = "channel_0";
         channel.waveform.waveform_id = "gotcha_phase_history_channel_0";
@@ -92,6 +98,11 @@ public:
         // Full-aperture mode: iterate through each file and read all Np pulses per file
         for (std::size_t file_index = 0; file_index < ordering.files.size(); ++file_index) {
             const auto& source_file = ordering.files[file_index];
+            if (options_.emit_progress) {
+                std::cerr << "info: gotcha_reader: reading file "
+                          << (file_index + 1) << "/" << ordering.files.size()
+                          << ": " << source_file.generic_string() << '\n';
+            }
 
             if (!GotchaHdf5PhdataReader::IsAvailable()) {
                 result.diagnostics.issues.push_back(GotchaMatReaderIssue{
@@ -111,7 +122,9 @@ public:
                 continue;
             }
 
-            const auto hdf5 = GotchaHdf5PhdataReader::Read(source_file);
+            const auto hdf5 = GotchaHdf5PhdataReader::Read(
+                source_file,
+                GotchaHdf5ReadOptions{.emit_progress = options_.emit_progress});
             if (!hdf5.success) {
                 result.diagnostics.issues.push_back(GotchaMatReaderIssue{
                     .code    = "hdf5_phdata_read_failed",
@@ -119,6 +132,14 @@ public:
                     .message = hdf5.message,
                 });
                 continue;
+            }
+            if (options_.emit_progress) {
+                const auto sample_count =
+                    hdf5.pulses.empty() ? 0U : hdf5.pulses.front().samples.size();
+                std::cerr << "info: gotcha_reader: loaded file "
+                          << (file_index + 1) << "/" << ordering.files.size()
+                          << ": pulses=" << hdf5.pulses.size()
+                          << ", samples_per_pulse=" << sample_count << '\n';
             }
 
             // Set waveform metadata from the first file that yields data.
@@ -176,6 +197,12 @@ public:
 
         product.collection.expected_pulse_count = static_cast<std::uint64_t>(channel.pulses.size());
         product.channels.push_back(std::move(channel));
+        if (options_.emit_progress) {
+            const auto shape = product.Shape();
+            std::cerr << "info: gotcha_reader: normalized product ready: pulses="
+                      << shape.pulse_count << ", channels=" << shape.channel_count
+                      << ", max_sample_count=" << shape.max_sample_count << '\n';
+        }
         result.product = std::move(product);
         result.success = true;
         result.message = "ok";

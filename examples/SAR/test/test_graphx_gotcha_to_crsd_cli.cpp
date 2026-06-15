@@ -201,6 +201,10 @@ TEST_F(GraphxGotchaToCrsdCliTest, CrsdModeWorksOnTinyFixture) {
     const auto result = RunCommand(command);
     EXPECT_EQ(result.exit_code, 0) << result.output;
     EXPECT_NE(result.output.find("conversion_successful"), std::string::npos);
+    EXPECT_NE(result.output.find("info: converter: discovered 1 input MAT file(s)"), std::string::npos);
+    EXPECT_NE(result.output.find("info: gotcha_reader: reading file 1/1"), std::string::npos);
+    EXPECT_NE(result.output.find("info: hdf5_reader: phdata dimensions"), std::string::npos);
+    EXPECT_NE(result.output.find("info: crsd_writer: invoking SarPy writer"), std::string::npos);
 
     EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.crsd" / graphx::sar::CrsdWriter::kSignalFile));
     EXPECT_TRUE(std::filesystem::exists(output_dir / "gotcha_crsd_chunk_0000.crsd" / graphx::sar::CrsdWriter::kMetadataFile));

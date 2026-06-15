@@ -3,11 +3,13 @@
 #include "sar/io/NormalizedSarProduct.hpp"
 #include "sar/io/SarIoUtilities.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,6 +25,7 @@ struct CrsdWriterOptions {
         "standards_targeted_pvp",
     };
     std::vector<std::string> warnings{};
+    bool emit_progress{false};
 };
 
 class CrsdWriter final : public ISarWriter {
@@ -62,7 +65,16 @@ public:
         const auto provenance_path = output_directory / kProvenanceFile;
         const auto chunk_index_path = output_directory / kChunkIndexFile;
 
-        if (!SarIoUtilities::WriteJson(handoff_path, ProductToJson(product))) {
+        if (options_.emit_progress) {
+            std::cerr << "info: crsd_writer: writing handoff "
+                      << handoff_path.generic_string() << '\n';
+        }
+        const auto handoff_json = ProductToJson(product, options_.emit_progress);
+        if (options_.emit_progress) {
+            std::cerr << "info: crsd_writer: flushing handoff "
+                      << handoff_path.generic_string() << '\n';
+        }
+        if (!SarIoUtilities::WriteJson(handoff_path, handoff_json)) {
             return SarWriteResult{
                 .success = false,
                 .message = "handoff_write_failed",
@@ -85,12 +97,20 @@ public:
             " --pvp-json " + ShellQuote(pvp_path) +
             " --provenance-json " + ShellQuote(provenance_path) +
             " --chunk-index-json " + ShellQuote(chunk_index_path);
+        if (options_.emit_progress) {
+            std::cerr << "info: crsd_writer: invoking SarPy writer for "
+                      << crsd_path.generic_string() << '\n';
+        }
         if (std::system(command.c_str()) != 0) {
             std::filesystem::remove(crsd_path, fs_error);
             return SarWriteResult{
                 .success = false,
                 .message = "crsd_writer_failed",
             };
+        }
+        if (options_.emit_progress) {
+            std::cerr << "info: crsd_writer: SarPy writer finished for "
+                      << crsd_path.generic_string() << '\n';
         }
 
         if (!std::filesystem::exists(crsd_path) ||
@@ -153,11 +173,24 @@ private:
         return quoted;
     }
 
-    [[nodiscard]] static nlohmann::json ProductToJson(const NormalizedSarProduct& product) {
+    [[nodiscard]] static nlohmann::json ProductToJson(
+        const NormalizedSarProduct& product,
+        bool emit_progress) {
         nlohmann::json channels = nlohmann::json::array();
         for (const auto& channel : product.channels) {
             nlohmann::json pulses = nlohmann::json::array();
-            for (const auto& pulse : channel.pulses) {
+            const auto progress_interval =
+                std::max<std::size_t>(1U, channel.pulses.size() / 20U);
+            for (std::size_t pulse_index = 0; pulse_index < channel.pulses.size(); ++pulse_index) {
+                const auto& pulse = channel.pulses[pulse_index];
+                if (emit_progress &&
+                    (pulse_index == 0U ||
+                     pulse_index + 1U == channel.pulses.size() ||
+                     pulse_index % progress_interval == 0U)) {
+                    std::cerr << "info: crsd_writer: serializing pulse "
+                              << (pulse_index + 1U) << "/" << channel.pulses.size()
+                              << " for channel " << channel.channel_id << '\n';
+                }
                 nlohmann::json samples = nlohmann::json::array();
                 for (const auto& sample : pulse.samples) {
                     samples.push_back(nlohmann::json{

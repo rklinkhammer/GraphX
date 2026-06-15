@@ -11,6 +11,7 @@ CMakeFiles/
 CMakeCache.txt
 */__pycache__/*
 __pycache__/
+data/
 # Generated files
 compile_commands.json
 *.so

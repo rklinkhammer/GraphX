@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,10 @@ struct GotchaHdf5ReadResult {
     std::vector<GotchaHdf5PulseData> pulses{};
 };
 
+struct GotchaHdf5ReadOptions {
+    bool emit_progress{false};
+};
+
 // Reads the full phase-history array (phdata) and associated per-pulse metadata
 // directly from a GOTCHA MAT v7.3 (HDF5) file, bypassing the sidecar JSON.
 //
@@ -68,11 +73,14 @@ public:
 #endif
     }
 
-    [[nodiscard]] static GotchaHdf5ReadResult Read(const std::filesystem::path& mat_path) {
+    [[nodiscard]] static GotchaHdf5ReadResult Read(
+        const std::filesystem::path& mat_path,
+        const GotchaHdf5ReadOptions& options = {}) {
 #if defined(GRAPHX_SAR_HAS_HDF5) && GRAPHX_SAR_HAS_HDF5
-        return ReadImpl(mat_path);
+        return ReadImpl(mat_path, options);
 #else
         (void)mat_path;
+        (void)options;
         return GotchaHdf5ReadResult{.message = "hdf5_support_not_compiled"};
 #endif
     }
@@ -172,7 +180,9 @@ private:
         return {};
     }
 
-    [[nodiscard]] static GotchaHdf5ReadResult ReadImpl(const std::filesystem::path& mat_path) {
+    [[nodiscard]] static GotchaHdf5ReadResult ReadImpl(
+        const std::filesystem::path& mat_path,
+        const GotchaHdf5ReadOptions& options) {
         GotchaHdf5ReadResult result{};
 
         const hid_t file_id =
@@ -242,6 +252,13 @@ private:
             return result;
         }
 
+        if (options.emit_progress) {
+            std::cerr << "info: hdf5_reader: phdata dimensions for "
+                      << mat_path.generic_string() << ": pulses=" << np
+                      << ", samples_per_pulse=" << k
+                      << ", complex_samples=" << (np * k) << '\n';
+        }
+
         // Per-pulse geometry/timing vectors.
         const auto ant_x       = ReadDoubleVector(group_id, "AntX");
         const auto ant_y       = ReadDoubleVector(group_id, "AntY");
@@ -251,6 +268,10 @@ private:
 
         // Read all complex phase-history samples.
         std::vector<Complex128> phdata_buf{};
+        if (options.emit_progress) {
+            std::cerr << "info: hdf5_reader: reading phdata for "
+                      << mat_path.generic_string() << '\n';
+        }
         const auto read_err = ReadPhdataComplex(group_id, np, k, phdata_buf);
         H5Gclose(group_id);
         H5Fclose(file_id);
@@ -258,6 +279,10 @@ private:
         if (!read_err.empty()) {
             result.message = read_err;
             return result;
+        }
+        if (options.emit_progress) {
+            std::cerr << "info: hdf5_reader: finished phdata read for "
+                      << mat_path.generic_string() << '\n';
         }
 
         const auto get_vec = [](const std::vector<double>& v, std::size_t i) -> double {

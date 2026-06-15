@@ -334,8 +334,11 @@ int Run(const CliOptions& options) {
         std::cerr << *error << '\n';
         return 1;
     }
+    std::cerr << "info: converter: discovered " << ordering.files.size()
+              << " input MAT file(s)\n";
 
     std::string mat_failure{};
+    std::cerr << "info: converter: checking MAT format support\n";
     if (!EnsureSupportedMatFormats(
             ordering.files,
             mat_failure)) {
@@ -353,15 +356,22 @@ int Run(const CliOptions& options) {
         .collector_name = "GOTCHA",
         .coordinate_frame = "ecef",
         .time_basis = "seconds",
+        .emit_progress = true,
     });
 
+    std::cerr << "info: converter: reading GOTCHA MAT input into normalized product\n";
     const auto read = reader.ReadDetailed(options.input_dir);
     if (!read.success) {
         std::cerr << read.message << '\n';
         return 1;
     }
+    const auto product_shape = read.product.Shape();
+    std::cerr << "info: converter: read complete: pulses=" << product_shape.pulse_count
+              << ", channels=" << product_shape.channel_count
+              << ", max_sample_count=" << product_shape.max_sample_count << '\n';
 
     if (options.validate) {
+        std::cerr << "info: converter: validating normalized product\n";
         const auto validation = graphx::sar::SarProductValidator::Validate(read.product);
         if (!validation.ok()) {
             const auto& first = validation.errors.front();
@@ -378,6 +388,8 @@ int Run(const CliOptions& options) {
             .max_chunk_bytes = max_chunk_bytes,
             .output_prefix = "gotcha_crsd_chunk",
         });
+    std::cerr << "info: converter: chunk plan ready: chunks="
+              << chunk_plan.chunks.size() << '\n';
 
     std::error_code fs_error{};
     std::filesystem::create_directories(options.output_dir, fs_error);
@@ -401,9 +413,18 @@ int Run(const CliOptions& options) {
     std::string index_file{graphx::sar::CrsdWriter::kChunkIndexFile};
     std::string root_index_file{"gotcha_crsd_index.json"};
 
-    graphx::sar::CrsdWriter writer;
-    for (const auto& chunk : chunk_plan.chunks) {
+    graphx::sar::CrsdWriter writer(graphx::sar::CrsdWriterOptions{
+        .assumptions = assumptions,
+        .warnings = warnings,
+        .emit_progress = true,
+    });
+    for (std::size_t chunk_index = 0; chunk_index < chunk_plan.chunks.size(); ++chunk_index) {
+        const auto& chunk = chunk_plan.chunks[chunk_index];
         const auto chunk_dir = options.output_dir / (chunk.output_stem + ".crsd");
+        std::cerr << "info: converter: writing chunk " << (chunk_index + 1)
+                  << "/" << chunk_plan.chunks.size() << ": "
+                  << chunk_dir.generic_string() << " pulses=" << chunk.pulse_start
+                  << "-" << chunk.pulse_end << '\n';
         const auto chunk_product = SliceProduct(read.product, chunk.pulse_start, chunk.pulse_end);
         const auto write = writer.Write(chunk_dir, chunk_product);
         if (!write.success) {
@@ -411,6 +432,8 @@ int Run(const CliOptions& options) {
             return 1;
         }
 
+        std::cerr << "info: converter: validating CRSD with SarPy: "
+                  << chunk_dir.generic_string() << '\n';
         const auto sarpy_validation = ValidateCrsdWithSarpyIfAvailable(
             chunk_dir,
             chunk_dir / "sarpy_validation");
@@ -431,9 +454,12 @@ int Run(const CliOptions& options) {
             .channel_count = read.product.Shape().channel_count,
             .max_sample_count = read.product.Shape().max_sample_count,
         });
+        std::cerr << "info: converter: chunk complete: "
+                  << chunk_dir.generic_string() << '\n';
     }
 
     if (options.emit_index) {
+        std::cerr << "info: converter: writing root index and conversion report\n";
         std::vector<double> frequency_axis{};
         if (!read.product.channels.empty()) {
             frequency_axis = read.product.channels.front().waveform.frequency_axis_hz;

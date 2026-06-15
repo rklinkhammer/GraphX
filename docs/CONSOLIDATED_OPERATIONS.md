@@ -281,6 +281,15 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /tmp/gotcha_crsd_output
 ```
 
+For multi-file GOTCHA directories, the wrapper defaults to per-file conversion:
+each input `.mat` file is staged alone and written under a separate
+`<subDataNN>.crsd_output/` directory. This keeps the current C++ normalized
+product and Python CRSD handoff bounded. Use `PROCESS_PER_FILE=0` only for small
+debug datasets where a single full-aperture process is intentional.
+
+Classic MAT preprocessing reuses existing converted HDF5 files by default. Set
+`PREPROCESS_OVERWRITE=1` to force regeneration.
+
 Optional preprocessing controls:
 
 ```bash

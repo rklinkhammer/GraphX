@@ -288,6 +288,15 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /tmp/gotcha_crsd_out
 ```
 
+For multi-file GOTCHA directories, the wrapper defaults to `PROCESS_PER_FILE=1`
+and converts each `.mat` file into a separate per-file CRSD output directory.
+This avoids building one very large in-memory full-aperture handoff. Set
+`PROCESS_PER_FILE=0` only for small/debug inputs where a single full-aperture
+process is intentional.
+
+Classic MAT preprocessing reuses existing converted HDF5 files by default. Set
+`PREPROCESS_OVERWRITE=1` to force regeneration.
+
 ### Python/SarPy Reference Tools
 
 Python/SarPy tools are local/reference tooling only. They do not alter GraphX
