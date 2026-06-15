@@ -1,0 +1,22 @@
+{
+  "schema": "graphx.sar.crsd.tiny.v1",
+  "segment_index": 1,
+  "carrier_hz": 9600000000.0,
+  "sample_rate_hz": 1000000000.0,
+  "vectors": [
+    {
+      "vector_index": 2,
+      "rcv_time_s": 0.2,
+      "platform_position_m": [1002.0, 2002.0, 3002.0],
+      "platform_velocity_mps": [12.0, 22.0, 32.0],
+      "samples": [[7.0, -1.0], [8.0, -2.0], [9.0, -3.0]]
+    },
+    {
+      "vector_index": 3,
+      "rcv_time_s": 0.3,
+      "platform_position_m": [1003.0, 2003.0, 3003.0],
+      "platform_velocity_mps": [13.0, 23.0, 33.0],
+      "samples": [[10.0, -1.0], [11.0, -2.0], [12.0, -3.0]]
+    }
+  ]
+}

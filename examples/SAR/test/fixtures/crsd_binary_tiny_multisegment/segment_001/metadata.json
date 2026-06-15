@@ -1,0 +1,27 @@
+{
+  "channel": {
+    "channel_id": "channel_0",
+    "frequency_max_hz": 9600000000.0,
+    "frequency_min_hz": 9599000000.0,
+    "num_samples": 4,
+    "num_vectors": 2,
+    "signal_array_format": "CF8"
+  },
+  "collection": {
+    "collection_id": "collection-001",
+    "collector_name": "GOTCHA",
+    "coordinate_frame": "ecef",
+    "product_id": "crsd-binary-seg-001",
+    "provenance_label": "graphx_pr2b_binary_fixture",
+    "source_files": [
+      "subData02.mat"
+    ],
+    "source_ordering": "manifest",
+    "time_basis": "seconds"
+  },
+  "crsd_file": "product.crsd",
+  "format": "crsd",
+  "label": "STANDARDS-TARGETED",
+  "sarpy_writer": "sarpy.io.received.crsd.CRSDWriter1",
+  "schema": "graphx.sar.crsd.metadata.v1"
+}

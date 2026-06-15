@@ -1,0 +1,15 @@
+{
+  "schema": "graphx.sar.crsd.tiny.v1",
+  "segment_index": 1,
+  "carrier_hz": 9600000000.0,
+  "sample_rate_hz": 1000000000.0,
+  "vectors": [
+    {
+      "vector_index": 30,
+      "rcv_time_s": 3.0,
+      "platform_position_m": [4.0, 5.0, 6.0],
+      "platform_velocity_mps": [1.0, 1.1, 1.2],
+      "samples": [[10.0, 0.0], [11.0, 0.0], [12.0, 0.0]]
+    }
+  ]
+}

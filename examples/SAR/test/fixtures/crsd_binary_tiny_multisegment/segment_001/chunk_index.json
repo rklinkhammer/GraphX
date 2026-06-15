@@ -1,0 +1,13 @@
+{
+  "chunks": [
+    {
+      "channel_id": "channel_0",
+      "pulse_count": 2,
+      "pulse_end": 1,
+      "pulse_start": 0,
+      "sample_count": 4
+    }
+  ],
+  "crsd_file": "product.crsd",
+  "schema": "graphx.sar.crsd.chunk_index.v1"
+}

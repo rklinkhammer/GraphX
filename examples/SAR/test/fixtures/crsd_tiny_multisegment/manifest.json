@@ -1,0 +1,8 @@
+{
+  "schema": "graphx.sar.crsd.manifest.v1",
+  "files": [
+    {"path": "segment_000/product.crsd"},
+    {"path": "segment_001/product.crsd"},
+    {"path": "segment_002/product.crsd"}
+  ]
+}

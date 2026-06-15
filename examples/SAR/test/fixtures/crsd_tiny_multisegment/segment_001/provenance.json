@@ -1,0 +1,4 @@
+{
+  "schema": "graphx.sar.crsd.provenance.v1",
+  "note": "optional sidecar"
+}

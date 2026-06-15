@@ -1,0 +1,12 @@
+{
+  "notes": [
+    "MATLAB is not used.",
+    "CRSD output is written from the GraphX normalized SAR product."
+  ],
+  "provenance_label": "graphx_pr2b_binary_fixture",
+  "schema": "graphx.sar.crsd.provenance.v1",
+  "source_files": [
+    "subData02.mat"
+  ],
+  "source_ordering": "manifest"
+}

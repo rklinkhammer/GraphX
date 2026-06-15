@@ -113,6 +113,104 @@ Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR2.md.
 
 ---
 
+## PR2b Implementer
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement corrective PR2b for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Binary CRSD product reader support for OrderedCrsdSetInputSourceNode.
+
+Context:
+- PR2 currently passes tiny JSON fixture-mode tests, but fails on real generated CRSD data.
+- OrderedCrsdSetInputSourceNode directory mode pointed at data/crsd fails with a JSON parse error because CrsdReader.cpp expects graphx.sar.crsd.tiny.v1 JSON fixtures.
+- tools/sarpy/validate_crsd.py opens at least one data/crsd product.crsd successfully with status=ok, so the failure is reader support, not dataset corruption.
+- The principal test fixture for this corrective PR must be generated binary CRSD product files, not JSON pretending to be CRSD.
+
+Goal:
+Make the PR2 CRSD input reader/source-node implementation read binary CRSD product files, including generated GOTCHA-derived product.crsd files, through the C++ CRSD reader path used by OrderedCrsdSetInputSourceNode.
+
+Scope:
+- Update examples/SAR/src/io/CrsdReader.cpp and related interfaces/tests so CrsdReader detects and reads binary CRSD product files instead of trying to parse every .crsd as JSON.
+- Keep any tiny JSON fixture support only if it remains explicitly named as a test helper format and cannot be confused with binary CRSD.
+- Add or generate deterministic binary CRSD fixture products for CI tests. Prefer small generated CRSD product files built from the repository's CRSD writer/generator path so the fixture exercises the real binary container contract.
+- Add tests proving CrsdReader can open binary product.crsd, read metadata, signal dimensions, required PVP subset, first/last vectors, geometry metadata, and stable signal checksums.
+- Add OrderedCrsdSetInputSourceNode tests proving directory mode discovers real binary product.crsd files under product directories and emits one ordered aperture-set stream.
+- Add manifest/path mode tests using binary product.crsd files.
+- Add deterministic diagnostics for unsupported/non-CRSD files, malformed CRSD files, missing required PVP/metadata, missing product.crsd, duplicate segments, and unexpected ordering.
+- Add a local-only optional smoke path for data/crsd that can be enabled when that directory exists, but do not require it in CI.
+- Ensure product.crsd remains the authoritative source for metadata, signal, and PVP. Sidecar JSON files may be used only as optional preflight/provenance/checksum evidence.
+- Update docs or reports only where needed to clarify that PR2 support is binary CRSD support, not JSON fixture support.
+
+Requirements:
+- The supported fixture for PR2b must include actual binary CRSD product files.
+- The implementation must not pass by reading metadata.json, pvp.json, chunk_index.json, provenance.json, or SarPy validation JSON as substitutes for CRSD signal/PVP.
+- Directory mode must be constrained to discover product.crsd files deterministically, for example under */product.crsd, and must ignore sidecars unless explicitly used for optional diagnostics.
+- If full binary CRSD support cannot be completed, fail clearly and leave PR2b incomplete rather than silently treating JSON as CRSD.
+
+Do not implement aperture assembly, focused image formation, Metal execution, sinks, SarPy reference generation, image comparison, or local real-data workflow beyond the optional reader smoke.
+Do not add MATLAB.
+Do not require SarPy in CI.
+Do not check in real GOTCHA data or generated large CRSD files from data/crsd.
+Do not change GraphX runtime contracts.
+
+Suggested validation:
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_sar_example_unit graphx_sar_example
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=*CrsdReader*:*OrderedCrsdSetInputSourceNode*'
+```
+
+Optional local validation when data/crsd exists:
+```bash
+./build-ninja/ninja-debug-metal-native/examples/SAR/graphx_sar_example \
+  --config examples/SAR/config/sar_crsd_real_directory_input_smoke.json
+```
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_IMPL_PR2B.md.
+```
+
+## PR2b Verifier
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify corrective PR2b for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Binary CRSD product reader support for OrderedCrsdSetInputSourceNode.
+
+Required checks:
+- CrsdReader detects binary CRSD product files and no longer tries to parse product.crsd as JSON.
+- CI tests use actual generated binary CRSD product files as the principal CRSD reader fixture.
+- Any retained JSON tiny fixture support is explicitly labeled as a test helper and is not described as CRSD binary support.
+- CrsdReader tests prove binary product.crsd metadata, signal dimensions, required PVP subset, first/last vectors, geometry metadata, and stable signal checksums are read from product.crsd.
+- OrderedCrsdSetInputSourceNode path, manifest, and directory modes work with binary product.crsd files.
+- Directory mode discovers product.crsd files deterministically and ignores sidecars as authoritative signal/PVP sources.
+- Node emits one ordered aperture-set stream for all selected CRSD segments, not one image or independent product per segment.
+- Tests prove duplicate, missing, malformed, unsupported, missing required metadata/PVP, and unexpected ordering cases produce deterministic diagnostics.
+- Sidecar JSON files are optional evidence only; tests fail if metadata.json, pvp.json, chunk_index.json, provenance.json, or SarPy validation JSON are used as substitutes for CRSD signal/PVP.
+- Optional local data/crsd smoke is gated and documented; CI does not require real GOTCHA data or SarPy.
+- No aperture assembly, focused image transform, Metal lane, sink, SarPy reference generation, image comparison, MATLAB dependency, real GOTCHA data check-in, large generated CRSD check-in, or GraphX runtime contract change was added.
+
+Suggested verification commands:
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_sar_example_unit graphx_sar_example
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=*CrsdReader*:*OrderedCrsdSetInputSourceNode*'
+```
+
+Optional local verification when data/crsd exists:
+```bash
+./build-ninja/ninja-debug-metal-native/examples/SAR/graphx_sar_example \
+  --config examples/SAR/config/sar_crsd_real_directory_input_smoke.json
+```
+
+Stop after verifier report.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR2B.md.
+```
+
+---
+
 ## PR3 Implementer
 
 ```text

@@ -1,0 +1,18 @@
+{
+  "fields": [
+    "RcvTime",
+    "RcvPos",
+    "RcvVel",
+    "RefPhi0",
+    "RefFreq",
+    "DFIC0",
+    "FICRate",
+    "FRCV1",
+    "FRCV2",
+    "DGRGC",
+    "SIGNAL"
+  ],
+  "num_bytes_pvp": 120,
+  "pulse_count": 2,
+  "schema": "graphx.sar.crsd.pvp.v1"
+}

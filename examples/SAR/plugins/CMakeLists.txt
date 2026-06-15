@@ -175,3 +175,17 @@ add_graphx_plugin(
 target_include_directories(gotcha_replay_source_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME crsd_input_source_node
+    SOURCE_FILES
+        crsd_input_source_node_plugin.cpp
+        ../src/OrderedCrsdSetInputSourceNode.cpp
+        ../src/io/CrsdReader.cpp
+    DESCRIPTION "SAR ordered CRSD set input source node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(crsd_input_source_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
