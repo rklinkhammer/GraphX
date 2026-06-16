@@ -203,3 +203,16 @@ add_graphx_plugin(
 target_include_directories(crsd_aperture_assembly_adapter_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME crsd_focused_image_transform_node
+    SOURCE_FILES
+        crsd_focused_image_transform_node_plugin.cpp
+        ../src/CrsdFocusedImageTransformNode.cpp
+    DESCRIPTION "CRSD focused-image CPU backprojection transform node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(crsd_focused_image_transform_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
