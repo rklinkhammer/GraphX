@@ -81,6 +81,7 @@ public:
 
     const CrsdFocusedImageTransformMetalConfig& GetConfig() const noexcept;
     const std::string& GetLastDiagnostic() const noexcept;
+    const char* GetAlgorithmStatus() const noexcept;
 
 private:
     bool IsNativeMetalAvailable() const;
@@ -106,6 +107,8 @@ private:
 
     bool native_kernel_registered_{false};
     bool capabilities_bound_{false};
+    static constexpr const char* kAlgorithmStatus =
+        "experimental_incomplete_cpu_seed_plus_placeholder_kernel";
 
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};

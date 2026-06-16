@@ -10,7 +10,7 @@ namespace {
 struct CrsdFocusedImageTransformMetalNodePolicy
     : PluginPolicy<sar::CrsdFocusedImageTransformMetalNode> {
     [[maybe_unused]] static constexpr const char* Description =
-        "CRSD focused-image Metal execution transform node";
+    "CRSD focused-image Metal execution transform node (experimental, algorithm incomplete)";
 };
 
 using Glue = PluginGlue<sar::CrsdFocusedImageTransformMetalNode,
@@ -34,7 +34,7 @@ void* plugin_create_crsd_focused_image_transform_metal_node() {
 }
 
 const char* plugin_get_info() {
-    return "CrsdFocusedImageTransformMetalNode|CRSD focused-image Metal execution transform node|1.0|"
+    return "CrsdFocusedImageTransformMetalNode|CRSD focused-image Metal execution transform node (experimental, algorithm incomplete)|1.0|"
            "plugin_create_crsd_focused_image_transform_metal_node|"
 #ifdef _LIBCPP_VERSION
            "libc++_v1";

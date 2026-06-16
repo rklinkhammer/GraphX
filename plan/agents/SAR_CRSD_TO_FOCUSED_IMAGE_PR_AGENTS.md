@@ -14,7 +14,7 @@ Global constraints for every PR:
 - Do not alter GraphX runtime contracts unless the PR explicitly requires a local SAR node/message addition.
 - Keep local-only workflows opt-in and gated.
 - Stop after the requested implementer or verifier report.
-
+- PR5c is a blocking corrective PR between PR5b and PR6. PR6 must not proceed until Metal node truth-in-labeling guardrails pass.
 ---
 
 ## PR1 Implementer
@@ -529,6 +529,81 @@ Stop after verifier report.
 Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR5B.md.
 ```
 
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement corrective PR5c for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Metal Node Truth-In-Labeling Guardrails.
+
+Goal:
+Before continuing the CRSD focused-image plan, ensure every node named Metal is classified honestly and cannot claim native Metal algorithm support unless it performs real native Metal work and, for algorithm nodes, implements the advertised algorithm.
+
+Scope:
+- Add a repository-level Metal node inventory document, for example docs/sar/metal_node_truth_in_labeling.md.
+- Classify every Metal-named node as one of:
+  - memory
+  - transfer
+  - sync/control
+  - sink/source
+  - kernel primitive
+  - domain algorithm
+  - unsupported
+- For each Metal-named node, record:
+  - whether it binds Metal capabilities
+  - whether it uses native Metal APIs directly or capability-mediated native Metal APIs
+  - whether it launches a kernel
+  - whether a kernel is expected for that node type
+  - whether the implemented behavior is real, simulated, fallback, or unsupported
+- Add guardrail tests that fail if unsupported or placeholder Metal nodes are advertised as implemented native Metal algorithms.
+- Add guardrail tests that distinguish:
+  - real native Metal transfer/memory/sync nodes
+  - real generic kernel nodes
+  - real domain algorithm nodes
+  - simulated/default capability paths
+  - unsupported placeholders
+- Add a focused guardrail for CrsdFocusedImageTransformMetalNode:
+  - native Metal mode must not be accepted as fully focused image formation if the kernel is only a placeholder/blend/seed transform
+  - CPU seed-image generation plus trivial Metal post-processing must not satisfy “Metal focused-image algorithm”
+  - if this node remains incomplete, it must report an incomplete/experimental status clearly
+- Add a focused guardrail for CollectiveReduceNodeMetal:
+  - it must be classified as unsupported unless native collective operations are actually implemented
+- Update PR5/PR5b reports or docs only as needed to correct misleading claims.
+
+Do not:
+- Do not implement the real focused-image Metal algorithm in this PR.
+- Do not continue to PR6 artifact persistence.
+- Do not rename nodes unless the planner explicitly requires it.
+- Do not remove valid transfer/memory/sync Metal nodes just because they do not launch kernels.
+- Do not require real GOTCHA data.
+- Do not add MATLAB, SarPy runtime dependency, or dataset dependency.
+
+Acceptance criteria:
+- Every active Metal-named node has an explicit truth-in-labeling classification.
+- Tests fail if a placeholder/simulated/unsupported Metal node is described as a completed native Metal algorithm.
+- Tests fail if CrsdFocusedImageTransformMetalNode claims complete Metal focused-image support while using CPU seed image plus trivial Metal kernel.
+- Tests fail if CollectiveReduceNodeMetal is treated as implemented.
+- Transfer/memory/sync nodes are allowed to be Metal nodes without kernels, but must prove real Metal capability usage or be marked simulated/fallback.
+- The current plan clearly blocks PR6 until Metal algorithm claims are corrected.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_IMPL_PR5C.md.
+
+---
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify corrective PR5c for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Metal Node Truth-In-Labeling Guardrails.
+
+Required checks:
+- A Metal node inventory/truth-in-labeling document exists.
+- Every active Metal-named node is classified as memory, transfer, sync/control, sink/source, kernel primitive, domain algorithm, or unsupported.
+- Classification records whether each node binds Metal capabilities, uses native/capability-mediated Metal APIs, launches a kernel, requires a kernel, and is real/simulated/fallback/unsupported.
+- Guardrail tests prevent unsupported or placeholder Metal nodes from being advertised as implemented native Metal algorithms.
+- CrsdFocusedImageTransformMetalNode is not accepted as complete Metal focused-image formation while it uses CPU seed image plus trivial Metal kernel.
+- CollectiveReduceNodeMetal is classified as unsupported unless native collective behavior is truly implemented.
+- Transfer/memory/sync nodes are not incorrectly required to launch kernels.
+- PR6 remains blocked until Metal algorithm claims are corrected or explicitly downgraded.
+- No real focused-image Metal algorithm, artifact sink, SarPy lane, real-data dependency, MATLAB dependency, or unrelated redesign was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR5C.md.
 ---
 
 ## PR6 Implementer

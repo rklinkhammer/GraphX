@@ -357,7 +357,7 @@ std::optional<FocusedImageResult> CrsdFocusedImageTransformMetalNode::RunNativeM
     result.control.kernel_ticket = kernel_ticket;
     result.control.has_kernel_ticket = true;
 
-    last_diagnostic_ = "ok:metal_native_focused_image_produced";
+    last_diagnostic_ = "warning:metal_focused_image_algorithm_incomplete";
     return result;
 }
 
@@ -504,6 +504,8 @@ graph::JsonView CrsdFocusedImageTransformMetalNode::GetParameters() const {
     parameters_cache_["d2h_queue_id"] = config_.d2h_queue_id;
     parameters_cache_["kernel_id"] = config_.kernel_id;
     parameters_cache_["capabilities_bound"] = capabilities_bound_;
+    parameters_cache_["algorithm_status"] = kAlgorithmStatus;
+    parameters_cache_["claims_complete_native_algorithm"] = false;
     parameters_cache_["last_diagnostic"] = last_diagnostic_;
     return graph::JsonView(parameters_cache_);
 }
@@ -558,6 +560,11 @@ CrsdFocusedImageTransformMetalNode::GetConfig() const noexcept {
 const std::string&
 CrsdFocusedImageTransformMetalNode::GetLastDiagnostic() const noexcept {
     return last_diagnostic_;
+}
+
+const char*
+CrsdFocusedImageTransformMetalNode::GetAlgorithmStatus() const noexcept {
+    return kAlgorithmStatus;
 }
 
 bool CrsdFocusedImageTransformMetalNode::IsNativeMetalAvailable() const {

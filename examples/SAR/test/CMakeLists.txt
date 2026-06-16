@@ -74,6 +74,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/CrsdFocusedImageTransformMetal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_transform_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_metal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_metal_truth_in_labeling_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/OrderedCrsdSetInputSourceNode.cpp

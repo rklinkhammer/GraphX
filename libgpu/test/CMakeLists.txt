@@ -18,6 +18,7 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
         ${CMAKE_SOURCE_DIR}/libgraph/test/include
     )
     target_compile_definitions(test_libgpu_stub_unit PRIVATE
+        GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
         PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     )
     target_link_libraries(test_libgpu_stub_unit PRIVATE
