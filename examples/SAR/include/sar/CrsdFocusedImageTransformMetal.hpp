@@ -4,6 +4,8 @@
 #include "sar/SarMessages.hpp"
 
 #include "config/Config.hpp"
+#include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -41,7 +43,8 @@ class CrsdFocusedImageTransformMetalNode
           graph::TypeList<FocusedImageResult>,
           CrsdFocusedImageTransformMetalNode>,
       public graph::IConfigurable,
-      public graph::IParameterized {
+    public graph::IParameterized,
+    public graph::IGpuCapabilityBinding {
 public:
     CrsdFocusedImageTransformMetalNode();
     explicit CrsdFocusedImageTransformMetalNode(CrsdFocusedImageTransformMetalConfig config);
@@ -52,11 +55,12 @@ public:
         std::integral_constant<std::size_t, 0>) override;
 
     void Configure(const graph::JsonView& cfg) override;
+    bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override;
     graph::JsonView GetParameters() const override;
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
 
-    static constexpr std::array<graph::JsonField, 12> Fields() {
+    static constexpr std::array<graph::JsonField, 14> Fields() {
         return {{
             graph::JsonField{.name = "image_width", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "32", .enum_values = std::nullopt, .description = "Focused image output width in pixels"},
             graph::JsonField{.name = "image_height", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "32", .enum_values = std::nullopt, .description = "Focused image output height in pixels"},
@@ -70,6 +74,8 @@ public:
             graph::JsonField{.name = "backend_id", .type = graph::JsonType::Integer, .required = false, .min = 0.0, .max = std::nullopt, .default_value = "0", .enum_values = std::nullopt, .description = "Backend device identifier for diagnostics"},
             graph::JsonField{.name = "h2d_queue_id", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "11", .enum_values = std::nullopt, .description = "Synthetic/Native H2D queue identifier"},
             graph::JsonField{.name = "kernel_queue_id", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "21", .enum_values = std::nullopt, .description = "Synthetic/Native kernel queue identifier"},
+            graph::JsonField{.name = "d2h_queue_id", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "31", .enum_values = std::nullopt, .description = "Synthetic/Native D2H queue identifier"},
+            graph::JsonField{.name = "kernel_id", .type = graph::JsonType::Integer, .required = false, .min = 1.0, .max = std::nullopt, .default_value = "99001", .enum_values = std::nullopt, .description = "Metal kernel identifier"},
         }};
     }
 
@@ -77,7 +83,11 @@ public:
     const std::string& GetLastDiagnostic() const noexcept;
 
 private:
-    static bool IsNativeMetalAvailable();
+    bool IsNativeMetalAvailable() const;
+    std::optional<FocusedImageResult> RunNativeMetal(
+        const SarPhaseHistoryControlMessage& input);
+    std::vector<float> BuildNativeSeedImage(
+        const SarPhaseHistoryApertureFrame& frame) const;
 
     static std::uint64_t ComputePayloadBytes(
         const SarPhaseHistoryApertureFrame& frame) noexcept;
@@ -85,6 +95,17 @@ private:
     CrsdFocusedImageTransformMetalConfig config_{};
     CrsdFocusedImageTransformNode cpu_transform_{};
     std::string last_diagnostic_{"unconfigured"};
+
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalContextCapability> context_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalSharedQueueCapability> shared_queue_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability> memory_pool_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalTransferCapability> transfer_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalKernelCapability> kernel_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalKernelDescriptorCapability> kernel_descriptor_{};
+    std::shared_ptr<graph::gpu::metal::capabilities::IMetalTelemetryCapability> telemetry_{};
+
+    bool native_kernel_registered_{false};
+    bool capabilities_bound_{false};
 
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};

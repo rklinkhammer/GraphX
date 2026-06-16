@@ -417,6 +417,120 @@ Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR5.md.
 
 ---
 
+## PR5b Implementer
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement corrective PR5b for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Real Metal focused-image execution for CRSD-derived phase history.
+
+Failure context:
+- PR5 created CrsdFocusedImageTransformMetalNode, but it does not implement real Metal focused-image execution.
+- The current Metal node computes pixels by calling CrsdFocusedImageTransformNode / CPU transform and then backfills Metal-looking diagnostics.
+- Current bytes_h2d, bytes_d2h, kernel_dispatches, tickets, and timing fields are synthetic values assigned in C++ after CPU computation.
+- Current IsNativeMetalAvailable only checks __APPLE__, not a real Metal device/capability.
+- Current tests explicitly accept exact parity because the Metal lane reuses the CPU math path.
+- Resolver tests prove generic SAR accel-node selection, but do not prove CrsdFocusedImageTransformMetalNode dispatches a Metal focused-image kernel.
+
+Goal:
+Replace the PR5 Metal-labeled CPU wrapper with a real Metal execution lane for CRSD-derived focused-image computation, or fail clearly when native Metal execution is unavailable. The PR is incomplete if focused-image pixels are produced by the CPU transform inside CrsdFocusedImageTransformMetalNode while claiming Metal execution.
+
+Scope:
+- Update examples/SAR/include/sar/CrsdFocusedImageTransformMetal.hpp and examples/SAR/src/CrsdFocusedImageTransformMetal.cpp so the native Metal path uses actual GraphX Metal capabilities or existing native Metal infrastructure for:
+  - device availability/capability discovery
+  - device/shared buffer allocation for phase-history input and focused-image output
+  - host-to-device transfer of CRSD-derived phase-history payload
+  - Metal kernel dispatch for focused-image/backprojection computation
+  - device-to-host transfer of focused-image output
+  - measured/real telemetry or capability-reported transfer/kernel diagnostics
+- Reuse existing GraphX Metal abstractions and capability interfaces where available; inspect libgpu/gpu/metal and existing SAR accel nodes before adding anything new.
+- If an existing Metal backprojection kernel node can be reused, route the CRSD phase-history payload into that node contract rather than inventing a parallel Metal stack.
+- If a small new Metal kernel is required, add the minimum repository-consistent kernel/source/build wiring and keep it scoped to the CRSD focused-image path.
+- Preserve the CPU focused-image node as a separate CPU baseline, not as the implementation body of the Metal node.
+- Keep CPU fallback only when explicitly configured and clearly reported as fallback. Fallback output must not be labeled as native Metal execution and must not satisfy native Metal tests.
+- Replace synthetic diagnostics with diagnostics derived from actual Metal transfers/kernel dispatches/capability telemetry.
+- Add tests that fail if the Metal node calls or depends on CrsdFocusedImageTransformNode for native Metal output.
+- Add tests that fail if bytes_h2d, bytes_d2h, kernel_dispatches, transfer tickets, kernel tickets, or timing fields are fabricated without actual Metal capability activity.
+- Add CPU-vs-Metal parity tests using tolerance appropriate for real Metal math, not exact equality caused by CPU reuse.
+- Add native Metal tests that require:
+  - real Metal device/capability available
+  - nonzero real H2D transfer
+  - nonzero real kernel dispatch
+  - nonzero real D2H transfer
+  - focused-image output produced from Metal result buffer
+  - output changes when CRSD samples or geometry/PVP inputs change
+- Keep platform gating honest:
+  - On non-Metal platforms, native Metal tests may skip.
+  - On Apple/native Metal builds, strict native Metal mode must fail if no actual Metal device/capability/kernel dispatch occurs.
+- Update PR5 report and tests to remove claims that CPU delegation is acceptable Metal proof.
+
+Required negative-proof tests:
+- Native Metal mode fails if the Metal capability/kernel is unavailable and fallback is disabled.
+- Native Metal mode fails if kernel_dispatches remains zero.
+- Native Metal mode fails if output is produced only by CPU transform delegation.
+- Native Metal mode fails if diagnostics are manually backfilled without capability telemetry or actual command execution evidence.
+- Native Metal mode fails if phase-history payload is ignored or replaced with synthetic data.
+- Fallback mode, if retained, reports CPU fallback explicitly and is not counted as Metal execution.
+
+Do not:
+- Do not change CRSD reader semantics.
+- Do not change the CPU focused-image algorithm except for small shared utility extraction if genuinely necessary.
+- Do not implement SarPy reference generation, comparison lane, sink artifact contract, local real-data workflow, or MATLAB dependency.
+- Do not add real GOTCHA data or generated large CRSD files.
+- Do not loosen PR4 focused-image correctness tests.
+- Do not use JSON sidecars as physics inputs.
+- Do not silently pass by resolver-selection tests alone.
+
+Suggested validation:
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_sar_example_unit
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=CrsdFocusedImageMetalTest.*'
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=CrsdFocusedImageTransformNodeTest.*:CrsdFocusedImageMetalTest.*'
+```
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_IMPL_PR5B.md.
+```
+
+## PR5b Verifier
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify corrective PR5b for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Real Metal focused-image execution for CRSD-derived phase history.
+
+Required checks:
+- CrsdFocusedImageTransformMetalNode no longer produces native Metal output by calling CrsdFocusedImageTransformNode / CPU transform internally.
+- Native Metal path uses actual GraphX Metal capabilities or existing native Metal infrastructure for device/buffer allocation, H2D transfer, kernel dispatch, and D2H transfer.
+- Focused-image pixels in native Metal mode are read back from a Metal result buffer.
+- bytes_h2d, bytes_d2h, kernel_dispatches, transfer tickets, kernel tickets, and timing/telemetry are derived from real Metal capability activity or command execution evidence, not hardcoded/synthetic backfill.
+- Device availability checks prove real Metal capability/device availability, not only __APPLE__.
+- Strict native Metal mode fails clearly if real Metal capability/kernel execution is unavailable.
+- CPU fallback, if retained, is explicit and is not counted as native Metal execution.
+- CPU-vs-Metal parity uses documented numeric tolerance appropriate for real Metal math.
+- Tests prove Metal output changes when CRSD signal or geometry/PVP inputs change.
+- Tests fail if payload is ignored, CPU delegation is used for native Metal output, diagnostics are fabricated, or only resolver-selection evidence is present.
+- Existing resolver-selection tests may remain, but they are not the only proof of PR5b.
+- No CRSD reader redesign, SarPy reference lane, comparison lane, sink artifact contract, local real-data workflow, MATLAB dependency, checked-in real GOTCHA data, or large generated CRSD artifacts were added.
+
+Suggested verification commands:
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_sar_example_unit
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=CrsdFocusedImageMetalTest.*'
+```
+
+Stop after verifier report.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR5B.md.
+```
+
+---
+
 ## PR6 Implementer
 
 ```text

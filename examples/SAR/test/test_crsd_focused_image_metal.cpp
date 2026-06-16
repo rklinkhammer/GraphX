@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "capabilities/GraphCapability.hpp"
+#include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
+#include "graph/CapabilityBus.hpp"
 #include "graph/GraphBuilder.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -185,6 +187,28 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
     return json;
 }
 
+void BindDefaultMetalCapabilities(
+    sar::CrsdFocusedImageTransformMetalNode& node,
+    graph::CapabilityBus& bus,
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>& telemetry_out) {
+    auto context = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalContextCapability>();
+    auto shared_queue = std::make_shared<graph::gpu::metal::capabilities::MetalSharedQueueCapability>(context);
+    auto memory_pool = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalMemoryPoolCapability>();
+    auto transfer = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>();
+    auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
+    auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
+
+    bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
+    bus.Register<graph::gpu::metal::capabilities::IMetalSharedQueueCapability>(shared_queue);
+    bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
+    bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
+    bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
+
+    ASSERT_TRUE(node.BindGpuCapabilities(bus));
+    telemetry_out = std::move(telemetry);
+}
+
 } // namespace
 
 TEST(CrsdFocusedImageMetalTest, CpuAndMetalTinyFixtureConfigsExistAndAreWellFormed) {
@@ -223,6 +247,10 @@ TEST(CrsdFocusedImageMetalTest, CpuVsMetalParityUsesSamePhaseHistoryContractAndT
             .allow_fallback = true,
             .require_kernel_execution = false,
         });
+    graph::CapabilityBus bus;
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability> telemetry;
+    BindDefaultMetalCapabilities(metal, bus, telemetry);
+
     auto metal_result = metal.Transfer(
         *assembled,
         std::integral_constant<std::size_t, 0>{},
@@ -233,20 +261,21 @@ TEST(CrsdFocusedImageMetalTest, CpuVsMetalParityUsesSamePhaseHistoryContractAndT
     EXPECT_EQ(cpu_result->grid.height, metal_result->grid.height);
     ASSERT_EQ(cpu_result->pixels.size(), metal_result->pixels.size());
 
-    // Deterministic tolerance: exact parity since metal lane reuses CPU math path.
-    constexpr float kParityTolerance = 0.0f;
+    // Native lane is expected to be close in aggregate energy but not per-pixel identical.
+    constexpr float kMaxAbsError = 2.0f;
+    double l1_error = 0.0;
     for (std::size_t i = 0; i < cpu_result->pixels.size(); ++i) {
-        EXPECT_NEAR(cpu_result->pixels[i], metal_result->pixels[i], kParityTolerance);
+        const float err = std::fabs(cpu_result->pixels[i] - metal_result->pixels[i]);
+        EXPECT_LE(err, kMaxAbsError);
+        l1_error += static_cast<double>(err);
     }
-    EXPECT_EQ(cpu_result->output_hash, metal_result->output_hash);
+    EXPECT_GT(l1_error, 0.0);
+    EXPECT_GT(telemetry->KernelSamples(), 0u);
+    EXPECT_NE(cpu_result->output_hash, metal_result->output_hash);
     EXPECT_EQ(cpu_result->input_ordered_set_hash, metal_result->input_ordered_set_hash);
 }
 
 TEST(CrsdFocusedImageMetalTest, MetalDiagnosticsAreNonzeroWhenNativeLaneRuns) {
-#if !defined(__APPLE__)
-    GTEST_SKIP() << "Native Metal lane unavailable on non-Apple builds";
-#endif
-
     const auto assembled = BuildAssembledFrame(MakeCoherentPointTargetResult(3u, 3u, 32u));
     ASSERT_TRUE(assembled.has_value());
 
@@ -262,6 +291,9 @@ TEST(CrsdFocusedImageMetalTest, MetalDiagnosticsAreNonzeroWhenNativeLaneRuns) {
             .kernel_queue_id = 21u,
             .d2h_queue_id = 31u,
         });
+    graph::CapabilityBus bus;
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability> telemetry;
+    BindDefaultMetalCapabilities(metal, bus, telemetry);
 
     auto result = metal.Transfer(
         *assembled,
@@ -276,6 +308,8 @@ TEST(CrsdFocusedImageMetalTest, MetalDiagnosticsAreNonzeroWhenNativeLaneRuns) {
     EXPECT_TRUE(result->control.has_kernel_ticket);
     EXPECT_EQ(result->control.transfer_ticket.backend, graph::gpu::accel::BackendKind::Metal);
     EXPECT_EQ(result->control.kernel_ticket.backend, graph::gpu::accel::BackendKind::Metal);
+    EXPECT_GT(telemetry->KernelSamples(), 0u);
+    EXPECT_GE(telemetry->TransferSamples(), 3u);
 }
 
 TEST(CrsdFocusedImageMetalTest, GuardrailRejectsForwardOnlyMetalExecution) {
@@ -291,6 +325,9 @@ TEST(CrsdFocusedImageMetalTest, GuardrailRejectsForwardOnlyMetalExecution) {
             .require_kernel_execution = true,
             .force_forward_only_guardrail = true,
         });
+    graph::CapabilityBus bus;
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability> telemetry;
+    BindDefaultMetalCapabilities(metal, bus, telemetry);
 
     auto result = metal.Transfer(
         *assembled,
@@ -315,6 +352,9 @@ TEST(CrsdFocusedImageMetalTest, PreservesSarAccelControlTokenIdentityWithGpuBack
             .kernel_queue_id = 201u,
             .d2h_queue_id = 301u,
         });
+    graph::CapabilityBus bus;
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability> telemetry;
+    BindDefaultMetalCapabilities(metal, bus, telemetry);
 
     auto result = metal.Transfer(
         *assembled,
@@ -327,7 +367,6 @@ TEST(CrsdFocusedImageMetalTest, PreservesSarAccelControlTokenIdentityWithGpuBack
     EXPECT_EQ(result->control.sidecar.aperture_id, assembled->control.sidecar.aperture_id);
     EXPECT_EQ(result->control.sidecar.pulse_range_start, assembled->control.sidecar.pulse_range_start);
 
-#if defined(__APPLE__)
     EXPECT_EQ(result->control.sidecar.backend, sar::SarBackendKind::NativeDevice);
     EXPECT_EQ(result->control.sidecar.backend_id, 7u);
     EXPECT_EQ(result->control.sidecar.h2d_queue_id, 101u);
@@ -335,7 +374,47 @@ TEST(CrsdFocusedImageMetalTest, PreservesSarAccelControlTokenIdentityWithGpuBack
     EXPECT_EQ(result->control.sidecar.d2h_queue_id, 301u);
     EXPECT_GT(result->control.sidecar.bytes_h2d, 0u);
     EXPECT_GT(result->control.sidecar.bytes_d2h, 0u);
-#endif
+    EXPECT_GT(telemetry->KernelSamples(), 0u);
+}
+
+TEST(CrsdFocusedImageMetalTest, NativeMetalOutputChangesWithGeometryPerturbation) {
+    auto baseline = BuildAssembledFrame(MakeCoherentPointTargetResult(3u, 4u, 64u));
+    auto perturbed = BuildAssembledFrame(MakeCoherentPointTargetResult(3u, 4u, 64u));
+    ASSERT_TRUE(baseline.has_value());
+    ASSERT_TRUE(perturbed.has_value());
+
+    for (auto& seg : perturbed->frame.segments) {
+        for (auto& vec : seg.vectors) {
+            vec.platform_position_m[0] += 1.5;
+            vec.rcv_time_s += 1.0e-6;
+        }
+    }
+
+    sar::CrsdFocusedImageTransformMetalNode metal(
+        sar::CrsdFocusedImageTransformMetalConfig{
+            .image_width = 16u,
+            .image_height = 16u,
+            .execution_backend = "metal",
+            .allow_fallback = false,
+            .require_kernel_execution = true,
+        });
+    graph::CapabilityBus bus;
+    std::shared_ptr<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability> telemetry;
+    BindDefaultMetalCapabilities(metal, bus, telemetry);
+
+    auto a = metal.Transfer(
+        *baseline,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    auto b = metal.Transfer(
+        *perturbed,
+        std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+
+    ASSERT_TRUE(a.has_value());
+    ASSERT_TRUE(b.has_value());
+    EXPECT_NE(a->output_hash, b->output_hash);
+    EXPECT_GT(telemetry->KernelSamples(), 1u);
 }
 
 TEST(CrsdFocusedImageMetalTest, ResolverDiagnosticsSelectMetalH2DKernelD2HIntents) {
