@@ -118,6 +118,43 @@ export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/subData
 Tests are skipped gracefully in CI and default builds when the environment
 variable is not set.
 
+## PR9 Local-Only CRSD Validation Workflow
+
+Use this workflow to validate end-to-end focused-image processing from generated
+CRSD segment layout while keeping CI independent of real GOTCHA data.
+
+### Input layout
+
+The expected local CRSD root contains an ordered set:
+
+- `subData01.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd`
+- ...
+- `subData10.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd`
+
+Treat these ten products as one ordered aperture set for one focused output.
+
+### Optional local validation lane
+
+```bash
+export GRAPHX_SAR_CRSD_ROOT=/path/to/crsd/root
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='LocalGotchaValidationLaneTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet'
+```
+
+The lane verifies, when local data exists:
+
+- one focused artifact set (`.bin`, `.json`, `.pgm`) is produced
+- nonzero focused-image response
+- per-segment input checksums, ordered-set checksum, and output checksum are recorded
+- dropping or reordering one segment fails or changes output deterministically
+
+Boundary rules:
+
+- local-only/opt-in; CI does not require this lane
+- no dataset download and no generated-output check-in
+- `product.crsd` is authoritative for signal/PVP
+- `metadata.json`, `pvp.json`, `chunk_index.json`, `provenance.json`, and SarPy validation JSON are optional sidecar evidence only
+
 ## Follow-Up Work To Consider
 
 - Update GOTCHA ingestion so the normalized product can represent every pulse in

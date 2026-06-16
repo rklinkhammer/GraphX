@@ -366,3 +366,36 @@ fi
 echo "conversion_output=${OUTPUT_DIR}"
 echo "crsd_files:"
 find "${OUTPUT_DIR}" -name 'product.crsd' -type f -print | sort
+
+python3 - <<'PY' "${OUTPUT_DIR}"
+import hashlib
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+crsd_files = sorted(root.rglob("product.crsd"))
+ordered = []
+for path in crsd_files:
+  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+  ordered.append({
+    "product_crsd": str(path),
+    "sha256": digest,
+  })
+
+ordered_set_checksum = hashlib.sha256(
+  "\n".join(item["sha256"] for item in ordered).encode("utf-8")
+).hexdigest()
+
+report = {
+  "schema": "graphx.sar.crsd_local_ordered_set.v1",
+  "local_only": True,
+  "ordered_set_count": len(ordered),
+  "ordered_set_checksum": ordered_set_checksum,
+  "ordered_segments": ordered,
+}
+
+report_path = root / "ordered_crsd_set_report.json"
+report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+print(f"ordered_crsd_set_report={report_path}")
+PY

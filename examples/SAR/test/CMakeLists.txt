@@ -67,6 +67,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_real_full_aperture_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_input_source_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_aperture_assembly_adapter_node.cpp
@@ -135,6 +136,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_CRSD_TINY_CONFIG_MANIFEST_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_manifest.json"
     SAR_CRSD_REAL_DIRECTORY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_directory_input_smoke.json"
     SAR_CRSD_REAL_PATHS_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_paths_input_smoke.json"
+    SAR_CRSD_GOTCHA_LOCAL_VALIDATION_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_gotcha_local_validation.json"
     SAR_CRSD_FOCUSED_IMAGE_TINY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_focused_image_tiny_fixture.json"
     SAR_CRSD_TINY_FOCUSED_IMAGE_CPU_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_cpu.json"
     SAR_CRSD_TINY_FOCUSED_IMAGE_METAL_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_metal.json"

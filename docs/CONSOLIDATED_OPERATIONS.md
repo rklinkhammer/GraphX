@@ -210,6 +210,33 @@ Tests:
 
 **Note:** These tests are **skipped in CI** when `GRAPHX_SAR_GOTCHA_DATASET` is not set. No dataset download is performed. This is a local-only optional workflow not required by CI.
 
+### PR9 Local CRSD Validation Lane (Optional, Local-Only)
+
+After converting GOTCHA MAT files to CRSD segment outputs, validate focused-image
+processing from the ordered CRSD set:
+
+```bash
+export GRAPHX_SAR_CRSD_ROOT=/path/to/crsd/root
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='LocalGotchaValidationLaneTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet'
+```
+
+Expected CRSD layout under `GRAPHX_SAR_CRSD_ROOT`:
+
+- `subData01.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd`
+- ...
+- `subData10.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd`
+
+The lane is disabled by default in CTest and confirms:
+
+- one focused artifact set for the full ordered aperture
+- nonzero focused-image response
+- per-segment checksums, ordered-set checksum, output checksum
+- deterministic change or failure on dropped/reordered segments
+
+Sidecar JSON (`metadata.json`, `pvp.json`, `chunk_index.json`, `provenance.json`,
+SarPy validation JSON) is evidence only and not authoritative signal/PVP input.
+
 ### Local Frozen Scenario Replay Harness
 
 ```bash
