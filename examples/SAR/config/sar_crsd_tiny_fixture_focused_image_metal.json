@@ -1,0 +1,93 @@
+{
+  "name": "sar_crsd_tiny_fixture_focused_image_metal",
+  "execution_backend": "metal",
+  "backend_fallback_policy": "allow_fallback",
+  "resolver_diagnostics": true,
+  "edge_contract": "accel-token",
+  "num_threads": 2,
+  "resolver_mappings": [
+    {
+      "intent_type": "H2DAsyncAccelNode",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
+      "variants": [
+        { "backend": "metal", "concrete_type": "H2DAsyncAccelNode" },
+        { "backend": "stub", "concrete_type": "H2DAsyncAccelNode" }
+      ]
+    },
+    {
+      "intent_type": "SarBackprojectionTransformAccelNode",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
+      "variants": [
+        { "backend": "metal", "concrete_type": "SarBackprojectionTransformAccelNode" },
+        { "backend": "stub", "concrete_type": "SarBackprojectionTransformAccelNode" }
+      ]
+    },
+    {
+      "intent_type": "D2HAsyncAccelNode",
+      "input_token_type": "SarAccelControlToken",
+      "output_token_type": "SarAccelControlToken",
+      "variants": [
+        { "backend": "metal", "concrete_type": "D2HAsyncAccelNode" },
+        { "backend": "stub", "concrete_type": "D2HAsyncAccelNode" }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src",
+      "type": "OrderedCrsdSetInputSourceNode",
+      "node_config": {
+        "crsd_paths": [
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_000/product.crsd",
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_001/product.crsd",
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_002/product.crsd"
+        ],
+        "stream_id": 5,
+        "backend_id": 0,
+        "backend": 2
+      }
+    },
+    {
+      "id": "adapter",
+      "type": "CrsdApertureAssemblyAdapterNode",
+      "node_config": {
+        "crsd_paths": [
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_000/product.crsd",
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_001/product.crsd",
+          "examples/SAR/test/fixtures/crsd_binary_tiny_multisegment/segment_002/product.crsd"
+        ]
+      }
+    },
+    {
+      "id": "transform",
+      "type": "CrsdFocusedImageTransformMetalNode",
+      "node_config": {
+        "image_width": 16,
+        "image_height": 16,
+        "execution_backend": "metal",
+        "allow_fallback": true,
+        "require_kernel_execution": true,
+        "backend_id": 0,
+        "h2d_queue_id": 11,
+        "kernel_queue_id": 21,
+        "d2h_queue_id": 31
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "src",
+      "source_port": 0,
+      "target_node_id": "adapter",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "adapter",
+      "source_port": 0,
+      "target_node_id": "transform",
+      "target_port": 0
+    }
+  ]
+}

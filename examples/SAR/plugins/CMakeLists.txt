@@ -216,3 +216,17 @@ add_graphx_plugin(
 target_include_directories(crsd_focused_image_transform_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME crsd_focused_image_transform_metal_node
+    SOURCE_FILES
+        crsd_focused_image_transform_metal_node_plugin.cpp
+        ../src/CrsdFocusedImageTransformMetal.cpp
+        ../src/CrsdFocusedImageTransformNode.cpp
+    DESCRIPTION "CRSD focused-image Metal execution transform node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(crsd_focused_image_transform_metal_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
