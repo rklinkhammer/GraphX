@@ -23,6 +23,9 @@ Use these three lanes as the canonical SAR workflow model:
 Boundary:
 - Quick-look output is validation/inspection only and not a focused-image substitute.
 - Focused-image evidence must come from GraphX focused-image path tests/artifacts.
+- Diagnostic-only/timing-only execution evidence is insufficient for focused-image acceptance.
+
+For the full CRSD-to-focused-image contract, see `docs/sar/crsd_to_focused_image.md`.
 
 Primary source docs used for this consolidation:
 

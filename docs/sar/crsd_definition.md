@@ -14,6 +14,9 @@ later PRs, not by MATLAB.
 GOTCHA is compensated phase history data. GraphX conversion policy is CRSD-only
 for supported external interchange.
 
+For CRSD ordered-set ingestion through focused-image production and acceptance
+guardrails, see `docs/sar/crsd_to_focused_image.md`.
+
 ## CRSD Overview
 
 CRSD is a radar signal data product concept. It represents collected radar signal

@@ -11,8 +11,12 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <memory>
+#include <set>
 #include <sstream>
+
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -86,6 +90,10 @@ void AssertEosSidecarIdentity(const sar::SarAccelControlToken& status,
 
 #ifndef SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH
 #define SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH "examples/SAR/config/sar_stripmap_materialized_image.json"
+#endif
+
+#ifndef SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON
+#define SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON "examples/SAR/config/sar_crsd_tiny_fixture_full_pipeline.json"
 #endif
 
 TEST(SarJsonPipelineTest, ExecutesJsonPipelineWithSimulatedBackendPath) {
@@ -315,4 +323,35 @@ TEST(SarJsonPipelineTest, CpuReferenceValidationGateIsIndependentFromTransportDi
     EXPECT_LE(error.relative_l2, reference_parity::kMaterializedImageRelativeL2Tolerance) << metric_report.str();
     EXPECT_LE(peak_location_error_pixels, reference_parity::kImagePeakLocationErrorTolerancePixels) << metric_report.str();
     EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
+}
+
+TEST(SarJsonPipelineTest, CrsdTinyFullPipelineConfigEncodesFocusedImageGuardrails) {
+    const std::filesystem::path config_path{SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    std::ifstream in(config_path);
+    ASSERT_TRUE(in.is_open());
+    nlohmann::json config;
+    in >> config;
+
+    ASSERT_TRUE(config.contains("edge_contract"));
+    EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+    ASSERT_TRUE(config.contains("nodes"));
+    ASSERT_TRUE(config.at("nodes").is_array());
+
+    std::set<std::string> node_types;
+    for (const auto& node : config.at("nodes")) {
+        ASSERT_TRUE(node.contains("type"));
+        node_types.insert(node.at("type").get<std::string>());
+    }
+
+    EXPECT_TRUE(node_types.contains("OrderedCrsdSetInputSourceNode"));
+    EXPECT_TRUE(node_types.contains("CrsdApertureAssemblyAdapterNode"));
+    EXPECT_TRUE(node_types.contains("CrsdFocusedImageTransformNode"));
+    EXPECT_TRUE(node_types.contains("CrsdFocusedImageSinkNode"));
+
+    // Guardrail: quick-look/diagnostic-only nodes are not accepted as focused-image completion sinks.
+    EXPECT_FALSE(node_types.contains("SarDiagnosticsSinkNode"));
+    EXPECT_FALSE(node_types.contains("SarVisualizationSinkNode"));
 }

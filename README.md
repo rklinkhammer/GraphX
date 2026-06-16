@@ -11,6 +11,9 @@ This README is the top-level build guide and CMake option reference.
 For a consolidated operational guide across build, install, test, GOTCHA, SarPy,
 and CRSD conversion/testing, see `docs/CONSOLIDATED_OPERATIONS.md`.
 
+For the CRSD-to-focused-image flow definition, guardrails, and evidence matrix,
+see `docs/sar/crsd_to_focused_image.md`.
+
 ## Canonical SAR Lanes
 
 Active SAR operations are organized into three lanes:

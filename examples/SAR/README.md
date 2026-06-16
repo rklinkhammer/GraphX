@@ -7,6 +7,7 @@ This package demonstrates a deterministic, JSON-driven SAR stripmap pipeline for
 - **Consolidated Operations Guide:** [docs/CONSOLIDATED_OPERATIONS.md](../../docs/CONSOLIDATED_OPERATIONS.md) — Build, test, GOTCHA conversion, and SarPy workflows
 - **GOTCHA Dataset Reference:** [docs/sar/gotcha_large_scene_data_description.md](../../docs/sar/gotcha_large_scene_data_description.md) — Field inventory and full-aperture conversion instructions
 - **CRSD Mapping:** [docs/sar/crsd_definition.md](../../docs/sar/crsd_definition.md) — GOTCHA-to-normalized-to-CRSD concepts
+- **CRSD To Focused Image:** [docs/sar/crsd_to_focused_image.md](../../docs/sar/crsd_to_focused_image.md) — Focused-image flow, guardrails, and processing evidence
 
 ## Canonical SAR Lanes
 
@@ -22,6 +23,7 @@ Use these three lanes to avoid mixing deprecated/archival flows:
 Boundary:
 - Quick-look magnitude outputs are for CRSD inspection only.
 - Focused-image acceptance requires data-dependent GraphX focused-image artifacts.
+- SarPy tools are local-only validation/reference tooling and not GraphX runtime dependencies.
 
 ## Full-Aperture GOTCHA Conversion (Local-Only)
 

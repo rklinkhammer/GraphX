@@ -13,9 +13,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include <nlohmann/json.hpp>
 
@@ -124,6 +126,32 @@ TEST(CiValidationLaneTest, CiSafeValidationLaneReplaysScenario001WithoutExternal
 
     const auto runtime_config_path = output_dir / "graphx" / "graphx_runtime_config.json";
     WriteJson(runtime_config_path, config);
+
+    const std::string runtime_config_text = [&runtime_config_path]() {
+        std::ifstream in(runtime_config_path, std::ios::binary);
+        EXPECT_TRUE(in.good()) << "unable to open runtime config text";
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }();
+    // Guardrails: CI lane must not require MATLAB or SarPy as GraphX runtime dependencies.
+    EXPECT_EQ(runtime_config_text.find("matlab"), std::string::npos);
+    EXPECT_EQ(runtime_config_text.find("sarpy"), std::string::npos);
+
+    ASSERT_TRUE(config.contains("edge_contract"));
+    EXPECT_EQ(config.at("edge_contract").get<std::string>(), "accel-token");
+
+    bool saw_split = false;
+    bool saw_merge = false;
+    ASSERT_TRUE(config.contains("nodes"));
+    for (const auto& node : config.at("nodes")) {
+        if (!node.contains("type")) {
+            continue;
+        }
+        const auto type = node.at("type").get<std::string>();
+        saw_split = saw_split || type.find("Split") != std::string::npos || type.find("Fanout") != std::string::npos;
+        saw_merge = saw_merge || type.find("Merge") != std::string::npos;
+    }
+    EXPECT_TRUE(saw_split);
+    EXPECT_TRUE(saw_merge);
 
     auto executor = graph::GraphExecutorBuilder()
                         .WithJsonConfig(runtime_config_path.string())
