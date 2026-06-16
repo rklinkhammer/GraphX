@@ -13,6 +13,7 @@ namespace graphx::sar {
 
 struct CrsdVectorRecord {
     std::uint64_t vector_index{0};
+    std::uint64_t channel_id{0};
     double rcv_time_s{0.0};
     std::array<double, 3> platform_position_m{0.0, 0.0, 0.0};
     std::array<double, 3> platform_velocity_mps{0.0, 0.0, 0.0};
@@ -22,6 +23,7 @@ struct CrsdVectorRecord {
 struct CrsdSegmentRecord {
     std::filesystem::path crsd_path{};
     std::uint64_t segment_index{0};
+    std::uint64_t channel_id{0};
     std::uint64_t global_vector_start{0};
     std::uint64_t vector_count{0};
     std::uint64_t samples_per_vector{0};
@@ -30,6 +32,7 @@ struct CrsdSegmentRecord {
     std::uint64_t payload_hash{0};
     std::uint64_t first_vector_hash{0};
     std::uint64_t last_vector_hash{0};
+    std::vector<CrsdVectorRecord> vectors{};
     CrsdVectorRecord first_vector{};
     CrsdVectorRecord last_vector{};
 };

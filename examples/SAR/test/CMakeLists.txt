@@ -69,9 +69,11 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_real_full_aperture_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_input_source_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_aperture_assembly_adapter_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/OrderedCrsdSetInputSourceNode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/CrsdApertureAssemblyAdapterNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/io/CrsdReader.cpp
 )
 
@@ -123,6 +125,8 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_CRSD_TINY_CONFIG_PATHS_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input.json"
     SAR_CRSD_TINY_CONFIG_DIRECTORY_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_directory.json"
     SAR_CRSD_TINY_CONFIG_MANIFEST_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_manifest.json"
+    SAR_CRSD_REAL_DIRECTORY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_directory_input_smoke.json"
+    SAR_CRSD_REAL_PATHS_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_paths_input_smoke.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
@@ -154,6 +158,7 @@ add_dependencies(test_sar_example_unit sar_backprojection_transform_node)
 add_dependencies(test_sar_example_unit synthetic_aperture_iq_source_node)
 add_dependencies(test_sar_example_unit gotcha_replay_source_node)
 add_dependencies(test_sar_example_unit crsd_input_source_node)
+add_dependencies(test_sar_example_unit crsd_aperture_assembly_adapter_node)
 add_dependencies(test_sar_example_unit sar_benchmark)
 add_dependencies(test_sar_example_unit sar_example)
 add_dependencies(test_sar_example_unit graphx_gotcha_to_crsd)

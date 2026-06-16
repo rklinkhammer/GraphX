@@ -189,3 +189,17 @@ add_graphx_plugin(
 target_include_directories(crsd_input_source_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME crsd_aperture_assembly_adapter_node
+    SOURCE_FILES
+        crsd_aperture_assembly_adapter_node_plugin.cpp
+        ../src/CrsdApertureAssemblyAdapterNode.cpp
+        ../src/io/CrsdReader.cpp
+    DESCRIPTION "SAR CRSD aperture assembly adapter node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(crsd_aperture_assembly_adapter_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)

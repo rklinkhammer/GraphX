@@ -257,6 +257,73 @@ Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR3.md.
 
 ---
 
+## PR3b Implementer
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement corrective PR3b for plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_PLANNER_REPORT.md: Complete CRSD aperture assembly adapter contract and negative-proof coverage.
+
+Authoritative failure input:
+- plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_VERIFY_PR3.md
+
+Context:
+- PR3 introduced CrsdApertureAssemblyAdapterNode/model scaffolding and its focused unit suite passes.
+- Verification failed because the adapter contract is incomplete and several negative-proof tests are missing.
+- PR3b must fix PR3 verification failures without advancing into PR4 focused-image formation.
+
+Goal:
+Make PR3 satisfy the verifier requirements for a complete ordered-CRSD-set to full-aperture SAR phase-history adapter contract.
+
+Scope:
+- Update examples/SAR/include/sar/SarPhaseHistoryModel.hpp, examples/SAR/include/sar/io/CrsdReader.hpp, examples/SAR/src/io/CrsdReader.cpp, examples/SAR/include/sar/CrsdApertureAssemblyAdapterNode.hpp, examples/SAR/src/CrsdApertureAssemblyAdapterNode.cpp, and tests as needed.
+- Add explicit geometry validation for required per-vector fields, including receive time, platform position, platform velocity, sample count, carrier frequency, sample rate, and any existing/mapped geometry fields needed by PR4.
+- Add explicit full-aperture accounting validation that checks adapter output total_vector_count equals the computed sum of segment vector counts and equals the emitted vector payload count.
+- Add channel consistency contract and fields where missing, such as channel identifier/count/order metadata in CrsdReader result and SarPhaseHistory model.
+- Enforce sample, channel, and frequency consistency across segments with deterministic diagnostics.
+- Add or complete split/merge partition metadata contract needed by PR4, including partition id/count, vector range start/count, stable ordering keys, input/output boundary hashes, and deterministic merge ordering semantics.
+- Deepen metadata/PVP mapping tests to assert timing, geometry, sampling, frequency, channel, and vector index fields field-by-field at adapter output.
+- Add ownership/layout tests proving phase-history payload ownership mode, sample format, rank/shape/stride or equivalent buffer layout metadata, and checksum invariants are explicit and validated.
+- Add vector/channel/sample ordering tests proving per-vector sample order and channel order survive the adapter boundary.
+- Add SarAccelControlToken preservation tests that assert sidecar/token identity, control marker, diagnostics, and relevant edge metadata survive adapter output, not just one marker field.
+- Add negative-proof tests that fail when:
+  - vector payload is empty, truncated, corrupted, or dropped
+  - sidecar JSON/routing metadata is used as physics input instead of typed phase-history payload
+  - per-segment finalization semantics are attempted instead of one EOS-driven full-aperture assembly
+  - geometry fields are missing, NaN/Inf, non-finite, or inconsistent with vector count
+  - channel metadata is missing, duplicated unexpectedly, or inconsistent across segments
+  - split/merge partition metadata is absent, overlapping, gapped, or nondeterministically ordered
+- Preserve sidecar pulse ranges as optional cross-checks only.
+
+Required verifier failures to close:
+1. Geometry-field presence and continuity validation.
+2. Explicit invariant that total output vector count equals sum of segment vectors.
+3. Channel consistency contract and validation.
+4. Complete test coverage for metadata/PVP mapping, ownership/layout, vector/channel/sample ordering, and SarAccelControlToken preservation.
+5. Negative tests for payload drop, sidecar-as-physics misuse, and per-segment final-image behavior.
+6. Explicit split/merge partition metadata contract for PR4.
+
+Do not:
+- Do not implement focused-image transform, image formation, image sinks, Metal execution, SarPy/reference generation, image comparison, local real-data workflow, or MATLAB dependency.
+- Do not make JSON sidecars authoritative for signal, PVP, geometry, or physics fields.
+- Do not treat CRSD segments as independent final images.
+- Do not alter GraphX runtime contracts globally.
+- Do not require real GOTCHA data or SarPy in CI.
+
+Suggested validation:
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_sar_example_unit
+
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  '--gtest_filter=CrsdApertureAssemblyAdapterNodeTest.*'
+```
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/SAR_CRSD_TO_FOCUSED_IMAGE_IMPL_PR3B.md.
+```
+
+---
+
 ## PR4 Implementer
 
 ```text

@@ -198,6 +198,7 @@ constexpr std::size_t kCrsdHeaderProbeBytes = 1024u;
     const auto& vectors = doc.at("vectors");
     segment.vector_count = static_cast<std::uint64_t>(vectors.size());
     segment.samples_per_vector = 0u;
+    segment.vectors.reserve(vectors.size());
 
     std::uint64_t payload_hash = 14695981039346656037ull;
     for (std::size_t vector_idx = 0; vector_idx < vectors.size(); ++vector_idx) {
@@ -274,14 +275,11 @@ constexpr std::size_t kCrsdHeaderProbeBytes = 1024u;
             payload_hash = HashFloat(imag, payload_hash);
         }
 
-        if (vector_idx == 0u) {
-            segment.first_vector = record;
-        }
-        if (vector_idx + 1u == vectors.size()) {
-            segment.last_vector = record;
-        }
+        segment.vectors.push_back(record);
     }
 
+    segment.first_vector = segment.vectors.front();
+    segment.last_vector = segment.vectors.back();
     segment.payload_hash = payload_hash;
 
     auto hash_record = [](const CrsdVectorRecord& record) {
@@ -662,13 +660,17 @@ constexpr std::size_t kCrsdHeaderProbeBytes = 1024u;
         return record;
     };
 
-    const auto first_vector = read_pvp_record(0u);
-    const auto last_vector = read_pvp_record(*num_vectors - 1u);
-    if (!first_vector || !last_vector) {
-        return CrsdReadResult{
-            .success = false,
-            .diagnostic = "malformed_crsd:vector_read_failed:" + path.generic_string(),
-        };
+    std::vector<CrsdVectorRecord> vectors;
+    vectors.reserve(static_cast<std::size_t>(*num_vectors));
+    for (std::uint64_t vector_index = 0u; vector_index < *num_vectors; ++vector_index) {
+        const auto vector = read_pvp_record(vector_index);
+        if (!vector) {
+            return CrsdReadResult{
+                .success = false,
+                .diagnostic = "malformed_crsd:vector_read_failed:" + path.generic_string(),
+            };
+        }
+        vectors.push_back(*vector);
     }
 
     std::uint64_t payload_hash = 14695981039346656037ull;
@@ -724,8 +726,9 @@ constexpr std::size_t kCrsdHeaderProbeBytes = 1024u;
     segment.carrier_hz = 0.0;
     segment.sample_rate_hz = 0.0;
     segment.payload_hash = payload_hash;
-    segment.first_vector = *first_vector;
-    segment.last_vector = *last_vector;
+    segment.vectors = std::move(vectors);
+    segment.first_vector = segment.vectors.front();
+    segment.last_vector = segment.vectors.back();
     segment.first_vector_hash = hash_record(segment.first_vector);
     segment.last_vector_hash = hash_record(segment.last_vector);
 

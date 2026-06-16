@@ -11,6 +11,7 @@
       "type": "OrderedCrsdSetInputSourceNode",
       "node_config": {
         "crsd_directory": "data/crsd",
+        "require_contiguous_segment_indices": false,
         "stream_id": 99,
         "backend_id": 0,
         "backend": 0

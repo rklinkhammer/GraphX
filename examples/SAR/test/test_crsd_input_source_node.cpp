@@ -428,3 +428,119 @@ TEST(OrderedCrsdSetInputSourceNodeTest, OptionalLocalDataCrsdDirectorySmokeIsGat
     ASSERT_TRUE(node.GetLastReadResult().success);
     EXPECT_GE(node.GetLastReadResult().value.segments.size(), 1u);
 }
+
+TEST(OrderedCrsdSetInputSourceNodeTest, OptionalLocalDataCrsdDirectorySmokeValidatesAllTenSegments) {
+    const char* gate = std::getenv("GRAPHX_SAR_ENABLE_LOCAL_CRSD_SMOKE");
+    if (gate == nullptr || std::string(gate) != "1") {
+        GTEST_SKIP() << "Set GRAPHX_SAR_ENABLE_LOCAL_CRSD_SMOKE=1 to run local data/crsd smoke.";
+    }
+
+    const auto local_dir = std::filesystem::path{"data/crsd"};
+    if (!std::filesystem::exists(local_dir)) {
+        GTEST_SKIP() << "Local data/crsd directory not present.";
+    }
+
+    sar::OrderedCrsdSetInputSourceNode node;
+    const nlohmann::json cfg_json{
+        {"crsd_directory", local_dir.string()},
+        {"require_contiguous_segment_indices", false},
+        {"stream_id", 77},
+        {"backend_id", 0},
+        {"backend", 0},
+    };
+
+    ASSERT_NO_THROW(node.Configure(graph::JsonView(cfg_json)));
+    const auto& result = node.GetLastReadResult();
+    ASSERT_TRUE(result.success);
+
+    EXPECT_EQ(result.value.segments.size(), 10u)
+        << "Expected 10 CRSD segments (subData01..subData10)";
+    EXPECT_GT(result.value.total_vector_count, 0u);
+    EXPECT_NE(result.value.ordered_set_payload_hash, 0u);
+
+    // Every segment must have nonzero vector count and a finite carrier/sample rate.
+    std::uint64_t sum_vectors = 0u;
+    for (const auto& seg : result.value.segments) {
+        EXPECT_GT(seg.vector_count, 0u) << "segment " << seg.segment_index;
+        EXPECT_GT(seg.samples_per_vector, 0u) << "segment " << seg.segment_index;
+        EXPECT_NE(seg.payload_hash, 0u) << "segment " << seg.segment_index;
+        sum_vectors += seg.vector_count;
+    }
+    EXPECT_EQ(sum_vectors, result.value.total_vector_count)
+        << "Accounting: sum of segment vector counts must equal total_vector_count";
+}
+
+TEST(OrderedCrsdSetInputSourceNodeTest, OptionalLocalDataCrsdPathsSmokeValidatesAllTenSegments) {
+    const char* gate = std::getenv("GRAPHX_SAR_ENABLE_LOCAL_CRSD_SMOKE");
+    if (gate == nullptr || std::string(gate) != "1") {
+        GTEST_SKIP() << "Set GRAPHX_SAR_ENABLE_LOCAL_CRSD_SMOKE=1 to run local data/crsd smoke.";
+    }
+
+    const std::vector<std::string> real_paths = {
+        "data/crsd/subData01.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData02.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData03.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData04.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData05.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData06.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData07.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData08.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData09.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+        "data/crsd/subData10.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+    };
+
+    if (!std::filesystem::exists(real_paths.front())) {
+        GTEST_SKIP() << "Local data/crsd paths not present.";
+    }
+
+    sar::OrderedCrsdSetInputSourceNode node;
+    nlohmann::json cfg_json;
+    cfg_json["crsd_paths"] = real_paths;
+    cfg_json["stream_id"] = 78;
+    cfg_json["backend_id"] = 0;
+    cfg_json["backend"] = 0;
+
+    ASSERT_NO_THROW(node.Configure(graph::JsonView(cfg_json)));
+    const auto& result = node.GetLastReadResult();
+    ASSERT_TRUE(result.success);
+
+    EXPECT_EQ(result.value.segments.size(), 10u)
+        << "Expected 10 CRSD segments from explicit paths list";
+    EXPECT_GT(result.value.total_vector_count, 0u);
+    EXPECT_NE(result.value.ordered_set_payload_hash, 0u);
+
+    // Verify accounting and per-segment non-emptiness.
+    std::uint64_t sum_vectors = 0u;
+    for (const auto& seg : result.value.segments) {
+        EXPECT_GT(seg.vector_count, 0u) << "segment " << seg.segment_index;
+        EXPECT_GT(seg.samples_per_vector, 0u) << "segment " << seg.segment_index;
+        EXPECT_NE(seg.payload_hash, 0u) << "segment " << seg.segment_index;
+        EXPECT_FALSE(seg.vectors.empty()) << "segment " << seg.segment_index;
+        if (!seg.vectors.empty()) {
+            EXPECT_EQ(seg.first_vector.vector_index, seg.vectors.front().vector_index);
+            EXPECT_EQ(seg.last_vector.vector_index, seg.vectors.back().vector_index);
+            EXPECT_GT(seg.vectors.front().signal.size(), 0u);
+        }
+        sum_vectors += seg.vector_count;
+    }
+    EXPECT_EQ(sum_vectors, result.value.total_vector_count)
+        << "Accounting: sum of segment vector counts must equal total_vector_count";
+
+    // Emit the full stream and count tokens.
+    std::size_t data_token_count = 0u;
+    bool eos_seen = false;
+    while (true) {
+        auto token = node.Produce(std::integral_constant<std::size_t, 0>{});
+        if (!token.has_value()) {
+            break;
+        }
+        if (token->sidecar.marker == sar::SarFrameMarker::Data) {
+            ++data_token_count;
+        } else if (token->sidecar.marker == sar::SarFrameMarker::EndOfStream) {
+            eos_seen = true;
+        }
+    }
+    EXPECT_EQ(data_token_count, 10u)
+        << "Expected one data token per CRSD segment";
+    EXPECT_TRUE(eos_seen) << "EOS token must be emitted after all segments";
+}
