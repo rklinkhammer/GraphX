@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "graphx.sar.image_comparison_report.v3",
+  "title": "GraphX SAR Local Comparison Report",
+  "type": "object",
+  "required": [
+    "schema",
+    "local_only",
+    "reference_image",
+    "candidate_image",
+    "difference_magnitude_png",
+    "phase_difference_png",
+    "shape",
+    "metrics",
+    "lineage",
+    "difference_magnitude_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "graphx.sar.image_comparison_report.v3"
+    },
+    "local_only": {
+      "type": "boolean"
+    },
+    "reference_image": {
+      "type": "string"
+    },
+    "candidate_image": {
+      "type": "string"
+    },
+    "difference_magnitude_png": {
+      "type": "string"
+    },
+    "phase_difference_png": {
+      "type": "string"
+    },
+    "shape": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "rmse_magnitude",
+        "phase_rmse_radians",
+        "peak_error_magnitude",
+        "magnitude_correlation"
+      ],
+      "properties": {
+        "rmse_magnitude": {"type": "number"},
+        "phase_rmse_radians": {"type": "number"},
+        "peak_error_magnitude": {"type": "number"},
+        "magnitude_correlation": {"type": "number"},
+        "ssim_magnitude": {"type": ["number", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "lineage": {
+      "type": "object",
+      "required": [
+        "ordered_crsd_inputs",
+        "per_segment_crsd_input_checksums",
+        "ordered_set_checksum",
+        "graphx_output_hash",
+        "reference_output_hash",
+        "algorithm",
+        "geometry_assumptions"
+      ],
+      "properties": {
+        "ordered_crsd_inputs": {
+          "type": "object",
+          "required": ["graphx", "reference"]
+        },
+        "per_segment_crsd_input_checksums": {
+          "type": "object",
+          "required": ["graphx", "reference"]
+        },
+        "ordered_set_checksum": {
+          "type": "object",
+          "required": ["graphx", "reference", "match"]
+        },
+        "graphx_output_hash": {"type": "string"},
+        "reference_output_hash": {"type": "string"},
+        "algorithm": {
+          "type": "object",
+          "required": ["graphx", "reference"]
+        },
+        "geometry_assumptions": {
+          "type": "object",
+          "required": ["graphx", "reference"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "difference_magnitude_sha256": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

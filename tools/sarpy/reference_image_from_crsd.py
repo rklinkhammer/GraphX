@@ -23,6 +23,10 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _package_status(module_name: str) -> dict[str, Any]:
     module = _import_optional(module_name)
     installed = module is not None
@@ -253,8 +257,11 @@ def generate_reference_image(
     numpy.save(output_reference_npy, focused)
     pyplot.imsave(output_magnitude_png, magnitude, cmap="viridis")
 
+    ordered_crsd_input_checksums = [_sha256_file(path) for path in ordered_crsd_paths]
     ordered_set_hash = hashlib.sha256(
-        "\n".join(str(p) for p in ordered_crsd_paths).encode("utf-8")).hexdigest()
+        "\n".join(ordered_crsd_input_checksums).encode("utf-8")).hexdigest()
+    focused_output_sha256 = hashlib.sha256(
+        focused.astype(numpy.complex64).tobytes()).hexdigest()
 
     metadata = {
         "schema": "graphx.sar.crsd_reference_image_metadata.v1",
@@ -267,10 +274,18 @@ def generate_reference_image(
             "using independent local surrogate reference formation path."
         ),
         "ordered_crsd_inputs": [str(p) for p in ordered_crsd_paths],
+        "ordered_crsd_input_checksums": ordered_crsd_input_checksums,
         "ordered_set_count": len(ordered_crsd_paths),
         "ordered_set_hash": ordered_set_hash,
         "quicklook_rejected_as_focused_reference": True,
+        "algorithm": "independent_local_focused_surrogate_fft",
+        "geometry_assumptions": {
+            "output_grid": "square_complex_frequency_domain_surrogate",
+            "sample_layout": "row_major",
+            "ordered_aperture_required": True
+        },
         "focused_reference_npy_file": str(output_reference_npy),
+        "focused_output_sha256": focused_output_sha256,
         "magnitude_png_file": str(output_magnitude_png),
         "height": int(magnitude.shape[0]),
         "width": int(magnitude.shape[1]),

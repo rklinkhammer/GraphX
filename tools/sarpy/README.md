@@ -44,6 +44,8 @@ python3 tools/sarpy/compare_images.py \
   compare \
   --reference-npy /tmp/reference_image.npy \
   --candidate-npy /tmp/candidate_image.npy \
+  --reference-metadata-json /tmp/reference_metadata.json \
+  --candidate-metadata-json /tmp/graphx_metadata.json \
   --output-report-json /tmp/comparison_report.json \
   --output-diff-magnitude-png /tmp/difference_magnitude.png \
   --output-phase-difference-png /tmp/phase_difference.png
@@ -56,6 +58,14 @@ comparison lane uses tiny synthetic GraphX/Python image fixtures and writes:
 - `comparison_report.json`
 - `difference_magnitude.png`
 - `phase_difference.png`
+
+When metadata JSON is provided, the report also records PR8 lineage fields:
+
+- per-segment CRSD input checksums
+- ordered-set checksum and ordered-input list
+- GraphX output hash and reference output hash
+- algorithm identity for GraphX and reference lanes
+- geometry assumptions for GraphX and reference lanes
 
 ## Environment Probe
 

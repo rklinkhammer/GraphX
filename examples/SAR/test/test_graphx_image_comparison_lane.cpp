@@ -123,6 +123,12 @@ void WriteComplexGridJson(const std::filesystem::path& path,
     output << nlohmann::json{{"real", real}, {"imag", imag}}.dump(2) << '\n';
 }
 
+void WriteJson(const std::filesystem::path& path, const nlohmann::json& value) {
+    std::ofstream output{path, std::ios::binary | std::ios::trunc};
+    ASSERT_TRUE(output.good()) << "unable to write JSON file: " << path;
+    output << value.dump(2) << '\n';
+}
+
 int RunCommand(const std::string& command) {
     return std::system(command.c_str());
 }
@@ -179,6 +185,8 @@ protected:
             " --output-report-json " + QuotePath(report_path) +
             " --output-diff-magnitude-png " + QuotePath(Path("comparison/difference_magnitude.png")) +
             " --output-phase-difference-png " + QuotePath(Path("comparison/phase_difference.png")) +
+            " --reference-metadata-json " + QuotePath(Path("python_reference/reference_metadata.json")) +
+            " --candidate-metadata-json " + QuotePath(Path("graphx_candidate/candidate_metadata.json")) +
             " > /dev/null";
         ASSERT_EQ(RunCommand(command), 0);
     }
@@ -203,6 +211,21 @@ TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeter
     WriteComplexGridJson(Path("python_reference/reference_fixture.json"), graphx_image, 4u, 4u);
     WriteComplexGridJson(Path("graphx_candidate/graphx_output_fixture.json"), graphx_image, 4u, 4u);
 
+    const nlohmann::json ordered_inputs = nlohmann::json::array({
+        "segment_000/product.crsd",
+        "segment_001/product.crsd",
+        "segment_002/product.crsd",
+    });
+    const nlohmann::json per_segment_checksums = nlohmann::json::array({
+        "a111", "b222", "c333",
+    });
+    const nlohmann::json geometry = nlohmann::json{
+        {"frame", "range_azimuth"},
+        {"pixel_spacing_m", 1.5},
+        {"scene_center_x_m", 0.0},
+        {"scene_center_y_m", 0.0}
+    };
+
     GenerateNpy(
         Path("python_reference/reference_fixture.json"),
         Path("python_reference/reference_image.npy"),
@@ -213,6 +236,28 @@ TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeter
         Path("graphx_candidate/candidate_image.npy"),
         Path("graphx_candidate/candidate_magnitude.png"),
         Path("graphx_candidate/candidate_metadata.json"));
+
+    WriteJson(
+        Path("python_reference/reference_metadata.json"),
+        nlohmann::json{
+            {"ordered_crsd_inputs", ordered_inputs},
+            {"ordered_crsd_input_checksums", per_segment_checksums},
+            {"ordered_set_hash", "sethash001"},
+            {"focused_output_sha256", "referencehash001"},
+            {"algorithm", "independent_local_focused_surrogate_fft"},
+            {"geometry_assumptions", geometry}
+        });
+
+    WriteJson(
+        Path("graphx_candidate/candidate_metadata.json"),
+        nlohmann::json{
+            {"ordered_crsd_inputs", ordered_inputs},
+            {"per_segment_input_hashes", per_segment_checksums},
+            {"ordered_set_hash", "sethash001"},
+            {"output_hash", "graphxhash001"},
+            {"algorithm", "graphx_crsd_backprojection"},
+            {"geometry_assumptions", geometry}
+        });
 
     CompareImages(Path("comparison/comparison_report.json"));
     const auto first_report = LoadJson(Path("comparison/comparison_report.json"));
@@ -233,7 +278,7 @@ TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeter
     EXPECT_EQ(first_diff_png, second_diff_png);
     EXPECT_EQ(first_phase_png, second_phase_png);
 
-    EXPECT_EQ(first_report.at("schema"), "graphx.sar.image_comparison_report.v2");
+    EXPECT_EQ(first_report.at("schema"), "graphx.sar.image_comparison_report.v3");
     EXPECT_TRUE(first_report.at("local_only").get<bool>());
     EXPECT_EQ(first_report.at("shape"), nlohmann::json::array({4, 4}));
     EXPECT_EQ(
@@ -250,4 +295,18 @@ TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeter
     EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1.0e-9);
     ASSERT_TRUE(metrics.contains("ssim_magnitude"));
     EXPECT_NEAR(metrics.at("ssim_magnitude").get<double>(), 1.0, 1.0e-9);
+
+    const auto lineage = first_report.at("lineage");
+    EXPECT_EQ(
+        lineage.at("ordered_crsd_inputs").at("graphx"),
+        lineage.at("ordered_crsd_inputs").at("reference"));
+    EXPECT_EQ(
+        lineage.at("ordered_set_checksum").at("graphx").get<std::string>(),
+        "sethash001");
+    EXPECT_TRUE(lineage.at("ordered_set_checksum").at("match").get<bool>());
+    EXPECT_EQ(lineage.at("graphx_output_hash").get<std::string>(), "graphxhash001");
+    EXPECT_EQ(lineage.at("reference_output_hash").get<std::string>(), "referencehash001");
+    EXPECT_EQ(
+        lineage.at("algorithm").at("graphx").get<std::string>(),
+        "graphx_crsd_backprojection");
 }

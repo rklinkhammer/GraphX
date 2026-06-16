@@ -22,6 +22,10 @@ namespace {
 #define SARPY_REQUIREMENTS_PATH "tools/sarpy/requirements.txt"
 #endif
 
+#ifndef SARPY_COMPARE_IMAGES_SCHEMA_PATH
+#define SARPY_COMPARE_IMAGES_SCHEMA_PATH "tools/sarpy/compare_images_report.schema.json"
+#endif
+
 std::string Quote(const std::filesystem::path& path) {
     return std::string("'") + path.string() + "'";
 }
@@ -47,10 +51,12 @@ TEST(SarpyReferenceCompareToolsTest, RequiredFilesExistAndRequirementsDeclareExp
     const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH};
     const auto compare_tool = std::filesystem::path{SARPY_COMPARE_IMAGES_TOOL_PATH};
     const auto requirements = std::filesystem::path{SARPY_REQUIREMENTS_PATH};
+    const auto report_schema = std::filesystem::path{SARPY_COMPARE_IMAGES_SCHEMA_PATH};
 
     ASSERT_TRUE(std::filesystem::exists(reference_tool));
     ASSERT_TRUE(std::filesystem::exists(compare_tool));
     ASSERT_TRUE(std::filesystem::exists(requirements));
+    ASSERT_TRUE(std::filesystem::exists(report_schema));
 
     const std::string requirements_text = ReadText(requirements);
     EXPECT_NE(requirements_text.find("numpy"), std::string::npos);
@@ -153,6 +159,30 @@ TEST(SarpyReferenceCompareToolsTest, GeneratesReferenceAndDeterministicCompariso
     ASSERT_TRUE(std::filesystem::exists(magnitude_png));
     ASSERT_TRUE(std::filesystem::exists(metadata_json));
 
+    const auto compare_reference_metadata = temp_dir / "compare_reference_metadata.json";
+    const auto compare_candidate_metadata = temp_dir / "compare_candidate_metadata.json";
+    {
+        const nlohmann::json metadata = {
+            {"ordered_crsd_inputs", nlohmann::json::array({"segment_000/product.crsd", "segment_001/product.crsd"})},
+            {"ordered_crsd_input_checksums", nlohmann::json::array({"c001", "c002"})},
+            {"ordered_set_hash", "ordered_set_c001_c002"},
+            {"focused_output_sha256", "focused_reference_sha"},
+            {"algorithm", "independent_local_focused_surrogate_fft"},
+            {"geometry_assumptions", nlohmann::json{{"frame", "range_azimuth"}}},
+        };
+
+        std::ofstream ref(compare_reference_metadata);
+        ASSERT_TRUE(ref.good());
+        ref << metadata.dump(2) << '\n';
+
+        nlohmann::json graphx_meta = metadata;
+        graphx_meta.erase("focused_output_sha256");
+        graphx_meta["output_hash"] = "graphx_output_sha";
+        std::ofstream cand(compare_candidate_metadata);
+        ASSERT_TRUE(cand.good());
+        cand << graphx_meta.dump(2) << '\n';
+    }
+
     const auto report_json = temp_dir / "comparison_report.json";
     const auto diff_png = temp_dir / "difference_magnitude.png";
     const auto phase_png = temp_dir / "phase_difference.png";
@@ -164,6 +194,8 @@ TEST(SarpyReferenceCompareToolsTest, GeneratesReferenceAndDeterministicCompariso
         " --output-report-json " + Quote(report_json) +
         " --output-diff-magnitude-png " + Quote(diff_png) +
         " --output-phase-difference-png " + Quote(phase_png) +
+        " --reference-metadata-json " + Quote(compare_reference_metadata) +
+        " --candidate-metadata-json " + Quote(compare_candidate_metadata) +
         " > /dev/null";
     ASSERT_EQ(std::system(compare_command.c_str()), 0);
 
@@ -177,4 +209,12 @@ TEST(SarpyReferenceCompareToolsTest, GeneratesReferenceAndDeterministicCompariso
     EXPECT_NEAR(metrics.at("phase_rmse_radians").get<double>(), 0.0, 1e-9);
     EXPECT_NEAR(metrics.at("peak_error_magnitude").get<double>(), 0.0, 1e-9);
     EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1e-9);
+
+    const auto lineage = report.at("lineage");
+    EXPECT_TRUE(lineage.at("ordered_set_checksum").at("match").get<bool>());
+    EXPECT_EQ(
+        lineage.at("ordered_set_checksum").at("graphx").get<std::string>(),
+        "ordered_set_c001_c002");
+    EXPECT_EQ(lineage.at("graphx_output_hash").get<std::string>(), "graphx_output_sha");
+    EXPECT_EQ(lineage.at("reference_output_hash").get<std::string>(), "focused_reference_sha");
 }

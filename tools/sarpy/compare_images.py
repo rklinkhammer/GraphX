@@ -53,6 +53,53 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
+def _load_optional_json(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _normalized_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _extract_lineage(metadata: dict[str, Any], npy_path: Path) -> dict[str, Any]:
+    ordered_inputs = _normalized_string_list(metadata.get("ordered_crsd_inputs"))
+    per_segment_checksums = _normalized_string_list(
+        metadata.get("ordered_crsd_input_checksums")
+    )
+    if not per_segment_checksums:
+        per_segment_checksums = _normalized_string_list(metadata.get("per_segment_input_hashes"))
+
+    ordered_set_checksum = metadata.get("ordered_set_hash")
+    output_hash = metadata.get("focused_output_sha256")
+    if output_hash is None:
+        output_hash = metadata.get("output_hash")
+    if output_hash is None:
+        output_hash = hashlib.sha256(npy_path.read_bytes()).hexdigest()
+
+    algorithm = metadata.get("algorithm")
+    if algorithm is None:
+        algorithm = metadata.get("reference_kind")
+    if algorithm is None:
+        algorithm = "unspecified"
+
+    geometry_assumptions = metadata.get("geometry_assumptions")
+    if not isinstance(geometry_assumptions, dict):
+        geometry_assumptions = {}
+
+    return {
+        "ordered_crsd_inputs": ordered_inputs,
+        "per_segment_crsd_input_checksums": per_segment_checksums,
+        "ordered_set_checksum": ordered_set_checksum,
+        "output_hash": str(output_hash),
+        "algorithm": str(algorithm),
+        "geometry_assumptions": geometry_assumptions,
+    }
+
+
 def _require_numpy_matplotlib():
     numpy = _import_optional("numpy")
     matplotlib = _import_optional("matplotlib")
@@ -119,6 +166,8 @@ def compare_images(
     output_report_json: Path,
     output_diff_magnitude_png: Path,
     output_phase_difference_png: Path,
+    reference_metadata_json: Path | None,
+    candidate_metadata_json: Path | None,
 ) -> dict[str, Any]:
     numpy, matplotlib = _require_numpy_matplotlib()
     matplotlib.use("Agg")
@@ -154,8 +203,18 @@ def compare_images(
     pyplot.imsave(output_phase_difference_png, phase_diff, cmap="twilight", vmin=-math.pi, vmax=math.pi)
 
     digest = hashlib.sha256(magnitude_diff.tobytes()).hexdigest()
+    reference_metadata = _load_optional_json(reference_metadata_json)
+    candidate_metadata = _load_optional_json(candidate_metadata_json)
+
+    reference_lineage = _extract_lineage(reference_metadata, reference_npy)
+    graphx_lineage = _extract_lineage(candidate_metadata, candidate_npy)
+    ordered_set_match = (
+        bool(graphx_lineage["ordered_set_checksum"]) and
+        graphx_lineage["ordered_set_checksum"] == reference_lineage["ordered_set_checksum"]
+    )
+
     report = {
-        "schema": "graphx.sar.image_comparison_report.v2",
+        "schema": "graphx.sar.image_comparison_report.v3",
         "local_only": True,
         "reference_image": str(reference_npy),
         "candidate_image": str(candidate_npy),
@@ -168,6 +227,31 @@ def compare_images(
             "peak_error_magnitude": peak_error,
             "magnitude_correlation": correlation,
             "ssim_magnitude": ssim,
+        },
+        "lineage": {
+            "ordered_crsd_inputs": {
+                "graphx": graphx_lineage["ordered_crsd_inputs"],
+                "reference": reference_lineage["ordered_crsd_inputs"],
+            },
+            "per_segment_crsd_input_checksums": {
+                "graphx": graphx_lineage["per_segment_crsd_input_checksums"],
+                "reference": reference_lineage["per_segment_crsd_input_checksums"],
+            },
+            "ordered_set_checksum": {
+                "graphx": graphx_lineage["ordered_set_checksum"],
+                "reference": reference_lineage["ordered_set_checksum"],
+                "match": ordered_set_match,
+            },
+            "graphx_output_hash": graphx_lineage["output_hash"],
+            "reference_output_hash": reference_lineage["output_hash"],
+            "algorithm": {
+                "graphx": graphx_lineage["algorithm"],
+                "reference": reference_lineage["algorithm"],
+            },
+            "geometry_assumptions": {
+                "graphx": graphx_lineage["geometry_assumptions"],
+                "reference": reference_lineage["geometry_assumptions"],
+            },
         },
         "difference_magnitude_sha256": digest,
     }
@@ -188,6 +272,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output-report-json", required=True)
     compare.add_argument("--output-diff-magnitude-png", required=True)
     compare.add_argument("--output-phase-difference-png", required=True)
+    compare.add_argument("--reference-metadata-json", required=False)
+    compare.add_argument("--candidate-metadata-json", required=False)
 
     return parser
 
@@ -209,6 +295,8 @@ def main() -> int:
                 Path(args.output_report_json).resolve(),
                 Path(args.output_diff_magnitude_png).resolve(),
                 Path(args.output_phase_difference_png).resolve(),
+                Path(args.reference_metadata_json).resolve() if args.reference_metadata_json else None,
+                Path(args.candidate_metadata_json).resolve() if args.candidate_metadata_json else None,
             )
         except Exception as exc:
             print(f"error: {exc}", file=sys.stderr)
