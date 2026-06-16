@@ -87,6 +87,9 @@ TEST(SarpyCrsdValidationHarnessTest, ProbeCommandsDeclareLocalOnlyHarness) {
     EXPECT_FALSE(validate_probe.at("ci_safe").get<bool>());
     EXPECT_TRUE(reference_probe.at("local_only").get<bool>());
     EXPECT_FALSE(reference_probe.at("ci_safe").get<bool>());
+    EXPECT_TRUE(reference_probe.at("quicklook_rejected_as_focused_reference").get<bool>());
+    ASSERT_TRUE(reference_probe.contains("supports_true_focused_reference"));
+    ASSERT_TRUE(reference_probe.contains("supports_independent_local_surrogate"));
 }
 
 TEST(SarpyCrsdValidationHarnessTest, OptionalLocalSmokeRunsWhenSarpyAndCrsdPathAreAvailable) {
@@ -138,15 +141,67 @@ TEST(SarpyCrsdValidationHarnessTest, OptionalLocalSmokeRunsWhenSarpyAndCrsdPathA
     ASSERT_TRUE(validate_json.contains("pvp_arrays"));
     ASSERT_TRUE(validate_json.contains("validation"));
 
+    const auto ordered_set_json = temp_dir / "ordered_set.json";
+    {
+        std::ofstream ordered_set_out(ordered_set_json);
+        ASSERT_TRUE(ordered_set_out.good());
+        ordered_set_out << nlohmann::json{{"crsd_paths", nlohmann::json::array({crsd_path.string()})}}.dump(2)
+                        << '\n';
+    }
+
+    const auto reference_npy = temp_dir / "reference_focused.npy";
     const auto magnitude_png = temp_dir / "reference_magnitude.png";
     const auto metadata_json = temp_dir / "reference_metadata.json";
     const std::string reference_command =
         "python3 " + Quote(reference_tool) +
-        " generate-reference --input-crsd " + Quote(crsd_path) +
+        " generate-reference --input-crsd-set-json " + Quote(ordered_set_json) +
+        " --output-reference-npy " + Quote(reference_npy) +
         " --output-magnitude-png " + Quote(magnitude_png) +
         " --output-metadata-json " + Quote(metadata_json) +
         " > /dev/null";
     ASSERT_EQ(std::system(reference_command.c_str()), 0);
+    ASSERT_TRUE(std::filesystem::exists(reference_npy));
     ASSERT_TRUE(std::filesystem::exists(magnitude_png));
     ASSERT_TRUE(std::filesystem::exists(metadata_json));
+
+    const auto reference_metadata = LoadJson(metadata_json);
+    EXPECT_TRUE(reference_metadata.at("local_only").get<bool>());
+    EXPECT_FALSE(reference_metadata.at("ci_safe").get<bool>());
+    EXPECT_TRUE(reference_metadata.at("quicklook_rejected_as_focused_reference").get<bool>());
+    EXPECT_EQ(reference_metadata.at("ordered_set_count").get<int>(), 1);
+}
+
+TEST(SarpyCrsdValidationHarnessTest, GuardrailRejectsQuicklookExtractionAsFocusedReference) {
+    const auto reference_tool = std::filesystem::path{SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH};
+
+    const auto temp_dir = std::filesystem::temp_directory_path() / "graphx_sarpy_crsd_guardrail";
+    std::error_code remove_error;
+    std::filesystem::remove_all(temp_dir, remove_error);
+    ASSERT_TRUE(std::filesystem::create_directories(temp_dir));
+
+    const auto ordered_set_json = temp_dir / "ordered_set.json";
+    {
+        std::ofstream out(ordered_set_json);
+        ASSERT_TRUE(out.good());
+        out << nlohmann::json{{"crsd_paths", nlohmann::json::array({"/tmp/not-used.crsd"})}}.dump(2) << '\n';
+    }
+
+    const auto reference_npy = temp_dir / "reference_focused.npy";
+    const auto magnitude_png = temp_dir / "reference_magnitude.png";
+    const auto metadata_json = temp_dir / "reference_metadata.json";
+
+    const std::string command =
+        "python3 " + Quote(reference_tool) +
+        " generate-reference --input-crsd-set-json " + Quote(ordered_set_json) +
+        " --output-reference-npy " + Quote(reference_npy) +
+        " --output-magnitude-png " + Quote(magnitude_png) +
+        " --output-metadata-json " + Quote(metadata_json) +
+        " --force-quicklook-extraction > /dev/null 2>&1";
+
+    EXPECT_NE(std::system(command.c_str()), 0);
+    ASSERT_TRUE(std::filesystem::exists(metadata_json));
+    const auto metadata = LoadJson(metadata_json);
+    ASSERT_TRUE(metadata.contains("errors"));
+    ASSERT_FALSE(metadata.at("errors").empty());
+    EXPECT_NE(metadata.at("errors").at(0).get<std::string>().find("quicklook_rejected"), std::string::npos);
 }

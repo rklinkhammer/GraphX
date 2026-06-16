@@ -84,15 +84,31 @@ The validation JSON includes best-effort CRSD metadata fields:
 - PVP array summary
 - validation status and errors
 
-## 5) Reference Magnitude Image From CRSD (local-only)
+## 5) Focused Reference Harness From Ordered CRSD Set (local-only)
 
 ```bash
 python3 tools/sarpy/reference_image_from_crsd.py \
   generate-reference \
-  --input-crsd /path/to/local/file.crsd \
+  --input-crsd-set-json /path/to/local/ordered_crsd_set.json \
+  --output-reference-npy /tmp/crsd_reference_focused.npy \
   --output-magnitude-png /tmp/crsd_reference_magnitude.png \
   --output-metadata-json /tmp/crsd_reference_metadata.json
 ```
+
+Input set JSON can be either:
+
+- an object with `crsd_paths` or `ordered_crsd_paths`
+- an ordered array of CRSD file paths
+
+The workflow is local-only and emits one focused-reference artifact for the full
+ordered CRSD set. If a stable direct SarPy CRSD-focused-image path is not
+available, the script uses an independent local surrogate reference-formation
+path and records that limitation in metadata.
+
+Guardrail:
+
+- CRSD signal block magnitude quick-look extraction is explicitly rejected as a
+  focused-reference output for this harness.
 
 ## Scope Boundary
 
