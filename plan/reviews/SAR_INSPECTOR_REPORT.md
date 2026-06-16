@@ -1,126 +1,123 @@
 # SAR Inspector Report
 
-Inspector role source: plan/agents/GRAPHX_SAR_AGENT_ROLES.md
+Inspector role source: `plan/agents/GRAPHX_SAR_AGENT_ROLES.md`
 
-Scope: current repository inspection only. No redesign and no implementation.
+Scope: current repository inspection only. No redesign. No implementation.
 
 Repository state at inspection time:
 
-- Observed: Working tree is dirty with modified planning/prompt artifacts:
-  - `plan/agents/SAR_GOTCHA_FULL_APERTURE_PR_AGENTS.md`
-  - `plan/prompt examples/sequence.md`
-- Inferred: Runtime SAR/GPU implementation conclusions below are based on checked-in code paths, not on these two uncommitted prompt-document edits.
+- Observed: The working tree contains one unrelated modified file: `examples/SAR/config/sar_crsd_gotcha_local_validation.json`.
+- Inferred: The report below describes current checked-out repository files and does not assume that modified config is intentional or complete.
 
 ## 1. Current Type Model
 
-- Observed: The canonical SAR message/types header is examples/SAR/include/sar/SarMessages.hpp.
-- Observed: SAR core enums are present: SarBackendKind, SarFrameMarker, SarTransferDirection.
-- Observed: SarSidecar exists and carries SAR identity and runtime diagnostics fields, including sequence/batch/aperture/range identity, stream/tile identity, backend metadata, transfer queue IDs, transfer/kernel counters, merge counters, watermark/completion, and stage timings.
-- Observed: AccelControlToken<SidecarT> exists and includes token_id, sidecar, BufferLease, DeviceBufferView, HostPinnedBufferView, TransferTicket, KernelTicket, plus presence flags.
-- Observed: SarAccelControlToken is a concrete alias of AccelControlToken<SarSidecar>.
-- Observed: SarDiagnosticsSnapshot is a sink/report structure that mirrors sidecar-derived diagnostics and graph queue metrics.
-- Observed: Contract comments in SarMessages.hpp explicitly state SAR identity must come from sidecar fields and that host_view.host_ptr / device_view.ready_event are opaque transport metadata.
-- Observed: Standard-layout static_assert checks exist for SarSidecar, SarAccelControlToken, and SarDiagnosticsSnapshot.
-- Inferred: Current typing is intentionally centered on explicit token+sidecar transport rather than legacy payload-specific message structs.
-- Unknown: Whether any downstream non-repo consumer still depends on older SAR message names from prior phases.
+- Observed: The canonical SAR accel-token type model is in `examples/SAR/include/sar/SarMessages.hpp`.
+- Observed: `SarSidecar` carries SAR identity, backend, transfer queue, merge, timing, and diagnostic fields.
+- Observed: `AccelControlToken<SidecarT>` carries `sidecar`, `BufferLease`, `DeviceBufferView`, `HostPinnedBufferView`, `TransferTicket`, `KernelTicket`, and presence flags.
+- Observed: `SarAccelControlToken` is `AccelControlToken<SarSidecar>`.
+- Observed: Contract comments state SAR identity must come from sidecar fields, while `host_view.host_ptr` and `device_view.ready_event` are opaque transport metadata.
+- Observed: `SarPhaseHistoryModel.hpp` adds CRSD-focused phase-history types: vectors, segments, aperture frames, ownership, layout, sample format, partition metadata, and `SarPhaseHistoryControlMessage`.
+- Observed: `examples/SAR/include/sar/io/NormalizedSarProduct.hpp` contains the normalized SAR product model used by GOTCHA/CRSD conversion paths.
+- Observed: Standard-layout assertions exist for `SarSidecar`, `SarAccelControlToken`, and `SarDiagnosticsSnapshot`.
+- Inferred: The current type model has two active layers: generic SAR accel-token transport and newer CRSD phase-history/focused-image payloads.
+- Unknown: Whether downstream non-repository consumers depend on older planning-era SAR payload names.
 
 ## 2. Current Node Model
 
-- Observed: The definitive configured runtime topology in examples/SAR/config/sar_stripmap_definitive.json is:
-  SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncAccelNode -> SarBackprojectionTransformAccelNode -> D2HAsyncAccelNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode.
-- Observed: Source nodes include SyntheticApertureIqSourceNode and GotchaReplaySourceNode.
-- Observed: Pre-GPU SAR pipeline nodes include RangeWindowNode, RangeCompressionNode, AzimuthTileSplitNode, and SarPulseFanoutNode.
-- Observed: SAR GPU-edge/token nodes include H2DAsyncAccelNode, SarBackprojectionTransformAccelNode, and D2HAsyncAccelNode.
-- Observed: Post-GPU nodes include ImageTileMergeNode, SarDiagnosticsSinkNode, SarVisualizationSinkNode, and SarMaterializedImageSinkNode.
-- Observed: Plugin build wiring in examples/SAR/plugins/CMakeLists.txt compiles these SAR nodes as dynamic plugins in examples/SAR/plugins.
-- Observed: SarBackprojectionTransformAccelNode has dual runtime behavior inside one node: simulated token/device-view path and native Metal path via libgpu DeviceKernelNodeMetal when capabilities are bound.
-- Inferred: The current node model is a SAR-owned token path that delegates native kernel execution to libgpu rather than replacing the node with a generic kernel node in definitive config.
-- Unknown: Whether all non-definitive scenario configs in examples/SAR/config are still active in maintained workflows.
+- Observed: The definitive SAR topology in `examples/SAR/config/sar_stripmap_definitive.json` is:
+  `SyntheticApertureIqSourceNode -> RangeWindowNode -> RangeCompressionNode -> AzimuthTileSplitNode -> H2DAsyncAccelNode -> SarBackprojectionTransformAccelNode -> D2HAsyncAccelNode -> ImageTileMergeNode -> SarDiagnosticsSinkNode`.
+- Observed: Active SAR plugins include source, DSP/prep, transfer, backprojection, merge, diagnostics, visualization, CRSD input, CRSD aperture assembly, CRSD focused-image CPU transform, CRSD focused-image Metal transform, and CRSD focused-image sink nodes.
+- Observed: `OrderedCrsdSetInputSourceNode` reads ordered CRSD sets and emits SAR tokens for CRSD segment streams.
+- Observed: `CrsdApertureAssemblyAdapterNode` assembles ordered CRSD segment data into `SarPhaseHistoryControlMessage`.
+- Observed: `CrsdFocusedImageTransformNode` is the CPU focused-image/backprojection path.
+- Observed: `CrsdFocusedImageTransformMetalNode` is present and binds Metal capabilities, but the truth-in-labeling document and guardrails classify it as experimental incomplete.
+- Observed: libgpu provides Metal nodes: `HostIngressPinnedSourceNodeMetal`, `H2DAsyncNodeMetal`, `D2HAsyncNodeMetal`, `PeerCopyNodeMetal`, `DeviceShardNodeMetal`, `LeaseReleaseNodeMetal`, `QueueSyncNodeMetal`, `HostEgressSinkNodeMetal`, `DeviceKernelNodeMetal`, `DeviceTransformNodeMetal`, `DeviceReduceNodeMetal`, and `CollectiveReduceNodeMetal`.
+- Observed: `docs/sar/metal_node_truth_in_labeling.md` classifies `CollectiveReduceNodeMetal` as unsupported and `CrsdFocusedImageTransformMetalNode` as fallback plus experimental incomplete.
+- Inferred: The repository currently distinguishes generic Metal primitives from SAR domain algorithm nodes, but both are active in the build/test surface.
+- Unknown: Whether every config under `examples/SAR/config` is intended to remain maintained.
 
 ## 3. Current Token/Data Flow
 
-- Observed: SyntheticApertureIqSourceNode and GotchaReplaySourceNode both emit SarAccelControlToken values with sidecar identity populated and host_view present.
-- Observed: AzimuthTileSplitNode produces new token_id values and updates sidecar tile identity; it sets host_view.host_ptr using runtime::OpaqueHostPointer().
-- Observed: H2DAsyncAccelNode requires has_host_view, emits device_view, lease, transfer_ticket, and writes sidecar backend/h2d_queue/timing fields.
-- Observed: SarBackprojectionTransformAccelNode requires has_device_view, emits updated device_view and kernel_ticket, and writes sidecar backend/kernel_queue/timing fields.
-- Observed: D2HAsyncAccelNode requires valid device_view, emits host_view, lease, transfer_ticket, and writes sidecar backend/d2h_queue/timing fields.
-- Observed: ImageTileMergeNode aggregates tile/stream/marker state from sidecar and accumulates transfer counters and stage timing totals into sidecar.
-- Observed: SarDiagnosticsSinkNode consumes merged tokens and publishes diagnostics from sidecar plus graph queue metrics.
-- Observed: runtime::OpaqueHostPointer(), runtime::OpaqueReadyEventNotSignaled(), and runtime::NextOpaqueEventId() are centralized in examples/SAR/include/sar/SarRuntimeHelpers.hpp.
-- Observed: runtime::SyntheticDevicePointer() constructs synthetic pointer values from byte count and sequence, used by H2D/backprojection simulated paths.
-- Inferred: SAR identity propagation is sidecar-first through the entire configured path.
-- Unknown: Whether any optional/experimental SAR path bypasses sidecar propagation under plugin combinations not used by definitive config.
+- Observed: Definitive stripmap flow uses `SarAccelControlToken` on every SAR edge after source emission.
+- Observed: `SyntheticApertureIqSourceNode` and replay/input nodes populate sidecar identity plus host views.
+- Observed: `RangeWindowNode` and `RangeCompressionNode` preserve token semantics while changing DSP payload metadata.
+- Observed: `AzimuthTileSplitNode` updates sidecar tile identity and uses opaque host pointer helpers.
+- Observed: `H2DAsyncAccelNode` requires `has_host_view`, creates synthetic/device transport metadata, writes lease and transfer ticket fields, and updates sidecar H2D metadata.
+- Observed: `SarBackprojectionTransformAccelNode` requires `has_device_view`, updates device view and kernel ticket, and can delegate native kernel execution to libgpu Metal `DeviceKernelNodeMetal` when capabilities are bound.
+- Observed: `D2HAsyncAccelNode` emits host view, lease, and transfer ticket, with `host_ptr` explicitly documented as opaque.
+- Observed: `ImageTileMergeNode` aggregates tile completion, merge counters, transfer byte counts, and stage timing into the sidecar.
+- Observed: `SarDiagnosticsSinkNode` reports diagnostics from sidecar plus graph queue metrics.
+- Observed: CRSD focused-image flow can be configured as `OrderedCrsdSetInputSourceNode -> CrsdApertureAssemblyAdapterNode -> CrsdFocusedImageTransformNode -> CrsdFocusedImageSinkNode`.
+- Inferred: The mature stripmap path is accel-token native; the CRSD focused-image path carries a typed phase-history payload between adapter and transform rather than staying purely `SarAccelControlToken` through every stage.
+- Unknown: Whether the phase-history control-message edge is intended as a permanent exception to the accel-token-only invariant.
 
 ## 4. Resolver Substitution Flow
 
-- Observed: Graph config parser accepts resolver fields execution_backend, backend_fallback_policy, resolver_diagnostics, edge_contract, resolver_mappings in libgraph/src/graph/GraphConfigParser.cpp.
-- Observed: edge_contract currently validates to empty or accel-token; invalid values are rejected.
-- Observed: With edge_contract=accel-token, parser rejects legacy SAR payload contracts in resolver mappings and edge payload_contract fields.
-- Observed: GraphBuilder constructs default NodeResolutionRegistry then calls AddMappings(parsed_config.resolver_mappings), so JSON mappings can add/override contracts before ResolvingNodeProvider creation.
-- Observed: ResolvingNodeProvider backend preference order is metal -> sycl -> stub -> cuda for auto; strict mode does not fallback unless allow_fallback is set.
-- Observed: Definitive SAR JSON defines resolver_mappings directly for H2DAsyncAccelNode, SarBackprojectionTransformAccelNode, and D2HAsyncAccelNode with SarAccelControlToken input/output types.
-- Observed: Default NodeResolutionRegistry contracts in libgraph/src/graph/NodeResolutionRegistry.cpp are generic GPU intent names (for example H2DAsyncNode, D2HAsyncNode, DeviceKernelNode) with DeviceBufferView/HostPinnedBufferView contracts.
-- Inferred: SAR definitive flow relies on SAR intent names and mappings, while generic default contracts remain available for non-SAR graphs.
-- Unknown: Runtime prevalence of fallback decisions outside tested presets.
+- Observed: `ResolvingNodeProvider` resolves node intents through `NodeResolutionRegistry` plus JSON resolver mappings.
+- Observed: Auto backend preference order is `metal`, `sycl`, `stub`, `cuda`.
+- Observed: Strict backend policy uses only the requested backend; `allow_fallback` permits other backends.
+- Observed: Definitive SAR config maps `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, and `D2HAsyncAccelNode` to concrete nodes with `SarAccelControlToken` input/output contracts.
+- Observed: SAR JSON runtime tests assert maintained presets keep portable intent types and explicit `SarAccelControlToken` resolver contracts.
+- Observed: Generic libgraph resolver contracts for non-SAR GPU nodes also exist and use generic accel buffer contracts.
+- Inferred: SAR resolver substitution is currently token-contract aware, but SAR definitive mappings resolve to the same SAR concrete node names rather than separate backend-specific concrete node classes.
+- Unknown: Whether generic GPU resolver mappings are exercised by production apps outside tests.
 
 ## 5. Violations Of Accel-Token Architecture
 
-- Observed: No production SAR node inspected derives SAR identity from host_ptr or ready_event.
-- Observed: Multiple SAR node comments explicitly state host_ptr/ready_event are opaque transport metadata and sidecar carries identity.
-- Observed: Guardrail tests exist for transport opacity in examples/SAR/test/test_sar_transport_opaque_contract.cpp.
-- Observed: JSON/runtime tests assert sequence identity is not encoded as transfer completion events or host pointer values in examples/SAR/test/test_sar_json_runtime.cpp.
-- Observed: Token guardrail and accel-node tests exist in examples/SAR/test/test_sar_accel_token_guardrails.cpp and examples/SAR/test/test_sar_accel_nodes.cpp.
-- Inferred: Current inspected path is aligned with accel-token architecture intent.
-- Unknown: Whether uninspected plugins outside examples/SAR might still contain legacy identity assumptions.
+- Observed: Production SAR token nodes inspected do not derive SAR identity from `host_ptr` or `ready_event`.
+- Observed: `test_sar_transport_opaque_contract.cpp` freezes `host_ptr` and `ready_event` as opaque transport-only fields.
+- Observed: `test_sar_accel_token_guardrails.cpp` rejects legacy payload contracts under accel-token mode.
+- Observed: `test_sar_token_contract.cpp` asserts canonical SAR GPU stages use explicit accel-token node names.
+- Observed: `CrsdFocusedImageTransformNode` and `CrsdFocusedImageTransformMetalNode` operate on `SarPhaseHistoryControlMessage`, not `SarAccelControlToken`.
+- Inferred: The main stripmap accel path follows the stated accel-token architecture, while the CRSD focused-image path is a deliberate typed-payload branch that may need an architecture decision if "all SAR edges" must literally mean `SarAccelControlToken`.
+- Unknown: Whether the CRSD phase-history exception is accepted by the principal architecture.
 
 ## 6. Obsolete Abstractions
 
-- Observed: Generic default resolver contracts for H2DAsyncNode/D2HAsyncNode/DeviceKernelNode still exist in libgraph, separate from SAR accel-token node intents.
-- Observed: SAR config set includes multiple scenario and specialized configs beyond definitive, including metal/fanout/materialized/external-manual variants.
-- Observed: sar_gotcha_external_manual.json is present as a non-default external/manual topology scaffold.
-- Observed: Current SarMessages.hpp no longer defines legacy SAR payload message structs; the active surface is token/sidecar-centric.
-- Inferred: The main residual abstraction overlap is architectural surface area (generic resolver contracts plus SAR-specific token contracts), not duplicate legacy message structs in current SAR headers.
-- Unknown: Which non-definitive configs are still required versus retained for historical/testing support.
+- Observed: Legacy SAR alias headers for generic `H2D`/`D2H`/backprojection names are absent from `examples/SAR/include/sar`.
+- Observed: Older planning-era reports remain in `plan/reviews`, including many `SAR_CRSD_TO_FOCUSED_IMAGE_IMPL_PR*` and verifier reports.
+- Observed: `examples/SAR/config` contains many scenario, manual, Metal, CRSD, and local validation configs in addition to the definitive stripmap config.
+- Observed: `CrsdFocusedImageTransformMetalNode` is active but explicitly labeled experimental incomplete for the domain algorithm.
+- Observed: `CollectiveReduceNodeMetal` is present as a plugin but documented/tested as unsupported.
+- Inferred: Some active files are product code, while some are scaffolding, local-only workflows, or planning/verifier artifacts; the repository keeps them side by side.
+- Unknown: Which active configs and reports are intended to be retained as product documentation versus history.
 
 ## 7. Complexity Hotspots
 
-- Observed: SarBackprojectionTransformAccelNode combines SAR token semantics, simulated kernel metadata, native Metal capability binding, and inline Metal source generation.
-- Observed: ImageTileMergeNode owns completion policy, ordering/duplication accounting, transfer counter accumulation, and stage timing rollups.
-- Observed: Resolver behavior spans config JSON, parser validation, registry overlays, provider selection, and plugin availability.
-- Observed: SAR benchmarking logic in examples/SAR/src/sar_benchmark.cpp is extensive and includes profile generation, execution traces, and reporting logic.
-- Observed: External comparison tooling spans Python tools and C++ harness tests (SarPy tools, local runner, comparator contracts, baseline policy/registry validation).
-- Inferred: Current complexity is concentrated in boundary layers (resolver + benchmark + comparison harnesses) rather than in token type definitions.
-- Unknown: Operational complexity impact in CI/runtime environments with differing plugin availability.
+- Observed: SAR now contains both stripmap accel-token pipeline nodes and CRSD/focused-image pipeline nodes.
+- Observed: CRSD support spans C++ reader/writer/model code, Python SarPy tooling, shell conversion scripts, generated binary fixtures, docs, and local-only validation tests.
+- Observed: Metal has three layers: default simulated capabilities, native metal-cpp capabilities, and SAR/domain nodes that bind or wrap those capabilities.
+- Observed: `CrsdFocusedImageTransformMetalNode` contains CPU fallback, capability binding, inline Metal source registration, seed-image construction, transfer orchestration, kernel launch, readback, and result construction in one class.
+- Observed: Native Metal capabilities contain both real Metal objects and synthetic event bookkeeping.
+- Observed: `tools/sarpy/reference_image_from_crsd.py` rejects quicklook as focused reference and emits a local surrogate reference path rather than true SarPy focused image formation.
+- Inferred: The most complex boundary is not "can Metal dispatch?" but "does the domain algorithm actually execute in the intended backend and produce a scientifically meaningful focused image?"
+- Unknown: Whether local real GOTCHA/CRSD workflows are stable across machines and dataset layouts.
 
-## 8. Blockers For AccelControlToken<SarSidecar>
+## 8. Blockers For `AccelControlToken<SarSidecar>`
 
-- Observed: The type exists and is used end-to-end in definitive SAR config and runtime nodes.
-- Observed: Parser guardrails enforce accel-token compatibility and reject legacy payload contracts under accel-token mode.
-- Observed: Transport-opaque contract tests are present and exercised in SAR unit suite files.
-- Observed: Native-backend behavior depends on capability binding for SarBackprojectionTransformAccelNode; code supports fallback/simulated path.
-- Inferred: There is no obvious structural blocker to using AccelControlToken<SarSidecar> as the canonical SAR contract in current inspected code.
-- Unknown: Environment-specific blockers (for example missing plugin/capability combinations) outside repository inspection scope.
+- Observed: The stripmap path has no immediate blocker for `SarAccelControlToken`.
+- Observed: CRSD focused-image adapter-to-transform edges use `SarPhaseHistoryControlMessage`.
+- Observed: `CrsdFocusedImageSinkNode` consumes `FocusedImageResult`, not an accel token.
+- Observed: The focused-image artifact path records ordered CRSD lineage and hashes outside the plain sidecar.
+- Inferred: If the architecture requires every SAR edge to be `AccelControlToken<SarSidecar>`, CRSD phase-history and focused-image result edges are blockers or intentional exceptions.
+- Inferred: If typed payloads are allowed after assembly, the blocker becomes documentation/guardrails ensuring the exception is explicit and bounded.
+- Unknown: Whether `SarPhaseHistoryControlMessage` should be embedded into an accel token, replaced by sidecar-referenced buffers, or accepted as a higher-level CPU/focused-image lane type.
 
 ## 9. Existing External Comparison/Baseline Hooks
 
-- Observed: Policy and registry artifacts exist at plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md and plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json.
-- Observed: Policy/registry enforcement tests exist in examples/SAR/test/test_external_baseline_policy_registry.cpp.
-- Observed: Local-only scenario runner scaffolding exists in examples/SAR/tools/sar_local_runner.py.
-- Observed: gotcha-back adapter and invocation scaffolding exist in examples/SAR/tools/gotcha_back_adapter.py and related tests.
-- Observed: SarPy probe/compare toolchain is present with tests in examples/SAR/test/test_sarpy_reference_compare_tools.cpp and examples/SAR/test/test_sarpy_metadata_harness.cpp.
-- Observed: SarPy CRSD validation harness tests exist in examples/SAR/test/test_sarpy_crsd_validation_harness.cpp and are environment-gated for local-only smoke runs.
-- Observed: Additional baseline/fixture comparison tests exist (for example test_sar_baseline_compare.cpp, test_graphx_image_comparison_lane.cpp, test_local_gotcha_validation_lane.cpp).
-- Inferred: External baselines are integrated as comparison harnesses and policy-controlled artifacts, not as core GraphX runtime contracts.
-- Unknown: Real-world parity status versus external baselines, since this inspection did not run benchmark or parity lanes.
+- Observed: `tools/sarpy` contains local-only scripts for CRSD validation, CRSD reference image surrogate generation, GOTCHA reference generation, and image comparison.
+- Observed: `examples/SAR/tools` contains local runner, image comparator, SarPy metadata harness, gotcha-back adapter, and CPU reference backprojection docs/tools.
+- Observed: `SAR_EXTERNAL_BASELINE_POLICY.md` and `SAR_BASELINE_PACKAGE_REGISTRY.json` exist under `plan/reviews`.
+- Observed: Tests cover SarPy probe/metadata/reference/compare harnesses, graphx image comparison lane, baseline comparison, local runner contract, and real full-aperture local validation.
+- Observed: Docs state SarPy/reference workflows are optional/local-only and not GraphX runtime dependencies.
+- Observed: `tools/sarpy/reference_image_from_crsd.py` marks true SarPy focused reference as unavailable and uses an independent local focused surrogate.
+- Inferred: External tools currently validate or compare artifacts and do not dictate GraphX core runtime contracts.
+- Unknown: Whether future work intends to replace the surrogate CRSD reference path with a real external focused-image implementation.
 
-## Focus Checks Requested In Role
+## Current-State Summary
 
-- Observed: host_ptr usage in SAR nodes is present as opaque sentinel assignment, not identity derivation.
-- Observed: ready_event usage in SAR nodes is present as opaque transport metadata/event ticket field.
-- Observed: accel-token tests and transport-opaque tests are present.
-- Observed: examples/SAR/src/main.cpp has executable coverage via examples/SAR/test/test_sar_main_executable.cpp.
-- Observed: examples/SAR/src/main.cpp prints runtime status and two diagnostics counters (queue_backpressure_events, peak_queue_depth).
-- Observed: Detailed performance reporting is implemented in examples/SAR/src/sar_benchmark.cpp, not in main.cpp.
-- Observed: Duplicate elapsedUs helper functions were not found in inspected SAR code; one helper exists in examples/SAR/include/sar/SarRuntimeHelpers.hpp.
-
-Stop point: current-state report only.
+- Observed: The repository has a mature SAR accel-token stripmap example path with diagnostics and guardrails.
+- Observed: The repository also has a broad GOTCHA/CRSD/focused-image lane with binary CRSD fixtures, local-only real-data workflows, artifact persistence, comparison tooling, and truth-in-labeling guardrails.
+- Observed: Metal infrastructure is real at the libgpu native capability layer, while some domain-level Metal claims are explicitly downgraded as experimental incomplete or unsupported.
+- Inferred: The current architecture is closest to a hybrid state: canonical accel-token transport for stripmap/SAR GPU stages, plus typed CRSD phase-history/focused-image stages layered beside it.
+- Unknown: Whether the next architecture decision should preserve that hybrid model or force CRSD phase-history/focused-image edges back into `SarAccelControlToken`.

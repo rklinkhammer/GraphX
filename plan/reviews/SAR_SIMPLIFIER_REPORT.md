@@ -1,69 +1,87 @@
-# SAR Simplifier Report
+# 1. Target type model.
 
-Source input: plan/reviews/SAR_INSPECTOR_REPORT.md
+The target SAR type model has one canonical runtime transport for active SAR graph edges:
 
-Scope: target architecture only. No implementation and no PR plan.
+- `SarAccelControlToken = AccelControlToken<SarSidecar>` is the only SAR GPU/dataflow transport type used by maintained SAR runtime topologies.
+- `SarSidecar` owns SAR identity, lineage, dimensions, labels, diagnostics, provenance, and artifact references.
+- `host_view.host_ptr` and `device_view.ready_event` remain opaque transport handles. SAR identity, image identity, pulse identity, CRSD identity, and product identity must never be inferred from those handles.
+- `NormalizedSarProduct` remains the C++ I/O domain model for GOTCHA/CRSD conversion, validation, reports, and file writers. It is not the default graph edge payload.
+- CRSD phase-history concepts remain typed domain data, but active graph movement must be represented through `SarAccelControlToken` sidecar references or bounded payload handles rather than free-standing CRSD-specific edge contracts.
+- Focused image output is an artifact/result model owned by sink/reporting boundaries. It must be referenced by SAR sidecar lineage when it crosses runtime boundaries.
+- External reference products, SarPy validation reports, local GOTCHA reports, comparison images, checksums, and generated JSON are artifact contracts, not runtime graph message types.
 
-## 1. Target Type Model
+Type names must describe capability or data semantics, not planning history. Historical names such as `prXX`, `rrpXX`, and implementation-phase labels are not valid active type names.
 
-- Keep `SarSidecar` as the only SAR identity/diagnostics carrier.
-- Keep `AccelControlToken<SidecarT>` as the canonical transport contract template.
-- Keep `SarAccelControlToken = AccelControlToken<SarSidecar>` as the only SAR GPU-edge payload.
-- Keep generic accel transport primitives in `libgpu` (`DeviceBufferView`, `HostPinnedBufferView`, `BufferLease`, `TransferTicket`, `KernelTicket`, `TensorLayout`).
-- Keep `host_ptr` and `ready_event` strictly transport-opaque and non-identity.
-- Keep SAR-specific semantic fields in `SarSidecar`; keep transport state in accel views/tickets.
-- Keep `SarDiagnosticsSnapshot` as sink-facing aggregate output, sourced from sidecar + graph metrics.
-- Remove reliance on any legacy payload-contract names under accel-token mode.
+# 2. Target node model.
 
-## 2. Target Node Model
+The target SAR node model has one maintained runtime shape:
 
-Canonical runtime path:
+`source/reader -> normalize/assemble -> SAR tokenized processing -> generic GPU transfer/kernel primitives where applicable -> SAR tokenized output -> focused-image/artifact/diagnostics sinks`
 
-`Synthetic/Replay SAR source` -> `SAR DSP/prep` -> `SarAccelControlToken` -> `GPU transfer/kernel stage (token-preserving)` -> `SarAccelControlToken` -> `SAR merge/diagnostics/sinks`
+The maintained node categories are:
 
-Concrete target for maintained definitive topology:
+- Source nodes: emit `SarAccelControlToken` with complete `SarSidecar` identity and deterministic ordering.
+- Assembly/normalization nodes: convert file/domain input into token-referenced SAR data and sidecar lineage.
+- CPU algorithm nodes: may be retained when they perform real processing and have token-compatible input/output boundaries.
+- GPU transfer nodes: use generic libgpu primitives such as H2D/D2H/queue/sync through SAR-token contracts.
+- GPU algorithm nodes: may be active only when they bind a real backend capability and execute a real kernel or backend API implementation for the advertised algorithm.
+- Sink/report nodes: consume SAR tokens or final artifact references and emit deterministic reports, images, checksums, and diagnostics.
 
-- Keep source/prep nodes: `SyntheticApertureIqSourceNode`, `RangeWindowNode`, `RangeCompressionNode`, `AzimuthTileSplitNode`.
-- Keep GPU-edge intent nodes in SAR config as explicit token contracts: `H2DAsyncAccelNode`, `SarBackprojectionTransformAccelNode`, `D2HAsyncAccelNode`.
-- Keep completion/diagnostics nodes: `ImageTileMergeNode`, `SarDiagnosticsSinkNode`.
-- Keep optional/example-local nodes as non-definitive: `GotchaReplaySourceNode`, `SarPulseFanoutNode`, `SarVisualizationSinkNode`, `SarMaterializedImageSinkNode`.
-- Keep backend realization in resolver/capability layers; keep definitive JSON portable and intent-based.
+The CRSD focused-image lane should not be a parallel runtime type system. `OrderedCrsdSetInputSourceNode`, aperture assembly, focused-image transform, and focused-image sink should either be token-compatible or explicitly classified as local/reference tooling outside the maintained SAR runtime topology.
 
-## 3. Deletion List
+libgpu owns generic GPU transport and backend primitives. examples/SAR owns SAR sidecar construction, SAR ordering, SAR metadata mapping, SAR algorithms, and SAR artifact/report semantics.
 
-- Delete compatibility or legacy payload-contract references from maintained SAR runtime/topology surfaces (if still present outside negative-validation tests).
-- Delete non-definitive SAR configs that are no longer required for maintained workflows once equivalent focused tests exist.
-- Delete external-manual topology scaffolds from maintained runtime surface if they are not actively used (`sar_gotcha_external_manual.json` class of artifacts).
-- Delete obsolete tests whose only value is preserving legacy alias names or deprecated compatibility behavior.
-- Delete duplicate architecture-policy checks if they are enforced in multiple places with no additional signal.
+# 3. Deletion list.
 
-## 4. Replacement List
+Delete or remove from active maintained surfaces:
 
-- Replace any remaining generic/legacy runtime intent usage in maintained SAR configs with explicit SAR token intents and resolver mappings.
-- Replace mixed identity interpretation opportunities with strict sidecar-only identity checks in tests and diagnostics.
-- Replace ad-hoc scenario coverage with one definitive topology plus focused behavior tests (token preservation, resolver contract, diagnostics propagation).
-- Replace dual-purpose runtime artifacts with explicit classification:
-  - maintained definitive runtime path
-  - optional local-only/baseline/comparison harness path
-- Replace implicit external-baseline assumptions with explicit policy/registry contract assertions only.
+- Any active test, config, script, fixture, or documentation that exists only to prove a historical PR or planning artifact existed.
+- Planning-era `prXX`, `rrpXX`, implementation/verifier report names, and similar historical labels from active code, tests, tools, docs, configs, and user-visible output. Historical reports may remain only under an explicit history location.
+- Duplicate or stale SAR configs that are not part of a maintained stripmap, CRSD input, focused-image, local-validation, or comparison workflow.
+- Any reintroduced SAR GPU compatibility alias for H2D, D2H, or backprojection names.
+- Any active node registration or config that advertises an unsupported Metal node as production-ready.
+- `CollectiveReduceNodeMetal` from active plugin/config surfaces until it has a supported implementation.
+- `CrsdFocusedImageTransformMetalNode` from production or maintained configs unless it performs real native Metal focused-image processing end to end. If retained before completion, it must be explicitly experimental and excluded from production claims.
+- Tests that validate generic SAR behavior by depending on `host_ptr`, `ready_event`, memory addresses, or incidental transport details.
+- Documentation or tool output that implies surrogate SarPy/reference imagery is a true fully focused SarPy image when it is not.
+- Any MATLAB build, runtime, or test dependency if it appears in active GOTCHA/CRSD workflows.
 
-## 5. Architecture Invariants
+# 4. Replacement list.
 
-- Exactly one SAR GPU-edge contract in runtime: `AccelControlToken<SarSidecar>`.
-- SAR identity is sidecar-only.
-- `host_ptr`, `device_ptr`, `ready_event`, transfer IDs, kernel IDs, queue IDs are transport metadata, never SAR identity.
-- Resolver contract for maintained SAR topology is explicit (`edge_contract: "accel-token"`) with SAR token type mappings.
-- Generic GPU nodes and accel transport types remain SAR-unaware.
-- SAR semantics remain in SAR nodes and sidecar fields.
-- Definitive topology remains portable intent names; backend-specific realization stays in resolver/capability layers.
-- `examples/SAR/main.cpp` remains covered by executable test and emits runtime diagnostics.
-- External baselines (SarPy/gotcha-back/etc.) remain local-only comparison infrastructure and must not define GraphX core runtime contracts.
+Replace current complexity with these target forms:
 
-## 6. Open Questions That Block Planning
+- Replace free-standing CRSD phase-history graph edge contracts with `SarAccelControlToken` boundaries carrying sidecar lineage plus references to phase-history payloads or bounded buffers.
+- Replace free-standing focused-image graph edge contracts with SAR-token lineage into a focused-image artifact/result sink contract.
+- Replace domain-level GPU wrappers that only simulate or delegate CPU work with either real backend algorithm nodes or CPU-only nodes with honest names.
+- Replace production references to incomplete Metal CRSD focused-image support with a CPU focused-image lane plus an explicit future Metal implementation boundary.
+- Replace unsupported `CollectiveReduceNodeMetal` plugin exposure with no active node until the backend capability exists.
+- Replace scattered CRSD/GOTCHA generated JSON concepts with a small set of named artifact contracts: ordered input manifest, sidecar/metadata inventory, conversion report, validation report, comparison report, and checksum manifest.
+- Replace ambiguous CRSD-lite naming with a GraphX-owned normalized/intermediate SAR artifact name that does not imply CRSD compliance.
+- Replace active planning report clutter in `plan/reviews` with a small active set: current inspector, simplifier, planner, policy, and architecture reports. Move implementation/verifier history to `plan/history`.
+- Replace external-tool assumptions in runtime code with local-only artifact validation and comparison hooks outside libgraph/libgpu.
 
-- Which non-definitive SAR configs are truly maintained versus historical test scaffolds?
-- Should `SarBackprojectionTransformAccelNode` stay as a dual simulated/native node, or be split into clearer adaptor + backend execution responsibilities?
-- What is the minimal retained set of baseline/comparison tests that preserves policy guarantees without duplicate coverage?
-- Which optional SAR nodes (`SarPulseFanoutNode`, visualization/materialized sinks, replay sources) are required in maintained CI lanes versus local-only workflows?
-- Should external-manual topology artifacts remain in-tree as examples or move to docs/local scripts only?
-- Is current `main.cpp` diagnostics output considered sufficient performance reporting, or must benchmark-only metrics be promoted into the runtime executable output contract?
+# 5. Architecture invariants.
+
+- SAR identity is carried by `SarSidecar`, not by raw host pointers, device pointers, events, queue handles, or file paths alone.
+- Maintained SAR graph edges use `SarAccelControlToken` unless an explicitly approved architecture decision creates a bounded non-token reference lane.
+- Generic GPU nodes stay generic. SAR-specific metadata, CRSD concepts, GOTCHA concepts, image dimensions, aperture lineage, and report semantics stay in examples/SAR.
+- A node named or documented as Metal/GPU must execute a real backend operation for its advertised algorithm, or it must be marked unsupported/experimental and excluded from production configs.
+- Simulated capabilities, CPU fallbacks, and validation harnesses cannot be used as evidence of native Metal algorithm support.
+- CRSD compliance must be truthful. Intermediate GraphX artifacts are not CRSD and must not be named or reported as CRSD.
+- `--mode crsd` means standards-targeted CRSD output only. If standards-targeted output cannot be produced, the command must fail before writing misleading files.
+- Local-only GOTCHA and external reference workflows remain optional, explicitly gated, and outside CI requirements unless tiny synthetic fixtures are used.
+- External Python/SarPy/gotcha-back tools may validate, compare, or generate reference artifacts, but they must not define libgraph or libgpu runtime contracts.
+- Deterministic ordering, deterministic diagnostics, deterministic report schemas, and checksumable outputs are required for maintained SAR workflows.
+- Backward compatibility with planning-era names and intermediate aliases is not required.
+
+# 6. Open questions that block planning.
+
+- Must every active SAR runtime edge be converted to `SarAccelControlToken`, including CRSD phase-history and focused-image stages, or is a bounded typed CRSD CPU lane allowed?
+- Should the CRSD focused-image lane be treated as production SAR runtime, local/reference tooling, or a staged bridge while tokenization is completed?
+- Should `CrsdFocusedImageTransformMetalNode` be deleted from active surfaces now, or completed as a real native Metal focused-image implementation before further CRSD planning?
+- Should `CollectiveReduceNodeMetal` be removed from plugin registration until supported, or retained as explicitly unsupported documentation-only surface?
+- Which SAR configs are the maintained canonical configs, and which should be deleted as obsolete examples?
+- Which historical report folders are allowed to retain `prXX` and verifier/implementer names without violating active naming hygiene?
+- Is the current external reference-image workflow acceptable as a surrogate comparison lane, or is a true fully focused SarPy/reference image required before image-quality planning continues?
+- What is the minimum real-data local validation contract: ingest only, normalized artifact generation, focused image generation, SarPy validation, image comparison, or all of these?
+- Should real CRSD binary reading be implemented as native C++ only, or may a local-only helper bridge be used outside runtime contracts?

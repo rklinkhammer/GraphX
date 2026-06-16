@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -15,6 +16,24 @@
 #endif
 
 namespace {
+
+std::chrono::seconds ResolveExecutorTimeout() {
+    constexpr int kDefaultTimeoutSeconds = 15;
+    const char* raw = std::getenv("GRAPHX_SAR_EXECUTOR_TIMEOUT_S");
+    if (raw == nullptr || *raw == '\0') {
+        return std::chrono::seconds{kDefaultTimeoutSeconds};
+    }
+
+    try {
+        const int value = std::stoi(raw);
+        if (value <= 0) {
+            return std::chrono::seconds{kDefaultTimeoutSeconds};
+        }
+        return std::chrono::seconds{value};
+    } catch (...) {
+        return std::chrono::seconds{kDefaultTimeoutSeconds};
+    }
+}
 
 } // namespace
 
@@ -30,6 +49,9 @@ int main(int argc, char** argv) {
     for (int i = 3; i < argc; ++i) {
         std::cout << "Additional plugin directory: " << argv[i] << '\n';
     }
+
+    const auto timeout = ResolveExecutorTimeout();
+    std::cout << "Executor timeout (s): " << timeout.count() << '\n';
 
     if (!std::filesystem::exists(configPath)) {
         std::cerr << "Config file not found: " << configPath << '\n';
@@ -51,7 +73,7 @@ int main(int argc, char** argv) {
         graph::GraphExecutorBuilder builder;
         builder.WithJsonConfig(configPath)
             .WithPluginDirectory(pluginDirectory)
-            .WithExecutorTimeout(std::chrono::seconds(15));
+            .WithExecutorTimeout(timeout);
         for (int i = 3; i < argc; ++i) {
             builder.WithAdditionalPluginDirectory(argv[i]);
         }

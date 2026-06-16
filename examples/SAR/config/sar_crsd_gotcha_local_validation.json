@@ -31,11 +31,20 @@
       "id": "adapter",
       "type": "CrsdApertureAssemblyAdapterNode",
       "node_config": {
-        "require_unique_segments": true,
-        "require_contiguous_segments": false,
-        "enforce_common_samples_per_vector": true,
-        "enforce_common_channel_id": true,
-        "enforce_common_frequency": true
+        "crsd_paths": [
+          "data/crsd/subData01.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData02.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData03.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData04.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData05.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData06.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData07.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData08.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData09.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd",
+          "data/crsd/subData10.crsd_output/gotcha_crsd_chunk_0000.crsd/product.crsd"
+        ],
+        "require_contiguous_segment_indices": false,
+        "enable_sidecar_pulse_range_cross_check": false
       }
     },
     {
@@ -46,9 +55,7 @@
         "image_height": 64,
         "pixel_spacing_m": 1.0,
         "scene_center_x_m": 0.0,
-        "scene_center_y_m": 0.0,
-        "range_spacing_m": 1.0,
-        "wavelength_m": 0.03
+        "scene_center_y_m": 0.0
       }
     },
     {
