@@ -230,3 +230,16 @@ add_graphx_plugin(
 target_include_directories(crsd_focused_image_transform_metal_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+
+add_graphx_plugin(
+    TARGET_NAME crsd_focused_image_sink_node
+    SOURCE_FILES
+        crsd_focused_image_sink_node_plugin.cpp
+        ../src/CrsdFocusedImageSinkNode.cpp
+    DESCRIPTION "CRSD focused-image deterministic output sink node"
+    DEPENDENCIES graph gpu
+)
+
+target_include_directories(crsd_focused_image_sink_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)

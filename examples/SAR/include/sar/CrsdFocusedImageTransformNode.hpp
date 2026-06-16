@@ -64,6 +64,9 @@ struct FocusedImageResult {
     std::uint64_t input_ordered_set_hash{0};
     std::uint32_t total_pulses{0};
     std::uint32_t samples_per_pulse{0};
+    std::vector<std::uint64_t> ordered_crsd_segment_indices{};
+    std::vector<std::uint64_t> per_segment_input_hashes{};
+    bool lineage_complete_aperture{false};
 };
 
 struct CrsdFocusedImageTransformConfig {

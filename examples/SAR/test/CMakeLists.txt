@@ -72,8 +72,10 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_aperture_assembly_adapter_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/CrsdFocusedImageTransformNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/CrsdFocusedImageTransformMetal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/CrsdFocusedImageSinkNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_transform_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_metal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_sink.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_metal_truth_in_labeling_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/SyntheticApertureIqSourceNode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
@@ -119,6 +121,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_image_comparison_report.schema.json"
     SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/frozen_scenario_replay.md"
     SAR_CI_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
+    SAR_FOCUSED_IMAGE_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_focused_image_artifact_schema.json"
     SARPY_METADATA_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sarpy_metadata_harness.py"
     SARPY_METADATA_HARNESS_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sarpy_metadata_harness.md"
     SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
@@ -135,6 +138,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_CRSD_FOCUSED_IMAGE_TINY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_focused_image_tiny_fixture.json"
     SAR_CRSD_TINY_FOCUSED_IMAGE_CPU_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_cpu.json"
     SAR_CRSD_TINY_FOCUSED_IMAGE_METAL_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_metal.json"
+    SAR_CRSD_TINY_FIXTURE_WITH_SINK_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_with_sink.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
@@ -169,6 +173,7 @@ add_dependencies(test_sar_example_unit crsd_input_source_node)
 add_dependencies(test_sar_example_unit crsd_aperture_assembly_adapter_node)
 add_dependencies(test_sar_example_unit crsd_focused_image_transform_node)
 add_dependencies(test_sar_example_unit crsd_focused_image_transform_metal_node)
+add_dependencies(test_sar_example_unit crsd_focused_image_sink_node)
 add_dependencies(test_sar_example_unit sar_benchmark)
 add_dependencies(test_sar_example_unit sar_example)
 add_dependencies(test_sar_example_unit graphx_gotcha_to_crsd)

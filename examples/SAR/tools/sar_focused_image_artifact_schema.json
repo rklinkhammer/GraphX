@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "graphx.sar.focused_image_artifact.v1",
+  "title": "GraphX SAR Focused Image Artifact",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "shape",
+    "spacing",
+    "geometry_assumptions",
+    "hashes",
+    "provenance",
+    "execution_lane",
+    "ordered_crsd_segments",
+    "per_segment_input_hashes",
+    "ordered_set_hash",
+    "output_hash",
+    "lineage"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "shape": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1}
+      }
+    },
+    "spacing": {
+      "type": "object",
+      "required": ["pixel_spacing_m", "range_spacing_m"],
+      "properties": {
+        "pixel_spacing_m": {"type": "number"},
+        "range_spacing_m": {"type": "number"}
+      }
+    },
+    "geometry_assumptions": {
+      "type": "object",
+      "required": [
+        "scene_center_x_m",
+        "scene_center_y_m",
+        "range_origin_m",
+        "wavelength_m",
+        "platform_x_start_m",
+        "platform_x_end_m",
+        "platform_y_m"
+      ]
+    },
+    "hashes": {
+      "type": "object",
+      "required": [
+        "per_segment_input_hashes",
+        "ordered_set_hash",
+        "output_hash",
+        "binary_payload_hash"
+      ]
+    },
+    "provenance": {"type": "object"},
+    "execution_lane": {
+      "type": "object",
+      "required": ["lane", "backend_id", "kernel_dispatches", "bytes_h2d", "bytes_d2h"]
+    },
+    "ordered_crsd_segments": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "per_segment_input_hashes": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "ordered_set_hash": {"type": "integer", "minimum": 0},
+    "output_hash": {"type": "integer", "minimum": 0},
+    "lineage": {
+      "type": "object",
+      "required": [
+        "complete_aperture",
+        "total_pulses",
+        "samples_per_pulse",
+        "segment_count",
+        "binary_artifact"
+      ]
+    }
+  }
+}

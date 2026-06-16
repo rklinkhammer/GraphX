@@ -335,6 +335,13 @@ std::optional<FocusedImageResult> CrsdFocusedImageTransformMetalNode::RunNativeM
     result.input_ordered_set_hash = frame.ordered_set_payload_hash;
     result.total_pulses = static_cast<std::uint32_t>(vector_count);
     result.samples_per_pulse = frame.samples_per_vector;
+    result.ordered_crsd_segment_indices.reserve(frame.segments.size());
+    result.per_segment_input_hashes.reserve(frame.segments.size());
+    for (const auto& seg : frame.segments) {
+        result.ordered_crsd_segment_indices.push_back(seg.segment_index);
+        result.per_segment_input_hashes.push_back(seg.payload_hash);
+    }
+    result.lineage_complete_aperture = true;
 
     auto& sidecar = result.control.sidecar;
     sidecar.backend = SarBackendKind::NativeDevice;
