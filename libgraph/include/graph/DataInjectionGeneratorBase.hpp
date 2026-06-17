@@ -67,10 +67,6 @@ namespace graph {
  * @see ActiveQueue for queue implementation details
  */
 template<typename DataType, typename PayloadType>
-/**
- * @class DataInjectionGeneratorBase
- * @brief Data injection generator base implementation for GraphX.
- */
 class DataInjectionGeneratorBase : public DataGeneratorBase<DataType> {
 public:
     /// Construct generator with reference to data queue

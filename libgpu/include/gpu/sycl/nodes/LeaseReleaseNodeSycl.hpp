@@ -29,10 +29,6 @@ namespace graph::gpu::sycl::nodes {
  * @class LeaseReleaseNodeSycl
  * @brief LeaseReleaseNodeSycl class.
  */
-/**
- * @class LeaseReleaseNodeSycl
- * @brief Lease release node sycl implementation for GraphX.
- */
 class LeaseReleaseNodeSycl
     : public graph::NamedSinkNode<LeaseReleaseNodeSycl, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

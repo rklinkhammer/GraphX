@@ -35,10 +35,6 @@ namespace graph::gpu::metal::nodes {
  * @class DeviceKernelNodeMetal
  * @brief DeviceKernelNodeMetal class.
  */
-/**
- * @class DeviceKernelNodeMetal
- * @brief Device kernel node metal implementation for GraphX.
- */
 class DeviceKernelNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

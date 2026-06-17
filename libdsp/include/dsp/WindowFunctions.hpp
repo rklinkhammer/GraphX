@@ -43,10 +43,6 @@ enum class WindowType {
  * @class WindowFunctions
  * @brief WindowFunctions class.
  */
-/**
- * @class WindowFunctions
- * @brief Window functions implementation for GraphX.
- */
 class WindowFunctions {
 public:
     /**

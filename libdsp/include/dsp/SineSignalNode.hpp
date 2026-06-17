@@ -82,10 +82,6 @@ namespace dsp {
  * @endcode
  */
 template<size_t N = 256>
-/**
- * @class SineSignalNode
- * @brief Sine signal node implementation for GraphX.
- */
 class SineSignalNode : public graph::DataProducerWithNotification<
     SineSignalNode<N>,
     SineWaveGenerator<float, N>,

@@ -37,10 +37,6 @@ namespace test {
  * Singleton pattern for provider initialization and templated edge creation
  * utilities for connecting dynamically loaded nodes.
  */
-/**
- * @class PluginInfrastructure
- * @brief Plugin infrastructure implementation for GraphX.
- */
 class PluginInfrastructure {
 public:
     /**

@@ -106,10 +106,6 @@ namespace graph {
  * @class IPortFunction
  * @brief IPortFunction class.
  */
-/**
- * @class IPortFunction
- * @brief I port function implementation for GraphX.
- */
     class IPortFunction {
     public:
         virtual ~IPortFunction() = default;

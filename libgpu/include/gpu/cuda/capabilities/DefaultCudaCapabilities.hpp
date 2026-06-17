@@ -23,10 +23,6 @@ namespace graph::gpu::cuda::capabilities {
  * @class DefaultCudaContextCapability
  * @brief DefaultCudaContextCapability class.
  */
-/**
- * @class DefaultCudaContextCapability
- * @brief Default cuda context capability implementation for GraphX.
- */
 class DefaultCudaContextCapability final : public ICudaContextCapability {
 public:
 /**
@@ -75,10 +71,6 @@ private:
  * @class DefaultCudaMemoryPoolCapability
  * @brief DefaultCudaMemoryPoolCapability class.
  */
-/**
- * @class DefaultCudaMemoryPoolCapability
- * @brief Default cuda memory pool capability implementation for GraphX.
- */
 class DefaultCudaMemoryPoolCapability final : public ICudaMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -101,10 +93,6 @@ private:
 /**
  * @class DefaultCudaTransferCapability
  * @brief DefaultCudaTransferCapability class.
- */
-/**
- * @class DefaultCudaTransferCapability
- * @brief Default cuda transfer capability implementation for GraphX.
  */
 class DefaultCudaTransferCapability final : public ICudaTransferCapability {
 public:
@@ -132,10 +120,6 @@ private:
  * @class DefaultCudaKernelCapability
  * @brief DefaultCudaKernelCapability class.
  */
-/**
- * @class DefaultCudaKernelCapability
- * @brief Default cuda kernel capability implementation for GraphX.
- */
 class DefaultCudaKernelCapability final : public ICudaKernelCapability {
 public:
     bool RegisterKernel(std::uint64_t kernel_id,
@@ -152,10 +136,6 @@ private:
 /**
  * @class DefaultCudaTelemetryCapability
  * @brief DefaultCudaTelemetryCapability class.
- */
-/**
- * @class DefaultCudaTelemetryCapability
- * @brief Default cuda telemetry capability implementation for GraphX.
  */
 class DefaultCudaTelemetryCapability final : public ICudaTelemetryCapability {
 public:
@@ -182,10 +162,6 @@ private:
 /**
  * @class DefaultCudaCollectiveCapability
  * @brief DefaultCudaCollectiveCapability class.
- */
-/**
- * @class DefaultCudaCollectiveCapability
- * @brief Default cuda collective capability implementation for GraphX.
  */
 class DefaultCudaCollectiveCapability final : public ICudaCollectiveCapability {
 public:

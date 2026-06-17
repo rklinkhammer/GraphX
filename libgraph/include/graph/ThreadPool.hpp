@@ -474,10 +474,6 @@ struct ThreadPoolStats {
  * @class ThreadPool
  * @brief ThreadPool class.
  */
-/**
- * @class ThreadPool
- * @brief Thread pool implementation for GraphX.
- */
 class ThreadPool {
 public:
     /**

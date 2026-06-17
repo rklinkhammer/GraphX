@@ -32,10 +32,6 @@ std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext();
  * @class NativeMetalContextCapability
  * @brief NativeMetalContextCapability class.
  */
-/**
- * @class NativeMetalContextCapability
- * @brief Native metal context capability implementation for GraphX.
- */
 class NativeMetalContextCapability final : public IMetalContextCapability {
 public:
     explicit NativeMetalContextCapability(
@@ -95,10 +91,6 @@ private:
  * @class NativeMetalMemoryPoolCapability
  * @brief NativeMetalMemoryPoolCapability class.
  */
-/**
- * @class NativeMetalMemoryPoolCapability
- * @brief Native metal memory pool capability implementation for GraphX.
- */
 class NativeMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
     explicit NativeMetalMemoryPoolCapability(
@@ -126,10 +118,6 @@ private:
 /**
  * @class NativeMetalTransferCapability
  * @brief NativeMetalTransferCapability class.
- */
-/**
- * @class NativeMetalTransferCapability
- * @brief Native metal transfer capability implementation for GraphX.
  */
 class NativeMetalTransferCapability final : public IMetalTransferCapability {
 public:
@@ -159,10 +147,6 @@ private:
 /**
  * @class NativeMetalKernelCapability
  * @brief NativeMetalKernelCapability class.
- */
-/**
- * @class NativeMetalKernelCapability
- * @brief Native metal kernel capability implementation for GraphX.
  */
 class NativeMetalKernelCapability final : public IMetalKernelCapability,
                                           public IMetalKernelDescriptorCapability {
@@ -218,10 +202,6 @@ private:
  * @class NativeMetalTelemetryCapability
  * @brief NativeMetalTelemetryCapability class.
  */
-/**
- * @class NativeMetalTelemetryCapability
- * @brief Native metal telemetry capability implementation for GraphX.
- */
 class NativeMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
     explicit NativeMetalTelemetryCapability(
@@ -257,10 +237,6 @@ private:
 /**
  * @class NativeMetalCollectiveCapability
  * @brief NativeMetalCollectiveCapability class.
- */
-/**
- * @class NativeMetalCollectiveCapability
- * @brief Native metal collective capability implementation for GraphX.
  */
 class NativeMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:

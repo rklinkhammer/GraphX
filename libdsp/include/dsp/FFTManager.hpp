@@ -134,10 +134,6 @@ template<typename SampleT, size_t N>
  * @class FFTManager
  * @brief FFTManager class.
  */
-/**
- * @class FFTManager
- * @brief Fft manager implementation for GraphX.
- */
 class FFTManager {
 public:
     /**

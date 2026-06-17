@@ -37,10 +37,6 @@ namespace {
  * This suite validates that port metadata can be correctly retrieved
  * from each test node type using the reflection system.
  */
-/**
- * @class PortMetadataReflectionTest
- * @brief Port metadata reflection test implementation for GraphX.
- */
 class PortMetadataReflectionTest : public ::testing::Test {
 protected:
     log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("test.port_metadata");

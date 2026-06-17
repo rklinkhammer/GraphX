@@ -28,10 +28,6 @@ namespace graph::gpu::sycl::nodes {
  * @class HostIngressPinnedSourceNodeSycl
  * @brief HostIngressPinnedSourceNodeSycl class.
  */
-/**
- * @class HostIngressPinnedSourceNodeSycl
- * @brief Host ingress pinned source node sycl implementation for GraphX.
- */
 class HostIngressPinnedSourceNodeSycl
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeSycl, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {

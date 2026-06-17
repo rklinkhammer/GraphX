@@ -51,10 +51,6 @@ namespace graph {
  *
  * @see ExecutionPolicyChain, GraphExecutor
  */
-/**
- * @class IExecutionCallback
- * @brief I execution callback implementation for GraphX.
- */
 class IExecutionCallback {
 public:
     virtual ~IExecutionCallback() = default;

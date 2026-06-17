@@ -26,10 +26,6 @@ namespace fs = std::filesystem;
  * - Message<T> integration
  * - Error handling with malformed data
  */
-/**
- * @class CSVIntegrationTest
- * @brief Csv integration test implementation for GraphX.
- */
 class CSVIntegrationTest : public ::testing::Test {
 protected:
     /// Get the test data directory path

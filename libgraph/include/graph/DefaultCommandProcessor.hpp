@@ -66,10 +66,6 @@ namespace graph {
  * @class DefaultCommandProcessor
  * @brief DefaultCommandProcessor class.
  */
-/**
- * @class DefaultCommandProcessor
- * @brief Default command processor implementation for GraphX.
- */
 class DefaultCommandProcessor : public ICommandProcessor {
 public:
     /**

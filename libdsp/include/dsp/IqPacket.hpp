@@ -81,10 +81,6 @@ using Complex = std::complex<T>;
  * @see SineWaveGenerator for example producer
  */
 template<typename SampleT, size_t N>
-/**
- * @class IqPacket
- * @brief Iq packet implementation for GraphX.
- */
 class IqPacket {
 public:
     /// Array of complex IQ samples

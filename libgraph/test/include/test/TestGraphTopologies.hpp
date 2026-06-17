@@ -73,10 +73,6 @@ enum class TopologyType {
  *
  * Provides static methods to build different graph topologies for testing.
  */
-/**
- * @class TopologyBuilder
- * @brief Topology builder implementation for GraphX.
- */
 class TopologyBuilder {
 public:
     /**

@@ -51,10 +51,6 @@ namespace graph
  * @class IOutputFn
  * @brief IOutputFn class.
  */
-/**
- * @class IOutputFn
- * @brief I output fn implementation for GraphX.
- */
     class IOutputFn : public IFn<P>
     {
     public:
@@ -102,10 +98,6 @@ namespace graph
 /**
  * @class OutputFn
  * @brief OutputFn class.
- */
-/**
- * @class OutputFn
- * @brief Output fn implementation for GraphX.
  */
     class OutputFn : public IOutputFn<P>
     {
@@ -169,11 +161,6 @@ namespace graph
             if (!this->thread_.joinable())
                 return true;
 
-/**
- * @brief Lock.
- * @param this->mtx_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock lock(this->mtx_);
             bool stopped = this->cv_.wait_for(lock, timeout, [&] { return this->IsStopRequested(); });
             lock.unlock();  // Release lock before joining

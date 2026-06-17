@@ -93,10 +93,6 @@ namespace dsp {
  * @see DataGeneratorBase for interface definition
  */
 template<typename SampleT, size_t N>
-/**
- * @class SineWaveGenerator
- * @brief Sine wave generator implementation for GraphX.
- */
 class SineWaveGenerator : public graph::DataGeneratorBase<IqPacket<SampleT, N>> {
 private:
     static log4cxx::LoggerPtr logger_;

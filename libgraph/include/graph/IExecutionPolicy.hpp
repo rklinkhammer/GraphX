@@ -50,10 +50,6 @@ struct IExecutionPolicy {
  * @class ExecutionPolicyChain
  * @brief ExecutionPolicyChain class.
  */
-/**
- * @class ExecutionPolicyChain
- * @brief Execution policy chain implementation for GraphX.
- */
 class ExecutionPolicyChain : public IExecutionPolicy {
 public:
     explicit ExecutionPolicyChain(std::unique_ptr<IExecutionPolicy> policy,

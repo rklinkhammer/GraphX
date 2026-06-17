@@ -34,10 +34,6 @@ struct NodeResolutionContract {
  * @class NodeResolutionRegistry
  * @brief NodeResolutionRegistry class.
  */
-/**
- * @class NodeResolutionRegistry
- * @brief Node resolution registry implementation for GraphX.
- */
 class NodeResolutionRegistry {
 public:
 /**

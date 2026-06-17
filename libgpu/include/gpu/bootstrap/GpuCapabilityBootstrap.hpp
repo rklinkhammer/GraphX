@@ -60,10 +60,6 @@ std::shared_ptr<graph::CapabilityBus> OverrideSharedGpuCapabilityBusForTesting(
  * @class ScopedGpuCapabilityBusOverride
  * @brief ScopedGpuCapabilityBusOverride class.
  */
-/**
- * @class ScopedGpuCapabilityBusOverride
- * @brief Scoped gpu capability bus override implementation for GraphX.
- */
 class ScopedGpuCapabilityBusOverride {
 public:
     explicit ScopedGpuCapabilityBusOverride(

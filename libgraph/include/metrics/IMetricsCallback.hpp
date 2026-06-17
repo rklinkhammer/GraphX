@@ -118,10 +118,6 @@ namespace graph {
  * @class IMetricsCallback
  * @brief IMetricsCallback class.
  */
-/**
- * @class IMetricsCallback
- * @brief I metrics callback implementation for GraphX.
- */
 class IMetricsCallback {
 public:
     virtual ~IMetricsCallback() = default;
@@ -180,10 +176,6 @@ public:
 /**
  * @class IMetricsCallbackProvider
  * @brief IMetricsCallbackProvider class.
- */
-/**
- * @class IMetricsCallbackProvider
- * @brief I metrics callback provider implementation for GraphX.
  */
 class IMetricsCallbackProvider {
 public:

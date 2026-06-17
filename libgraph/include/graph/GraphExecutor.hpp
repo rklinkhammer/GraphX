@@ -97,10 +97,6 @@ namespace graph {
  *   executor->Stop();
  *   executor->Join();
  */
-/**
- * @class GraphExecutor
- * @brief Graph executor implementation for GraphX.
- */
 class GraphExecutor {
 public:
 

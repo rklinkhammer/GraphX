@@ -17,10 +17,6 @@ namespace graph {
  * @class IGpuCapabilityBinding
  * @brief IGpuCapabilityBinding class.
  */
-/**
- * @class IGpuCapabilityBinding
- * @brief I gpu capability binding implementation for GraphX.
- */
 class IGpuCapabilityBinding {
 public:
     virtual ~IGpuCapabilityBinding() = default;

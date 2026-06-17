@@ -143,10 +143,6 @@ struct EdgeKeyHash {
  *   graph, "DataInjectionAccelerometerNode", 0, "FlightFSMNode", 0, src_idx, dst_idx);
  * @endcode
  */
-/**
- * @class EdgeRegistry
- * @brief Edge registry implementation for GraphX.
- */
 class EdgeRegistry {
 public:
     enum class EdgeCreationError {
@@ -204,11 +200,6 @@ public:
         const std::string& dst_type_name,
         EdgeCreator creator) {
         
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(mutex_);
         
         // Get type indices for source and destination using typeid

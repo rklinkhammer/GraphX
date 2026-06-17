@@ -31,10 +31,6 @@ namespace graph::gpu::metal::nodes {
  * @class D2HAsyncNodeMetal
  * @brief D2HAsyncNodeMetal class.
  */
-/**
- * @class D2HAsyncNodeMetal
- * @brief 2 h async node metal implementation for GraphX.
- */
 class D2HAsyncNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

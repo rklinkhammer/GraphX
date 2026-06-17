@@ -62,10 +62,6 @@ namespace graph {
  * @see CSVDataGeneratorBase for CSV file-based data generation
  */
 template<typename DataType>
-/**
- * @class DataGeneratorBase
- * @brief Data generator base implementation for GraphX.
- */
 class DataGeneratorBase {
 public:
     /// Virtual destructor for proper cleanup of derived classes

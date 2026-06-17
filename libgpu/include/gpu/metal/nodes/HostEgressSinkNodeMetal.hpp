@@ -28,10 +28,6 @@ namespace graph::gpu::metal::nodes {
  * @class HostEgressSinkNodeMetal
  * @brief HostEgressSinkNodeMetal class.
  */
-/**
- * @class HostEgressSinkNodeMetal
- * @brief Host egress sink node metal implementation for GraphX.
- */
 class HostEgressSinkNodeMetal
     : public graph::NamedSinkNode<HostEgressSinkNodeMetal, accel::HostPinnedBufferView>,
     public graph::CompletionCallbackProvider,

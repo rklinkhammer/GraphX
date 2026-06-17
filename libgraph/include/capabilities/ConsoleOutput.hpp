@@ -59,10 +59,6 @@ namespace capabilities {
  * @class ConsoleOutput
  * @brief ConsoleOutput class.
  */
-/**
- * @class ConsoleOutput
- * @brief Console output implementation for GraphX.
- */
 class ConsoleOutput : public ICommandOutput {
 public:
     /**
@@ -142,41 +138,21 @@ private:
 // =========================================================================
 
 inline void ConsoleOutput::WriteMessage(const std::string& message) {
-/**
- * @brief Lock.
- * @param console_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cout << "[OK] " << message << std::endl;
 }
 
 inline void ConsoleOutput::WriteError(const std::string& error) {
-/**
- * @brief Lock.
- * @param console_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[ERROR] " << error << std::endl;
 }
 
 inline void ConsoleOutput::WriteWarning(const std::string& warning) {
-/**
- * @brief Lock.
- * @param console_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[WARN] " << warning << std::endl;
 }
 
 inline void ConsoleOutput::WriteHelp(const std::vector<CommandInfo>& commands) {
-/**
- * @brief Lock.
- * @param console_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(console_mutex_);
     
     std::cout << "[HELP] Available commands:" << std::endl;

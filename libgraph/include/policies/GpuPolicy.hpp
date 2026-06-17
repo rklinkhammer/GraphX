@@ -48,10 +48,6 @@ static auto gpu_policy_logger = log4cxx::Logger::getLogger("app.policies.GpuPoli
  * @class GpuPolicy
  * @brief GpuPolicy class.
  */
-/**
- * @class GpuPolicy
- * @brief Gpu policy implementation for GraphX.
- */
 class GpuPolicy : public graph::IExecutionPolicy {
 public:
     GpuPolicy() {

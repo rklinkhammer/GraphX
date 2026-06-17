@@ -58,10 +58,6 @@ namespace graph::datasources {
  * @class IDataInjectionSource
  * @brief IDataInjectionSource class.
  */
-/**
- * @class IDataInjectionSource
- * @brief I data injection source implementation for GraphX.
- */
 class IDataInjectionSource {
 public:
     /**

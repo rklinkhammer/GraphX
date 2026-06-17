@@ -142,10 +142,6 @@ struct QueueMetrics {
  * @class ActiveQueue
  * @brief Thread-safe queue with notification, cancellation, and metrics support.
  */
-/**
- * @class ActiveQueue
- * @brief Active queue implementation for GraphX.
- */
 template<class Element> class ActiveQueue {
 
 public:
@@ -223,11 +219,6 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -324,11 +315,6 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -401,11 +387,6 @@ public:
      * @param comparator Function for comparison, or nullptr to disable sorted insertion
      */
     void SetComparator(std::function<bool(const Element&, const Element&)> comparator) {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         comparator_ = comparator;
     }
@@ -423,11 +404,6 @@ public:
      *         <em>false</em> if there is nothing left to dequeue.
      */
     [[nodiscard]] bool DequeueNonBlocking(Element& element) {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) {
             if (metrics_enabled_.load(std::memory_order_acquire)) {
@@ -472,11 +448,6 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         auto wait_start = metrics_enabled_.load(std::memory_order_acquire)
@@ -525,11 +496,6 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -600,11 +566,6 @@ public:
      */
     void Disable() noexcept {
         {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(mutex_);
             exit_ = true;
         }
@@ -620,11 +581,6 @@ public:
      */
     void Enable() noexcept {
         // set condition variable
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         exit_ = false;
     }
@@ -633,21 +589,11 @@ public:
     // Utility
     // -------------------------------------------------------------
     [[nodiscard]] std::size_t Size() const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         return deque_.size();
     }
 
     [[nodiscard]] std::size_t Capacity() const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         return capacity_;
     }
@@ -664,11 +610,6 @@ public:
     void SetCapacity(std::size_t new_capacity) noexcept {
         bool may_have_space = false;
         {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(mutex_);
             capacity_ = new_capacity;
             may_have_space = capacity_ == 0 || deque_.size() < capacity_;
@@ -690,11 +631,6 @@ public:
      * @return true if the setting was changed, false if queue contains data
      */
     [[nodiscard]] bool SetBlockOnFull(bool block_on_full) {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         // Cannot change blocking behavior if there's data in the queue
@@ -712,31 +648,16 @@ public:
      * @return true if queue blocks when full, false if it drops elements
      */
     [[nodiscard]] bool GetBlockOnFull() const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         return block_on_full_;
     }
 
     [[nodiscard]] bool Empty() const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         return deque_.empty();
     }
 
     [[nodiscard]] bool Enabled() const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         return !exit_;
     }
@@ -745,11 +666,6 @@ public:
     void Clear() noexcept {
         bool notify_enqueuers = false;
         {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(mutex_);
             notify_enqueuers = capacity_ > 0 && !deque_.empty();
             deque_.clear();
@@ -775,11 +691,6 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -846,11 +757,6 @@ public:
      * @brief Remove element from the back of the queue (non-blocking)
      */
     [[nodiscard]] bool PopBack(Element& element) {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) {
             if (metrics_enabled_.load(std::memory_order_acquire)) {
@@ -879,11 +785,6 @@ public:
      * @brief Access front element without removing (non-blocking)
      */
     [[nodiscard]] bool Front(Element& element) const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) return false;
 
@@ -895,11 +796,6 @@ public:
      * @brief Access back element without removing (non-blocking)
      */
     [[nodiscard]] bool Back(Element& element) const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) return false;
 
@@ -911,11 +807,6 @@ public:
      * @brief Access element at index (non-blocking, bounds-checked)
      */
     [[nodiscard]] bool At(std::size_t index, Element& element) const {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::unique_lock<std::mutex> lock(mutex_);
         if (index >= deque_.size()) return false;
 

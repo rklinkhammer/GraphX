@@ -365,10 +365,6 @@ namespace graph
  * @class SourceNode
  * @brief SourceNode class.
  */
-/**
- * @class SourceNode
- * @brief Source node implementation for GraphX.
- */
     class SourceNode : public SourceNodeBase<typename MakePorts<TypeList<Outputs...>>::type>
     {
     public:
@@ -621,10 +617,6 @@ namespace graph
 /**
  * @class SinkNode
  * @brief SinkNode class.
- */
-/**
- * @class SinkNode
- * @brief Sink node implementation for GraphX.
  */
     class SinkNode : public SinkNodeBase<typename MakePorts<TypeList<Inputs...>>::type>
     {
@@ -1016,10 +1008,6 @@ namespace graph
  * @class InteriorNode
  * @brief InteriorNode class.
  */
-/**
- * @class InteriorNode
- * @brief Interior node implementation for GraphX.
- */
     class InteriorNode
         : public InteriorNodeBase<typename MakePorts<InputList>::type, typename MakePorts<OutputList>::type>
     {
@@ -1066,10 +1054,6 @@ namespace graph
 /**
  * @class Edge
  * @brief Edge class.
- */
-/**
- * @class Edge
- * @brief Edge implementation for GraphX.
  */
     class Edge
     {
@@ -1168,11 +1152,6 @@ namespace graph
             if (!thread_.joinable())
                 return true;
 
-/**
- * @brief Lock.
- * @param mtx_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock lock(mtx_);
             if (!cv_.wait_for(lock, timeout_ms, [&] { return stop_requested_.load(std::memory_order_acquire); }))
             {
@@ -1320,10 +1299,6 @@ namespace graph
 /**
  * @class MergeNodeBase
  * @brief MergeNodeBase class.
- */
-/**
- * @class MergeNodeBase
- * @brief Merge node base implementation for GraphX.
  */
     class MergeNodeBase
         : public IMergeFn<CommonInput, OutputT>,
@@ -1547,11 +1522,6 @@ namespace graph
             // Wait for merge thread with timeout
             if (thread_.joinable()) {
                 // Wait with timeout using cv
-/**
- * @brief Lock.
- * @param mtx_ Parameter for lock.
- * @return Result of the operation.
- */
                 std::unique_lock<std::mutex> lock(mtx_);
                 if (!cv_.wait_for(lock, half, [this] { return !thread_.joinable(); })) {
                     LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
@@ -1648,10 +1618,6 @@ namespace graph
 /**
  * @class MergeNode
  * @brief MergeNode class.
- */
-/**
- * @class MergeNode
- * @brief Merge node implementation for GraphX.
  */
     class MergeNode : public MergeNodeBase<N, InputType, OutputT>, public NamedType<Derived> {
     public:

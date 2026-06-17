@@ -64,10 +64,6 @@ static auto data_injection_logger_ = log4cxx::Logger::getLogger("app.policies.Da
  *
  * @see IExecutionPolicy, IDataInjectionSource
  */
-/**
- * @class DataInjectionPolicy
- * @brief Data injection policy implementation for GraphX.
- */
 class DataInjectionPolicy : public graph::IExecutionPolicy {
 public:
     /**

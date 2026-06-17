@@ -84,10 +84,6 @@ namespace graph {
  *
  * Thread Safety: Not thread-safe. Each thread should use its own builder instance.
  */
-/**
- * @class GraphExecutorBuilder
- * @brief Graph executor builder implementation for GraphX.
- */
 class GraphExecutorBuilder {
 public:
     /**

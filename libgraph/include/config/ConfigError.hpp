@@ -44,10 +44,6 @@ namespace graph {
  * @class ConfigError
  * @brief ConfigError class.
  */
-/**
- * @class ConfigError
- * @brief Config error implementation for GraphX.
- */
 class ConfigError : public std::runtime_error {
 public:
     /// Constructor from std::string

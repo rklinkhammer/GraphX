@@ -28,10 +28,6 @@ namespace graph::gpu::cuda::nodes {
  * @class HostIngressPinnedSourceNode
  * @brief HostIngressPinnedSourceNode class.
  */
-/**
- * @class HostIngressPinnedSourceNode
- * @brief Host ingress pinned source node implementation for GraphX.
- */
 class HostIngressPinnedSourceNode
     : public graph::NamedSourceNode<HostIngressPinnedSourceNode, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {

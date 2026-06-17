@@ -89,10 +89,6 @@ namespace policies
      *
      * @see IExecutionPolicy, Dashboard, MetricsCapability, CommandRegistry
      */
-/**
- * @class DashboardPolicy
- * @brief Dashboard policy implementation for GraphX.
- */
     class DashboardPolicy : public graph::IExecutionPolicy
     {
     public:

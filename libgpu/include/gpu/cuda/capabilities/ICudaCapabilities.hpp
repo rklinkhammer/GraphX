@@ -21,10 +21,6 @@ namespace graph::gpu::cuda::capabilities {
  * @class ICudaContextCapability
  * @brief ICudaContextCapability class.
  */
-/**
- * @class ICudaContextCapability
- * @brief I cuda context capability implementation for GraphX.
- */
 class ICudaContextCapability {
 public:
     virtual ~ICudaContextCapability() = default;
@@ -68,10 +64,6 @@ public:
  * @class ICudaMemoryPoolCapability
  * @brief ICudaMemoryPoolCapability class.
  */
-/**
- * @class ICudaMemoryPoolCapability
- * @brief I cuda memory pool capability implementation for GraphX.
- */
 class ICudaMemoryPoolCapability {
 public:
     virtual ~ICudaMemoryPoolCapability() = default;
@@ -91,10 +83,6 @@ public:
 /**
  * @class ICudaTransferCapability
  * @brief ICudaTransferCapability class.
- */
-/**
- * @class ICudaTransferCapability
- * @brief I cuda transfer capability implementation for GraphX.
  */
 class ICudaTransferCapability {
 public:
@@ -120,10 +108,6 @@ public:
  * @class ICudaKernelCapability
  * @brief ICudaKernelCapability class.
  */
-/**
- * @class ICudaKernelCapability
- * @brief I cuda kernel capability implementation for GraphX.
- */
 class ICudaKernelCapability {
 public:
     virtual ~ICudaKernelCapability() = default;
@@ -139,10 +123,6 @@ public:
 /**
  * @class ICudaTelemetryCapability
  * @brief ICudaTelemetryCapability class.
- */
-/**
- * @class ICudaTelemetryCapability
- * @brief I cuda telemetry capability implementation for GraphX.
  */
 class ICudaTelemetryCapability {
 public:
@@ -162,10 +142,6 @@ public:
 /**
  * @class ICudaCollectiveCapability
  * @brief ICudaCollectiveCapability class.
- */
-/**
- * @class ICudaCollectiveCapability
- * @brief I cuda collective capability implementation for GraphX.
  */
 class ICudaCollectiveCapability {
 public:

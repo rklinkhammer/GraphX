@@ -37,10 +37,6 @@ namespace graph::gpu::metal::nodes {
  * @class DeviceTransformNodeMetal
  * @brief DeviceTransformNodeMetal class.
  */
-/**
- * @class DeviceTransformNodeMetal
- * @brief Device transform node metal implementation for GraphX.
- */
 class DeviceTransformNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

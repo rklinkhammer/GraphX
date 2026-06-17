@@ -46,10 +46,6 @@ namespace graph {
  * @class CompletionAggregatorNode
  * @brief CompletionAggregatorNode class.
  */
-/**
- * @class CompletionAggregatorNode
- * @brief Completion aggregator node implementation for GraphX.
- */
 class CompletionAggregatorNode : public NamedSinkNode<
     CompletionAggregatorNode,
     graph::message::CompletionSignal, 
@@ -72,11 +68,6 @@ public:
     ~CompletionAggregatorNode() override = default;
 
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 0>) override  {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[0] = msg;
         received_completions_++;
@@ -84,11 +75,6 @@ public:
     }
 
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 1>) override  {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[1] = msg;
         received_completions_++;
@@ -96,11 +82,6 @@ public:
     }
    
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 2>) override  {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[2] = msg;
         received_completions_++;
@@ -108,11 +89,6 @@ public:
     }
    
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 3>) override  {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[3] = msg;
         received_completions_++;
@@ -120,11 +96,6 @@ public:
     }
     
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 4>) override  {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[4] = msg;
         received_completions_++;
@@ -186,11 +157,6 @@ public:
     void Stop() override
     {
         {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::lock_guard<std::mutex> lock(state_mutex_);
             LOG4CXX_TRACE(
                 completion_logger_,
@@ -227,11 +193,6 @@ public:
                 "SetExpectedSensors: count must be > 0 (got 0, callback would trigger immediately)");
             return;
         }
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         expected_sensor_count_ = count;
         LOG4CXX_TRACE(completion_logger_, "Expected sensors set to " << count);

@@ -87,10 +87,6 @@ namespace graph {
  * then creates the final GraphManager with all connections wired.
  */
 template <typename NodeProviderType = void>
-/**
- * @class FluentGraphBuilder
- * @brief Fluent graph builder implementation for GraphX.
- */
 class FluentGraphBuilder {
 public:
     /**

@@ -48,10 +48,6 @@ namespace graph {
  * @class NodeCallback
  * @brief NodeCallback class.
  */
-/**
- * @class NodeCallback
- * @brief Node callback implementation for GraphX.
- */
  class NodeCallback {
 public:
     virtual ~NodeCallback() = default;

@@ -25,10 +25,6 @@ namespace graph::gpu::cuda::nodes {
  * @class HostEgressSinkNode
  * @brief HostEgressSinkNode class.
  */
-/**
- * @class HostEgressSinkNode
- * @brief Host egress sink node implementation for GraphX.
- */
 class HostEgressSinkNode
     : public graph::NamedSinkNode<HostEgressSinkNode, accel::HostPinnedBufferView>,
       public graph::CompletionCallbackProvider {

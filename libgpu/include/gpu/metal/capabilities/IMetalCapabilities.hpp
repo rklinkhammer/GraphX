@@ -25,10 +25,6 @@ namespace graph::gpu::metal::capabilities {
  * @class IMetalContextCapability
  * @brief IMetalContextCapability class.
  */
-/**
- * @class IMetalContextCapability
- * @brief I metal context capability implementation for GraphX.
- */
 class IMetalContextCapability {
 public:
     virtual ~IMetalContextCapability() = default;
@@ -85,10 +81,6 @@ public:
  * @class IMetalSharedQueueCapability
  * @brief IMetalSharedQueueCapability class.
  */
-/**
- * @class IMetalSharedQueueCapability
- * @brief I metal shared queue capability implementation for GraphX.
- */
 class IMetalSharedQueueCapability {
 public:
     virtual ~IMetalSharedQueueCapability() = default;
@@ -110,11 +102,6 @@ public:
         : context_(std::move(context)) {}
 
     ~MetalSharedQueueCapability() override {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::scoped_lock lock(mutex_);
         if (queue_id_ != 0 && context_ != nullptr) {
             context_->DestroyCommandQueue(queue_id_);
@@ -122,11 +109,6 @@ public:
     }
 
     std::uint64_t GetOrCreateQueueId() override {
-/**
- * @brief Lock.
- * @param mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::scoped_lock lock(mutex_);
         if (queue_id_ != 0) {
             return queue_id_;
@@ -147,10 +129,6 @@ private:
 /**
  * @class IMetalMemoryPoolCapability
  * @brief IMetalMemoryPoolCapability class.
- */
-/**
- * @class IMetalMemoryPoolCapability
- * @brief I metal memory pool capability implementation for GraphX.
  */
 class IMetalMemoryPoolCapability {
 public:
@@ -185,10 +163,6 @@ public:
 /**
  * @class IMetalTransferCapability
  * @brief IMetalTransferCapability class.
- */
-/**
- * @class IMetalTransferCapability
- * @brief I metal transfer capability implementation for GraphX.
  */
 class IMetalTransferCapability {
 public:
@@ -253,10 +227,6 @@ struct MetalKernelDescriptor {
  * @class IMetalKernelCapability
  * @brief IMetalKernelCapability class.
  */
-/**
- * @class IMetalKernelCapability
- * @brief I metal kernel capability implementation for GraphX.
- */
 class IMetalKernelCapability {
 public:
     virtual ~IMetalKernelCapability() = default;
@@ -282,10 +252,6 @@ public:
  * @class IMetalKernelDescriptorCapability
  * @brief IMetalKernelDescriptorCapability class.
  */
-/**
- * @class IMetalKernelDescriptorCapability
- * @brief I metal kernel descriptor capability implementation for GraphX.
- */
 class IMetalKernelDescriptorCapability {
 public:
     virtual ~IMetalKernelDescriptorCapability() = default;
@@ -301,10 +267,6 @@ public:
 /**
  * @class IMetalTelemetryCapability
  * @brief IMetalTelemetryCapability class.
- */
-/**
- * @class IMetalTelemetryCapability
- * @brief I metal telemetry capability implementation for GraphX.
  */
 class IMetalTelemetryCapability {
 public:
@@ -338,10 +300,6 @@ public:
 /**
  * @class IMetalCollectiveCapability
  * @brief IMetalCollectiveCapability class.
- */
-/**
- * @class IMetalCollectiveCapability
- * @brief I metal collective capability implementation for GraphX.
  */
 class IMetalCollectiveCapability {
 public:

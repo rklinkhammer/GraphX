@@ -72,10 +72,6 @@ static auto csv_injection_logger_ = log4cxx::Logger::getLogger("app.policies.CSV
  *
  * @see DataInjectionPolicy, IDataInjectionSource
  */
-/**
- * @class CSVInjectionPolicy
- * @brief Csv injection policy implementation for GraphX.
- */
 class CSVInjectionPolicy : public graph::IExecutionPolicy {
 public:
     /**

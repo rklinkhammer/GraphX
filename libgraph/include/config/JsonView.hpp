@@ -60,10 +60,6 @@ namespace graph {
  * @class JsonView
  * @brief JsonView class.
  */
-/**
- * @class JsonView
- * @brief Json view implementation for GraphX.
- */
 class JsonView {
 public:
     /**

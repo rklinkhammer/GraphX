@@ -76,10 +76,6 @@ static auto command_logger = log4cxx::Logger::getLogger("app.policies.CommandPol
  *
  * @see IExecutionPolicy, GraphExecutor
  */
-/**
- * @class CommandPolicy
- * @brief Command policy implementation for GraphX.
- */
 class CommandPolicy : public graph::IExecutionPolicy {
 public:
     /**

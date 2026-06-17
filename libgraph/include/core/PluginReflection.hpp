@@ -230,10 +230,6 @@ consteval PluginMetadata GetPluginMetadata();
  * @endcode
  */
 template<typename Plugin>
-/**
- * @class PluginReflectionWrapper
- * @brief Plugin reflection wrapper implementation for GraphX.
- */
 class PluginReflectionWrapper {
 public:
     /**
@@ -395,10 +391,6 @@ private:
  *       // Process plugins with this capability
  *   }
  * @endcode
- */
-/**
- * @class PluginRegistry
- * @brief Plugin registry implementation for GraphX.
  */
 class PluginRegistry {
 public:

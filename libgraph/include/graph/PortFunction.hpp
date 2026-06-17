@@ -100,10 +100,6 @@ namespace graph {
  * @class PortFunction
  * @brief PortFunction class.
  */
-/**
- * @class PortFunction
- * @brief Port function implementation for GraphX.
- */
     class PortFunction : public IPortFunction {
     public:
         // ====================================================================
@@ -200,11 +196,6 @@ namespace graph {
             }
 
             // Use condition variable with timeout
-/**
- * @brief Lock.
- * @param mtx_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(mtx_);
             bool completed = cv_.wait_for(lock, timeout_ms, [this] {
                 return IsStopRequested();

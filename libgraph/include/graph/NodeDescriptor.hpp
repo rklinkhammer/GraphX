@@ -67,10 +67,6 @@ struct RuntimeNodeDescriptorRequest {
  * @class INodeDescriptorProvider
  * @brief INodeDescriptorProvider class.
  */
-/**
- * @class INodeDescriptorProvider
- * @brief I node descriptor provider implementation for GraphX.
- */
 class INodeDescriptorProvider {
 public:
     virtual ~INodeDescriptorProvider() = default;

@@ -51,10 +51,6 @@ namespace capabilities {
  * @class GraphCapability
  * @brief GraphCapability class.
  */
-/**
- * @class GraphCapability
- * @brief Graph capability implementation for GraphX.
- */
 class GraphCapability {
 public:
     virtual ~GraphCapability() = default;

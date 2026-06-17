@@ -47,10 +47,6 @@ namespace graph {
  *   pool->ReleaseBuffer(buffer);
  * @endcode
  */
-/**
- * @class MessagePoolRegistry
- * @brief Message pool registry implementation for GraphX.
- */
 class MessagePoolRegistry {
 public:
     /**
@@ -154,10 +150,6 @@ private:
  * and runtime helpers for buffer allocation/deallocation with pool management.
  */
 template <size_t SSO_THRESHOLD = 32>
-/**
- * @class PooledMessageHelper
- * @brief Pooled message helper implementation for GraphX.
- */
 class PooledMessageHelper {
 public:
     /**
@@ -251,10 +243,6 @@ struct PooledMessageConfig {
  *
  * Provides observability into pooling behavior and hit rates.
  * Thread-safe: uses atomic reads for statistics counters.
- */
-/**
- * @class PooledMessageStats
- * @brief Pooled message stats implementation for GraphX.
  */
 class PooledMessageStats {
 public:

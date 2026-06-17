@@ -54,10 +54,6 @@ namespace graph {
  * @class ICommandProcessor
  * @brief ICommandProcessor class.
  */
-/**
- * @class ICommandProcessor
- * @brief I command processor implementation for GraphX.
- */
 class ICommandProcessor {
 public:
     /**

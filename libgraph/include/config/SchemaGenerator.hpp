@@ -454,10 +454,6 @@ inline GeneratedSchema GenerateSchemaFromType() {
  * @endcode
  */
 template<typename ConfigType>
-/**
- * @class SchemaValidator
- * @brief Schema validator implementation for GraphX.
- */
 class SchemaValidator {
     static_assert(JsonFieldDescriptorProvider<ConfigType>,
                   "ConfigType must expose a sized range of JsonField descriptors via Fields()");

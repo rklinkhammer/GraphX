@@ -41,10 +41,6 @@ struct DataInjectionNodeConfig {
  * @class DataInjectionCapability
  * @brief DataInjectionCapability class.
  */
-/**
- * @class DataInjectionCapability
- * @brief Data injection capability implementation for GraphX.
- */
 class DataInjectionCapability {
 public:
     DataInjectionCapability() = default;    

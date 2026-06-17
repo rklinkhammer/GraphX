@@ -29,10 +29,6 @@ namespace graph::gpu::metal::nodes {
  * @class LeaseReleaseNodeMetal
  * @brief LeaseReleaseNodeMetal class.
  */
-/**
- * @class LeaseReleaseNodeMetal
- * @brief Lease release node metal implementation for GraphX.
- */
 class LeaseReleaseNodeMetal
     : public graph::NamedSinkNode<LeaseReleaseNodeMetal, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

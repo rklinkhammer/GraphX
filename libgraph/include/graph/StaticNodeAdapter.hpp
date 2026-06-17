@@ -75,10 +75,6 @@ namespace graph::config {
  * 
  * @since Phase 2 (Unified Factory Implementation)
  */
-/**
- * @class StaticNodeAdapter
- * @brief Static node adapter implementation for GraphX.
- */
 class StaticNodeAdapter {
 public:
     /**
@@ -94,10 +90,6 @@ public:
      * - Uses lambda functions to create closures over the INode
      * - Handles the C interface (void* handle, C-style function pointers)
      */
-/**
- * @class StaticNodeInstance
- * @brief Static node instance implementation for GraphX.
- */
     class StaticNodeInstance {
     public:
         /**

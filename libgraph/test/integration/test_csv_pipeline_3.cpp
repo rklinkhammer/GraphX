@@ -30,10 +30,6 @@ namespace fs = std::filesystem;
  * - Performance and scalability
  * - Backward compatibility verification
  */
-/**
- * @class CSVPipeline3Test
- * @brief Csv pipeline 3 test implementation for GraphX.
- */
 class CSVPipeline3Test : public ::testing::Test {
 protected:
 /**

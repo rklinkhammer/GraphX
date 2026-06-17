@@ -81,10 +81,6 @@ namespace graph {
  *
  * @see CapabilityBus, MetricsCapability, GraphExecutor
  */
-/**
- * @class DefaultCapabilityBus
- * @brief Default capability bus implementation for GraphX.
- */
 class DefaultCapabilityBus : public CapabilityBus {
 public:
     /**

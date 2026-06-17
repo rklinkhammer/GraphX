@@ -68,10 +68,6 @@ struct AdaptiveCapacityConfig {
  *
  * Thread-safe: All operations protected by mutexes.
  */
-/**
- * @class AdaptiveCapacityMonitor
- * @brief Adaptive capacity monitor implementation for GraphX.
- */
 class AdaptiveCapacityMonitor {
 public:
     /**

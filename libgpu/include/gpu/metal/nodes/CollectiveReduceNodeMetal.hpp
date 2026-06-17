@@ -28,10 +28,6 @@ namespace graph::gpu::metal::nodes {
  * @class CollectiveReduceNodeMetal
  * @brief CollectiveReduceNodeMetal class.
  */
-/**
- * @class CollectiveReduceNodeMetal
- * @brief Collective reduce node metal implementation for GraphX.
- */
 class CollectiveReduceNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

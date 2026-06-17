@@ -97,10 +97,6 @@ template<typename SampleT = float, size_t N = 256>
  * @class FFTNode
  * @brief FFTNode class.
  */
-/**
- * @class FFTNode
- * @brief Fft node implementation for GraphX.
- */
 class FFTNode : public graph::NamedInteriorNode<
                     graph::TypeList<graph::message::Message>,
                     graph::TypeList<MagnitudePacket<SampleT, N>>,

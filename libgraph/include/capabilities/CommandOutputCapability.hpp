@@ -86,10 +86,6 @@ namespace capabilities {
  * @class CommandOutputCapability
  * @brief CommandOutputCapability class.
  */
-/**
- * @class CommandOutputCapability
- * @brief Command output capability implementation for GraphX.
- */
 class CommandOutputCapability {
 public:
     /**
@@ -256,11 +252,6 @@ inline CommandOutputCapability::CommandOutputCapability(
 
 inline void CommandOutputCapability::WriteMessage(
     const std::string& message) const {
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteMessage(message);
@@ -269,11 +260,6 @@ inline void CommandOutputCapability::WriteMessage(
 
 inline void CommandOutputCapability::WriteError(
     const std::string& error) const {
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteError(error);
@@ -282,11 +268,6 @@ inline void CommandOutputCapability::WriteError(
 
 inline void CommandOutputCapability::WriteWarning(
     const std::string& warning) const {
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteWarning(warning);
@@ -295,11 +276,6 @@ inline void CommandOutputCapability::WriteWarning(
 
 inline void CommandOutputCapability::WriteHelp(
     const std::vector<CommandInfo>& commands) const {
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteHelp(commands);
@@ -307,11 +283,6 @@ inline void CommandOutputCapability::WriteHelp(
 }
 
 inline std::shared_ptr<ICommandOutput> CommandOutputCapability::GetOutput() const {
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     return output_;
 }
@@ -322,11 +293,6 @@ inline void CommandOutputCapability::SetOutput(
         throw std::invalid_argument(
             "CommandOutputCapability::SetOutput: output cannot be null");
     }
-/**
- * @brief Lock.
- * @param output_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(output_mutex_);
     output_ = new_output;
 }

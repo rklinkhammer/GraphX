@@ -73,10 +73,6 @@ namespace capabilities {
  * @class ICommandOutput
  * @brief ICommandOutput class.
  */
-/**
- * @class ICommandOutput
- * @brief I command output implementation for GraphX.
- */
 class ICommandOutput {
 public:
     /**

@@ -25,10 +25,6 @@ namespace graph::gpu::sycl::nodes {
  * @class HostEgressSinkNodeSycl
  * @brief HostEgressSinkNodeSycl class.
  */
-/**
- * @class HostEgressSinkNodeSycl
- * @brief Host egress sink node sycl implementation for GraphX.
- */
 class HostEgressSinkNodeSycl
     : public graph::NamedSinkNode<HostEgressSinkNodeSycl, accel::HostPinnedBufferView>,
       public graph::CompletionCallbackProvider {

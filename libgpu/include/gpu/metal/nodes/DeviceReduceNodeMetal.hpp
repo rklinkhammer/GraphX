@@ -36,10 +36,6 @@ namespace graph::gpu::metal::nodes {
  * @class DeviceReduceNodeMetal
  * @brief DeviceReduceNodeMetal class.
  */
-/**
- * @class DeviceReduceNodeMetal
- * @brief Device reduce node metal implementation for GraphX.
- */
 class DeviceReduceNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

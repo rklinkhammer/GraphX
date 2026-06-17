@@ -35,10 +35,6 @@ struct NodeResolutionDiagnostic {
  * @class ResolvingNodeProvider
  * @brief ResolvingNodeProvider class.
  */
-/**
- * @class ResolvingNodeProvider
- * @brief Resolving node provider implementation for GraphX.
- */
 class ResolvingNodeProvider final : public INodeProvider {
 public:
     using AvailabilityFn = std::function<bool(const std::string&)>;

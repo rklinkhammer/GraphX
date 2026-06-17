@@ -21,10 +21,6 @@ namespace graph::gpu::sycl::capabilities {
  * @class ISyclContextCapability
  * @brief ISyclContextCapability class.
  */
-/**
- * @class ISyclContextCapability
- * @brief I sycl context capability implementation for GraphX.
- */
 class ISyclContextCapability {
 public:
     virtual ~ISyclContextCapability() = default;
@@ -68,10 +64,6 @@ public:
  * @class ISyclMemoryPoolCapability
  * @brief ISyclMemoryPoolCapability class.
  */
-/**
- * @class ISyclMemoryPoolCapability
- * @brief I sycl memory pool capability implementation for GraphX.
- */
 class ISyclMemoryPoolCapability {
 public:
     virtual ~ISyclMemoryPoolCapability() = default;
@@ -93,10 +85,6 @@ public:
 /**
  * @class ISyclTransferCapability
  * @brief ISyclTransferCapability class.
- */
-/**
- * @class ISyclTransferCapability
- * @brief I sycl transfer capability implementation for GraphX.
  */
 class ISyclTransferCapability {
 public:
@@ -122,10 +110,6 @@ public:
  * @class ISyclKernelCapability
  * @brief ISyclKernelCapability class.
  */
-/**
- * @class ISyclKernelCapability
- * @brief I sycl kernel capability implementation for GraphX.
- */
 class ISyclKernelCapability {
 public:
     virtual ~ISyclKernelCapability() = default;
@@ -141,10 +125,6 @@ public:
 /**
  * @class ISyclTelemetryCapability
  * @brief ISyclTelemetryCapability class.
- */
-/**
- * @class ISyclTelemetryCapability
- * @brief I sycl telemetry capability implementation for GraphX.
  */
 class ISyclTelemetryCapability {
 public:
@@ -164,10 +144,6 @@ public:
 /**
  * @class ISyclCollectiveCapability
  * @brief ISyclCollectiveCapability class.
- */
-/**
- * @class ISyclCollectiveCapability
- * @brief I sycl collective capability implementation for GraphX.
  */
 class ISyclCollectiveCapability {
 public:

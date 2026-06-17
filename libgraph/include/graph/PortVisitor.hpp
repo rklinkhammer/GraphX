@@ -69,10 +69,6 @@ namespace graph
  * @class PortIterator
  * @brief PortIterator class.
  */
-/**
- * @class PortIterator
- * @brief Port iterator implementation for GraphX.
- */
     class PortIterator
     {
     private:

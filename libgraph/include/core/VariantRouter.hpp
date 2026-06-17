@@ -113,10 +113,6 @@ template<typename Variant>
  * @class VariantRouter
  * @brief VariantRouter class.
  */
-/**
- * @class VariantRouter
- * @brief Variant router implementation for GraphX.
- */
 class VariantRouter {
 public:
     // ====================================================================

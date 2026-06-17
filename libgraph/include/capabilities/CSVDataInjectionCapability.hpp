@@ -23,10 +23,6 @@ struct CSVDataInjectionCommand {
  * @class CSVDataInjectionCapability
  * @brief CSVDataInjectionCapability class.
  */
-/**
- * @class CSVDataInjectionCapability
- * @brief Csv data injection capability implementation for GraphX.
- */
 class CSVDataInjectionCapability {
 public:
     CSVDataInjectionCapability() = default;

@@ -28,10 +28,6 @@ namespace graph::gpu::metal::nodes {
  * @class PeerCopyNodeMetal
  * @brief PeerCopyNodeMetal class.
  */
-/**
- * @class PeerCopyNodeMetal
- * @brief Peer copy node metal implementation for GraphX.
- */
 class PeerCopyNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

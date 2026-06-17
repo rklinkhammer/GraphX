@@ -52,10 +52,6 @@ namespace graph::config {
  * Stateless parser that converts JSON text into GraphConfig structures
  * with comprehensive validation.
  */
-/**
- * @class GraphConfigParser
- * @brief Graph config parser implementation for GraphX.
- */
 class GraphConfigParser {
 public:
     /**

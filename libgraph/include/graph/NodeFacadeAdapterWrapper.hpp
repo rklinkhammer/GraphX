@@ -58,10 +58,6 @@ namespace graph {
  * 
  * @note NodeFacadeAdapter has move semantics only, so this wrapper must also use move semantics
  */
-/**
- * @class NodeFacadeAdapterWrapper
- * @brief Node facade adapter wrapper implementation for GraphX.
- */
 class NodeFacadeAdapterWrapper : public INode {
 private:
     std::shared_ptr<NodeFacadeAdapter> adapter_;

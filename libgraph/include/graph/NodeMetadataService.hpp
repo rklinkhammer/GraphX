@@ -18,10 +18,6 @@ namespace graph {
  * @class INodeMetadataService
  * @brief INodeMetadataService class.
  */
-/**
- * @class INodeMetadataService
- * @brief I node metadata service implementation for GraphX.
- */
 class INodeMetadataService {
 public:
     virtual ~INodeMetadataService() = default;

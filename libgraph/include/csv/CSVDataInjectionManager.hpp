@@ -54,10 +54,6 @@ struct CSVNodeConfig {
  * @class CSVDataInjectionManager
  * @brief CSVDataInjectionManager class.
  */
-/**
- * @class CSVDataInjectionManager
- * @brief Csv data injection manager implementation for GraphX.
- */
 class CSVDataInjectionManager {
 public:
 

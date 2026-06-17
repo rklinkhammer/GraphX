@@ -215,10 +215,6 @@ template <typename Policy = DefaultMessagePolicy>
  * @class MessageStorage
  * @brief MessageStorage class.
  */
-/**
- * @class MessageStorage
- * @brief Message storage implementation for GraphX.
- */
 class MessageStorage {
 public:
     friend class Message;
@@ -471,10 +467,6 @@ private:
 /**
  * @class Message
  * @brief Message class.
- */
-/**
- * @class Message
- * @brief Message implementation for GraphX.
  */
 class Message {
 public:

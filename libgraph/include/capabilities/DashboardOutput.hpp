@@ -58,10 +58,6 @@ namespace capabilities {
  * @class DashboardOutput
  * @brief DashboardOutput class.
  */
-/**
- * @class DashboardOutput
- * @brief Dashboard output implementation for GraphX.
- */
 class DashboardOutput : public ICommandOutput {
 public:
     /**

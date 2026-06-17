@@ -63,10 +63,6 @@ struct NodeFacade;
  * @see PluginRegistry
  * @see PluginLoader
  */
-/**
- * @class RegisteredNodeProvider
- * @brief Registered node provider implementation for GraphX.
- */
 class RegisteredNodeProvider : public INodeProvider {
 private:
     static log4cxx::LoggerPtr logger_;

@@ -28,10 +28,6 @@ namespace graph::gpu::sycl::nodes {
  * @class H2DAsyncNodeSycl
  * @brief H2DAsyncNodeSycl class.
  */
-/**
- * @class H2DAsyncNodeSycl
- * @brief 2 d async node sycl implementation for GraphX.
- */
 class H2DAsyncNodeSycl
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::HostPinnedBufferView>,

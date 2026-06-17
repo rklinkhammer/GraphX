@@ -337,10 +337,6 @@ struct SemanticVersion {
  * @see RangesUtilities.hpp for helper functions
  * @note Non-copyable to prevent accidental duplication of plugin loading
  */
-/**
- * @class PluginInspector
- * @brief Plugin inspector implementation for GraphX.
- */
 class PluginInspector {
 public:
     /**

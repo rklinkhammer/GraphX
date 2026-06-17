@@ -32,10 +32,6 @@ namespace capabilities {
  * the Terminal UI's CommandRegistry. Different UI adapters
  * can queue commands and receive results through this interface.
  */
-/**
- * @class CommandCapability
- * @brief Command capability implementation for GraphX.
- */
 class CommandCapability {
 public:
     CommandCapability() = default;

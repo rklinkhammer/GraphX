@@ -28,10 +28,6 @@ namespace graph::gpu::cuda::nodes {
  * @class H2DAsyncNode
  * @brief H2DAsyncNode class.
  */
-/**
- * @class H2DAsyncNode
- * @brief 2 d async node implementation for GraphX.
- */
 class H2DAsyncNode
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::HostPinnedBufferView>,

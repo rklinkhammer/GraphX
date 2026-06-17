@@ -48,10 +48,6 @@ namespace app::metrics  {
  * @class IMetricsSubscriber
  * @brief IMetricsSubscriber class.
  */
-/**
- * @class IMetricsSubscriber
- * @brief I metrics subscriber implementation for GraphX.
- */
 class IMetricsSubscriber {
 public:
     /**

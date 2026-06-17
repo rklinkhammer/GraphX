@@ -140,10 +140,6 @@ namespace graph {
  * @class ICallbackProvider
  * @brief ICallbackProvider class.
  */
-/**
- * @class ICallbackProvider
- * @brief I callback provider implementation for GraphX.
- */
 class ICallbackProvider {
 public:
     virtual ~ICallbackProvider() = default;
@@ -193,10 +189,6 @@ template<typename DataType>
  * @class ISourceCallbackProvider
  * @brief ISourceCallbackProvider class.
  */
-/**
- * @class ISourceCallbackProvider
- * @brief I source callback provider implementation for GraphX.
- */
 class ISourceCallbackProvider : public ICallbackProvider {
 public:
     virtual ~ISourceCallbackProvider() = default;
@@ -228,10 +220,6 @@ template<typename DataType>
 /**
  * @class IProcessingCallbackProvider
  * @brief IProcessingCallbackProvider class.
- */
-/**
- * @class IProcessingCallbackProvider
- * @brief I processing callback provider implementation for GraphX.
  */
 class IProcessingCallbackProvider : public ICallbackProvider {
 public:
@@ -272,10 +260,6 @@ template<typename DataType>
 /**
  * @class ISinkCallbackProvider
  * @brief ISinkCallbackProvider class.
- */
-/**
- * @class ISinkCallbackProvider
- * @brief I sink callback provider implementation for GraphX.
  */
 class ISinkCallbackProvider : public ICallbackProvider {
 public:

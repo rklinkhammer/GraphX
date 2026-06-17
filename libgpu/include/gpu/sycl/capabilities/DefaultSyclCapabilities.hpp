@@ -37,10 +37,6 @@ struct SyclRuntimeState;
  * @class DefaultSyclContextCapability
  * @brief DefaultSyclContextCapability class.
  */
-/**
- * @class DefaultSyclContextCapability
- * @brief Default sycl context capability implementation for GraphX.
- */
 class DefaultSyclContextCapability final : public ISyclContextCapability {
 public:
     DefaultSyclContextCapability();
@@ -94,10 +90,6 @@ private:
  * @class DefaultSyclMemoryPoolCapability
  * @brief DefaultSyclMemoryPoolCapability class.
  */
-/**
- * @class DefaultSyclMemoryPoolCapability
- * @brief Default sycl memory pool capability implementation for GraphX.
- */
 class DefaultSyclMemoryPoolCapability final : public ISyclMemoryPoolCapability {
 public:
     DefaultSyclMemoryPoolCapability();
@@ -127,10 +119,6 @@ private:
 /**
  * @class DefaultSyclTransferCapability
  * @brief DefaultSyclTransferCapability class.
- */
-/**
- * @class DefaultSyclTransferCapability
- * @brief Default sycl transfer capability implementation for GraphX.
  */
 class DefaultSyclTransferCapability final : public ISyclTransferCapability {
 public:
@@ -163,10 +151,6 @@ private:
  * @class DefaultSyclKernelCapability
  * @brief DefaultSyclKernelCapability class.
  */
-/**
- * @class DefaultSyclKernelCapability
- * @brief Default sycl kernel capability implementation for GraphX.
- */
 class DefaultSyclKernelCapability final : public ISyclKernelCapability {
 public:
     bool RegisterKernel(std::uint64_t kernel_id,
@@ -183,10 +167,6 @@ private:
 /**
  * @class DefaultSyclTelemetryCapability
  * @brief DefaultSyclTelemetryCapability class.
- */
-/**
- * @class DefaultSyclTelemetryCapability
- * @brief Default sycl telemetry capability implementation for GraphX.
  */
 class DefaultSyclTelemetryCapability final : public ISyclTelemetryCapability {
 public:
@@ -213,10 +193,6 @@ private:
 /**
  * @class DefaultSyclCollectiveCapability
  * @brief DefaultSyclCollectiveCapability class.
- */
-/**
- * @class DefaultSyclCollectiveCapability
- * @brief Default sycl collective capability implementation for GraphX.
  */
 class DefaultSyclCollectiveCapability final : public ISyclCollectiveCapability {
 public:

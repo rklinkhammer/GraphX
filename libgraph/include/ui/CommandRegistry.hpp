@@ -135,10 +135,6 @@ struct CommandInfo {
  *   // Execute command
  *   auto result = registry->ExecuteCommand("my_command arg1 arg2");
  */
-/**
- * @class CommandRegistry
- * @brief Command registry implementation for GraphX.
- */
 class CommandRegistry {
 public:
     /**

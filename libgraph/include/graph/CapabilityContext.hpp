@@ -42,10 +42,6 @@ enum class CapabilityContextError {
  * @class CapabilityContext
  * @brief CapabilityContext class.
  */
-/**
- * @class CapabilityContext
- * @brief Capability context implementation for GraphX.
- */
 class CapabilityContext {
 public:
     explicit CapabilityContext(

@@ -133,10 +133,6 @@ namespace graph
  * @class IMergeFn
  * @brief IMergeFn class.
  */
-/**
- * @class IMergeFn
- * @brief I merge fn implementation for GraphX.
- */
     class IMergeFn
     {
     public:

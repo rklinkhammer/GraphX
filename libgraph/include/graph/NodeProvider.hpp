@@ -35,10 +35,6 @@ enum class NodeCreationError {
  * @class INodeProvider
  * @brief INodeProvider class.
  */
-/**
- * @class INodeProvider
- * @brief I node provider implementation for GraphX.
- */
 class INodeProvider {
 public:
     virtual ~INodeProvider() = default;

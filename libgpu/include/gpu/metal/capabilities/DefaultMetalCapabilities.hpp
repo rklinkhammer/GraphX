@@ -23,10 +23,6 @@ namespace graph::gpu::metal::capabilities {
  * @class DefaultMetalContextCapability
  * @brief DefaultMetalContextCapability class.
  */
-/**
- * @class DefaultMetalContextCapability
- * @brief Default metal context capability implementation for GraphX.
- */
 class DefaultMetalContextCapability final : public IMetalContextCapability {
 public:
 /**
@@ -89,10 +85,6 @@ private:
  * @class DefaultMetalMemoryPoolCapability
  * @brief DefaultMetalMemoryPoolCapability class.
  */
-/**
- * @class DefaultMetalMemoryPoolCapability
- * @brief Default metal memory pool capability implementation for GraphX.
- */
 class DefaultMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -128,10 +120,6 @@ private:
  * @class DefaultMetalTransferCapability
  * @brief DefaultMetalTransferCapability class.
  */
-/**
- * @class DefaultMetalTransferCapability
- * @brief Default metal transfer capability implementation for GraphX.
- */
 class DefaultMetalTransferCapability final : public IMetalTransferCapability {
 public:
     bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -157,10 +145,6 @@ private:
 /**
  * @class DefaultMetalKernelCapability
  * @brief DefaultMetalKernelCapability class.
- */
-/**
- * @class DefaultMetalKernelCapability
- * @brief Default metal kernel capability implementation for GraphX.
  */
 class DefaultMetalKernelCapability final : public IMetalKernelCapability,
                                            public IMetalKernelDescriptorCapability {
@@ -190,10 +174,6 @@ private:
 /**
  * @class DefaultMetalTelemetryCapability
  * @brief DefaultMetalTelemetryCapability class.
- */
-/**
- * @class DefaultMetalTelemetryCapability
- * @brief Default metal telemetry capability implementation for GraphX.
  */
 class DefaultMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
@@ -228,10 +208,6 @@ private:
 /**
  * @class DefaultMetalCollectiveCapability
  * @brief DefaultMetalCollectiveCapability class.
- */
-/**
- * @class DefaultMetalCollectiveCapability
- * @brief Default metal collective capability implementation for GraphX.
  */
 class DefaultMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:

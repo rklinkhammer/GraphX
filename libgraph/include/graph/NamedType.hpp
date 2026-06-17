@@ -52,10 +52,6 @@ namespace graph
  * @class NamedType
  * @brief NamedType class.
  */
-/**
- * @class NamedType
- * @brief Named type implementation for GraphX.
- */
     class NamedType {
     public:
         static const std::string& QualifiedTypeName() noexcept {

@@ -31,10 +31,6 @@ namespace graph::gpu::metal::nodes {
  * @class HostIngressPinnedSourceNodeMetal
  * @brief HostIngressPinnedSourceNodeMetal class.
  */
-/**
- * @class HostIngressPinnedSourceNodeMetal
- * @brief Host ingress pinned source node metal implementation for GraphX.
- */
 class HostIngressPinnedSourceNodeMetal
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeMetal, accel::HostPinnedBufferView>,
     public graph::IGpuCapabilityBinding,

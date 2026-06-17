@@ -70,10 +70,6 @@ namespace graph
  * @class INode
  * @brief INode class.
  */
-/**
- * @class INode
- * @brief I node implementation for GraphX.
- */
     class INode
     {
     public:
@@ -225,11 +221,6 @@ namespace graph
          */
         void RegisterOutputEdge(std::size_t port_id, std::size_t edge_idx)
         {
-/**
- * @brief Lock.
- * @param edge_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             output_edges_[port_id].push_back(edge_idx);
         }
@@ -252,11 +243,6 @@ namespace graph
          */
         void RegisterInputEdge(std::size_t port_id, std::size_t edge_idx)
         {
-/**
- * @brief Lock.
- * @param edge_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             input_edges_[port_id].push_back(edge_idx);
         }
@@ -280,11 +266,6 @@ namespace graph
          */
         std::vector<std::size_t> GetOutputEdges(std::size_t port_id)
         {
-/**
- * @brief Lock.
- * @param edge_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = output_edges_.find(port_id);
             return (it != output_edges_.end()) ? it->second : std::vector<std::size_t>();
@@ -309,11 +290,6 @@ namespace graph
          */
         std::vector<std::size_t> GetInputEdges(std::size_t port_id)
         {
-/**
- * @brief Lock.
- * @param edge_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = input_edges_.find(port_id);
             return (it != input_edges_.end()) ? it->second : std::vector<std::size_t>();

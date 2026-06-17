@@ -86,10 +86,6 @@ namespace dsp {
  * ```
  */
 template<typename SampleT = float, size_t N = 256>
-/**
- * @class SpectrumSinkNode
- * @brief Spectrum sink node implementation for GraphX.
- */
 class SpectrumSinkNode
     : public graph::NamedSinkNode<
         SpectrumSinkNode<SampleT, N>,

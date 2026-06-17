@@ -51,10 +51,6 @@ namespace graph
  * @class IFnBase
  * @brief IFnBase class.
  */
-/**
- * @class IFnBase
- * @brief I fn base implementation for GraphX.
- */
     class IFnBase 
     {
     public:
@@ -150,10 +146,6 @@ namespace graph
 /**
  * @class IFn
  * @brief IFn class.
- */
-/**
- * @class IFn
- * @brief I fn implementation for GraphX.
  */
     class IFn : public IFnBase<P>
     {

@@ -28,10 +28,6 @@ namespace capabilities {
  * - Enqueue log messages from business logic to UI
  * - Dequeue log messages from UI for display
  */
-/**
- * @class DashboardCapability
- * @brief Dashboard capability implementation for GraphX.
- */
 class DashboardCapability {
 public:
     DashboardCapability() = default;

@@ -839,10 +839,6 @@ template <typename NodeT>
  * @class NodeFacadeImpl
  * @brief NodeFacadeImpl class.
  */
-/**
- * @class NodeFacadeImpl
- * @brief Node facade impl implementation for GraphX.
- */
 class NodeFacadeImpl {
 public:
     /// Get thread metrics if node provides GetThreadMetrics()

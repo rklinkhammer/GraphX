@@ -85,10 +85,6 @@ namespace app {
  * context.provider = provider;
  * @endcode
  */
-/**
- * @class NodeProviderBootstrap
- * @brief Node provider bootstrap implementation for GraphX.
- */
 class NodeProviderBootstrap {
 public:
   enum class ProviderBootstrapError {

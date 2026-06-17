@@ -37,10 +37,6 @@ namespace graph {
  * @class CapabilityBus
  * @brief CapabilityBus class.
  */
-/**
- * @class CapabilityBus
- * @brief Capability bus implementation for GraphX.
- */
 class CapabilityBus {
 public:
     virtual ~CapabilityBus() = default;

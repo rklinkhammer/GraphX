@@ -63,10 +63,6 @@ namespace graph::config {
  *     nodes::FlightFSMNode, 0>()         // Dest node type and port
  * @endcode
  */
-/**
- * @class EdgeRegistration
- * @brief Edge registration implementation for GraphX.
- */
 class EdgeRegistration {
 public:
     /**

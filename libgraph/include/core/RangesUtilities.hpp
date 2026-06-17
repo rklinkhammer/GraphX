@@ -167,10 +167,6 @@ auto TransformTo(R&& range, F transform_fn) {
  * });
  * ```
  */
-/**
- * @class Container
- * @brief Container implementation for GraphX.
- */
 template<template<typename> class Container, std::ranges::input_range R, typename Pred>
 requires std::invocable<Pred, std::ranges::range_value_t<R>>
 auto FilterTo(R&& range, Pred filter_fn) {

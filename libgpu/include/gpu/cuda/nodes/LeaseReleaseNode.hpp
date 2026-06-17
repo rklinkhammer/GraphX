@@ -29,10 +29,6 @@ namespace graph::gpu::cuda::nodes {
  * @class LeaseReleaseNode
  * @brief LeaseReleaseNode class.
  */
-/**
- * @class LeaseReleaseNode
- * @brief Lease release node implementation for GraphX.
- */
 class LeaseReleaseNode
     : public graph::NamedSinkNode<LeaseReleaseNode, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

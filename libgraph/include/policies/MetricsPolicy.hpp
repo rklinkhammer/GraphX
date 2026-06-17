@@ -67,11 +67,6 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
      * @param event The metrics event to publish
      */
     bool PublishAsync(const app::metrics::MetricsEvent& event) noexcept override {
-/**
- * @brief Lock.
- * @param publish_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(publish_mutex_);
         if (on_publish_async_) {
             return on_publish_async_(event);
@@ -131,10 +126,6 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
  * ```
  *
  * @see IExecutionPolicy, MetricsCapability, MetricsEvent
- */
-/**
- * @class MetricsPolicy
- * @brief Metrics policy implementation for GraphX.
  */
 class MetricsPolicy : public graph::IExecutionPolicy {
 public:

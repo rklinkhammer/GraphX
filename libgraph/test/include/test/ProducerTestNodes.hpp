@@ -67,10 +67,6 @@ enum class NodeClassification {
  * Produces sequential integers from 0 to max-1, then becomes exhausted.
  * Useful for testing basic producer behavior with deterministic data.
  */
-/**
- * @class SimpleIntGenerator
- * @brief Simple int generator implementation for GraphX.
- */
 class SimpleIntGenerator : public graph::DataGeneratorBase<int> {
 private:
     int counter_;
@@ -104,10 +100,6 @@ public:
  * Produces sequential doubles from 0.0 to max-1.0, then becomes exhausted.
  * Useful for testing with floating-point data.
  */
-/**
- * @class SimpleDoubleGenerator
- * @brief Simple double generator implementation for GraphX.
- */
 class SimpleDoubleGenerator : public graph::DataGeneratorBase<double> {
 private:
     int counter_;
@@ -140,10 +132,6 @@ public:
  *
  * Produces random integers in range [min, max).
  * Useful for stress testing and random data scenarios.
- */
-/**
- * @class RandomIntGenerator
- * @brief Random int generator implementation for GraphX.
  */
 class RandomIntGenerator : public graph::DataGeneratorBase<int> {
 private:
@@ -197,10 +185,6 @@ public:
  * - Port 0: int values
  * - Port 1: CompletionSignal
  */
-/**
- * @class TestIntProducer
- * @brief Test int producer implementation for GraphX.
- */
 class TestIntProducer : public graph::DataProducerWithNotification<TestIntProducer, SimpleIntGenerator, int, int,
                                                                     graph::message::CompletionSignal, NodeClassification,
                                                                     NodeClassification::IntProducer> {
@@ -242,10 +226,6 @@ public:
  * Outputs:
  * - Port 0: double values
  * - Port 1: CompletionSignal
- */
-/**
- * @class TestDoubleProducer
- * @brief Test double producer implementation for GraphX.
  */
 class TestDoubleProducer
     : public graph::DataProducerWithNotification<TestDoubleProducer, SimpleDoubleGenerator, double, double,
@@ -291,10 +271,6 @@ public:
  * producer->Start();
  * EXPECT_TRUE(producer->HasErrorOccurred());
  * ```
- */
-/**
- * @class FailingProducerNode
- * @brief Failing producer node implementation for GraphX.
  */
 class FailingProducerNode : public graph::DataProducerWithNotification<FailingProducerNode, SimpleIntGenerator, int,
                                                                         int, graph::message::CompletionSignal,
@@ -363,21 +339,12 @@ private:
  * - Duplicate detection
  * - Timing information tracking
  */
-/**
- * @class TestIntSinkNode
- * @brief Test int sink node implementation for GraphX.
- */
 class TestIntSinkNode : public graph::NamedSinkNode<TestIntSinkNode, ::graph::message::Message> {
 public:
     TestIntSinkNode() = default;
     virtual ~TestIntSinkNode() = default;
 
     bool Consume(const ::graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         try {
             const int& value = msg.get<int>();
@@ -395,51 +362,26 @@ public:
 
     // Test helpers
     std::vector<int> GetReceivedValues() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_;
     }
 
     size_t GetReceivedCount() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_.size();
     }
 
     std::chrono::steady_clock::time_point GetFirstMessageTime() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return first_message_time_;
     }
 
     std::chrono::steady_clock::time_point GetLastMessageTime() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return last_message_time_;
     }
 
     bool HasDataLoss() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         for (size_t i = 1; i < received_values_.size(); ++i) {
             if (received_values_[i] != received_values_[i - 1] + 1) {
@@ -450,11 +392,6 @@ public:
     }
 
     bool HasDuplicates() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
 /**
  * @brief Unique values.
@@ -484,21 +421,12 @@ private:
  * - Timing information tracking
  * - Statistical analysis helpers
  */
-/**
- * @class TestDoubleSinkNode
- * @brief Test double sink node implementation for GraphX.
- */
 class TestDoubleSinkNode : public graph::NamedSinkNode<TestDoubleSinkNode, ::graph::message::Message> {
 public:
     TestDoubleSinkNode() = default;
     virtual ~TestDoubleSinkNode() = default;
 
     bool Consume(const ::graph::message::Message& msg, std::integral_constant<std::size_t, 0>) override {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         try {
             const double& value = msg.get<double>();
@@ -516,41 +444,21 @@ public:
 
     // Test helpers
     std::vector<double> GetReceivedValues() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_;
     }
 
     size_t GetReceivedCount() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_.size();
     }
 
     std::chrono::steady_clock::time_point GetFirstMessageTime() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return first_message_time_;
     }
 
     std::chrono::steady_clock::time_point GetLastMessageTime() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return last_message_time_;
     }
@@ -576,10 +484,6 @@ private:
  * - Provides completion callback support
  * - Stops after first signal (allows single-producer completion)
  */
-/**
- * @class CompletionNode
- * @brief Completion node implementation for GraphX.
- */
 class CompletionNode : public graph::NamedSinkNode<CompletionNode, graph::message::CompletionSignal>,
                        public graph::CompletionCallbackProvider {
 public:
@@ -590,11 +494,6 @@ public:
         std::function<bool()> completion_gate;
         std::chrono::milliseconds completion_gate_timeout;
         {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::lock_guard<std::mutex> lock(state_mutex_);
             completion_signals_[signal_count_] = msg;
             signal_count_++;
@@ -609,11 +508,6 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
 
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
             std::lock_guard<std::mutex> lock(state_mutex_);
             completion_gate_satisfied_ = completion_gate();
         }
@@ -629,42 +523,22 @@ public:
 
     // Test helpers
     size_t GetSignalCount() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_count_;
     }
 
     bool HasReceivedCompletion() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_count_ > 0;
     }
 
     std::chrono::steady_clock::time_point GetSignalTime() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_time_;
     }
 
     void SetCompletionGate(std::function<bool()> completion_gate,
                            std::chrono::milliseconds timeout = std::chrono::milliseconds(2000)) {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_gate_ = std::move(completion_gate);
         completion_gate_timeout_ = timeout;
@@ -672,11 +546,6 @@ public:
     }
 
     bool WasCompletionGateSatisfied() const {
-/**
- * @brief Lock.
- * @param state_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(state_mutex_);
         return completion_gate_satisfied_;
     }

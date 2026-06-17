@@ -32,10 +32,6 @@ namespace graph::gpu::metal::nodes {
  * @class DeviceShardNodeMetal
  * @brief DeviceShardNodeMetal class.
  */
-/**
- * @class DeviceShardNodeMetal
- * @brief Device shard node metal implementation for GraphX.
- */
 class DeviceShardNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

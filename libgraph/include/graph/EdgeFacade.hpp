@@ -462,10 +462,6 @@ private:
  * }
  * @endcode
  */
-/**
- * @class EdgeFacadeAdapter
- * @brief Edge facade adapter implementation for GraphX.
- */
 class EdgeFacadeAdapter {
 private:
     IEdgeBase* edge_;  // Does not own

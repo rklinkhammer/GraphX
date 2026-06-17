@@ -28,10 +28,6 @@ namespace graph::gpu::cuda::nodes {
  * @class D2HAsyncNode
  * @brief D2HAsyncNode class.
  */
-/**
- * @class D2HAsyncNode
- * @brief 2 h async node implementation for GraphX.
- */
 class D2HAsyncNode
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

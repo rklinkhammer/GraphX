@@ -65,10 +65,6 @@ using MetricsEventQueue = core::ActiveQueue<MetricsEvent>;
  * Provides base infrastructure for testing MetricsPolicy queue mechanics
  * and event content validation without duplicating existing topology tests.
  */
-/**
- * @class MetricsPolicyGapsFixture
- * @brief Metrics policy gaps fixture implementation for GraphX.
- */
 class MetricsPolicyGapsFixture : public ::testing::Test {
 protected:
     void SetUp() override {

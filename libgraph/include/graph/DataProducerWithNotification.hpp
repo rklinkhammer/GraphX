@@ -130,10 +130,6 @@ template <typename NodeType, typename DataGenerator, typename DataType, typename
  * @class DataProducerWithNotification
  * @brief DataProducerWithNotification class.
  */
-/**
- * @class DataProducerWithNotification
- * @brief Data producer with notification implementation for GraphX.
- */
 class DataProducerWithNotification : 
     public NamedSourceNode<NodeType, graph::message::Message, NotificationType>,
     public graph::ISourceCallbackProvider<DataType> {

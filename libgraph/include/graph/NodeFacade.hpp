@@ -73,10 +73,6 @@ namespace graph {
  * All returned objects via shared_ptr have automatic lifetime management.
  * No manual deletion required.
  */
-/**
- * @class INodeFacade
- * @brief I node facade implementation for GraphX.
- */
 class INodeFacade {
 public:
     virtual ~INodeFacade() = default;
@@ -296,10 +292,6 @@ public:
  * adapter.Execute();
  * adapter.Stop();
  * ```
- */
-/**
- * @class NodeFacadeAdapter
- * @brief Node facade adapter implementation for GraphX.
  */
 class NodeFacadeAdapter : public INodeFacade {
 private:

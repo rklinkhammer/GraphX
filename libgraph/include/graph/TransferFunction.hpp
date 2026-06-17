@@ -49,10 +49,6 @@ namespace graph
  * @class ITransferFn
  * @brief ITransferFn class.
  */
-/**
- * @class ITransferFn
- * @brief I transfer fn implementation for GraphX.
- */
     class ITransferFn : public IFn<P>
     {
     public:
@@ -81,10 +77,6 @@ namespace graph
 /**
  * @class TransferFn
  * @brief TransferFn class.
- */
-/**
- * @class TransferFn
- * @brief Transfer fn implementation for GraphX.
  */
     class TransferFn : public IInputFn<Pin>, public IOutputFn<Pout>
     {

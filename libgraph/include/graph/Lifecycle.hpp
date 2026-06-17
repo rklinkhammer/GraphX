@@ -67,10 +67,6 @@ namespace graph
  * @class NodeLifecycleMixin
  * @brief NodeLifecycleMixin class.
  */
-/**
- * @class NodeLifecycleMixin
- * @brief Node lifecycle mixin implementation for GraphX.
- */
     class NodeLifecycleMixin : public INode
     {
      protected:

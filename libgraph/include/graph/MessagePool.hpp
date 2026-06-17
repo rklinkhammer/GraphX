@@ -70,10 +70,6 @@ struct MessagePoolPolicy {
  * @endcode
  */
 template <size_t BufferSize = 64, typename Policy = MessagePoolPolicy>
-/**
- * @class MessageBufferPool
- * @brief Message buffer pool implementation for GraphX.
- */
 class MessageBufferPool {
 public:
     static_assert(BufferSize > 0, "BufferSize must be > 0");
@@ -238,11 +234,6 @@ public:
      * Safe to call from any thread at any time (lock-free reads).
      */
     [[nodiscard]] PoolStatsSnapshot GetStats() const noexcept {
-/**
- * @brief Lock.
- * @param stats_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(stats_mutex_);
         return PoolStatsSnapshot{
             stats_.total_requests.load(std::memory_order_relaxed),
@@ -264,11 +255,6 @@ public:
      * @return true if Initialize() was called, false otherwise
      */
     [[nodiscard]] bool IsInitialized() const noexcept {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_ > 0;
     }
@@ -284,11 +270,6 @@ public:
      * Safe to call from any thread.
      */
     [[nodiscard]] size_t GetCurrentCapacity() const noexcept {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_;
     }
@@ -361,11 +342,6 @@ private:
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (initialized_) {
@@ -442,11 +418,6 @@ inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     // Free all buffers
@@ -460,11 +431,6 @@ inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
 
 template <size_t BufferSize, typename Policy>
 inline void* MessageBufferPool<BufferSize, Policy>::AcquireBuffer() {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -542,11 +508,6 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
         return;  // Ignore null pointers
     }
 
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -590,11 +551,6 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::SetCapacity(size_t new_capacity) noexcept {
-/**
- * @brief Lock.
- * @param pool_mutex_ Parameter for lock.
- * @return Result of the operation.
- */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
