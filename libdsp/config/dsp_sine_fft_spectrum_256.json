@@ -1,0 +1,41 @@
+{
+  "name": "dsp_sine_fft_spectrum_256",
+  "execution_backend": "auto",
+  "backend_fallback_policy": "strict",
+  "resolver_diagnostics": true,
+  "nodes": [
+    {
+      "id": "sine",
+      "type": "SineSignalNode<256>",
+      "node_config": {
+        "frequency_hz": -1000.0,
+        "amplitude": 1.0,
+        "sample_rate_hz": 48000.0
+      }
+    },
+    {
+      "id": "fft",
+      "type": "FFTNode<256>",
+      "node_config": {}
+    },
+    {
+      "id": "spectrum",
+      "type": "SpectrumSinkNode<256>",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "sine",
+      "source_port": 0,
+      "target_node_id": "fft",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "fft",
+      "source_port": 0,
+      "target_node_id": "spectrum",
+      "target_port": 0
+    }
+  ]
+}
