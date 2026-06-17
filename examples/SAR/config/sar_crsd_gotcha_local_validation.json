@@ -51,8 +51,8 @@
       "id": "transform",
       "type": "CrsdFocusedImageTransformNode",
       "node_config": {
-        "image_width": 64,
-        "image_height": 64,
+        "image_width": 2048,
+        "image_height": 2048,
         "pixel_spacing_m": 1.0,
         "scene_center_x_m": 0.0,
         "scene_center_y_m": 0.0

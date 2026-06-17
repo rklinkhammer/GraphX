@@ -559,6 +559,14 @@ public:
     }
 
     protected:
+        DataGenerator* GetGenerator() noexcept {
+            return generator_.get();
+        }
+
+        const DataGenerator* GetGenerator() const noexcept {
+            return generator_.get();
+        }
+
         /// @brief Interval between samples (microseconds)
         /// Used by GetNextSampleInterval() to determine sleep duration
         std::chrono::microseconds sample_interval_;

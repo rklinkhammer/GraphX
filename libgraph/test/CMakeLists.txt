@@ -23,6 +23,7 @@ target_include_directories(test_libgraph_unit PRIVATE
 )
 target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
 )
 # Resolve static archive cycles on GNU ld by keeping gpu after graph and
 # repeating graph as a final fallback resolver.

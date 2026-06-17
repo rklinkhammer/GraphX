@@ -14,6 +14,9 @@ and CRSD conversion/testing, see `docs/CONSOLIDATED_OPERATIONS.md`.
 For the CRSD-to-focused-image flow definition, guardrails, and evidence matrix,
 see `docs/sar/crsd_to_focused_image.md`.
 
+For the DSP spectrum demo lane, CPU-only truth-in-labeling, and guardrails,
+see `docs/dsp/spectrum_demo.md`.
+
 ## Canonical SAR Lanes
 
 Active SAR operations are organized into three lanes:
@@ -192,6 +195,32 @@ A summary target is also available in test-enabled builds:
 
 ```bash
 cmake --build build-ninja/ninja-debug --target test-summary
+```
+
+## DSP Spectrum Demo (CPU-Only)
+
+The current DSP demo is a **CPU-only direct DFT** lane and uses:
+
+`SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>`
+
+Build and run:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target dsp_spectrum_demo
+
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
+  libdsp/config/dsp_sine_fft_spectrum_256.json \
+  build-ninja/ninja-debug-metal-native/plugins
+```
+
+Optional summary artifact:
+
+```bash
+tmpdir="$(mktemp -d)"
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
+  libdsp/config/dsp_sine_fft_spectrum_256.json \
+  build-ninja/ninja-debug-metal-native/plugins \
+  --summary-json "$tmpdir/summary.json"
 ```
 
 ## SAR/GOTCHA Testing

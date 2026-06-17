@@ -37,6 +37,10 @@
 #include <chrono>
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "graph/DataProducerWithNotification.hpp"
 #include "graph/Message.hpp"
@@ -81,6 +85,7 @@ class SineSignalNode : public graph::DataProducerWithNotification<
     graph::message::CompletionSignal,
     int, 0>,
                        public graph::IConfigurable,
+                       public graph::IParameterized,
                        public graph::IDiagnosable,
                        public graph::IMetricsCallbackProvider {
 
@@ -167,6 +172,10 @@ protected:
      */
     void Configure(const graph::JsonView& cfg) override;
 
+    graph::JsonView GetParameters() const override;
+    graph::JsonView GetParameterDescription(const std::string& param_name) const override;
+    std::vector<std::string> GetParameterNames() const override;
+
     // ========================================================================
     // IDiagnosable Implementation
     // ========================================================================
@@ -229,9 +238,79 @@ private:
 
 template<size_t N>
 inline void SineSignalNode<N>::Configure(const graph::JsonView& cfg) {
-    (void)cfg;
-    // Simplified configuration (full JSON parsing deferred)
-    // In a full implementation, would parse frequency_hz, amplitude, sample_rate_hz
+    auto* generator = this->GetGenerator();
+    if (!generator) {
+        return;
+    }
+
+    if (cfg.Contains("frequency_hz")) {
+        auto value = cfg.TryGetFloat("frequency_hz", static_cast<float>(generator->GetFrequency()));
+        if (!value) {
+            throw value.error();
+        }
+        generator->SetFrequency(static_cast<double>(value.value()));
+    }
+
+    if (cfg.Contains("amplitude")) {
+        auto value = cfg.TryGetFloat("amplitude", generator->GetAmplitude());
+        if (!value) {
+            throw value.error();
+        }
+        generator->SetAmplitude(value.value());
+    }
+
+    if (cfg.Contains("sample_rate_hz")) {
+        auto value = cfg.TryGetFloat("sample_rate_hz", static_cast<float>(generator->GetSampleRate()));
+        if (!value) {
+            throw value.error();
+        }
+        generator->SetSampleRate(static_cast<double>(value.value()));
+    }
+}
+
+template<size_t N>
+inline graph::JsonView SineSignalNode<N>::GetParameters() const {
+    static thread_local nlohmann::json params;
+    const auto* generator = this->GetGenerator();
+    params = nlohmann::json::object({
+        {"frequency_hz", generator ? generator->GetFrequency() : 1000.0},
+        {"amplitude", generator ? generator->GetAmplitude() : 1.0f},
+        {"sample_rate_hz", generator ? generator->GetSampleRate() : 48000.0}
+    });
+    return graph::JsonView(params);
+}
+
+template<size_t N>
+inline graph::JsonView SineSignalNode<N>::GetParameterDescription(
+    const std::string& param_name) const {
+    static thread_local nlohmann::json description;
+    if (param_name == "frequency_hz") {
+        description = {
+            {"type", "number"},
+            {"required", false},
+            {"description", "Complex sine frequency in Hz"}
+        };
+    } else if (param_name == "amplitude") {
+        description = {
+            {"type", "number"},
+            {"required", false},
+            {"description", "Complex sine amplitude"}
+        };
+    } else if (param_name == "sample_rate_hz") {
+        description = {
+            {"type", "number"},
+            {"required", false},
+            {"description", "Sample rate in Hz"}
+        };
+    } else {
+        description = nlohmann::json::object();
+    }
+    return graph::JsonView(description);
+}
+
+template<size_t N>
+inline std::vector<std::string> SineSignalNode<N>::GetParameterNames() const {
+    return {"frequency_hz", "amplitude", "sample_rate_hz"};
 }
 
 template<size_t N>
