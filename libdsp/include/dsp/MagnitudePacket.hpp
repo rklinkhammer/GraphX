@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file MagnitudePacket.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <algorithm>

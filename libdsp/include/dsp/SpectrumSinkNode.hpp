@@ -1,3 +1,8 @@
+/**
+ * @file SpectrumSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -81,6 +86,10 @@ namespace dsp {
  * ```
  */
 template<typename SampleT = float, size_t N = 256>
+/**
+ * @class SpectrumSinkNode
+ * @brief Spectrum sink node implementation for GraphX.
+ */
 class SpectrumSinkNode
     : public graph::NamedSinkNode<
         SpectrumSinkNode<SampleT, N>,
@@ -159,6 +168,10 @@ public:
      * - Peak hold time: disabled
      * - RMS power averaging: enabled
      */
+/**
+ * @brief Spectrum sink node.
+ * @return Result of the operation.
+ */
     explicit SpectrumSinkNode();
 
     /**
@@ -196,6 +209,10 @@ public:
      *
      * @thread_safety This method is thread-safe.
      */
+/**
+ * @brief Get latest spectrum.
+ * @return Result of the operation.
+ */
     std::optional<MagnitudePacketType> GetLatestSpectrum() const;
 
     /**
@@ -205,6 +222,10 @@ public:
      *
      * @thread_safety This method is thread-safe.
      */
+/**
+ * @brief Get spectrum history.
+ * @return Result of the operation.
+ */
     std::vector<MagnitudePacketType> GetSpectrumHistory() const;
 
     /**
@@ -214,6 +235,10 @@ public:
      *
      * @thread_safety This method is thread-safe for read.
      */
+/**
+ * @brief Get frame count.
+ * @return Result of the operation.
+ */
     size_t GetFrameCount() const;
 
     // ========================================================================
@@ -230,6 +255,10 @@ public:
      * @thread_safety This method is thread-safe.
      * @complexity O(n*m) where n = frame count, m = bins per spectrum
      */
+/**
+ * @brief Compute statistics.
+ * @return Result of the operation.
+ */
     SpectrumStatistics ComputeStatistics() const;
 
     /**
@@ -243,6 +272,12 @@ public:
      *
      * @thread_safety This method is thread-safe.
      */
+/**
+ * @brief Get average power in band.
+ * @param freq_low_hz Parameter for get average power in band.
+ * @param freq_high_hz Parameter for get average power in band.
+ * @return Result of the operation.
+ */
     SampleT GetAveragePowerInBand(SampleT freq_low_hz, SampleT freq_high_hz) const;
 
     /**
@@ -272,6 +307,10 @@ public:
      * @thread_safety This method is thread-safe. May trim history if
      * capacity is reduced.
      */
+/**
+ * @brief Set history capacity.
+ * @param capacity Parameter for set history capacity.
+ */
     void SetHistoryCapacity(size_t capacity);
 
     /**
@@ -279,6 +318,10 @@ public:
      *
      * @return Maximum number of spectra in history
      */
+/**
+ * @brief Get history capacity.
+ * @return Result of the operation.
+ */
     size_t GetHistoryCapacity() const;
 
     /**
@@ -286,6 +329,9 @@ public:
      *
      * @thread_safety This method is thread-safe.
      */
+/**
+ * @brief Clear.
+ */
     void Clear();
 
     /**
@@ -297,6 +343,10 @@ public:
      * @param cfg JSON configuration view
      * @throws ConfigError if configuration is invalid
      */
+/**
+ * @brief Configure.
+ * @param cfg Parameter for configure.
+ */
     void Configure(const graph::JsonView& cfg) override;
 
     // ========================================================================
@@ -316,6 +366,10 @@ public:
      *
      * @return JsonView with diagnostic information
      */
+/**
+ * @brief Get diagnostics.
+ * @return Result of the operation.
+ */
     graph::JsonView GetDiagnostics() const override;
 
     // ========================================================================
@@ -328,6 +382,11 @@ public:
      * @param callback Pointer to metrics callback handler
      * @return true if callback was successfully set
      */
+/**
+ * @brief Set metrics callback.
+ * @param callback Parameter for set metrics callback.
+ * @return Result of the operation.
+ */
     bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override;
 
     /**
@@ -335,6 +394,10 @@ public:
      *
      * @return true if callback is currently set
      */
+/**
+ * @brief Has metrics callback.
+ * @return Result of the operation.
+ */
     bool HasMetricsCallback() const noexcept override;
 
     /**
@@ -342,6 +405,10 @@ public:
      *
      * @return Pointer to callback or nullptr if not installed
      */
+/**
+ * @brief Get metrics callback.
+ * @return Result of the operation.
+ */
     graph::IMetricsCallback* GetMetricsCallback() const noexcept override;
 
     /**
@@ -349,6 +416,10 @@ public:
      *
      * @return Node metrics schema describing available metrics
      */
+/**
+ * @brief Get node metrics schema.
+ * @return Result of the operation.
+ */
     app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override;
 
 private:
@@ -383,6 +454,9 @@ private:
      *
      * Called after new spectrum is added. Assumes spectrum_mutex_ is held.
      */
+/**
+ * @brief Trim history.
+ */
     void TrimHistory();
 
     /**
@@ -390,6 +464,10 @@ private:
      *
      * Assumes spectrum_mutex_ is held.
      */
+/**
+ * @brief Update peak tracker.
+ * @param packet Parameter for update peak tracker.
+ */
     void UpdatePeakTracker(const MagnitudePacketType& packet);
 };
 

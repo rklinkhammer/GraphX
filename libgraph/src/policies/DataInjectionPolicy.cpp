@@ -1,3 +1,8 @@
+/**
+ * @file DataInjectionPolicy.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -31,6 +36,10 @@
 
 namespace policies {
 
+/**
+ * @brief Init data injection sources.
+ * @param context Parameter for init data injection sources.
+ */
 void DataInjectionPolicy::InitDataInjectionSources(capabilities::GraphCapability& context) {
     graph::CapabilityContext capability_context{context};
     auto nodes_result = capability_context.Nodes();

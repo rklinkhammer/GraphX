@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_dsp_spectrum_graph_runtime.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -30,15 +37,25 @@ constexpr double kSampleRateHz = 48000.0;
 constexpr std::size_t kFftSize = 256;
 constexpr double kBinWidthHz = kSampleRateHz / static_cast<double>(kFftSize);
 
+/**
+ * @brief Dsp spectrum config path.
+ */
 std::filesystem::path DspSpectrumConfigPath() {
     return std::filesystem::path(GRAPHX_SOURCE_ROOT) /
            "libdsp/config/dsp_sine_fft_spectrum_256.json";
 }
 
+/**
+ * @brief Plugin directory.
+ */
 std::filesystem::path PluginDirectory() {
     return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
 }
 
+/**
+ * @brief Load json.
+ * @param path Parameter for load json.
+ */
 nlohmann::json LoadJson(const std::filesystem::path& path) {
     std::ifstream input(path);
     if (!input.good()) {

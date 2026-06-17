@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_gpu_capability_bootstrap.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
@@ -23,6 +30,10 @@
 
 namespace {
 
+/**
+ * @brief Make valid sycl host view.
+ * @param host_ptr Parameter for make valid sycl host view.
+ */
 graph::gpu::accel::HostPinnedBufferView MakeValidSyclHostView(void* host_ptr) {
     graph::gpu::accel::HostPinnedBufferView view{};
     view.backend = graph::gpu::accel::BackendKind::SYCL;
@@ -36,6 +47,10 @@ graph::gpu::accel::HostPinnedBufferView MakeValidSyclHostView(void* host_ptr) {
     return view;
 }
 
+/**
+ * @brief Make valid sycl device view.
+ * @param device_ptr Parameter for make valid sycl device view.
+ */
 graph::gpu::accel::DeviceBufferView MakeValidSyclDeviceView(void* device_ptr) {
     graph::gpu::accel::DeviceBufferView view{};
     view.backend = graph::gpu::accel::BackendKind::SYCL;

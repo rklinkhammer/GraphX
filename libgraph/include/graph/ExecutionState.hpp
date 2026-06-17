@@ -1,3 +1,8 @@
+/**
+ * @file ExecutionState.hpp
+ * @brief GraphX source file.
+ */
+
 
 // MIT License
 //
@@ -71,6 +76,11 @@ enum class ExecutionState : uint8_t {
  * @return String representation (e.g., "RUNNING", "PAUSED")
  *
  * Thread-Safety: Safe to call from any thread (stateless function)
+ */
+/**
+ * @brief Get execution state name.
+ * @param state Parameter for get execution state name.
+ * @return Result of the operation.
  */
 std::string GetExecutionStateName(ExecutionState state);
 

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_image_comparator_metrics.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cstdlib>

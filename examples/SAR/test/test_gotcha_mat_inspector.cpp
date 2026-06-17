@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_gotcha_mat_inspector.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "sar/io/GotchaMatInspector.hpp"

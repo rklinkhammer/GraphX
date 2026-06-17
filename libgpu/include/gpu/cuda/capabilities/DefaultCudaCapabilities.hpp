@@ -1,3 +1,8 @@
+/**
+ * @file DefaultCudaCapabilities.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -14,15 +19,48 @@
 
 namespace graph::gpu::cuda::capabilities {
 
+/**
+ * @class DefaultCudaContextCapability
+ * @brief DefaultCudaContextCapability class.
+ */
+/**
+ * @class DefaultCudaContextCapability
+ * @brief Default cuda context capability implementation for GraphX.
+ */
 class DefaultCudaContextCapability final : public ICudaContextCapability {
 public:
+/**
+ * @brief Set device.
+ * @param device_id Parameter for set device.
+ * @return Result of the operation.
+ */
     bool SetDevice(std::uint32_t device_id) override;
+/**
+ * @brief Current device.
+ * @return Result of the operation.
+ */
     std::uint32_t CurrentDevice() const override;
 
+/**
+ * @brief Create stream.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateStream() override;
+/**
+ * @brief Destroy stream.
+ * @param stream_id Parameter for destroy stream.
+ */
     void DestroyStream(std::uint64_t stream_id) override;
 
+/**
+ * @brief Create event.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateEvent() override;
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
     void DestroyEvent(std::uint64_t event_id) override;
 
 private:
@@ -33,12 +71,25 @@ private:
     std::unordered_set<std::uint64_t> events_{};
 };
 
+/**
+ * @class DefaultCudaMemoryPoolCapability
+ * @brief DefaultCudaMemoryPoolCapability class.
+ */
+/**
+ * @class DefaultCudaMemoryPoolCapability
+ * @brief Default cuda memory pool capability implementation for GraphX.
+ */
 class DefaultCudaMemoryPoolCapability final : public ICudaMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
                         accel::BufferLease& out_lease) override;
     bool AllocatePinnedHost(std::uint64_t bytes,
                             accel::BufferLease& out_lease) override;
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ * @return Result of the operation.
+ */
     bool Release(const accel::BufferLease& lease) override;
 
 private:
@@ -47,6 +98,14 @@ private:
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
+/**
+ * @class DefaultCudaTransferCapability
+ * @brief DefaultCudaTransferCapability class.
+ */
+/**
+ * @class DefaultCudaTransferCapability
+ * @brief Default cuda transfer capability implementation for GraphX.
+ */
 class DefaultCudaTransferCapability final : public ICudaTransferCapability {
 public:
     bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -69,6 +128,14 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
+/**
+ * @class DefaultCudaKernelCapability
+ * @brief DefaultCudaKernelCapability class.
+ */
+/**
+ * @class DefaultCudaKernelCapability
+ * @brief Default cuda kernel capability implementation for GraphX.
+ */
 class DefaultCudaKernelCapability final : public ICudaKernelCapability {
 public:
     bool RegisterKernel(std::uint64_t kernel_id,
@@ -82,12 +149,24 @@ private:
     std::unordered_set<std::uint64_t> registered_kernels_{};
 };
 
+/**
+ * @class DefaultCudaTelemetryCapability
+ * @brief DefaultCudaTelemetryCapability class.
+ */
+/**
+ * @class DefaultCudaTelemetryCapability
+ * @brief Default cuda telemetry capability implementation for GraphX.
+ */
 class DefaultCudaTelemetryCapability final : public ICudaTelemetryCapability {
 public:
     void RecordTransfer(const accel::TransferTicket& ticket,
                         std::uint64_t duration_ns) override;
     void RecordKernel(const accel::KernelTicket& ticket,
                       std::uint64_t duration_ns) override;
+/**
+ * @brief Increment error counter.
+ * @param error_code Parameter for increment error counter.
+ */
     void IncrementErrorCounter(std::string_view error_code) override;
 
     [[nodiscard]] std::uint64_t TransferSamples() const { return transfer_samples_; }
@@ -100,6 +179,14 @@ private:
     std::uint64_t error_count_{0};
 };
 
+/**
+ * @class DefaultCudaCollectiveCapability
+ * @brief DefaultCudaCollectiveCapability class.
+ */
+/**
+ * @class DefaultCudaCollectiveCapability
+ * @brief Default cuda collective capability implementation for GraphX.
+ */
 class DefaultCudaCollectiveCapability final : public ICudaCollectiveCapability {
 public:
     bool AllReduce(accel::DeviceBufferView& in_out,

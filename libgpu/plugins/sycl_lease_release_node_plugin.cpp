@@ -1,3 +1,8 @@
+/**
+ * @file sycl_lease_release_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -21,6 +26,9 @@ static const NodeFacade sycl_lease_release_node_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create sycl lease release node.
+ */
 void* plugin_create_sycl_lease_release_node() {
     try {
         auto node = std::make_shared<graph::gpu::sycl::nodes::LeaseReleaseNodeSycl>();
@@ -33,6 +41,9 @@ void* plugin_create_sycl_lease_release_node() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "LeaseReleaseNodeSycl|SYCL stub lease release node|1.0|"
            "plugin_create_sycl_lease_release_node|"
@@ -43,10 +54,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&sycl_lease_release_node_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

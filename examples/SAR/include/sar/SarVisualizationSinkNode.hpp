@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarVisualizationSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -23,6 +30,10 @@ struct SarVisualizationSinkConfig {
     std::string file_prefix{"sar_tile"};
 };
 
+/**
+ * @class SarVisualizationSinkNode
+ * @brief SarVisualizationSinkNode class.
+ */
 class SarVisualizationSinkNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

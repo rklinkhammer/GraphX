@@ -1,3 +1,8 @@
+/**
+ * @file Metric.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer

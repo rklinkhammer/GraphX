@@ -1,3 +1,8 @@
+/**
+ * @file D2HAsyncNodeSycl.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::sycl::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class D2HAsyncNodeSycl
+ * @brief D2HAsyncNodeSycl class.
+ */
+/**
+ * @class D2HAsyncNodeSycl
+ * @brief 2 h async node sycl implementation for GraphX.
+ */
 class D2HAsyncNodeSycl
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

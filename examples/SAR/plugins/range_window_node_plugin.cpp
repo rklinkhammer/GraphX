@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file range_window_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 #include <memory>
 
 #include "plugins/NodePluginTemplate.hpp"

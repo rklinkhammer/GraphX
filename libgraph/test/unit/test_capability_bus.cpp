@@ -1,3 +1,8 @@
+/**
+ * @file test_capability_bus.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -52,18 +57,32 @@ namespace {
  * 
  * Simulates the real MetricsCapability interface used in production.
  */
+/**
+ * @class MockMetricsCapability
+ * @brief Mock metrics capability implementation for GraphX.
+ */
 class MockMetricsCapability {
 public:
     virtual ~MockMetricsCapability() = default;
     
+/**
+ * @brief Register metrics callback.
+ * @param name Parameter for register metrics callback.
+ */
     virtual void RegisterMetricsCallback(const std::string& name) {
         metrics_.push_back(name);
     }
     
+/**
+ * @brief Get metrics.
+ */
     virtual std::vector<std::string> GetMetrics() const {
         return metrics_;
     }
     
+/**
+ * @brief Get metric count.
+ */
     virtual int GetMetricCount() const {
         return static_cast<int>(metrics_.size());
     }
@@ -77,22 +96,40 @@ private:
  * 
  * Simulates graph state query capability.
  */
+/**
+ * @class MockGraphCapability
+ * @brief Mock graph capability implementation for GraphX.
+ */
 class MockGraphCapability {
 public:
     virtual ~MockGraphCapability() = default;
     
+/**
+ * @brief Get graph name.
+ */
     virtual std::string GetGraphName() const {
         return graph_name_;
     }
     
+/**
+ * @brief Set graph name.
+ * @param name Parameter for set graph name.
+ */
     virtual void SetGraphName(const std::string& name) {
         graph_name_ = name;
     }
     
+/**
+ * @brief Get node count.
+ */
     virtual int GetNodeCount() const {
         return node_count_;
     }
     
+/**
+ * @brief Set node count.
+ * @param count Parameter for set node count.
+ */
     virtual void SetNodeCount(int count) {
         node_count_ = count;
     }
@@ -107,22 +144,39 @@ private:
  * 
  * Simulates dashboard/UI capability.
  */
+/**
+ * @class MockDashboardCapability
+ * @brief Mock dashboard capability implementation for GraphX.
+ */
 class MockDashboardCapability {
 public:
     virtual ~MockDashboardCapability() = default;
     
+/**
+ * @brief Display.
+ * @param msg Parameter for display.
+ */
     virtual void Display(const std::string& msg) {
         messages_.push_back(msg);
     }
     
+/**
+ * @brief Get displayed messages.
+ */
     virtual std::vector<std::string> GetDisplayedMessages() const {
         return messages_;
     }
     
+/**
+ * @brief Is initialized.
+ */
     virtual bool IsInitialized() const {
         return initialized_;
     }
     
+/**
+ * @brief Initialize.
+ */
     virtual void Initialize() {
         initialized_ = true;
     }
@@ -137,6 +191,10 @@ private:
  * 
  * Tests capabilities with internal state management.
  */
+/**
+ * @class CustomTestCapability
+ * @brief Custom test capability implementation for GraphX.
+ */
 class CustomTestCapability {
 public:
     virtual ~CustomTestCapability() = default;
@@ -150,6 +208,10 @@ public:
 // Test Class - CapabilityBus Tests
 // ===================================================================================
 
+/**
+ * @class CapabilityBusTest
+ * @brief Capability bus test implementation for GraphX.
+ */
 class CapabilityBusTest : public ::testing::Test {
 protected:
     // Create a fresh bus for each test
@@ -534,6 +596,10 @@ TEST_F(CapabilityBusTest, StaticAssertValidatesClassType) {
     // static_assert in DefaultCapabilityBus::Register ensures CapabilityT is a class type
     // This test verifies it compiles correctly with class types
     
+/**
+ * @class ValidCapability
+ * @brief Valid capability implementation for GraphX.
+ */
     class ValidCapability {};
     auto cap = std::make_shared<ValidCapability>();
     

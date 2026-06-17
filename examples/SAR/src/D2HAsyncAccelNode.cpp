@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file D2HAsyncAccelNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/D2HAsyncAccelNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

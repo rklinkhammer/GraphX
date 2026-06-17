@@ -1,3 +1,8 @@
+/**
+ * @file SplitNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -80,6 +85,14 @@ struct ExpandSourceNode<TypeList<Ts...>> {
 };
 
 template <typename T, std::size_t N, typename Derived>
+/**
+ * @class SplitNode
+ * @brief SplitNode class.
+ */
+/**
+ * @class SplitNode
+ * @brief Split node implementation for GraphX.
+ */
 class SplitNode : public SinkNode<T>, public ExpandSourceNode<RepeatType_t<T, N>>::type {
 public:
     virtual ~SplitNode() = default;
@@ -209,6 +222,10 @@ template<typename T, std::size_t N, typename Derived, std::size_t PortIndex, boo
 class SplitProduceOverrideChain;
 
 template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
+/**
+ * @class SplitProduceOverrideChain
+ * @brief Split produce override chain implementation for GraphX.
+ */
 class SplitProduceOverrideChain<T, N, Derived, PortIndex, false>
     : public SplitProduceOverrideChain<T, N, Derived, PortIndex + 1, (PortIndex + 1 == N)> {
 public:
@@ -221,6 +238,10 @@ public:
 };
 
 template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
+/**
+ * @class SplitProduceOverrideChain
+ * @brief Split produce override chain implementation for GraphX.
+ */
 class SplitProduceOverrideChain<T, N, Derived, PortIndex, true>
     : public SplitNode<T, N, Derived> {
 public:
@@ -228,6 +249,14 @@ public:
 };
 
 template<typename T, std::size_t N>
+/**
+ * @class SplitNodeN
+ * @brief SplitNodeN class.
+ */
+/**
+ * @class SplitNodeN
+ * @brief Split node n implementation for GraphX.
+ */
 class SplitNodeN
     : public SplitProduceOverrideChain<T, N, SplitNodeN<T, N>, 0, (0 == N)> {
 public:

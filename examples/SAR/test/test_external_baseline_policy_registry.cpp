@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_external_baseline_policy_registry.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <algorithm>

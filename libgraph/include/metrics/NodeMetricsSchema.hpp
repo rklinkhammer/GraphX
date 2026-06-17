@@ -1,3 +1,8 @@
+/**
+ * @file NodeMetricsSchema.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -139,6 +144,11 @@ struct NodeMetricsSchema {
      */
 };
 
+/**
+ * @brief Print node metrics schema.
+ * @param schema Parameter for print node metrics schema.
+ * @param verbose Parameter for print node metrics schema.
+ */
 void PrintNodeMetricsSchema(const app::metrics::NodeMetricsSchema& schema, bool verbose = false);
 
 }  // namespace app::metrics

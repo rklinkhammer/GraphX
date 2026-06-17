@@ -1,3 +1,8 @@
+/**
+ * @file ICommandProcessor.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -45,6 +50,14 @@ namespace graph {
  * @see CommandProcessorCapability (bus wrapper)
  * @see CommandPolicy (consumer)
  */
+/**
+ * @class ICommandProcessor
+ * @brief ICommandProcessor class.
+ */
+/**
+ * @class ICommandProcessor
+ * @brief I command processor implementation for GraphX.
+ */
 class ICommandProcessor {
 public:
     /**
@@ -67,6 +80,11 @@ public:
      *
      * @throws std::exception subclasses for processing errors (optional)
      */
+/**
+ * @brief Process command.
+ * @param raw_command Parameter for process command.
+ * @return Result of the operation.
+ */
     virtual CommandResult ProcessCommand(const std::string& raw_command) = 0;
 
     /**
@@ -97,6 +115,11 @@ public:
      * @param name Command name
      * @return true if command is registered, false otherwise
      */
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ * @return Result of the operation.
+ */
     virtual bool HasCommand(const std::string& name) const = 0;
 
     /**
@@ -113,6 +136,11 @@ public:
      * **Ownership**: Pointer is valid only during GetAllCommands() iteration
      * or while command is registered. Caller should not hold reference.
      */
+/**
+ * @brief Get command info.
+ * @param name Parameter for get command info.
+ * @return Result of the operation.
+ */
     virtual const CommandInfo* GetCommandInfo(const std::string& name) const = 0;
 
     /**
@@ -128,6 +156,10 @@ public:
      *
      * @see CommandRegistry::GetAllCommands() for implementation detail
      */
+/**
+ * @brief Get all commands.
+ * @return Result of the operation.
+ */
     virtual std::vector<CommandInfo> GetAllCommands() const = 0;
 };
 

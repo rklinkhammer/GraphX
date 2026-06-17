@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_data_producers.cpp
  * @brief Comprehensive unit tests for DataProducer and DataInjectionProducer
@@ -38,6 +40,10 @@ using namespace test;
 /**
  * @brief Base fixture for generator tests
  */
+/**
+ * @class DataGeneratorTest
+ * @brief Data generator test implementation for GraphX.
+ */
 class DataGeneratorTest : public ::testing::Test {
 protected:
     void SetUp() override {}
@@ -46,6 +52,10 @@ protected:
 
 /**
  * @brief Base fixture for producer tests
+ */
+/**
+ * @class DataProducerTest
+ * @brief Data producer test implementation for GraphX.
  */
 class DataProducerTest : public ::testing::Test {
 protected:

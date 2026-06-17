@@ -1,3 +1,8 @@
+/**
+ * @file GraphExecutorBuilder.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -79,6 +84,10 @@ namespace graph {
  *
  * Thread Safety: Not thread-safe. Each thread should use its own builder instance.
  */
+/**
+ * @class GraphExecutorBuilder
+ * @brief Graph executor builder implementation for GraphX.
+ */
 class GraphExecutorBuilder {
 public:
     /**
@@ -104,6 +113,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if path is empty
      */
+/**
+ * @brief With json config.
+ * @param path Parameter for with json config.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithJsonConfig(const std::string& path);
 
     /**
@@ -116,6 +130,11 @@ public:
      * @return Reference to this builder (fluent API)   
      */
 
+/**
+ * @brief With graph manager.
+ * @param graph_manager Parameter for with graph manager.
+ * @return Result of the operation.
+ */
      GraphExecutorBuilder& WithGraphManager(std::shared_ptr<graph::GraphManager> graph_manager);
 
     /**
@@ -127,6 +146,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if path is empty
      */
+/**
+ * @brief With plugin directory.
+ * @param directory Parameter for with plugin directory.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithPluginDirectory(const std::string& directory);
 
     /**
@@ -139,6 +163,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if path is empty
      */
+/**
+ * @brief With additional plugin directory.
+ * @param directory Parameter for with additional plugin directory.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithAdditionalPluginDirectory(const std::string& directory);
 
     /**
@@ -149,6 +178,12 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if path is empty
      */
+/**
+ * @brief With csv input.
+ * @param path Parameter for with csv input.
+ * @param node Parameter for with csv input.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithCSVInput(const std::string& path, const std::string& node = "");
 
     /**
@@ -159,6 +194,12 @@ public:
      * @param inputs Vector of (csv_path, node_name) pairs
      * @return Reference to this builder (fluent API)
      */
+/**
+ * @brief With csv inputs.
+ * @param std::vector<std::pair<std::string Parameter for with csv inputs.
+ * @param inputs Parameter for with csv inputs.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithCSVInputs(const std::vector<std::pair<std::string, std::string>>& inputs);
 
     /**
@@ -171,6 +212,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if rate_ms is 0
      */
+/**
+ * @brief With csv injection rate.
+ * @param rate_ms Parameter for with csv injection rate.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithCSVInjectionRate(uint32_t rate_ms);
 
     /**
@@ -183,6 +229,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if timeout is <= 0 seconds
      */
+/**
+ * @brief With executor timeout.
+ * @param timeout Parameter for with executor timeout.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithExecutorTimeout(const std::chrono::seconds& timeout);
 
     /**
@@ -195,6 +246,11 @@ public:
      * @return Reference to this builder (fluent API)
      * @throws std::invalid_argument if count is 0
      */
+/**
+ * @brief With graph threads.
+ * @param count Parameter for with graph threads.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithGraphThreads(size_t count);
 
     /**
@@ -206,6 +262,11 @@ public:
      * @param enabled If true, enable CLI mode; if false, disable CLI mode
      * @return Reference to this builder (fluent API)
      */
+/**
+ * @brief With cli mode.
+ * @param enabled Parameter for with cli mode.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithCliMode(bool enabled);
 
     /**
@@ -216,6 +277,11 @@ public:
      * @param enabled If true, log detailed execution information
      * @return Reference to this builder (fluent API)
      */
+/**
+ * @brief With verbose logging.
+ * @param enabled Parameter for with verbose logging.
+ * @return Result of the operation.
+ */
     GraphExecutorBuilder& WithVerboseLogging(bool enabled);
 
     /**
@@ -240,6 +306,10 @@ public:
      * @throws std::runtime_error if JSON loading fails, plugins not found, graph building fails
      * @throws std::logic_error if Build() called more than once
      */
+/**
+ * @brief Build.
+ * @return Result of the operation.
+ */
     std::shared_ptr<GraphExecutor> Build();
 
     /**
@@ -278,6 +348,10 @@ private:
      *
      * @return Default plugin directory path
      */
+/**
+ * @brief Get default plugin directory.
+ * @return Result of the operation.
+ */
     static std::string GetDefaultPluginDirectory();
 
     /**
@@ -286,6 +360,9 @@ private:
      * @throws std::invalid_argument if required fields not set
      * @throws std::runtime_error if files/directories don't exist
      */
+/**
+ * @brief Validate configuration.
+ */
     void ValidateConfiguration();
 };
 

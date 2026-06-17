@@ -1,3 +1,8 @@
+/**
+ * @file spectrum_sink_node_256_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -46,6 +51,9 @@ static const NodeFacade spectrum_sink_node_256_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create spectrum sink node 256.
+ */
 void* plugin_create_spectrum_sink_node_256() {
     try {
         auto node = std::make_shared<dsp::SpectrumSinkNode<float, 256>>();
@@ -56,6 +64,9 @@ void* plugin_create_spectrum_sink_node_256() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "SpectrumSinkNode<256>|Spectrum sink DSP analyzer (256 samples/packet)|1.0|"
            "plugin_create_spectrum_sink_node_256|"
@@ -66,10 +77,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&spectrum_sink_node_256_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

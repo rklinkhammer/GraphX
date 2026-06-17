@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file FFTNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "dsp/FFTManager.hpp"
@@ -86,6 +93,14 @@ enum class FFTConfigError {
  * @tparam N FFT size (input packet size)
  */
 template<typename SampleT = float, size_t N = 256>
+/**
+ * @class FFTNode
+ * @brief FFTNode class.
+ */
+/**
+ * @class FFTNode
+ * @brief Fft node implementation for GraphX.
+ */
 class FFTNode : public graph::NamedInteriorNode<
                     graph::TypeList<graph::message::Message>,
                     graph::TypeList<MagnitudePacket<SampleT, N>>,
@@ -115,6 +130,10 @@ public:
      * - Window: Hann
      * - Sample rate: 48 kHz
      */
+/**
+ * @brief Fft node.
+ * @return Result of the operation.
+ */
     explicit FFTNode();
 
     /**
@@ -162,6 +181,10 @@ public:
      *
      * @param count Number of packets (clamped to 1-16)
      */
+/**
+ * @brief Set accumulation count.
+ * @param count Parameter for set accumulation count.
+ */
     void SetAccumulationCount(size_t count);
 
     /**
@@ -169,6 +192,10 @@ public:
      *
      * @param window_type New window type
      */
+/**
+ * @brief Set window type.
+ * @param window_type Parameter for set window type.
+ */
     void SetWindowType(WindowType window_type);
 
     /**
@@ -176,6 +203,10 @@ public:
      *
      * @param sample_rate_hz Sample rate in Hz
      */
+/**
+ * @brief Set sample rate.
+ * @param sample_rate_hz Parameter for set sample rate.
+ */
     void SetSampleRate(double sample_rate_hz);
 
     /**
@@ -184,6 +215,9 @@ public:
      * Forces processing of partially-accumulated batch.
      * Useful for end-of-stream processing.
      */
+/**
+ * @brief Flush.
+ */
     void Flush();
 
     /**
@@ -191,6 +225,9 @@ public:
      *
      * Clears pending packets without processing.
      */
+/**
+ * @brief Reset.
+ */
     void Reset();
 
     // ========================================================================
@@ -279,6 +316,10 @@ public:
      * @param cfg JSON configuration view
      * @throws ConfigError if configuration is invalid
      */
+/**
+ * @brief Configure.
+ * @param cfg Parameter for configure.
+ */
     void Configure(const graph::JsonView& cfg) override;
 
     /**
@@ -310,6 +351,11 @@ public:
      * @param cfg JSON configuration view
      * @return Success (empty expected<void>) or FFTConfigError
      */
+/**
+ * @brief Configure expected.
+ * @param cfg Parameter for configure expected.
+ * @return Result of the operation.
+ */
     std::expected<void, FFTConfigError> ConfigureExpected(const graph::JsonView& cfg) noexcept;
 
     // ========================================================================
@@ -329,6 +375,10 @@ public:
      *
      * @return JsonView with diagnostic information
      */
+/**
+ * @brief Get diagnostics.
+ * @return Result of the operation.
+ */
     graph::JsonView GetDiagnostics() const override;
 
     // ========================================================================
@@ -341,6 +391,11 @@ public:
      * @param callback Pointer to metrics callback handler
      * @return true if callback was successfully set
      */
+/**
+ * @brief Set metrics callback.
+ * @param callback Parameter for set metrics callback.
+ * @return Result of the operation.
+ */
     bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override;
 
     /**
@@ -348,6 +403,10 @@ public:
      *
      * @return true if callback is currently set
      */
+/**
+ * @brief Has metrics callback.
+ * @return Result of the operation.
+ */
     bool HasMetricsCallback() const noexcept override;
 
     /**
@@ -355,6 +414,10 @@ public:
      *
      * @return Pointer to callback or nullptr if not installed
      */
+/**
+ * @brief Get metrics callback.
+ * @return Result of the operation.
+ */
     graph::IMetricsCallback* GetMetricsCallback() const noexcept override;
 
     /**
@@ -362,6 +425,10 @@ public:
      *
      * @return Node metrics schema describing available metrics
      */
+/**
+ * @brief Get node metrics schema.
+ * @return Result of the operation.
+ */
     app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override;
 
 private:
@@ -376,6 +443,9 @@ private:
     graph::IMetricsCallback* metrics_callback_{nullptr};
 
     // Helper methods
+/**
+ * @brief Trim peak history.
+ */
     void TrimPeakHistory();
 };
 

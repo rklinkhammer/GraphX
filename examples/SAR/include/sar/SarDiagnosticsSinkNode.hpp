@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarDiagnosticsSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -16,6 +23,10 @@
 
 namespace sar {
 
+/**
+ * @class SarDiagnosticsSinkNode
+ * @brief SarDiagnosticsSinkNode class.
+ */
 class SarDiagnosticsSinkNode
     : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarAccelControlToken>,
     public graph::CompletionCallbackProvider,

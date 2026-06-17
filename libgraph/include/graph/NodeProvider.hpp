@@ -1,3 +1,8 @@
+/**
+ * @file NodeProvider.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -25,6 +30,14 @@ enum class NodeCreationError {
  *
  * This separates graph-building code from the concrete mix of plugin registry,
  * static registry, loaders, and provider helpers behind the creation path.
+ */
+/**
+ * @class INodeProvider
+ * @brief INodeProvider class.
+ */
+/**
+ * @class INodeProvider
+ * @brief I node provider implementation for GraphX.
  */
 class INodeProvider {
 public:

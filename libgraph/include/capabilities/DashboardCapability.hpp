@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file DashboardCapability.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <string>
@@ -20,6 +27,10 @@ namespace capabilities {
  * - Dequeue commands from business logic for execution
  * - Enqueue log messages from business logic to UI
  * - Dequeue log messages from UI for display
+ */
+/**
+ * @class DashboardCapability
+ * @brief Dashboard capability implementation for GraphX.
  */
 class DashboardCapability {
 public:

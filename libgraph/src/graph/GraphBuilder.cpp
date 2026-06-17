@@ -1,3 +1,8 @@
+/**
+ * @file GraphBuilder.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -50,6 +55,10 @@ namespace app {
 
 namespace {
 
+/**
+ * @brief Runtime port lookup error to string.
+ * @param error Parameter for runtime port lookup error to string.
+ */
 const char* RuntimePortLookupErrorToString(graph::RuntimePortLookupError error) {
     switch (error) {
         case graph::RuntimePortLookupError::PortNotFound:
@@ -99,6 +108,9 @@ GraphBuilder::GraphBuilder(const std::shared_ptr<capabilities::GraphCapability>&
 // Public Interface: Validate
 // ============================================================================
 
+/**
+ * @brief Validate.
+ */
 bool GraphBuilder::Validate() {
     LOG4CXX_TRACE(logger_, "Starting validation");
     last_error_.clear();
@@ -152,6 +164,9 @@ bool GraphBuilder::Validate() {
 // Public Interface: Build
 // ============================================================================
 
+/**
+ * @brief Build.
+ */
 BuildResult GraphBuilder::Build() {
     LOG4CXX_TRACE(logger_, "Starting 6-step graph build process");
     last_error_.clear();
@@ -313,6 +328,10 @@ BuildResult GraphBuilder::Build() {
 // Private Implementation: Step 3 - RegisterNodes
 // ============================================================================
 
+/**
+ * @brief Register nodes.
+ * @param nodes Parameter for register nodes.
+ */
 void GraphBuilder::RegisterNodes(std::vector<std::shared_ptr<graph::NodeFacadeAdapter>>& nodes) {
     LOG4CXX_TRACE(logger_, "Registering " << nodes.size() << " nodes");
     
@@ -341,6 +360,9 @@ void GraphBuilder::RegisterNodes(std::vector<std::shared_ptr<graph::NodeFacadeAd
 // Private Implementation: Step 3.5 - InitializeEdgeRegistry
 // ============================================================================
 
+/**
+ * @brief Initialize edge registry.
+ */
 void GraphBuilder::InitializeEdgeRegistry() {
     // using namespace graph::config;  // For EdgeRegistry
     // using namespace graph;
@@ -738,6 +760,9 @@ void GraphBuilder::WireEdges(
 // Private Implementation: Step 6 - ValidateTopology
 // ============================================================================
 
+/**
+ * @brief Validate topology.
+ */
 bool GraphBuilder::ValidateTopology() {
     LOG4CXX_TRACE(logger_, "Validating graph topology");
     last_error_.clear();

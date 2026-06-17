@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file Errors.hpp
  * @brief Comprehensive error types for std::expected<T, E> (Phase 5)

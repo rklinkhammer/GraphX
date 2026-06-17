@@ -1,3 +1,8 @@
+/**
+ * @file DefaultCommandProcessor.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -57,6 +62,14 @@ namespace graph {
  * @see CommandRegistryCapability (wrapped capability)
  * @see CommandProcessorCapability (bus wrapper)
  */
+/**
+ * @class DefaultCommandProcessor
+ * @brief DefaultCommandProcessor class.
+ */
+/**
+ * @class DefaultCommandProcessor
+ * @brief Default command processor implementation for GraphX.
+ */
 class DefaultCommandProcessor : public ICommandProcessor {
 public:
     /**
@@ -100,6 +113,11 @@ public:
      *
      * @see ProcessCommand(name, args) for pre-parsed variant
      */
+/**
+ * @brief Process command.
+ * @param raw_command Parameter for process command.
+ * @return Result of the operation.
+ */
     CommandResult ProcessCommand(const std::string& raw_command) override;
 
     /**
@@ -131,6 +149,11 @@ public:
      * @param name Command name
      * @return true if command is registered
      */
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ * @return Result of the operation.
+ */
     bool HasCommand(const std::string& name) const override;
 
     /**
@@ -141,6 +164,11 @@ public:
      * @param name Command name
      * @return Pointer to CommandInfo or nullptr if not found
      */
+/**
+ * @brief Get command info.
+ * @param name Parameter for get command info.
+ * @return Result of the operation.
+ */
     const CommandInfo* GetCommandInfo(const std::string& name) const override;
 
     /**
@@ -150,6 +178,10 @@ public:
      *
      * @return Vector of all CommandInfo structures
      */
+/**
+ * @brief Get all commands.
+ * @return Result of the operation.
+ */
     std::vector<CommandInfo> GetAllCommands() const override;
 
 private:

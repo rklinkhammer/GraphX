@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarMaterializedImageReference.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarCpuReference.hpp"

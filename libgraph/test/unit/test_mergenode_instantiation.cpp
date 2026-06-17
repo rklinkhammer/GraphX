@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_mergenode_instantiation.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 #include <memory>
 #include "graph/Nodes.hpp"
@@ -32,6 +39,10 @@ TEST(MergeNodeInstantiationTest, DirectMergeNode1Creation) {
 
 TEST(MergeNodeInstantiationTest, DirectMergeNode2Creation) {
     // Test with MergeNode<2> as well
+/**
+ * @class MergeNode2TestNode
+ * @brief Merge node 2 test node implementation for GraphX.
+ */
     class MergeNode2TestNode : public graph::MergeNode<2, Message, Message, MergeNode2TestNode> {
     public:
         std::optional<Message> Process(

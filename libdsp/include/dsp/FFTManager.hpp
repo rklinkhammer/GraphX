@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file FFTManager.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "IqPacket.hpp"
@@ -123,6 +130,14 @@ struct FFTMetrics {
  * ```
  */
 template<typename SampleT, size_t N>
+/**
+ * @class FFTManager
+ * @brief FFTManager class.
+ */
+/**
+ * @class FFTManager
+ * @brief Fft manager implementation for GraphX.
+ */
 class FFTManager {
 public:
     /**

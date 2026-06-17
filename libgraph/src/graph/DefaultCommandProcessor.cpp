@@ -1,3 +1,8 @@
+/**
+ * @file DefaultCommandProcessor.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -71,6 +76,10 @@ CommandResult DefaultCommandProcessor::ProcessCommand(
     return registry_->ExecuteCommand(name, args);
 }
 
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ */
 bool DefaultCommandProcessor::HasCommand(const std::string& name) const {
     return registry_->HasCommand(name);
 }
@@ -80,6 +89,9 @@ const CommandInfo* DefaultCommandProcessor::GetCommandInfo(
     return registry_->GetCommandInfo(name);
 }
 
+/**
+ * @brief Get all commands.
+ */
 std::vector<CommandInfo> DefaultCommandProcessor::GetAllCommands() const {
     return registry_->GetAllCommands();
 }

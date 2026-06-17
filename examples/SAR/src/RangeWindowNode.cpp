@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file RangeWindowNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/RangeWindowNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

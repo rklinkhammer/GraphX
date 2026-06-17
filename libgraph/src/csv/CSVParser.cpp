@@ -1,3 +1,8 @@
+/**
+ * @file CSVParser.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -93,6 +98,10 @@ std::optional<uint64_t> StringToUInt64(const std::string& str) {
 
 // ========== File I/O ==========
 
+/**
+ * @brief Read csv file.
+ * @param path Parameter for read csv file.
+ */
 std::vector<std::string> ReadCSVFile(const std::string& path) {
     std::vector<std::string> lines;
     std::ifstream file(path);
@@ -118,6 +127,10 @@ std::vector<std::string> ReadCSVFile(const std::string& path) {
 
 // ========== Header Parsing ==========
 
+/**
+ * @brief Parse header.
+ * @param header_line Parameter for parse header.
+ */
 CSVHeader ParseHeader(const std::string& header_line) {
     CSVHeader header;
     header.columns = SplitCSVLine(header_line);
@@ -144,6 +157,10 @@ CSVHeader ParseHeader(const std::string& header_line) {
     return header;
 }
 
+/**
+ * @brief Detect format.
+ * @param header Parameter for detect format.
+ */
 std::string DetectFormat(const CSVHeader& header) {
     // Consolidated format has "data_type" column
     for (const auto& col : header.columns) {
@@ -156,6 +173,10 @@ std::string DetectFormat(const CSVHeader& header) {
 
 // ========== Row Splitting ==========
 
+/**
+ * @brief Split csv line.
+ * @param line Parameter for split csv line.
+ */
 std::vector<std::string> SplitCSVLine(const std::string& line) {
     std::vector<std::string> result;
     std::stringstream ss(line);

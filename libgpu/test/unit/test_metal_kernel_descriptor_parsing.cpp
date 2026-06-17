@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_kernel_descriptor_parsing.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "gpu/metal/capabilities/MetalKernelDescriptorParsing.hpp"
@@ -8,6 +15,9 @@
 
 namespace {
 
+/**
+ * @brief Make valid kernel descriptor json.
+ */
 nlohmann::json MakeValidKernelDescriptorJson() {
     return {
         {"kernel_id", 101},

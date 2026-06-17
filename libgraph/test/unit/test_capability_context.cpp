@@ -1,3 +1,8 @@
+/**
+ * @file test_capability_context.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -10,6 +15,10 @@
 
 namespace {
 
+/**
+ * @class MetricsNode
+ * @brief Metrics node implementation for GraphX.
+ */
 class MetricsNode final : public graph::INode, public graph::IMetricsCallbackProvider {
 public:
     graph::LifecycleState GetLifecycleState() const override {
@@ -57,6 +66,10 @@ struct TestBusCapability {
     int value{42};
 };
 
+/**
+ * @class StubDescriptorProvider
+ * @brief Stub descriptor provider implementation for GraphX.
+ */
 class StubDescriptorProvider final : public graph::INodeDescriptorProvider {
 public:
     graph::NodeDescriptor BuildRuntimeDescriptor(
@@ -73,6 +86,10 @@ public:
     }
 };
 
+/**
+ * @class StubCapabilityContextMetadataService
+ * @brief Stub capability context metadata service implementation for GraphX.
+ */
 class StubCapabilityContextMetadataService final : public graph::INodeMetadataService {
 public:
     const graph::INodeDescriptorProvider& DescriptorProvider() const override {

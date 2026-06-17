@@ -1,3 +1,8 @@
+/**
+ * @file test_json_deserialization.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -35,6 +40,9 @@ namespace {
 using json = nlohmann::json;
 
 struct SampleConfig {
+/**
+ * @brief Fields.
+ */
     static constexpr auto Fields() {
         return std::array{
             graph::JsonField{

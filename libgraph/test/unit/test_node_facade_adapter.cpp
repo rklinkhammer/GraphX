@@ -1,3 +1,8 @@
+/**
+ * @file test_node_facade_adapter.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -10,6 +15,10 @@
 
 namespace {
 
+/**
+ * @class StubFacadeDescriptorProvider
+ * @brief Stub facade descriptor provider implementation for GraphX.
+ */
 class StubFacadeDescriptorProvider final : public graph::INodeDescriptorProvider {
 public:
     graph::NodeDescriptor BuildRuntimeDescriptor(
@@ -24,6 +33,10 @@ public:
     }
 };
 
+/**
+ * @class StubFacadeMetadataService
+ * @brief Stub facade metadata service implementation for GraphX.
+ */
 class StubFacadeMetadataService final : public graph::INodeMetadataService {
 public:
     const graph::INodeDescriptorProvider& DescriptorProvider() const override {
@@ -38,10 +51,18 @@ private:
     StubFacadeDescriptorProvider descriptor_provider_;
 };
 
+/**
+ * @brief Facade true.
+ * @param graph::NodeHandle Parameter for facade true.
+ */
 bool FacadeTrue(graph::NodeHandle) {
     return true;
 }
 
+/**
+ * @brief Facade noop.
+ * @param graph::NodeHandle Parameter for facade noop.
+ */
 void FacadeNoop(graph::NodeHandle) {
 }
 

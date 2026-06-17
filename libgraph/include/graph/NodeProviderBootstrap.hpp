@@ -1,3 +1,8 @@
+/**
+ * @file NodeProviderBootstrap.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -79,6 +84,10 @@ namespace app {
  * context.provider_bootstrap = bootstrap->lifetime;
  * context.provider = provider;
  * @endcode
+ */
+/**
+ * @class NodeProviderBootstrap
+ * @brief Node provider bootstrap implementation for GraphX.
  */
 class NodeProviderBootstrap {
 public:

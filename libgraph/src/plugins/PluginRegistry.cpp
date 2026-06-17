@@ -1,3 +1,8 @@
+/**
+ * @file PluginRegistry.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -127,11 +132,18 @@ PluginRegistry::CreateNodeExpected(const std::string& type_name) noexcept {
     }
 }
 
+/**
+ * @brief Has node type.
+ * @param type_name Parameter for has node type.
+ */
 bool PluginRegistry::HasNodeType(const std::string& type_name) const {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     return registered_types_.find(type_name) != registered_types_.end();
 }
 
+/**
+ * @brief Get registered node types.
+ */
 std::vector<std::string> PluginRegistry::GetRegisteredNodeTypes() const {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     std::vector<std::string> types;
@@ -162,11 +174,18 @@ std::optional<PluginRegistry::TypeInfo> PluginRegistry::GetNodeTypeInfo(
     };
 }
 
+/**
+ * @brief Get registered type count.
+ */
 size_t PluginRegistry::GetRegisteredTypeCount() const {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     return registered_types_.size();
 }
 
+/**
+ * @brief Unregister node type.
+ * @param type_name Parameter for unregister node type.
+ */
 bool PluginRegistry::UnregisterNodeType(const std::string& type_name) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     
@@ -181,6 +200,10 @@ bool PluginRegistry::UnregisterNodeType(const std::string& type_name) {
     return true;
 }
 
+/**
+ * @brief Unregister node types for handle.
+ * @param plugin_handle Parameter for unregister node types for handle.
+ */
 size_t PluginRegistry::UnregisterNodeTypesForHandle(void* plugin_handle) {
     if (!plugin_handle) {
         return 0;
@@ -200,6 +223,9 @@ size_t PluginRegistry::UnregisterNodeTypesForHandle(void* plugin_handle) {
     return removed;
 }
 
+/**
+ * @brief Clear.
+ */
 void PluginRegistry::Clear() {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     LOG4CXX_TRACE(logger_, "Clearing registry (" << registered_types_.size() << " types)");

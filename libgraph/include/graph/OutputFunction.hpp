@@ -1,3 +1,8 @@
+/**
+ * @file OutputFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -42,6 +47,14 @@ namespace graph
      * Provides Dequeue() method for pulling generated data from queue.
      */
     template <typename P>
+/**
+ * @class IOutputFn
+ * @brief IOutputFn class.
+ */
+/**
+ * @class IOutputFn
+ * @brief I output fn implementation for GraphX.
+ */
     class IOutputFn : public IFn<P>
     {
     public:
@@ -86,6 +99,14 @@ namespace graph
      * - thread_active: Whether thread is actively processing
      */
     template <typename P>
+/**
+ * @class OutputFn
+ * @brief OutputFn class.
+ */
+/**
+ * @class OutputFn
+ * @brief Output fn implementation for GraphX.
+ */
     class OutputFn : public IOutputFn<P>
     {
     public:
@@ -148,6 +169,11 @@ namespace graph
             if (!this->thread_.joinable())
                 return true;
 
+/**
+ * @brief Lock.
+ * @param this->mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock lock(this->mtx_);
             bool stopped = this->cv_.wait_for(lock, timeout, [&] { return this->IsStopRequested(); });
             lock.unlock();  // Release lock before joining

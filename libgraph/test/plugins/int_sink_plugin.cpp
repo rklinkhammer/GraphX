@@ -1,3 +1,8 @@
+/**
+ * @file int_sink_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -58,6 +63,9 @@ static const NodeFacade int_sink_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create int sink.
+ */
 void* plugin_create_int_sink() {
     try {
         auto node = std::make_shared<TestIntSinkNode>();
@@ -68,6 +76,9 @@ void* plugin_create_int_sink() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "TestIntSinkNode|Integer sink test node|1.0|"
            "plugin_create_int_sink|"
@@ -78,10 +89,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&int_sink_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

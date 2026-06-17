@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_runtime_smoke.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <array>
@@ -14,6 +21,9 @@
 
 namespace {
 
+/**
+ * @brief Assert native metal runtime if strict.
+ */
 void AssertNativeMetalRuntimeIfStrict() {
 #if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
     ASSERT_TRUE(graph::gpu::metal::capabilities::NativeMetalRuntimeAvailable())
@@ -22,6 +32,10 @@ void AssertNativeMetalRuntimeIfStrict() {
 #endif
 }
 
+/**
+ * @class ScopedEnvVar
+ * @brief Scoped env var implementation for GraphX.
+ */
 class ScopedEnvVar {
 public:
     ScopedEnvVar(const char* key, const char* value)

@@ -1,3 +1,8 @@
+/**
+ * @file CompletionPolicy.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -35,6 +40,10 @@
 namespace policies {
 
 
+/**
+ * @brief Init completion callbacks.
+ * @param context Parameter for init completion callbacks.
+ */
 bool CompletionPolicy::InitCompletionCallbacks(capabilities::GraphCapability& context) {
     graph::CapabilityContext capability_context{context};
     auto nodes_result = capability_context.Nodes();

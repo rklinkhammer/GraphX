@@ -1,3 +1,8 @@
+/**
+ * @file test_dynamic_edge.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -18,6 +23,11 @@ using OutputIntPort = graph::Port<int, 0>;
 using InputIntPort = graph::Port<int, 0>;
 using InputFloatPort = graph::Port<float, 0>;
 
+/**
+ * @brief Make output handle.
+ * @param port Parameter for make output handle.
+ * @param node_index Parameter for make output handle.
+ */
 graph::RuntimePortHandle MakeOutputHandle(graph::IPortFunction* port, std::size_t node_index) {
     return graph::RuntimePortHandle{
         .node_index = node_index,
@@ -41,6 +51,11 @@ graph::RuntimePortHandle MakeOutputHandleWithTransport(
     return handle;
 }
 
+/**
+ * @brief Make input handle.
+ * @param port Parameter for make input handle.
+ * @param node_index Parameter for make input handle.
+ */
 graph::RuntimePortHandle MakeInputHandle(graph::IPortFunction* port, std::size_t node_index) {
     return graph::RuntimePortHandle{
         .node_index = node_index,

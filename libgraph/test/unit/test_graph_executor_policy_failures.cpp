@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_graph_executor_policy_failures.cpp
  * @brief GraphExecutor policy-chain failure and cleanup tests.
@@ -22,6 +24,10 @@ struct RecordingState {
     std::vector<std::string> calls;
 };
 
+/**
+ * @class RecordingPolicy
+ * @brief Recording policy implementation for GraphX.
+ */
 class RecordingPolicy : public graph::IExecutionPolicy {
 public:
     RecordingPolicy(std::string name,
@@ -63,6 +69,10 @@ private:
     bool start_result_;
 };
 
+/**
+ * @class ThrowingInitPolicy
+ * @brief Throwing init policy implementation for GraphX.
+ */
 class ThrowingInitPolicy : public graph::IExecutionPolicy {
 public:
     bool OnInit(capabilities::GraphCapability&) override {

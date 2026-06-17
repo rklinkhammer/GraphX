@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdApertureAssemblyAdapterNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/CrsdApertureAssemblyAdapterNode.hpp"
 
 #include "config/ConfigError.hpp"

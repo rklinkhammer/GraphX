@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_mergenode_threading.cpp
  * @brief Comprehensive threading tests for MergeNodeBase
@@ -23,6 +25,10 @@ using namespace graph;
 
 /**
  * @brief Simple MergeNode with 1 input for testing
+ */
+/**
+ * @class TestMergeNode
+ * @brief Test merge node implementation for GraphX.
  */
 class TestMergeNode : public MergeNode<1, int, int, TestMergeNode> {
 public:
@@ -55,6 +61,10 @@ public:
 
 /**
  * @brief MergeNode with 2 inputs for testing
+ */
+/**
+ * @class TestMergeNode2
+ * @brief Test merge node 2 implementation for GraphX.
  */
 class TestMergeNode2 : public MergeNode<2, int, int, TestMergeNode2> {
 public:
@@ -89,6 +99,11 @@ public:
  * @brief Wait for condition with timeout
  */
 template<typename Predicate>
+/**
+ * @brief Wait for.
+ * @param pred Parameter for wait for.
+ * @param timeout Parameter for wait for.
+ */
 bool WaitFor(Predicate&& pred, std::chrono::milliseconds timeout) {
     auto deadline = std::chrono::steady_clock::now() + timeout;
     while (std::chrono::steady_clock::now() < deadline) {
@@ -100,6 +115,10 @@ bool WaitFor(Predicate&& pred, std::chrono::milliseconds timeout) {
 
 /**
  * @brief Test fixture for MergeNode threading tests
+ */
+/**
+ * @class MergeNodeThreadingTest
+ * @brief Merge node threading test implementation for GraphX.
  */
 class MergeNodeThreadingTest : public ::testing::Test {
 protected:
@@ -354,6 +373,10 @@ TEST_F(MergeNodeThreadingTest, ConcurrentOperations) {
     EXPECT_TRUE(node->Start());
 
     // Launch thread to do some work
+/**
+ * @brief Worker.
+ * @param [node]( Parameter for worker.
+ */
     std::thread worker([node]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     });

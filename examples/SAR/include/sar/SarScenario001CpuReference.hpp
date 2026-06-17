@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarScenario001CpuReference.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <array>

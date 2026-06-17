@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file PluginInfrastructure.hpp
  * @brief Plugin loading and management infrastructure for test topologies
@@ -34,6 +36,10 @@ namespace test {
  *
  * Singleton pattern for provider initialization and templated edge creation
  * utilities for connecting dynamically loaded nodes.
+ */
+/**
+ * @class PluginInfrastructure
+ * @brief Plugin infrastructure implementation for GraphX.
  */
 class PluginInfrastructure {
 public:

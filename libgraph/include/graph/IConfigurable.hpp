@@ -1,3 +1,8 @@
+/**
+ * @file IConfigurable.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -72,6 +77,10 @@ struct IConfigurable {
      * @param cfg JSON view containing configuration
      * @throws ConfigError if configuration invalid
      */
+/**
+ * @brief Configure.
+ * @param cfg Parameter for configure.
+ */
     virtual void Configure(const JsonView& cfg) = 0;
 };
 
@@ -109,6 +118,10 @@ struct IDiagnosable {
      * 
      * @return config::JsonView containing diagnostic information
      */
+/**
+ * @brief Get diagnostics.
+ * @return Result of the operation.
+ */
     virtual JsonView GetDiagnostics() const = 0;
 };
 
@@ -149,6 +162,10 @@ struct IParameterized {
      * 
      * @return JsonView with parameter names and values
      */
+/**
+ * @brief Get parameters.
+ * @return Result of the operation.
+ */
     virtual JsonView GetParameters() const = 0;
     
     /**
@@ -162,6 +179,11 @@ struct IParameterized {
      * @param param_name Name of parameter to describe
      * @return JsonView with parameter metadata
      */
+/**
+ * @brief Get parameter description.
+ * @param param_name Parameter for get parameter description.
+ * @return Result of the operation.
+ */
     virtual JsonView GetParameterDescription(const std::string& param_name) const = 0;
     
     /**
@@ -169,6 +191,10 @@ struct IParameterized {
      * 
      * @return Vector of parameter names that can be queried or configured
      */
+/**
+ * @brief Get parameter names.
+ * @return Result of the operation.
+ */
     virtual std::vector<std::string> GetParameterNames() const = 0;
 };
 

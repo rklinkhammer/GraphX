@@ -46,6 +46,10 @@ template<typename Signature>
 class MoveOnlyFunction;
 
 template<typename ReturnT, typename... ArgsT>
+/**
+ * @class MoveOnlyFunction
+ * @brief Move only function implementation for GraphX.
+ */
 class MoveOnlyFunction<ReturnT(ArgsT...)> {
 public:
     MoveOnlyFunction() = default;
@@ -78,6 +82,11 @@ public:
 private:
     struct Concept {
         virtual ~Concept() = default;
+/**
+ * @brief Invoke.
+ * @param args Parameter for invoke.
+ * @return Result of the operation.
+ */
         virtual ReturnT Invoke(ArgsT... args) = 0;
     };
 
@@ -202,6 +211,14 @@ concept IsMoveOnlyCallbackWith = requires(T t, ArgsT... args) {
  * @tparam ArgsT Argument types of callbacks
  */
 template<typename ReturnT, typename... ArgsT>
+/**
+ * @class CallbackChain
+ * @brief CallbackChain class.
+ */
+/**
+ * @class CallbackChain
+ * @brief Callback chain implementation for GraphX.
+ */
 class CallbackChain {
 public:
     /**
@@ -296,6 +313,10 @@ private:
  * @tparam ArgsT Event/message argument types
  */
 template<typename... ArgsT>
+/**
+ * @class CallbackChain
+ * @brief Callback chain implementation for GraphX.
+ */
 class CallbackChain<void, ArgsT...> {
 public:
     using CallbackType = MoveOnlyCallback<void(ArgsT...)>;
@@ -419,6 +440,14 @@ inline MoveOnlyCallback<Signature> WrapWithLifetime(
  * @tparam ArgsT Argument types
  */
 template<typename ReturnT, typename... ArgsT>
+/**
+ * @class CallbackRegistry
+ * @brief CallbackRegistry class.
+ */
+/**
+ * @class CallbackRegistry
+ * @brief Callback registry implementation for GraphX.
+ */
 class CallbackRegistry {
 public:
     using CallbackType = MoveOnlyCallback<ReturnT(ArgsT...)>;
@@ -438,6 +467,11 @@ public:
      * @brief Register callback (thread-safe)
      */
     void Register(CallbackType callback) {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         callbacks_.push_back(std::move(callback));
     }
@@ -446,6 +480,11 @@ public:
      * @brief Invoke all callbacks (thread-safe)
      */
     void BroadcastEvent(ArgsT... args) {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         for (auto& callback : callbacks_) {
             if constexpr (std::is_same_v<ReturnT, void>) {
@@ -460,6 +499,11 @@ public:
      * @brief Get callback count (thread-safe)
      */
     [[nodiscard]] size_t Size() const noexcept {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         return callbacks_.size();
     }
@@ -468,6 +512,11 @@ public:
      * @brief Clear all callbacks (thread-safe)
      */
     void Clear() noexcept {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         callbacks_.clear();
     }

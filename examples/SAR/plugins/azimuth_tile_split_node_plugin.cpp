@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file azimuth_tile_split_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 #include <memory>
 
 #include "plugins/NodePluginTemplate.hpp"

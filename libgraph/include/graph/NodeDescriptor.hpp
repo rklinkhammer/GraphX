@@ -1,3 +1,8 @@
+/**
+ * @file NodeDescriptor.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -58,10 +63,23 @@ struct RuntimeNodeDescriptorRequest {
     std::vector<PortMetadata> output_ports;
 };
 
+/**
+ * @class INodeDescriptorProvider
+ * @brief INodeDescriptorProvider class.
+ */
+/**
+ * @class INodeDescriptorProvider
+ * @brief I node descriptor provider implementation for GraphX.
+ */
 class INodeDescriptorProvider {
 public:
     virtual ~INodeDescriptorProvider() = default;
 
+/**
+ * @brief Build runtime descriptor.
+ * @param request Parameter for build runtime descriptor.
+ * @return Result of the operation.
+ */
     virtual NodeDescriptor BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest request) const = 0;
 };
 
@@ -268,6 +286,10 @@ inline NodeDescriptor BuildRuntimeNodeDescriptor(
         std::move(output_ports));
 }
 
+/**
+ * @class DefaultNodeDescriptorProvider
+ * @brief Default node descriptor provider implementation for GraphX.
+ */
 class DefaultNodeDescriptorProvider final : public INodeDescriptorProvider {
 public:
     NodeDescriptor BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest request) const override {

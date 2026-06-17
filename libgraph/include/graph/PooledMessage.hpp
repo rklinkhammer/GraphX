@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file PooledMessage.hpp
  * @brief Integration adapter for MessageBufferPool with Message class
@@ -45,6 +47,10 @@ namespace graph {
  *   pool->ReleaseBuffer(buffer);
  * @endcode
  */
+/**
+ * @class MessagePoolRegistry
+ * @brief Message pool registry implementation for GraphX.
+ */
 class MessagePoolRegistry {
 public:
     /**
@@ -65,6 +71,11 @@ public:
      * Subsequent calls with same size return cached pool.
      * Thread-safe: multiple threads can request pools concurrently.
      */
+/**
+ * @brief Get pool for size.
+ * @param size Parameter for get pool for size.
+ * @return Result of the operation.
+ */
     MessageBufferPool<64>* GetPoolForSize(size_t size);
 
     /**
@@ -75,6 +86,10 @@ public:
      * Must be called once during graph initialization.
      * Safe to call multiple times (idempotent).
      */
+/**
+ * @brief Initialize common pools.
+ * @param pool_capacity Parameter for initialize common pools.
+ */
     void InitializeCommonPools(size_t pool_capacity = 1000);
 
     /**
@@ -83,6 +98,9 @@ public:
      * Called during graph teardown. Frees all managed pools.
      * Safe to call multiple times.
      */
+/**
+ * @brief Shutdown all pools.
+ */
     void ShutdownAllPools() noexcept;
 
     /**
@@ -96,6 +114,10 @@ public:
         double aggregate_hit_rate = 0.0;  ///< Weighted average hit rate %
     };
 
+/**
+ * @brief Get aggregate stats.
+ * @return Result of the operation.
+ */
     AggregateStats GetAggregateStats() const;
 
     /**
@@ -103,6 +125,9 @@ public:
      *
      * Used primarily for testing. Frees all buffers and resets counters.
      */
+/**
+ * @brief Reset.
+ */
     void Reset() noexcept;
 
     // Non-copyable, non-movable (singleton)
@@ -129,6 +154,10 @@ private:
  * and runtime helpers for buffer allocation/deallocation with pool management.
  */
 template <size_t SSO_THRESHOLD = 32>
+/**
+ * @class PooledMessageHelper
+ * @brief Pooled message helper implementation for GraphX.
+ */
 class PooledMessageHelper {
 public:
     /**
@@ -222,6 +251,10 @@ struct PooledMessageConfig {
  *
  * Provides observability into pooling behavior and hit rates.
  * Thread-safe: uses atomic reads for statistics counters.
+ */
+/**
+ * @class PooledMessageStats
+ * @brief Pooled message stats implementation for GraphX.
  */
 class PooledMessageStats {
 public:

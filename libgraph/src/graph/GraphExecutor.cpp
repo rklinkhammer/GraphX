@@ -1,3 +1,8 @@
+/**
+ * @file GraphExecutor.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -95,6 +100,9 @@ GraphExecutor::~GraphExecutor() noexcept {
     }
 }
 
+/**
+ * @brief Init.
+ */
 InitializationResult GraphExecutor::Init() {
     auto result = InitExpected();
     if (result) {
@@ -146,6 +154,9 @@ GraphExecutor::InitExpected() noexcept {
     });
 }
 
+/**
+ * @brief Start.
+ */
 ExecutionResult GraphExecutor::Start() {
     auto result = StartExpected();
     if (result) {
@@ -207,6 +218,9 @@ GraphExecutor::StartExpected() noexcept {
     });
 }
 
+/**
+ * @brief Run.
+ */
 ExecutionResult GraphExecutor::Run() {
     auto result = RunExpected();
     if (result) {
@@ -265,6 +279,9 @@ GraphExecutor::RunExpected() noexcept {
     });
 }
 
+/**
+ * @brief Stop.
+ */
 ExecutionResult GraphExecutor::Stop() {
     auto result = StopExpected();
     if (result) {
@@ -306,6 +323,9 @@ GraphExecutor::StopExpected() noexcept {
     });
 }
 
+/**
+ * @brief Join.
+ */
 ExecutionResult GraphExecutor::Join() {
     auto result = JoinExpected();
     if (result) {
@@ -345,10 +365,17 @@ GraphExecutor::JoinExpected() noexcept {
     });
 }
 
+/**
+ * @brief Display results.
+ * @param results Parameter for display results.
+ */
 void GraphExecutor::DisplayResults(const ExecutionResult& results) const { 
     (void)results;
 }
 
+/**
+ * @brief Execute.
+ */
 ExecutionResult GraphExecutor::Execute() {
     auto result = ExecuteExpected();
     if (result) {
@@ -412,6 +439,10 @@ GraphExecutor::ExecuteExpected() noexcept {
 
 // ========== Private Methods ==========
 
+/**
+ * @brief Count nodesin lifecycle state.
+ * @param state Parameter for count nodesin lifecycle state.
+ */
 int GraphExecutor::CountNodesinLifecycleState(graph::LifecycleState state) const {
     int count = 0;
     auto graph_manager = graph_manager_;
@@ -426,11 +457,17 @@ int GraphExecutor::CountNodesinLifecycleState(graph::LifecycleState state) const
 
 // ========== State Query Methods ==========
 
+/**
+ * @brief Is running.
+ */
 bool GraphExecutor::IsRunning() const {
     return current_state_ == ExecutionState::RUNNING || 
            current_state_ == ExecutionState::STEPPING;
 }
 
+/**
+ * @brief Is in error.
+ */
 bool GraphExecutor::IsInError() const {
     return current_state_ == ExecutionState::ERROR;
 }

@@ -1,3 +1,8 @@
+/**
+ * @file DefaultMetalCapabilities.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -11,25 +16,42 @@
 
 namespace graph::gpu::metal::capabilities {
 
+/**
+ * @brief Select device.
+ * @param device_id Parameter for select device.
+ */
 bool DefaultMetalContextCapability::SelectDevice(std::uint32_t device_id) {
     current_device_id_ = device_id;
     return true;
 }
 
+/**
+ * @brief Current device.
+ */
 std::uint32_t DefaultMetalContextCapability::CurrentDevice() const {
     return current_device_id_;
 }
 
+/**
+ * @brief Create command queue.
+ */
 std::uint64_t DefaultMetalContextCapability::CreateCommandQueue() {
     const auto id = next_queue_id_++;
     queues_.insert(id);
     return id;
 }
 
+/**
+ * @brief Destroy command queue.
+ * @param queue_id Parameter for destroy command queue.
+ */
 void DefaultMetalContextCapability::DestroyCommandQueue(std::uint64_t queue_id) {
     queues_.erase(queue_id);
 }
 
+/**
+ * @brief Create event.
+ */
 std::uint64_t DefaultMetalContextCapability::CreateEvent() {
     const auto id = next_event_id_++;
     events_.insert(id);
@@ -37,11 +59,19 @@ std::uint64_t DefaultMetalContextCapability::CreateEvent() {
     return id;
 }
 
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
 void DefaultMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     events_.erase(event_id);
     completed_events_.erase(event_id);
 }
 
+/**
+ * @brief Is event complete.
+ * @param event_id Parameter for is event complete.
+ */
 bool DefaultMetalContextCapability::IsEventComplete(std::uint64_t event_id) const {
     if (!events_.contains(event_id)) {
         return false;
@@ -49,6 +79,11 @@ bool DefaultMetalContextCapability::IsEventComplete(std::uint64_t event_id) cons
     return completed_events_.contains(event_id);
 }
 
+/**
+ * @brief Wait event.
+ * @param event_id Parameter for wait event.
+ * @param std::uint64_t Parameter for wait event.
+ */
 bool DefaultMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64_t) {
     if (!events_.contains(event_id)) {
         return false;
@@ -150,6 +185,10 @@ bool DefaultMetalMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
     return true;
 }
 
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ */
 bool DefaultMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
     if (lease.allocation_id == 0) {
         return false;
@@ -177,6 +216,9 @@ bool DefaultMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) 
     return released_device || released_shared || released_host;
 }
 
+/**
+ * @brief Snapshot.
+ */
 IMetalMemoryPoolCapability::MemoryPoolSnapshot DefaultMetalMemoryPoolCapability::Snapshot() const {
     MemoryPoolSnapshot out{};
     out.live_device_bytes = live_device_bytes_;
@@ -252,6 +294,10 @@ bool DefaultMetalTransferCapability::EnqueueD2D(const accel::DeviceBufferView& s
     return true;
 }
 
+/**
+ * @brief Register kernel descriptor.
+ * @param descriptor Parameter for register kernel descriptor.
+ */
 bool DefaultMetalKernelCapability::RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) {
     if (descriptor.kernel_id == 0 || descriptor.function_name.empty()) {
         return false;
@@ -325,10 +371,17 @@ void DefaultMetalTelemetryCapability::RecordKernel(const accel::KernelTicket&,
     last_kernel_duration_ns_ = duration_ns;
 }
 
+/**
+ * @brief Increment error counter.
+ * @param std::string_view Parameter for increment error counter.
+ */
 void DefaultMetalTelemetryCapability::IncrementErrorCounter(std::string_view) {
     ++error_count_;
 }
 
+/**
+ * @brief Snapshot.
+ */
 IMetalTelemetryCapability::TelemetrySnapshot DefaultMetalTelemetryCapability::Snapshot() const {
     TelemetrySnapshot out{};
     out.transfer_samples = transfer_samples_;

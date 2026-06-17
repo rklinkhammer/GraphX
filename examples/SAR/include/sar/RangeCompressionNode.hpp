@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file RangeCompressionNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -37,6 +44,10 @@ struct RangeCompressionConfig {
     double range_spacing_m{0.25};
 };
 
+/**
+ * @class RangeCompressionNode
+ * @brief RangeCompressionNode class.
+ */
 class RangeCompressionNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

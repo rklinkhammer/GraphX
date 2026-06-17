@@ -1,3 +1,8 @@
+/**
+ * @file QueueSyncNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class QueueSyncNodeMetal
+ * @brief QueueSyncNodeMetal class.
+ */
+/**
+ * @class QueueSyncNodeMetal
+ * @brief Queue sync node metal implementation for GraphX.
+ */
 class QueueSyncNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

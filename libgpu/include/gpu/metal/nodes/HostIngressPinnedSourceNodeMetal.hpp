@@ -1,3 +1,8 @@
+/**
+ * @file HostIngressPinnedSourceNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -22,6 +27,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostIngressPinnedSourceNodeMetal
+ * @brief HostIngressPinnedSourceNodeMetal class.
+ */
+/**
+ * @class HostIngressPinnedSourceNodeMetal
+ * @brief Host ingress pinned source node metal implementation for GraphX.
+ */
 class HostIngressPinnedSourceNodeMetal
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeMetal, accel::HostPinnedBufferView>,
     public graph::IGpuCapabilityBinding,

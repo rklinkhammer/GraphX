@@ -1,3 +1,8 @@
+/**
+ * @file test_thread_pool_chaos.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -45,6 +50,10 @@
 
 namespace graph::test {
 
+/**
+ * @class ThreadPoolChaosTest
+ * @brief Thread pool chaos test implementation for GraphX.
+ */
 class ThreadPoolChaosTest : public ::testing::Test {
 protected:
     static constexpr uint32_t kSeed = 0xC0FFEEu;

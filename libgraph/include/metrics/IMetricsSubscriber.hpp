@@ -1,3 +1,8 @@
+/**
+ * @file IMetricsSubscriber.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -39,6 +44,14 @@ namespace app::metrics  {
  *
  * Thread-safe implementations should use proper synchronization.
  */
+/**
+ * @class IMetricsSubscriber
+ * @brief IMetricsSubscriber class.
+ */
+/**
+ * @class IMetricsSubscriber
+ * @brief I metrics subscriber implementation for GraphX.
+ */
 class IMetricsSubscriber {
 public:
     /**
@@ -54,6 +67,10 @@ public:
      *
      * @param event Metrics event from node
      */
+/**
+ * @brief On metrics event.
+ * @param event Parameter for on metrics event.
+ */
     virtual void OnMetricsEvent(const app::metrics::MetricsEvent& event) = 0;
 };
 

@@ -1,3 +1,8 @@
+/**
+ * @file CommandRegistryCapability.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -72,6 +77,10 @@ namespace capabilities {
  *
  * @see CommandRegistry, CommandResult, CommandInfo, IExecutionPolicy
  */
+/**
+ * @class CommandRegistryCapability
+ * @brief Command registry capability implementation for GraphX.
+ */
 class CommandRegistryCapability {
 public:
     /**
@@ -142,6 +151,11 @@ public:
         const std::string& description,
         const std::string& usage,
         CommandHandler handler) {
+/**
+ * @brief Lock.
+ * @param registry_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->RegisterCommand(name, description, usage, handler);
     }
@@ -175,6 +189,11 @@ public:
     CommandResult ExecuteCommand(
         const std::string& name,
         const std::vector<std::string>& args) {
+/**
+ * @brief Lock.
+ * @param registry_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->ExecuteCommand(name, args);
     }
@@ -190,6 +209,11 @@ public:
      * @return true if command exists, false otherwise
      */
     bool HasCommand(const std::string& name) const {
+/**
+ * @brief Lock.
+ * @param registry_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->HasCommand(name);
     }
@@ -204,6 +228,11 @@ public:
      * @note Do not store returned pointer; copy data instead
      */
     const CommandInfo* GetCommandInfo(const std::string& name) const {
+/**
+ * @brief Lock.
+ * @param registry_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->GetCommandInfo(name);
     }
@@ -231,6 +260,11 @@ public:
      * @see RangesUtilities.hpp for helper functions
      */
     std::vector<CommandInfo> GetAllCommands() const {
+/**
+ * @brief Lock.
+ * @param registry_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->GetAllCommands();
     }

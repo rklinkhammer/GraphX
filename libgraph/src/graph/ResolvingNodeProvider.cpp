@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file ResolvingNodeProvider.cpp
+ * @brief GraphX source file.
+ */
+
 #include "graph/ResolvingNodeProvider.hpp"
 
 #include <algorithm>
@@ -74,10 +81,17 @@ ResolvingNodeProvider::CreateNodeExpected(const std::string& node_type_name) noe
     return inner_->CreateNodeExpected(resolved->concrete_type);
 }
 
+/**
+ * @brief Is node type available.
+ * @param node_type_name Parameter for is node type available.
+ */
 bool ResolvingNodeProvider::IsNodeTypeAvailable(const std::string& node_type_name) const {
     return ResolveNodeType(node_type_name).has_value();
 }
 
+/**
+ * @brief Get available node types.
+ */
 std::vector<std::string> ResolvingNodeProvider::GetAvailableNodeTypes() const {
     if (!inner_) {
         return {};

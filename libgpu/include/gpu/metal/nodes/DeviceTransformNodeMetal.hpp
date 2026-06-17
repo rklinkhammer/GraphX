@@ -1,3 +1,8 @@
+/**
+ * @file DeviceTransformNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -28,6 +33,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class DeviceTransformNodeMetal
+ * @brief DeviceTransformNodeMetal class.
+ */
+/**
+ * @class DeviceTransformNodeMetal
+ * @brief Device transform node metal implementation for GraphX.
+ */
 class DeviceTransformNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

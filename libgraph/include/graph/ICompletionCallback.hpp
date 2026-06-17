@@ -1,3 +1,8 @@
+/**
+ * @file ICompletionCallback.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -40,6 +45,14 @@ namespace graph {
  * @tparam DataType Type of completion signal (typically CompletionSignal)
  */
 template<typename DataType>
+/**
+ * @class ICompletionCallback
+ * @brief ICompletionCallback class.
+ */
+/**
+ * @class ICompletionCallback
+ * @brief I completion callback implementation for GraphX.
+ */
 class ICompletionCallback  {
 public:
 
@@ -69,6 +82,14 @@ public:
         return callback_provider_;
     }
 
+/**
+ * @class CompletionNodeCallback
+ * @brief CompletionNodeCallback class.
+ */
+/**
+ * @class CompletionNodeCallback
+ * @brief Completion node callback implementation for GraphX.
+ */
     class CompletionNodeCallback : public NodeCallback {
     public:
         virtual ~CompletionNodeCallback() = default;
@@ -81,11 +102,21 @@ public:
             */
         void SetOnComplete(std::function<void()> callback)
         {
+/**
+ * @brief Lock.
+ * @param state_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::lock_guard<std::mutex> lock(state_mutex_);
             on_complete_callback_ = std::move(callback);
         }
 
         void OnComplete() noexcept {
+/**
+ * @brief Lock.
+ * @param state_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (on_complete_callback_) {
                 on_complete_callback_();

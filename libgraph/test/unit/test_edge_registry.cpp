@@ -1,3 +1,8 @@
+/**
+ * @file test_edge_registry.cpp
+ * @brief GraphX source file.
+ */
+
 // Copyright (C) 2024 Graph Framework Contributors
 // SPDX-License-Identifier: MIT
 //
@@ -63,6 +68,10 @@ namespace {
  * @brief Test fixture for EdgeRegistry
  *
  * Ensures clean state before each test by clearing the registry.
+ */
+/**
+ * @class EdgeRegistryTest
+ * @brief Edge registry test implementation for GraphX.
  */
 class EdgeRegistryTest : public ::testing::Test {
 protected:

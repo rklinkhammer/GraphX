@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file DataInjectionCapability.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <string>
@@ -30,6 +37,14 @@ struct DataInjectionNodeConfig {
     core::ActiveQueue<graph::message::Message>* injection_queue;
 };
 
+/**
+ * @class DataInjectionCapability
+ * @brief DataInjectionCapability class.
+ */
+/**
+ * @class DataInjectionCapability
+ * @brief Data injection capability implementation for GraphX.
+ */
 class DataInjectionCapability {
 public:
     DataInjectionCapability() = default;    

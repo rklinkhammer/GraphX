@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file TestGraphTopologies.cpp
  * @brief Implementation of graph topologies for GraphManager testing
@@ -30,6 +32,9 @@ namespace test {
 // Topology 1: Minimal Graph (Source -> Sink)
 // ============================================================================
 
+/**
+ * @brief Build minimal graph.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
     /**
      * Graph Structure:
@@ -73,6 +78,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalGraph() {
 // ============================================================================
 
 
+/**
+ * @brief Build linear sequential.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
     /**
      * Graph Structure:
@@ -124,6 +132,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequential() {
 // ============================================================================
 
 
+/**
+ * @brief Build merge simple.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
     /**
      * Graph Structure:
@@ -187,6 +198,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMergeSimple() {
 // ============================================================================
 
 
+/**
+ * @brief Build split simple.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
     /**
      * Graph Structure:
@@ -252,6 +266,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSplitSimple() {
 // ============================================================================
 
 
+/**
+ * @brief Build diamond complex.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
     /**
      * Graph Structure:
@@ -331,6 +348,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildDiamondComplex() {
 // Topology 6: Multi-Path Sequential (Source -> Interior -> Interior -> Interior -> Sink)
 // ============================================================================
 
+/**
+ * @brief Build multi path sequential.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential() {
     /**
      * Graph Structure:
@@ -392,6 +412,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMultiPathSequential()
 // Topology 7: Interior to Merge (Source -> Interior -> Merge -> Sink)
 // ============================================================================
 
+/**
+ * @brief Build interior to merge.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
     /**
      * Graph Structure:
@@ -459,6 +482,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildInteriorToMerge() {
 // Topology 8: Parallel Merge with Interior (Source + Source + Interior -> Merge -> Sink)
 // ============================================================================
 
+/**
+ * @brief Build parallel merge with interior.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInterior() {
     /**
      * Graph Structure:
@@ -534,6 +560,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildParallelMergeWithInte
 // Topology 9: Complex Network (Multiple interleaved merge/split operations)
 // ============================================================================
 
+/**
+ * @brief Build complex network.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
     /**
      * Graph Structure:
@@ -623,6 +652,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildComplexNetwork() {
 // Topology 10: Source Only (Single source node - edge case)
 // ============================================================================
 
+/**
+ * @brief Build source only.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
     /**
      * Graph Structure:
@@ -660,6 +692,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildSourceOnly() {
 // Producer Topologies (Plugin-based)
 // ============================================================================
 
+/**
+ * @brief Build minimal int producer.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() {
     /**
      * Graph Structure:
@@ -709,6 +744,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalIntProducer() 
     return graph;
 }
 
+/**
+ * @brief Build linear sequential int producer.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntProducer() {
     /**
      * Graph Structure:
@@ -762,6 +800,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialIntPr
     return graph;
 }
 
+/**
+ * @brief Build minimal double producer.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer() {
     /**
      * Graph Structure:
@@ -811,6 +852,9 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildMinimalDoubleProducer
     return graph;
 }
 
+/**
+ * @brief Build linear sequential double producer.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubleProducer() {
     /**
      * Graph Structure:
@@ -868,6 +912,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildLinearSequentialDoubl
 // Topology Factory
 // ============================================================================
 
+/**
+ * @brief Build topology.
+ * @param type Parameter for build topology.
+ */
 std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildTopology(TopologyType type) {
     switch (type) {
         case TopologyType::LinearSequential:
@@ -907,6 +955,10 @@ std::shared_ptr<graph::GraphManager> TopologyBuilder::BuildTopology(TopologyType
 // Metadata
 // ============================================================================
 
+/**
+ * @brief Get topology metadata.
+ * @param type Parameter for get topology metadata.
+ */
 TopologyMetadata TopologyBuilder::GetTopologyMetadata(TopologyType type) {
     switch (type) {
         case TopologyType::LinearSequential:
@@ -1012,6 +1064,9 @@ TopologyMetadata TopologyBuilder::GetTopologyMetadata(TopologyType type) {
     }
 }
 
+/**
+ * @brief Get all topology types.
+ */
 std::vector<TopologyType> TopologyBuilder::GetAllTopologyTypes() {
     return {
         TopologyType::LinearSequential,
@@ -1035,6 +1090,10 @@ std::vector<TopologyType> TopologyBuilder::GetAllTopologyTypes() {
 // Topology Descriptions
 // ============================================================================
 
+/**
+ * @brief Get topology diagram.
+ * @param type Parameter for get topology diagram.
+ */
 std::string GetTopologyDiagram(TopologyType type) {
     switch (type) {
         case TopologyType::LinearSequential:
@@ -1070,6 +1129,10 @@ std::string GetTopologyDiagram(TopologyType type) {
     }
 }
 
+/**
+ * @brief Get topology documentation.
+ * @param type Parameter for get topology documentation.
+ */
 std::string GetTopologyDocumentation(TopologyType type) {
     auto metadata = TopologyBuilder::GetTopologyMetadata(type);
     std::ostringstream oss;

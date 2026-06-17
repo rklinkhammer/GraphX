@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file AdvancedTestNodes.hpp
  * @brief Simple test nodes for registered-provider testing
@@ -64,6 +66,10 @@ namespace test {
 
     inline std::atomic<uint64_t> g_test_node_event_sequence{0};
 
+/**
+ * @class TestNodeInstrumentation
+ * @brief Test node instrumentation implementation for GraphX.
+ */
     class TestNodeInstrumentation {
     public:
         void Record(TestNodeEvent event) noexcept {
@@ -143,6 +149,10 @@ namespace test {
      * @class SourceTestNode
      * @brief Simple data source for testing with JSON configuration support
      */
+/**
+ * @class SourceTestNode
+ * @brief Source test node implementation for GraphX.
+ */
     class SourceTestNode 
         : public graph::NamedSourceNode<
             SourceTestNode,
@@ -171,6 +181,11 @@ namespace test {
                 }
                 last_message_time_ = now;
                 
+/**
+ * @brief Msg.
+ * @param count_ Parameter for msg.
+ * @return Result of the operation.
+ */
                 graph::message::Message msg(count_);
                 count_++;
                 LOG4CXX_TRACE(test_logger, "SourceTestNode produced message: " << (count_ - 1) 
@@ -387,6 +402,10 @@ namespace test {
      * Implements IConfigurable to support dynamic configuration via JSON for use with
      * NodeFacade and dynamic node loading.
      */
+/**
+ * @class SinkTestNode
+ * @brief Sink test node implementation for GraphX.
+ */
     class SinkTestNode : public graph::NamedSinkNode<SinkTestNode, ::graph::message::Message>,
                         public graph::ICompletionCallback<::graph::message::CompletionSignal>,
                         public graph::IConfigurable,
@@ -430,6 +449,11 @@ namespace test {
             // Protected by mutex: input edge thread calls this method
             // Lifetime fix: MetricsPolicy keeps callback alive in shared_ptr map until OnJoin()
             if (metrics_callback_) {
+/**
+ * @brief Lock.
+ * @param metrics_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();
@@ -650,6 +674,10 @@ namespace test {
     // OptionalConfigTestNode - Configurable node with no required config fields
     // =========================================================================================
 
+/**
+ * @class OptionalConfigTestNode
+ * @brief Optional config test node implementation for GraphX.
+ */
     class OptionalConfigTestNode
         : public graph::NamedSinkNode<OptionalConfigTestNode, ::graph::message::Message>,
           public graph::IConfigurable,
@@ -701,6 +729,10 @@ namespace test {
      * @class FailingTestNode
      * @brief Node that can be configured to report failures
      */
+/**
+ * @class FailingTestNode
+ * @brief Failing test node implementation for GraphX.
+ */
     class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message>,
                            public graph::IMetricsCallbackProvider {
     public: 
@@ -777,6 +809,10 @@ namespace test {
         graph::IMetricsCallback* metrics_callback_{nullptr};
     };
 
+/**
+ * @class NSinkTestNode
+ * @brief N sink test node implementation for GraphX.
+ */
     class NSinkTestNode : public graph::NamedSinkNode<NSinkTestNode,
                                 graph::message::Message, 
                                 graph::message::Message, 
@@ -884,6 +920,11 @@ namespace test {
             // Phase 2: Publish metrics event if callback is installed
             // Protected by mutex: each of 5 input edges may call this concurrently
             if (metrics_callback_) {
+/**
+ * @brief Lock.
+ * @param metrics_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();
@@ -906,6 +947,10 @@ namespace test {
     // This node implements IMetricsCallbackProvider to track message transfers and publish
     // metrics events, enabling testing of the MetricsCapability framework.
     
+/**
+ * @class InteriorTestNode
+ * @brief Interior test node implementation for GraphX.
+ */
     class InteriorTestNode
         : public graph::NamedInteriorNode<
               graph::TypeList<graph::message::Message>,
@@ -953,6 +998,11 @@ namespace test {
             // Phase 2: Publish metrics event if callback is installed
             // Protected by mutex: input edge thread calls this method
             if (metrics_callback_) {
+/**
+ * @brief Lock.
+ * @param metrics_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();
@@ -1080,6 +1130,10 @@ namespace test {
      *
      * Tracks message counts from each input port for advanced metrics validation.
      */
+/**
+ * @class MergeTestNode
+ * @brief Merge test node implementation for GraphX.
+ */
     class MergeTestNode 
         : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode>,
           public graph::IMetricsCallbackProvider {
@@ -1120,6 +1174,11 @@ namespace test {
             // Phase 2: Publish metrics event if callback is installed
             // Protected by mutex: 2 input edges may call this concurrently
             if (metrics_callback_) {
+/**
+ * @brief Lock.
+ * @param metrics_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();
@@ -1235,6 +1294,10 @@ namespace test {
      *
      * Tracks message counts through each output port for advanced metrics validation.
      */
+/**
+ * @class SplitTestNode
+ * @brief Split test node implementation for GraphX.
+ */
     class SplitTestNode
         : public graph::SplitNode2<::graph::message::Message>,
           public graph::IMetricsCallbackProvider {
@@ -1283,6 +1346,11 @@ namespace test {
             // Phase 2: Publish metrics event if callback is installed
             // Protected by mutex: input edge thread calls this method
             if (metrics_callback_) {
+/**
+ * @brief Lock.
+ * @param metrics_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard<std::mutex> lock(metrics_mutex_);
                 app::metrics::MetricsEvent event;
                 event.timestamp = std::chrono::system_clock::now();

@@ -1,3 +1,8 @@
+/**
+ * @file LeaseReleaseNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -20,6 +25,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class LeaseReleaseNodeMetal
+ * @brief LeaseReleaseNodeMetal class.
+ */
+/**
+ * @class LeaseReleaseNodeMetal
+ * @brief Lease release node metal implementation for GraphX.
+ */
 class LeaseReleaseNodeMetal
     : public graph::NamedSinkNode<LeaseReleaseNodeMetal, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarMaterializedImageSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -27,6 +34,10 @@ struct SarMaterializedCaptureMetadata {
     std::size_t element_count{0};
 };
 
+/**
+ * @class SarMaterializedImageSinkNode
+ * @brief SarMaterializedImageSinkNode class.
+ */
 class SarMaterializedImageSinkNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

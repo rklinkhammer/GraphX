@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_csv_parser.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>
@@ -18,6 +25,10 @@ namespace fs = std::filesystem;
  * - Type conversion accuracy
  * - Message<T> integration
  * - Error handling with malformed data
+ */
+/**
+ * @class CSVIntegrationTest
+ * @brief Csv integration test implementation for GraphX.
  */
 class CSVIntegrationTest : public ::testing::Test {
 protected:

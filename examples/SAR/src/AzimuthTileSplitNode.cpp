@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file AzimuthTileSplitNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/AzimuthTileSplitNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

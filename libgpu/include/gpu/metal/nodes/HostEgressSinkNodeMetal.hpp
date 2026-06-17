@@ -1,3 +1,8 @@
+/**
+ * @file HostEgressSinkNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostEgressSinkNodeMetal
+ * @brief HostEgressSinkNodeMetal class.
+ */
+/**
+ * @class HostEgressSinkNodeMetal
+ * @brief Host egress sink node metal implementation for GraphX.
+ */
 class HostEgressSinkNodeMetal
     : public graph::NamedSinkNode<HostEgressSinkNodeMetal, accel::HostPinnedBufferView>,
     public graph::CompletionCallbackProvider,

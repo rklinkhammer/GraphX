@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_resolving_node_provider.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "graph/ResolvingNodeProvider.hpp"
@@ -8,6 +15,10 @@
 
 namespace {
 
+/**
+ * @class FakeNodeProvider
+ * @brief Fake node provider implementation for GraphX.
+ */
 class FakeNodeProvider final : public graph::INodeProvider {
 public:
     explicit FakeNodeProvider(std::set<std::string> available)

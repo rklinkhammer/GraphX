@@ -1,3 +1,8 @@
+/**
+ * @file CSVParser.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -123,6 +128,11 @@ enum class ParsingError {
  * @param path Path to CSV file
  * @return Vector of lines (header + data rows), empty if file cannot be read
  */
+/**
+ * @brief Read csv file.
+ * @param path Parameter for read csv file.
+ * @return Result of the operation.
+ */
 std::vector<std::string> ReadCSVFile(const std::string& path);
 
 // ========== Header Parsing ==========
@@ -140,6 +150,11 @@ std::vector<std::string> ReadCSVFile(const std::string& path);
  * @param header_line First line of CSV file
  * @return CSVHeader with column information
  */
+/**
+ * @brief Parse header.
+ * @param header_line Parameter for parse header.
+ * @return Result of the operation.
+ */
 CSVHeader ParseHeader(const std::string& header_line);
 
 /**
@@ -153,6 +168,11 @@ CSVHeader ParseHeader(const std::string& header_line);
  *
  * @param header Parsed header information
  * @return "unified" or "consolidated"
+ */
+/**
+ * @brief Detect format.
+ * @param header Parameter for detect format.
+ * @return Result of the operation.
  */
 std::string DetectFormat(const CSVHeader& header);
 
@@ -176,6 +196,11 @@ std::string DetectFormat(const CSVHeader& header);
  *
  * @param line CSV data row
  * @return Vector of column values (trimmed)
+ */
+/**
+ * @brief Split csv line.
+ * @param line Parameter for split csv line.
+ * @return Result of the operation.
  */
 std::vector<std::string> SplitCSVLine(const std::string& line);
 

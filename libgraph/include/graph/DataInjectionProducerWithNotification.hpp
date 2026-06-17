@@ -1,3 +1,8 @@
+/**
+ * @file DataInjectionProducerWithNotification.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -85,6 +90,14 @@ namespace graph {
     
     template<typename NodeType, typename DataType, typename PayloadType, 
         typename Classification>
+/**
+ * @class DataInjectionProducerWithNotification
+ * @brief DataInjectionProducerWithNotification class.
+ */
+/**
+ * @class DataInjectionProducerWithNotification
+ * @brief Data injection producer with notification implementation for GraphX.
+ */
     class DataInjectionProducerWithNotification : public DataProducerWithNotification<
         NodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
         DataType, PayloadType, graph::message::CompletionSignal, Classification>,

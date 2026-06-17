@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaToCrsdMetadataMapper.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -23,6 +30,10 @@ struct GotchaMappedMetadata {
     std::string coordinate_frame{"gotcha_local_cartesian"};
 };
 
+/**
+ * @class GotchaToCrsdMetadataMapper
+ * @brief GotchaToCrsdMetadataMapper class.
+ */
 class GotchaToCrsdMetadataMapper {
 public:
     static constexpr const char* kLocalCartesianFrame = "gotcha_local_cartesian";

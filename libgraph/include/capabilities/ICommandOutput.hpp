@@ -1,3 +1,8 @@
+/**
+ * @file ICommandOutput.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -64,6 +69,14 @@ namespace capabilities {
  * @see ConsoleOutput (Console implementation)
  * @see CommandRegistry (consumer)
  */
+/**
+ * @class ICommandOutput
+ * @brief ICommandOutput class.
+ */
+/**
+ * @class ICommandOutput
+ * @brief I command output implementation for GraphX.
+ */
 class ICommandOutput {
 public:
     /**
@@ -79,6 +92,10 @@ public:
      *
      * @param message Message to write
      */
+/**
+ * @brief Write message.
+ * @param message Parameter for write message.
+ */
     virtual void WriteMessage(const std::string& message) = 0;
 
     /**
@@ -89,6 +106,10 @@ public:
      *
      * @param error Error message to write
      */
+/**
+ * @brief Write error.
+ * @param error Parameter for write error.
+ */
     virtual void WriteError(const std::string& error) = 0;
 
     /**
@@ -99,6 +120,10 @@ public:
      *
      * @param warning Warning message to write
      */
+/**
+ * @brief Write warning.
+ * @param warning Parameter for write warning.
+ */
     virtual void WriteWarning(const std::string& warning) = 0;
 
     /**
@@ -114,6 +139,10 @@ public:
      *
      * @see CommandRegistry::GetAllCommands()
      */
+/**
+ * @brief Write help.
+ * @param commands Parameter for write help.
+ */
     virtual void WriteHelp(const std::vector<CommandInfo>& commands) = 0;
 };
 

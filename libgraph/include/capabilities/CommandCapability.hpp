@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CommandCapability.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <string>
@@ -24,6 +31,10 @@ namespace capabilities {
  * @note This capability is the UI-agnostic counterpart to
  * the Terminal UI's CommandRegistry. Different UI adapters
  * can queue commands and receive results through this interface.
+ */
+/**
+ * @class CommandCapability
+ * @brief Command capability implementation for GraphX.
  */
 class CommandCapability {
 public:

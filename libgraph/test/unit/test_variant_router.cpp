@@ -1,3 +1,8 @@
+/**
+ * @file test_variant_router.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -61,6 +66,10 @@ using SimpleVariant = std::variant<EventA, EventB, EventC>;
 // Test Class
 // ===================================================================================
 
+/**
+ * @class VariantRouterTest
+ * @brief Variant router test implementation for GraphX.
+ */
 class VariantRouterTest : public ::testing::Test {
 protected:
     graph::VariantRouter<SimpleVariant> router;

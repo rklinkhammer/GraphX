@@ -81,6 +81,10 @@ static log4cxx::LoggerPtr _metadata_logger =
     log4cxx::Logger::getLogger("graph.plugins.PortMetadataHelper");
 
 template <typename PortT>
+/**
+ * @class PluginQueueBackedPortFunction
+ * @brief Plugin queue backed port function implementation for GraphX.
+ */
 class PluginQueueBackedPortFunction final : public IPortFunction {
 public:
     using ValueType = typename PortT::type;
@@ -636,6 +640,11 @@ struct PluginPolicy {
         if (auto* configurable = dynamic_cast<graph::IConfigurable*>(inst->node.get())) {
             try {
                 auto json_obj = nlohmann::json::parse(json_str);
+/**
+ * @brief View.
+ * @param json_obj Parameter for view.
+ * @return Result of the operation.
+ */
                 JsonView view(json_obj);
                 configurable->Configure(view);
                 return true;
@@ -826,6 +835,14 @@ namespace detail {
 /// Provides implementations of metrics/state queries using SFINAE for optional methods
 /// @tparam NodeT The concrete node type
 template <typename NodeT>
+/**
+ * @class NodeFacadeImpl
+ * @brief NodeFacadeImpl class.
+ */
+/**
+ * @class NodeFacadeImpl
+ * @brief Node facade impl implementation for GraphX.
+ */
 class NodeFacadeImpl {
 public:
     /// Get thread metrics if node provides GetThreadMetrics()
@@ -939,6 +956,11 @@ public:
         if (auto* configurable = dynamic_cast<graph::IConfigurable*>(instance->node.get())) {
             try {
                 auto json_obj = nlohmann::json::parse(json_str);
+/**
+ * @brief View.
+ * @param json_obj Parameter for view.
+ * @return Result of the operation.
+ */
                 JsonView view(json_obj);
                 configurable->Configure(view);
                 return true;

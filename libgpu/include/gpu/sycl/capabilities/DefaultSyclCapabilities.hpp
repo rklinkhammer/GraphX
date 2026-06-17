@@ -1,3 +1,8 @@
+/**
+ * @file DefaultSyclCapabilities.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -28,17 +33,50 @@ namespace graph::gpu::sycl::capabilities {
 
 struct SyclRuntimeState;
 
+/**
+ * @class DefaultSyclContextCapability
+ * @brief DefaultSyclContextCapability class.
+ */
+/**
+ * @class DefaultSyclContextCapability
+ * @brief Default sycl context capability implementation for GraphX.
+ */
 class DefaultSyclContextCapability final : public ISyclContextCapability {
 public:
     DefaultSyclContextCapability();
 
+/**
+ * @brief Select device.
+ * @param device_id Parameter for select device.
+ * @return Result of the operation.
+ */
     bool SelectDevice(std::uint32_t device_id) override;
+/**
+ * @brief Current device.
+ * @return Result of the operation.
+ */
     std::uint32_t CurrentDevice() const override;
 
+/**
+ * @brief Create queue.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateQueue() override;
+/**
+ * @brief Destroy queue.
+ * @param queue_id Parameter for destroy queue.
+ */
     void DestroyQueue(std::uint64_t queue_id) override;
 
+/**
+ * @brief Create event.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateEvent() override;
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
     void DestroyEvent(std::uint64_t event_id) override;
 
 private:
@@ -52,6 +90,14 @@ private:
     std::unordered_set<std::uint64_t> events_{};
 };
 
+/**
+ * @class DefaultSyclMemoryPoolCapability
+ * @brief DefaultSyclMemoryPoolCapability class.
+ */
+/**
+ * @class DefaultSyclMemoryPoolCapability
+ * @brief Default sycl memory pool capability implementation for GraphX.
+ */
 class DefaultSyclMemoryPoolCapability final : public ISyclMemoryPoolCapability {
 public:
     DefaultSyclMemoryPoolCapability();
@@ -62,6 +108,11 @@ public:
                         accel::BufferLease& out_lease) override;
     bool AllocateHost(std::uint64_t bytes,
                       accel::BufferLease& out_lease) override;
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ * @return Result of the operation.
+ */
     bool Release(const accel::BufferLease& lease) override;
 
 private:
@@ -73,6 +124,14 @@ private:
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
+/**
+ * @class DefaultSyclTransferCapability
+ * @brief DefaultSyclTransferCapability class.
+ */
+/**
+ * @class DefaultSyclTransferCapability
+ * @brief Default sycl transfer capability implementation for GraphX.
+ */
 class DefaultSyclTransferCapability final : public ISyclTransferCapability {
 public:
     DefaultSyclTransferCapability();
@@ -100,6 +159,14 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
+/**
+ * @class DefaultSyclKernelCapability
+ * @brief DefaultSyclKernelCapability class.
+ */
+/**
+ * @class DefaultSyclKernelCapability
+ * @brief Default sycl kernel capability implementation for GraphX.
+ */
 class DefaultSyclKernelCapability final : public ISyclKernelCapability {
 public:
     bool RegisterKernel(std::uint64_t kernel_id,
@@ -113,12 +180,24 @@ private:
     std::unordered_set<std::uint64_t> registered_kernels_{};
 };
 
+/**
+ * @class DefaultSyclTelemetryCapability
+ * @brief DefaultSyclTelemetryCapability class.
+ */
+/**
+ * @class DefaultSyclTelemetryCapability
+ * @brief Default sycl telemetry capability implementation for GraphX.
+ */
 class DefaultSyclTelemetryCapability final : public ISyclTelemetryCapability {
 public:
     void RecordTransfer(const accel::TransferTicket& ticket,
                         std::uint64_t duration_ns) override;
     void RecordKernel(const accel::KernelTicket& ticket,
                       std::uint64_t duration_ns) override;
+/**
+ * @brief Increment error counter.
+ * @param error_code Parameter for increment error counter.
+ */
     void IncrementErrorCounter(std::string_view error_code) override;
 
     [[nodiscard]] std::uint64_t TransferSamples() const { return transfer_samples_; }
@@ -131,6 +210,14 @@ private:
     std::uint64_t error_count_{0};
 };
 
+/**
+ * @class DefaultSyclCollectiveCapability
+ * @brief DefaultSyclCollectiveCapability class.
+ */
+/**
+ * @class DefaultSyclCollectiveCapability
+ * @brief Default sycl collective capability implementation for GraphX.
+ */
 class DefaultSyclCollectiveCapability final : public ISyclCollectiveCapability {
 public:
     bool AllReduce(accel::DeviceBufferView& in_out,

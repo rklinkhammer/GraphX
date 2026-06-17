@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file AdaptiveCapacityMonitor.cpp
  * @brief Implementation of adaptive capacity monitoring
@@ -9,6 +11,9 @@
 
 namespace graph {
 
+/**
+ * @brief Start.
+ */
 void AdaptiveCapacityMonitor::Start() {
     if (running_.exchange(true, std::memory_order_acq_rel)) {
         throw std::runtime_error("AdaptiveCapacityMonitor already running");
@@ -19,6 +24,9 @@ void AdaptiveCapacityMonitor::Start() {
     });
 }
 
+/**
+ * @brief Stop.
+ */
 void AdaptiveCapacityMonitor::Stop() noexcept {
     if (running_.exchange(false, std::memory_order_acq_rel)) {
         if (monitor_thread_ && monitor_thread_->joinable()) {
@@ -28,6 +36,9 @@ void AdaptiveCapacityMonitor::Stop() noexcept {
     }
 }
 
+/**
+ * @brief Is running.
+ */
 bool AdaptiveCapacityMonitor::IsRunning() const noexcept {
     return running_.load(std::memory_order_acquire);
 }
@@ -50,6 +61,10 @@ void AdaptiveCapacityMonitor::RegisterPool(size_t pool_id,
     registered_pools_.emplace_back(pool_id, PoolMonitor{std::move(monitor_fn), nullptr});
 }
 
+/**
+ * @brief Unregister pool.
+ * @param pool_id Parameter for unregister pool.
+ */
 void AdaptiveCapacityMonitor::UnregisterPool(size_t pool_id) noexcept {
     std::lock_guard<std::mutex> lock(pools_mutex_);
     auto it = std::find_if(registered_pools_.begin(), registered_pools_.end(),
@@ -77,6 +92,9 @@ void AdaptiveCapacityMonitor::RegisterAdjustmentCallback(
     throw std::logic_error("Pool not registered");
 }
 
+/**
+ * @brief Get config.
+ */
 AdaptiveCapacityConfig AdaptiveCapacityMonitor::GetConfig() const noexcept {
     std::lock_guard<std::mutex> lock(config_mutex_);
     return config_;
@@ -94,11 +112,17 @@ AdaptiveCapacityMonitor::GetAdjustmentHistory() const {
     return adjustment_history_;
 }
 
+/**
+ * @brief Clear adjustment history.
+ */
 void AdaptiveCapacityMonitor::ClearAdjustmentHistory() noexcept {
     std::lock_guard<std::mutex> lock(history_mutex_);
     adjustment_history_.clear();
 }
 
+/**
+ * @brief Monitoring loop.
+ */
 void AdaptiveCapacityMonitor::MonitoringLoop() noexcept {
     while (running_.load(std::memory_order_acquire)) {
         {
@@ -130,6 +154,10 @@ void AdaptiveCapacityMonitor::MonitoringLoop() noexcept {
     }
 }
 
+/**
+ * @brief Check and adjust pool.
+ * @param pool_id Parameter for check and adjust pool.
+ */
 bool AdaptiveCapacityMonitor::CheckAndAdjustPool(size_t pool_id) noexcept {
     std::lock_guard<std::mutex> lock(pools_mutex_);
 

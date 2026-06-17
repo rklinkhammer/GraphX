@@ -1,3 +1,8 @@
+/**
+ * @file test_execution_policies.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -47,6 +52,10 @@ namespace graph::test {
 // Mock/Test Policies
 // ===================================================================================
 
+/**
+ * @class MockPolicy
+ * @brief Mock policy implementation for GraphX.
+ */
 class MockPolicy : public IExecutionPolicy {
 public:
     MockPolicy() = default;
@@ -85,6 +94,10 @@ public:
     }
 };
 
+/**
+ * @class FailingPolicy
+ * @brief Failing policy implementation for GraphX.
+ */
 class FailingPolicy : public IExecutionPolicy {
 public:
     bool OnInit(capabilities::GraphCapability& context) override {
@@ -93,6 +106,10 @@ public:
     }
 };
 
+/**
+ * @class NoOpPolicy
+ * @brief No op policy implementation for GraphX.
+ */
 class NoOpPolicy : public IExecutionPolicy {
     // Uses default implementations (all return true/void)
 };
@@ -101,6 +118,10 @@ class NoOpPolicy : public IExecutionPolicy {
 // Test Fixture
 // ===================================================================================
 
+/**
+ * @class ExecutionPolicyTest
+ * @brief Execution policy test implementation for GraphX.
+ */
 class ExecutionPolicyTest : public ::testing::Test {
 protected:
     void SetUp() override {

@@ -1,3 +1,8 @@
+/**
+ * @file test_plugin_inspector.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -29,6 +34,10 @@ constexpr const char* kPluginExtension = ".dll";
 constexpr const char* kPluginExtension = ".so";
 #endif
 
+/**
+ * @class StubInspectorDescriptorProvider
+ * @brief Stub inspector descriptor provider implementation for GraphX.
+ */
 class StubInspectorDescriptorProvider final : public graph::INodeDescriptorProvider {
 public:
     graph::NodeDescriptor BuildRuntimeDescriptor(
@@ -43,6 +52,10 @@ public:
     }
 };
 
+/**
+ * @class StubInspectorSchemaProvider
+ * @brief Stub inspector schema provider implementation for GraphX.
+ */
 class StubInspectorSchemaProvider final : public graph::INodeDescriptorSchemaProvider {
 public:
     nlohmann::json BuildSchema(const graph::NodeDescriptor& descriptor) const override {
@@ -52,6 +65,10 @@ public:
     }
 };
 
+/**
+ * @class StubInspectorMetadataService
+ * @brief Stub inspector metadata service implementation for GraphX.
+ */
 class StubInspectorMetadataService final : public graph::INodeMetadataService {
 public:
     const graph::INodeDescriptorProvider& DescriptorProvider() const override {
@@ -67,6 +84,10 @@ private:
     StubInspectorSchemaProvider schema_provider_;
 };
 
+/**
+ * @class PluginInspectorTest
+ * @brief Plugin inspector test implementation for GraphX.
+ */
 class PluginInspectorTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -80,6 +101,11 @@ protected:
         fs::remove_all(temp_dir_, ec);
     }
 
+/**
+ * @brief Create plugin file.
+ * @param stem Parameter for create plugin file.
+ * @param bytes Parameter for create plugin file.
+ */
     fs::path CreatePluginFile(const std::string& stem, const std::vector<char>& bytes) const {
         const fs::path plugin_path = temp_dir_ / ("lib" + stem + kPluginExtension);
         std::ofstream out(plugin_path, std::ios::binary);
@@ -306,6 +332,10 @@ TEST_F(PluginInspectorTest, ConfigurableTestPluginsExposeTypedRequiredConfigFiel
 }
 
 TEST_F(PluginInspectorTest, InspectPluginUsesInjectedDescriptorProvider) {
+/**
+ * @class DescriptorOnlyMetadataService
+ * @brief Descriptor only metadata service implementation for GraphX.
+ */
     class DescriptorOnlyMetadataService final : public graph::INodeMetadataService {
     public:
         const graph::INodeDescriptorProvider& DescriptorProvider() const override {
@@ -334,6 +364,10 @@ TEST_F(PluginInspectorTest, InspectPluginUsesInjectedDescriptorProvider) {
 }
 
 TEST_F(PluginInspectorTest, InspectPluginUsesInjectedDescriptorSchemaProvider) {
+/**
+ * @class SchemaOnlyMetadataService
+ * @brief Schema only metadata service implementation for GraphX.
+ */
     class SchemaOnlyMetadataService final : public graph::INodeMetadataService {
     public:
         const graph::INodeDescriptorProvider& DescriptorProvider() const override {

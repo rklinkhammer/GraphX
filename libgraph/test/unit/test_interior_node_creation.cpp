@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_interior_node_creation.cpp
  * @brief Standalone tests for InteriorTestNode creation and wrapping
@@ -21,6 +23,10 @@ using namespace test;
 
 namespace {
 
+/**
+ * @class StubPluginDescriptorProvider
+ * @brief Stub plugin descriptor provider implementation for GraphX.
+ */
 class StubPluginDescriptorProvider final : public graph::INodeDescriptorProvider {
 public:
     graph::NodeDescriptor BuildRuntimeDescriptor(
@@ -38,6 +44,10 @@ public:
     }
 };
 
+/**
+ * @class StubPluginMetadataService
+ * @brief Stub plugin metadata service implementation for GraphX.
+ */
 class StubPluginMetadataService final : public graph::INodeMetadataService {
 public:
     const graph::INodeDescriptorProvider& DescriptorProvider() const override {
@@ -54,6 +64,10 @@ private:
 
 }  // namespace
 
+/**
+ * @class InteriorNodeCreationTest
+ * @brief Interior node creation test implementation for GraphX.
+ */
 class InteriorNodeCreationTest : public ::testing::Test {
 protected:
     void SetUp() override {

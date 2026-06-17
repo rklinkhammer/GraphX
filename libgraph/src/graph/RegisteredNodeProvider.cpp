@@ -1,3 +1,8 @@
+/**
+ * @file RegisteredNodeProvider.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -31,6 +36,10 @@ namespace graph {
 log4cxx::LoggerPtr RegisteredNodeProvider::logger_ = 
     log4cxx::Logger::getLogger("graph.RegisteredNodeProvider");
 
+/**
+ * @brief Error message.
+ * @param error Parameter for error message.
+ */
 std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error) {
     using Error = RegisteredNodeProvider::NodeCreationError;
     switch (error) {
@@ -49,6 +58,10 @@ std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error) {
     }
 }
 
+/**
+ * @brief Is node type available.
+ * @param node_type_name Parameter for is node type available.
+ */
 bool RegisteredNodeProvider::IsNodeTypeAvailable(const std::string& node_type_name) const {
     LOG4CXX_TRACE(logger_, "Checking availability of node type: " << node_type_name);
 
@@ -59,6 +72,9 @@ bool RegisteredNodeProvider::IsNodeTypeAvailable(const std::string& node_type_na
     return plugin_registry_ && plugin_registry_->HasNodeType(node_type_name);
 }
 
+/**
+ * @brief Get available node types.
+ */
 std::vector<std::string> RegisteredNodeProvider::GetAvailableNodeTypes() const {
     LOG4CXX_TRACE(logger_, "Getting list of available node types");
     
@@ -87,6 +103,9 @@ std::vector<std::string> RegisteredNodeProvider::GetAvailableNodeTypes() const {
     return available_types;
 }
 
+/**
+ * @brief Initialize.
+ */
 void RegisteredNodeProvider::Initialize() {
     LOG4CXX_TRACE(logger_, "Initializing unified provider");
     
@@ -158,6 +177,9 @@ RegisteredNodeProvider::CreateNodeExpected(const std::string& node_type_name) no
     return std::unexpected(NodeCreationError::NotInitialized);
 }
 
+/**
+ * @brief Register plugin nodes.
+ */
 void RegisteredNodeProvider::RegisterPluginNodes() {
     LOG4CXX_TRACE(logger_, "Registering plugin nodes in unified provider");
     
@@ -206,6 +228,9 @@ void RegisteredNodeProvider::RegisterPluginNodes() {
         << " plugin node types");
 }
 
+/**
+ * @brief Register static nodes.
+ */
 void RegisteredNodeProvider::RegisterStaticNodes() {
     LOG4CXX_TRACE(logger_, "Registering static node creators");
 

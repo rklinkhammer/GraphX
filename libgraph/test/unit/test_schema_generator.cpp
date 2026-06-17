@@ -1,3 +1,8 @@
+/**
+ * @file test_schema_generator.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -34,6 +39,9 @@ namespace {
 using json = nlohmann::json;
 
 struct SampleConfig {
+/**
+ * @brief Fields.
+ */
     static constexpr auto Fields() {
         return std::array{
             graph::JsonField{
@@ -63,6 +71,9 @@ struct SampleConfig {
 inline constexpr std::array<std::string_view, 2> kModes{"auto", "manual"};
 
 struct ConstraintConfig {
+/**
+ * @brief Fields.
+ */
     static constexpr auto Fields() {
         return std::array{
             graph::JsonField{

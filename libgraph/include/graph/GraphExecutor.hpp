@@ -1,3 +1,8 @@
+/**
+ * @file GraphExecutor.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -92,6 +97,10 @@ namespace graph {
  *   executor->Stop();
  *   executor->Join();
  */
+/**
+ * @class GraphExecutor
+ * @brief Graph executor implementation for GraphX.
+ */
 class GraphExecutor {
 public:
 
@@ -121,6 +130,9 @@ public:
      * Ensures Stop() and Join() are called before destruction.
      * Implementations should clean up policy resources.
      */
+/**
+ * @brief Graph executor.
+ */
     virtual ~GraphExecutor() noexcept;
     
     /**
@@ -137,6 +149,10 @@ public:
      * @pre State must be STOPPED
      * @post State is INITIALIZED or STOPPED (on error)
      */
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
     InitializationResult Init();
     [[nodiscard]] std::expected<InitializationResult, app::error::GraphExecutionFailure>
     InitExpected() noexcept;
@@ -152,6 +168,10 @@ public:
      * @pre State must be INITIALIZED
      * @post State is RUNNING (or error)
      */
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
     ExecutionResult Start();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
     StartExpected() noexcept;
@@ -170,6 +190,10 @@ public:
      * @pre State must be RUNNING
      * @post State is STOPPED or other terminal state
      */
+/**
+ * @brief Run.
+ * @return Result of the operation.
+ */
     ExecutionResult Run();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
     RunExpected() noexcept;
@@ -184,7 +208,15 @@ public:
      *
      * @post State transitions to STOPPING
      */
+/**
+ * @brief Stop.
+ * @return Result of the operation.
+ */
     ExecutionResult Stop();
+/**
+ * @brief Join.
+ * @return Result of the operation.
+ */
     ExecutionResult Join();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
     StopExpected() noexcept;
@@ -201,6 +233,10 @@ public:
      * Thread-Safety: Lock-free atomic read, safe from any thread
      * Time Complexity: O(1)
      */
+/**
+ * @brief Is running.
+ * @return Result of the operation.
+ */
     bool IsRunning() const;
 
     /**
@@ -211,6 +247,10 @@ public:
      * Thread-Safety: Lock-free atomic read, safe from any thread
      * Time Complexity: O(1)
      */
+/**
+ * @brief Is paused.
+ * @return Result of the operation.
+ */
     bool IsPaused() const;
 
     /**
@@ -221,11 +261,23 @@ public:
      * Thread-Safety: Lock-free atomic read, safe from any thread
      * Time Complexity: O(1)
      */
+/**
+ * @brief Is in error.
+ * @return Result of the operation.
+ */
     bool IsInError() const;
 
+/**
+ * @brief Display results.
+ * @param results Parameter for display results.
+ */
     void DisplayResults(const ExecutionResult& results) const;
     
 
+/**
+ * @brief Execute.
+ * @return Result of the operation.
+ */
     ExecutionResult Execute();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
     ExecuteExpected() noexcept;
@@ -276,6 +328,11 @@ public:
 
 private:
 
+/**
+ * @brief Count nodesin lifecycle state.
+ * @param state Parameter for count nodesin lifecycle state.
+ * @return Result of the operation.
+ */
     int CountNodesinLifecycleState(graph::LifecycleState state) const;
 
     std::unique_ptr<ExecutionPolicyChain> policy_chain_;

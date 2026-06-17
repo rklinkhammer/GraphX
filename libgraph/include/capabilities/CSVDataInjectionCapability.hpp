@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CSVDataInjectionCapability.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <string>
@@ -12,6 +19,14 @@ struct CSVDataInjectionCommand {
     int nrow;
 };
 
+/**
+ * @class CSVDataInjectionCapability
+ * @brief CSVDataInjectionCapability class.
+ */
+/**
+ * @class CSVDataInjectionCapability
+ * @brief Csv data injection capability implementation for GraphX.
+ */
 class CSVDataInjectionCapability {
 public:
     CSVDataInjectionCapability() = default;

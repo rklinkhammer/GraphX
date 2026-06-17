@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file sar_visualization_sink_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 #include <memory>
 
 #include "plugins/NodePluginTemplate.hpp"

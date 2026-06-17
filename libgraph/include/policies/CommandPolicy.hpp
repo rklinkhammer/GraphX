@@ -1,3 +1,8 @@
+/**
+ * @file CommandPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -70,6 +75,10 @@ static auto command_logger = log4cxx::Logger::getLogger("app.policies.CommandPol
  * - Policies can influence graph execution (pausing, stepping, etc.)
  *
  * @see IExecutionPolicy, GraphExecutor
+ */
+/**
+ * @class CommandPolicy
+ * @brief Command policy implementation for GraphX.
  */
 class CommandPolicy : public graph::IExecutionPolicy {
 public:

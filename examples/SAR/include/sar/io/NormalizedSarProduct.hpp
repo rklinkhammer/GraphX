@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file NormalizedSarProduct.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <array>
@@ -188,6 +195,10 @@ struct SarWriteResult {
     std::string message{};
 };
 
+/**
+ * @class ISarReader
+ * @brief ISarReader class.
+ */
 class ISarReader {
 public:
     virtual ~ISarReader() = default;
@@ -195,6 +206,10 @@ public:
     [[nodiscard]] virtual SarReadResult Read(const std::filesystem::path& path) const = 0;
 };
 
+/**
+ * @class ISarWriter
+ * @brief ISarWriter class.
+ */
 class ISarWriter {
 public:
     virtual ~ISarWriter() = default;

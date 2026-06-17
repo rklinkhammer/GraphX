@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file AdaptiveCapacityMonitor.hpp
  * @brief Adaptive pool capacity monitoring and adjustment
@@ -66,6 +68,10 @@ struct AdaptiveCapacityConfig {
  *
  * Thread-safe: All operations protected by mutexes.
  */
+/**
+ * @class AdaptiveCapacityMonitor
+ * @brief Adaptive capacity monitor implementation for GraphX.
+ */
 class AdaptiveCapacityMonitor {
 public:
     /**
@@ -84,6 +90,9 @@ public:
      * @brief Start monitoring thread
      * @throws std::runtime_error if already running
      */
+/**
+ * @brief Start.
+ */
     void Start();
 
     /**
@@ -91,6 +100,9 @@ public:
      *
      * Waits for thread to finish gracefully. Safe to call multiple times.
      */
+/**
+ * @brief Stop.
+ */
     void Stop() noexcept;
 
     /**
@@ -109,12 +121,21 @@ public:
      * @note Phase 4: Uses std::move_only_function for single-ownership
      * semantics and improved performance.
      */
+/**
+ * @brief Register pool.
+ * @param pool_id Parameter for register pool.
+ * @param monitor_fn Parameter for register pool.
+ */
     void RegisterPool(size_t pool_id, app::callbacks::MoveOnlyCallback<double()> monitor_fn);
 
     /**
      * @brief Unregister a pool from monitoring
      * @param pool_id Identifier of pool to stop monitoring
      */
+/**
+ * @brief Unregister pool.
+ * @param pool_id Parameter for unregister pool.
+ */
     void UnregisterPool(size_t pool_id) noexcept;
 
     /**
@@ -140,6 +161,10 @@ public:
      * @brief Update configuration
      * @param config New configuration
      */
+/**
+ * @brief Set config.
+ * @param config Parameter for set config.
+ */
     void SetConfig(const AdaptiveCapacityConfig& config) noexcept;
 
     /**
@@ -163,12 +188,18 @@ public:
     /**
      * @brief Clear adjustment history
      */
+/**
+ * @brief Clear adjustment history.
+ */
     void ClearAdjustmentHistory() noexcept;
 
 private:
     /**
      * @brief Main monitoring loop (runs in background thread)
      */
+/**
+ * @brief Monitoring loop.
+ */
     void MonitoringLoop() noexcept;
 
     /**
@@ -176,6 +207,11 @@ private:
      * @param pool_id Pool identifier
      * @return true if adjustment was made
      */
+/**
+ * @brief Check and adjust pool.
+ * @param pool_id Parameter for check and adjust pool.
+ * @return Result of the operation.
+ */
     bool CheckAndAdjustPool(size_t pool_id) noexcept;
 
     /**

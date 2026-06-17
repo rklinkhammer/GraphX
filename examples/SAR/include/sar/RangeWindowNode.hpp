@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file RangeWindowNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -20,6 +27,10 @@ struct RangeWindowConfig {
     float gain{1.0f};
 };
 
+/**
+ * @class RangeWindowNode
+ * @brief RangeWindowNode class.
+ */
 class RangeWindowNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

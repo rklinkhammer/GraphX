@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaHdf5PhdataReader.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -63,6 +70,10 @@ struct GotchaHdf5ReadOptions {
 // MATLAB stores complex arrays as a compound HDF5 type. The member names changed
 // across MATLAB releases: older versions use "real"/"imag", newer use "r"/"i".
 // This reader tries both.
+/**
+ * @class GotchaHdf5PhdataReader
+ * @brief GotchaHdf5PhdataReader class.
+ */
 class GotchaHdf5PhdataReader {
 public:
     [[nodiscard]] static bool IsAvailable() noexcept {

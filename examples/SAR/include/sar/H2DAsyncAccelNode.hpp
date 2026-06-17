@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file H2DAsyncAccelNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -23,6 +30,10 @@ struct H2DAsyncAccelConfig {
     SarBackendKind backend{SarBackendKind::Host};
 };
 
+/**
+ * @class H2DAsyncAccelNode
+ * @brief H2DAsyncAccelNode class.
+ */
 class H2DAsyncAccelNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

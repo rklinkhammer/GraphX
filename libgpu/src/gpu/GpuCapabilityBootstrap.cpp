@@ -1,3 +1,8 @@
+/**
+ * @file GpuCapabilityBootstrap.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -31,12 +36,18 @@ namespace graph::gpu {
 
 namespace {
 
+/**
+ * @brief Make shared gpu capability bus.
+ */
 std::shared_ptr<graph::CapabilityBus> MakeSharedGpuCapabilityBus() {
     auto bus = std::make_shared<graph::CapabilityBus>();
     RegisterDefaultGpuCapabilities(*bus);
     return bus;
 }
 
+/**
+ * @brief Shared gpu capability bus storage.
+ */
 std::shared_ptr<graph::CapabilityBus>& SharedGpuCapabilityBusStorage() {
     static auto shared_bus = MakeSharedGpuCapabilityBus();
     return shared_bus;
@@ -220,6 +231,9 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
 #endif
 }
 
+/**
+ * @brief Get shared gpu capability bus.
+ */
 graph::CapabilityBus& GetSharedGpuCapabilityBus() {
     return *SharedGpuCapabilityBusStorage();
 }

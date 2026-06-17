@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_advanced_nodes.cpp
  * @brief Comprehensive unit tests for advanced test nodes
@@ -37,6 +39,10 @@ namespace {
  *
  * Provides setup/teardown and common utilities for merge node testing
  */
+/**
+ * @class MergeTestNodeTest
+ * @brief Merge test node test implementation for GraphX.
+ */
 class MergeTestNodeTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -60,6 +66,10 @@ protected:
  *
  * Provides setup/teardown and common utilities for split node testing
  */
+/**
+ * @class SplitTestNodeTest
+ * @brief Split test node test implementation for GraphX.
+ */
 class SplitTestNodeTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -82,6 +92,10 @@ protected:
  * @brief Test fixture for InteriorTestNode
  *
  * Provides setup/teardown and common utilities for interior node testing
+ */
+/**
+ * @class InteriorTestNodeTest
+ * @brief Interior test node test implementation for GraphX.
  */
 class InteriorTestNodeTest : public ::testing::Test {
 protected:

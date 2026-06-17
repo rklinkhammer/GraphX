@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdReader.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/io/CrsdReader.hpp"
 
 #include <algorithm>

@@ -1,3 +1,8 @@
+/**
+ * @file test_active_queue.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -37,6 +42,10 @@ using namespace graph::message;
 // Test Fixture for ActiveQueue Tests
 // ============================================================================
 
+/**
+ * @class ActiveQueueTest
+ * @brief Active queue test implementation for GraphX.
+ */
 class ActiveQueueTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -726,6 +735,13 @@ TEST_F(ActiveQueueTest, BlockingDequeue_WaitsForElement) {
     std::promise<bool> dequeue_completed;
     auto dequeue_completed_future = dequeue_completed.get_future();
 
+/**
+ * @brief Dequeuer.
+ * @param [queue Parameter for dequeuer.
+ * @param value Parameter for dequeuer.
+ * @param dequeue_started Parameter for dequeuer.
+ * @param dequeue_completed]( Parameter for dequeuer.
+ */
     std::thread dequeuer([&queue, &value, &dequeue_started, &dequeue_completed]() {
         dequeue_started.set_value();
         dequeue_completed.set_value(queue.Dequeue(value));
@@ -751,6 +767,13 @@ TEST_F(ActiveQueueTest, BlockingDequeue_WakesOnDisable) {
     std::promise<bool> dequeue_completed;
     auto dequeue_completed_future = dequeue_completed.get_future();
 
+/**
+ * @brief Dequeuer.
+ * @param [queue Parameter for dequeuer.
+ * @param value Parameter for dequeuer.
+ * @param dequeue_started Parameter for dequeuer.
+ * @param dequeue_completed]( Parameter for dequeuer.
+ */
     std::thread dequeuer([&queue, &value, &dequeue_started, &dequeue_completed]() {
         dequeue_started.set_value();
         dequeue_completed.set_value(queue.Dequeue(value));
@@ -787,6 +810,12 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WaitsWhenFull) {
     std::promise<bool> enqueue_completed;
     auto enqueue_completed_future = enqueue_completed.get_future();
 
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueue_started Parameter for enqueuer.
+ * @param enqueue_completed]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
         enqueue_started.set_value();
         enqueue_completed.set_value(queue.Enqueue(3));
@@ -816,6 +845,12 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WakesOnDisable) {
     std::promise<bool> enqueue_completed;
     auto enqueue_completed_future = enqueue_completed.get_future();
 
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueue_started Parameter for enqueuer.
+ * @param enqueue_completed]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
         enqueue_started.set_value();
         enqueue_completed.set_value(queue.Enqueue(2));
@@ -841,6 +876,12 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WakesWhenQueueCleared) {
     std::promise<bool> enqueue_completed;
     auto enqueue_completed_future = enqueue_completed.get_future();
 
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueue_started Parameter for enqueuer.
+ * @param enqueue_completed]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
         enqueue_started.set_value();
         enqueue_completed.set_value(queue.Enqueue(2));
@@ -875,6 +916,12 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WakesWhenCapacityIncreased) {
     std::promise<bool> enqueue_completed;
     auto enqueue_completed_future = enqueue_completed.get_future();
 
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueue_started Parameter for enqueuer.
+ * @param enqueue_completed]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueue_started, &enqueue_completed]() {
         enqueue_started.set_value();
         enqueue_completed.set_value(queue.Enqueue(2));
@@ -1040,11 +1087,21 @@ TEST_F(ActiveQueueTest, BlockingDequeue_WithMessages) {
     Message result;
     bool dequeue_succeeded = false;
     
+/**
+ * @brief Enqueuer.
+ * @param [queue]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         (void)queue.Enqueue(Message(42));
     });
     
+/**
+ * @brief Dequeuer.
+ * @param [queue Parameter for dequeuer.
+ * @param result Parameter for dequeuer.
+ * @param dequeue_succeeded]( Parameter for dequeuer.
+ */
     std::thread dequeuer([&queue, &result, &dequeue_succeeded]() {
         dequeue_succeeded = queue.Dequeue(result);
     });
@@ -1064,6 +1121,11 @@ TEST_F(ActiveQueueTest, BlockingEnqueue_WithMessages) {
     
     bool enqueue_succeeded = false;
     
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueue_succeeded]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueue_succeeded]() {
         Message msg(3);
         enqueue_succeeded = queue.Enqueue(std::move(msg));
@@ -1102,6 +1164,11 @@ TEST_F(ActiveQueueTest, ProducerConsumer_OneProducerMultipleConsumers) {
     std::atomic<bool> producer_done{false};
     
     // Producer thread
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param producer_done]( Parameter for producer.
+ */
     std::thread producer([&queue, &producer_done]() {
         for (int i = 0; i < total_items; ++i) {
             (void)queue.Enqueue(i);
@@ -1771,6 +1838,10 @@ TEST_F(ActiveQueueTest, Concurrent_RapidEnableDisableCycles) {
     ActiveQueue<int> queue;
     std::atomic<int> enqueued{0};
     
+/**
+ * @brief Disabler.
+ * @param [queue]( Parameter for disabler.
+ */
     std::thread disabler([&queue]() {
         for (int i = 0; i < 10; ++i) {
             queue.Disable();
@@ -1780,6 +1851,11 @@ TEST_F(ActiveQueueTest, Concurrent_RapidEnableDisableCycles) {
         }
     });
     
+/**
+ * @brief Enqueuer.
+ * @param [queue Parameter for enqueuer.
+ * @param enqueued]( Parameter for enqueuer.
+ */
     std::thread enqueuer([&queue, &enqueued]() {
         for (int i = 0; i < 50; ++i) {
             if (queue.Enqueue(i)) {
@@ -1803,6 +1879,12 @@ TEST_F(ActiveQueueTest, Concurrent_SustainedLoad_10kOperations) {
     std::atomic<int> dequeued{0};
     std::atomic<bool> producer_done{false};
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param enqueued Parameter for producer.
+ * @param producer_done]( Parameter for producer.
+ */
     std::thread producer([&queue, &enqueued, &producer_done]() {
         for (int i = 0; i < total; ++i) {
             if (queue.Enqueue(i)) {
@@ -1812,6 +1894,12 @@ TEST_F(ActiveQueueTest, Concurrent_SustainedLoad_10kOperations) {
         producer_done = true;
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param dequeued Parameter for consumer.
+ * @param producer_done]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &dequeued, &producer_done]() {
         int value;
         while (dequeued.load() < total) {
@@ -1844,6 +1932,12 @@ TEST_F(ActiveQueueTest, Concurrent_BoundedQueue_BlockingBackpressure) {
     std::vector<int> dequeued;
     std::mutex enqueue_mutex, dequeue_mutex;
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param enqueued Parameter for producer.
+ * @param enqueue_mutex]( Parameter for producer.
+ */
     std::thread producer([&queue, &enqueued, &enqueue_mutex]() {
         for (int i = 0; i < 50; ++i) {
             if (queue.Enqueue(i)) {
@@ -1855,6 +1949,12 @@ TEST_F(ActiveQueueTest, Concurrent_BoundedQueue_BlockingBackpressure) {
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param dequeued Parameter for consumer.
+ * @param dequeue_mutex]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &dequeued, &dequeue_mutex]() {
         int value;
         int count = 0;
@@ -1882,6 +1982,11 @@ TEST_F(ActiveQueueTest, Concurrent_MetricsAccuracy_HighFrequency) {
     const int total = 1000;
     std::atomic<bool> producer_done{false};
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param producer_done]( Parameter for producer.
+ */
     std::thread producer([&queue, &producer_done]() {
         for (int i = 0; i < total; ++i) {
             (void)queue.Enqueue(i);
@@ -1889,6 +1994,11 @@ TEST_F(ActiveQueueTest, Concurrent_MetricsAccuracy_HighFrequency) {
         producer_done = true;
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param producer_done]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &producer_done]() {
         int value;
         while (true) {
@@ -1917,6 +2027,11 @@ TEST_F(ActiveQueueTest, Concurrent_VariableProducerRate) {
     std::atomic<int> produced{0};
     std::atomic<int> consumed{0};
     
+/**
+ * @brief Fast producer.
+ * @param [queue Parameter for fast producer.
+ * @param produced]( Parameter for fast producer.
+ */
     std::thread fast_producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
             (void)queue.Enqueue(i);
@@ -1924,6 +2039,11 @@ TEST_F(ActiveQueueTest, Concurrent_VariableProducerRate) {
         }
     });
     
+/**
+ * @brief Slow producer.
+ * @param [queue Parameter for slow producer.
+ * @param produced]( Parameter for slow producer.
+ */
     std::thread slow_producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
             (void)queue.Enqueue(1000 + i);
@@ -1932,6 +2052,12 @@ TEST_F(ActiveQueueTest, Concurrent_VariableProducerRate) {
         }
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param consumed Parameter for consumer.
+ * @param produced]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &consumed, &produced]() {
         int value;
         while (consumed.load() < 200) {
@@ -2024,6 +2150,10 @@ TEST_F(ActiveQueueTest, MessageConcurrent_BlockingDequeueMessages_MultiThread) {
     std::mutex results_mutex;
     const int total = 30;
     
+/**
+ * @brief Producer.
+ * @param [queue]( Parameter for producer.
+ */
     std::thread producer([&queue]() {
         for (int i = 0; i < total; ++i) {
             (void)queue.Enqueue(Message(i * 10));
@@ -2059,6 +2189,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_HighFrequencyEnqueueDequeue) {
     const int total = 500;
     std::atomic<int> operations{0};
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param operations]( Parameter for producer.
+ */
     std::thread producer([&queue, &operations]() {
         for (int i = 0; i < total; ++i) {
             (void)queue.Enqueue(Message(i));
@@ -2066,6 +2201,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_HighFrequencyEnqueueDequeue) {
         }
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param operations]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &operations]() {
         Message msg;
         int count = 0;
@@ -2093,12 +2233,20 @@ TEST_F(ActiveQueueTest, MessageConcurrent_TypeSafetyUnderConcurrency) {
     std::vector<double> double_results;
     std::mutex results_mutex;
     
+/**
+ * @brief Int producer.
+ * @param [queue]( Parameter for int producer.
+ */
     std::thread int_producer([&queue]() {
         for (int i = 0; i < 50; ++i) {
             (void)queue.Enqueue(Message(i));
         }
     });
     
+/**
+ * @brief Double producer.
+ * @param [queue]( Parameter for double producer.
+ */
     std::thread double_producer([&queue]() {
         for (int i = 0; i < 50; ++i) {
             (void)queue.Enqueue(Message(static_cast<double>(i) * 1.5));
@@ -2143,6 +2291,10 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MetricsWithAllocationTracking) {
     const int small = 20;   // SSO messages
     const int large = 20;   // Heap messages
     
+/**
+ * @brief Producer.
+ * @param [queue]( Parameter for producer.
+ */
     std::thread producer([&queue]() {
         // Enqueue small messages (SSO)
         for (int i = 0; i < small; ++i) {
@@ -2177,6 +2329,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MixedOperationsWithMetrics) {
     queue.EnableMetrics();
     std::atomic<bool> running{true};
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param running]( Parameter for producer.
+ */
     std::thread producer([&queue, &running]() {
         int i = 0;
         while (running) {
@@ -2185,6 +2342,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_MixedOperationsWithMetrics) {
         }
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param running]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &running]() {
         Message msg;
         while (running) {
@@ -2210,6 +2372,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_BoundedBlockingWithMessages) {
     std::atomic<int> produced{0};
     std::atomic<int> consumed{0};
     
+/**
+ * @brief Producer.
+ * @param [queue Parameter for producer.
+ * @param produced]( Parameter for producer.
+ */
     std::thread producer([&queue, &produced]() {
         for (int i = 0; i < 100; ++i) {
             (void)queue.Enqueue(Message(i));
@@ -2217,6 +2384,11 @@ TEST_F(ActiveQueueTest, MessageConcurrent_BoundedBlockingWithMessages) {
         }
     });
     
+/**
+ * @brief Consumer.
+ * @param [queue Parameter for consumer.
+ * @param consumed]( Parameter for consumer.
+ */
     std::thread consumer([&queue, &consumed]() {
         Message msg;
         while (consumed.load() < 100) {
@@ -2242,6 +2414,10 @@ TEST_F(ActiveQueueTest, MessageConcurrent_ComparatorWithMessages) {
         return a.get<int>() < b.get<int>();
     });
     
+/**
+ * @brief Producer.
+ * @param [queue]( Parameter for producer.
+ */
     std::thread producer([&queue]() {
         for (int i : {50, 20, 80, 10, 60, 30}) {
             (void)queue.Enqueue(Message(i));

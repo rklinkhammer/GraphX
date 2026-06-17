@@ -1,3 +1,8 @@
+/**
+ * @file EdgeRegistry.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -138,6 +143,10 @@ struct EdgeKeyHash {
  *   graph, "DataInjectionAccelerometerNode", 0, "FlightFSMNode", 0, src_idx, dst_idx);
  * @endcode
  */
+/**
+ * @class EdgeRegistry
+ * @brief Edge registry implementation for GraphX.
+ */
 class EdgeRegistry {
 public:
     enum class EdgeCreationError {
@@ -195,6 +204,11 @@ public:
         const std::string& dst_type_name,
         EdgeCreator creator) {
         
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         
         // Get type indices for source and destination using typeid
@@ -202,6 +216,14 @@ public:
         std::type_index dst_type = typeid(DstNode);
         
         // Create key using type_index (O(1) hashing instead of O(log n) string comparison)
+/**
+ * @brief Key.
+ * @param src_type Parameter for key.
+ * @param SrcPort Parameter for key.
+ * @param dst_type Parameter for key.
+ * @param DstPort Parameter for key.
+ * @return Result of the operation.
+ */
         EdgeKey key(src_type, SrcPort, dst_type, DstPort);
         
         if (GetRegistry().count(key) > 0) {
@@ -254,16 +276,27 @@ public:
     /**
      * Clear all registered edge creators
      */
+/**
+ * @brief Clear.
+ */
     static void Clear();
     
     /**
      * Get number of registered edge creators
      */
+/**
+ * @brief Get registered count.
+ * @return Result of the operation.
+ */
     static size_t GetRegisteredCount();
     
     /**
      * Get list of all registered edge type combinations (for debugging)
      */
+/**
+ * @brief Get registered.
+ * @return Result of the operation.
+ */
     static std::vector<std::string> GetRegistered();
     
 private:

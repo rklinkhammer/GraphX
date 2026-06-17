@@ -1,3 +1,8 @@
+/**
+ * @file IExecutionCallback.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -45,6 +50,10 @@ namespace graph {
  * - No locks held by graph layer during callback invocation
  *
  * @see ExecutionPolicyChain, GraphExecutor
+ */
+/**
+ * @class IExecutionCallback
+ * @brief I execution callback implementation for GraphX.
  */
 class IExecutionCallback {
 public:

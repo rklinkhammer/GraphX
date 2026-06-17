@@ -1,3 +1,8 @@
+/**
+ * @file IDataInjectionSource.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -49,6 +54,14 @@ namespace graph::datasources {
  *
  */
 
+/**
+ * @class IDataInjectionSource
+ * @brief IDataInjectionSource class.
+ */
+/**
+ * @class IDataInjectionSource
+ * @brief I data injection source implementation for GraphX.
+ */
 class IDataInjectionSource {
 public:
     /**

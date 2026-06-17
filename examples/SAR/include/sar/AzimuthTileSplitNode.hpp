@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file AzimuthTileSplitNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -25,6 +32,10 @@ struct AzimuthTileSplitConfig {
     SarBackendKind backend{SarBackendKind::Host};
 };
 
+/**
+ * @class AzimuthTileSplitNode
+ * @brief AzimuthTileSplitNode class.
+ */
 class AzimuthTileSplitNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

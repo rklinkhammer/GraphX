@@ -1,3 +1,8 @@
+/**
+ * @file ICudaCapabilities.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -12,20 +17,61 @@
 
 namespace graph::gpu::cuda::capabilities {
 
+/**
+ * @class ICudaContextCapability
+ * @brief ICudaContextCapability class.
+ */
+/**
+ * @class ICudaContextCapability
+ * @brief I cuda context capability implementation for GraphX.
+ */
 class ICudaContextCapability {
 public:
     virtual ~ICudaContextCapability() = default;
 
+/**
+ * @brief Set device.
+ * @param device_id Parameter for set device.
+ * @return Result of the operation.
+ */
     virtual bool SetDevice(std::uint32_t device_id) = 0;
+/**
+ * @brief Current device.
+ * @return Result of the operation.
+ */
     virtual std::uint32_t CurrentDevice() const = 0;
 
+/**
+ * @brief Create stream.
+ * @return Result of the operation.
+ */
     virtual std::uint64_t CreateStream() = 0;
+/**
+ * @brief Destroy stream.
+ * @param stream_id Parameter for destroy stream.
+ */
     virtual void DestroyStream(std::uint64_t stream_id) = 0;
 
+/**
+ * @brief Create event.
+ * @return Result of the operation.
+ */
     virtual std::uint64_t CreateEvent() = 0;
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
     virtual void DestroyEvent(std::uint64_t event_id) = 0;
 };
 
+/**
+ * @class ICudaMemoryPoolCapability
+ * @brief ICudaMemoryPoolCapability class.
+ */
+/**
+ * @class ICudaMemoryPoolCapability
+ * @brief I cuda memory pool capability implementation for GraphX.
+ */
 class ICudaMemoryPoolCapability {
 public:
     virtual ~ICudaMemoryPoolCapability() = default;
@@ -34,9 +80,22 @@ public:
                                 accel::BufferLease& out_lease) = 0;
     virtual bool AllocatePinnedHost(std::uint64_t bytes,
                                     accel::BufferLease& out_lease) = 0;
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ * @return Result of the operation.
+ */
     virtual bool Release(const accel::BufferLease& lease) = 0;
 };
 
+/**
+ * @class ICudaTransferCapability
+ * @brief ICudaTransferCapability class.
+ */
+/**
+ * @class ICudaTransferCapability
+ * @brief I cuda transfer capability implementation for GraphX.
+ */
 class ICudaTransferCapability {
 public:
     virtual ~ICudaTransferCapability() = default;
@@ -57,6 +116,14 @@ public:
                             accel::TransferTicket& out_ticket) = 0;
 };
 
+/**
+ * @class ICudaKernelCapability
+ * @brief ICudaKernelCapability class.
+ */
+/**
+ * @class ICudaKernelCapability
+ * @brief I cuda kernel capability implementation for GraphX.
+ */
 class ICudaKernelCapability {
 public:
     virtual ~ICudaKernelCapability() = default;
@@ -69,6 +136,14 @@ public:
                         std::size_t arg_count) = 0;
 };
 
+/**
+ * @class ICudaTelemetryCapability
+ * @brief ICudaTelemetryCapability class.
+ */
+/**
+ * @class ICudaTelemetryCapability
+ * @brief I cuda telemetry capability implementation for GraphX.
+ */
 class ICudaTelemetryCapability {
 public:
     virtual ~ICudaTelemetryCapability() = default;
@@ -77,9 +152,21 @@ public:
                                 std::uint64_t duration_ns) = 0;
     virtual void RecordKernel(const accel::KernelTicket& ticket,
                               std::uint64_t duration_ns) = 0;
+/**
+ * @brief Increment error counter.
+ * @param error_code Parameter for increment error counter.
+ */
     virtual void IncrementErrorCounter(std::string_view error_code) = 0;
 };
 
+/**
+ * @class ICudaCollectiveCapability
+ * @brief ICudaCollectiveCapability class.
+ */
+/**
+ * @class ICudaCollectiveCapability
+ * @brief I cuda collective capability implementation for GraphX.
+ */
 class ICudaCollectiveCapability {
 public:
     virtual ~ICudaCollectiveCapability() = default;

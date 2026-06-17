@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file ConfigLoader.hpp
  * @brief Configuration loading with type-safe expected<> error handling (Phase 5b)

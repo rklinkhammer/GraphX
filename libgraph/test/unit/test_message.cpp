@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_message.cpp
  * @brief Comprehensive unit tests for Message class (Phase 1: P0 Priorities)
@@ -34,6 +36,10 @@ using namespace graph::message;
  * Note: Atomic counters cannot be directly reset, so we track baseline values
  * at test start and verify relative changes.
  */
+/**
+ * @class MessageTest
+ * @brief Message test implementation for GraphX.
+ */
 class MessageTest : public ::testing::Test {
 protected:
     // Helper structure for tracking baseline metrics
@@ -49,6 +55,9 @@ protected:
             capture();
         }
 
+/**
+ * @brief Capture.
+ */
         void capture() {
             creation_count = Message::heap_allocation_count();
             destruction_count = Message::heap_allocation_count();
@@ -58,10 +67,16 @@ protected:
             heap_allocation_bytes = Message::heap_allocation_bytes();
         }
 
+/**
+ * @brief Alloc delta.
+ */
         size_t alloc_delta() const {
             return Message::heap_allocation_count() - heap_allocation_count;
         }
 
+/**
+ * @brief Bytes delta.
+ */
         size_t bytes_delta() const {
             return Message::heap_allocation_bytes() - heap_allocation_bytes;
         }
@@ -127,6 +142,10 @@ struct LargeType {
         values.fill(0.0);
     }
 
+/**
+ * @brief Large type.
+ * @param init_value Parameter for large type.
+ */
     explicit LargeType(double init_value) {
         values.fill(init_value);
     }
@@ -146,6 +165,10 @@ struct BoundaryType {
         values.fill(0);
     }
 
+/**
+ * @brief Boundary type.
+ * @param init_value Parameter for boundary type.
+ */
     explicit BoundaryType(int init_value) {
         values.fill(init_value);
     }

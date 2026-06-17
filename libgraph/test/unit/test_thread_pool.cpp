@@ -1,3 +1,8 @@
+/**
+ * @file test_thread_pool.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -55,6 +60,11 @@ namespace graph::test {
  * @brief Helper to wait for a condition with timeout
  */
 template<typename Predicate>
+/**
+ * @brief Wait for.
+ * @param pred Parameter for wait for.
+ * @param timeout Parameter for wait for.
+ */
 bool WaitFor(Predicate&& pred, std::chrono::milliseconds timeout) {
     auto deadline = std::chrono::steady_clock::now() + timeout;
     while (std::chrono::steady_clock::now() < deadline) {
@@ -64,6 +74,10 @@ bool WaitFor(Predicate&& pred, std::chrono::milliseconds timeout) {
     return false;
 }
 
+/**
+ * @brief No watchdog config.
+ * @param max_queue_size Parameter for no watchdog config.
+ */
 graph::ThreadPool::DeadlockConfig NoWatchdogConfig(size_t max_queue_size = 1000) {
     graph::ThreadPool::DeadlockConfig cfg;
     cfg.max_queue_size = max_queue_size;
@@ -73,6 +87,10 @@ graph::ThreadPool::DeadlockConfig NoWatchdogConfig(size_t max_queue_size = 1000)
 
 /**
  * @brief Helper task that sets a flag when executed
+ */
+/**
+ * @class FlagTask
+ * @brief Flag task implementation for GraphX.
  */
 class FlagTask {
     std::atomic<bool>& flag_;
@@ -84,12 +102,20 @@ public:
 /**
  * @brief Helper task that appends to a vector
  */
+/**
+ * @class CountingTask
+ * @brief Counting task implementation for GraphX.
+ */
 class CountingTask {
     std::vector<int>& results_;
     int value_;
 public:
     CountingTask(std::vector<int>& results, int value)
         : results_(results), value_(value) {}
+/**
+ * @brief Operator.
+ * @param )( Parameter for operator.
+ */
     void operator()() {
         results_.push_back(value_);
     }
@@ -98,11 +124,19 @@ public:
 /**
  * @brief Helper task that sleeps for a duration
  */
+/**
+ * @class SleepingTask
+ * @brief Sleeping task implementation for GraphX.
+ */
 class SleepingTask {
     std::chrono::milliseconds duration_;
 public:
     explicit SleepingTask(std::chrono::milliseconds duration)
         : duration_(duration) {}
+/**
+ * @brief Operator.
+ * @param )( Parameter for operator.
+ */
     void operator()() {
         std::this_thread::sleep_for(duration_);
     }
@@ -111,10 +145,18 @@ public:
 /**
  * @brief Helper task that throws an exception
  */
+/**
+ * @class ThrowingTask
+ * @brief Throwing task implementation for GraphX.
+ */
 class ThrowingTask {
     std::string message_;
 public:
     explicit ThrowingTask(const std::string& msg) : message_(msg) {}
+/**
+ * @brief Operator.
+ * @param )( Parameter for operator.
+ */
     void operator()() {
         throw std::runtime_error(message_);
     }
@@ -124,6 +166,10 @@ public:
 // Test Fixture
 // ===================================================================================
 
+/**
+ * @class ThreadPoolTest
+ * @brief Thread pool test implementation for GraphX.
+ */
 class ThreadPoolTest : public ::testing::Test {
 protected:
     void SetUp() override {

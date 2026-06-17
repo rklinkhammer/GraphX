@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaMatReader.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/GotchaHdf5PhdataReader.hpp"
@@ -52,6 +59,10 @@ struct GotchaMatReaderResult {
     GotchaMatReaderDiagnostics diagnostics{};
 };
 
+/**
+ * @class GotchaMatReader
+ * @brief GotchaMatReader class.
+ */
 class GotchaMatReader final : public ISarReader {
 public:
     explicit GotchaMatReader(GotchaMatReaderOptions options = {})

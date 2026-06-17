@@ -1,3 +1,8 @@
+/**
+ * @file NativeMetalCapabilities.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -28,6 +33,10 @@
 
 namespace graph::gpu::metal::capabilities {
 
+/**
+ * @class NativeMetalRuntimeContext
+ * @brief Native metal runtime context implementation for GraphX.
+ */
 class NativeMetalRuntimeContext {
 public:
     struct ContextState {
@@ -193,6 +202,10 @@ using NativeMetalTelemetryState = NativeMetalRuntimeContext::TelemetryState;
 
 thread_local NativeMetalRuntimeContext* active_runtime_context = nullptr;
 
+/**
+ * @class ScopedNativeMetalRuntimeContext
+ * @brief Scoped native metal runtime context implementation for GraphX.
+ */
 class ScopedNativeMetalRuntimeContext {
 public:
     explicit ScopedNativeMetalRuntimeContext(NativeMetalRuntimeContext* runtime)
@@ -208,30 +221,52 @@ private:
     NativeMetalRuntimeContext* previous_{nullptr};
 };
 
+/**
+ * @brief Active runtime context.
+ */
 NativeMetalRuntimeContext& ActiveRuntimeContext() {
     return *active_runtime_context;
 }
 
+/**
+ * @brief Context state.
+ */
 NativeMetalContextState& ContextState() {
     return ActiveRuntimeContext().context_state;
 }
 
+/**
+ * @brief Memory pool state.
+ */
 NativeMetalMemoryPoolState& MemoryPoolState() {
     return ActiveRuntimeContext().memory_pool_state;
 }
 
+/**
+ * @brief Transfer state.
+ */
 NativeMetalTransferState& TransferState() {
     return ActiveRuntimeContext().transfer_state;
 }
 
+/**
+ * @brief Kernel state.
+ */
 NativeMetalKernelState& KernelState() {
     return ActiveRuntimeContext().kernel_state;
 }
 
+/**
+ * @brief Telemetry state.
+ */
 NativeMetalTelemetryState& TelemetryState() {
     return ActiveRuntimeContext().telemetry_state;
 }
 
+/**
+ * @brief Acquire device by id.
+ * @param device_id Parameter for acquire device by id.
+ */
 MTL::Device* AcquireDeviceById(std::uint32_t device_id) {
     NS::Array* devices = MTL::CopyAllDevices();
     if (devices != nullptr) {
@@ -253,6 +288,10 @@ MTL::Device* AcquireDeviceById(std::uint32_t device_id) {
     return nullptr;
 }
 
+/**
+ * @brief Ensure active device locked.
+ * @param state Parameter for ensure active device locked.
+ */
 MTL::Device* EnsureActiveDeviceLocked(NativeMetalContextState& state) {
     if (state.active_device != nullptr) {
         return state.active_device;
@@ -262,6 +301,12 @@ MTL::Device* EnsureActiveDeviceLocked(NativeMetalContextState& state) {
     return state.active_device;
 }
 
+/**
+ * @brief Create buffer.
+ * @param device Parameter for create buffer.
+ * @param bytes Parameter for create buffer.
+ * @param options Parameter for create buffer.
+ */
 MTL::Buffer* CreateBuffer(MTL::Device* device, std::uint64_t bytes, MTL::ResourceOptions options) {
     if (device == nullptr || bytes == 0) {
         return nullptr;
@@ -270,6 +315,10 @@ MTL::Buffer* CreateBuffer(MTL::Device* device, std::uint64_t bytes, MTL::Resourc
     return device->newBuffer(bytes, options);
 }
 
+/**
+ * @brief Acquire queue.
+ * @param queue_id Parameter for acquire queue.
+ */
 MTL::CommandQueue* AcquireQueue(std::uint64_t queue_id) {
     auto& context_state = ContextState();
     std::scoped_lock lock(context_state.mutex);
@@ -287,6 +336,10 @@ struct BufferResolution {
     std::uint64_t offset{0};
 };
 
+/**
+ * @brief Acquire device buffer from pointer.
+ * @param pointer Parameter for acquire device buffer from pointer.
+ */
 BufferResolution AcquireDeviceBufferFromPointer(void* pointer) {
     if (pointer == nullptr) {
         return {};
@@ -345,6 +398,9 @@ BufferResolution AcquireDeviceBufferFromPointer(void* pointer) {
     return {};
 }
 
+/**
+ * @brief Register transfer completion event.
+ */
 std::uint64_t RegisterTransferCompletionEvent() {
     auto& context_state = ContextState();
     std::scoped_lock lock(context_state.mutex);
@@ -365,12 +421,18 @@ std::uint64_t RegisterTransferCompletionEvent() {
     return event_id;
 }
 
+/**
+ * @brief Next transfer id.
+ */
 std::uint64_t NextTransferId() {
     auto& transfer_state = TransferState();
     std::scoped_lock lock(transfer_state.mutex);
     return transfer_state.next_transfer_id++;
 }
 
+/**
+ * @brief Resolve async 2 h mode enabled.
+ */
 bool ResolveAsyncD2HModeEnabled() {
     const char* value = std::getenv("GRAPHX_METAL_ASYNC_D2H");
     if (value == nullptr) {
@@ -408,6 +470,10 @@ void RegisterPendingD2HCopy(std::uint64_t completion_event,
         NativeMetalTransferState::PendingD2HCopy{staging, dst_host_ptr, bytes, queue_id};
 }
 
+/**
+ * @brief Drop pending 2 h copies for queue.
+ * @param queue_id Parameter for drop pending 2 h copies for queue.
+ */
 void DropPendingD2HCopiesForQueue(std::uint64_t queue_id) {
     if (queue_id == 0) {
         return;
@@ -429,6 +495,10 @@ void DropPendingD2HCopiesForQueue(std::uint64_t queue_id) {
     }
 }
 
+/**
+ * @brief Drop pending 2 h copy.
+ * @param completion_event Parameter for drop pending 2 h copy.
+ */
 void DropPendingD2HCopy(std::uint64_t completion_event) {
     if (completion_event == 0) {
         return;
@@ -447,6 +517,10 @@ void DropPendingD2HCopy(std::uint64_t completion_event) {
     transfer_state.pending_d2h_copies.erase(it);
 }
 
+/**
+ * @brief Finalize pending 2 h copy.
+ * @param completion_event Parameter for finalize pending 2 h copy.
+ */
 void FinalizePendingD2HCopy(std::uint64_t completion_event) {
     if (completion_event == 0) {
         return;
@@ -478,6 +552,10 @@ void FinalizePendingD2HCopy(std::uint64_t completion_event) {
     pending_copy.staging->release();
 }
 
+/**
+ * @brief Acquire shared event.
+ * @param event_id Parameter for acquire shared event.
+ */
 MTL::SharedEvent* AcquireSharedEvent(std::uint64_t event_id) {
     if (event_id == 0) {
         return nullptr;
@@ -541,6 +619,10 @@ bool ExecuteBlitCopy(MTL::CommandQueue* queue,
     return true;
 }
 
+/**
+ * @brief Is valid kernel name.
+ * @param name Parameter for is valid kernel name.
+ */
 bool IsValidKernelName(std::string_view name) {
     if (name.empty()) {
         return false;
@@ -562,6 +644,11 @@ enum class BuiltinKernelKind : std::uint8_t {
     ReduceMetricsU8,
 };
 
+/**
+ * @brief Starts with.
+ * @param value Parameter for starts with.
+ * @param prefix Parameter for starts with.
+ */
 bool StartsWith(std::string_view value, std::string_view prefix) {
     return value.size() >= prefix.size() &&
            value.substr(0, prefix.size()) == prefix;
@@ -572,6 +659,9 @@ enum class DeviceStorageMode : std::uint8_t {
     Private,
 };
 
+/**
+ * @brief Resolve device storage mode.
+ */
 DeviceStorageMode ResolveDeviceStorageMode() {
     const char* value = std::getenv("GRAPHX_METAL_DEVICE_STORAGE_MODE");
     if (value == nullptr) {
@@ -591,12 +681,19 @@ DeviceStorageMode ResolveDeviceStorageMode() {
     return DeviceStorageMode::Shared;
 }
 
+/**
+ * @brief Device resource options for allocation.
+ */
 MTL::ResourceOptions DeviceResourceOptionsForAllocation() {
     return ResolveDeviceStorageMode() == DeviceStorageMode::Private
                ? MTL::ResourceStorageModePrivate
                : MTL::ResourceStorageModeShared;
 }
 
+/**
+ * @brief Allocate host token.
+ * @param bytes Parameter for allocate host token.
+ */
 std::byte* AllocateHostToken(std::uint64_t bytes) {
     if (bytes == 0) {
         return nullptr;
@@ -604,6 +701,10 @@ std::byte* AllocateHostToken(std::uint64_t bytes) {
     return new (std::nothrow) std::byte[bytes];
 }
 
+/**
+ * @brief To ns string.
+ * @param value Parameter for to ns string.
+ */
 NS::String* ToNSString(std::string_view value) {
     std::string owned(value);
     return NS::String::string(owned.c_str(), NS::UTF8StringEncoding);
@@ -677,6 +778,10 @@ std::optional<MetalKernelDescriptor> ParseKernelRegistration(
     return descriptor;
 }
 
+/**
+ * @brief Resolve builtin kernel kind.
+ * @param kernel_name Parameter for resolve builtin kernel kind.
+ */
 BuiltinKernelKind ResolveBuiltinKernelKind(std::string_view kernel_name) {
     if (kernel_name.find("xor") != std::string_view::npos ||
         kernel_name.find("transform") != std::string_view::npos) {
@@ -699,6 +804,10 @@ BuiltinKernelKind ResolveBuiltinKernelKind(std::string_view kernel_name) {
     return BuiltinKernelKind::Noop;
 }
 
+/**
+ * @brief Populate builtin kernel defaults.
+ * @param descriptor Parameter for populate builtin kernel defaults.
+ */
 void PopulateBuiltinKernelDefaults(MetalKernelDescriptor& descriptor) {
     if (descriptor.source_kind != MetalKernelSourceKind::Builtin ||
         !descriptor.arg_layout.empty()) {
@@ -726,6 +835,11 @@ void PopulateBuiltinKernelDefaults(MetalKernelDescriptor& descriptor) {
     }
 }
 
+/**
+ * @brief Make kernel source.
+ * @param kernel_name Parameter for make kernel source.
+ * @param kind Parameter for make kernel source.
+ */
 std::string MakeKernelSource(std::string_view kernel_name, BuiltinKernelKind kind) {
     std::string source;
     source.reserve(512 + kernel_name.size());
@@ -772,6 +886,11 @@ std::string MakeKernelSource(std::string_view kernel_name, BuiltinKernelKind kin
     return source;
 }
 
+/**
+ * @brief Build library from source.
+ * @param device Parameter for build library from source.
+ * @param source Parameter for build library from source.
+ */
 MTL::Library* BuildLibraryFromSource(MTL::Device* device, std::string_view source) {
     if (device == nullptr || source.empty()) {
         return nullptr;
@@ -794,6 +913,11 @@ MTL::Library* BuildLibraryFromSource(MTL::Device* device, std::string_view sourc
     return library;
 }
 
+/**
+ * @brief Load library from metallib path.
+ * @param device Parameter for load library from metallib path.
+ * @param metallib_path Parameter for load library from metallib path.
+ */
 MTL::Library* LoadLibraryFromMetallibPath(MTL::Device* device, std::string_view metallib_path) {
     if (device == nullptr || metallib_path.empty()) {
         return nullptr;
@@ -873,6 +997,9 @@ bool CreateAndStoreKernelPipeline(std::uint64_t kernel_id,
 
 } // namespace
 
+/**
+ * @brief Create native metal runtime context.
+ */
 std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext() {
     return std::make_shared<NativeMetalRuntimeContext>();
 }
@@ -925,6 +1052,9 @@ NativeMetalCollectiveCapability::NativeMetalCollectiveCapability(
     }
 }
 
+/**
+ * @brief Native metal runtime available.
+ */
 bool NativeMetalRuntimeAvailable() {
     auto* device = MTL::CreateSystemDefaultDevice();
     if (device == nullptr) {
@@ -935,6 +1065,9 @@ bool NativeMetalRuntimeAvailable() {
     return true;
 }
 
+/**
+ * @brief Native metal runtime diagnostics.
+ */
 std::string NativeMetalRuntimeDiagnostics() {
     std::ostringstream diag;
     auto* devices = MTL::CopyAllDevices();
@@ -965,6 +1098,10 @@ std::string NativeMetalRuntimeDiagnostics() {
     return diag.str();
 }
 
+/**
+ * @brief Select device.
+ * @param device_id Parameter for select device.
+ */
 bool NativeMetalContextCapability::SelectDevice(std::uint32_t device_id) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& state = ContextState();
@@ -983,6 +1120,9 @@ bool NativeMetalContextCapability::SelectDevice(std::uint32_t device_id) {
     return true;
 }
 
+/**
+ * @brief Current device.
+ */
 std::uint32_t NativeMetalContextCapability::CurrentDevice() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& state = ContextState();
@@ -990,6 +1130,9 @@ std::uint32_t NativeMetalContextCapability::CurrentDevice() const {
     return state.current_device_id;
 }
 
+/**
+ * @brief Create command queue.
+ */
 std::uint64_t NativeMetalContextCapability::CreateCommandQueue() {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& state = ContextState();
@@ -1010,6 +1153,10 @@ std::uint64_t NativeMetalContextCapability::CreateCommandQueue() {
     return queue_id;
 }
 
+/**
+ * @brief Destroy command queue.
+ * @param queue_id Parameter for destroy command queue.
+ */
 void NativeMetalContextCapability::DestroyCommandQueue(std::uint64_t queue_id) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     DropPendingD2HCopiesForQueue(queue_id);
@@ -1028,6 +1175,9 @@ void NativeMetalContextCapability::DestroyCommandQueue(std::uint64_t queue_id) {
     state.queues.erase(it);
 }
 
+/**
+ * @brief Create event.
+ */
 std::uint64_t NativeMetalContextCapability::CreateEvent() {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& state = ContextState();
@@ -1049,6 +1199,10 @@ std::uint64_t NativeMetalContextCapability::CreateEvent() {
     return event_id;
 }
 
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
 void NativeMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     DropPendingD2HCopy(event_id);
@@ -1068,6 +1222,10 @@ void NativeMetalContextCapability::DestroyEvent(std::uint64_t event_id) {
     state.synthetic_events.erase(event_id);
 }
 
+/**
+ * @brief Is event complete.
+ * @param event_id Parameter for is event complete.
+ */
 bool NativeMetalContextCapability::IsEventComplete(std::uint64_t event_id) const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (event_id == 0) {
@@ -1101,6 +1259,11 @@ bool NativeMetalContextCapability::IsEventComplete(std::uint64_t event_id) const
     return complete;
 }
 
+/**
+ * @brief Wait event.
+ * @param event_id Parameter for wait event.
+ * @param timeout_ms Parameter for wait event.
+ */
 bool NativeMetalContextCapability::WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (event_id == 0) {
@@ -1314,6 +1477,10 @@ bool NativeMetalMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
     return true;
 }
 
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ */
 bool NativeMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (lease.allocation_id == 0) {
@@ -1358,6 +1525,9 @@ bool NativeMetalMemoryPoolCapability::Release(const accel::BufferLease& lease) {
     return released_device || released_shared || released_host;
 }
 
+/**
+ * @brief Snapshot.
+ */
 IMetalMemoryPoolCapability::MemoryPoolSnapshot NativeMetalMemoryPoolCapability::Snapshot() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& pool_state = MemoryPoolState();
@@ -1600,10 +1770,18 @@ bool NativeMetalKernelCapability::RegisterKernel(std::uint64_t kernel_id,
     return RegisterKernel(*descriptor);
 }
 
+/**
+ * @brief Register kernel descriptor.
+ * @param descriptor Parameter for register kernel descriptor.
+ */
 bool NativeMetalKernelCapability::RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) {
     return RegisterKernel(descriptor);
 }
 
+/**
+ * @brief Register kernel.
+ * @param descriptor Parameter for register kernel.
+ */
 bool NativeMetalKernelCapability::RegisterKernel(const MetalKernelDescriptor& descriptor) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     if (descriptor.kernel_id == 0 || !IsValidKernelName(descriptor.function_name)) {
@@ -1885,6 +2063,10 @@ void NativeMetalTelemetryCapability::RecordKernel(const accel::KernelTicket& tic
     telemetry.last_kernel_duration_ns = duration_ns;
 }
 
+/**
+ * @brief Increment error counter.
+ * @param error_code Parameter for increment error counter.
+ */
 void NativeMetalTelemetryCapability::IncrementErrorCounter(std::string_view error_code) {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();
@@ -1893,6 +2075,9 @@ void NativeMetalTelemetryCapability::IncrementErrorCounter(std::string_view erro
     telemetry.error_code_counts[std::string(error_code)]++;
 }
 
+/**
+ * @brief Transfer samples.
+ */
 std::uint64_t NativeMetalTelemetryCapability::TransferSamples() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();
@@ -1900,6 +2085,9 @@ std::uint64_t NativeMetalTelemetryCapability::TransferSamples() const {
     return telemetry.transfer_samples;
 }
 
+/**
+ * @brief Kernel samples.
+ */
 std::uint64_t NativeMetalTelemetryCapability::KernelSamples() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();
@@ -1907,6 +2095,9 @@ std::uint64_t NativeMetalTelemetryCapability::KernelSamples() const {
     return telemetry.kernel_samples;
 }
 
+/**
+ * @brief Error count.
+ */
 std::uint64_t NativeMetalTelemetryCapability::ErrorCount() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();
@@ -1914,6 +2105,9 @@ std::uint64_t NativeMetalTelemetryCapability::ErrorCount() const {
     return telemetry.error_count;
 }
 
+/**
+ * @brief Snapshot.
+ */
 IMetalTelemetryCapability::TelemetrySnapshot NativeMetalTelemetryCapability::Snapshot() const {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();
@@ -1934,6 +2128,9 @@ IMetalTelemetryCapability::TelemetrySnapshot NativeMetalTelemetryCapability::Sna
 }
 
 #if GRAPHX_ENABLE_GPU_TEST_HOOKS
+/**
+ * @brief Reset for testing.
+ */
 void NativeMetalTelemetryCapability::ResetForTesting() {
     ScopedNativeMetalRuntimeContext runtime_guard(runtime_context_.get());
     auto& telemetry = TelemetryState();

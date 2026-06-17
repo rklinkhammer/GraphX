@@ -1,3 +1,8 @@
+/**
+ * @file NodeCallback.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -39,6 +44,14 @@
  */
 
 namespace graph {
+/**
+ * @class NodeCallback
+ * @brief NodeCallback class.
+ */
+/**
+ * @class NodeCallback
+ * @brief Node callback implementation for GraphX.
+ */
  class NodeCallback {
 public:
     virtual ~NodeCallback() = default;

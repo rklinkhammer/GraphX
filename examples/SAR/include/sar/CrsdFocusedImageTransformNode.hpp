@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdFocusedImageTransformNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -77,6 +84,10 @@ struct CrsdFocusedImageTransformConfig {
     double scene_center_y_m{0.0};
 };
 
+/**
+ * @class CrsdFocusedImageTransformNode
+ * @brief CrsdFocusedImageTransformNode class.
+ */
 class CrsdFocusedImageTransformNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarPhaseHistoryControlMessage>,

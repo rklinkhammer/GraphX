@@ -1,3 +1,8 @@
+/**
+ * @file MergeFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -124,6 +129,14 @@ namespace graph
      * through NodeLifecycleMixin's *PortsImpl() methods.
      */
     template <typename CommonInput, typename OutputT>
+/**
+ * @class IMergeFn
+ * @brief IMergeFn class.
+ */
+/**
+ * @class IMergeFn
+ * @brief I merge fn implementation for GraphX.
+ */
     class IMergeFn
     {
     public:

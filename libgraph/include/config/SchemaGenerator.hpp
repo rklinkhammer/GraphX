@@ -58,10 +58,19 @@ namespace graph {
 
 using json = nlohmann::json;
 
+/**
+ * @class INodeDescriptorSchemaProvider
+ * @brief I node descriptor schema provider implementation for GraphX.
+ */
 class INodeDescriptorSchemaProvider {
 public:
     virtual ~INodeDescriptorSchemaProvider() = default;
 
+/**
+ * @brief Build schema.
+ * @param descriptor Parameter for build schema.
+ * @return Result of the operation.
+ */
     virtual json BuildSchema(const NodeDescriptor& descriptor) const = 0;
 };
 
@@ -130,6 +139,10 @@ inline json GenerateNodeDescriptorSchema(const NodeDescriptor& descriptor) {
     return schema;
 }
 
+/**
+ * @class DefaultNodeDescriptorSchemaProvider
+ * @brief Default node descriptor schema provider implementation for GraphX.
+ */
 class DefaultNodeDescriptorSchemaProvider final : public INodeDescriptorSchemaProvider {
 public:
     json BuildSchema(const NodeDescriptor& descriptor) const override {
@@ -189,6 +202,11 @@ inline std::optional<json> ParseDefaultJsonValue(
             case JsonType::Integer:
                 return json(std::stoll(std::string(*field.default_value)));
             case JsonType::Boolean: {
+/**
+ * @brief Value.
+ * @param field.default_value Parameter for value.
+ * @return Result of the operation.
+ */
                 const std::string value(*field.default_value);
                 if (value == "true" || value == "1") {
                     return json(true);
@@ -436,6 +454,10 @@ inline GeneratedSchema GenerateSchemaFromType() {
  * @endcode
  */
 template<typename ConfigType>
+/**
+ * @class SchemaValidator
+ * @brief Schema validator implementation for GraphX.
+ */
 class SchemaValidator {
     static_assert(JsonFieldDescriptorProvider<ConfigType>,
                   "ConfigType must expose a sized range of JsonField descriptors via Fields()");

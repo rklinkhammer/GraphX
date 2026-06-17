@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file ImageTileMergeNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -26,6 +33,10 @@ struct ImageTileMergeConfig {
     SarBackendKind backend{SarBackendKind::Host};
 };
 
+/**
+ * @class ImageTileMergeNode
+ * @brief ImageTileMergeNode class.
+ */
 class ImageTileMergeNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

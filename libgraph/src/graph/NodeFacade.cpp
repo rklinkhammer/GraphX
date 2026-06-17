@@ -1,3 +1,8 @@
+/**
+ * @file NodeFacade.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -42,6 +47,10 @@ namespace graph {
 
 namespace {
 
+/**
+ * @class DescriptorPortFunction
+ * @brief Descriptor port function implementation for GraphX.
+ */
 class DescriptorPortFunction final : public IPortFunction {
 public:
     explicit DescriptorPortFunction(RuntimePortDescriptor descriptor)
@@ -134,6 +143,10 @@ private:
     std::size_t capacity_ = 0;
 };
 
+/**
+ * @brief To facade port info.
+ * @param metadata Parameter for to facade port info.
+ */
 INodeFacade::PortInfo ToFacadePortInfo(const PortMetadata& metadata) {
     return INodeFacade::PortInfo{
         .name = metadata.port_name,
@@ -348,6 +361,9 @@ NodeFacadeAdapter::~NodeFacadeAdapter() {
     // See: Cleanup() method and GraphManager destructor for proper lifecycle.
 }
 
+/**
+ * @brief Extract interfaces.
+ */
 void NodeFacadeAdapter::ExtractInterfaces() {
     // Preconditions established by constructor asserts:
     // - handle_ is valid (non-null)
@@ -448,6 +464,9 @@ NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexc
     return *this;
 }
 
+/**
+ * @brief Get lifecycle state.
+ */
 int NodeFacadeAdapter::GetLifecycleState() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetLifecycleState()");
     
@@ -459,6 +478,9 @@ int NodeFacadeAdapter::GetLifecycleState() const {
     return facade_->GetLifecycleState(handle_);
 }
 
+/**
+ * @brief Init.
+ */
 bool NodeFacadeAdapter::Init() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Init()");
     
@@ -478,6 +500,9 @@ bool NodeFacadeAdapter::Init() {
     return initialized_;
 }
 
+/**
+ * @brief Start.
+ */
 bool NodeFacadeAdapter::Start() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Start()");
     
@@ -502,6 +527,9 @@ bool NodeFacadeAdapter::Start() {
     return started_;
 }
 
+/**
+ * @brief Stop.
+ */
 void NodeFacadeAdapter::Stop() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Stop()");
     
@@ -520,6 +548,9 @@ void NodeFacadeAdapter::Stop() {
     LOG4CXX_TRACE(logger_, "Node stopped");
 }
 
+/**
+ * @brief Cleanup.
+ */
 void NodeFacadeAdapter::Cleanup() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Cleanup()");
     
@@ -559,6 +590,9 @@ void NodeFacadeAdapter::Cleanup() {
     LOG4CXX_TRACE(logger_, "Node marked as cleaned up (Destroy callback NOT called)");
 }
 
+/**
+ * @brief Join.
+ */
 bool NodeFacadeAdapter::Join() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Join()");
     
@@ -583,6 +617,10 @@ bool NodeFacadeAdapter::Join() {
     return result;
 }
 
+/**
+ * @brief Join with timeout.
+ * @param timeout Parameter for join with timeout.
+ */
 bool NodeFacadeAdapter::JoinWithTimeout(std::chrono::milliseconds timeout) {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::JoinWithTimeout()");
     
@@ -607,6 +645,9 @@ bool NodeFacadeAdapter::JoinWithTimeout(std::chrono::milliseconds timeout) {
     return result;
 }
 
+/**
+ * @brief Execute.
+ */
 void NodeFacadeAdapter::Execute() {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::Execute()");
     
@@ -618,6 +659,9 @@ void NodeFacadeAdapter::Execute() {
     facade_->Execute(handle_);
 }
 
+/**
+ * @brief Get name.
+ */
 const std::string NodeFacadeAdapter::GetName() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetName()");
     
@@ -630,6 +674,10 @@ const std::string NodeFacadeAdapter::GetName() const {
     return name ? std::string(name) : "";
 }
 
+/**
+ * @brief Set name.
+ * @param name Parameter for set name.
+ */
 void NodeFacadeAdapter::SetName(const std::string& name) {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::SetName()");
     
@@ -640,6 +688,9 @@ void NodeFacadeAdapter::SetName(const std::string& name) {
     facade_->SetName(handle_, name.c_str());
 }
 
+/**
+ * @brief Get type.
+ */
 const std::string NodeFacadeAdapter::GetType() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetType()");
     
@@ -652,6 +703,9 @@ const std::string NodeFacadeAdapter::GetType() const {
     return type ? std::string(type) : "";
 }
 
+/**
+ * @brief Get input port count.
+ */
 size_t NodeFacadeAdapter::GetInputPortCount() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortCount()");
     
@@ -662,6 +716,9 @@ size_t NodeFacadeAdapter::GetInputPortCount() const {
     return facade_->GetInputPortCount(handle_);
 }
 
+/**
+ * @brief Get output port count.
+ */
 size_t NodeFacadeAdapter::GetOutputPortCount() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortCount()");
     
@@ -672,6 +729,10 @@ size_t NodeFacadeAdapter::GetOutputPortCount() const {
     return facade_->GetOutputPortCount(handle_);
 }
 
+/**
+ * @brief Get input port name.
+ * @param port Parameter for get input port name.
+ */
 std::string NodeFacadeAdapter::GetInputPortName(size_t port) const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortName(" << port << ")");
     
@@ -683,6 +744,10 @@ std::string NodeFacadeAdapter::GetInputPortName(size_t port) const {
     return name ? std::string(name) : "";
 }
 
+/**
+ * @brief Get output port name.
+ * @param port Parameter for get output port name.
+ */
 std::string NodeFacadeAdapter::GetOutputPortName(size_t port) const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortName(" << port << ")");
     
@@ -694,6 +759,9 @@ std::string NodeFacadeAdapter::GetOutputPortName(size_t port) const {
     return name ? std::string(name) : "";
 }
 
+/**
+ * @brief Get input port metadata.
+ */
 std::vector<PortMetadataC> NodeFacadeAdapter::GetInputPortMetadata() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetInputPortMetadata()");
     
@@ -735,6 +803,9 @@ std::vector<PortMetadataC> NodeFacadeAdapter::GetInputPortMetadata() const {
     return result;
 }
 
+/**
+ * @brief Get output port metadata.
+ */
 std::vector<PortMetadataC> NodeFacadeAdapter::GetOutputPortMetadata() const {
     LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetOutputPortMetadata()");
     
@@ -797,11 +868,18 @@ NodeFacadeAdapter::GetOutputPortHandle(std::string_view name_or_id, std::size_t 
         facade_);
 }
 
+/**
+ * @brief Get status string.
+ */
 std::string NodeFacadeAdapter::GetStatusString() const {
     // Not yet implemented
     return "";
 }
 
+/**
+ * @brief Print port metadata.
+ * @param metadata Parameter for print port metadata.
+ */
 static void PrintPortMetadata(const std::vector<PortMetadataC>& metadata) {
     if (metadata.empty()) {
         std::cout << "  No port metadata available\n";
@@ -824,6 +902,10 @@ static void PrintPortMetadata(const std::vector<PortMetadataC>& metadata) {
     std::cout << "└─────────┴──────────────────────────┴──────────────────────────┴───────────┘\n";
 }
 
+/**
+ * @brief Display node facade adapter.
+ * @param adapter Parameter for display node facade adapter.
+ */
 void DisplayNodeFacadeAdapter(std::shared_ptr<NodeFacadeAdapter> adapter) {
     if (!adapter) {
         std::cout << "NodeFacadeAdapter is null\n";
@@ -850,10 +932,16 @@ void DisplayNodeFacadeAdapter(std::shared_ptr<NodeFacadeAdapter> adapter) {
 // ============================================================================
 
 // Get node description (not available in C interface, return empty string)
+/**
+ * @brief Get description.
+ */
 std::string NodeFacadeAdapter::GetDescription() const {
     return "";
 }
 
+/**
+ * @brief Get metadata.
+ */
 INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
     auto descriptor = GetDescriptor();
 
@@ -878,6 +966,9 @@ INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
     return metadata;
 }
 
+/**
+ * @brief Get descriptor.
+ */
 NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
     std::vector<PortMetadata> input_ports;
     std::vector<PortMetadata> output_ports;
@@ -911,6 +1002,10 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
     });
 }
 
+/**
+ * @brief Get interface.
+ * @param name Parameter for get interface.
+ */
 std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) const {
     if (name == "csv_injection") {
         return GetDataInjectionNodeConfigPtr();
@@ -930,6 +1025,9 @@ std::shared_ptr<void> NodeFacadeAdapter::GetInterface(const std::string& name) c
     return nullptr;
 }
 
+/**
+ * @brief Get csv interface.
+ */
 std::shared_ptr<void> NodeFacadeAdapter::GetCSVInterface() const {
     // Return through generic interface system
     return GetInterface("csv_injection");
@@ -939,6 +1037,9 @@ std::shared_ptr<void> NodeFacadeAdapter::GetCSVInterface() const {
 // Phase 3: Memory Management - Convenience Methods
 // ============================================================================
 
+/**
+ * @brief Get input port names.
+ */
 std::vector<std::string> NodeFacadeAdapter::GetInputPortNames() const {
     std::vector<std::string> names;
     
@@ -952,6 +1053,9 @@ std::vector<std::string> NodeFacadeAdapter::GetInputPortNames() const {
     return names;
 }
 
+/**
+ * @brief Get output port names.
+ */
 std::vector<std::string> NodeFacadeAdapter::GetOutputPortNames() const {
     std::vector<std::string> names;
     

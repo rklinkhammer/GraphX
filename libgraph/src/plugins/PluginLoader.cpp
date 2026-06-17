@@ -1,3 +1,8 @@
+/**
+ * @file PluginLoader.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -67,6 +72,9 @@ std::vector<std::string> PluginLoader::ParsePluginInfo(
     return parts;
 }
 
+/**
+ * @brief Get current abi tag.
+ */
 std::string PluginLoader::GetCurrentABITag() const {
     // Determine which C++ standard library we're using
     // This is a compile-time check, but we report at runtime
@@ -83,6 +91,10 @@ std::string PluginLoader::GetCurrentABITag() const {
     #endif
 }
 
+/**
+ * @brief Unload plugin.
+ * @param plugin_filename Parameter for unload plugin.
+ */
 bool PluginLoader::UnloadPlugin(const std::string& plugin_filename) {
     
     auto it = std::find(loaded_plugins_.begin(), loaded_plugins_.end(), plugin_filename);

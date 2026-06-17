@@ -1,3 +1,8 @@
+/**
+ * @file JsonDynamicGraphLoader.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -87,6 +92,10 @@ namespace graph::config {
  * - Simpler API (just load nodes and edges)
  * - Manual edge connection (not automatic)
  * - Proven pattern from rocket_telemetry.cpp
+ */
+/**
+ * @class JsonDynamicGraphLoader
+ * @brief Json dynamic graph loader implementation for GraphX.
  */
 class JsonDynamicGraphLoader {
 public:

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file OrderedCrsdSetInputSourceNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -28,6 +35,10 @@ struct OrderedCrsdSetInputSourceConfig {
     SarBackendKind backend{SarBackendKind::Host};
 };
 
+/**
+ * @class OrderedCrsdSetInputSourceNode
+ * @brief OrderedCrsdSetInputSourceNode class.
+ */
 class OrderedCrsdSetInputSourceNode
     : public graph::NamedSourceNode<OrderedCrsdSetInputSourceNode, SarAccelControlToken>,
     public graph::IConfigurable,

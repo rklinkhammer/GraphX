@@ -1,3 +1,8 @@
+/**
+ * @file PluginInspector.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -52,6 +57,10 @@ namespace fs = std::filesystem;
 // SemanticVersion Implementation
 // ============================================================================
 
+/**
+ * @brief Parse.
+ * @param version_string Parameter for parse.
+ */
 SemanticVersion SemanticVersion::Parse(const std::string& version_string) {
     SemanticVersion version;
     
@@ -92,6 +101,10 @@ SemanticVersion SemanticVersion::Parse(const std::string& version_string) {
     return version;
 }
 
+/**
+ * @brief Compare.
+ * @param other Parameter for compare.
+ */
 int SemanticVersion::Compare(const SemanticVersion& other) const {
     if (major != other.major) {
         return major < other.major ? -1 : 1;
@@ -110,6 +123,9 @@ bool SemanticVersion::IsCompatible(const SemanticVersion& required_min,
     return Compare(required_min) >= 0 && Compare(required_max) < 0;
 }
 
+/**
+ * @brief To string.
+ */
 std::string SemanticVersion::ToString() const {
     return std::to_string(major) + "." +
            std::to_string(minor) + "." +
@@ -120,6 +136,9 @@ std::string SemanticVersion::ToString() const {
 // PluginCapabilities Implementation
 // ============================================================================
 
+/**
+ * @brief Has i configurable.
+ */
 bool PluginCapabilities::HasIConfigurable() const {
     // Phase 2: Modern C++20 ranges for semantic clarity and early termination
     return std::ranges::any_of(capabilities,
@@ -128,6 +147,9 @@ bool PluginCapabilities::HasIConfigurable() const {
         });
 }
 
+/**
+ * @brief Has i diagnosable.
+ */
 bool PluginCapabilities::HasIDiagnosable() const {
     // Phase 2: Modern C++20 ranges for semantic clarity and early termination
     return std::ranges::any_of(capabilities,
@@ -136,6 +158,9 @@ bool PluginCapabilities::HasIDiagnosable() const {
         });
 }
 
+/**
+ * @brief Has i parameterized.
+ */
 bool PluginCapabilities::HasIParameterized() const {
     // Phase 2: Modern C++20 ranges for semantic clarity and early termination
     return std::ranges::any_of(capabilities,
@@ -144,6 +169,9 @@ bool PluginCapabilities::HasIParameterized() const {
         });
 }
 
+/**
+ * @brief Has i metrics callback.
+ */
 bool PluginCapabilities::HasIMetricsCallback() const {
     // Phase 2: Modern C++20 ranges for semantic clarity and early termination
     return std::ranges::any_of(capabilities,
@@ -152,10 +180,16 @@ bool PluginCapabilities::HasIMetricsCallback() const {
         });
 }
 
+/**
+ * @brief Is compliant.
+ */
 bool PluginCapabilities::IsCompliant() const {
     return HasIConfigurable();
 }
 
+/**
+ * @brief To json.
+ */
 nlohmann::json PluginCapabilities::ToJson() const {
     using json = nlohmann::json;
     
@@ -200,6 +234,9 @@ PluginInspector::~PluginInspector() = default;
 // Plugin Discovery
 // ========================================================================
 
+/**
+ * @brief Discover plugins.
+ */
 std::vector<PluginInfo> PluginInspector::DiscoverPlugins() {
     std::vector<PluginInfo> plugins;
     
@@ -287,6 +324,10 @@ std::vector<PluginInfo> PluginInspector::DiscoverPlugins() {
 // Plugin Inspection
 // ========================================================================
 
+/**
+ * @brief Inspect plugin.
+ * @param name Parameter for inspect plugin.
+ */
 PluginCapabilities PluginInspector::InspectPlugin(const std::string& name) {
     auto discovered = DiscoverPlugins();
     
@@ -303,6 +344,9 @@ PluginCapabilities PluginInspector::InspectPlugin(const std::string& name) {
     return InspectLoadedPlugin(*it);
 }
 
+/**
+ * @brief Inspect all.
+ */
 std::vector<PluginCapabilities> PluginInspector::InspectAll() {
     // Check cache validity
     if (cache_info_.enabled && !cached_capabilities_.empty() && cache_info_.IsValid()) {
@@ -339,6 +383,10 @@ std::vector<PluginCapabilities> PluginInspector::InspectAll() {
     return results;
 }
 
+/**
+ * @brief Inspect loaded plugin.
+ * @param info Parameter for inspect loaded plugin.
+ */
 PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) {
     PluginCapabilities result;
     result.info = info;
@@ -467,6 +515,9 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
 // Compliance Analysis
 // ========================================================================
 
+/**
+ * @brief Get compliance stats.
+ */
 ComplianceStats PluginInspector::GetComplianceStats() {
     if (cached_capabilities_.empty()) {
         InspectAll();  // Populate cache
@@ -490,6 +541,9 @@ ComplianceStats PluginInspector::GetComplianceStats() {
     return stats;
 }
 
+/**
+ * @brief Get non compliant plugins.
+ */
 std::vector<std::string> PluginInspector::GetNonCompliantPlugins() {
     if (cached_capabilities_.empty()) {
         InspectAll();  // Populate cache
@@ -674,11 +728,18 @@ std::vector<std::string> PluginInspector::ValidateAll(
 // Configuration
 // ========================================================================
 
+/**
+ * @brief Set plugin directory.
+ * @param plugin_dir Parameter for set plugin directory.
+ */
 void PluginInspector::SetPluginDirectory(const std::string& plugin_dir) {
     plugin_dir_ = plugin_dir;
     ClearCache();  // Invalidate cache when directory changes
 }
 
+/**
+ * @brief Get plugin directory.
+ */
 std::string PluginInspector::GetPluginDirectory() const {
     return plugin_dir_;
 }
@@ -687,6 +748,10 @@ std::string PluginInspector::GetPluginDirectory() const {
 // Helper Methods
 // ========================================================================
 
+/**
+ * @brief Escape csv field.
+ * @param field Parameter for escape csv field.
+ */
 std::string PluginInspector::EscapeCsvField(const std::string& field) {
     // Check if field needs quoting
     if (field.find(',') == std::string::npos &&
@@ -721,6 +786,10 @@ bool PluginInspector::HasInterface(void* node,
 // Metadata Extraction
 // ========================================================================
 
+/**
+ * @brief Extract plugin metadata.
+ * @param info Parameter for extract plugin metadata.
+ */
 PluginInfo PluginInspector::ExtractPluginMetadata(const PluginInfo& info) {
     PluginInfo enhanced = info;
     
@@ -736,6 +805,10 @@ PluginInfo PluginInspector::ExtractPluginMetadata(const PluginInfo& info) {
     return enhanced;
 }
 
+/**
+ * @brief Extract version from elf.
+ * @param plugin_path Parameter for extract version from elf.
+ */
 std::string PluginInspector::ExtractVersionFromELF(const std::string& plugin_path) {
     std::ifstream file(plugin_path, std::ios::binary);
     if (!file.is_open()) {
@@ -835,6 +908,10 @@ std::string PluginInspector::ExtractVersionFromELF(const std::string& plugin_pat
     return "";
 }
 
+/**
+ * @brief Extract description from elf.
+ * @param plugin_path Parameter for extract description from elf.
+ */
 std::string PluginInspector::ExtractDescriptionFromELF(const std::string& plugin_path) {
     // Similar to version extraction, would parse ELF custom sections
     // For now, return empty string
@@ -843,6 +920,10 @@ std::string PluginInspector::ExtractDescriptionFromELF(const std::string& plugin
     return "";  // Placeholder: return empty to indicate extraction failed
 }
 
+/**
+ * @brief Parse version from filename.
+ * @param filename Parameter for parse version from filename.
+ */
 std::string PluginInspector::ParseVersionFromFilename(const std::string& filename) {
     // Try to extract version pattern like v1.0.0 or 1.0.0-alpha from filename
     // Format: nodename or nodename_v1.0.0
@@ -872,10 +953,17 @@ std::string PluginInspector::ParseVersionFromFilename(const std::string& filenam
 // Cache Management
 // ========================================================================
 
+/**
+ * @brief Get cache info.
+ */
 CacheInfo PluginInspector::GetCacheInfo() const {
     return cache_info_;
 }
 
+/**
+ * @brief Set caching enabled.
+ * @param enabled Parameter for set caching enabled.
+ */
 void PluginInspector::SetCachingEnabled(bool enabled) {
     cache_info_.enabled = enabled;
     if (!enabled) {
@@ -883,10 +971,17 @@ void PluginInspector::SetCachingEnabled(bool enabled) {
     }
 }
 
+/**
+ * @brief Set cache ttl.
+ * @param ttl Parameter for set cache ttl.
+ */
 void PluginInspector::SetCacheTTL(std::chrono::milliseconds ttl) {
     cache_info_.ttl = ttl;
 }
 
+/**
+ * @brief Clear cache.
+ */
 void PluginInspector::ClearCache() {
     cached_capabilities_.clear();
     cache_info_.cache_hits = 0;
@@ -894,6 +989,10 @@ void PluginInspector::ClearCache() {
     cache_info_.last_cached = std::chrono::system_clock::time_point();
 }
 
+/**
+ * @brief Get newest version.
+ * @param plugin_name Parameter for get newest version.
+ */
 SemanticVersion PluginInspector::GetNewestVersion(const std::string& plugin_name) {
     auto capabilities = InspectAll();
     

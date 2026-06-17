@@ -1,3 +1,8 @@
+/**
+ * @file StaticNodeAdapter.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -76,6 +81,9 @@ StaticNodeAdapter::StaticNodeInstance::StaticNodeInstance(
     BuildFacade();
 }
 
+/**
+ * @brief Build facade.
+ */
 void StaticNodeAdapter::StaticNodeInstance::BuildFacade() {
     // Initialize facade with zero/null values
     facade_ = NodeFacade();

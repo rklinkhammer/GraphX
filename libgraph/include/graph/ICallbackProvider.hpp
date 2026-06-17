@@ -1,3 +1,8 @@
+/**
+ * @file ICallbackProvider.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -131,6 +136,14 @@ namespace graph {
  *
  * @note Exception Safety: All methods are noexcept. Implementations must never throw.
  */
+/**
+ * @class ICallbackProvider
+ * @brief ICallbackProvider class.
+ */
+/**
+ * @class ICallbackProvider
+ * @brief I callback provider implementation for GraphX.
+ */
 class ICallbackProvider {
 public:
     virtual ~ICallbackProvider() = default;
@@ -176,6 +189,14 @@ protected:
  * @tparam DataType Type of data produced by the node
  */
 template<typename DataType>
+/**
+ * @class ISourceCallbackProvider
+ * @brief ISourceCallbackProvider class.
+ */
+/**
+ * @class ISourceCallbackProvider
+ * @brief I source callback provider implementation for GraphX.
+ */
 class ISourceCallbackProvider : public ICallbackProvider {
 public:
     virtual ~ISourceCallbackProvider() = default;
@@ -204,6 +225,14 @@ public:
  * @tparam DataType Type of data consumed and produced
  */
 template<typename DataType>
+/**
+ * @class IProcessingCallbackProvider
+ * @brief IProcessingCallbackProvider class.
+ */
+/**
+ * @class IProcessingCallbackProvider
+ * @brief I processing callback provider implementation for GraphX.
+ */
 class IProcessingCallbackProvider : public ICallbackProvider {
 public:
     virtual ~IProcessingCallbackProvider() = default;
@@ -240,6 +269,14 @@ public:
  * @tparam DataType Type of data consumed
  */
 template<typename DataType>
+/**
+ * @class ISinkCallbackProvider
+ * @brief ISinkCallbackProvider class.
+ */
+/**
+ * @class ISinkCallbackProvider
+ * @brief I sink callback provider implementation for GraphX.
+ */
 class ISinkCallbackProvider : public ICallbackProvider {
 public:
     virtual ~ISinkCallbackProvider() = default;

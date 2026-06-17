@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_json_utilities.cpp
  * @brief Comprehensive unit tests for JsonUtilities module (Phase 5b)
@@ -46,8 +48,16 @@ namespace test_util {
 /**
  * @brief Helper to create temporary file with content
  */
+/**
+ * @class TemporaryFile
+ * @brief Temporary file implementation for GraphX.
+ */
 class TemporaryFile {
 public:
+/**
+ * @brief Temporary file.
+ * @param content Parameter for temporary file.
+ */
     explicit TemporaryFile(const std::string& content = "") {
         // Generate unique filename
         static std::atomic<int> counter(0);
@@ -80,6 +90,11 @@ private:
 /**
  * @brief Helper to compare JSON objects for equality (ignoring formatting)
  */
+/**
+ * @brief Json equal.
+ * @param lhs Parameter for json equal.
+ * @param rhs Parameter for json equal.
+ */
 inline bool JsonEqual(const json& lhs, const json& rhs) {
     return lhs.dump() == rhs.dump();
 }
@@ -106,6 +121,11 @@ inline bool JsonEqual(const json& lhs, const json& rhs) {
  * @brief Helper to get expected value with assertion
  */
 template <typename T>
+/**
+ * @brief Get expected value.
+ * @param std::expected<T Parameter for get expected value.
+ * @param result Parameter for get expected value.
+ */
 T GetExpectedValue(const std::expected<T, JsonParseError>& result) {
     EXPECT_TRUE(static_cast<bool>(result));
     return result.value();
@@ -119,6 +139,10 @@ T GetExpectedValue(const std::expected<T, JsonParseError>& result) {
 
 /**
  * @brief Base fixture for all JSON utilities tests
+ */
+/**
+ * @class JsonUtilitiesTest
+ * @brief Json utilities test implementation for GraphX.
  */
 class JsonUtilitiesTest : public ::testing::Test {
 protected:
@@ -182,9 +206,17 @@ protected:
 /**
  * @brief Fixture for type-parameterized extraction tests
  */
+/**
+ * @class TypedExtractionTest
+ * @brief Typed extraction test implementation for GraphX.
+ */
 class TypedExtractionTest : public JsonUtilitiesTest,
                             public ::testing::WithParamInterface<std::string> {
 protected:
+/**
+ * @brief Create test object.
+ * @param type Parameter for create test object.
+ */
     json CreateTestObject(const std::string& type) {
         if (type == "int") {
             return json::parse(R"({"value": 42})");
@@ -205,6 +237,10 @@ protected:
 // 1. JsonParseResult Tests (8-10 tests)
 // ============================================================================
 
+/**
+ * @class JsonParseResultTest
+ * @brief Json parse result test implementation for GraphX.
+ */
 class JsonParseResultTest : public JsonUtilitiesTest {};
 
 TEST_F(JsonParseResultTest, SuccessWhenValidDataAndNoError) {
@@ -275,6 +311,10 @@ TEST_F(JsonParseResultTest, ErrorLineColumnTracking) {
 // 2. ParseJsonSafe Tests (15-18 tests)
 // ============================================================================
 
+/**
+ * @class ParseJsonSafeTest
+ * @brief Parse json safe test implementation for GraphX.
+ */
 class ParseJsonSafeTest : public JsonUtilitiesTest {};
 
 // Happy path tests
@@ -379,6 +419,10 @@ TEST_F(ParseJsonSafeTest, InvalidJsonSyntaxInvalidEscape) {
 // 3. ParseJsonFile Tests (10-12 tests)
 // ============================================================================
 
+/**
+ * @class ParseJsonFileTest
+ * @brief Parse json file test implementation for GraphX.
+ */
 class ParseJsonFileTest : public JsonUtilitiesTest {};
 
 TEST_F(ParseJsonFileTest, ParseValidJsonFile) {
@@ -447,6 +491,10 @@ TEST_F(ParseJsonFileTest, LargeJsonFile) {
 // 4. ParseJsonDetailed Tests (8-10 tests)
 // ============================================================================
 
+/**
+ * @class ParseJsonDetailedTest
+ * @brief Parse json detailed test implementation for GraphX.
+ */
 class ParseJsonDetailedTest : public JsonUtilitiesTest {};
 
 TEST_F(ParseJsonDetailedTest, DetailedParseSuccess) {
@@ -491,6 +539,10 @@ TEST_F(ParseJsonDetailedTest, DetailedTypeError) {
 // 5. ExtractField<T> Tests (35-40 tests)
 // ============================================================================
 
+/**
+ * @class ExtractFieldTest
+ * @brief Extract field test implementation for GraphX.
+ */
 class ExtractFieldTest : public JsonUtilitiesTest {};
 
 // Integer extraction tests
@@ -669,6 +721,10 @@ TEST_F(ExtractFieldTest, ExtractNestedArray) {
 // 6. ExtractFieldOptional<T> Tests (20-25 tests)
 // ============================================================================
 
+/**
+ * @class ExtractFieldOptionalTest
+ * @brief Extract field optional test implementation for GraphX.
+ */
 class ExtractFieldOptionalTest : public JsonUtilitiesTest {};
 
 TEST_F(ExtractFieldOptionalTest, OptionalPresentReturnsValue) {
@@ -748,6 +804,10 @@ TEST_F(ExtractFieldOptionalTest, OptionalMultipleFields) {
 // 7. HasField<T> Tests (15-18 tests)
 // ============================================================================
 
+/**
+ * @class HasFieldTest
+ * @brief Has field test implementation for GraphX.
+ */
 class HasFieldTest : public JsonUtilitiesTest {};
 
 TEST_F(HasFieldTest, HasFieldIntWhenFieldIsInt) {
@@ -817,6 +877,10 @@ TEST_F(HasFieldTest, HasFieldEmptyObject) {
 // 8. ExtractArray<T> Tests (25-30 tests)
 // ============================================================================
 
+/**
+ * @class ExtractArrayTest
+ * @brief Extract array test implementation for GraphX.
+ */
 class ExtractArrayTest : public JsonUtilitiesTest {};
 
 // Integer array tests
@@ -962,6 +1026,10 @@ TEST_F(ExtractArrayTest, ExtractArrayReserveOptimization) {
 // 9. ExtractObjectArray Tests (10-12 tests)
 // ============================================================================
 
+/**
+ * @class ExtractObjectArrayTest
+ * @brief Extract object array test implementation for GraphX.
+ */
 class ExtractObjectArrayTest : public JsonUtilitiesTest {};
 
 TEST_F(ExtractObjectArrayTest, ExtractSimpleObjectArray) {
@@ -1045,6 +1113,10 @@ TEST_F(ExtractObjectArrayTest, ExtractObjectArrayDifferentFields) {
 // 10. SerializeJsonSafe Tests (12-15 tests)
 // ============================================================================
 
+/**
+ * @class SerializeJsonSafeTest
+ * @brief Serialize json safe test implementation for GraphX.
+ */
 class SerializeJsonSafeTest : public JsonUtilitiesTest {};
 
 TEST_F(SerializeJsonSafeTest, SerializeSimpleObjectCompact) {
@@ -1133,6 +1205,10 @@ TEST_F(SerializeJsonSafeTest, SerializeLargeStructure) {
 // 11. WriteJsonFile Tests (12-15 tests)
 // ============================================================================
 
+/**
+ * @class WriteJsonFileTest
+ * @brief Write json file test implementation for GraphX.
+ */
 class WriteJsonFileTest : public JsonUtilitiesTest {};
 
 TEST_F(WriteJsonFileTest, WriteJsonFileCompact) {
@@ -1243,6 +1319,10 @@ TEST_F(WriteJsonFileTest, WriteJsonFileEmptyObject) {
 // 12. ValidateJsonStructure Tests (15-18 tests)
 // ============================================================================
 
+/**
+ * @class ValidateJsonStructureTest
+ * @brief Validate json structure test implementation for GraphX.
+ */
 class ValidateJsonStructureTest : public JsonUtilitiesTest {};
 
 TEST_F(ValidateJsonStructureTest, ValidateAllFieldsPresent) {
@@ -1331,6 +1411,10 @@ TEST_F(ValidateJsonStructureTest, ValidateNestedFieldNotRequired) {
 // Integration and Edge Case Tests
 // ============================================================================
 
+/**
+ * @class JsonUtilitiesIntegrationTest
+ * @brief Json utilities integration test implementation for GraphX.
+ */
 class JsonUtilitiesIntegrationTest : public JsonUtilitiesTest {};
 
 TEST_F(JsonUtilitiesIntegrationTest, ComplexWorkflowParseValidateExtract) {

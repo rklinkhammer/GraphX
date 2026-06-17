@@ -1,3 +1,8 @@
+/**
+ * @file CommandProcessorCapability.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -80,6 +85,14 @@ class CommandRegistryCapability;
  * @see DefaultCommandProcessor (reference implementation)
  * @see CommandPolicy (primary consumer)
  */
+/**
+ * @class CommandProcessorCapability
+ * @brief CommandProcessorCapability class.
+ */
+/**
+ * @class CommandProcessorCapability
+ * @brief Command processor capability implementation for GraphX.
+ */
 class CommandProcessorCapability {
 public:
     /**
@@ -140,6 +153,11 @@ public:
      *
      * @throws std::exception if processor throws (depends on implementation)
      */
+/**
+ * @brief Process command.
+ * @param raw_command Parameter for process command.
+ * @return Result of the operation.
+ */
     CommandResult ProcessCommand(const std::string& raw_command) const;
 
     /**
@@ -170,6 +188,11 @@ public:
      * @param name Command name
      * @return true if command is registered
      */
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ * @return Result of the operation.
+ */
     bool HasCommand(const std::string& name) const;
 
     /**
@@ -180,6 +203,11 @@ public:
      * @param name Command name
      * @return Pointer to CommandInfo or nullptr if not found
      */
+/**
+ * @brief Get command info.
+ * @param name Parameter for get command info.
+ * @return Result of the operation.
+ */
     const CommandInfo* GetCommandInfo(const std::string& name) const;
 
     /**
@@ -189,6 +217,10 @@ public:
      *
      * @return Vector of all CommandInfo structures
      */
+/**
+ * @brief Get all commands.
+ * @return Result of the operation.
+ */
     std::vector<CommandInfo> GetAllCommands() const;
 
     // =========================================================================
@@ -208,6 +240,10 @@ public:
      *
      * @return Shared pointer to ICommandProcessor
      */
+/**
+ * @brief Get processor.
+ * @return Result of the operation.
+ */
     std::shared_ptr<graph::ICommandProcessor> GetProcessor() const;
 
     /**
@@ -225,6 +261,10 @@ public:
      *
      * @throws std::invalid_argument if new_processor is null
      */
+/**
+ * @brief Set processor.
+ * @param new_processor Parameter for set processor.
+ */
     void SetProcessor(std::shared_ptr<graph::ICommandProcessor> new_processor);
 
     // =========================================================================
@@ -278,6 +318,11 @@ inline CommandProcessorCapability::CommandProcessorCapability() {
 
 inline CommandResult CommandProcessorCapability::ProcessCommand(
     const std::string& raw_command) const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return CommandResult(false, "Processor not initialized");
@@ -288,6 +333,11 @@ inline CommandResult CommandProcessorCapability::ProcessCommand(
 inline CommandResult CommandProcessorCapability::ProcessCommand(
     const std::string& name,
     const std::vector<std::string>& args) const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return CommandResult(false, "Processor not initialized");
@@ -297,6 +347,11 @@ inline CommandResult CommandProcessorCapability::ProcessCommand(
 
 inline bool CommandProcessorCapability::HasCommand(
     const std::string& name) const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return false;
@@ -306,6 +361,11 @@ inline bool CommandProcessorCapability::HasCommand(
 
 inline const CommandInfo* CommandProcessorCapability::GetCommandInfo(
     const std::string& name) const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return nullptr;
@@ -314,6 +374,11 @@ inline const CommandInfo* CommandProcessorCapability::GetCommandInfo(
 }
 
 inline std::vector<CommandInfo> CommandProcessorCapability::GetAllCommands() const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return std::vector<CommandInfo>();
@@ -322,6 +387,11 @@ inline std::vector<CommandInfo> CommandProcessorCapability::GetAllCommands() con
 }
 
 inline std::shared_ptr<graph::ICommandProcessor> CommandProcessorCapability::GetProcessor() const {
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     return processor_;
 }
@@ -332,6 +402,11 @@ inline void CommandProcessorCapability::SetProcessor(
         throw std::invalid_argument(
             "CommandProcessorCapability::SetProcessor: processor cannot be null");
     }
+/**
+ * @brief Lock.
+ * @param processor_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     processor_ = new_processor;
 }

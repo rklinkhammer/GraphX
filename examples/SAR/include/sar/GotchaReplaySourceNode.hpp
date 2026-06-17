@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaReplaySourceNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -53,6 +60,10 @@ struct GotchaReplaySourceConfig {
     std::vector<GotchaNormalizedPulseRecord> records{};
 };
 
+/**
+ * @class GotchaOfflineConverter
+ * @brief GotchaOfflineConverter class.
+ */
 class GotchaOfflineConverter {
 public:
     std::vector<GotchaNormalizedPulseRecord> LoadFromFile(const std::filesystem::path& fixture_path) const;
@@ -62,6 +73,10 @@ public:
 // TODO(GOTCHA-INTEGRATION): replace fixture-based replay with a direct AFRL Gotcha reader
 // once the raw file layout, calibration metadata, and redistribution constraints are confirmed.
 
+/**
+ * @class GotchaReplaySourceNode
+ * @brief GotchaReplaySourceNode class.
+ */
 class GotchaReplaySourceNode
     : public graph::NamedSourceNode<GotchaReplaySourceNode, SarAccelControlToken>,
     public graph::IConfigurable,

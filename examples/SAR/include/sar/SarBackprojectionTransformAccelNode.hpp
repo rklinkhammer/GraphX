@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarBackprojectionTransformAccelNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -30,6 +37,10 @@ struct SarBackprojectionTransformAccelConfig {
     SarBackendKind backend{SarBackendKind::SimulatedDevice};
 };
 
+/**
+ * @class SarBackprojectionTransformAccelNode
+ * @brief SarBackprojectionTransformAccelNode class.
+ */
 class SarBackprojectionTransformAccelNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file Reflection.hpp
  * @brief C++26 Reflection utilities for compile-time port metadata generation

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdReader.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <array>
@@ -56,6 +63,10 @@ struct CrsdReadResult {
     OrderedCrsdSetReadResult value{};
 };
 
+/**
+ * @class ICrsdReader
+ * @brief ICrsdReader class.
+ */
 class ICrsdReader {
 public:
     virtual ~ICrsdReader() = default;

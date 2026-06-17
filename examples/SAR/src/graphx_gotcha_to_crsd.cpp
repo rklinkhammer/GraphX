@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file graphx_gotcha_to_crsd.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/io/GotchaInputOrdering.hpp"
 #include "sar/io/GotchaMatInspector.hpp"
 #include "sar/io/GotchaMatReader.hpp"

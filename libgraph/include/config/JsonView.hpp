@@ -1,3 +1,8 @@
+/**
+ * @file JsonView.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -51,6 +56,14 @@ namespace graph {
  * 
  * Preferred APIs are TryGet* methods returning std::expected.
  */
+/**
+ * @class JsonView
+ * @brief JsonView class.
+ */
+/**
+ * @class JsonView
+ * @brief Json view implementation for GraphX.
+ */
 class JsonView {
 public:
     /**
@@ -70,6 +83,11 @@ public:
      * @param key Field name
      * @return True if field exists and is not null
      */
+/**
+ * @brief Contains.
+ * @param key Parameter for contains.
+ * @return Result of the operation.
+ */
     bool Contains(const std::string& key) const;
     
     // ========================================================================
@@ -180,6 +198,11 @@ public:
      * }
      * @endcode
      */
+/**
+ * @brief Get optional string.
+ * @param key Parameter for get optional string.
+ * @return Result of the operation.
+ */
     std::optional<std::string> GetOptionalString(const std::string& key) const;
     
     /**
@@ -189,6 +212,11 @@ public:
      * @return std::optional<float> - nullopt if missing
      * @throws ConfigError if field has wrong type
      */
+/**
+ * @brief Get optional float.
+ * @param key Parameter for get optional float.
+ * @return Result of the operation.
+ */
     std::optional<float> GetOptionalFloat(const std::string& key) const;
     
     /**
@@ -198,6 +226,11 @@ public:
      * @return std::optional<int> - nullopt if missing
      * @throws ConfigError if field has wrong type or is float
      */
+/**
+ * @brief Get optional int.
+ * @param key Parameter for get optional int.
+ * @return Result of the operation.
+ */
     std::optional<int> GetOptionalInt(const std::string& key) const;
     
     /**
@@ -207,6 +240,11 @@ public:
      * @return std::optional<bool> - nullopt if missing
      * @throws ConfigError if field has wrong type
      */
+/**
+ * @brief Get optional bool.
+ * @param key Parameter for get optional bool.
+ * @return Result of the operation.
+ */
     std::optional<bool> GetOptionalBool(const std::string& key) const;
     
     /**
@@ -216,6 +254,11 @@ public:
      * @return std::optional<JsonView> - nullopt if missing
      * @throws ConfigError if field has wrong type
      */
+/**
+ * @brief Get optional object.
+ * @param key Parameter for get optional object.
+ * @return Result of the operation.
+ */
     std::optional<JsonView> GetOptionalObject(const std::string& key) const;
 
 private:

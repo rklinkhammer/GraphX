@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file ImageTileMergeNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/ImageTileMergeNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

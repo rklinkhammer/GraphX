@@ -1,3 +1,8 @@
+/**
+ * @file StaticNodeAdapter.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -70,6 +75,10 @@ namespace graph::config {
  * 
  * @since Phase 2 (Unified Factory Implementation)
  */
+/**
+ * @class StaticNodeAdapter
+ * @brief Static node adapter implementation for GraphX.
+ */
 class StaticNodeAdapter {
 public:
     /**
@@ -85,6 +94,10 @@ public:
      * - Uses lambda functions to create closures over the INode
      * - Handles the C interface (void* handle, C-style function pointers)
      */
+/**
+ * @class StaticNodeInstance
+ * @brief Static node instance implementation for GraphX.
+ */
     class StaticNodeInstance {
     public:
         /**
@@ -127,6 +140,9 @@ public:
         NodeFacade facade_;
 
         // Helper methods for creating facade function pointers
+/**
+ * @brief Build facade.
+ */
         void BuildFacade();
     };
 

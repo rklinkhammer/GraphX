@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file OrderedCrsdSetInputSourceNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/OrderedCrsdSetInputSourceNode.hpp"
 
 #include "config/ConfigError.hpp"

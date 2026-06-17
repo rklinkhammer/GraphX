@@ -1,3 +1,8 @@
+/**
+ * @file PortMetricsMixin.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -57,6 +62,10 @@ namespace core {
  */
 
 template <typename Derived>
+/**
+ * @class OutputPortMetricsMixin
+ * @brief Output port metrics mixin implementation for GraphX.
+ */
 class OutputPortMetricsMixin {
 public:
     // ========================================================================
@@ -109,6 +118,10 @@ public:
  */
 
 template <typename Derived>
+/**
+ * @class InputPortMetricsMixin
+ * @brief Input port metrics mixin implementation for GraphX.
+ */
 class InputPortMetricsMixin {
 public:
     // ========================================================================
@@ -154,6 +167,10 @@ public:
  */
 
 template <typename Derived>
+/**
+ * @class BidirectionalPortMetricsMixin
+ * @brief Bidirectional port metrics mixin implementation for GraphX.
+ */
 class BidirectionalPortMetricsMixin 
     : public OutputPortMetricsMixin<Derived>,
       public InputPortMetricsMixin<Derived> {

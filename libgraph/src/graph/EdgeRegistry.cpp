@@ -1,3 +1,8 @@
+/**
+ * @file EdgeRegistry.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -31,6 +36,9 @@ namespace graph::config {
 std::mutex EdgeRegistry::mutex_;
 
 // Get singleton registry using std::type_index for O(1) lookups
+/**
+ * @brief Get registry.
+ */
 std::unordered_map<EdgeKey, EdgeRegistry::EdgeCreator, EdgeKeyHash>& EdgeRegistry::GetRegistry() {
     static std::unordered_map<EdgeKey, EdgeRegistry::EdgeCreator, EdgeKeyHash> registry;
     return registry;
@@ -102,18 +110,27 @@ std::expected<void, EdgeRegistry::EdgeCreationError> EdgeRegistry::CreateEdgeExp
 }
 
 // Clear all registered edge creators
+/**
+ * @brief Clear.
+ */
 void EdgeRegistry::Clear() {
     std::lock_guard<std::mutex> lock(EdgeRegistry::mutex_);
     EdgeRegistry::GetRegistry().clear();
 }
 
 // Get number of registered edge creators
+/**
+ * @brief Get registered count.
+ */
 size_t EdgeRegistry::GetRegisteredCount() {
     std::lock_guard<std::mutex> lock(EdgeRegistry::mutex_);
     return EdgeRegistry::GetRegistry().size();
 }
 
 // Get list of all registered edge type combinations
+/**
+ * @brief Get registered.
+ */
 std::vector<std::string> EdgeRegistry::GetRegistered() {
     std::lock_guard<std::mutex> lock(EdgeRegistry::mutex_);
     

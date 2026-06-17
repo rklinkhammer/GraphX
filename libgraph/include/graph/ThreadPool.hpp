@@ -1,3 +1,8 @@
+/**
+ * @file ThreadPool.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -465,6 +470,14 @@ struct ThreadPoolStats {
  * @see ExecuteTask() for exception handling details
  */
 
+/**
+ * @class ThreadPool
+ * @brief ThreadPool class.
+ */
+/**
+ * @class ThreadPool
+ * @brief Thread pool implementation for GraphX.
+ */
 class ThreadPool {
 public:
     /**
@@ -632,6 +645,11 @@ public:
      * @see Init() for next step in lifecycle
      * @see ThreadPool(size_t, const DeadlockConfig&) for custom configuration
      */
+/**
+ * @brief Thread pool.
+ * @param num_threads Parameter for thread pool.
+ * @return Result of the operation.
+ */
     explicit ThreadPool(size_t num_threads = 0) noexcept;
 
     /**
@@ -945,6 +963,9 @@ public:
      * @see JoinWithTimeout() for bounded waiting
      * @see GetStopRequested() for query current state
      */
+/**
+ * @brief Stop.
+ */
     void Stop() noexcept;
 
     /**
@@ -1007,6 +1028,9 @@ public:
      * @see JoinWithTimeout() for bounded waiting
      * @see Destructor which calls Join() implicitly
      */
+/**
+ * @brief Join.
+ */
     void Join() noexcept;
 
     /**
@@ -1657,6 +1681,9 @@ public:
      * @see SetConfig() for updating timeout values
      * @see GetStats() for detection statistics
      */
+/**
+ * @brief Clear deadlock flag.
+ */
     void ClearDeadlockFlag() noexcept;
 
     /**

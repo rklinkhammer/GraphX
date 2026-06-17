@@ -1,3 +1,8 @@
+/**
+ * @file DataInjectionPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -58,6 +63,10 @@ static auto data_injection_logger_ = log4cxx::Logger::getLogger("app.policies.Da
  * - No concurrent injection operations expected
  *
  * @see IExecutionPolicy, IDataInjectionSource
+ */
+/**
+ * @class DataInjectionPolicy
+ * @brief Data injection policy implementation for GraphX.
  */
 class DataInjectionPolicy : public graph::IExecutionPolicy {
 public:
@@ -141,6 +150,10 @@ public:
     }   
 private:
     std::shared_ptr<capabilities::DataInjectionCapability> data_injection_capability_;
+/**
+ * @brief Init data injection sources.
+ * @param context Parameter for init data injection sources.
+ */
     void InitDataInjectionSources(capabilities::GraphCapability& context);
 
 }; // class DataInjectionPolicy

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarMaterializedImageSinkNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/SarMaterializedImageSinkNode.hpp"
 
 #include "sar/SarMaterializedImageReference.hpp"

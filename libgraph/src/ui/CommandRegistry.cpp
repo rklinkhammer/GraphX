@@ -1,3 +1,8 @@
+/**
+ * @file CommandRegistry.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -56,6 +61,9 @@ CommandResult CommandRegistry::ExecuteCommand(
     }
 }
 
+/**
+ * @brief Get all commands.
+ */
 std::vector<CommandInfo> CommandRegistry::GetAllCommands() const {
     std::vector<CommandInfo> result;
     result.reserve(commands_.size());
@@ -67,10 +75,18 @@ std::vector<CommandInfo> CommandRegistry::GetAllCommands() const {
     return result;
 }
 
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ */
 bool CommandRegistry::HasCommand(const std::string& name) const {
     return commands_.find(name) != commands_.end();
 }
 
+/**
+ * @brief Get command info.
+ * @param name Parameter for get command info.
+ */
 const CommandInfo* CommandRegistry::GetCommandInfo(const std::string& name) const {
     auto it = commands_.find(name);
     if (it == commands_.end()) {
@@ -79,6 +95,10 @@ const CommandInfo* CommandRegistry::GetCommandInfo(const std::string& name) cons
     return &it->second;
 }
 
+/**
+ * @brief Generate help text.
+ * @param output Parameter for generate help text.
+ */
 void CommandRegistry::GenerateHelpText(capabilities::ICommandOutput* output) const {
     if (!output) return;
     

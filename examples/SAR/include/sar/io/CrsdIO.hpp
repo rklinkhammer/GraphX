@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdIO.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -28,6 +35,10 @@ struct CrsdWriterOptions {
     bool emit_progress{false};
 };
 
+/**
+ * @class CrsdWriter
+ * @brief CrsdWriter class.
+ */
 class CrsdWriter final : public ISarWriter {
 public:
     explicit CrsdWriter(CrsdWriterOptions options = {})

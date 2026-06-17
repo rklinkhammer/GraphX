@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file FFTNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "dsp/FFTNode.hpp"
 #include "log4cxx/logger.h"
 #include <nlohmann/json.hpp>

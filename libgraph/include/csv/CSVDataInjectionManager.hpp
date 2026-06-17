@@ -1,3 +1,8 @@
+/**
+ * @file CSVDataInjectionManager.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -45,16 +50,36 @@ struct CSVNodeConfig {
     core::ActiveQueue<graph::message::Message>* injection_queue;
 };
 
+/**
+ * @class CSVDataInjectionManager
+ * @brief CSVDataInjectionManager class.
+ */
+/**
+ * @class CSVDataInjectionManager
+ * @brief Csv data injection manager implementation for GraphX.
+ */
 class CSVDataInjectionManager {
 public:
 
     CSVDataInjectionManager() = default;
     virtual ~CSVDataInjectionManager() = default;
 
+/**
+ * @brief Process csv inputs.
+ * @param std::vector<std::pair<std::string Parameter for process csv inputs.
+ * @param csv_input_paths Parameter for process csv inputs.
+ * @param context Parameter for process csv inputs.
+ * @return Result of the operation.
+ */
     bool ProcessCSVInputs(std::vector<std::pair<std::string, std::string>>& csv_input_paths, capabilities::GraphCapability& context);
     bool BindCSVColumnsToDataInjectionNodes(
             const std::map<std::string, capabilities::DataInjectionNodeConfig>& node_configs,
             capabilities::GraphCapability& context);
+/**
+ * @brief Inject row to nodes.
+ * @param context Parameter for inject row to nodes.
+ * @return Result of the operation.
+ */
     bool InjectRowToNodes(capabilities::GraphCapability& context);
 
 private:

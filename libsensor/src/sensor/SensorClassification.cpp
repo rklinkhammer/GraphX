@@ -1,3 +1,8 @@
+/**
+ * @file SensorClassification.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors

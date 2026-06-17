@@ -1,3 +1,8 @@
+/**
+ * @file CSVDataInjectionManager.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -112,6 +117,10 @@ bool CSVDataInjectionManager::BindCSVColumnsToDataInjectionNodes(
     return true;          
 }
 
+/**
+ * @brief Inject row to nodes.
+ * @param context Parameter for inject row to nodes.
+ */
 bool CSVDataInjectionManager::InjectRowToNodes(capabilities::GraphCapability& context) {
     (void)context;
     auto line = csv_data_[0][current_row_index_];

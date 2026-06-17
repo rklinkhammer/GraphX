@@ -1,3 +1,8 @@
+/**
+ * @file double_producer_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -58,6 +63,9 @@ static const NodeFacade double_producer_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create double producer.
+ */
 void* plugin_create_double_producer() {
     try {
         auto node = std::make_shared<TestDoubleProducer>();
@@ -68,6 +76,9 @@ void* plugin_create_double_producer() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "TestDoubleProducer|Double producer test node|1.0|"
            "plugin_create_double_producer|"
@@ -78,10 +89,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&double_producer_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

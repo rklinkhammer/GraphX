@@ -1,3 +1,8 @@
+/**
+ * @file ConsoleOutput.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -50,6 +55,14 @@ namespace capabilities {
  * @see CommandOutputCapability (bus wrapper)
  * @see DashboardOutput (Dashboard implementation)
  */
+/**
+ * @class ConsoleOutput
+ * @brief ConsoleOutput class.
+ */
+/**
+ * @class ConsoleOutput
+ * @brief Console output implementation for GraphX.
+ */
 class ConsoleOutput : public ICommandOutput {
 public:
     /**
@@ -75,6 +88,10 @@ public:
      *
      * @param message Message to write
      */
+/**
+ * @brief Write message.
+ * @param message Parameter for write message.
+ */
     void WriteMessage(const std::string& message) override;
 
     /**
@@ -84,6 +101,10 @@ public:
      *
      * @param error Error message to write
      */
+/**
+ * @brief Write error.
+ * @param error Parameter for write error.
+ */
     void WriteError(const std::string& error) override;
 
     /**
@@ -93,6 +114,10 @@ public:
      *
      * @param warning Warning message to write
      */
+/**
+ * @brief Write warning.
+ * @param warning Parameter for write warning.
+ */
     void WriteWarning(const std::string& warning) override;
 
     /**
@@ -102,6 +127,10 @@ public:
      *
      * @param commands Vector of CommandInfo to write
      */
+/**
+ * @brief Write help.
+ * @param commands Parameter for write help.
+ */
     void WriteHelp(const std::vector<CommandInfo>& commands) override;
 
 private:
@@ -113,21 +142,41 @@ private:
 // =========================================================================
 
 inline void ConsoleOutput::WriteMessage(const std::string& message) {
+/**
+ * @brief Lock.
+ * @param console_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cout << "[OK] " << message << std::endl;
 }
 
 inline void ConsoleOutput::WriteError(const std::string& error) {
+/**
+ * @brief Lock.
+ * @param console_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[ERROR] " << error << std::endl;
 }
 
 inline void ConsoleOutput::WriteWarning(const std::string& warning) {
+/**
+ * @brief Lock.
+ * @param console_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[WARN] " << warning << std::endl;
 }
 
 inline void ConsoleOutput::WriteHelp(const std::vector<CommandInfo>& commands) {
+/**
+ * @brief Lock.
+ * @param console_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(console_mutex_);
     
     std::cout << "[HELP] Available commands:" << std::endl;

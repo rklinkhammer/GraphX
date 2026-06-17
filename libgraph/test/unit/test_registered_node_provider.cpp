@@ -1,3 +1,8 @@
+/**
+ * @file test_registered_node_provider.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -74,6 +79,10 @@ graph::NodeFacadeAdapter CreateNodeOrThrow(
 // Test Fixture for RegisteredNodeProvider
 // ===================================================================================
 
+/**
+ * @class RegisteredNodeProviderTest
+ * @brief Registered node provider test implementation for GraphX.
+ */
 class RegisteredNodeProviderTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -409,6 +418,10 @@ TEST_F(RegisteredNodeProviderTest, NodeSharedPtrManagement) {
 // Test Fixture for Plugin-Backed Node Loading via Provider Path
 // ===================================================================================
 
+/**
+ * @class RegisteredNodeProviderPluginBackedTest
+ * @brief Registered node provider plugin backed test implementation for GraphX.
+ */
 class RegisteredNodeProviderPluginBackedTest : public ::testing::Test {
 protected:
     void SetUp() override {

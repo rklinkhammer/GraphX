@@ -1,3 +1,8 @@
+/**
+ * @file RegisteredNodeProvider.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -57,6 +62,10 @@ struct NodeFacade;
  * @see NodeFacade
  * @see PluginRegistry
  * @see PluginLoader
+ */
+/**
+ * @class RegisteredNodeProvider
+ * @brief Registered node provider implementation for GraphX.
  */
 class RegisteredNodeProvider : public INodeProvider {
 private:
@@ -123,6 +132,9 @@ public:
      * auto node2 = provider->CreateNodeExpected("FlightFSMNode");
      * @endcode
      */
+/**
+ * @brief Initialize.
+ */
     void Initialize();
 
     /**
@@ -167,6 +179,11 @@ public:
      * @param node_type_name The node type to check
      * @return true if the node type is available, false otherwise
      */
+/**
+ * @brief Is node type available.
+ * @param node_type_name Parameter for is node type available.
+ * @return Result of the operation.
+ */
     bool IsNodeTypeAvailable(const std::string& node_type_name) const override;
 
     /**
@@ -174,6 +191,10 @@ public:
      *
      * @return Vector of registered node type names
      */
+/**
+ * @brief Get available node types.
+ * @return Result of the operation.
+ */
     std::vector<std::string> GetAvailableNodeTypes() const override;
 
     /**
@@ -193,6 +214,9 @@ private:
      * For each node type in the plugin registry, creates a node creator
      * that delegates to plugin-registry creation.
      */
+/**
+ * @brief Register plugin nodes.
+ */
     void RegisterPluginNodes();
 
     /**
@@ -202,6 +226,9 @@ private:
      * Each static node is wrapped via StaticNodeAdapter to provide
      * the NodeFacadeAdapter interface.
      */
+/**
+ * @brief Register static nodes.
+ */
     void RegisterStaticNodes();
 };
 

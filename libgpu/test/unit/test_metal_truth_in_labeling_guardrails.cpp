@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_truth_in_labeling_guardrails.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "gpu/accel/types/AccelValidation.hpp"
@@ -11,6 +18,10 @@
 
 namespace {
 
+/**
+ * @brief Read text.
+ * @param path Parameter for read text.
+ */
 std::string ReadText(const std::filesystem::path& path) {
     std::ifstream in(path);
     EXPECT_TRUE(in.good()) << "unable to open " << path;

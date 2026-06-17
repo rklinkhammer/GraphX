@@ -1,3 +1,8 @@
+/**
+ * @file test_thread_pool_benchmarks.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -59,6 +64,9 @@ struct PerformanceMetrics {
     double max_latency_us{0.0};
     std::vector<uint64_t> task_times_ns;
 
+/**
+ * @brief Calculate.
+ */
     void calculate() {
         if (total_tasks == 0) return;
 
@@ -82,6 +90,10 @@ struct PerformanceMetrics {
         }
     }
 
+/**
+ * @brief Print.
+ * @param name Parameter for print.
+ */
     void print(const std::string& name) const {
         std::cout << "\n" << std::string(60, '=') << std::endl;
         std::cout << "Performance Metrics: " << name << std::endl;
@@ -100,6 +112,10 @@ struct PerformanceMetrics {
     }
 };
 
+/**
+ * @class ThreadPoolBenchmarkTest
+ * @brief Thread pool benchmark test implementation for GraphX.
+ */
 class ThreadPoolBenchmarkTest : public ::testing::Test {
 protected:
     void SetUp() override {

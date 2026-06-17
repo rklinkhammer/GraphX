@@ -1,3 +1,8 @@
+/**
+ * @file PluginInspector.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -102,24 +107,40 @@ struct PluginCapabilities {
      * @brief Check if plugin supports IConfigurable
      * @return true if IConfigurable is supported
      */
+/**
+ * @brief Has i configurable.
+ * @return Result of the operation.
+ */
     bool HasIConfigurable() const;
     
     /**
      * @brief Check if plugin supports IDiagnosable
      * @return true if IDiagnosable is supported
      */
+/**
+ * @brief Has i diagnosable.
+ * @return Result of the operation.
+ */
     bool HasIDiagnosable() const;
     
     /**
      * @brief Check if plugin supports IParameterized
      * @return true if IParameterized is supported
      */
+/**
+ * @brief Has i parameterized.
+ * @return Result of the operation.
+ */
     bool HasIParameterized() const;
     
     /**
      * @brief Check if plugin supports IMetricsCallbackProvider
      * @return true if IMetricsCallbackProvider is supported
      */
+/**
+ * @brief Has i metrics callback.
+ * @return Result of the operation.
+ */
     bool HasIMetricsCallback() const;
     
     /**
@@ -129,12 +150,20 @@ struct PluginCapabilities {
      *
      * @return true if plugin is compliant
      */
+/**
+ * @brief Is compliant.
+ * @return Result of the operation.
+ */
     bool IsCompliant() const;
     
     /**
      * @brief Convert capabilities to JSON representation
      * @return JSON object with capabilities data
      */
+/**
+ * @brief To json.
+ * @return Result of the operation.
+ */
     nlohmann::json ToJson() const;
 };
 
@@ -231,6 +260,11 @@ struct SemanticVersion {
      * @param version_string Version string to parse
      * @return Parsed semantic version
      */
+/**
+ * @brief Parse.
+ * @param version_string Parameter for parse.
+ * @return Result of the operation.
+ */
     static SemanticVersion Parse(const std::string& version_string);
     
     /**
@@ -239,6 +273,11 @@ struct SemanticVersion {
      * @param other Version to compare against
      * @return -1 if this < other, 0 if equal, 1 if this > other
      */
+/**
+ * @brief Compare.
+ * @param other Parameter for compare.
+ * @return Result of the operation.
+ */
     int Compare(const SemanticVersion& other) const;
     
     /**
@@ -257,6 +296,10 @@ struct SemanticVersion {
      * @brief Convert version to string format
      * @return Version string like "1.2.3"
      */
+/**
+ * @brief To string.
+ * @return Result of the operation.
+ */
     std::string ToString() const;
 };
 
@@ -293,6 +336,10 @@ struct SemanticVersion {
  *
  * @see RangesUtilities.hpp for helper functions
  * @note Non-copyable to prevent accidental duplication of plugin loading
+ */
+/**
+ * @class PluginInspector
+ * @brief Plugin inspector implementation for GraphX.
  */
 class PluginInspector {
 public:
@@ -331,6 +378,10 @@ public:
      *
      * @return Vector of discovered plugin metadata
      */
+/**
+ * @brief Discover plugins.
+ * @return Result of the operation.
+ */
     std::vector<PluginInfo> DiscoverPlugins();
     
     // ========================================================================
@@ -347,6 +398,11 @@ public:
      *
      * @throws std::runtime_error if plugin cannot be loaded
      */
+/**
+ * @brief Inspect plugin.
+ * @param name Parameter for inspect plugin.
+ * @return Result of the operation.
+ */
     PluginCapabilities InspectPlugin(const std::string& name);
     
     /**
@@ -357,6 +413,10 @@ public:
      *
      * @return Vector of all plugin capabilities
      */
+/**
+ * @brief Inspect all.
+ * @return Result of the operation.
+ */
     std::vector<PluginCapabilities> InspectAll();
     
     // ========================================================================
@@ -368,6 +428,10 @@ public:
      *
      * @return Aggregated statistics (total, configurable, diagnostic, etc.)
      */
+/**
+ * @brief Get compliance stats.
+ * @return Result of the operation.
+ */
     ComplianceStats GetComplianceStats();
     
     /**
@@ -377,6 +441,10 @@ public:
      *
      * @return Names of non-compliant plugins
      */
+/**
+ * @brief Get non compliant plugins.
+ * @return Result of the operation.
+ */
     std::vector<std::string> GetNonCompliantPlugins();
     
     // ========================================================================
@@ -391,6 +459,11 @@ public:
      * @param plugins Vector of plugin capabilities to format
      * @return Formatted table string
      */
+/**
+ * @brief Format table.
+ * @param plugins Parameter for format table.
+ * @return Result of the operation.
+ */
     std::string FormatTable(const std::vector<PluginCapabilities>& plugins);
     
     /**
@@ -401,6 +474,11 @@ public:
      * @param plugins Vector of plugin capabilities to format
      * @return JSON-formatted string
      */
+/**
+ * @brief Format json.
+ * @param plugins Parameter for format json.
+ * @return Result of the operation.
+ */
     std::string FormatJson(const std::vector<PluginCapabilities>& plugins);
     
     /**
@@ -411,6 +489,11 @@ public:
      * @param plugins Vector of plugin capabilities to format
      * @return CSV-formatted string
      */
+/**
+ * @brief Format csv.
+ * @param plugins Parameter for format csv.
+ * @return Result of the operation.
+ */
     std::string FormatCsv(const std::vector<PluginCapabilities>& plugins);
     
     /**
@@ -421,6 +504,11 @@ public:
      * @param plugins Vector of plugin capabilities to format
      * @return Markdown-formatted string
      */
+/**
+ * @brief Format markdown.
+ * @param plugins Parameter for format markdown.
+ * @return Result of the operation.
+ */
     std::string FormatMarkdown(const std::vector<PluginCapabilities>& plugins);
     
     // ========================================================================
@@ -461,6 +549,10 @@ public:
      *
      * @param plugin_dir Path to plugin directory
      */
+/**
+ * @brief Set plugin directory.
+ * @param plugin_dir Parameter for set plugin directory.
+ */
     void SetPluginDirectory(const std::string& plugin_dir);
     
     /**
@@ -468,6 +560,10 @@ public:
      *
      * @return Path to plugin directory
      */
+/**
+ * @brief Get plugin directory.
+ * @return Result of the operation.
+ */
     std::string GetPluginDirectory() const;
     
     // ========================================================================
@@ -479,6 +575,10 @@ public:
      *
      * @return Cache statistics and configuration
      */
+/**
+ * @brief Get cache info.
+ * @return Result of the operation.
+ */
     CacheInfo GetCacheInfo() const;
     
     /**
@@ -486,6 +586,10 @@ public:
      *
      * @param enabled true to enable caching, false to disable
      */
+/**
+ * @brief Set caching enabled.
+ * @param enabled Parameter for set caching enabled.
+ */
     void SetCachingEnabled(bool enabled);
     
     /**
@@ -493,6 +597,10 @@ public:
      *
      * @param ttl Cache validity duration in milliseconds
      */
+/**
+ * @brief Set cache ttl.
+ * @param ttl Parameter for set cache ttl.
+ */
     void SetCacheTTL(std::chrono::milliseconds ttl);
     
     /**
@@ -500,6 +608,9 @@ public:
      *
      * Forces the next InspectAll() call to re-inspect all plugins.
      */
+/**
+ * @brief Clear cache.
+ */
     void ClearCache();
     
     // ========================================================================
@@ -515,6 +626,11 @@ public:
      * @param info Plugin info to enhance with metadata
      * @return Enhanced plugin info with extracted metadata
      */
+/**
+ * @brief Extract plugin metadata.
+ * @param info Parameter for extract plugin metadata.
+ * @return Result of the operation.
+ */
     PluginInfo ExtractPluginMetadata(const PluginInfo& info);
     
     /**
@@ -527,6 +643,11 @@ public:
      *
      * @throws std::runtime_error if plugin not found
      */
+/**
+ * @brief Get newest version.
+ * @param plugin_name Parameter for get newest version.
+ * @return Result of the operation.
+ */
     SemanticVersion GetNewestVersion(const std::string& plugin_name);
 
 private:
@@ -536,17 +657,48 @@ private:
     CacheInfo cache_info_;
     
     // Helper methods for inspection
+/**
+ * @brief Inspect loaded plugin.
+ * @param info Parameter for inspect loaded plugin.
+ * @return Result of the operation.
+ */
     PluginCapabilities InspectLoadedPlugin(const PluginInfo& info);
     
     // Helper methods for metadata extraction
+/**
+ * @brief Extract version from elf.
+ * @param plugin_path Parameter for extract version from elf.
+ * @return Result of the operation.
+ */
     std::string ExtractVersionFromELF(const std::string& plugin_path);
+/**
+ * @brief Extract description from elf.
+ * @param plugin_path Parameter for extract description from elf.
+ * @return Result of the operation.
+ */
     std::string ExtractDescriptionFromELF(const std::string& plugin_path);
+/**
+ * @brief Parse version from filename.
+ * @param filename Parameter for parse version from filename.
+ * @return Result of the operation.
+ */
     std::string ParseVersionFromFilename(const std::string& filename);
     
     // Helper methods for interface detection
+/**
+ * @brief Has interface.
+ * @param node Parameter for has interface.
+ * @param interface_name Parameter for has interface.
+ * @return Result of the operation.
+ */
     bool HasInterface(void* node, const std::string& interface_name);
     
     // Helper methods for formatting
+/**
+ * @brief Escape csv field.
+ * @param field Parameter for escape csv field.
+ * @return Result of the operation.
+ */
     std::string EscapeCsvField(const std::string& field);
 };
 

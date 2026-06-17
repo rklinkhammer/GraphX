@@ -1,3 +1,8 @@
+/**
+ * @file ConfigParser.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -60,6 +65,11 @@ struct ConfigParser {
      * @return The parsed and validated config
      * @throws ConfigError if parsing or validation fails
      */
+/**
+ * @brief Parse.
+ * @param view Parameter for parse.
+ * @return Result of the operation.
+ */
     static ConfigType Parse(const JsonView& view);
     
     // Delete default instantiation - specializations required

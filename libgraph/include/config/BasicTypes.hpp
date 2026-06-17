@@ -1,3 +1,8 @@
+/**
+ * @file BasicTypes.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -243,6 +248,14 @@ struct Quaternion {
     /// @return Rotated vector
     Vector3D rotate_vector(const Vector3D& v) const {
         // Create pure quaternion from vector (w=0, x=v.x, y=v.y, z=v.z)
+/**
+ * @brief Q pure.
+ * @param 0.0f Parameter for q pure.
+ * @param v.x Parameter for q pure.
+ * @param v.y Parameter for q pure.
+ * @param v.z Parameter for q pure.
+ * @return Result of the operation.
+ */
         Quaternion q_pure(0.0f, v.x, v.y, v.z);
         // Rotate: q_rotated = q * q_pure * q_conjugate
         Quaternion result = (*this) * q_pure * conjugate();

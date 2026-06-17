@@ -1,3 +1,8 @@
+/**
+ * @file DefaultSyclCapabilities.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -48,16 +53,26 @@ struct SyclAllocationState {
     std::unordered_map<std::uint64_t, AllocationRecord> host_allocations;
 };
 
+/**
+ * @brief Runtime state.
+ */
 SyclRuntimeState& RuntimeState() {
     static SyclRuntimeState state;
     return state;
 }
 
+/**
+ * @brief Allocation state.
+ */
 SyclAllocationState& AllocationState() {
     static SyclAllocationState state;
     return state;
 }
 
+/**
+ * @brief Make runtime queue.
+ * @param device_id Parameter for make runtime queue.
+ */
 std::shared_ptr<sycl::queue> MakeRuntimeQueue(std::uint32_t device_id) {
     try {
         std::vector<sycl::device> devices;
@@ -76,6 +91,10 @@ std::shared_ptr<sycl::queue> MakeRuntimeQueue(std::uint32_t device_id) {
     return std::make_shared<sycl::queue>(sycl::default_selector_v);
 }
 
+/**
+ * @brief Get or create queue.
+ * @param queue_id Parameter for get or create queue.
+ */
 std::shared_ptr<sycl::queue> GetOrCreateQueue(std::uint64_t queue_id) {
     auto& state = RuntimeState();
     std::scoped_lock lock(state.mutex);
@@ -97,6 +116,10 @@ std::shared_ptr<sycl::queue> GetOrCreateQueue(std::uint64_t queue_id) {
     return queue;
 }
 
+/**
+ * @brief Register event.
+ * @param event Parameter for register event.
+ */
 std::uint64_t RegisterEvent(std::shared_ptr<sycl::event> event) {
     auto& state = RuntimeState();
     std::scoped_lock lock(state.mutex);
@@ -126,6 +149,11 @@ bool EnqueueMemcpyAndWait(const std::shared_ptr<sycl::queue>& queue,
 }
 
 template <typename MapT>
+/**
+ * @brief Release allocation.
+ * @param allocations Parameter for release allocation.
+ * @param allocation_id Parameter for release allocation.
+ */
 bool ReleaseAllocation(MapT& allocations, std::uint64_t allocation_id) {
     auto it = allocations.find(allocation_id);
     if (it == allocations.end()) {
@@ -153,6 +181,10 @@ DefaultSyclMemoryPoolCapability::DefaultSyclMemoryPoolCapability() = default;
 
 DefaultSyclTransferCapability::DefaultSyclTransferCapability() = default;
 
+/**
+ * @brief Select device.
+ * @param device_id Parameter for select device.
+ */
 bool DefaultSyclContextCapability::SelectDevice(std::uint32_t device_id) {
 #if GRAPHX_HAS_SYCL_RUNTIME
     RuntimeState().current_device_id = device_id;
@@ -162,6 +194,9 @@ bool DefaultSyclContextCapability::SelectDevice(std::uint32_t device_id) {
     return true;
 }
 
+/**
+ * @brief Current device.
+ */
 std::uint32_t DefaultSyclContextCapability::CurrentDevice() const {
 #if GRAPHX_HAS_SYCL_RUNTIME
     return RuntimeState().current_device_id;
@@ -170,6 +205,9 @@ std::uint32_t DefaultSyclContextCapability::CurrentDevice() const {
 #endif
 }
 
+/**
+ * @brief Create queue.
+ */
 std::uint64_t DefaultSyclContextCapability::CreateQueue() {
 #if GRAPHX_HAS_SYCL_RUNTIME
     auto& state = RuntimeState();
@@ -185,6 +223,10 @@ std::uint64_t DefaultSyclContextCapability::CreateQueue() {
 #endif
 }
 
+/**
+ * @brief Destroy queue.
+ * @param queue_id Parameter for destroy queue.
+ */
 void DefaultSyclContextCapability::DestroyQueue(std::uint64_t queue_id) {
 #if GRAPHX_HAS_SYCL_RUNTIME
     auto& state = RuntimeState();
@@ -195,6 +237,9 @@ void DefaultSyclContextCapability::DestroyQueue(std::uint64_t queue_id) {
 #endif
 }
 
+/**
+ * @brief Create event.
+ */
 std::uint64_t DefaultSyclContextCapability::CreateEvent() {
 #if GRAPHX_HAS_SYCL_RUNTIME
     const auto queue = GetOrCreateQueue(1);
@@ -217,6 +262,10 @@ std::uint64_t DefaultSyclContextCapability::CreateEvent() {
 #endif
 }
 
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
 void DefaultSyclContextCapability::DestroyEvent(std::uint64_t event_id) {
 #if GRAPHX_HAS_SYCL_RUNTIME
     auto& state = RuntimeState();
@@ -400,6 +449,10 @@ bool DefaultSyclMemoryPoolCapability::AllocateHost(std::uint64_t bytes,
 #endif
 }
 
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ */
 bool DefaultSyclMemoryPoolCapability::Release(const accel::BufferLease& lease) {
 #if GRAPHX_HAS_SYCL_RUNTIME
     auto& state = AllocationState();
@@ -600,6 +653,10 @@ void DefaultSyclTelemetryCapability::RecordKernel(const accel::KernelTicket&,
     ++kernel_samples_;
 }
 
+/**
+ * @brief Increment error counter.
+ * @param std::string_view Parameter for increment error counter.
+ */
 void DefaultSyclTelemetryCapability::IncrementErrorCounter(std::string_view) {
     ++error_count_;
 }

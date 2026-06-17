@@ -1,3 +1,8 @@
+/**
+ * @file IPortFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -97,6 +102,14 @@ namespace graph {
      * @see PortFunction<P> for template implementation
      * @see Port<T, ID> for type-safe port definition
      */
+/**
+ * @class IPortFunction
+ * @brief IPortFunction class.
+ */
+/**
+ * @class IPortFunction
+ * @brief I port function implementation for GraphX.
+ */
     class IPortFunction {
     public:
         virtual ~IPortFunction() = default;
@@ -112,6 +125,10 @@ namespace graph {
          * The port ID is assigned at compile-time (via Port<T, ID>::id)
          * and corresponds to the position in the node's port collection.
          */
+/**
+ * @brief Get port id.
+ * @return Result of the operation.
+ */
         virtual std::size_t GetPortId() const = 0;
 
         /**
@@ -121,6 +138,10 @@ namespace graph {
          * Type name is extracted from the port's data type at compile-time
          * using TypeInfo utilities. Suitable for logging, visualization, and reflection.
          */
+/**
+ * @brief Get type name.
+ * @return Result of the operation.
+ */
         virtual std::string_view GetTypeName() const = 0;
 
         /**
@@ -129,12 +150,20 @@ namespace graph {
          *
          * Determines whether this port receives (Input) or produces (Output) data.
          */
+/**
+ * @brief Get direction.
+ * @return Result of the operation.
+ */
         virtual PortDirection GetDirection() const = 0;
 
         /**
          * @brief Get the runtime transport identity for this port.
          * @return Human-readable transport type name.
          */
+/**
+ * @brief Get transport type name.
+ * @return Result of the operation.
+ */
         virtual std::string_view GetTransportTypeName() const = 0;
 
         // ====================================================================
@@ -148,6 +177,10 @@ namespace graph {
          * Used for backpressure control. Queues may block or drop items
          * when capacity is exceeded, depending on configuration.
          */
+/**
+ * @brief Set capacity.
+ * @param capacity Parameter for set capacity.
+ */
         virtual void SetCapacity(std::size_t capacity) = 0;
 
         /**
@@ -157,6 +190,10 @@ namespace graph {
          * Thread-safe snapshot of queue size at call time.
          * Used for monitoring and debugging.
          */
+/**
+ * @brief Get queue size.
+ * @return Result of the operation.
+ */
         virtual std::size_t GetQueueSize() const = 0;
 
         /**
@@ -166,6 +203,10 @@ namespace graph {
          * Called once before Start(). Prepares the queue for use
          * (e.g., allocates buffers, enables the queue).
          */
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
         virtual bool Init() = 0;
 
         // ====================================================================
@@ -179,6 +220,10 @@ namespace graph {
          * Spawns the worker thread that processes Produce/Consume operations.
          * Must be called after Init() and before any data operations.
          */
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
         virtual bool Start() = 0;
 
         /**
@@ -188,6 +233,9 @@ namespace graph {
          * and begins cleanup. Does not wait for thread termination.
          * Must call Join() to wait for actual thread exit.
          */
+/**
+ * @brief Stop.
+ */
         virtual void Stop() = 0;
 
         /**
@@ -198,6 +246,9 @@ namespace graph {
          *
          * Safe to call multiple times (idempotent after first call).
          */
+/**
+ * @brief Join.
+ */
         virtual void Join() = 0;
 
         /**
@@ -208,6 +259,11 @@ namespace graph {
          * Non-blocking alternative to Join(). Useful for shutdown with deadlines.
          * If timeout exceeded, thread may still be running.
          */
+/**
+ * @brief Join with timeout.
+ * @param timeout_ms Parameter for join with timeout.
+ * @return Result of the operation.
+ */
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) = 0;
 
         /**
@@ -284,6 +340,10 @@ namespace graph {
          * This is an internal implementation detail. Use GetQueueIfType<T>()
          * from the public interface for type-safe access.
          */
+/**
+ * @brief Get queue void.
+ * @return Result of the operation.
+ */
         virtual const void* GetQueueVoid() const = 0;
     };
 

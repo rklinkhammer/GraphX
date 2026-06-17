@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_truth_in_labeling_guardrails.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"

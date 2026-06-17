@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdFocusedImageTransformNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/CrsdFocusedImageTransformNode.hpp"
 
 #include "config/ConfigError.hpp"

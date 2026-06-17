@@ -1,3 +1,8 @@
+/**
+ * @file EdgeRegistration.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -57,6 +62,10 @@ namespace graph::config {
  *     nodes::DataInjectionAccelerometerNode, 0,    // Source node type and port
  *     nodes::FlightFSMNode, 0>()         // Dest node type and port
  * @endcode
+ */
+/**
+ * @class EdgeRegistration
+ * @brief Edge registration implementation for GraphX.
  */
 class EdgeRegistration {
 public:

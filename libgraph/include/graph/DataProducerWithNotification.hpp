@@ -1,3 +1,8 @@
+/**
+ * @file DataProducerWithNotification.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -121,6 +126,14 @@ namespace graph {
  */
 template <typename NodeType, typename DataGenerator, typename DataType, typename PayloadType, typename NotificationType, 
     typename ClassificationType, ClassificationType Classification = ClassificationType::Unclassified>
+/**
+ * @class DataProducerWithNotification
+ * @brief DataProducerWithNotification class.
+ */
+/**
+ * @class DataProducerWithNotification
+ * @brief Data producer with notification implementation for GraphX.
+ */
 class DataProducerWithNotification : 
     public NamedSourceNode<NodeType, graph::message::Message, NotificationType>,
     public graph::ISourceCallbackProvider<DataType> {
@@ -238,6 +251,11 @@ public:
                 this->OnDataProduced(sample.value());
                 total_samples_generated_++;
                 if (total_samples_generated_ > sample_ignore_) {
+/**
+ * @brief Payload.
+ * @param sample.value() Parameter for payload.
+ * @return Result of the operation.
+ */
                     PayloadType payload(sample.value());
                     return ::graph::message::Message(payload);
                 }
@@ -417,6 +435,10 @@ public:
      * @see GetTotalSamplesGenerated() for sample count
      * @see GetLastGeneratorTimestamp() for timing info
      */
+/**
+ * @brief Create notification.
+ * @return Result of the operation.
+ */
     virtual NotificationType CreateNotification() const = 0;
 
     /**

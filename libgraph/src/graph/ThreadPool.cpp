@@ -1,3 +1,8 @@
+/**
+ * @file ThreadPool.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License - See header file for license text
 
 #include "graph/ThreadPool.hpp"

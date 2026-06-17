@@ -1,3 +1,8 @@
+/**
+ * @file NamedType.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -43,6 +48,14 @@ namespace graph
      * Useful for runtime type identification and logging.
      */
     template <typename Derived>
+/**
+ * @class NamedType
+ * @brief NamedType class.
+ */
+/**
+ * @class NamedType
+ * @brief Named type implementation for GraphX.
+ */
     class NamedType {
     public:
         static const std::string& QualifiedTypeName() noexcept {

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdFocusedImageTransformMetal.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/CrsdFocusedImageTransformNode.hpp"
@@ -37,6 +44,10 @@ struct CrsdFocusedImageTransformMetalConfig {
     std::uint64_t kernel_id{99001};
 };
 
+/**
+ * @class CrsdFocusedImageTransformMetalNode
+ * @brief CrsdFocusedImageTransformMetalNode class.
+ */
 class CrsdFocusedImageTransformMetalNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarPhaseHistoryControlMessage>,

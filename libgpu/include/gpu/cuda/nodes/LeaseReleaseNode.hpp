@@ -1,3 +1,8 @@
+/**
+ * @file LeaseReleaseNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -20,6 +25,14 @@ namespace graph::gpu::cuda::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class LeaseReleaseNode
+ * @brief LeaseReleaseNode class.
+ */
+/**
+ * @class LeaseReleaseNode
+ * @brief Lease release node implementation for GraphX.
+ */
 class LeaseReleaseNode
     : public graph::NamedSinkNode<LeaseReleaseNode, accel::BufferLease>,
       public graph::IGpuCapabilityBinding {

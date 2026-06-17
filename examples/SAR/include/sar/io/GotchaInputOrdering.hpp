@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaInputOrdering.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -42,6 +49,10 @@ struct GotchaInputOrderingOptions {
     std::string extension{".mat"};
 };
 
+/**
+ * @class GotchaInputOrdering
+ * @brief GotchaInputOrdering class.
+ */
 class GotchaInputOrdering {
 public:
     [[nodiscard]] static GotchaInputOrderingResult Discover(

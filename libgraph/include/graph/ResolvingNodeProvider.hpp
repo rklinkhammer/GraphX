@@ -1,3 +1,8 @@
+/**
+ * @file ResolvingNodeProvider.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,6 +31,14 @@ struct NodeResolutionDiagnostic {
     bool fallback_used{false};
 };
 
+/**
+ * @class ResolvingNodeProvider
+ * @brief ResolvingNodeProvider class.
+ */
+/**
+ * @class ResolvingNodeProvider
+ * @brief Resolving node provider implementation for GraphX.
+ */
 class ResolvingNodeProvider final : public INodeProvider {
 public:
     using AvailabilityFn = std::function<bool(const std::string&)>;

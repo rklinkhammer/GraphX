@@ -430,6 +430,11 @@ std::expected<T, DeserializationError> DeserializeFromString(const std::string& 
  */
 template<typename T>
 std::expected<T, DeserializationError> DeserializeFromFile(const std::string& file_path) {
+/**
+ * @brief File.
+ * @param file_path Parameter for file.
+ * @return Result of the operation.
+ */
     std::ifstream file(file_path);
     if (!file.is_open()) {
         return std::unexpected(DeserializationError::InvalidJson);

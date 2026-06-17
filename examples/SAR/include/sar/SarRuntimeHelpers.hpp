@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarRuntimeHelpers.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "graph/GraphManager.hpp"

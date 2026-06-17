@@ -1,3 +1,8 @@
+/**
+ * @file GraphCapability.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -42,6 +47,14 @@
 
 namespace capabilities {
 
+/**
+ * @class GraphCapability
+ * @brief GraphCapability class.
+ */
+/**
+ * @class GraphCapability
+ * @brief Graph capability implementation for GraphX.
+ */
 class GraphCapability {
 public:
     virtual ~GraphCapability() = default;

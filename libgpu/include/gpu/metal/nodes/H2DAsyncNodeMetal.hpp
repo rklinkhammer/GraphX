@@ -1,3 +1,8 @@
+/**
+ * @file H2DAsyncNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -22,6 +27,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class H2DAsyncNodeMetal
+ * @brief H2DAsyncNodeMetal class.
+ */
+/**
+ * @class H2DAsyncNodeMetal
+ * @brief 2 d async node metal implementation for GraphX.
+ */
 class H2DAsyncNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::HostPinnedBufferView>,

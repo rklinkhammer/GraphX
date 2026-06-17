@@ -1,3 +1,8 @@
+/**
+ * @file DeviceKernelNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,6 +31,14 @@ namespace graph::gpu::metal::nodes {
 // General descriptor-driven kernel boundary for one device input and one
 // device output. Domain-specific nodes should configure the kernel descriptor
 // and preserve their own sidecars outside this accel-token primitive.
+/**
+ * @class DeviceKernelNodeMetal
+ * @brief DeviceKernelNodeMetal class.
+ */
+/**
+ * @class DeviceKernelNodeMetal
+ * @brief Device kernel node metal implementation for GraphX.
+ */
 class DeviceKernelNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

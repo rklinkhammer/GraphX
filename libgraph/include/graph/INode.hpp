@@ -1,3 +1,8 @@
+/**
+ * @file INode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -61,6 +66,14 @@ namespace graph
      * It provides lifecycle management, port introspection, and graph
      * topology tracking capabilities.
      */
+/**
+ * @class INode
+ * @brief INode class.
+ */
+/**
+ * @class INode
+ * @brief I node implementation for GraphX.
+ */
     class INode
     {
     public:
@@ -76,6 +89,10 @@ namespace graph
          * @return Current LifecycleState enum value
          */
         
+/**
+ * @brief Get lifecycle state.
+ * @return Result of the operation.
+ */
         virtual LifecycleState GetLifecycleState() const = 0;
 
         /**
@@ -92,6 +109,10 @@ namespace graph
          * validate configuration, and prepare for execution.
          * No threads are running during Init().
          */
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
         virtual bool Init() = 0;
 
         /**
@@ -107,6 +128,10 @@ namespace graph
          * - Queues are accepting data
          * - Thread-safe access to public methods (GetOutputEdges, GetInputEdges, etc.)
          */
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
         virtual bool Start() = 0;
 
         /**
@@ -124,6 +149,9 @@ namespace graph
          * 
          * Happens-before: All side effects from worker threads are visible after Join().
          */
+/**
+ * @brief Join.
+ */
         virtual void Join() = 0;
 
         /**
@@ -143,6 +171,11 @@ namespace graph
          * Happens-before (on success): Same as Join()
          * Happens-before (on timeout): None (threads still running)
          */
+/**
+ * @brief Join with timeout.
+ * @param timeout_ms Parameter for join with timeout.
+ * @return Result of the operation.
+ */
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) = 0;
    
         /**
@@ -166,6 +199,9 @@ namespace graph
          * Exception safety: No exceptions thrown (noexcept).
          * Memory ordering: Uses acquire-release semantics for flags.
          */
+/**
+ * @brief Stop.
+ */
         virtual void Stop() = 0;
 
         virtual std::span<const PortInfo> OutputPorts() const { return std::span<const PortInfo>(); }
@@ -189,6 +225,11 @@ namespace graph
          */
         void RegisterOutputEdge(std::size_t port_id, std::size_t edge_idx)
         {
+/**
+ * @brief Lock.
+ * @param edge_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             output_edges_[port_id].push_back(edge_idx);
         }
@@ -211,6 +252,11 @@ namespace graph
          */
         void RegisterInputEdge(std::size_t port_id, std::size_t edge_idx)
         {
+/**
+ * @brief Lock.
+ * @param edge_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             input_edges_[port_id].push_back(edge_idx);
         }
@@ -234,6 +280,11 @@ namespace graph
          */
         std::vector<std::size_t> GetOutputEdges(std::size_t port_id)
         {
+/**
+ * @brief Lock.
+ * @param edge_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = output_edges_.find(port_id);
             return (it != output_edges_.end()) ? it->second : std::vector<std::size_t>();
@@ -258,6 +309,11 @@ namespace graph
          */
         std::vector<std::size_t> GetInputEdges(std::size_t port_id)
         {
+/**
+ * @brief Lock.
+ * @param edge_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = input_edges_.find(port_id);
             return (it != input_edges_.end()) ? it->second : std::vector<std::size_t>();

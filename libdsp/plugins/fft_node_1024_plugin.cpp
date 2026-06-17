@@ -1,3 +1,8 @@
+/**
+ * @file fft_node_1024_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -73,6 +78,9 @@ static const NodeFacade fft_node_1024_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create fft node 1024.
+ */
 void* plugin_create_fft_node_1024() {
     try {
         auto node = std::make_shared<dsp::FFTNode<float, 1024>>();
@@ -83,6 +91,9 @@ void* plugin_create_fft_node_1024() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "FFTNode<1024>|FFT DSP processor (1024 samples/packet)|1.0|"
            "plugin_create_fft_node_1024|"
@@ -93,11 +104,17 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&fft_node_1024_facade);
 }
 
 // Phase 4: Plugin API version negotiation
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;  // Supports PluginLoader v2+ (version negotiation)
 }

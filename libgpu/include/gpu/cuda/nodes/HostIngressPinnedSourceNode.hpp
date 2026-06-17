@@ -1,3 +1,8 @@
+/**
+ * @file HostIngressPinnedSourceNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::cuda::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostIngressPinnedSourceNode
+ * @brief HostIngressPinnedSourceNode class.
+ */
+/**
+ * @class HostIngressPinnedSourceNode
+ * @brief Host ingress pinned source node implementation for GraphX.
+ */
 class HostIngressPinnedSourceNode
     : public graph::NamedSourceNode<HostIngressPinnedSourceNode, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {

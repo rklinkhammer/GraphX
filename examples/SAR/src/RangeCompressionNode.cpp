@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file RangeCompressionNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/RangeCompressionNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

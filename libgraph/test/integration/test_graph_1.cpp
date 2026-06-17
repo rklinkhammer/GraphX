@@ -1,3 +1,8 @@
+/**
+ * @file test_graph_1.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -60,6 +65,9 @@ using namespace test;
 // ============================================================================
 
 
+/**
+ * @brief Build graph.
+ */
 void build_graph() {
     // Test Graph 1 Topology:
     // Producer with 2 outputs → Sink (int) and Sink (completion)
@@ -89,6 +97,10 @@ void build_graph() {
 // Integration Tests
 // ============================================================================
 
+/**
+ * @class TestGraph1
+ * @brief Test graph 1 implementation for GraphX.
+ */
 class TestGraph1 : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -303,6 +315,10 @@ TEST_F(TestGraph1, Phase1_DataFlow_NoDataLoss) {
 /**
  * Enhanced CompletionNode with callback support for Phase 2
  */
+/**
+ * @class CompletionNodeWithCallback
+ * @brief Completion node with callback implementation for GraphX.
+ */
 class CompletionNodeWithCallback : public NamedSinkNode<
     CompletionNodeWithCallback,
     graph::message::CompletionSignal> {
@@ -326,22 +342,35 @@ public:
     }
     
     // Callback registration
+/**
+ * @brief Set on complete.
+ * @param callback Parameter for set on complete.
+ */
     void SetOnComplete(std::function<void()> callback) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         on_complete_callback_ = callback;
     }
     
     // Test helpers
+/**
+ * @brief Get signal count.
+ */
     size_t GetSignalCount() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_count_;
     }
     
+/**
+ * @brief Has received completion.
+ */
     bool HasReceivedCompletion() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_count_ > 0;
     }
     
+/**
+ * @brief Get signal time.
+ */
     std::chrono::steady_clock::time_point GetSignalTime() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return signal_time_;
@@ -357,6 +386,10 @@ private:
 
 /**
  * Enhanced TestIntSinkNode with timestamp tracking for Phase 2
+ */
+/**
+ * @class TestIntSinkNodeWithTimestamps
+ * @brief Test int sink node with timestamps implementation for GraphX.
  */
 class TestIntSinkNodeWithTimestamps
     : public graph::NamedSinkNode<
@@ -382,31 +415,49 @@ public:
     }
     
     // Test helpers
+/**
+ * @brief Get received values.
+ */
     std::vector<int> GetReceivedValues() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_;
     }
     
+/**
+ * @brief Get message timestamps.
+ */
     std::vector<std::chrono::steady_clock::time_point> GetMessageTimestamps() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return message_timestamps_;
     }
     
+/**
+ * @brief Get received count.
+ */
     size_t GetReceivedCount() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return received_values_.size();
     }
     
+/**
+ * @brief Get first message time.
+ */
     std::chrono::steady_clock::time_point GetFirstMessageTime() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return first_message_time_;
     }
     
+/**
+ * @brief Get last message time.
+ */
     std::chrono::steady_clock::time_point GetLastMessageTime() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         return last_message_time_;
     }
     
+/**
+ * @brief Is fifo ordered.
+ */
     bool IsFIFOOrdered() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         for (size_t i = 1; i < received_values_.size(); ++i) {
@@ -417,6 +468,9 @@ public:
         return true;
     }
     
+/**
+ * @brief Has data loss.
+ */
     bool HasDataLoss() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         for (size_t i = 1; i < received_values_.size(); ++i) {
@@ -427,6 +481,9 @@ public:
         return false;
     }
     
+/**
+ * @brief Has duplicates.
+ */
     bool HasDuplicates() const {
         std::lock_guard<std::mutex> lock(state_mutex_);
         std::set<int> unique_values(received_values_.begin(), received_values_.end());

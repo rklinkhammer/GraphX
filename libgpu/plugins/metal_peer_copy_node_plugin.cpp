@@ -1,3 +1,8 @@
+/**
+ * @file metal_peer_copy_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -20,6 +25,9 @@ static const NodeFacade metal_peer_copy_node_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create metal peer copy node.
+ */
 void* plugin_create_metal_peer_copy_node() {
     try {
         auto node = std::make_shared<graph::gpu::metal::nodes::PeerCopyNodeMetal>();
@@ -33,6 +41,9 @@ void* plugin_create_metal_peer_copy_node() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "PeerCopyNodeMetal|Metal peer copy node|1.0|"
            "plugin_create_metal_peer_copy_node|"
@@ -43,10 +54,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&metal_peer_copy_node_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_topologies_simple.cpp
  * @brief Simplified topology completion tests
@@ -25,6 +27,10 @@ void AssertExecutionSuccess(const graph::ExecutionResult& result,
     ASSERT_TRUE(result.success) << operation << " failed: " << result.message;
 }
 
+/**
+ * @brief Assert initialization success.
+ * @param result Parameter for assert initialization success.
+ */
 void AssertInitializationSuccess(const graph::InitializationResult& result) {
     ASSERT_TRUE(result.success) << "Init failed: " << result.message;
 }

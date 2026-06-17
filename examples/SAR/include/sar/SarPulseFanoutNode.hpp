@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarPulseFanoutNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -9,6 +16,10 @@
 
 namespace sar {
 
+/**
+ * @class SarPulseFanoutNode
+ * @brief SarPulseFanoutNode class.
+ */
 class SarPulseFanoutNode : public graph::SplitNode4<SarAccelControlToken> {
 public:
     static constexpr char kInput[] = "In";

@@ -1,3 +1,8 @@
+/**
+ * @file IMetricsCallback.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -109,6 +114,14 @@ namespace graph {
  * @note All methods are noexcept - implementations must never throw.
  * @note Callback handlers are expected to be thread-safe.
  */
+/**
+ * @class IMetricsCallback
+ * @brief IMetricsCallback class.
+ */
+/**
+ * @class IMetricsCallback
+ * @brief I metrics callback implementation for GraphX.
+ */
 class IMetricsCallback {
 public:
     virtual ~IMetricsCallback() = default;
@@ -128,6 +141,11 @@ public:
      * @note noexcept: Implementation must never throw
      * @note Thread-safe: May be called from node's Process() thread
      */
+/**
+ * @brief Publish async.
+ * @param event Parameter for publish async.
+ * @return Result of the operation.
+ */
     virtual bool PublishAsync(const app::metrics::MetricsEvent& event) noexcept = 0;
 };
 
@@ -159,6 +177,14 @@ public:
  * @note Exception Safety: All methods are noexcept
  * @note Thread-safe: dynamic_cast is thread-safe
  */
+/**
+ * @class IMetricsCallbackProvider
+ * @brief IMetricsCallbackProvider class.
+ */
+/**
+ * @class IMetricsCallbackProvider
+ * @brief I metrics callback provider implementation for GraphX.
+ */
 class IMetricsCallbackProvider {
 public:
     virtual ~IMetricsCallbackProvider() = default;
@@ -174,6 +200,11 @@ public:
      *
      * @note noexcept: Implementation must never throw
      */
+/**
+ * @brief Set metrics callback.
+ * @param callback Parameter for set metrics callback.
+ * @return Result of the operation.
+ */
     virtual bool SetMetricsCallback(IMetricsCallback* callback) noexcept = 0;
 
     /**
@@ -186,6 +217,10 @@ public:
      * @note noexcept: Implementation must never throw
      * @note Safe to call from Process()
      */
+/**
+ * @brief Has metrics callback.
+ * @return Result of the operation.
+ */
     virtual bool HasMetricsCallback() const noexcept = 0;
 
     /**
@@ -196,8 +231,16 @@ public:
      * @note noexcept: Implementation must never throw
      * @note Safe to call from Process()
      */
+/**
+ * @brief Get metrics callback.
+ * @return Result of the operation.
+ */
     virtual IMetricsCallback* GetMetricsCallback() const noexcept = 0;
 
+/**
+ * @brief Get node metrics schema.
+ * @return Result of the operation.
+ */
     virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept = 0;
 
 };

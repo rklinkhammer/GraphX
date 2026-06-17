@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaReplaySourceNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/GotchaReplaySourceNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

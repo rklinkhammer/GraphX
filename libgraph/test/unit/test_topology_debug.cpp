@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_topology_debug.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 #include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"

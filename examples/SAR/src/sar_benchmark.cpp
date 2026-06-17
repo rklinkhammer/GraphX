@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file sar_benchmark.cpp
+ * @brief GraphX source file.
+ */
+
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "sar/AzimuthTileSplitNode.hpp"

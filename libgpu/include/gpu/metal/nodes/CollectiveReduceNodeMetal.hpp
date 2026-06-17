@@ -1,3 +1,8 @@
+/**
+ * @file CollectiveReduceNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class CollectiveReduceNodeMetal
+ * @brief CollectiveReduceNodeMetal class.
+ */
+/**
+ * @class CollectiveReduceNodeMetal
+ * @brief Collective reduce node metal implementation for GraphX.
+ */
 class CollectiveReduceNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

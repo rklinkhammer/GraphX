@@ -1,3 +1,8 @@
+/**
+ * @file IExecutionPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 
 // MIT License
 //
@@ -41,6 +46,14 @@ struct IExecutionPolicy {
     virtual void OnJoin(capabilities::GraphCapability& context) { (void)context; }
 };
 
+/**
+ * @class ExecutionPolicyChain
+ * @brief ExecutionPolicyChain class.
+ */
+/**
+ * @class ExecutionPolicyChain
+ * @brief Execution policy chain implementation for GraphX.
+ */
 class ExecutionPolicyChain : public IExecutionPolicy {
 public:
     explicit ExecutionPolicyChain(std::unique_ptr<IExecutionPolicy> policy,

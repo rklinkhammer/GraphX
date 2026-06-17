@@ -1,3 +1,8 @@
+/**
+ * @file JsonView.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -27,6 +32,10 @@
 
 namespace graph {
 
+/**
+ * @brief Contains.
+ * @param key Parameter for contains.
+ */
 bool JsonView::Contains(const std::string& key) const {
     const auto it = json_.find(key);
     return it != json_.end() && !it->is_null();

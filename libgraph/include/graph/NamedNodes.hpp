@@ -1,3 +1,8 @@
+/**
+ * @file NamedNodes.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -151,6 +156,14 @@ namespace graph {
  * @see SourceNode for port and lifecycle methods
  */
 template <typename NodeType, typename... Outputs>
+/**
+ * @class NamedSourceNode
+ * @brief NamedSourceNode class.
+ */
+/**
+ * @class NamedSourceNode
+ * @brief Named source node implementation for GraphX.
+ */
 class NamedSourceNode : public SourceNode<Outputs...>, public NamedType<NodeType> {
 public:
     /**
@@ -220,6 +233,14 @@ public:
  * - No synchronization between ports
  */
 template <typename NodeType, typename... Inputs>
+/**
+ * @class NamedSinkNode
+ * @brief NamedSinkNode class.
+ */
+/**
+ * @class NamedSinkNode
+ * @brief Named sink node implementation for GraphX.
+ */
 class NamedSinkNode : public SinkNode<Inputs...>, public NamedType<NodeType> {
 public:
     /**
@@ -262,6 +283,14 @@ public:
  */
 
 template <typename InputList, typename OutputList, typename NodeType>
+/**
+ * @class NamedInteriorNode
+ * @brief NamedInteriorNode class.
+ */
+/**
+ * @class NamedInteriorNode
+ * @brief Named interior node implementation for GraphX.
+ */
 class NamedInteriorNode : public InteriorNode<InputList, OutputList>, public NamedType<NodeType> {
 public:
     /**
@@ -319,6 +348,14 @@ public:
  */
 #if 0
 template <std::size_t N, typename CommonInput, typename OutputType, typename NodeType>
+/**
+ * @class NamedMergeNode
+ * @brief NamedMergeNode class.
+ */
+/**
+ * @class NamedMergeNode
+ * @brief Named merge node implementation for GraphX.
+ */
 class NamedMergeNode : public MergeNode<N, CommonInput, OutputType>, public NamedType<NodeType> {
 public:
     /**

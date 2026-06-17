@@ -1,3 +1,8 @@
+/**
+ * @file HostEgressSinkNodeSycl.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -16,6 +21,14 @@ namespace graph::gpu::sycl::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostEgressSinkNodeSycl
+ * @brief HostEgressSinkNodeSycl class.
+ */
+/**
+ * @class HostEgressSinkNodeSycl
+ * @brief Host egress sink node sycl implementation for GraphX.
+ */
 class HostEgressSinkNodeSycl
     : public graph::NamedSinkNode<HostEgressSinkNodeSycl, accel::HostPinnedBufferView>,
       public graph::CompletionCallbackProvider {

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file sar_reference_parity_fixture.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarCpuReference.hpp"

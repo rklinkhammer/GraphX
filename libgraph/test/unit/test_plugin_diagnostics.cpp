@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_plugin_diagnostics.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 #include <dlfcn.h>
 #include <string>
@@ -14,6 +21,9 @@ constexpr const char* kSharedLibraryExtension = ".dylib";
 constexpr const char* kSharedLibraryExtension = ".so";
 #endif
 
+/**
+ * @brief Interior plugin path.
+ */
 std::string InteriorPluginPath() {
     return std::string(PLUGIN_OUTPUT_DIRECTORY) + "/libinterior_test_node" +
            kSharedLibraryExtension;

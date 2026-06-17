@@ -1,3 +1,8 @@
+/**
+ * @file MetricsPolicy.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -37,6 +42,10 @@
 namespace policies {
 
 
+/**
+ * @brief Init metrics sources.
+ * @param context Parameter for init metrics sources.
+ */
 void MetricsPolicy::InitMetricsSources(capabilities::GraphCapability& context) {
     graph::CapabilityContext capability_context{context};
     auto nodes_result = capability_context.Nodes();

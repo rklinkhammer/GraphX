@@ -1,3 +1,8 @@
+/**
+ * @file H2DAsyncNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::cuda::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class H2DAsyncNode
+ * @brief H2DAsyncNode class.
+ */
+/**
+ * @class H2DAsyncNode
+ * @brief 2 d async node implementation for GraphX.
+ */
 class H2DAsyncNode
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::HostPinnedBufferView>,

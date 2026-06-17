@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file MessagePool.hpp
  * @brief Thread-safe message buffer pool for pre-allocated heap management
@@ -68,6 +70,10 @@ struct MessagePoolPolicy {
  * @endcode
  */
 template <size_t BufferSize = 64, typename Policy = MessagePoolPolicy>
+/**
+ * @class MessageBufferPool
+ * @brief Message buffer pool implementation for GraphX.
+ */
 class MessageBufferPool {
 public:
     static_assert(BufferSize > 0, "BufferSize must be > 0");
@@ -171,6 +177,10 @@ public:
      * Pre-allocates `capacity` buffers of BufferSize bytes each.
      * Must be called before AcquireBuffer().
      */
+/**
+ * @brief Initialize.
+ * @param capacity Parameter for initialize.
+ */
     void Initialize(size_t capacity);
 
     /**
@@ -179,6 +189,9 @@ public:
      * Safe to call multiple times. After Shutdown(), pool must be
      * re-initialized before calling AcquireBuffer().
      */
+/**
+ * @brief Shutdown.
+ */
     void Shutdown() noexcept;
 
     // ========================================================================
@@ -208,6 +221,10 @@ public:
      *
      * @note Do NOT call destructor before releasing - buffer is raw memory
      */
+/**
+ * @brief Release buffer.
+ * @param buffer Parameter for release buffer.
+ */
     void ReleaseBuffer(void* buffer) noexcept;
 
     // ========================================================================
@@ -221,6 +238,11 @@ public:
      * Safe to call from any thread at any time (lock-free reads).
      */
     [[nodiscard]] PoolStatsSnapshot GetStats() const noexcept {
+/**
+ * @brief Lock.
+ * @param stats_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(stats_mutex_);
         return PoolStatsSnapshot{
             stats_.total_requests.load(std::memory_order_relaxed),
@@ -242,6 +264,11 @@ public:
      * @return true if Initialize() was called, false otherwise
      */
     [[nodiscard]] bool IsInitialized() const noexcept {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_ > 0;
     }
@@ -257,6 +284,11 @@ public:
      * Safe to call from any thread.
      */
     [[nodiscard]] size_t GetCurrentCapacity() const noexcept {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_;
     }
@@ -272,6 +304,10 @@ public:
      * Thread-safe: Can be called while pool is in use.
      * Non-blocking: Adjustment happens incrementally.
      */
+/**
+ * @brief Set capacity.
+ * @param new_capacity Parameter for set capacity.
+ */
     void SetCapacity(size_t new_capacity) noexcept;
 
     // ========================================================================
@@ -325,6 +361,11 @@ private:
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (initialized_) {
@@ -361,6 +402,11 @@ inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
 
         // Update statistics
         {
+/**
+ * @brief Stats lock.
+ * @param stats_mutex_ Parameter for stats lock.
+ * @return Result of the operation.
+ */
             std::lock_guard<std::mutex> stats_lock(stats_mutex_);
             stats_.total_allocations.store(capacity, std::memory_order_relaxed);
             stats_.current_available.store(capacity, std::memory_order_relaxed);
@@ -377,6 +423,11 @@ inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
 
         // Statistics start at zero - no allocations yet
         {
+/**
+ * @brief Stats lock.
+ * @param stats_mutex_ Parameter for stats lock.
+ * @return Result of the operation.
+ */
             std::lock_guard<std::mutex> stats_lock(stats_mutex_);
             stats_.total_allocations.store(0, std::memory_order_relaxed);
             stats_.current_available.store(0, std::memory_order_relaxed);
@@ -391,6 +442,11 @@ inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     // Free all buffers
@@ -404,6 +460,11 @@ inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
 
 template <size_t BufferSize, typename Policy>
 inline void* MessageBufferPool<BufferSize, Policy>::AcquireBuffer() {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -481,6 +542,11 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
         return;  // Ignore null pointers
     }
 
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -524,6 +590,11 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::SetCapacity(size_t new_capacity) noexcept {
+/**
+ * @brief Lock.
+ * @param pool_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {

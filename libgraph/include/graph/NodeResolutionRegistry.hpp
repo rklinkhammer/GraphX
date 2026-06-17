@@ -1,3 +1,8 @@
+/**
+ * @file NodeResolutionRegistry.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -25,11 +30,31 @@ struct NodeResolutionContract {
     std::vector<NodeResolutionVariant> variants;
 };
 
+/**
+ * @class NodeResolutionRegistry
+ * @brief NodeResolutionRegistry class.
+ */
+/**
+ * @class NodeResolutionRegistry
+ * @brief Node resolution registry implementation for GraphX.
+ */
 class NodeResolutionRegistry {
 public:
+/**
+ * @brief Create default.
+ * @return Result of the operation.
+ */
     static NodeResolutionRegistry CreateDefault();
 
+/**
+ * @brief Add contract.
+ * @param contract Parameter for add contract.
+ */
     void AddContract(NodeResolutionContract contract);
+/**
+ * @brief Add mappings.
+ * @param mappings Parameter for add mappings.
+ */
     void AddMappings(const std::vector<GraphConfig::ResolverMapping>& mappings);
 
     [[nodiscard]] const NodeResolutionContract* Find(const std::string& intent_type) const;

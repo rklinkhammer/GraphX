@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file MessagePoolRouter.hpp
  * @brief Intelligent router for SSO+ hybrid message allocation
@@ -47,6 +49,10 @@ namespace graph {
  * @endcode
  */
 template <size_t SSO_THRESHOLD = 32>
+/**
+ * @class MessagePoolRouter
+ * @brief Message pool router implementation for GraphX.
+ */
 class MessagePoolRouter {
 public:
     /**

@@ -1,3 +1,8 @@
+/**
+ * @file EdgeFacade.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -196,15 +201,38 @@ namespace graph {
  * Since Edge is templated, we need a common interface to store
  * edges of different types in a single container.
  */
+/**
+ * @class IEdgeBase
+ * @brief I edge base implementation for GraphX.
+ */
 class IEdgeBase {
 public:
     virtual ~IEdgeBase() = default;
     
     // === Lifecycle Methods (Existing) ===
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
     virtual bool Init() = 0;
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
     virtual bool Start() = 0;
+/**
+ * @brief Stop.
+ */
     virtual void Stop() = 0;
+/**
+ * @brief Join.
+ */
     virtual void Join() = 0;
+/**
+ * @brief Join with timeout.
+ * @param timeout_ms Parameter for join with timeout.
+ * @return Result of the operation.
+ */
     virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) = 0;
     
     // === Metadata Access (NEW) ===
@@ -271,6 +299,10 @@ public:
  * @tparam DstPort Destination port number
  */
 template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t DstPort>
+/**
+ * @class EdgeWrapper
+ * @brief Edge wrapper implementation for GraphX.
+ */
 class EdgeWrapper : public IEdgeBase {
 public:
     using EdgeType = graph::Edge<SrcNode, SrcPort, DstNode, DstPort>;
@@ -429,6 +461,10 @@ private:
  *     }
  * }
  * @endcode
+ */
+/**
+ * @class EdgeFacadeAdapter
+ * @brief Edge facade adapter implementation for GraphX.
  */
 class EdgeFacadeAdapter {
 private:

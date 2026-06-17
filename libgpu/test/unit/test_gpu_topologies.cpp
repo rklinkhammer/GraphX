@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_gpu_topologies.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -34,6 +41,10 @@ namespace {
 constexpr std::uint8_t kSourcePattern = 0x5A;
 constexpr std::uint8_t kDestinationPattern = 0xC3;
 
+/**
+ * @class TopologyTestCudaMemoryPool
+ * @brief Topology test cuda memory pool implementation for GraphX.
+ */
 class TopologyTestCudaMemoryPool final : public graph::gpu::cuda::capabilities::ICudaMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -108,6 +119,10 @@ private:
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
+/**
+ * @class TopologyTestCudaTransfer
+ * @brief Topology test cuda transfer implementation for GraphX.
+ */
 class TopologyTestCudaTransfer final : public graph::gpu::cuda::capabilities::ICudaTransferCapability {
 public:
     bool EnqueueH2D(const graph::gpu::accel::HostPinnedBufferView& src,
@@ -182,6 +197,10 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
+/**
+ * @class TopologyTestSyclMemoryPool
+ * @brief Topology test sycl memory pool implementation for GraphX.
+ */
 class TopologyTestSyclMemoryPool final : public graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -261,6 +280,10 @@ private:
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
+/**
+ * @class TopologyTestSyclTransfer
+ * @brief Topology test sycl transfer implementation for GraphX.
+ */
 class TopologyTestSyclTransfer final : public graph::gpu::sycl::capabilities::ISyclTransferCapability {
 public:
     bool EnqueueH2D(const graph::gpu::accel::HostPinnedBufferView& src,
@@ -335,6 +358,10 @@ private:
     std::uint64_t next_event_id_{1};
 };
 
+/**
+ * @class TopologyTestMetalMemoryPool
+ * @brief Topology test metal memory pool implementation for GraphX.
+ */
 class TopologyTestMetalMemoryPool final : public graph::gpu::metal::capabilities::IMetalMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -418,6 +445,10 @@ private:
     std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
 };
 
+/**
+ * @class TopologyTestMetalTransfer
+ * @brief Topology test metal transfer implementation for GraphX.
+ */
 class TopologyTestMetalTransfer final : public graph::gpu::metal::capabilities::IMetalTransferCapability {
 public:
     bool EnqueueH2D(const graph::gpu::accel::HostPinnedBufferView& src,
@@ -547,6 +578,9 @@ struct CudaTopologyTraits {
         };
 
         template <typename Traits>
+/**
+ * @brief Run gpu minimal round trip topology.
+ */
         void RunGpuMinimalRoundTripTopology() {
             // Graph edges in this harness represent readiness + context propagation,
             // not a direct byte-copy contract. Backend capabilities own data movement
@@ -635,6 +669,10 @@ struct CudaTopologyTraits {
         }
 
         template <typename Traits>
+/**
+ * @class GpuTopologyRoundTripTest
+ * @brief Gpu topology round trip test implementation for GraphX.
+ */
         class GpuTopologyRoundTripTest : public ::testing::Test {};
 
         using GpuTopologyRoundTripTypes = ::testing::Types<CudaTopologyTraits, SyclTopologyTraits, MetalTopologyTraits>;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file TestMetricsSubscriber.hpp
  * @brief Shared test utility for capturing and validating metrics events
@@ -44,6 +46,10 @@ namespace test {
  * EXPECT_GT(subscriber->GetEventCountByType("message_produced"), 0);
  * ```
  */
+/**
+ * @class TestMetricsSubscriber
+ * @brief Test metrics subscriber implementation for GraphX.
+ */
 class TestMetricsSubscriber : public app::metrics::IMetricsSubscriber {
 public:
     /**
@@ -51,6 +57,11 @@ public:
      * @param event The metrics event published by a node
      */
     void OnMetricsEvent(const app::metrics::MetricsEvent& event) override {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         events_.push_back(event);
     }
@@ -60,6 +71,11 @@ public:
      * @return Vector of captured MetricsEvent objects
      */
     std::vector<app::metrics::MetricsEvent> GetCapturedEvents() const {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         return events_;
     }
@@ -69,6 +85,11 @@ public:
      * @return Count of events received
      */
     size_t GetEventCount() const {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         return events_.size();
     }
@@ -79,6 +100,11 @@ public:
      * @return Number of events matching the type
      */
     size_t GetEventCountByType(const std::string& event_type) const {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         return std::count_if(events_.begin(), events_.end(),
             [&](const auto& e) { return e.event_type == event_type; });
@@ -90,6 +116,11 @@ public:
      * @return Number of events from that source
      */
     size_t GetEventCountBySource(const std::string& source) const {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         return std::count_if(events_.begin(), events_.end(),
             [&](const auto& e) { return e.source == source; });
@@ -99,6 +130,11 @@ public:
      * @brief Clear all captured events
      */
     void Clear() {
+/**
+ * @brief Lock.
+ * @param mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(mutex_);
         events_.clear();
     }

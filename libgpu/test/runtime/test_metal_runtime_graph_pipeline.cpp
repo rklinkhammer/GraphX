@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_runtime_graph_pipeline.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -84,6 +91,9 @@ MetalPipelineNodes ResolveMetalPipelineNodes(
     return nodes;
 }
 
+/**
+ * @brief Get vibration health pipeline json config path.
+ */
 std::filesystem::path GetVibrationHealthPipelineJsonConfigPath() {
     const auto test_root = std::filesystem::path(__FILE__).parent_path().parent_path();
     return test_root / "config" / "topologies" / "metal_vibration_health_pipeline.json";

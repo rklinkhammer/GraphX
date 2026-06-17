@@ -1,3 +1,8 @@
+/**
+ * @file Nodes.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -124,6 +129,10 @@ namespace graph
     class SourceNodeBase;
 
     template <typename... Outputs>
+/**
+ * @class SourceNodeBase
+ * @brief Source node base implementation for GraphX.
+ */
     class SourceNodeBase<TypeList<Outputs...>>
         : public NodeLifecycleMixin<SourceNodeBase<TypeList<Outputs...>>>,
           public OutputFn<Outputs>...
@@ -352,6 +361,14 @@ namespace graph
      * Usage: class MySource : public SourceNode<int, double, std::string>
      */
     template <typename... Outputs>
+/**
+ * @class SourceNode
+ * @brief SourceNode class.
+ */
+/**
+ * @class SourceNode
+ * @brief Source node implementation for GraphX.
+ */
     class SourceNode : public SourceNodeBase<typename MakePorts<TypeList<Outputs...>>::type>
     {
     public:
@@ -390,6 +407,10 @@ namespace graph
      * @endcode
      */
     template <typename... Inputs>
+/**
+ * @class SinkNodeBase
+ * @brief Sink node base implementation for GraphX.
+ */
     class SinkNodeBase<TypeList<Inputs...>>
         : public NodeLifecycleMixin<SinkNodeBase<TypeList<Inputs...>>>,
           public InputFn<Inputs>...
@@ -597,6 +618,14 @@ namespace graph
      * Usage: class MySink : public SinkNode<int, double, std::string>
      */
     template <typename... Inputs>
+/**
+ * @class SinkNode
+ * @brief SinkNode class.
+ */
+/**
+ * @class SinkNode
+ * @brief Sink node implementation for GraphX.
+ */
     class SinkNode : public SinkNodeBase<typename MakePorts<TypeList<Inputs...>>::type>
     {
     public:
@@ -636,6 +665,10 @@ namespace graph
      * @endcode
      */
     template <typename... Inputs, typename... Outputs>
+/**
+ * @class InteriorNodeBase
+ * @brief Interior node base implementation for GraphX.
+ */
     class InteriorNodeBase<TypeList<Inputs...>, TypeList<Outputs...>>
         : public NodeLifecycleMixin<InteriorNodeBase<TypeList<Inputs...>, TypeList<Outputs...>>>,
           public TransferFn<Inputs, Outputs>...
@@ -979,6 +1012,14 @@ namespace graph
      * @endcode
      */
     template <typename InputList, typename OutputList>
+/**
+ * @class InteriorNode
+ * @brief InteriorNode class.
+ */
+/**
+ * @class InteriorNode
+ * @brief Interior node implementation for GraphX.
+ */
     class InteriorNode
         : public InteriorNodeBase<typename MakePorts<InputList>::type, typename MakePorts<OutputList>::type>
     {
@@ -1022,6 +1063,14 @@ namespace graph
      * @endcode
      */
     template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t DstPort>
+/**
+ * @class Edge
+ * @brief Edge class.
+ */
+/**
+ * @class Edge
+ * @brief Edge implementation for GraphX.
+ */
     class Edge
     {
     public:
@@ -1119,6 +1168,11 @@ namespace graph
             if (!thread_.joinable())
                 return true;
 
+/**
+ * @brief Lock.
+ * @param mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock lock(mtx_);
             if (!cv_.wait_for(lock, timeout_ms, [&] { return stop_requested_.load(std::memory_order_acquire); }))
             {
@@ -1263,6 +1317,14 @@ namespace graph
      * - ExpandInputPorts pack expansion for N input port bases
      */
     template <std::size_t N, typename CommonInput, typename OutputT>
+/**
+ * @class MergeNodeBase
+ * @brief MergeNodeBase class.
+ */
+/**
+ * @class MergeNodeBase
+ * @brief Merge node base implementation for GraphX.
+ */
     class MergeNodeBase
         : public IMergeFn<CommonInput, OutputT>,
           public ExpandInputPorts<N, CommonInput>::InputBases,
@@ -1485,6 +1547,11 @@ namespace graph
             // Wait for merge thread with timeout
             if (thread_.joinable()) {
                 // Wait with timeout using cv
+/**
+ * @brief Lock.
+ * @param mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::unique_lock<std::mutex> lock(mtx_);
                 if (!cv_.wait_for(lock, half, [this] { return !thread_.joinable(); })) {
                     LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
@@ -1578,6 +1645,14 @@ namespace graph
      * @endcode
      */
     template <std::size_t N, typename InputType, typename OutputT, typename Derived>
+/**
+ * @class MergeNode
+ * @brief MergeNode class.
+ */
+/**
+ * @class MergeNode
+ * @brief Merge node implementation for GraphX.
+ */
     class MergeNode : public MergeNodeBase<N, InputType, OutputT>, public NamedType<Derived> {
     public:
         virtual ~MergeNode() = default;

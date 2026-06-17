@@ -1,3 +1,8 @@
+/**
+ * @file GraphConfigParser.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -46,6 +51,10 @@ namespace graph::config {
  *
  * Stateless parser that converts JSON text into GraphConfig structures
  * with comprehensive validation.
+ */
+/**
+ * @class GraphConfigParser
+ * @brief Graph config parser implementation for GraphX.
  */
 class GraphConfigParser {
 public:
@@ -104,17 +113,32 @@ public:
      * @param config Configuration to validate
      * @return ValidationResult with details
      */
+/**
+ * @brief Validate.
+ * @param config Parameter for validate.
+ * @return Result of the operation.
+ */
     static ValidationResult Validate(const GraphConfig& config);
 
 private:
     /**
      * Parse metadata object from JSON
      */
+/**
+ * @brief Parse metadata.
+ * @param meta_json Parameter for parse metadata.
+ * @return Result of the operation.
+ */
     static GraphConfig::Metadata ParseMetadata(const nlohmann::json& meta_json);
     
     /**
      * Parse a single node configuration
      */
+/**
+ * @brief Parse node.
+ * @param node_json Parameter for parse node.
+ * @return Result of the operation.
+ */
     static NodeConfig ParseNode(const nlohmann::json& node_json);
 
     /**
@@ -126,6 +150,11 @@ private:
     /**
      * Parse a single edge configuration
      */
+/**
+ * @brief Parse edge.
+ * @param edge_json Parameter for parse edge.
+ * @return Result of the operation.
+ */
     static EdgeConfig ParseEdge(const nlohmann::json& edge_json);
 
     /**
@@ -137,11 +166,21 @@ private:
     /**
      * Validate node ID format
      */
+/**
+ * @brief Is valid node id.
+ * @param id Parameter for is valid node id.
+ * @return Result of the operation.
+ */
     static bool IsValidNodeId(const std::string& id);
     
     /**
      * Validate edge source/target specification
      */
+/**
+ * @brief Is valid port spec.
+ * @param spec Parameter for is valid port spec.
+ * @return Result of the operation.
+ */
     static bool IsValidPortSpec(const std::string& spec);
 };
 

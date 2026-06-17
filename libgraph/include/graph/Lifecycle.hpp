@@ -1,3 +1,8 @@
+/**
+ * @file Lifecycle.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -58,6 +63,14 @@ namespace graph
      * INode interface implementation without duplicating lifecycle code.
      */
     template <typename Derived>
+/**
+ * @class NodeLifecycleMixin
+ * @brief NodeLifecycleMixin class.
+ */
+/**
+ * @class NodeLifecycleMixin
+ * @brief Node lifecycle mixin implementation for GraphX.
+ */
     class NodeLifecycleMixin : public INode
     {
      protected:

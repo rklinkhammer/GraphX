@@ -1,3 +1,8 @@
+/**
+ * @file test_plugin_system.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -57,10 +62,17 @@ constexpr const char* kSharedLibraryExtension = ".dylib";
 constexpr const char* kSharedLibraryExtension = ".so";
 #endif
 
+/**
+ * @brief Test node plugin filename.
+ */
 std::string TestNodePluginFilename() {
     return std::string("libtest_node") + kSharedLibraryExtension;
 }
 
+/**
+ * @class MockNodeProvider
+ * @brief Mock node provider implementation for GraphX.
+ */
 class MockNodeProvider final : public graph::INodeProvider {
 public:
     std::expected<graph::NodeFacadeAdapter, graph::NodeCreationError>
@@ -83,6 +95,10 @@ public:
 // Test Fixture
 // ===================================================================================
 
+/**
+ * @class PluginRegistryTest
+ * @brief Plugin registry test implementation for GraphX.
+ */
 class PluginRegistryTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -98,6 +114,10 @@ protected:
     std::shared_ptr<graph::PluginRegistry> registry_;
 };
 
+/**
+ * @class PluginLoaderTest
+ * @brief Plugin loader test implementation for GraphX.
+ */
 class PluginLoaderTest : public ::testing::Test {
 protected:
     void SetUp() override {

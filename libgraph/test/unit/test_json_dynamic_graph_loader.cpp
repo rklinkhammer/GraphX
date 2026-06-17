@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_json_dynamic_graph_loader.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "graph/JsonDynamicGraphLoader.hpp"
@@ -16,6 +23,10 @@
 
 namespace {
 
+/**
+ * @brief Write temp graph config.
+ * @param content Parameter for write temp graph config.
+ */
 std::filesystem::path WriteTempGraphConfig(std::string_view content) {
     const auto path = std::filesystem::temp_directory_path() /
         ("graphx_json_dynamic_loader_" +
@@ -50,6 +61,10 @@ constexpr const char* kValidGraphConfig = R"json(
 #define PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
 
+/**
+ * @class StubLoaderDescriptorSchemaProvider
+ * @brief Stub loader descriptor schema provider implementation for GraphX.
+ */
 class StubLoaderDescriptorSchemaProvider final : public graph::INodeDescriptorSchemaProvider {
 public:
   nlohmann::json BuildSchema(const graph::NodeDescriptor&) const override {
@@ -73,6 +88,10 @@ public:
   }
 };
 
+/**
+ * @class StubLoaderMetadataService
+ * @brief Stub loader metadata service implementation for GraphX.
+ */
 class StubLoaderMetadataService final : public graph::INodeMetadataService {
 public:
   const graph::INodeDescriptorProvider& DescriptorProvider() const override {

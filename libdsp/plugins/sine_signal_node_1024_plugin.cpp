@@ -1,3 +1,8 @@
+/**
+ * @file sine_signal_node_1024_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -75,6 +80,9 @@ static const NodeFacade sine_signal_node_1024_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create sine signal node 1024.
+ */
 void* plugin_create_sine_signal_node_1024() {
     try {
         auto node = std::make_shared<dsp::SineSignalNode<1024>>();
@@ -85,6 +93,9 @@ void* plugin_create_sine_signal_node_1024() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "SineSignalNode<1024>|Sine wave DSP generator (1024 samples/packet)|1.0|"
            "plugin_create_sine_signal_node_1024|"
@@ -95,11 +106,17 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&sine_signal_node_1024_facade);
 }
 
 // Phase 4: Plugin API version negotiation
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;  // Supports PluginLoader v2+ (version negotiation)
 }

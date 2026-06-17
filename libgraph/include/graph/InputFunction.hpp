@@ -1,3 +1,8 @@
+/**
+ * @file InputFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -41,6 +46,14 @@ namespace graph
      * This is used by MergeNode where all N input ports share a single unified queue.
      */
     template <typename P>
+/**
+ * @class IInputCommonFn
+ * @brief IInputCommonFn class.
+ */
+/**
+ * @class IInputCommonFn
+ * @brief I input common fn implementation for GraphX.
+ */
     class IInputCommonFn : public IFnBase<P>
     {
     public:
@@ -63,6 +76,14 @@ namespace graph
      * to the base queue management. Used by InputFn for single-instance input ports.
      */
     template <typename P>
+/**
+ * @class IInputFn
+ * @brief IInputFn class.
+ */
+/**
+ * @class IInputFn
+ * @brief I input fn implementation for GraphX.
+ */
     class IInputFn : public IFn<P>
     {
     public:
@@ -91,6 +112,14 @@ namespace graph
      * - thread_active: Whether thread is actively processing
      */
     template <typename P>
+/**
+ * @class InputFn
+ * @brief InputFn class.
+ */
+/**
+ * @class InputFn
+ * @brief Input fn implementation for GraphX.
+ */
     class InputFn : public IInputFn<P>
     {
     public:
@@ -147,6 +176,11 @@ namespace graph
             if (!this->thread_.joinable())
                 return true;
 
+/**
+ * @brief Lock.
+ * @param this->mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock lock(this->mtx_);
             bool stopped = this->cv_.wait_for(lock, timeout, [&] { return this->IsStopRequested(); });
             lock.unlock();  // Release lock before joining

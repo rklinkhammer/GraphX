@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file TestEdgeRegistry.hpp
  * @brief Edge registry initialization for test node topologies

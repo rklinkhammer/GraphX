@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_json_topology_parity.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <array>
@@ -46,11 +53,19 @@ constexpr std::array<TopologyCase, 14> kSupportedTopologyCases = {{
 
 constexpr std::array<const char*, 0> kUnsupportedDynamicBuildCases = {{}};
 
+/**
+ * @brief Get checked in topology config path.
+ * @param file_name Parameter for get checked in topology config path.
+ */
 std::filesystem::path GetCheckedInTopologyConfigPath(const char* file_name) {
     const auto test_root = std::filesystem::path(__FILE__).parent_path().parent_path();
     return test_root / "config" / "topologies" / file_name;
 }
 
+/**
+ * @brief Build from json config.
+ * @param config_path Parameter for build from json config.
+ */
 app::BuildResult BuildFromJsonConfig(const std::filesystem::path& config_path) {
     auto capability = std::make_shared<capabilities::GraphCapability>();
     capability->SetNodeProvider(test::PluginInfrastructure::GetProvider());
@@ -60,6 +75,11 @@ app::BuildResult BuildFromJsonConfig(const std::filesystem::path& config_path) {
     return builder.Build();
 }
 
+/**
+ * @brief Execute graph.
+ * @param graph Parameter for execute graph.
+ * @param timeout Parameter for execute graph.
+ */
 ExecutionSummary ExecuteGraph(const std::shared_ptr<graph::GraphManager>& graph, std::chrono::seconds timeout) {
     auto executor = graph::GraphExecutorBuilder()
                         .WithGraphManager(graph)

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarVisualizationSinkNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/SarVisualizationSinkNode.hpp"
 
 #include "config/ConfigError.hpp"

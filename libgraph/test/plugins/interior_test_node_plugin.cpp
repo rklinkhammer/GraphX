@@ -1,3 +1,8 @@
+/**
+ * @file interior_test_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -51,6 +56,9 @@ static const NodeFacade interior_test_node_facade = Glue::MakeFacade();
 extern "C" {
 
 // First, test if we can even allocate the object
+/**
+ * @brief Plugin test allocate interior.
+ */
 void* plugin_test_allocate_interior() {
     try {
         InteriorTestNode* ptr = new InteriorTestNode();
@@ -61,6 +69,9 @@ void* plugin_test_allocate_interior() {
 }
 
 // Test if shared_ptr works
+/**
+ * @brief Plugin test shared ptr interior.
+ */
 void* plugin_test_shared_ptr_interior() {
     try {
         auto node = std::make_shared<InteriorTestNode>();
@@ -70,6 +81,9 @@ void* plugin_test_shared_ptr_interior() {
     }
 }
 
+/**
+ * @brief Plugin create interior test node.
+ */
 void* plugin_create_interior_test_node() {
     try {
         auto node = std::make_shared<InteriorTestNode>();
@@ -80,6 +94,9 @@ void* plugin_create_interior_test_node() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "InteriorTestNode|Interior test node|1.0|"
            "plugin_create_interior_test_node|"
@@ -90,10 +107,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&interior_test_node_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

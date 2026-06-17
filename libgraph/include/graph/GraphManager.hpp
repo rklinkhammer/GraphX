@@ -1,3 +1,8 @@
+/**
+ * @file GraphManager.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -283,6 +288,14 @@ namespace graph {
  *   graph.Join();
  * @endcode
  */
+/**
+ * @class GraphManager
+ * @brief GraphManager class.
+ */
+/**
+ * @class GraphManager
+ * @brief Graph manager implementation for GraphX.
+ */
 class GraphManager {
 public:
     /**
@@ -437,6 +450,11 @@ public:
      */
     template <reflection::GraphNode NodeType, typename... Args>
     std::shared_ptr<NodeType> AddNode(Args&&... args) {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (initialized_.load(std::memory_order_acquire)) {
@@ -467,6 +485,11 @@ public:
      * Registers an existing node for lifecycle management.
      */
     void AddNode(std::shared_ptr<INode> node) {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (!node) {
@@ -510,6 +533,11 @@ public:
         std::shared_ptr<DstNode> dst,
         std::size_t capacity = 8)
     {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (initialized_.load(std::memory_order_acquire)) {
@@ -566,6 +594,11 @@ public:
 
     [[nodiscard]] std::expected<IEdgeBase*, app::error::GraphExecutionFailure>
     AddDynamicEdgeExpected(const DynamicEdgeConfig& config) noexcept {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
 
         if (initialized_.load(std::memory_order_acquire)) {
@@ -660,6 +693,11 @@ public:
 
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
     InitExpected() noexcept {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
         const auto init_begin = std::chrono::steady_clock::now();
         
@@ -803,6 +841,11 @@ public:
 
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
     StartExpected() noexcept {
+/**
+ * @brief Lock.
+ * @param lifecycle_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock lock(lifecycle_mtx_);
         const auto start_begin = std::chrono::steady_clock::now();
         
@@ -1559,6 +1602,10 @@ public:
      * @endcode
      */
     void PrintGraphStructure(std::ostream& out = std::cout) const {
+/**
+ * @brief Display graph.
+ * @return Result of the operation.
+ */
         out << DisplayGraph();
     }
     

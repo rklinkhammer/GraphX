@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SyntheticApertureIqSourceNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/SyntheticApertureIqSourceNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

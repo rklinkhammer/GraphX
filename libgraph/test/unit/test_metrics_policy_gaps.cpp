@@ -1,3 +1,8 @@
+/**
+ * @file test_metrics_policy_gaps.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -59,6 +64,10 @@ using MetricsEventQueue = core::ActiveQueue<MetricsEvent>;
  * 
  * Provides base infrastructure for testing MetricsPolicy queue mechanics
  * and event content validation without duplicating existing topology tests.
+ */
+/**
+ * @class MetricsPolicyGapsFixture
+ * @brief Metrics policy gaps fixture implementation for GraphX.
  */
 class MetricsPolicyGapsFixture : public ::testing::Test {
 protected:
@@ -821,6 +830,11 @@ TEST_F(MetricsPolicyGapsFixture, CallbackPointerStabilityAfterRegistration) {
     original_event.timestamp = std::chrono::system_clock::now();
     
     // Enqueue from one thread
+/**
+ * @brief Producer.
+ * @param [this Parameter for producer.
+ * @param original_event]( Parameter for producer.
+ */
     std::thread producer([this, &original_event]() {
         for (int i = 0; i < 5; ++i) {
             (void)test_queue_->Enqueue(original_event);
@@ -851,6 +865,12 @@ TEST_F(MetricsPolicyGapsFixture, QueueNotificationMechanismUnblocks) {
     std::atomic<bool> event_received{false};
     
     // Thread 1: Try to dequeue from empty queue
+/**
+ * @brief Dequeue thread.
+ * @param [this Parameter for dequeue thread.
+ * @param dequeue_started Parameter for dequeue thread.
+ * @param event_received]( Parameter for dequeue thread.
+ */
     std::thread dequeue_thread([this, &dequeue_started, &event_received]() {
         dequeue_started = true;
         MetricsEvent event;
@@ -886,6 +906,11 @@ TEST_F(MetricsPolicyGapsFixture, UnblockThreadStartupOnDestruction) {
     {
         auto temp_queue = std::make_unique<MetricsEventQueue>();
         
+/**
+ * @brief Waiter.
+ * @param [temp_queue Parameter for waiter.
+ * @param thread_unblocked]( Parameter for waiter.
+ */
         std::thread waiter([&temp_queue, &thread_unblocked]() {
             MetricsEvent event;
             // Try to dequeue (may block, but should unblock on destruction)
@@ -924,6 +949,11 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput100EventsPerSecond) {
     std::atomic<int> dequeued{0};
     
     // Producer: enqueue 100 events as fast as possible
+/**
+ * @brief Producer.
+ * @param [this Parameter for producer.
+ * @param enqueued]( Parameter for producer.
+ */
     std::thread producer([this, &enqueued]() {
         for (int i = 0; i < event_count; ++i) {
             MetricsEvent event;
@@ -939,6 +969,11 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput100EventsPerSecond) {
     });
     
     // Consumer: dequeue all events
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param dequeued]( Parameter for consumer.
+ */
     std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         int attempts = 0;
@@ -990,6 +1025,11 @@ TEST_F(MetricsPolicyGapsFixture, PublishingThroughput1000EventsPerSecond) {
     }
     
     // Consumer thread
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param dequeued]( Parameter for consumer.
+ */
     std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         while (dequeued < event_count) {
@@ -1044,6 +1084,11 @@ TEST_F(MetricsPolicyGapsFixture, SustainedPublishingManyProducers) {
     }
     
     // Consumer
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param dequeued]( Parameter for consumer.
+ */
     std::thread consumer([this, &dequeued]() {
         MetricsEvent event;
         int max_iterations = total_events * 10;
@@ -1098,6 +1143,13 @@ TEST_F(MetricsPolicyGapsFixture, EventOrderingWithConcurrentProducers) {
     
     // Collect events and verify ordering
     int total_needed = producers * events_per;
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param event_sequences Parameter for consumer.
+ * @param sequence_lock Parameter for consumer.
+ * @param total_needed]( Parameter for consumer.
+ */
     std::thread consumer([this, &event_sequences, &sequence_lock, total_needed]() {
         MetricsEvent event;
         int count = 0;
@@ -1160,6 +1212,12 @@ TEST_F(MetricsPolicyGapsFixture, TimestampOrderingWithConcurrentPublish) {
     }
     
     // Consumer collecting timestamps
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param timestamps Parameter for consumer.
+ * @param ts_lock]( Parameter for consumer.
+ */
     std::thread consumer([this, &timestamps, &ts_lock]() {
         MetricsEvent event;
         int count = 0;
@@ -1223,6 +1281,13 @@ TEST_F(MetricsPolicyGapsFixture, SourceIdentificationAccuracyUnderLoad) {
     
     // Consumer verifying source accuracy
     int total_needed = num_nodes * events_per_node;
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param event_counts Parameter for consumer.
+ * @param count_lock Parameter for consumer.
+ * @param total_needed]( Parameter for consumer.
+ */
     std::thread consumer([this, &event_counts, &count_lock, total_needed]() {
         MetricsEvent event;
         int count = 0;
@@ -1311,6 +1376,13 @@ TEST_F(MetricsPolicyGapsFixture, OrderingGuaranteePerProducer) {
     
     // Consumer
     int total_needed = producers * events_each;
+/**
+ * @brief Consumer.
+ * @param [this Parameter for consumer.
+ * @param sequences Parameter for consumer.
+ * @param seq_lock Parameter for consumer.
+ * @param total_needed]( Parameter for consumer.
+ */
     std::thread consumer([this, &sequences, &seq_lock, total_needed]() {
         MetricsEvent event;
         int count = 0;
@@ -1370,6 +1442,12 @@ TEST_F(MetricsPolicyGapsFixture, NoLivelock_OrDeadlockUnderConcurrency) {
     
     // Consumer
     int total_needed = producers * events_per;
+/**
+ * @brief Cons.
+ * @param [this Parameter for cons.
+ * @param total_dequeued Parameter for cons.
+ * @param total_needed]( Parameter for cons.
+ */
     std::thread cons([this, &total_dequeued, total_needed]() {
         MetricsEvent event;
         int max_iterations = total_needed * 100;
@@ -1402,6 +1480,10 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberInvocationKeepsUp) {
     std::atomic<int> processed{0};
     
     // Producer: rapid publishing
+/**
+ * @brief Producer.
+ * @param [this]( Parameter for producer.
+ */
     std::thread producer([this]() {
         for (int i = 0; i < total_events; ++i) {
             MetricsEvent event;
@@ -1414,6 +1496,11 @@ TEST_F(MetricsPolicyGapsFixture, SubscriberInvocationKeepsUp) {
     });
     
     // Subscriber: process events
+/**
+ * @brief Subscriber.
+ * @param [this Parameter for subscriber.
+ * @param processed]( Parameter for subscriber.
+ */
     std::thread subscriber([this, &processed]() {
         MetricsEvent event;
         while (processed < total_events) {

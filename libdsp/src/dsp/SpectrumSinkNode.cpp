@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SpectrumSinkNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "dsp/SpectrumSinkNode.hpp"
 #include "log4cxx/logger.h"
 #include <algorithm>

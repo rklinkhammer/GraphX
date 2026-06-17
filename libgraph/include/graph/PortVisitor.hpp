@@ -1,3 +1,8 @@
+/**
+ * @file PortVisitor.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -60,6 +65,14 @@ namespace graph
      * @tparam MaxPorts Maximum number of ports (compile-time constant)
      */
     template <typename Derived, std::size_t MaxPorts>
+/**
+ * @class PortIterator
+ * @brief PortIterator class.
+ */
+/**
+ * @class PortIterator
+ * @brief Port iterator implementation for GraphX.
+ */
     class PortIterator
     {
     private:

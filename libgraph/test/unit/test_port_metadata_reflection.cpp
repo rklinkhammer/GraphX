@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_port_metadata_reflection.cpp
  * @brief Isolated tests for port metadata reflection on multi-port nodes
@@ -34,6 +36,10 @@ namespace {
  *
  * This suite validates that port metadata can be correctly retrieved
  * from each test node type using the reflection system.
+ */
+/**
+ * @class PortMetadataReflectionTest
+ * @brief Port metadata reflection test implementation for GraphX.
  */
 class PortMetadataReflectionTest : public ::testing::Test {
 protected:
@@ -365,6 +371,10 @@ TEST_F(PortMetadataReflectionTest, DetailedReflectionAnalysisAllNodes) {
 }
 
 template <typename NodeType>
+/**
+ * @class PortMetadataConformanceTest
+ * @brief Port metadata conformance test implementation for GraphX.
+ */
 class PortMetadataConformanceTest : public ::testing::Test {};
 
 using ConformanceNodeTypes = ::testing::Types<

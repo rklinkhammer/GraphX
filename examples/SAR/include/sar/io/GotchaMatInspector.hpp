@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file GotchaMatInspector.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <array>
@@ -42,6 +49,10 @@ struct GotchaMatInspectionResult {
     }
 };
 
+/**
+ * @class GotchaMatInspector
+ * @brief GotchaMatInspector class.
+ */
 class GotchaMatInspector {
 public:
     [[nodiscard]] static GotchaMatInspectionResult Inspect(

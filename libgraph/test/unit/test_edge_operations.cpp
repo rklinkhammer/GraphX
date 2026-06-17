@@ -1,3 +1,8 @@
+/**
+ * @file test_edge_operations.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -49,6 +54,10 @@ namespace {
 
 /**
  * @brief Test fixture for edge operation tests
+ */
+/**
+ * @class EdgeOperationTest
+ * @brief Edge operation test implementation for GraphX.
  */
 class EdgeOperationTest : public ::testing::Test {
 protected:

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarProductValidator.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -30,6 +37,10 @@ struct SarValidationResult {
     }
 };
 
+/**
+ * @class SarProductValidator
+ * @brief SarProductValidator class.
+ */
 class SarProductValidator {
 public:
     [[nodiscard]] static SarValidationResult Validate(const NormalizedSarProduct& product) {

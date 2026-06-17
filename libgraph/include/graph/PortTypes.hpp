@@ -1,3 +1,8 @@
+/**
+ * @file PortTypes.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -292,6 +297,11 @@ namespace graph
         static auto test(int) -> decltype(typename T::Ports{}, std::true_type{});
 
         template <typename>
+/**
+ * @brief Test.
+ * @param ... Parameter for test.
+ * @return Result of the operation.
+ */
         static std::false_type test(...);
 
         static constexpr bool value = decltype(test<Derived>(0))::value;

@@ -1,3 +1,8 @@
+/**
+ * @file PortFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -91,6 +96,14 @@ namespace graph {
      * @tparam P Port type (Port<T, ID>)
      */
     template <typename P>
+/**
+ * @class PortFunction
+ * @brief PortFunction class.
+ */
+/**
+ * @class PortFunction
+ * @brief Port function implementation for GraphX.
+ */
     class PortFunction : public IPortFunction {
     public:
         // ====================================================================
@@ -187,6 +200,11 @@ namespace graph {
             }
 
             // Use condition variable with timeout
+/**
+ * @brief Lock.
+ * @param mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
             std::unique_lock<std::mutex> lock(mtx_);
             bool completed = cv_.wait_for(lock, timeout_ms, [this] {
                 return IsStopRequested();

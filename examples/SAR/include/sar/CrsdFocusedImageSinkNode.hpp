@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdFocusedImageSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/CrsdFocusedImageTransformNode.hpp"
@@ -23,6 +30,10 @@ struct CrsdFocusedImageSinkConfig {
     std::string convenience_image_format{"pgm"};
 };
 
+/**
+ * @class CrsdFocusedImageSinkNode
+ * @brief CrsdFocusedImageSinkNode class.
+ */
 class CrsdFocusedImageSinkNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FocusedImageResult>,

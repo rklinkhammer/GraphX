@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file JsonUtilities.hpp
  * @brief Type-safe JSON parsing and deserialization with std::expected (Phase 5b)

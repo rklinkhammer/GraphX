@@ -1,3 +1,8 @@
+/**
+ * @file DeviceShardNodeMetal.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -23,6 +28,14 @@ namespace graph::gpu::metal::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class DeviceShardNodeMetal
+ * @brief DeviceShardNodeMetal class.
+ */
+/**
+ * @class DeviceShardNodeMetal
+ * @brief Device shard node metal implementation for GraphX.
+ */
 class DeviceShardNodeMetal
     : public graph::NamedInteriorNode<
           graph::TypeList<accel::DeviceBufferView>,

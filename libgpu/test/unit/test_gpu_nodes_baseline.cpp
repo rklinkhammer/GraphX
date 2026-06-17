@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_gpu_nodes_baseline.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -13,6 +20,10 @@
 
 namespace {
 
+/**
+ * @class RecordingCudaMemoryPool
+ * @brief Recording cuda memory pool implementation for GraphX.
+ */
 class RecordingCudaMemoryPool final : public graph::gpu::cuda::capabilities::ICudaMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t, std::uint32_t, graph::gpu::accel::BufferLease&) override {
@@ -34,6 +45,10 @@ public:
     std::uint64_t last_allocation_id{0};
 };
 
+/**
+ * @class RecordingSyclMemoryPool
+ * @brief Recording sycl memory pool implementation for GraphX.
+ */
 class RecordingSyclMemoryPool final : public graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t, std::uint32_t, graph::gpu::accel::BufferLease&) override {

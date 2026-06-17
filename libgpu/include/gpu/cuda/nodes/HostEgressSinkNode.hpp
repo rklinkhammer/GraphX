@@ -1,3 +1,8 @@
+/**
+ * @file HostEgressSinkNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -16,6 +21,14 @@ namespace graph::gpu::cuda::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostEgressSinkNode
+ * @brief HostEgressSinkNode class.
+ */
+/**
+ * @class HostEgressSinkNode
+ * @brief Host egress sink node implementation for GraphX.
+ */
 class HostEgressSinkNode
     : public graph::NamedSinkNode<HostEgressSinkNode, accel::HostPinnedBufferView>,
       public graph::CompletionCallbackProvider {

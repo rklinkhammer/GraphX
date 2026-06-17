@@ -1,7 +1,17 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file NodeResolutionRegistry.cpp
+ * @brief GraphX source file.
+ */
+
 #include "graph/NodeResolutionRegistry.hpp"
 
 namespace graph {
 
+/**
+ * @brief Create default.
+ */
 NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
     NodeResolutionRegistry registry;
 
@@ -71,6 +81,10 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
     return registry;
 }
 
+/**
+ * @brief Add contract.
+ * @param contract Parameter for add contract.
+ */
 void NodeResolutionRegistry::AddContract(NodeResolutionContract contract) {
     if (contract.intent_type.empty()) {
         return;
@@ -107,6 +121,9 @@ const NodeResolutionContract* NodeResolutionRegistry::Find(
     return &it->second;
 }
 
+/**
+ * @brief Intent types.
+ */
 std::vector<std::string> NodeResolutionRegistry::IntentTypes() const {
     std::vector<std::string> result;
     result.reserve(contracts_.size());

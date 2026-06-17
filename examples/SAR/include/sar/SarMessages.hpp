@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarMessages.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "gpu/accel/types/AccelTypes.hpp"

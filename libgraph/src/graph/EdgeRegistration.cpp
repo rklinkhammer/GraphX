@@ -1,3 +1,8 @@
+/**
+ * @file EdgeRegistration.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -39,6 +44,9 @@ namespace graph::config {
  * When new node types are added, add corresponding registrations here.
  * 
  * Note: This is defined in the test code when running tests.
+ */
+/**
+ * @brief Register all edges.
  */
 void RegisterAllEdges() {
     // Placeholder: Edge registrations will be added as node types are implemented

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file JsonUtilities.cpp
  * @brief Implementation of safe JSON utilities with expected<> (Phase 5b)
@@ -107,6 +109,10 @@ ParseJsonFile(std::string_view filepath) noexcept {
 // ParseJsonDetailed Implementation
 // ============================================================================
 
+/**
+ * @brief Parse json detailed.
+ * @param json_str Parameter for parse json detailed.
+ */
 JsonParseResult ParseJsonDetailed(std::string_view json_str) noexcept {
     try {
         if (json_str.empty()) {

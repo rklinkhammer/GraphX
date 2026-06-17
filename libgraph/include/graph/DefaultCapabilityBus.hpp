@@ -1,3 +1,8 @@
+/**
+ * @file DefaultCapabilityBus.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -75,6 +80,10 @@ namespace graph {
  * ```
  *
  * @see CapabilityBus, MetricsCapability, GraphExecutor
+ */
+/**
+ * @class DefaultCapabilityBus
+ * @brief Default capability bus implementation for GraphX.
  */
 class DefaultCapabilityBus : public CapabilityBus {
 public:

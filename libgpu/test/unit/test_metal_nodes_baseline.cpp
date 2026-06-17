@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_metal_nodes_baseline.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cstddef>
@@ -20,6 +27,10 @@
 
 namespace {
 
+/**
+ * @class RecordingMetalMemoryPool
+ * @brief Recording metal memory pool implementation for GraphX.
+ */
 class RecordingMetalMemoryPool final
     : public graph::gpu::metal::capabilities::IMetalMemoryPoolCapability {
 public:

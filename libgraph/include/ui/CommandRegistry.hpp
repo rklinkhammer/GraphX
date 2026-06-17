@@ -1,3 +1,8 @@
+/**
+ * @file CommandRegistry.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -130,6 +135,10 @@ struct CommandInfo {
  *   // Execute command
  *   auto result = registry->ExecuteCommand("my_command arg1 arg2");
  */
+/**
+ * @class CommandRegistry
+ * @brief Command registry implementation for GraphX.
+ */
 class CommandRegistry {
 public:
     /**
@@ -189,6 +198,10 @@ public:
      * @return Vector of all registered CommandInfo structures
      * @see RangesUtilities.hpp for helper functions like StartsWithI()
      */
+/**
+ * @brief Get all commands.
+ * @return Result of the operation.
+ */
     std::vector<CommandInfo> GetAllCommands() const;
 
     /**
@@ -209,9 +222,19 @@ public:
      * @param name Command name to check
      * @return true if command is registered, false otherwise
      */
+/**
+ * @brief Has command.
+ * @param name Parameter for has command.
+ * @return Result of the operation.
+ */
     bool HasCommand(const std::string& name) const;
 
     // Get command info
+/**
+ * @brief Get command info.
+ * @param name Parameter for get command info.
+ * @return Result of the operation.
+ */
     const CommandInfo* GetCommandInfo(const std::string& name) const;
 
     /**
@@ -229,6 +252,10 @@ public:
      * @see capabilities::DashboardOutput (Dashboard implementation)
      * @see capabilities::ConsoleOutput (Console implementation)
      */
+/**
+ * @brief Generate help text.
+ * @param output Parameter for generate help text.
+ */
     void GenerateHelpText(capabilities::ICommandOutput* output) const;
 
 private:

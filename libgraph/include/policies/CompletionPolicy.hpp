@@ -1,3 +1,8 @@
+/**
+ * @file CompletionPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -60,6 +65,10 @@ namespace policies
      *
      * @see IExecutionPolicy, CompletionAggregatorNode
      */
+/**
+ * @class CompletionPolicy
+ * @brief Completion policy implementation for GraphX.
+ */
     class CompletionPolicy : public graph::IExecutionPolicy
     {
     public:
@@ -91,6 +100,11 @@ namespace policies
         {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnInit called");
             {
+/**
+ * @brief Lock.
+ * @param completion_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard lock(completion_mutex_);
                 completion_signaled_ = false;
                 stop_requested_ = false;
@@ -121,6 +135,11 @@ namespace policies
             auto fn = [this, &context]()
             {
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - waiting for completion signal or timeout");
+/**
+ * @brief Lock.
+ * @param completion_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::unique_lock lock(completion_mutex_);
                 const auto deadline = std::chrono::steady_clock::now() + max_duration_;
                 const bool woke_for_signal = completion_cv_.wait_until(lock, deadline, [this] {
@@ -143,6 +162,11 @@ namespace policies
         {
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnStop called");
             {
+/**
+ * @brief Lock.
+ * @param completion_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard lock(completion_mutex_);
                 stop_requested_ = true;
             }
@@ -169,6 +193,11 @@ namespace policies
         void SetCompletionSignaled()
         {
             {
+/**
+ * @brief Lock.
+ * @param completion_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
                 std::lock_guard lock(completion_mutex_);
                 completion_signaled_ = true;
             }
@@ -187,6 +216,11 @@ namespace policies
         }
 
     private:
+/**
+ * @brief Init completion callbacks.
+ * @param context Parameter for init completion callbacks.
+ * @return Result of the operation.
+ */
         bool InitCompletionCallbacks(capabilities::GraphCapability &context);
 
         std::jthread completion_thread_;

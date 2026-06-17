@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file PooledMessage.cpp
  * @brief Implementation of MessagePoolRegistry and message pooling utilities
@@ -9,6 +11,10 @@
 
 namespace graph {
 
+/**
+ * @brief Get pool for size.
+ * @param size Parameter for get pool for size.
+ */
 MessageBufferPool<64>* MessagePoolRegistry::GetPoolForSize(size_t size) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
 
@@ -40,6 +46,10 @@ MessageBufferPool<64>* MessagePoolRegistry::GetPoolForSize(size_t size) {
     return pool_ptr;
 }
 
+/**
+ * @brief Initialize common pools.
+ * @param pool_capacity Parameter for initialize common pools.
+ */
 void MessagePoolRegistry::InitializeCommonPools(size_t pool_capacity) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
 
@@ -63,6 +73,9 @@ void MessagePoolRegistry::InitializeCommonPools(size_t pool_capacity) {
     }
 }
 
+/**
+ * @brief Shutdown all pools.
+ */
 void MessagePoolRegistry::ShutdownAllPools() noexcept {
     std::lock_guard<std::mutex> lock(registry_mutex_);
 
@@ -74,6 +87,9 @@ void MessagePoolRegistry::ShutdownAllPools() noexcept {
     pools_.clear();
 }
 
+/**
+ * @brief Get aggregate stats.
+ */
 MessagePoolRegistry::AggregateStats MessagePoolRegistry::GetAggregateStats() const {
     std::lock_guard<std::mutex> lock(registry_mutex_);
 
@@ -98,6 +114,9 @@ MessagePoolRegistry::AggregateStats MessagePoolRegistry::GetAggregateStats() con
     return stats;
 }
 
+/**
+ * @brief Reset.
+ */
 void MessagePoolRegistry::Reset() noexcept {
     std::lock_guard<std::mutex> lock(registry_mutex_);
 

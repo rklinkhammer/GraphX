@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_graph_executor_lifecycle.cpp
  * @brief GraphExecutor lifecycle coverage across reusable test topologies.
@@ -20,10 +22,18 @@ struct ExecutorContext {
     std::unique_ptr<graph::GraphExecutor> executor;
 };
 
+/**
+ * @brief Topology name.
+ * @param type Parameter for topology name.
+ */
 std::string TopologyName(test::TopologyType type) {
     return test::TopologyBuilder::GetTopologyMetadata(type).name;
 }
 
+/**
+ * @brief Create executor context.
+ * @param type Parameter for create executor context.
+ */
 ExecutorContext CreateExecutorContext(test::TopologyType type) {
     ExecutorContext context;
     context.graph = test::TopologyBuilder::BuildTopology(type);

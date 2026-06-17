@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarIoUtilities.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -70,6 +77,10 @@ struct ConversionReportBuildInput {
     std::string pulse_selection_method{};
 };
 
+/**
+ * @class SarIoUtilities
+ * @brief SarIoUtilities class.
+ */
 class SarIoUtilities {
 public:
     static constexpr std::uint64_t kFNVOffsetBasis = 14695981039346656037ULL;

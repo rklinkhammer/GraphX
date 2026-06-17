@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SyntheticApertureIqSourceNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -29,6 +36,10 @@ struct SyntheticApertureIqSourceConfig {
     float target_reflectivity{1.0f};
 };
 
+/**
+ * @class SyntheticApertureIqSourceNode
+ * @brief SyntheticApertureIqSourceNode class.
+ */
 class SyntheticApertureIqSourceNode
     : public graph::NamedSourceNode<SyntheticApertureIqSourceNode, SarAccelControlToken>,
     public graph::IConfigurable,

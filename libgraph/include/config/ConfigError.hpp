@@ -1,3 +1,8 @@
+/**
+ * @file ConfigError.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -34,6 +39,14 @@ namespace graph {
  * - Which field caused the error
  * - What validation rule was violated
  * - What the expected vs actual value was
+ */
+/**
+ * @class ConfigError
+ * @brief ConfigError class.
+ */
+/**
+ * @class ConfigError
+ * @brief Config error implementation for GraphX.
  */
 class ConfigError : public std::runtime_error {
 public:

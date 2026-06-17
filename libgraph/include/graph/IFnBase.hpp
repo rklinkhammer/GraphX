@@ -1,3 +1,8 @@
+/**
+ * @file IFnBase.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -42,6 +47,14 @@ namespace graph
      * - IInputCommonFn<P>: Uses external shared queue (for MergeNode's N input ports)
      */
     template <typename P>
+/**
+ * @class IFnBase
+ * @brief IFnBase class.
+ */
+/**
+ * @class IFnBase
+ * @brief I fn base implementation for GraphX.
+ */
     class IFnBase 
     {
     public:
@@ -134,6 +147,14 @@ namespace graph
      * The queue is created at construction and managed for its lifetime.
      */
     template <typename P>
+/**
+ * @class IFn
+ * @brief IFn class.
+ */
+/**
+ * @class IFn
+ * @brief I fn implementation for GraphX.
+ */
     class IFn : public IFnBase<P>
     {
     public:

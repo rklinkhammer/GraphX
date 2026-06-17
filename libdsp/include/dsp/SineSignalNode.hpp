@@ -1,3 +1,8 @@
+/**
+ * @file SineSignalNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -77,6 +82,10 @@ namespace dsp {
  * @endcode
  */
 template<size_t N = 256>
+/**
+ * @class SineSignalNode
+ * @brief Sine signal node implementation for GraphX.
+ */
 class SineSignalNode : public graph::DataProducerWithNotification<
     SineSignalNode<N>,
     SineWaveGenerator<float, N>,
@@ -170,10 +179,27 @@ protected:
      * @param cfg JSON configuration view
      * @throws ConfigError if configuration is invalid
      */
+/**
+ * @brief Configure.
+ * @param cfg Parameter for configure.
+ */
     void Configure(const graph::JsonView& cfg) override;
 
+/**
+ * @brief Get parameters.
+ * @return Result of the operation.
+ */
     graph::JsonView GetParameters() const override;
+/**
+ * @brief Get parameter description.
+ * @param param_name Parameter for get parameter description.
+ * @return Result of the operation.
+ */
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
+/**
+ * @brief Get parameter names.
+ * @return Result of the operation.
+ */
     std::vector<std::string> GetParameterNames() const override;
 
     // ========================================================================
@@ -192,6 +218,10 @@ protected:
      *
      * @return JsonView with diagnostic information
      */
+/**
+ * @brief Get diagnostics.
+ * @return Result of the operation.
+ */
     graph::JsonView GetDiagnostics() const override;
 
     // ========================================================================
@@ -204,6 +234,11 @@ protected:
      * @param callback Pointer to metrics callback handler
      * @return true if callback was successfully set
      */
+/**
+ * @brief Set metrics callback.
+ * @param callback Parameter for set metrics callback.
+ * @return Result of the operation.
+ */
     bool SetMetricsCallback(graph::IMetricsCallback* callback) noexcept override;
 
     /**
@@ -211,6 +246,10 @@ protected:
      *
      * @return true if callback is currently set
      */
+/**
+ * @brief Has metrics callback.
+ * @return Result of the operation.
+ */
     bool HasMetricsCallback() const noexcept override;
 
     /**
@@ -218,6 +257,10 @@ protected:
      *
      * @return Pointer to callback or nullptr if not installed
      */
+/**
+ * @brief Get metrics callback.
+ * @return Result of the operation.
+ */
     graph::IMetricsCallback* GetMetricsCallback() const noexcept override;
 
     /**
@@ -225,6 +268,10 @@ protected:
      *
      * @return Node metrics schema describing available metrics
      */
+/**
+ * @brief Get node metrics schema.
+ * @return Result of the operation.
+ */
     app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept override;
 
 private:

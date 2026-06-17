@@ -1,3 +1,8 @@
+/**
+ * @file NodeFacadeInterop.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -9,6 +14,11 @@ namespace graph {
 namespace {
 
 template <typename CallbackT>
+/**
+ * @brief Extract optional interface.
+ * @param handle Parameter for extract optional interface.
+ * @param callback Parameter for extract optional interface.
+ */
 void* ExtractOptionalInterface(NodeHandle handle, CallbackT callback) noexcept {
     if (!callback) {
         return nullptr;

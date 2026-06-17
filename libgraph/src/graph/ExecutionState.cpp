@@ -1,3 +1,8 @@
+/**
+ * @file ExecutionState.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -31,6 +36,10 @@ namespace graph {
  * @return Corresponding string name
  */
 
+/**
+ * @brief Get execution state name.
+ * @param state Parameter for get execution state name.
+ */
 std::string GetExecutionStateName(graph::ExecutionState state) {
   switch (state) {
     case graph::ExecutionState::INITIALIZED:

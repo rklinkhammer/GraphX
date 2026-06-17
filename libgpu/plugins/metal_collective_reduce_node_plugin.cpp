@@ -1,3 +1,8 @@
+/**
+ * @file metal_collective_reduce_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -21,6 +26,9 @@ static const NodeFacade metal_collective_reduce_node_facade = Glue::MakeFacade()
 
 extern "C" {
 
+/**
+ * @brief Plugin create metal collective reduce node.
+ */
 void* plugin_create_metal_collective_reduce_node() {
     try {
         auto node = std::make_shared<graph::gpu::metal::nodes::CollectiveReduceNodeMetal>();
@@ -34,6 +42,9 @@ void* plugin_create_metal_collective_reduce_node() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "CollectiveReduceNodeMetal|Metal collective reduce node (runtime unsupported)|1.0|"
            "plugin_create_metal_collective_reduce_node|"
@@ -44,10 +55,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&metal_collective_reduce_node_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

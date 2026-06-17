@@ -1,3 +1,8 @@
+/**
+ * @file cuda_host_ingress_pinned_source_node_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -21,6 +26,9 @@ static const NodeFacade cuda_host_ingress_pinned_source_node_facade = Glue::Make
 
 extern "C" {
 
+/**
+ * @brief Plugin create cuda host ingress pinned source node.
+ */
 void* plugin_create_cuda_host_ingress_pinned_source_node() {
     try {
         auto node = std::make_shared<graph::gpu::cuda::nodes::HostIngressPinnedSourceNode>();
@@ -34,6 +42,9 @@ void* plugin_create_cuda_host_ingress_pinned_source_node() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "HostIngressPinnedSourceNode|CUDA host ingress pinned source node|1.0|"
            "plugin_create_cuda_host_ingress_pinned_source_node|"
@@ -44,10 +55,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&cuda_host_ingress_pinned_source_node_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

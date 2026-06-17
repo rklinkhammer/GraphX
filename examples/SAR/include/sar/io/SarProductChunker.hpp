@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarProductChunker.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/io/NormalizedSarProduct.hpp"
@@ -30,6 +37,10 @@ struct SarChunkPlan {
     std::vector<std::string> warnings{};
 };
 
+/**
+ * @class SarProductChunker
+ * @brief SarProductChunker class.
+ */
 class SarProductChunker {
 public:
     [[nodiscard]] static SarChunkPlan BuildPlan(

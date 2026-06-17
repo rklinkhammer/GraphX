@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdApertureAssemblyAdapterNode.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include "sar/SarMessages.hpp"
@@ -30,6 +37,10 @@ struct CrsdApertureAssemblyAdapterConfig {
     bool enable_sidecar_pulse_range_cross_check{false};
 };
 
+/**
+ * @class CrsdApertureAssemblyAdapterNode
+ * @brief CrsdApertureAssemblyAdapterNode class.
+ */
 class CrsdApertureAssemblyAdapterNode
     : public graph::NamedInteriorNode<
           graph::TypeList<SarAccelControlToken>,

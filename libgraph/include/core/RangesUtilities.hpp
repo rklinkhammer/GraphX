@@ -139,6 +139,10 @@ constexpr void ForEach(R&& range, F func) {
  * });
  * ```
  */
+/**
+ * @class Container
+ * @brief Container implementation for GraphX.
+ */
 template<template<typename> class Container, std::ranges::input_range R, typename F>
 requires std::invocable<F, std::ranges::range_value_t<R>>
 auto TransformTo(R&& range, F transform_fn) {
@@ -162,6 +166,10 @@ auto TransformTo(R&& range, F transform_fn) {
  *     return p.IsCompliant(); 
  * });
  * ```
+ */
+/**
+ * @class Container
+ * @brief Container implementation for GraphX.
  */
 template<template<typename> class Container, std::ranges::input_range R, typename Pred>
 requires std::invocable<Pred, std::ranges::range_value_t<R>>
@@ -191,7 +199,17 @@ auto FilterTo(R&& range, Pred filter_fn) {
  */
 inline bool ISubstringMatch(std::string_view text, std::string_view pattern) {
     // Convert to lowercase and check substring
+/**
+ * @brief Lower text.
+ * @param text Parameter for lower text.
+ * @return Result of the operation.
+ */
     std::string lower_text(text);
+/**
+ * @brief Lower pattern.
+ * @param pattern Parameter for lower pattern.
+ * @return Result of the operation.
+ */
     std::string lower_pattern(pattern);
     
     std::ranges::transform(lower_text, lower_text.begin(), ::tolower);

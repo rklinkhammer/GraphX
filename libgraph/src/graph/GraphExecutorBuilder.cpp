@@ -1,3 +1,8 @@
+/**
+ * @file GraphExecutorBuilder.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -67,6 +72,10 @@ GraphExecutorBuilder::~GraphExecutorBuilder() {
     LOG4CXX_TRACE(g_logger, "GraphExecutorBuilder destroyed");
 }
 
+/**
+ * @brief With json config.
+ * @param path Parameter for with json config.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithJsonConfig(const std::string& path) {
     if (path.empty()) {
         throw std::invalid_argument("GraphExecutorBuilder: JSON config path cannot be empty");
@@ -76,6 +85,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithJsonConfig(const std::string& pa
     return *this;
 }
 
+/**
+ * @brief With graph manager.
+ * @param graph_manager Parameter for with graph manager.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithGraphManager(std::shared_ptr<graph::GraphManager> graph_manager) {
     if (!graph_manager) {
         throw std::invalid_argument("GraphExecutorBuilder: GraphManager cannot be null");
@@ -85,6 +98,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithGraphManager(std::shared_ptr<gra
     return *this;
 }
 
+/**
+ * @brief With plugin directory.
+ * @param directory Parameter for with plugin directory.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithPluginDirectory(const std::string& directory) {
     if (directory.empty()) {
         throw std::invalid_argument("GraphExecutorBuilder: Plugin directory cannot be empty");
@@ -96,6 +113,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithPluginDirectory(const std::strin
     return *this;
 }
 
+/**
+ * @brief With additional plugin directory.
+ * @param directory Parameter for with additional plugin directory.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithAdditionalPluginDirectory(const std::string& directory) {
     if (directory.empty()) {
         throw std::invalid_argument("GraphExecutorBuilder: Plugin directory cannot be empty");
@@ -111,6 +132,11 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithAdditionalPluginDirectory(const 
     return *this;
 }
 
+/**
+ * @brief With csv input.
+ * @param path Parameter for with csv input.
+ * @param node Parameter for with csv input.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInput(const std::string& path, const std::string& node) {
     if (path.empty()) {
         throw std::invalid_argument("GraphExecutorBuilder: CSV path cannot be empty");
@@ -120,6 +146,11 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInput(const std::string& path
     return *this;
 }
 
+/**
+ * @brief With csv inputs.
+ * @param std::vector<std::pair<std::string Parameter for with csv inputs.
+ * @param inputs Parameter for with csv inputs.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInputs(const std::vector<std::pair<std::string, std::string>>& inputs) {
     for (const auto& [path, node] : inputs) {
         (void)node;
@@ -132,6 +163,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInputs(const std::vector<std:
     return *this;
 }
 
+/**
+ * @brief With csv injection rate.
+ * @param rate_ms Parameter for with csv injection rate.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInjectionRate(uint32_t rate_ms) {
     if (rate_ms == 0) {
         throw std::invalid_argument("GraphExecutorBuilder: CSV injection rate must be > 0");
@@ -141,6 +176,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInjectionRate(uint32_t rate_m
     return *this;
 }
 
+/**
+ * @brief With executor timeout.
+ * @param timeout Parameter for with executor timeout.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithExecutorTimeout(const std::chrono::seconds& timeout) {
     if (timeout.count() <= 0) {
         throw std::invalid_argument("GraphExecutorBuilder: Executor timeout must be > 0 seconds");
@@ -150,6 +189,10 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithExecutorTimeout(const std::chron
     return *this;
 }
 
+/**
+ * @brief With graph threads.
+ * @param count Parameter for with graph threads.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithGraphThreads(size_t count) {
     if (count == 0) {
         throw std::invalid_argument("GraphExecutorBuilder: Graph threads must be > 0");
@@ -159,18 +202,29 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithGraphThreads(size_t count) {
     return *this;
 }
 
+/**
+ * @brief With cli mode.
+ * @param enabled Parameter for with cli mode.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithCliMode(bool enabled) {
     cli_mode_ = enabled;
     LOG4CXX_TRACE(g_logger, "Set CLI mode: " << (enabled ? "enabled" : "disabled"));
     return *this;
 }
 
+/**
+ * @brief With verbose logging.
+ * @param enabled Parameter for with verbose logging.
+ */
 GraphExecutorBuilder& GraphExecutorBuilder::WithVerboseLogging(bool enabled) {
     verbose_logging_ = enabled;
     LOG4CXX_TRACE(g_logger, "Set verbose logging: " << (enabled ? "enabled" : "disabled"));
     return *this;
 }
 
+/**
+ * @brief Get default plugin directory.
+ */
 std::string GraphExecutorBuilder::GetDefaultPluginDirectory() {
     // Strategy 1: Relative to executable directory
     // Note: /proc/self/exe works on Linux; macOS uses different approach
@@ -209,6 +263,9 @@ std::string GraphExecutorBuilder::GetDefaultPluginDirectory() {
     return "./plugins";
 }
 
+/**
+ * @brief Validate configuration.
+ */
 void GraphExecutorBuilder::ValidateConfiguration() {
     LOG4CXX_TRACE(g_logger, "Validating GraphExecutorBuilder configuration");
     auto ensure_plugin_directories = [this]() {
@@ -256,6 +313,9 @@ void GraphExecutorBuilder::ValidateConfiguration() {
     LOG4CXX_TRACE(g_logger, "Configuration validation passed");
 }
 
+/**
+ * @brief Build.
+ */
 std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     LOG4CXX_TRACE(g_logger, "GraphExecutorBuilder::Build() starting");
 

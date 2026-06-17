@@ -1,3 +1,8 @@
+/**
+ * @file DashboardPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -84,6 +89,10 @@ namespace policies
      *
      * @see IExecutionPolicy, Dashboard, MetricsCapability, CommandRegistry
      */
+/**
+ * @class DashboardPolicy
+ * @brief Dashboard policy implementation for GraphX.
+ */
     class DashboardPolicy : public graph::IExecutionPolicy
     {
     public:

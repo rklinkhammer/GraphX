@@ -1,3 +1,8 @@
+/**
+ * @file FluentGraphBuilder.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -82,6 +87,10 @@ namespace graph {
  * then creates the final GraphManager with all connections wired.
  */
 template <typename NodeProviderType = void>
+/**
+ * @class FluentGraphBuilder
+ * @brief Fluent graph builder implementation for GraphX.
+ */
 class FluentGraphBuilder {
 public:
     /**
@@ -144,6 +153,11 @@ public:
             throw std::invalid_argument("Node name cannot be empty");
         }
 
+/**
+ * @brief Name str.
+ * @param name Parameter for name str.
+ * @return Result of the operation.
+ */
         std::string name_str(name);
         if (nodes_.count(name_str) > 0) {
             throw std::invalid_argument("Node with name '" + name_str + "' already exists");
@@ -191,7 +205,17 @@ public:
         std::string_view src_name,
         std::string_view dst_name) {
         
+/**
+ * @brief Src str.
+ * @param src_name Parameter for src str.
+ * @return Result of the operation.
+ */
         std::string src_str(src_name);
+/**
+ * @brief Dst str.
+ * @param dst_name Parameter for dst str.
+ * @return Result of the operation.
+ */
         std::string dst_str(dst_name);
 
         // Validate that nodes exist

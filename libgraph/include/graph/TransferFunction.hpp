@@ -1,3 +1,8 @@
+/**
+ * @file TransferFunction.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -40,6 +45,14 @@ namespace graph
      * port behaviors for nodes that both consume and produce data.
      */
     template <typename P>
+/**
+ * @class ITransferFn
+ * @brief ITransferFn class.
+ */
+/**
+ * @class ITransferFn
+ * @brief I transfer fn implementation for GraphX.
+ */
     class ITransferFn : public IFn<P>
     {
     public:
@@ -65,6 +78,14 @@ namespace graph
      * - Output metrics: produce_calls, total_produce_time_ns, transfer_calls
      */
     template <typename Pin, typename Pout>
+/**
+ * @class TransferFn
+ * @brief TransferFn class.
+ */
+/**
+ * @class TransferFn
+ * @brief Transfer fn implementation for GraphX.
+ */
     class TransferFn : public IInputFn<Pin>, public IOutputFn<Pout>
     {
     public:

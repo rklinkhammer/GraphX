@@ -1,3 +1,8 @@
+/**
+ * @file CapabilityContext.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -32,6 +37,14 @@ enum class CapabilityContextError {
  * CapabilityContext keeps dynamic/native/plugin probing behind one small API.
  * Callers get explicit C++26-style std::expected failures instead of mixing
  * nullptr checks, direct casts, and wrapper checks at every policy site.
+ */
+/**
+ * @class CapabilityContext
+ * @brief CapabilityContext class.
+ */
+/**
+ * @class CapabilityContext
+ * @brief Capability context implementation for GraphX.
  */
 class CapabilityContext {
 public:

@@ -1,3 +1,8 @@
+/**
+ * @file test_thread_pool_integration.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -48,6 +53,10 @@
 
 namespace graph::test {
 
+/**
+ * @class ThreadPoolIntegrationTest
+ * @brief Thread pool integration test implementation for GraphX.
+ */
 class ThreadPoolIntegrationTest : public ::testing::Test {
 protected:
     std::shared_ptr<graph::ThreadPool> pool;

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file CrsdFocusedImageSinkNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/CrsdFocusedImageSinkNode.hpp"
 
 #include "config/ConfigError.hpp"

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file main.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/SarMessages.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"

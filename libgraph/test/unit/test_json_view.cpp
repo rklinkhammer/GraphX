@@ -1,3 +1,8 @@
+/**
+ * @file test_json_view.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -31,6 +36,10 @@ using json = nlohmann::json;
 
 namespace {
 
+/**
+ * @class JsonViewBasicTest
+ * @brief Json view basic test implementation for GraphX.
+ */
 class JsonViewBasicTest : public ::testing::Test {
 protected:
     json empty_object = json::object();
@@ -42,6 +51,10 @@ protected:
     })");
     json backing_storage;
 
+/**
+ * @brief Make view.
+ * @param text Parameter for make view.
+ */
     graph::JsonView MakeView(const std::string& text) {
         backing_storage = json::parse(text);
         return graph::JsonView(backing_storage);

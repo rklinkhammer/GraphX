@@ -1,3 +1,8 @@
+/**
+ * @file MetricsCapability.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -92,6 +97,10 @@ namespace capabilities {
  *
  * @see IMetricsSubscriber, MetricsEvent, NodeMetricsSchema
  */
+/**
+ * @class MetricsCapability
+ * @brief Metrics capability implementation for GraphX.
+ */
 class MetricsCapability {
 public:
     /**
@@ -111,6 +120,11 @@ public:
      */
     virtual void RegisterMetricsCallback(
         app::metrics::IMetricsSubscriber* callback) {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         subscribers_.push_back(callback);
     }
@@ -124,6 +138,11 @@ public:
      */
     virtual void UnregisterMetricsCallback(
         app::metrics::IMetricsSubscriber* callback) {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         subscribers_.erase(
             std::remove(subscribers_.begin(), subscribers_.end(), callback),
@@ -136,6 +155,11 @@ public:
      * @return Count of currently registered subscribers
      */
     virtual size_t GetCallbackCount() {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         return subscribers_.size();
     }   
@@ -151,6 +175,11 @@ public:
      * @see GetNodeMetricsSchemas, NodeMetricsSchema
      */
     virtual void SetNodeMetricsSchemas(std::vector<app::metrics::NodeMetricsSchema> schemas) {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         schemas_ = schemas;
     }
@@ -166,6 +195,11 @@ public:
      * @see NodeMetricsSchema
      */
     std::vector<app::metrics::NodeMetricsSchema> GetNodeMetricsSchemas() {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         return schemas_;
     }
@@ -182,6 +216,11 @@ public:
      * @see MetricsEvent, IMetricsSubscriber, MetricsPolicy
      */
     virtual void InvokeSubscribers(const app::metrics::MetricsEvent& event) {
+/**
+ * @brief Lock.
+ * @param callbacks_lock_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         for (auto& subscriber : subscribers_) {
             if (subscriber) {

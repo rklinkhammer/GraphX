@@ -1,3 +1,8 @@
+/**
+ * @file DefaultCudaCapabilities.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -11,31 +16,52 @@
 
 namespace graph::gpu::cuda::capabilities {
 
+/**
+ * @brief Set device.
+ * @param device_id Parameter for set device.
+ */
 bool DefaultCudaContextCapability::SetDevice(std::uint32_t device_id) {
     current_device_id_ = device_id;
     return true;
 }
 
+/**
+ * @brief Current device.
+ */
 std::uint32_t DefaultCudaContextCapability::CurrentDevice() const {
     return current_device_id_;
 }
 
+/**
+ * @brief Create stream.
+ */
 std::uint64_t DefaultCudaContextCapability::CreateStream() {
     const auto id = next_stream_id_++;
     streams_.insert(id);
     return id;
 }
 
+/**
+ * @brief Destroy stream.
+ * @param stream_id Parameter for destroy stream.
+ */
 void DefaultCudaContextCapability::DestroyStream(std::uint64_t stream_id) {
     streams_.erase(stream_id);
 }
 
+/**
+ * @brief Create event.
+ */
 std::uint64_t DefaultCudaContextCapability::CreateEvent() {
     const auto id = next_event_id_++;
     events_.insert(id);
     return id;
 }
 
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
 void DefaultCudaContextCapability::DestroyEvent(std::uint64_t event_id) {
     events_.erase(event_id);
 }
@@ -94,6 +120,10 @@ bool DefaultCudaMemoryPoolCapability::AllocatePinnedHost(std::uint64_t bytes,
     return true;
 }
 
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ */
 bool DefaultCudaMemoryPoolCapability::Release(const accel::BufferLease& lease) {
     if (lease.allocation_id == 0) {
         return false;
@@ -197,6 +227,10 @@ void DefaultCudaTelemetryCapability::RecordKernel(const accel::KernelTicket&,
     ++kernel_samples_;
 }
 
+/**
+ * @brief Increment error counter.
+ * @param std::string_view Parameter for increment error counter.
+ */
 void DefaultCudaTelemetryCapability::IncrementErrorCounter(std::string_view) {
     ++error_count_;
 }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_graph_executor_builder_policies.cpp
  * @brief GraphExecutorBuilder policy and capability lifecycle tests.
@@ -31,6 +33,10 @@
 
 namespace {
 
+/**
+ * @brief Build topology.
+ * @param type Parameter for build topology.
+ */
 std::shared_ptr<graph::GraphManager> BuildTopology(test::TopologyType type) {
     auto graph = test::TopologyBuilder::BuildTopology(type);
     EXPECT_NE(graph, nullptr);
@@ -48,6 +54,10 @@ std::shared_ptr<graph::GraphExecutor> BuildExecutor(
         .Build();
 }
 
+/**
+ * @brief Assert initialization success.
+ * @param result Parameter for assert initialization success.
+ */
 void AssertInitializationSuccess(const graph::InitializationResult& result) {
     ASSERT_TRUE(result.success) << "Init failed: " << result.message;
 }
@@ -58,12 +68,20 @@ void AssertExecutionSuccess(const graph::ExecutionResult& result,
 }
 
 template <typename CapabilityT>
+/**
+ * @brief Expect capability present.
+ * @param executor Parameter for expect capability present.
+ */
 void ExpectCapabilityPresent(const graph::GraphExecutor& executor) {
     EXPECT_TRUE(executor.Has<CapabilityT>());
     EXPECT_NE(executor.GetCapability<CapabilityT>(), nullptr);
 }
 
 template <typename CapabilityT>
+/**
+ * @brief Expect capability missing.
+ * @param executor Parameter for expect capability missing.
+ */
 void ExpectCapabilityMissing(const graph::GraphExecutor& executor) {
     EXPECT_FALSE(executor.Has<CapabilityT>());
     EXPECT_EQ(executor.GetCapability<CapabilityT>(), nullptr);
@@ -129,12 +147,20 @@ size_t CountInstalledCompletionCallbacks(
     return installed_count;
 }
 
+/**
+ * @class FakeDashboard
+ * @brief Fake dashboard implementation for GraphX.
+ */
 class FakeDashboard {
 public:
     explicit FakeDashboard(
         std::shared_ptr<capabilities::DashboardCapability> dashboard)
         : dashboard_(std::move(dashboard)) {}
 
+/**
+ * @brief Send command.
+ * @param command Parameter for send command.
+ */
     bool SendCommand(const std::string& command) {
         return dashboard_->EnqueueCommand(command);
     }
@@ -157,11 +183,17 @@ public:
         return false;
     }
 
+/**
+ * @brief Logs.
+ */
     const std::vector<std::string>& Logs() const {
         return logs_;
     }
 
 private:
+/**
+ * @brief Drain available logs.
+ */
     void DrainAvailableLogs() {
         std::string line;
         while (dashboard_->DequeueLogQueueNonBlocking(line)) {

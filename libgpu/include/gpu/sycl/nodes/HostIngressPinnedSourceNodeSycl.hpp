@@ -1,3 +1,8 @@
+/**
+ * @file HostIngressPinnedSourceNodeSycl.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,6 +24,14 @@ namespace graph::gpu::sycl::nodes {
 // Backend capabilities perform allocation/copy/synchronization work.
 // This node exposes an operation boundary over those backend services.
 
+/**
+ * @class HostIngressPinnedSourceNodeSycl
+ * @brief HostIngressPinnedSourceNodeSycl class.
+ */
+/**
+ * @class HostIngressPinnedSourceNodeSycl
+ * @brief Host ingress pinned source node sycl implementation for GraphX.
+ */
 class HostIngressPinnedSourceNodeSycl
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeSycl, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {

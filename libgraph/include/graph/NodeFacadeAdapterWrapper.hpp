@@ -1,3 +1,8 @@
+/**
+ * @file NodeFacadeAdapterWrapper.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -52,6 +57,10 @@ namespace graph {
  * execution methods to it.
  * 
  * @note NodeFacadeAdapter has move semantics only, so this wrapper must also use move semantics
+ */
+/**
+ * @class NodeFacadeAdapterWrapper
+ * @brief Node facade adapter wrapper implementation for GraphX.
  */
 class NodeFacadeAdapterWrapper : public INode {
 private:

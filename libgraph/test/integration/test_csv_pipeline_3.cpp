@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_csv_pipeline_3.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>
@@ -23,13 +30,24 @@ namespace fs = std::filesystem;
  * - Performance and scalability
  * - Backward compatibility verification
  */
+/**
+ * @class CSVPipeline3Test
+ * @brief Csv pipeline 3 test implementation for GraphX.
+ */
 class CSVPipeline3Test : public ::testing::Test {
 protected:
+/**
+ * @brief Get test data dir.
+ */
     static fs::path GetTestDataDir() {
         fs::path test_dir = fs::path(__FILE__).parent_path() / "data";
         return test_dir;
     }
     
+/**
+ * @brief Read csv file.
+ * @param filepath Parameter for read csv file.
+ */
     static std::vector<std::string> ReadCSVFile(const fs::path& filepath) {
         std::vector<std::string> lines;
         std::ifstream file(filepath);
@@ -46,6 +64,10 @@ protected:
         return lines;
     }
     
+/**
+ * @brief Parse csv line.
+ * @param line Parameter for parse csv line.
+ */
     static std::vector<std::string> ParseCSVLine(const std::string& line) {
         std::vector<std::string> tokens;
         std::stringstream ss(line);

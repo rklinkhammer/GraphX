@@ -1,3 +1,8 @@
+/**
+ * @file NodeProviderBootstrap.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -42,6 +47,10 @@ static log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("NodeProviderBoot
 
 namespace {
 
+/**
+ * @brief Join plugin directories.
+ * @param plugin_directories Parameter for join plugin directories.
+ */
 std::string JoinPluginDirectories(const std::vector<std::string>& plugin_directories) {
     std::ostringstream joined;
     for (std::size_t i = 0; i < plugin_directories.size(); ++i) {

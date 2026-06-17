@@ -1,3 +1,8 @@
+/**
+ * @file GpuPolicy.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -39,6 +44,14 @@ namespace policies {
 
 static auto gpu_policy_logger = log4cxx::Logger::getLogger("app.policies.GpuPolicy");
 
+/**
+ * @class GpuPolicy
+ * @brief GpuPolicy class.
+ */
+/**
+ * @class GpuPolicy
+ * @brief Gpu policy implementation for GraphX.
+ */
 class GpuPolicy : public graph::IExecutionPolicy {
 public:
     GpuPolicy() {

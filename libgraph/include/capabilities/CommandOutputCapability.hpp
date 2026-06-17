@@ -1,3 +1,8 @@
+/**
+ * @file CommandOutputCapability.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -77,6 +82,14 @@ namespace capabilities {
  * @see ConsoleOutput (Console implementation)
  * @see CommandRegistry (primary consumer)
  */
+/**
+ * @class CommandOutputCapability
+ * @brief CommandOutputCapability class.
+ */
+/**
+ * @class CommandOutputCapability
+ * @brief Command output capability implementation for GraphX.
+ */
 class CommandOutputCapability {
 public:
     /**
@@ -92,6 +105,11 @@ public:
      *
      * @throws std::invalid_argument if output is null
      */
+/**
+ * @brief Command output capability.
+ * @param output Parameter for command output capability.
+ * @return Result of the operation.
+ */
     explicit CommandOutputCapability(std::shared_ptr<ICommandOutput> output);
 
     /**
@@ -110,6 +128,10 @@ public:
      *
      * @param message Message to write
      */
+/**
+ * @brief Write message.
+ * @param message Parameter for write message.
+ */
     void WriteMessage(const std::string& message) const;
 
     /**
@@ -119,6 +141,10 @@ public:
      *
      * @param error Error message to write
      */
+/**
+ * @brief Write error.
+ * @param error Parameter for write error.
+ */
     void WriteError(const std::string& error) const;
 
     /**
@@ -128,6 +154,10 @@ public:
      *
      * @param warning Warning message to write
      */
+/**
+ * @brief Write warning.
+ * @param warning Parameter for write warning.
+ */
     void WriteWarning(const std::string& warning) const;
 
     /**
@@ -137,6 +167,10 @@ public:
      *
      * @param commands Vector of CommandInfo to format and write
      */
+/**
+ * @brief Write help.
+ * @param commands Parameter for write help.
+ */
     void WriteHelp(const std::vector<CommandInfo>& commands) const;
 
     // =========================================================================
@@ -156,6 +190,10 @@ public:
      *
      * @return Shared pointer to ICommandOutput
      */
+/**
+ * @brief Get output.
+ * @return Result of the operation.
+ */
     std::shared_ptr<ICommandOutput> GetOutput() const;
 
     /**
@@ -173,6 +211,10 @@ public:
      *
      * @throws std::invalid_argument if new_output is null
      */
+/**
+ * @brief Set output.
+ * @param new_output Parameter for set output.
+ */
     void SetOutput(std::shared_ptr<ICommandOutput> new_output);
 
     // =========================================================================
@@ -214,6 +256,11 @@ inline CommandOutputCapability::CommandOutputCapability(
 
 inline void CommandOutputCapability::WriteMessage(
     const std::string& message) const {
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteMessage(message);
@@ -222,6 +269,11 @@ inline void CommandOutputCapability::WriteMessage(
 
 inline void CommandOutputCapability::WriteError(
     const std::string& error) const {
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteError(error);
@@ -230,6 +282,11 @@ inline void CommandOutputCapability::WriteError(
 
 inline void CommandOutputCapability::WriteWarning(
     const std::string& warning) const {
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteWarning(warning);
@@ -238,6 +295,11 @@ inline void CommandOutputCapability::WriteWarning(
 
 inline void CommandOutputCapability::WriteHelp(
     const std::vector<CommandInfo>& commands) const {
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (output_) {
         output_->WriteHelp(commands);
@@ -245,6 +307,11 @@ inline void CommandOutputCapability::WriteHelp(
 }
 
 inline std::shared_ptr<ICommandOutput> CommandOutputCapability::GetOutput() const {
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     return output_;
 }
@@ -255,6 +322,11 @@ inline void CommandOutputCapability::SetOutput(
         throw std::invalid_argument(
             "CommandOutputCapability::SetOutput: output cannot be null");
     }
+/**
+ * @brief Lock.
+ * @param output_mutex_ Parameter for lock.
+ * @return Result of the operation.
+ */
     std::lock_guard<std::mutex> lock(output_mutex_);
     output_ = new_output;
 }

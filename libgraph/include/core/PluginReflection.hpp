@@ -159,6 +159,10 @@ concept HasIMetricsCallback = requires(T t) {
  * @endcode
  */
 template<typename Plugin>
+/**
+ * @brief Get capabilities.
+ * @return Result of the operation.
+ */
 consteval std::span<const CapabilityMetadata> GetCapabilities();
 
 /**
@@ -186,6 +190,10 @@ consteval std::span<const CapabilityMetadata> GetCapabilities();
  * @endcode
  */
 template<typename Plugin>
+/**
+ * @brief Get plugin metadata.
+ * @return Result of the operation.
+ */
 consteval PluginMetadata GetPluginMetadata();
 
 // ============================================================================
@@ -222,6 +230,10 @@ consteval PluginMetadata GetPluginMetadata();
  * @endcode
  */
 template<typename Plugin>
+/**
+ * @class PluginReflectionWrapper
+ * @brief Plugin reflection wrapper implementation for GraphX.
+ */
 class PluginReflectionWrapper {
 public:
     /**
@@ -383,6 +395,10 @@ private:
  *       // Process plugins with this capability
  *   }
  * @endcode
+ */
+/**
+ * @class PluginRegistry
+ * @brief Plugin registry implementation for GraphX.
  */
 class PluginRegistry {
 public:

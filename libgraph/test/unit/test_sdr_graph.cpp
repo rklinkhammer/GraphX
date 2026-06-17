@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_sdr_graph.cpp
  * @brief Dynamic plugin test for a graph-based SDR pipeline.
@@ -139,6 +141,10 @@ std::shared_ptr<GraphManager> BuildSDRGraph(
     return graph;
 }
 
+/**
+ * @brief Execute successfully.
+ * @param graph Parameter for execute successfully.
+ */
 void ExecuteSuccessfully(const std::shared_ptr<GraphManager>& graph) {
     auto executor = GraphExecutorBuilder()
         .WithGraphManager(graph)

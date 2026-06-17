@@ -1,3 +1,8 @@
+/**
+ * @file NativeMetalCapabilities.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -15,29 +20,85 @@ namespace graph::gpu::metal::capabilities {
 
 class NativeMetalRuntimeContext;
 
+/**
+ * @brief Create native metal runtime context.
+ * @return Result of the operation.
+ */
 std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext();
 
 // Native Metal capabilities currently delegate dataflow behavior to the
 // existing contract-safe defaults while native runtime plumbing is brought up.
+/**
+ * @class NativeMetalContextCapability
+ * @brief NativeMetalContextCapability class.
+ */
+/**
+ * @class NativeMetalContextCapability
+ * @brief Native metal context capability implementation for GraphX.
+ */
 class NativeMetalContextCapability final : public IMetalContextCapability {
 public:
     explicit NativeMetalContextCapability(
         std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
             CreateNativeMetalRuntimeContext());
 
+/**
+ * @brief Select device.
+ * @param device_id Parameter for select device.
+ * @return Result of the operation.
+ */
     bool SelectDevice(std::uint32_t device_id) override;
+/**
+ * @brief Current device.
+ * @return Result of the operation.
+ */
     std::uint32_t CurrentDevice() const override;
+/**
+ * @brief Create command queue.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateCommandQueue() override;
+/**
+ * @brief Destroy command queue.
+ * @param queue_id Parameter for destroy command queue.
+ */
     void DestroyCommandQueue(std::uint64_t queue_id) override;
+/**
+ * @brief Create event.
+ * @return Result of the operation.
+ */
     std::uint64_t CreateEvent() override;
+/**
+ * @brief Destroy event.
+ * @param event_id Parameter for destroy event.
+ */
     void DestroyEvent(std::uint64_t event_id) override;
+/**
+ * @brief Is event complete.
+ * @param event_id Parameter for is event complete.
+ * @return Result of the operation.
+ */
     bool IsEventComplete(std::uint64_t event_id) const override;
+/**
+ * @brief Wait event.
+ * @param event_id Parameter for wait event.
+ * @param timeout_ms Parameter for wait event.
+ * @return Result of the operation.
+ */
     bool WaitEvent(std::uint64_t event_id, std::uint64_t timeout_ms) override;
 
 private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @class NativeMetalMemoryPoolCapability
+ * @brief NativeMetalMemoryPoolCapability class.
+ */
+/**
+ * @class NativeMetalMemoryPoolCapability
+ * @brief Native metal memory pool capability implementation for GraphX.
+ */
 class NativeMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
     explicit NativeMetalMemoryPoolCapability(
@@ -50,6 +111,11 @@ public:
                         accel::BufferLease& out_lease) override;
     bool AllocateHost(std::uint64_t bytes,
                       accel::BufferLease& out_lease) override;
+/**
+ * @brief Release.
+ * @param lease Parameter for release.
+ * @return Result of the operation.
+ */
     bool Release(const accel::BufferLease& lease) override;
     [[nodiscard]] MemoryPoolSnapshot Snapshot() const override;
 
@@ -57,6 +123,14 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @class NativeMetalTransferCapability
+ * @brief NativeMetalTransferCapability class.
+ */
+/**
+ * @class NativeMetalTransferCapability
+ * @brief Native metal transfer capability implementation for GraphX.
+ */
 class NativeMetalTransferCapability final : public IMetalTransferCapability {
 public:
     explicit NativeMetalTransferCapability(
@@ -82,6 +156,14 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @class NativeMetalKernelCapability
+ * @brief NativeMetalKernelCapability class.
+ */
+/**
+ * @class NativeMetalKernelCapability
+ * @brief Native metal kernel capability implementation for GraphX.
+ */
 class NativeMetalKernelCapability final : public IMetalKernelCapability,
                                           public IMetalKernelDescriptorCapability {
 public:
@@ -89,8 +171,18 @@ public:
         std::shared_ptr<NativeMetalRuntimeContext> runtime_context =
             CreateNativeMetalRuntimeContext());
 
+/**
+ * @brief Register kernel descriptor.
+ * @param descriptor Parameter for register kernel descriptor.
+ * @return Result of the operation.
+ */
     bool RegisterKernelDescriptor(const MetalKernelDescriptor& descriptor) override;
 
+/**
+ * @brief Register kernel.
+ * @param descriptor Parameter for register kernel.
+ * @return Result of the operation.
+ */
     bool RegisterKernel(const MetalKernelDescriptor& descriptor);
 
     // Registers one of GraphX built-in kernels by function name.
@@ -122,6 +214,14 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @class NativeMetalTelemetryCapability
+ * @brief NativeMetalTelemetryCapability class.
+ */
+/**
+ * @class NativeMetalTelemetryCapability
+ * @brief Native metal telemetry capability implementation for GraphX.
+ */
 class NativeMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
     explicit NativeMetalTelemetryCapability(
@@ -132,6 +232,10 @@ public:
                         std::uint64_t duration_ns) override;
     void RecordKernel(const accel::KernelTicket& ticket,
                       std::uint64_t duration_ns) override;
+/**
+ * @brief Increment error counter.
+ * @param error_code Parameter for increment error counter.
+ */
     void IncrementErrorCounter(std::string_view error_code) override;
     [[nodiscard]] TelemetrySnapshot Snapshot() const override;
 
@@ -140,6 +244,9 @@ public:
     [[nodiscard]] std::uint64_t ErrorCount() const;
 
 #if GRAPHX_ENABLE_GPU_TEST_HOOKS
+/**
+ * @brief Reset for testing.
+ */
     void ResetForTesting();
 #endif
 
@@ -147,6 +254,14 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @class NativeMetalCollectiveCapability
+ * @brief NativeMetalCollectiveCapability class.
+ */
+/**
+ * @class NativeMetalCollectiveCapability
+ * @brief Native metal collective capability implementation for GraphX.
+ */
 class NativeMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:
     explicit NativeMetalCollectiveCapability(
@@ -166,7 +281,15 @@ private:
     std::shared_ptr<NativeMetalRuntimeContext> runtime_context_;
 };
 
+/**
+ * @brief Native metal runtime available.
+ * @return Result of the operation.
+ */
 bool NativeMetalRuntimeAvailable();
+/**
+ * @brief Native metal runtime diagnostics.
+ * @return Result of the operation.
+ */
 std::string NativeMetalRuntimeDiagnostics();
 
 } // namespace graph::gpu::metal::capabilities

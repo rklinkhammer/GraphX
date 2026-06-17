@@ -1,3 +1,8 @@
+/**
+ * @file TestNode.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -48,6 +53,14 @@
 
 namespace test {
 
+/**
+ * @class TestNode
+ * @brief TestNode class.
+ */
+/**
+ * @class TestNode
+ * @brief Test node implementation for GraphX.
+ */
     class TestNode : public graph::NamedSinkNode<TestNode, ::graph::message::Message> {
     public: 
         static constexpr char kStatePort[] = "State";

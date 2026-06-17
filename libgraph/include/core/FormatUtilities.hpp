@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file FormatUtilities.hpp
  * @brief C++20 std::format utilities and helpers (Phase 5)

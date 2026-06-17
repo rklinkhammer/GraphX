@@ -1,3 +1,8 @@
+/**
+ * @file VariantRouter.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -104,6 +109,14 @@ namespace graph {
  * calls the registered handler if one exists.
  */
 template<typename Variant>
+/**
+ * @class VariantRouter
+ * @brief VariantRouter class.
+ */
+/**
+ * @class VariantRouter
+ * @brief Variant router implementation for GraphX.
+ */
 class VariantRouter {
 public:
     // ====================================================================

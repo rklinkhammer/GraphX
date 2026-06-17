@@ -1,3 +1,8 @@
+/**
+ * @file double_sink_plugin.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -58,6 +63,9 @@ static const NodeFacade double_sink_facade = Glue::MakeFacade();
 
 extern "C" {
 
+/**
+ * @brief Plugin create double sink.
+ */
 void* plugin_create_double_sink() {
     try {
         auto node = std::make_shared<TestDoubleSinkNode>();
@@ -68,6 +76,9 @@ void* plugin_create_double_sink() {
     }
 }
 
+/**
+ * @brief Plugin get info.
+ */
 const char* plugin_get_info() {
     return "TestDoubleSinkNode|Double sink test node|1.0|"
            "plugin_create_double_sink|"
@@ -78,10 +89,16 @@ const char* plugin_get_info() {
 #endif
 }
 
+/**
+ * @brief Plugin get facade.
+ */
 NodeFacade* plugin_get_facade() {
     return const_cast<NodeFacade*>(&double_sink_facade);
 }
 
+/**
+ * @brief Plugin api version.
+ */
 int plugin_api_version() {
     return 2;
 }

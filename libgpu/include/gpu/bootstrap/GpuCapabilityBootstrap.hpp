@@ -1,3 +1,8 @@
+/**
+ * @file GpuCapabilityBootstrap.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -42,11 +47,23 @@ void RegisterDefaultGpuCapabilities(
     graph::CapabilityBus& bus,
     const GpuCapabilityBootstrapOptions& options = {});
 
+/**
+ * @brief Get shared gpu capability bus.
+ * @return Result of the operation.
+ */
 graph::CapabilityBus& GetSharedGpuCapabilityBus();
 
 std::shared_ptr<graph::CapabilityBus> OverrideSharedGpuCapabilityBusForTesting(
     std::shared_ptr<graph::CapabilityBus> replacement_bus);
 
+/**
+ * @class ScopedGpuCapabilityBusOverride
+ * @brief ScopedGpuCapabilityBusOverride class.
+ */
+/**
+ * @class ScopedGpuCapabilityBusOverride
+ * @brief Scoped gpu capability bus override implementation for GraphX.
+ */
 class ScopedGpuCapabilityBusOverride {
 public:
     explicit ScopedGpuCapabilityBusOverride(

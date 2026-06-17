@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file test_accel_validation.cpp
+ * @brief GraphX source file.
+ */
+
 #include <gtest/gtest.h>
 
 #include "gpu/accel/types/AccelFormatting.hpp"
@@ -25,6 +32,10 @@ using graph::gpu::accel::BufferLease;
 using graph::gpu::accel::TransferTicket;
 using graph::gpu::accel::TensorLayout;
 
+/**
+ * @brief Make layout.
+ * @param bytes Parameter for make layout.
+ */
 TensorLayout MakeLayout(std::uint64_t bytes) {
     TensorLayout layout{};
     layout.rank = 1;
@@ -33,6 +44,9 @@ TensorLayout MakeLayout(std::uint64_t bytes) {
     return layout;
 }
 
+/**
+ * @brief Make device view.
+ */
 DeviceBufferView MakeDeviceView() {
     DeviceBufferView view{};
     view.backend = BackendKind::CUDA;
@@ -46,6 +60,9 @@ DeviceBufferView MakeDeviceView() {
     return view;
 }
 
+/**
+ * @brief Make host view.
+ */
 HostPinnedBufferView MakeHostView() {
     HostPinnedBufferView view{};
     view.backend = BackendKind::CUDA;

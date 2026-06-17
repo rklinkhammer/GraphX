@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /**
  * @file test_producer_topologies.cpp
  * @brief Integration tests for producer-based graph topologies
@@ -39,11 +41,19 @@ using namespace graph;
 // Test Fixture
 // =============================================================================
 
+/**
+ * @class ProducerTopologiesTest
+ * @brief Producer topologies test implementation for GraphX.
+ */
 class ProducerTopologiesTest : public ::testing::Test {
 protected:
     void SetUp() override {}
     void TearDown() override {}
 
+/**
+ * @brief Execute successfully.
+ * @param graph Parameter for execute successfully.
+ */
     static void ExecuteSuccessfully(const std::shared_ptr<GraphManager>& graph) {
         auto executor = GraphExecutorBuilder()
             .WithGraphManager(graph)
@@ -68,6 +78,11 @@ protected:
         ASSERT_TRUE(join_result.success) << "Join failed: " << join_result.message;
     }
 
+/**
+ * @brief Expect node types.
+ * @param graph Parameter for expect node types.
+ * @param types Parameter for expect node types.
+ */
     static void ExpectNodeTypes(const std::shared_ptr<GraphManager>& graph, const std::vector<std::string>& types) {
         auto nodes = graph->GetNodes();
         ASSERT_EQ(types.size(), nodes.size());
@@ -173,6 +188,11 @@ protected:
         }
     }
 
+/**
+ * @brief Expect completion.
+ * @param graph Parameter for expect completion.
+ * @param completion_node_index Parameter for expect completion.
+ */
     static void ExpectCompletion(const std::shared_ptr<GraphManager>& graph, size_t completion_node_index) {
         auto completion = GetCompletionNode(graph, completion_node_index);
         ASSERT_NE(nullptr, completion);
@@ -198,6 +218,10 @@ struct ProducerTopologyCase {
     std::vector<double> double_values;
 };
 
+/**
+ * @class ProducerTopologyParameterizedTest
+ * @brief Producer topology parameterized test implementation for GraphX.
+ */
 class ProducerTopologyParameterizedTest
     : public ProducerTopologiesTest,
       public ::testing::WithParamInterface<ProducerTopologyCase> {};

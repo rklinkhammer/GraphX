@@ -1,3 +1,8 @@
+/**
+ * @file GraphConfigParser.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -45,10 +50,19 @@ static log4cxx::LoggerPtr logger_ =
 
 namespace {
 
+/**
+ * @brief Is one of.
+ * @param value Parameter for is one of.
+ * @param allowed Parameter for is one of.
+ */
 bool IsOneOf(std::string_view value, std::initializer_list<std::string_view> allowed) {
     return std::find(allowed.begin(), allowed.end(), value) != allowed.end();
 }
 
+/**
+ * @brief Normalize contract name.
+ * @param raw Parameter for normalize contract name.
+ */
 std::string NormalizeContractName(std::string_view raw) {
     const auto first = raw.find_first_not_of(" \t\n\r");
     if (first == std::string_view::npos) {
@@ -61,6 +75,10 @@ std::string NormalizeContractName(std::string_view raw) {
     return normalized;
 }
 
+/**
+ * @brief Is legacy sar payload contract.
+ * @param payload_contract Parameter for is legacy sar payload contract.
+ */
 bool IsLegacySarPayloadContract(const std::string& payload_contract) {
     const auto normalized = NormalizeContractName(payload_contract);
     // These names are intentionally retained as rejection guardrails for accel-token mode.
@@ -76,6 +94,10 @@ bool IsLegacySarPayloadContract(const std::string& payload_contract) {
 } // namespace
 
 // Helper: Check if string matches valid node ID pattern (alphanumeric, underscore, hyphen)
+/**
+ * @brief Is valid node id.
+ * @param id Parameter for is valid node id.
+ */
 bool GraphConfigParser::IsValidNodeId(const std::string& id) {
     if (id.empty() || id.length() > 255) {
         return false;
@@ -85,6 +107,10 @@ bool GraphConfigParser::IsValidNodeId(const std::string& id) {
 }
 
 // Helper: Check if port specification is valid (e.g., "input_0", "output_1")
+/**
+ * @brief Is valid port spec.
+ * @param port_spec Parameter for is valid port spec.
+ */
 bool GraphConfigParser::IsValidPortSpec(const std::string& port_spec) {
     if (port_spec.empty() || port_spec.length() > 255) {
         return false;
@@ -96,6 +122,10 @@ bool GraphConfigParser::IsValidPortSpec(const std::string& port_spec) {
 }
 
 // Parse metadata section
+/**
+ * @brief Parse metadata.
+ * @param config_json Parameter for parse metadata.
+ */
 GraphConfig::Metadata GraphConfigParser::ParseMetadata(const json& config_json) {
     GraphConfig::Metadata metadata;
     
@@ -120,6 +150,10 @@ GraphConfig::Metadata GraphConfigParser::ParseMetadata(const json& config_json) 
 }
 
 // Parse a single node configuration
+/**
+ * @brief Parse node.
+ * @param node_json Parameter for parse node.
+ */
 NodeConfig GraphConfigParser::ParseNode(const json& node_json) {
     NodeConfig node_config;
     
@@ -156,6 +190,10 @@ NodeConfig GraphConfigParser::ParseNode(const json& node_json) {
 }
 
 // Parse a single edge configuration
+/**
+ * @brief Parse edge.
+ * @param edge_json Parameter for parse edge.
+ */
 EdgeConfig GraphConfigParser::ParseEdge(const json& edge_json) {
     auto parsed = ParseEdgeSafe(edge_json);
     if (parsed) {
@@ -607,6 +645,10 @@ GraphConfigParser::ParseFileSafe(const std::string& filepath) noexcept {
     }
 }
 
+/**
+ * @brief Validate.
+ * @param config Parameter for validate.
+ */
 ValidationResult GraphConfigParser::Validate(const GraphConfig& config) {
     ValidationResult result;
     result.valid = true;

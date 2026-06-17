@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file SarBackprojectionTransformAccelNode.cpp
+ * @brief GraphX source file.
+ */
+
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
 #include "sar/SarRuntimeHelpers.hpp"
 

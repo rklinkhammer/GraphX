@@ -1,3 +1,8 @@
+/**
+ * @file DynamicEdge.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -46,6 +51,14 @@ ValidateDynamicEdgeCompatibility(
     return {};
 }
 
+/**
+ * @class DynamicEdge
+ * @brief DynamicEdge class.
+ */
+/**
+ * @class DynamicEdge
+ * @brief Dynamic edge implementation for GraphX.
+ */
 class DynamicEdge final : public IEdgeBase {
 public:
     DynamicEdge(RuntimePortHandle source,
@@ -200,6 +213,11 @@ public:
             return true;
         }
 
+/**
+ * @brief Lock.
+ * @param thread_exit_mtx_ Parameter for lock.
+ * @return Result of the operation.
+ */
         std::unique_lock<std::mutex> lock(thread_exit_mtx_);
         if (!thread_exit_cv_.wait_for(lock, timeout_ms, [this] {
                 return thread_exited_.load(std::memory_order_acquire);

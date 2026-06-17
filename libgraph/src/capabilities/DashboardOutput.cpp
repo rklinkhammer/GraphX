@@ -1,3 +1,8 @@
+/**
+ * @file DashboardOutput.cpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -36,24 +41,40 @@ DashboardOutput::DashboardOutput(
     }
 }
 
+/**
+ * @brief Write message.
+ * @param message Parameter for write message.
+ */
 void DashboardOutput::WriteMessage(const std::string& message) {
     if (dashboard_) {
         dashboard_->AddLog("[OK] " + message);
     }
 }
 
+/**
+ * @brief Write error.
+ * @param error Parameter for write error.
+ */
 void DashboardOutput::WriteError(const std::string& error) {
     if (dashboard_) {
         dashboard_->AddLog("[ERROR] " + error);
     }
 }
 
+/**
+ * @brief Write warning.
+ * @param warning Parameter for write warning.
+ */
 void DashboardOutput::WriteWarning(const std::string& warning) {
     if (dashboard_) {
         dashboard_->AddLog("[WARN] " + warning);
     }
 }
 
+/**
+ * @brief Write help.
+ * @param commands Parameter for write help.
+ */
 void DashboardOutput::WriteHelp(const std::vector<CommandInfo>& commands) {
     if (!dashboard_) {
         return;

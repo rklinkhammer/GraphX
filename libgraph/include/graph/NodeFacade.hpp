@@ -1,3 +1,8 @@
+/**
+ * @file NodeFacade.hpp
+ * @brief GraphX source file.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -68,6 +73,10 @@ namespace graph {
  * All returned objects via shared_ptr have automatic lifetime management.
  * No manual deletion required.
  */
+/**
+ * @class INodeFacade
+ * @brief I node facade implementation for GraphX.
+ */
 class INodeFacade {
 public:
     virtual ~INodeFacade() = default;
@@ -111,22 +120,36 @@ public:
      * Initialize the node.
      * @return true if initialization succeeded
      */
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
     virtual bool Init() = 0;
 
     /**
      * Start node execution.
      * @return true if start succeeded
      */
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
     virtual bool Start() = 0;
 
     /**
      * Stop node execution.
      */
+/**
+ * @brief Stop.
+ */
     virtual void Stop() = 0;
 
     /**
      * Execute one iteration of node processing.
      */
+/**
+ * @brief Execute.
+ */
     virtual void Execute() = 0;
 
     // ========================================================================
@@ -142,6 +165,10 @@ public:
      * @return NodeMetadata with all introspection information
      * @thread-safe for reading
      */
+/**
+ * @brief Get metadata.
+ * @return Result of the operation.
+ */
     virtual NodeMetadata GetMetadata() const = 0;
 
     /**
@@ -150,6 +177,10 @@ public:
      * This descriptor model is the canonical source for metadata surfaces
      * consumed by policy, schema, and plugin/facade adapters.
      */
+/**
+ * @brief Get descriptor.
+ * @return Result of the operation.
+ */
     virtual NodeDescriptor GetDescriptor() const = 0;
 
     /**
@@ -171,6 +202,11 @@ public:
      * }
      * ```
      */
+/**
+ * @brief Get interface.
+ * @param name Parameter for get interface.
+ * @return Result of the operation.
+ */
     virtual std::shared_ptr<void> GetInterface(const std::string& name) const = 0;
 
     /**
@@ -181,6 +217,10 @@ public:
      * @return shared_ptr<IDataInjectionSource> if supported, nullptr otherwise
      * @thread-safe for reading
      */
+/**
+ * @brief Get csv interface.
+ * @return Result of the operation.
+ */
     virtual std::shared_ptr<void> GetCSVInterface() const = 0;
 
     // ========================================================================
@@ -204,6 +244,10 @@ public:
      * }
      * ```
      */
+/**
+ * @brief Get input port names.
+ * @return Result of the operation.
+ */
     virtual std::vector<std::string> GetInputPortNames() const = 0;
 
     /**
@@ -223,6 +267,10 @@ public:
      * }
      * ```
      */
+/**
+ * @brief Get output port names.
+ * @return Result of the operation.
+ */
     virtual std::vector<std::string> GetOutputPortNames() const = 0;
 };
 
@@ -249,6 +297,10 @@ public:
  * adapter.Stop();
  * ```
  */
+/**
+ * @class NodeFacadeAdapter
+ * @brief Node facade adapter implementation for GraphX.
+ */
 class NodeFacadeAdapter : public INodeFacade {
 private:
     static log4cxx::LoggerPtr logger_;
@@ -269,6 +321,9 @@ private:
     const INodeMetadataService* metadata_service_; ///< Metadata policy boundary
     
     // Extract interface pointers from plugin callbacks
+/**
+ * @brief Extract interfaces.
+ */
     void ExtractInterfaces();
 
 public:
@@ -332,6 +387,10 @@ public:
      * Get the current lifecycle state of the wrapped node
      * @return Current LifecycleState enum value
     */
+/**
+ * @brief Get lifecycle state.
+ * @return Result of the operation.
+ */
     int GetLifecycleState() const;
 
 
@@ -340,6 +399,10 @@ public:
      *
      * @return true if initialization succeeded
      */
+/**
+ * @brief Init.
+ * @return Result of the operation.
+ */
     bool Init() override;
 
     /**
@@ -347,11 +410,18 @@ public:
      *
      * @return true if start succeeded
      */
+/**
+ * @brief Start.
+ * @return Result of the operation.
+ */
     bool Start() override;
 
     /**
      * Stop the node
      */
+/**
+ * @brief Stop.
+ */
     void Stop() override;
 
     /**
@@ -365,6 +435,9 @@ public:
      * 
      * Safe to call multiple times (subsequent calls are no-ops).
      */
+/**
+ * @brief Cleanup.
+ */
     void Cleanup();
 
     /**
@@ -372,6 +445,10 @@ public:
      *
      * @return true if join succeeded
      */
+/**
+ * @brief Join.
+ * @return Result of the operation.
+ */
     bool Join();
 
     /**
@@ -379,11 +456,19 @@ public:
      *
      * @return true if join succeeded
      */
+/**
+ * @brief Join with timeout.
+ * @param timeout Parameter for join with timeout.
+ * @return Result of the operation.
+ */
     bool JoinWithTimeout(std::chrono::milliseconds timeout);
 
     /**
      * Execute one cycle of the node
      */
+/**
+ * @brief Execute.
+ */
     void Execute() override;
 
     /**
@@ -391,6 +476,10 @@ public:
      * 
      * @param name New name for the node instance
      */
+/**
+ * @brief Set name.
+ * @param name Parameter for set name.
+ */
     void SetName(const std::string& name);
 
     /**
@@ -398,6 +487,10 @@ public:
      *
      * @return Human-readable name, or empty string if facade doesn't implement it
      */
+/**
+ * @brief Get name.
+ * @return Result of the operation.
+ */
     const std::string GetName() const;
 
     /**
@@ -405,6 +498,10 @@ public:
      *
      * @return Type name, or empty string if facade doesn't implement it
      */
+/**
+ * @brief Get type.
+ * @return Result of the operation.
+ */
     const std::string GetType() const;
 
     /**
@@ -412,6 +509,10 @@ public:
      *
      * @return Description, or empty string if facade doesn't implement it
      */
+/**
+ * @brief Get description.
+ * @return Result of the operation.
+ */
     std::string GetDescription() const;
 
     /**
@@ -419,6 +520,10 @@ public:
      *
      * @return Number of input ports, or 0 if facade doesn't implement it
      */
+/**
+ * @brief Get input port count.
+ * @return Result of the operation.
+ */
     size_t GetInputPortCount() const;
 
     /**
@@ -426,6 +531,10 @@ public:
      *
      * @return Number of output ports, or 0 if facade doesn't implement it
      */
+/**
+ * @brief Get output port count.
+ * @return Result of the operation.
+ */
     size_t GetOutputPortCount() const;
 
     /**
@@ -434,6 +543,11 @@ public:
      * @param port Port index
      * @return Port name, or empty string if invalid port or not implemented
      */
+/**
+ * @brief Get input port name.
+ * @param port Parameter for get input port name.
+ * @return Result of the operation.
+ */
     std::string GetInputPortName(size_t port) const;
 
     /**
@@ -442,6 +556,11 @@ public:
      * @param port Port index
      * @return Port name, or empty string if invalid port or not implemented
      */
+/**
+ * @brief Get output port name.
+ * @param port Parameter for get output port name.
+ * @return Result of the operation.
+ */
     std::string GetOutputPortName(size_t port) const;
 
     /**
@@ -460,6 +579,10 @@ public:
      *   }
      * @endcode
      */
+/**
+ * @brief Get input port metadata.
+ * @return Result of the operation.
+ */
     std::vector<PortMetadataC> GetInputPortMetadata() const;
 
     /**
@@ -479,6 +602,10 @@ public:
      *   }
      * @endcode
      */
+/**
+ * @brief Get output port metadata.
+ * @return Result of the operation.
+ */
     std::vector<PortMetadataC> GetOutputPortMetadata() const;
 
     [[nodiscard]] std::expected<RuntimePortHandle, RuntimePortLookupError>
@@ -494,6 +621,12 @@ public:
      * @param value Property value
      * @return true if property was set
      */
+/**
+ * @brief Set property.
+ * @param key Parameter for set property.
+ * @param value Parameter for set property.
+ * @return Result of the operation.
+ */
     bool SetProperty(const std::string& key, const std::string& value);
 
     /**
@@ -502,6 +635,11 @@ public:
      * @param key Property name
      * @return Property value, or empty string if not found
      */
+/**
+ * @brief Get property.
+ * @param key Parameter for get property.
+ * @return Result of the operation.
+ */
     std::string GetProperty(const std::string& key) const;
 
     // ====== NEW: Thread Metrics Accessors ======
@@ -572,6 +710,10 @@ public:
      *
      * @return JSON string with configuration, or empty string if not configurable
      */
+/**
+ * @brief Get configuration json.
+ * @return Result of the operation.
+ */
     std::string GetConfigurationJSON() const;
     
     /**
@@ -580,6 +722,11 @@ public:
      * @param json_str JSON string with configuration parameters
      * @return true if configuration accepted, false otherwise
      */
+/**
+ * @brief Set configuration json.
+ * @param json_str Parameter for set configuration json.
+ * @return Result of the operation.
+ */
     bool SetConfigurationJSON(const std::string& json_str);
     
 /**
@@ -587,6 +734,10 @@ public:
      *
      * @return JSON string with diagnostics/metrics, or empty string if not available
      */
+/**
+ * @brief Get diagnostics json.
+ * @return Result of the operation.
+ */
     std::string GetDiagnosticsJSON() const;
     
 /**
@@ -594,6 +745,10 @@ public:
      *
      * @return JSON string with parameter names and values, or empty string
      */
+/**
+ * @brief Get parameters json.
+ * @return Result of the operation.
+ */
     std::string GetParametersJSON() const;
     
     /**
@@ -603,6 +758,12 @@ public:
      * @param json_value Parameter value as JSON (e.g., "2.5" or "true")
      * @return true if parameter set, false if unknown or invalid
      */
+/**
+ * @brief Set parameter.
+ * @param param_name Parameter for set parameter.
+ * @param json_value Parameter for set parameter.
+ * @return Result of the operation.
+ */
     bool SetParameter(const std::string& param_name, const std::string& json_value);
 
     /**
@@ -686,6 +847,11 @@ public:
             return stripped.substr(0, template_start);
         };
 
+/**
+ * @brief Runtime type.
+ * @param runtime_type_cstr Parameter for runtime type.
+ * @return Result of the operation.
+ */
         const std::string_view runtime_type(runtime_type_cstr);
         const auto runtime_token = type_token(runtime_type);
         const auto expected_token = type_token(::TypeName<NodeT>());
@@ -747,11 +913,19 @@ public:
      * Returns complete node metadata (name, type, description, ports) in a single call.
      * Replaces multiple GetName(), GetType(), Get*PortCount(), Get*PortName() calls.
      */
+/**
+ * @brief Get metadata.
+ * @return Result of the operation.
+ */
     INodeFacade::NodeMetadata GetMetadata() const override;
 
     /**
      * @implements INodeFacade::GetDescriptor()
      */
+/**
+ * @brief Get descriptor.
+ * @return Result of the operation.
+ */
     NodeDescriptor GetDescriptor() const override;
 
     /**
@@ -764,6 +938,11 @@ public:
      * 
      * Returns nullptr if interface not supported.
      */
+/**
+ * @brief Get interface.
+ * @param name Parameter for get interface.
+ * @return Result of the operation.
+ */
     std::shared_ptr<void> GetInterface(const std::string& name) const override;
 
     /**
@@ -772,6 +951,10 @@ public:
      * Returns typed interface for CSV data injection if supported.
      * Convenience wrapper around GetInterface("csv_injection").
      */
+/**
+ * @brief Get csv interface.
+ * @return Result of the operation.
+ */
     std::shared_ptr<void> GetCSVInterface() const override;
 
     // ========================================================================
@@ -785,6 +968,10 @@ public:
      * Equivalent to extracting names from GetMetadata().input_ports vector,
      * but simpler when you only need the names.
      */
+/**
+ * @brief Get input port names.
+ * @return Result of the operation.
+ */
     std::vector<std::string> GetInputPortNames() const override;
 
     /**
@@ -794,6 +981,10 @@ public:
      * Equivalent to extracting names from GetMetadata().output_ports vector,
      * but simpler when you only need the names.
      */
+/**
+ * @brief Get output port names.
+ * @return Result of the operation.
+ */
     std::vector<std::string> GetOutputPortNames() const override;
 
     // ========================================================================
@@ -835,6 +1026,10 @@ public:
     }
 };
 
+/**
+ * @brief Display node facade adapter.
+ * @param adapter Parameter for display node facade adapter.
+ */
 void DisplayNodeFacadeAdapter(std::shared_ptr<NodeFacadeAdapter> adapter);
 
 }  // namespace graph

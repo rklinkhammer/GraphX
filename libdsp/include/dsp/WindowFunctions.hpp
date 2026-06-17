@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+
+/**
+ * @file WindowFunctions.hpp
+ * @brief GraphX source file.
+ */
+
 #pragma once
 
 #include <cmath>
@@ -31,6 +38,14 @@ enum class WindowType {
  * ```cpp
  * auto hann_window = WindowFunctions::Generate<float>(WindowType::HANN, 256);
  * ```
+ */
+/**
+ * @class WindowFunctions
+ * @brief WindowFunctions class.
+ */
+/**
+ * @class WindowFunctions
+ * @brief Window functions implementation for GraphX.
  */
 class WindowFunctions {
 public:
@@ -190,6 +205,11 @@ private:
      */
     template<typename SampleT>
     static std::vector<SampleT> GenerateHann(size_t N) {
+/**
+ * @brief Window.
+ * @param N Parameter for window.
+ * @return Result of the operation.
+ */
         std::vector<SampleT> window(N);
         if (N == 1) {
             window[0] = SampleT{1};
@@ -207,6 +227,11 @@ private:
      */
     template<typename SampleT>
     static std::vector<SampleT> GenerateHamming(size_t N) {
+/**
+ * @brief Window.
+ * @param N Parameter for window.
+ * @return Result of the operation.
+ */
         std::vector<SampleT> window(N);
         if (N == 1) {
             window[0] = SampleT{0.54};
@@ -224,6 +249,11 @@ private:
      */
     template<typename SampleT>
     static std::vector<SampleT> GenerateBlackman(size_t N) {
+/**
+ * @brief Window.
+ * @param N Parameter for window.
+ * @return Result of the operation.
+ */
         std::vector<SampleT> window(N);
         if (N == 1) {
             window[0] = SampleT{0.42};
