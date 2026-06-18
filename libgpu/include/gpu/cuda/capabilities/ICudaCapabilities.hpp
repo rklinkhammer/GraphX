@@ -1,8 +1,9 @@
 /**
  * @file ICudaCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Icuda Capabilities GPU acceleration support.
+ *
+ * @details Provides CUDA acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,10 +20,17 @@ namespace graph::gpu::cuda::capabilities {
 
 /**
  * @class ICudaContextCapability
- * @brief ICudaContextCapability class.
+ * @brief Icuda Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaContextCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Context Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaContextCapability() = default;
 
 /**
@@ -62,10 +70,17 @@ public:
 
 /**
  * @class ICudaMemoryPoolCapability
- * @brief ICudaMemoryPoolCapability class.
+ * @brief Icuda Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaMemoryPoolCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Memory Pool Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaMemoryPoolCapability() = default;
 
     virtual bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -82,10 +97,17 @@ public:
 
 /**
  * @class ICudaTransferCapability
- * @brief ICudaTransferCapability class.
+ * @brief Icuda Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaTransferCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Transfer Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaTransferCapability() = default;
 
     virtual bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -106,10 +128,17 @@ public:
 
 /**
  * @class ICudaKernelCapability
- * @brief ICudaKernelCapability class.
+ * @brief Icuda Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaKernelCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Kernel Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaKernelCapability() = default;
 
     virtual bool RegisterKernel(std::uint64_t kernel_id,
@@ -122,10 +151,17 @@ public:
 
 /**
  * @class ICudaTelemetryCapability
- * @brief ICudaTelemetryCapability class.
+ * @brief Icuda Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaTelemetryCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Telemetry Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaTelemetryCapability() = default;
 
     virtual void RecordTransfer(const accel::TransferTicket& ticket,
@@ -141,10 +177,17 @@ public:
 
 /**
  * @class ICudaCollectiveCapability
- * @brief ICudaCollectiveCapability class.
+ * @brief Icuda Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ICudaCollectiveCapability {
 public:
+    /**
+     * @brief Releases resources owned by Icuda Collective Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICudaCollectiveCapability() = default;
 
     virtual bool AllReduce(accel::DeviceBufferView& in_out,

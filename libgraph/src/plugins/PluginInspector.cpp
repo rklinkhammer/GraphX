@@ -1,8 +1,9 @@
 /**
  * @file PluginInspector.cpp
- * @brief GraphX source file.
+ * @brief Plugin Inspector Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file PluginInspector.cpp
- * @brief Implementation of PluginInspector
- *
- * @author GraphX Team
- * @date 2026-01-06
- */
 
 #include "plugins/PluginInspector.hpp"
 #include "plugins/PluginInterop.hpp"

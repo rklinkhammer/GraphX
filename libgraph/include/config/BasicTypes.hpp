@@ -1,8 +1,9 @@
 /**
  * @file BasicTypes.hpp
- * @brief GraphX source file.
+ * @brief Basic Types Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,40 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/*!
- * @file SensorBasicTypes.hpp
- * @brief Basic sensor data types (Vector3D, Quaternion) without circular dependencies
- *
- * Provides lightweight, dependency-free implementations of fundamental 3D geometry types
- * for sensor data representation (acceleration, angular velocity, orientation).
- *
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- *
- * MIT License
- *
- * Copyright (c) 2025 GraphX Contributors
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 #pragma once
 
 #include <cmath>
@@ -78,6 +45,12 @@ namespace sensors {
  * 
  * @note Members are initialized to zero by default for safe construction
  * @see Quaternion for orientation representation
+ */
+/**
+ * @struct Vector3D
+ * @brief Vector3 D data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct Vector3D {
     /// X-axis component (m/s², rad/s, or Tesla depending on context)
@@ -184,6 +157,12 @@ struct Vector3D {
  * 
  * @note Members are initialized to represent identity rotation by default
  * @see Vector3D for positional vectors
+ */
+/**
+ * @struct Quaternion
+ * @brief Quaternion data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct Quaternion {
     /// Scalar (real) part of quaternion; w=1,x=y=z=0 represents no rotation

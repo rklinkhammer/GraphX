@@ -1,8 +1,9 @@
 /**
  * @file VariantHelper.hpp
- * @brief GraphX source file.
+ * @brief Variant Helper Graph runtime support.
+ *
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 gdashboard contributors
@@ -25,15 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file core/VariantHelper.hpp
- * @brief C++20/C++26 std::variant utilities for clean pattern matching
- * @description Provides helper templates for modern std::visit patterns with
- *              the Overload deduction guide idiom and safe variant access.
- *
- * @author Robert Klinkhammer
- * @date 2026
- */
 
 #pragma once
 
@@ -63,6 +55,12 @@ namespace reflection {
  *     [](const std::string& s) { std::cout << "string: " << s; }
  * }, my_variant);
  * @endcode
+ */
+/**
+ * @struct Overload
+ * @brief Overload data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 template<typename... Ts>
 struct Overload : Ts... {

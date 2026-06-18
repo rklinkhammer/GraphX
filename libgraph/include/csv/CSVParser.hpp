@@ -1,8 +1,9 @@
 /**
  * @file CSVParser.hpp
- * @brief GraphX source file.
+ * @brief Csvparser Graph runtime support.
+ *
+ * @details Provides CSV ingestion support for data-injection graph workflows. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -43,6 +44,12 @@
 namespace csv {
 
 // Forward declarations
+/**
+ * @struct CSVNodeConfig
+ * @brief Csvnode Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct CSVNodeConfig;
 
 /**
@@ -50,6 +57,12 @@ struct CSVNodeConfig;
  *
  * Describes the structure and format of a CSV file for sensor data.
  * Used to determine how to parse rows and route data to nodes.
+ */
+/**
+ * @struct CSVHeader
+ * @brief Csvheader data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct CSVHeader {
     /// Column names from the header row
@@ -86,6 +99,12 @@ struct CSVHeader {
  *     }
  * }
  * ```
+ */
+/**
+ * @enum ParsingError
+ * @brief Parsing Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class ParsingError {
     /// One or more required columns are empty or missing
@@ -362,6 +381,12 @@ std::expected<sensors::SensorPayload, ParsingError> ParseRowUnifiedExpected(
  *     }
  * };
  * ```
+ */
+/**
+ * @struct ColumnMapping
+ * @brief Column Mapping data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct ColumnMapping {
     /// Maps field name to column index in CSV row

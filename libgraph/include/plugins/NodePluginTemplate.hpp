@@ -85,6 +85,12 @@ template <typename PortT>
  * @class PluginQueueBackedPortFunction
  * @brief Plugin queue backed port function implementation for GraphX.
  */
+/**
+ * @class PluginQueueBackedPortFunction
+ * @brief Plugin Queue Backed Port Function type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class PluginQueueBackedPortFunction final : public IPortFunction {
 public:
     using ValueType = typename PortT::type;
@@ -93,32 +99,75 @@ public:
                                   core::ActiveQueue<ValueType>* queue)
         : direction_(direction), queue_(queue) {}
 
+    /**
+     * @brief Returns the Port ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetPortId() const override {
         return PortT::id;
     }
 
+    /**
+     * @brief Returns the Type Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string_view GetTypeName() const override {
         return TypeName<ValueType>();
     }
 
+    /**
+     * @brief Returns the Direction.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     PortDirection GetDirection() const override {
         return direction_;
     }
 
+    /**
+     * @brief Returns the Transport Type Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string_view GetTransportTypeName() const override {
         return TypeName<core::ActiveQueue<ValueType>>();
     }
 
+    /**
+     * @brief Updates the Capacity.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capacity Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetCapacity(std::size_t capacity) override {
         if (queue_) {
             queue_->SetCapacity(capacity);
         }
     }
 
+    /**
+     * @brief Returns the Queue Size.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetQueueSize() const override {
         return queue_ ? queue_->Size() : 0;
     }
 
+    /**
+     * @brief Performs the Init lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Init() override {
         if (queue_) {
             queue_->Enable();
@@ -126,24 +175,56 @@ public:
         return true;
     }
 
+    /**
+     * @brief Performs the Start lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Start() override {
         return true;
     }
 
+    /**
+     * @brief Performs the Stop lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Stop() override {
         if (queue_) {
             queue_->Disable();
         }
     }
 
+    /**
+     * @brief Performs the Join lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Join() override {
     }
 
+    /**
+     * @brief Executes the Join With Timeout operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool JoinWithTimeout(std::chrono::milliseconds) override {
         return true;
     }
 
     std::expected<void, RuntimePortConnectError>
+    /**
+     * @brief Executes the Connect To operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param destination Input or configuration value consumed by the method.
+     * @param capacity Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ConnectTo(IPortFunction& destination, std::size_t capacity) override {
         if (GetDirection() != PortDirection::Output ||
             destination.GetDirection() != PortDirection::Input) {
@@ -154,12 +235,26 @@ public:
             return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
         }
 
+        /**
+         * @brief Updates the Capacity.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param capacity Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetCapacity(capacity);
         destination.SetCapacity(capacity);
         return {};
     }
 
     std::expected<bool, RuntimePortConnectError>
+    /**
+     * @brief Processes data through the Transfer To operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param destination Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     TransferTo(IPortFunction& destination) override {
         if (GetDirection() != PortDirection::Output ||
             destination.GetDirection() != PortDirection::Input) {
@@ -192,6 +287,12 @@ public:
     }
 
 protected:
+    /**
+     * @brief Returns the Queue Void.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     const void* GetQueueVoid() const override {
         return queue_;
     }
@@ -215,6 +316,12 @@ IPortFunction* CreateInputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) {
     }
 
     if constexpr (requires { NodeT::NOutputs; }) {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (Index < NodeT::NOutputs) {
             using OutPort = typename NodeT::template OutputPortType<Index>;
             if (auto* transfer = dynamic_cast<TransferFn<InPort, OutPort>*>(inst->node.get())) {
@@ -241,6 +348,12 @@ IPortFunction* CreateOutputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) 
     }
 
     if constexpr (requires { NodeT::NInputs; }) {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (Index < NodeT::NInputs) {
             using InPort = typename NodeT::template InputPortType<Index>;
             if (auto* transfer = dynamic_cast<TransferFn<InPort, OutPort>*>(inst->node.get())) {
@@ -256,6 +369,12 @@ IPortFunction* CreateOutputRuntimePortForIndex(NodePluginInstance<NodeT>* inst) 
 template <typename NodeT, std::size_t Index = 0>
 void* CreateInputRuntimePortByIndex(NodePluginInstance<NodeT>* inst, std::size_t requested_index) {
     if constexpr (requires { NodeT::NInputs; }) {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (Index < NodeT::NInputs) {
             if (requested_index == Index) {
                 return CreateInputRuntimePortForIndex<NodeT, Index>(inst);
@@ -269,6 +388,12 @@ void* CreateInputRuntimePortByIndex(NodePluginInstance<NodeT>* inst, std::size_t
 template <typename NodeT, std::size_t Index = 0>
 void* CreateOutputRuntimePortByIndex(NodePluginInstance<NodeT>* inst, std::size_t requested_index) {
     if constexpr (requires { NodeT::NOutputs; }) {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (Index < NodeT::NOutputs) {
             if (requested_index == Index) {
                 return CreateOutputRuntimePortForIndex<NodeT, Index>(inst);
@@ -345,6 +470,13 @@ PortMetadataC* GetInputPortMetadataImpl(NodePluginInstance<NodeType>* inst, size
     try {
         NodeType* node = inst->node.get();
         if (!node) {
+            /**
+             * @brief Executes the Log4 Cxx Error operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param _metadata_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_ERROR(_metadata_logger, "Failed to cast handle to node type");
             *out_count = 0;
             return nullptr;
@@ -415,6 +547,13 @@ PortMetadataC* GetOutputPortMetadataImpl(NodePluginInstance<NodeType>* inst, siz
     try {
         NodeType* node = inst->node.get();
         if (!node) {
+            /**
+             * @brief Executes the Log4 Cxx Error operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param _metadata_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_ERROR(_metadata_logger, "Failed to cast handle to node type");
             *out_count = 0;
             return nullptr;
@@ -471,6 +610,13 @@ static inline void FreePortMetadataImpl(PortMetadataC* metadata)
 {
     if (metadata) {
         delete[] metadata;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param _metadata_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(_metadata_logger, "Freed PortMetadataC array");
     }
 }
@@ -528,18 +674,44 @@ struct PluginPolicy {
     
     static void Execute(NodePluginInstance<NodeT>*) {}
 
+    /**
+     * @brief Updates the Property.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static bool SetProperty(NodePluginInstance<NodeT>*, const char*, const char*) {
         return true;  // No-op: plugins don't support properties by default
     }
 
+    /**
+     * @brief Returns the Property.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static const char* GetProperty(NodePluginInstance<NodeT>*, const char*) {
         return "";   // No properties available by default
     }
 
+    /**
+     * @brief Returns the Input Port Count.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::size_t GetInputPortCount(NodePluginInstance<NodeT>* inst) {
         return inst->node->GetInputPortCount();
     }
 
+    /**
+     * @brief Returns the Output Port Count.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::size_t GetOutputPortCount(NodePluginInstance<NodeT>* inst) {
         return inst->node->GetOutputPortCount();
     }
@@ -562,18 +734,56 @@ struct PluginPolicy {
         return "unknown";
     }
 
+    /**
+     * @brief Returns the Output Port Metadata.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @param out_count Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static PortMetadataC* GetOutputPortMetadata(NodePluginInstance<NodeT>* inst, size_t* out_count) {
         return GetOutputPortMetadataImpl<NodeT>(inst, out_count);
     }
 
+    /**
+     * @brief Returns the Input Port Metadata.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @param out_count Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static PortMetadataC* GetInputPortMetadata(NodePluginInstance<NodeT>* inst, size_t* out_count) { 
         return GetInputPortMetadataImpl<NodeT>(inst, out_count);
     }
 
+    /**
+     * @brief Executes the Free Port Metadata operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param metadata Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void FreePortMetadata(PortMetadataC* metadata) {
+        /**
+         * @brief Executes the Free Port Metadata Impl operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metadata Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         FreePortMetadataImpl(metadata);
     }
 
+    /**
+     * @brief Creates or builds the object described by Create Input Runtime Port.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @param port_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* CreateInputRuntimePort(NodePluginInstance<NodeT>* inst, std::size_t port_index) {
         if (!inst || !inst->node) {
             return nullptr;
@@ -581,6 +791,14 @@ struct PluginPolicy {
         return CreateInputRuntimePortByIndex<NodeT>(inst, port_index);
     }
 
+    /**
+     * @brief Creates or builds the object described by Create Output Runtime Port.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param inst Input or configuration value consumed by the method.
+     * @param port_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* CreateOutputRuntimePort(NodePluginInstance<NodeT>* inst, std::size_t port_index) {
         if (!inst || !inst->node) {
             return nullptr;
@@ -588,6 +806,13 @@ struct PluginPolicy {
         return CreateOutputRuntimePortByIndex<NodeT>(inst, port_index);
     }
 
+    /**
+     * @brief Executes the Destroy Runtime Port operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param runtime_port Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void DestroyRuntimePort(void* runtime_port) {
         delete static_cast<IPortFunction*>(runtime_port);
     }
@@ -815,6 +1040,14 @@ struct PluginPolicy {
 namespace detail {
     /// Helper function for converting ThreadMetrics to ThreadMetricsC
     template <typename MetricsT>
+    /**
+     * @brief Executes the Convert Thread Metrics operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param src Input or configuration value consumed by the method.
+     * @param dst Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     inline void ConvertThreadMetrics(const MetricsT& src, ThreadMetricsC& dst) {
         dst.total_iterations = src.total_iterations.load();
         dst.produce_calls = src.produce_calls.load();
@@ -837,7 +1070,9 @@ namespace detail {
 template <typename NodeT>
 /**
  * @class NodeFacadeImpl
- * @brief NodeFacadeImpl class.
+ * @brief Node Facade Impl graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class NodeFacadeImpl {
 public:
@@ -1038,90 +1273,250 @@ public:
 // C ABI Glue (shared by all plugins)
 // ============================================================================
 
+/**
+
+ * @struct PluginGlue
+
+ * @brief Plugin Glue data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 template <typename NodeT, typename Policy = PluginPolicy<NodeT>>
 struct PluginGlue {
 
     using Instance = NodePluginInstance<NodeT>;
 
+    /**
+     * @brief Returns the Lifecycle State.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static int GetLifecycleState(void* h) {
         return static_cast<int>(static_cast<Instance*>(h)->node->GetLifecycleState());
     }
 
+    /**
+     * @brief Performs the Init lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static bool Init(void* h) {
         return static_cast<Instance*>(h)->node->Init();
     }
 
+    /**
+     * @brief Performs the Start lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static bool Start(void* h) {
         return static_cast<Instance*>(h)->node->Start();
     }
 
+    /**
+     * @brief Performs the Stop lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void Stop(void* h) {
         static_cast<Instance*>(h)->node->Stop();
     }
 
+    /**
+     * @brief Performs the Join lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static bool Join(void* h) {
         static_cast<Instance*>(h)->node->Join();
         return true;
     }
 
+    /**
+     * @brief Executes the Join With Timeout operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param timeout Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static bool JoinWithTimeout(void* h, std::chrono::milliseconds timeout) {
         return static_cast<Instance*>(h)->node->JoinWithTimeout(timeout);
     }
 
+    /**
+     * @brief Executes the Execute operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void Execute(void* h) {
         Policy::Execute(static_cast<Instance*>(h));
     }
 
+    /**
+     * @brief Returns the Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static const char* GetName(void* h) {
         return static_cast<Instance*>(h)->name.c_str();
     }
 
+    /**
+     * @brief Updates the Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void SetName(void* h, const char* name) {
         static_cast<Instance*>(h)->name = name ? name : "";
     }
 
+    /**
+     * @brief Returns the Type.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static const char* GetType(void* h) {
         return static_cast<Instance*>(h)->type.c_str();
     }
 
+    /**
+     * @brief Returns the Input Port Count.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::size_t GetInputPortCount(void* h) {
         return Policy::GetInputPortCount(static_cast<Instance*>(h));
     }
 
+    /**
+     * @brief Returns the Output Port Count.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::size_t GetOutputPortCount(void* h) {
         return Policy::GetOutputPortCount(static_cast<Instance*>(h));
     }
 
+    /**
+     * @brief Returns the Input Port Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param id Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static const char* GetInputPortName(void* h, std::size_t id) {
         return Policy::GetInputPortName(static_cast<Instance*>(h), id);
     }
 
+    /**
+     * @brief Returns the Output Port Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param id Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static const char* GetOutputPortName(void* h, std::size_t id) {
         return Policy::GetOutputPortName(static_cast<Instance*>(h), id);
     }
 
+    /**
+     * @brief Returns the Output Port Metadata.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param out_count Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static PortMetadataC* GetOutputPortMetadata(void *h, size_t* out_count) {
         return Policy::GetOutputPortMetadata(static_cast<Instance*>(h), out_count);
     }
 
+    /**
+     * @brief Returns the Input Port Metadata.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param out_count Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static PortMetadataC* GetInputPortMetadata(void *h, size_t* out_count) { 
         return Policy::GetInputPortMetadata(static_cast<Instance*>(h), out_count);
     /// @brief Construct a NodeFacade with all function pointers for this plugin type
     /// @return Fully initialized NodeFacade instance
     }
 
+    /**
+     * @brief Executes the Free Port Metadata operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param metadata Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void FreePortMetadata(PortMetadataC* metadata) {
         return Policy::FreePortMetadata(metadata);
     }
 
+    /**
+     * @brief Creates or builds the object described by Create Input Runtime Port.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param port_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* CreateInputRuntimePort(void* h, std::size_t port_index) {
         return Policy::CreateInputRuntimePort(static_cast<Instance*>(h), port_index);
     }
 
+    /**
+     * @brief Creates or builds the object described by Create Output Runtime Port.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @param port_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* CreateOutputRuntimePort(void* h, std::size_t port_index) {
         return Policy::CreateOutputRuntimePort(static_cast<Instance*>(h), port_index);
     }
 
+    /**
+     * @brief Executes the Destroy Runtime Port operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param runtime_port Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void DestroyRuntimePort(void* runtime_port) {
         return Policy::DestroyRuntimePort(runtime_port);
     }
@@ -1163,6 +1558,13 @@ struct PluginGlue {
         return Policy::SetParameter(static_cast<Instance*>(h), param_name, json_value);
     }
 
+    /**
+     * @brief Returns the As Data Injection Node Config Impl.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* GetAsDataInjectionNodeConfigImpl(void* h) {
         return Policy::GetAsDataInjectionNodeConfig(static_cast<Instance*>(h));
     }
@@ -1197,10 +1599,23 @@ struct PluginGlue {
         return Policy::GetAsIGpuCapabilityBinding(static_cast<Instance*>(h));
     }
         
+    /**
+     * @brief Executes the Destroy operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param h Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void Destroy(void* h) {
         delete static_cast<Instance*>(h);
     }
 
+    /**
+     * @brief Creates or builds the object described by Make Facade.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static NodeFacade MakeFacade() {
         NodeFacade facade{};
         
@@ -1261,6 +1676,12 @@ struct PluginGlue {
         return facade;
     }
 
+    /**
+     * @brief Creates or builds the object described by Make Facade2.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static NodeFacade MakeFacade2() {
         NodeFacade facade{};
         

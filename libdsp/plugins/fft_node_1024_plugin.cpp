@@ -1,8 +1,9 @@
 /**
  * @file fft_node_1024_plugin.cpp
- * @brief GraphX source file.
+ * @brief FFT Node 1024 Plugin DSP support.
+ *
+ * @details Provides plugin registration unit for dynamically loading DSP graph nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -25,21 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file fft_node_1024_plugin.cpp
- * @brief FFTNode<float, 1024> as a dynamically-loadable plugin
- *
- * This file exposes FFTNode (a DSP FFT processor) with 1024 samples per packet
- * as a dynamically-loadable plugin using the NodeFacade interface.
- *
- * Compilation (from workspace root):
- *   mkdir -p build/plugins
- *   cd build
- *   cmake ..
- *   make fft_node_1024
- *
- * This produces: build/plugins/libfft_node_1024.so
- */
 
 #include <memory>
 #include <string>

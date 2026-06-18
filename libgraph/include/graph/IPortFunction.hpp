@@ -1,8 +1,9 @@
 /**
  * @file IPortFunction.hpp
- * @brief GraphX source file.
+ * @brief Iport Function Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,26 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file IPortFunction.hpp
- * @brief Unified interface combining port metadata, queue management, and threading
- *
- * This file defines IPortFunction: a virtual interface that unifies:
- * - Port metadata (ID, type name, direction)
- * - Queue operations (capacity, size, enqueue/dequeue)
- * - Thread management (init, start, stop, join)
- * - Type-safe queue access
- *
- * IPortFunction eliminates the need to store separate PortInfo structures by
- * embedding metadata directly into the port function instance. This enables:
- * - Heterogeneous port collections (vector<unique_ptr<IPortFunction>>)
- * - Polymorphic runtime dispatch
- * - Dynamic port management
- * - Simplified architecture
- *
- * @see PortFunction.hpp for concrete template implementation
- * @see Nodes.hpp for usage in node classes
- */
 
 #pragma once
 
@@ -104,10 +85,23 @@ namespace graph {
      */
 /**
  * @class IPortFunction
- * @brief IPortFunction class.
+ * @brief Iport Function type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class IPortFunction
+     * @brief Iport Function type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class IPortFunction {
     public:
+        /**
+         * @brief Releases resources owned by Iport Function.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~IPortFunction() = default;
 
         // ====================================================================
@@ -273,6 +267,14 @@ namespace graph {
          * transport ownership remains future work.
          */
         virtual std::expected<void, RuntimePortConnectError>
+        /**
+         * @brief Executes the Connect To operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param destination Input or configuration value consumed by the method.
+         * @param capacity Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         ConnectTo(IPortFunction& destination, std::size_t capacity) = 0;
 
         /**
@@ -281,6 +283,13 @@ namespace graph {
          * @return true if an item was moved, false if source had no item, error on mismatch/failure
          */
         virtual std::expected<bool, RuntimePortConnectError>
+        /**
+         * @brief Processes data through the Transfer To operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param destination Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         TransferTo(IPortFunction& destination) = 0;
 
         // ====================================================================
@@ -307,6 +316,12 @@ namespace graph {
          * using string-based type comparison instead.
          */
         template <typename T>
+        /**
+         * @brief Returns the Queue If Type.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         core::ActiveQueue<T>* GetQueueIfType() {
             // Use TypeName<T> from TypeInfo to compare at runtime
             if (GetTypeName() == TypeName<T>()) {
@@ -318,6 +333,12 @@ namespace graph {
         }
 
         template <typename T>
+        /**
+         * @brief Returns the Queue If Type.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         const core::ActiveQueue<T>* GetQueueIfType() const {
             if (GetTypeName() == TypeName<T>()) {
                 return static_cast<const core::ActiveQueue<T>*>(GetQueueVoid());

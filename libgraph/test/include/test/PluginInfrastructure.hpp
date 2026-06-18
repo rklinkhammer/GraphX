@@ -2,15 +2,10 @@
 
 /**
  * @file PluginInfrastructure.hpp
- * @brief Plugin loading and management infrastructure for test topologies
+ * @brief Plugin Infrastructure Graph runtime support.
  *
- * Provides centralized plugin provider management and edge creation helpers
- * for building test topologies with dynamically loaded nodes.
- *
- * @author Test Suite
- * @date May 29, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <memory>
@@ -36,6 +31,12 @@ namespace test {
  *
  * Singleton pattern for provider initialization and templated edge creation
  * utilities for connecting dynamically loaded nodes.
+ */
+/**
+ * @class PluginInfrastructure
+ * @brief Plugin Infrastructure type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class PluginInfrastructure {
 public:

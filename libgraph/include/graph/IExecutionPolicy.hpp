@@ -1,8 +1,9 @@
 /**
  * @file IExecutionPolicy.hpp
- * @brief GraphX source file.
+ * @brief Iexecution Policy Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 
 // MIT License
 //
@@ -36,7 +37,24 @@
 
 namespace graph {
 
+/**
+
+ * @struct IExecutionPolicy
+
+ * @brief Iexecution Policy data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct IExecutionPolicy {
+    /**
+     * @brief Releases resources owned by Iexecution Policy.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IExecutionPolicy() = default;
 
     virtual bool OnInit(capabilities::GraphCapability& context) { (void)context; return true; }
@@ -48,7 +66,9 @@ struct IExecutionPolicy {
 
 /**
  * @class ExecutionPolicyChain
- * @brief ExecutionPolicyChain class.
+ * @brief Execution Policy Chain execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
  */
 class ExecutionPolicyChain : public IExecutionPolicy {
 public:
@@ -56,26 +76,61 @@ public:
                                   std::unique_ptr<ExecutionPolicyChain> next = nullptr)
         : policy_(std::move(policy)), next_(std::move(next)) {}
 
+    /**
+     * @brief Performs the On Init lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ctx Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool OnInit(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnInit(ctx)) return false;
         return next_ ? next_->OnInit(ctx) : true;
     }
 
+    /**
+     * @brief Executes the On Start operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ctx Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool OnStart(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnStart(ctx)) return false;
         return next_ ? next_->OnStart(ctx) : true;
     }
 
+    /**
+     * @brief Executes the On Run operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ctx Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool OnRun(capabilities::GraphCapability& ctx) override {
         if (!policy_->OnRun(ctx)) return false;
         return next_ ? next_->OnRun(ctx) : true;
     }
 
+    /**
+     * @brief Executes the On Stop operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ctx Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void OnStop(capabilities::GraphCapability& ctx) override {
         policy_->OnStop(ctx);
         if (next_) next_->OnStop(ctx);
     }
 
+    /**
+     * @brief Executes the On Join operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ctx Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void OnJoin(capabilities::GraphCapability& ctx) override {
         policy_->OnJoin(ctx);
         if (next_) next_->OnJoin(ctx);

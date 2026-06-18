@@ -1,8 +1,9 @@
 /**
  * @file ICompletionCallback.hpp
- * @brief GraphX source file.
+ * @brief Icompletion Callback Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -47,7 +48,9 @@ namespace graph {
 template<typename DataType>
 /**
  * @class ICompletionCallback
- * @brief ICompletionCallback class.
+ * @brief Icompletion Callback type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ICompletionCallback  {
 public:
@@ -80,10 +83,23 @@ public:
 
 /**
  * @class CompletionNodeCallback
- * @brief CompletionNodeCallback class.
+ * @brief Completion Node Callback graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class CompletionNodeCallback
+     * @brief Completion Node Callback graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class CompletionNodeCallback : public NodeCallback {
     public:
+        /**
+         * @brief Releases resources owned by Completion Node Callback.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~CompletionNodeCallback() = default;
           /**
             * @brief Set callback to invoke when all sensors complete
@@ -94,13 +110,39 @@ public:
             */
         void SetOnComplete(std::function<void()> callback)
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param state_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::lock_guard<std::mutex> lock(state_mutex_);
             on_complete_callback_ = std::move(callback);
         }
 
+        /**
+         * @brief Executes the On Complete operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void OnComplete() noexcept {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param state_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (on_complete_callback_) {
+                /**
+                 * @brief Executes the On Complete Callback operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 on_complete_callback_();
             }
         }
@@ -110,6 +152,11 @@ public:
         std::function<void()> on_complete_callback_;
     };
 
+    /**
+     * @brief Releases resources owned by Icompletion Callback.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICompletionCallback() = default;
 
     /**

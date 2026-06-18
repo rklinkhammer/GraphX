@@ -2,9 +2,10 @@
 
 /**
  * @file FFTManager.hpp
- * @brief GraphX source file.
+ * @brief Fftmanager DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include "IqPacket.hpp"
@@ -26,6 +27,12 @@ namespace dsp {
  * @brief Snapshot of FFT metrics at a point in time
  *
  * Copyable struct containing atomic values read at a specific moment.
+ */
+/**
+ * @struct FFTMetricsSnapshot
+ * @brief Fftmetrics Snapshot data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct FFTMetricsSnapshot {
     uint64_t packets_input{0};
@@ -79,12 +86,50 @@ struct FFTMetricsSnapshot {
  * Uses atomic operations for non-blocking access.
  * Follows ActiveQueue pattern for consistent metrics tracking.
  */
+/**
+ * @struct FFTMetrics
+ * @brief Fftmetrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct FFTMetrics {
     // Non-copyable due to atomic members
+    /**
+     * @brief Executes the Fftmetrics operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     FFTMetrics() = default;
+    /**
+     * @brief Executes the Fftmetrics operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param FFTMetrics Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     FFTMetrics(const FFTMetrics&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param FFTMetrics Input or configuration value consumed by the method.
+     */
     FFTMetrics& operator=(const FFTMetrics&) = delete;
+    /**
+     * @brief Executes the Fftmetrics operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param FFTMetrics Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     FFTMetrics(FFTMetrics&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param FFTMetrics Input or configuration value consumed by the method.
+     */
     FFTMetrics& operator=(FFTMetrics&&) = delete;
 
     // Input/Output counters
@@ -132,7 +177,9 @@ struct FFTMetrics {
 template<typename SampleT, size_t N>
 /**
  * @class FFTManager
- * @brief FFTManager class.
+ * @brief Fftmanager manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class FFTManager {
 public:
@@ -150,6 +197,12 @@ public:
           sample_rate_hz_(sample_rate_hz),
           window_type_(window_type),
           first_packet_(true),
+          /**
+           * @brief Executes the Last Packet Number operation.
+           *
+           * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+           * @return Method-specific result, status, or produced value when the signature provides one.
+           */
           last_packet_number_(0) {
         if (accumulation_count < 1) accumulation_count_ = 1;
         if (accumulation_count > 16) accumulation_count_ = 16;

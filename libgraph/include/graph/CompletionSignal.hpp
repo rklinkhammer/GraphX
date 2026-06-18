@@ -1,8 +1,9 @@
 /**
  * @file CompletionSignal.hpp
- * @brief GraphX source file.
+ * @brief Completion Signal Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,35 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file CompletionSignal.hpp
- * @brief Explicit completion signaling for bounded data sources
- * @author Robert Klinkhammer
- * @date December 19, 2025
- * 
- * Provides a signal-based mechanism for bounded data producers to communicate
- * completion when data is exhausted or constraints are met.
- * 
- * DESIGN: Event-Based Signaling
- * - Data producers emit CompletionSignal when data exhausted
- * - Propagates through graph to aggregators/sinks
- * - Decoupled from timeout-based termination
- * - Generic to all bounded data sources (CSV, sensors, simulations, etc)
- * 
- * USAGE EXAMPLE:
- * @code
- * // CompletionSignal emitted by producer when data exhausted:
- * CompletionSignal signal{
- *     .reason = CompletionSignal::Reason::DATA_EXHAUSTED,
- *     .source_name = "source node",
- *     .final_timestamp = std::chrono::nanoseconds{1000000000},
- *     .total_items_produced = 10000,
- *     .diagnostics = ""
- * };
- * 
- * // Received by graph aggregator/sink
- * @endcode
- */
 
 #pragma once
 
@@ -73,10 +45,22 @@ namespace graph::message {
  * This is a sensor-domain concern, not avionics-specific. It defines how
  * all sensors communicate completion status regardless of source (CSV, hardware, etc).
  */
+/**
+ * @struct CompletionSignal
+ * @brief Completion Signal data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct CompletionSignal {
     /**
      * @enum Reason
      * @brief Reason codes for completion signals (generic sensor semantics)
+     */
+    /**
+     * @enum Reason
+     * @brief Reason values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
      */
     enum class Reason : uint8_t {
         CSV_DATA_EXHAUSTED = 0,      ///< Normal completion - all CSV samples produced

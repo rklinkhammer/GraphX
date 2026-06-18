@@ -1,8 +1,9 @@
 /**
  * @file GraphExecutor.hpp
- * @brief GraphX source file.
+ * @brief Graph Executor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -97,6 +98,12 @@ namespace graph {
  *   executor->Stop();
  *   executor->Join();
  */
+/**
+ * @class GraphExecutor
+ * @brief Graph Executor type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class GraphExecutor {
 public:
 
@@ -151,6 +158,12 @@ public:
  */
     InitializationResult Init();
     [[nodiscard]] std::expected<InitializationResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Performs the Init Expected lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     InitExpected() noexcept;
     
     /**
@@ -170,6 +183,12 @@ public:
  */
     ExecutionResult Start();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Start Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     StartExpected() noexcept;
     
     /**
@@ -192,6 +211,12 @@ public:
  */
     ExecutionResult Run();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Run Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     RunExpected() noexcept;
     
     /**
@@ -215,8 +240,20 @@ public:
  */
     ExecutionResult Join();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Stop Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     StopExpected() noexcept;
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Join Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     JoinExpected() noexcept;
     
     // ========== Query Methods (Lock-Free, Thread-Safe) ==========
@@ -276,6 +313,12 @@ public:
  */
     ExecutionResult Execute();
     [[nodiscard]] std::expected<ExecutionResult, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Execute Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ExecuteExpected() noexcept;
 
     // std::shared_ptr<app::AppContext> GetAppContext() const {
@@ -283,34 +326,79 @@ public:
     // }
     
     template<typename CapabilityT>
+    /**
+     * @brief Returns the Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<CapabilityT> GetCapability() const {
 
         return graph_capability_->GetCapabilityBus().Get<CapabilityT>();
     }
     
     template<typename CapabilityT>
+    /**
+     * @brief Reports whether Has is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Has() const {
         return graph_capability_->GetCapabilityBus().Has<CapabilityT>();
     }
 
     template<typename CapabilityT>
+    /**
+     * @brief Updates or queries runtime registration through Register.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Register(std::shared_ptr<CapabilityT> capability) {
         graph_capability_->GetCapabilityBus().Register<CapabilityT>(capability);
     }
     
+    /**
+     * @brief Returns the Graph Manager.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<graph::GraphManager> GetGraphManager() const {
         return graph_manager_;
     }
 
+    /**
+     * @brief Updates the Graph Manager.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param graph_manager Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetGraphManager(std::shared_ptr<graph::GraphManager> graph_manager) {
         graph_manager_ = graph_manager;
         graph_capability_->SetGraphManager(graph_manager_);
     }
 
+    /**
+     * @brief Updates the Execution State.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param state Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetExecutionState(graph::ExecutionState state) {
         current_state_ = state;
     }
 
+    /**
+     * @brief Returns the Execution State.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     graph::ExecutionState GetExecutionState() const {
         return current_state_;
     }   

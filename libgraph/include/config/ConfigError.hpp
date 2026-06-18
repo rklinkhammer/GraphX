@@ -1,8 +1,9 @@
 /**
  * @file ConfigError.hpp
- * @brief GraphX source file.
+ * @brief Config Error Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -42,7 +43,9 @@ namespace graph {
  */
 /**
  * @class ConfigError
- * @brief ConfigError class.
+ * @brief Config Error type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ConfigError : public std::runtime_error {
 public:

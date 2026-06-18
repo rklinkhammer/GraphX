@@ -1,8 +1,9 @@
 /**
  * @file INode.hpp
- * @brief GraphX source file.
+ * @brief Inode Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file INode.hpp
- * @brief Abstract base interface for all graph nodes
- * 
- * This header provides the INode interface that all nodes must implement.
- * It defines the common lifecycle and port introspection API.
- */
 
 #pragma once
 
@@ -49,6 +43,12 @@ namespace graph
      * @enum LifecycleState
      * @brief Represents the lifecycle state of a node
     */
+    /**
+     * @enum LifecycleState
+     * @brief Lifecycle State values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class LifecycleState
     {
         Uninitialized,
@@ -68,8 +68,16 @@ namespace graph
      */
 /**
  * @class INode
- * @brief INode class.
+ * @brief Inode graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class INode
+     * @brief Inode graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class INode
     {
     public:
@@ -78,6 +86,11 @@ namespace graph
          */
         INode() {}
 
+        /**
+         * @brief Releases resources owned by Inode.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~INode() = default;
 
         /**
@@ -221,6 +234,13 @@ namespace graph
          */
         void RegisterOutputEdge(std::size_t port_id, std::size_t edge_idx)
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param edge_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             output_edges_[port_id].push_back(edge_idx);
         }
@@ -243,6 +263,13 @@ namespace graph
          */
         void RegisterInputEdge(std::size_t port_id, std::size_t edge_idx)
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param edge_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             input_edges_[port_id].push_back(edge_idx);
         }
@@ -266,6 +293,13 @@ namespace graph
          */
         std::vector<std::size_t> GetOutputEdges(std::size_t port_id)
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param edge_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = output_edges_.find(port_id);
             return (it != output_edges_.end()) ? it->second : std::vector<std::size_t>();
@@ -290,6 +324,13 @@ namespace graph
          */
         std::vector<std::size_t> GetInputEdges(std::size_t port_id)
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param edge_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(edge_mutex_);
             auto it = input_edges_.find(port_id);
             return (it != input_edges_.end()) ? it->second : std::vector<std::size_t>();

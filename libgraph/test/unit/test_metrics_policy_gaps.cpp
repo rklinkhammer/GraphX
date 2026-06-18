@@ -1,8 +1,9 @@
 /**
  * @file test_metrics_policy_gaps.cpp
- * @brief GraphX source file.
+ * @brief Test Metrics Policy Gaps Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,20 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_metrics_policy_gaps.cpp
- * @brief Focused unit tests addressing critical gaps in MetricsPolicy testing
- * 
- * This test suite focuses ONLY on gaps not covered by existing tests:
- * - test_topologies_simple.cpp (event publishing across 10 topologies)
- * - test_graph_executor_builder_policies.cpp (capability registration, callback installation)
- * - test_execution_policies.cpp (policy lifecycle OnInit/Start/Stop/Join)
- * 
- * Phase 1 Implementation:
- * - Gap #1: Event Queue Mechanics (15 tests)
- * - Gap #4: Event Content Validation (12 tests)
- * Total: 27 tests for Phase 1
- */
 
 #include <gtest/gtest.h>
 #include <memory>

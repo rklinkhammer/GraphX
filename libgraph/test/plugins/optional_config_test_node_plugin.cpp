@@ -1,11 +1,14 @@
+/**
+ * @file optional_config_test_node_plugin.cpp
+ * @brief Optional Config Test Node Plugin Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
+ */
+
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
 
-/**
- * @file optional_config_test_node_plugin.cpp
- * @brief OptionalConfigTestNode as a dynamically-loadable plugin
- */
 
 #include <memory>
 #include <log4cxx/logger.h>

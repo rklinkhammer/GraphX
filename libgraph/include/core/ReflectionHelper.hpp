@@ -1,8 +1,9 @@
 /**
  * @file ReflectionHelper.hpp
- * @brief GraphX source file.
+ * @brief Reflection Helper Graph runtime support.
+ *
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 gdashboard contributors
@@ -25,16 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file core/ReflectionHelper.hpp
- * @brief C++26 Static Reflection Infrastructure (Reflection-Ready Pattern)
- * @description Provides reflection-based type introspection prepared for C++26 std::reflect.
- *              Currently uses compile-time type traits with future migration path to std::reflect.
- *              Will automatically upgrade when std::reflect becomes available in compilers.
- *
- * @author Robert Klinkhammer
- * @date 2026
- */
 
 #pragma once
 
@@ -67,6 +58,12 @@ namespace reflection {
  *
  * Will be sourced from std::reflect when available.
  * Currently uses compile-time traits.
+ */
+/**
+ * @struct TypeMetadata
+ * @brief Type Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 template<typename T>
 struct TypeMetadata {
@@ -321,6 +318,12 @@ consteval std::string_view GetFullTypeName() {
  */
 template<typename T>
 consteval bool IsValidMessageType() {
+    /**
+     * @brief Executes the Constexpr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     if constexpr (StorableInMessage<T>) {
         auto metadata = GetMetadata<T>();
         return metadata.is_nothrow_move_constructible &&

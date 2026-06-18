@@ -2,9 +2,10 @@
 
 /**
  * @file SpectrumSinkNode.cpp
- * @brief GraphX source file.
+ * @brief Spectrum Sink Node DSP support.
+ *
+ * @details Provides DSP implementation unit backing the public signal-processing API. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "dsp/SpectrumSinkNode.hpp"
 #include "log4cxx/logger.h"
 #include <algorithm>

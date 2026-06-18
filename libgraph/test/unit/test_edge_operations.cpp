@@ -1,8 +1,9 @@
 /**
  * @file test_edge_operations.cpp
- * @brief GraphX source file.
+ * @brief Test Edge Operations Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,24 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_edge_operations.cpp
- * @brief Unit tests for Edge and IEdgeBase components
- * 
- * Tests the core edge management infrastructure:
- * - IEdgeBase interface contract verification
- * - Edge metadata and introspection contracts
- * - Queue metrics interface contracts
- * - Type-safe edge design principles
- * - Edge state management contracts
- * 
- * Note: These tests focus on the interface contracts rather than
- * full edge instantiation to maintain compile-time efficiency.
- * Integration tests verify full edge lifecycle behavior.
- * 
- * @author Copilot
- * @date 2026-05-10
- */
 
 #include <gtest/gtest.h>
 #include <memory>

@@ -1,8 +1,9 @@
 /**
  * @file DataInjectionProducerWithNotification.hpp
- * @brief GraphX source file.
+ * @brief Data Injection Producer With Notification Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file DataInjectionProducerWithNotification.hpp
- * @brief Example CSV data producer node with notifications
- *
- * Provides a reusable SensorNode class that demonstrates:
- * - Data generator implementation
- * - Notification signal creation
- * - Named node pattern
- * - Metrics collection and reporting
- *
- * @author Robert Klinkhammer
- * @date 2025-12-31
- */
 
 #pragma once
 
@@ -92,8 +80,16 @@ namespace graph {
         typename Classification>
 /**
  * @class DataInjectionProducerWithNotification
- * @brief DataInjectionProducerWithNotification class.
+ * @brief Data Injection Producer With Notification type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class DataInjectionProducerWithNotification
+     * @brief Data Injection Producer With Notification type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class DataInjectionProducerWithNotification : public DataProducerWithNotification<
         NodeType, DataInjectionGeneratorBase<DataType, PayloadType>, 
         DataType, PayloadType, graph::message::CompletionSignal, Classification>,
@@ -121,10 +117,22 @@ namespace graph {
                 std::chrono::milliseconds(10),  // Default: 10ms interval (100 Hz)
                 0),                             // Default: process all samples
               graph::datasources::IDataInjectionSource(injection_queue_) {
+            /**
+             * @brief Updates the Name.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetName("SensorNode");
         }
         
         // Delete parameterized constructor to enforce zero-parameter requirement
+        /**
+         * @brief Processes data through the Data Injection Producer With Notification operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         DataInjectionProducerWithNotification(std::chrono::microseconds, std::size_t) = delete;
         
         /**
@@ -135,6 +143,13 @@ namespace graph {
          */
         virtual ~DataInjectionProducerWithNotification() {
             auto logger = log4cxx::Logger::getLogger("DataInjectionProducerWithNotification");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, "Destroying DataInjectionProducerWithNotification");
         }
         
@@ -155,10 +170,23 @@ namespace graph {
             );
         }
 
+        /**
+         * @brief Updates the Name.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param name Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void SetName(const std::string& name) {
             BaseType::SetName(name);
         }
 
+        /**
+         * @brief Returns the Name.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::string GetName() const {
             return BaseType::GetName();
         }
@@ -253,6 +281,12 @@ namespace graph {
                     if (ms_value < 1) {
                         throw std::invalid_argument("sample_interval_ms must be >= 1");
                     }
+                    /**
+                     * @brief Updates the Sample Interval.
+                     *
+                     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                     * @return Method-specific result, status, or produced value when the signature provides one.
+                     */
                     SetSampleInterval(std::chrono::milliseconds(ms_value));
                 }
                 
@@ -262,6 +296,12 @@ namespace graph {
                     if (!ignore_result) {
                         throw ignore_result.error();
                     }
+                    /**
+                     * @brief Updates the Sample Ignore.
+                     *
+                     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                     * @return Method-specific result, status, or produced value when the signature provides one.
+                     */
                     SetSampleIgnore(ignore_result.value());
                 }
             } catch (const std::exception& e) {

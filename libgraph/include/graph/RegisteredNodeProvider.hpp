@@ -1,8 +1,9 @@
 /**
  * @file RegisteredNodeProvider.hpp
- * @brief GraphX source file.
+ * @brief Registered Node Provider Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -43,9 +44,27 @@ namespace graph {
 
 // Forward declarations
 namespace nodes {
+    /**
+     * @class INode
+     * @brief Inode graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class INode;
 }
+/**
+ * @class PluginRegistry
+ * @brief Plugin Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class PluginRegistry;
+/**
+ * @struct NodeFacade
+ * @brief Node Facade data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct NodeFacade;
 
 /**
@@ -62,6 +81,12 @@ struct NodeFacade;
  * @see NodeFacade
  * @see PluginRegistry
  * @see PluginLoader
+ */
+/**
+ * @class RegisteredNodeProvider
+ * @brief Registered Node Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class RegisteredNodeProvider : public INodeProvider {
 private:
@@ -96,6 +121,13 @@ public:
     template <reflection::GraphNode NodeType, typename... Args>
         requires HasCompileTimePortCounts<NodeType>
     [[nodiscard]] std::expected<std::shared_ptr<NodeType>, NodeCreationError>
+    /**
+     * @brief Creates or builds the object described by Create Node Expected.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param args Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CreateNodeExpected(Args&&... args) noexcept {
         try {
             auto node = std::make_shared<NodeType>(std::forward<Args>(args)...);
@@ -103,9 +135,23 @@ public:
                 << typeid(NodeType).name());
             return node;
         } catch (const std::exception& e) {
+            /**
+             * @brief Executes the Log4 Cxx Error operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_ERROR(logger_, "Failed to create node: " << e.what());
             return std::unexpected(NodeCreationError::CreationFailed);
         } catch (...) {
+            /**
+             * @brief Executes the Log4 Cxx Error operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_ERROR(logger_, "Failed to create node: unknown error");
             return std::unexpected(NodeCreationError::Unknown);
         }
@@ -156,6 +202,13 @@ public:
      * @endcode
      */
     [[nodiscard]] std::expected<NodeFacadeAdapter, NodeCreationError>
+    /**
+     * @brief Creates or builds the object described by Create Node Expected.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param node_type_name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CreateNodeExpected(const std::string& node_type_name) noexcept override;
 
     /**
@@ -165,6 +218,12 @@ public:
      * @return String containing type information
      */
     template <typename NodeType>
+    /**
+     * @brief Returns the Node Type Info.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string GetNodeTypeInfo() const {
         return typeid(NodeType).name();
     }

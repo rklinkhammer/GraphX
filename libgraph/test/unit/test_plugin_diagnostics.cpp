@@ -2,9 +2,10 @@
 
 /**
  * @file test_plugin_diagnostics.cpp
- * @brief GraphX source file.
+ * @brief Test Plugin Diagnostics Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <dlfcn.h>
 #include <string>

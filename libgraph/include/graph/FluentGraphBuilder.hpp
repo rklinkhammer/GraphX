@@ -1,8 +1,9 @@
 /**
  * @file FluentGraphBuilder.hpp
- * @brief GraphX source file.
+ * @brief Fluent Graph Builder Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,25 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file FluentGraphBuilder.hpp
- * @brief Fluent C++ API for type-safe graph construction
- *
- * Provides a method-chaining interface for building dataflow graphs with
- * compile-time type safety as an alternative to JSON configuration.
- *
- * Phase 2 Implementation: Type-safe fluent builder
- * 
- * Features:
- * - Method chaining for readable graph definitions
- * - Compile-time template validation of edge connections
- * - IDE-friendly autocomplete support
- * - No JSON parsing required
- * - Full type safety compared to JSON configuration
- *
- * @author Copilot
- * @date 2026-05-08
- */
 
 #pragma once
 
@@ -86,12 +68,24 @@ namespace graph {
  * The builder accumulates node specifications and edge connections,
  * then creates the final GraphManager with all connections wired.
  */
+/**
+ * @class FluentGraphBuilder
+ * @brief Fluent Graph Builder builder.
+ *
+ * @details Collects configuration and constructs GraphX runtime objects in a predictable order. Builder methods are intended to be chained before final construction.
+ */
 template <typename NodeProviderType = void>
 class FluentGraphBuilder {
 public:
     /**
      * @struct NodeSpec
      * @brief Specification for a node in the graph
+     */
+    /**
+     * @struct NodeSpec
+     * @brief Node Spec data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct NodeSpec {
         std::string name;                    ///< Unique node name
@@ -102,6 +96,12 @@ public:
     /**
      * @struct EdgeSpec
      * @brief Specification for an edge in the graph
+     */
+    /**
+     * @struct EdgeSpec
+     * @brief Edge Spec data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct EdgeSpec {
         std::string src_name;    ///< Source node name
@@ -144,6 +144,13 @@ public:
      * @endcode
      */
     template <typename NodeType>
+    /**
+     * @brief Executes the Add Node operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     FluentGraphBuilder& AddNode(std::string_view name) {
         if (name.empty()) {
             throw std::invalid_argument("Node name cannot be empty");

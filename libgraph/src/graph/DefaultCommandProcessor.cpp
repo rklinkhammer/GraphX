@@ -1,8 +1,9 @@
 /**
  * @file DefaultCommandProcessor.cpp
- * @brief GraphX source file.
+ * @brief Default Command Processor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file DefaultCommandProcessor.cpp
- * @brief Implementation of default command processor
- *
- * Phase 2: CommandProcessorCapability - First concrete processor implementation.
- * Wraps CommandRegistryCapability to provide ICommandProcessor interface.
- */
 
 #include "graph/DefaultCommandProcessor.hpp"
 #include <sstream>

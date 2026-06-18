@@ -1,8 +1,9 @@
 /**
  * @file cuda_host_ingress_pinned_source_node_plugin.cpp
- * @brief GraphX source file.
+ * @brief CUDA Host Ingress Pinned Source Node Plugin GPU acceleration support.
+ *
+ * @details Provides GPU plugin registration unit for dynamic graph-node loading. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors

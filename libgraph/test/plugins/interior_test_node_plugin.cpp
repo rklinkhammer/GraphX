@@ -1,8 +1,9 @@
 /**
  * @file interior_test_node_plugin.cpp
- * @brief GraphX source file.
+ * @brief Interior Test Node Plugin Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file source_test_node_plugin.cpp
- * @brief InteriorTestNode as a dynamically-loadable plugin
- *
- * Exports InteriorTestNode (data producer) as a dynamically-loadable plugin
- * for Stage 5.5a completion testing.
- */
 
 #include <memory>
 #include <log4cxx/logger.h>

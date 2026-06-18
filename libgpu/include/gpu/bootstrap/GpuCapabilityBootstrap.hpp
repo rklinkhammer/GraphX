@@ -1,8 +1,9 @@
 /**
  * @file GpuCapabilityBootstrap.hpp
- * @brief GraphX source file.
+ * @brief GPU Capability Bootstrap GPU acceleration support.
+ *
+ * @details Provides GPU capability bootstrap and backend integration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -14,6 +15,18 @@
 #include "graph/CapabilityBus.hpp"
 
 namespace graph::gpu {
+
+/**
+
+ * @struct GpuCapabilityBootstrapOptions
+
+ * @brief GPU Capability Bootstrap Options data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct GpuCapabilityBootstrapOptions {
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
@@ -58,7 +71,9 @@ std::shared_ptr<graph::CapabilityBus> OverrideSharedGpuCapabilityBusForTesting(
 
 /**
  * @class ScopedGpuCapabilityBusOverride
- * @brief ScopedGpuCapabilityBusOverride class.
+ * @brief Scoped GPU Capability Bus Override capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ScopedGpuCapabilityBusOverride {
 public:
@@ -67,10 +82,34 @@ public:
         : previous_bus_(OverrideSharedGpuCapabilityBusForTesting(
               std::move(replacement_bus))) {}
 
+    /**
+     * @brief Executes the Scoped GPU Capability Bus Override operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ScopedGpuCapabilityBusOverride Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ScopedGpuCapabilityBusOverride(const ScopedGpuCapabilityBusOverride&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ScopedGpuCapabilityBusOverride Input or configuration value consumed by the method.
+     */
     ScopedGpuCapabilityBusOverride& operator=(const ScopedGpuCapabilityBusOverride&) = delete;
 
+    /**
+     * @brief Releases resources owned by Scoped GPU Capability Bus Override.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~ScopedGpuCapabilityBusOverride() {
+        /**
+         * @brief Executes the Override Shared GPU Capability Bus For Testing operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         OverrideSharedGpuCapabilityBusForTesting(std::move(previous_bus_));
     }
 

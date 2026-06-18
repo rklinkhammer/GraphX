@@ -1,8 +1,9 @@
 /**
  * @file EdgeFacade.hpp
- * @brief GraphX source file.
+ * @brief Edge Facade Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,157 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file EdgeFacade.hpp
- * @brief Type-erased edge interfaces and convenient wrappers
- * 
- * ## Overview
- * 
- * EdgeFacade provides abstraction layers for working with heterogeneous Edge templates
- * after type erasure. Similar to NodeFacade for nodes, EdgeFacade provides:
- * 
- * 1. **IEdgeBase**: Virtual interface for type-erased edge storage in vectors
- *    - All edges of different template parameters can be stored as unique_ptr<IEdgeBase>
- *    - Enables polymorphic access to edge lifecycle, metadata, and metrics
- *    - Used internally by GraphManager for edge container
- * 
- * 2. **EdgeWrapper<>**: Template wrapper implementing IEdgeBase for concrete edges
- *    - CRTP pattern to capture compile-time information (ports, node types)
- *    - Delegates lifecycle operations to wrapped Edge<>
- *    - Stores metadata (source/dest node IDs) provided by GraphManager
- *    - Delegates metrics queries to internal EdgeMetrics or wrapped Edge's ThreadMetrics
- *    - Used internally by GraphManager::AddEdge()
- * 
- * 3. **EdgeFacadeAdapter**: C++ convenience wrapper for IEdgeBase pointers
- *    - Shorter method names (GetEnqueued vs GetMessagesEnqueued)
- *    - Status checks (IsReady, IsHealthy)
- *    - String representations for logging
- *    - Used by client code to access edges returned from GraphManager
- * 
- * ## Type Erasure Pattern
- * 
- * ```
- * Edge<Node1, 0, Node2, 0>  Edge<Node1, 0, Node3, 0>  Edge<Node2, 1, Node3, 1>
- *         |                           |                           |
- *         v                           v                           v
- * EdgeWrapper<Node1,0,Node2,0>  EdgeWrapper<Node1,0,Node3,0>  EdgeWrapper<Node2,1,Node3,1>
- *         |                           |                           |
- *         +---------------------------+---------------------------+
- *                           |
- *                           v
- *                  std::unique_ptr<IEdgeBase>
- *                           |
- *                   vector<unique_ptr<IEdgeBase>>
- *                  (GraphManager::edges_)
- * ```
- * 
- * All type information captured at compile-time in EdgeWrapper template parameters,
- * but stored polymorphically as IEdgeBase to enable mixed-type edge containers.
- * 
- * ## Metrics Flow
- * 
- * Edge metrics come from two sources:
- * 
- * 1. **Queue Metrics** (EdgeMetrics struct):
- *    - Stored in GraphManager and passed to EdgeWrapper via SetMetrics()
- *    - Tracks messages enqueued/dequeued, backpressure events, queue depth
- *    - Populated by Edge's Enqueue() and Dequeue() operations
- * 
- * 2. **Thread Metrics** (ThreadMetrics struct):
- *    - Embedded in Edge class, instrumented in EdgeThreadFunc()
- *    - Tracks transfer operations, timing, thread active flag
- *    - Returned by Edge::GetThreadMetrics() and delegated via IEdgeBase
- * 
- * EdgeFacadeAdapter provides convenient access to both metric streams.
- * 
- * ## Memory Model
- * 
- * **Ownership**:
- * - EdgeWrapper owns wrapped Edge<> via unique_ptr
- * - IEdgeBase pointer doesn't own - Graph owns wrapper
- * - EdgeMetrics shared_ptr allows metrics to outlive individual edges (aggregate tracking)
- * 
- * **Thread Safety**:
- * - All metrics access uses std::memory_order_relaxed (informational, not synchronization)
- * - Metadata is write-once in SetMetadata() - no synchronization needed
- * - State flags use appropriate memory ordering (release for write, relaxed for read)
- * 
- * **Lifetime**:
- * - IEdgeBase pointers valid only while GraphManager alive
- * - EdgeFacadeAdapter is non-owning wrapper - must outlive edge
- * - Always create EdgeFacadeAdapter from temporary: `EdgeFacadeAdapter(edge.get())`
- * 
- * ## Usage Examples
- * 
- * ### Accessing edge metrics during graph execution:
- * 
- * ```cpp
- * for (const auto& edge : graph.GetEdges()) {
- *     EdgeFacadeAdapter facade(edge.get());
- *     std::cout << facade.GetStatsString() << std::endl;
- * }
- * ```
- * 
- * ### Checking edge health:
- * 
- * ```cpp
- * for (const auto& edge : graph.GetEdges()) {
- *     EdgeFacadeAdapter facade(edge.get());
- *     if (!facade.IsHealthy()) {
- *         LOG4CXX_WARN(logger, "Edge backpressure: " << facade.GetBackpressure());
- *     }
- * }
- * ```
- * 
- * ### Detailed edge analysis:
- * 
- * ```cpp
- * EdgeFacadeAdapter edge(edge_ptr);
- * std::cout << "Messages: " << edge.GetEnqueued() << " -> " 
- *           << edge.GetDequeued() << std::endl;
- * std::cout << "Rejected: " << edge.GetRejected() << std::endl;
- * std::cout << "Queue depth: " << edge.GetQueueDepth() << std::endl;
- * ```
- * 
- * ## Comparison with NodeFacade
- * 
- * | Aspect | NodeFacade | EdgeFacade |
- * |--------|-----------|-----------|
- * | Virtual interface | INode | IEdgeBase |
- * | Type-erased wrapper | NodeAdapter<> | EdgeWrapper<> |
- * | Convenience wrapper | NodeFacadeAdapter | EdgeFacadeAdapter |
- * | C-compatible layer | Yes (NodeFacade struct) | Not needed (internal) |
- * | Plugin support | Yes (NodePluginInstance) | Future (EdgePluginInstance) |
- * | Use case | Both internal & plugin | Primarily internal |
- * 
- * ## Design Decisions
- * 
- * **Decision 1: Separate header from GraphManager**
- * - Rationale: Mirrors NodeFacade pattern for consistency
- * - Benefit: Smaller files, clearer separation of concerns
- * - Tradeoff: One more header to include (mitigated by GraphManager including it)
- * 
- * **Decision 2: IEdgeBase interface instead of std::any**
- * - Rationale: Type-safe, enables polymorphic dispatch
- * - Benefit: Compiler catches errors, better performance
- * - Tradeoff: More code, but necessary for runtime heterogeneity
- * 
- * **Decision 3: EdgeFacadeAdapter separate from IEdgeBase**
- * - Rationale: Different purposes (virtual dispatch vs convenience)
- * - Benefit: Flexibility in implementation, clear intent
- * - Tradeoff: Two wrapper layers (necessary for design)
- * 
- * **Decision 4: SetMetadata/SetMetrics methods instead of constructor**
- * - Rationale: GraphManager creates wrapper before knowing node IDs
- * - Benefit: Decouples wrapper creation from metadata availability
- * - Tradeoff: Two-phase initialization (documented)
- * 
- * @author Robert Klinkhammer
- * @date 2025-01-04
- * @see GraphManager.hpp for usage of IEdgeBase and EdgeWrapper
- * @see Metrics.hpp for EdgeMetrics and EdgeMetadata
- * @see Nodes.hpp for Edge<> template and ThreadMetrics
- */
 
 #pragma once
 
@@ -205,8 +55,19 @@ namespace graph {
  * @class IEdgeBase
  * @brief I edge base implementation for GraphX.
  */
+/**
+ * @class IEdgeBase
+ * @brief Iedge Base type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class IEdgeBase {
 public:
+    /**
+     * @brief Releases resources owned by Iedge Base.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IEdgeBase() = default;
     
     // === Lifecycle Methods (Existing) ===
@@ -303,6 +164,12 @@ template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t D
  * @class EdgeWrapper
  * @brief Edge wrapper implementation for GraphX.
  */
+/**
+ * @class EdgeWrapper
+ * @brief Edge Wrapper type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class EdgeWrapper : public IEdgeBase {
 public:
     using EdgeType = graph::Edge<SrcNode, SrcPort, DstNode, DstPort>;
@@ -321,31 +188,74 @@ public:
     bool Start() override { return edge_->Start(); }
     void Stop() override { edge_->Stop(); }
     void Join() override { edge_->Join(); }
+    /**
+     * @brief Executes the Join With Timeout operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param timeout_ms Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override { 
         return edge_->JoinWithTimeout(timeout_ms); 
     }
     
     // === Metadata Access ===
+    /**
+     * @brief Returns the Source Node ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetSourceNodeId() const override {
         return source_node_id_;
     }
     
+    /**
+     * @brief Returns the Source Port ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetSourcePortId() const override {
         return SrcPort;  // Known at compile time
     }
     
+    /**
+     * @brief Returns the Dest Node ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetDestNodeId() const override {
         return dest_node_id_;
     }
     
+    /**
+     * @brief Returns the Dest Port ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetDestPortId() const override {
         return DstPort;  // Known at compile time
     }
     
+    /**
+     * @brief Returns the Message Type Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string GetMessageTypeName() const override {
         return message_type_demangled_;
     }
     
+    /**
+     * @brief Returns the Description.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string GetDescription() const override {
         std::ostringstream oss;
         oss << "Edge[" << source_node_id_ << ":" << SrcPort 
@@ -355,6 +265,12 @@ public:
     }
     
     // === Queue Metrics ===
+    /**
+     * @brief Returns the Queue Size.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetQueueSize() const override {
         if (!metrics_) return 0;
         // Return messages enqueued minus dequeued as current depth estimate
@@ -363,42 +279,90 @@ public:
         return (enqueued > dequeued) ? (enqueued - dequeued) : 0;
     }
     
+    /**
+     * @brief Returns the Messages Enqueued.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     uint64_t GetMessagesEnqueued() const override {
         if (!metrics_) return 0;
         return metrics_->messages_enqueued.load(std::memory_order_relaxed);
     }
     
+    /**
+     * @brief Returns the Messages Dequeued.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     uint64_t GetMessagesDequeued() const override {
         if (!metrics_) return 0;
         return metrics_->messages_dequeued.load(std::memory_order_relaxed);
     }
     
+    /**
+     * @brief Returns the Messages Rejected.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     uint64_t GetMessagesRejected() const override {
         if (!metrics_) return 0;
         return metrics_->messages_rejected.load(std::memory_order_relaxed);
     }
     
+    /**
+     * @brief Returns the Backpressure Events.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     uint64_t GetBackpressureEvents() const override {
         if (!metrics_) return 0;
         return metrics_->backpressure_events.load(std::memory_order_relaxed);
     }
     
+    /**
+     * @brief Returns the Peak Queue Depth.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     uint64_t GetPeakQueueDepth() const override {
         if (!metrics_) return 0;
         return metrics_->peak_queue_depth.load(std::memory_order_relaxed);
     }
     
     // === Thread Metrics ===
+    /**
+     * @brief Returns the Edge Thread Metrics.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     const graph::ThreadMetrics& GetEdgeThreadMetrics() const override {
         // Delegate to wrapped edge's thread metrics (now available after Part 2 instrumentation)
         return edge_->GetThreadMetrics();
     }
     
     // === State Queries ===
+    /**
+     * @brief Reports whether Is Initialized is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool IsInitialized() const override {
         return initialized_.load(std::memory_order_relaxed);
     }
     
+    /**
+     * @brief Reports whether Is Running is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool IsRunning() const override {
         return running_.load(std::memory_order_relaxed);
     }
@@ -462,6 +426,12 @@ private:
  * }
  * @endcode
  */
+/**
+ * @class EdgeFacadeAdapter
+ * @brief Edge Facade Adapter type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class EdgeFacadeAdapter {
 private:
     IEdgeBase* edge_;  // Does not own
@@ -470,6 +440,12 @@ public:
     /// Constructor
     explicit EdgeFacadeAdapter(IEdgeBase* edge) 
         : edge_(edge) {
+        /**
+         * @brief Executes the Assert operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         assert(edge_ != nullptr);
     }
     

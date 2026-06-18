@@ -2,9 +2,10 @@
 
 /**
  * @file test_graph_executor_builder_policies.cpp
- * @brief GraphExecutorBuilder policy and capability lifecycle tests.
+ * @brief Test Graph Executor Builder Policies Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include "capabilities/CommandOutputCapability.hpp"

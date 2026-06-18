@@ -1,3 +1,10 @@
+/**
+ * @file graph.port_metadata.ixx
+ * @brief Graph.port Metadata Graph runtime support.
+ *
+ * @details Provides GraphX runtime support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
+ */
+
 module;
 
 #include "graph/PortTypes.hpp"

@@ -2,13 +2,10 @@
 
 /**
  * @file AdvancedTestNodes.hpp
- * @brief Simple test nodes for registered-provider testing
+ * @brief Advanced Test Nodes Graph runtime support.
  *
- * Provides various node types for comprehensive provider testing.
- *
- * @author Test Suite
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <array>
@@ -47,6 +44,18 @@ namespace test {
     inline constexpr char g_split_output0[] = "Out0";
     inline constexpr char g_split_output1[] = "Out1";
 
+    /**
+
+     * @enum TestNodeEvent
+
+     * @brief Test Node Event values.
+
+     *
+
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+     */
+
     enum class TestNodeEvent {
         None = 0,
         Init,
@@ -70,6 +79,12 @@ namespace test {
  * @class TestNodeInstrumentation
  * @brief Test node instrumentation implementation for GraphX.
  */
+    /**
+     * @class TestNodeInstrumentation
+     * @brief Test Node Instrumentation graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class TestNodeInstrumentation {
     public:
         void Record(TestNodeEvent event) noexcept {
@@ -148,6 +163,12 @@ namespace test {
     /**
      * @class SourceTestNode
      * @brief Simple data source for testing with JSON configuration support
+     */
+    /**
+     * @class SourceTestNode
+     * @brief Source Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
      */
     class SourceTestNode 
         : public graph::NamedSourceNode<
@@ -397,6 +418,12 @@ namespace test {
      * 
      * Implements IConfigurable to support dynamic configuration via JSON for use with
      * NodeFacade and dynamic node loading.
+     */
+    /**
+     * @class SinkTestNode
+     * @brief Sink Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
      */
     class SinkTestNode : public graph::NamedSinkNode<SinkTestNode, ::graph::message::Message>,
                         public graph::ICompletionCallback<::graph::message::CompletionSignal>,
@@ -665,6 +692,12 @@ namespace test {
  * @class OptionalConfigTestNode
  * @brief Optional config test node implementation for GraphX.
  */
+    /**
+     * @class OptionalConfigTestNode
+     * @brief Optional Config Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class OptionalConfigTestNode
         : public graph::NamedSinkNode<OptionalConfigTestNode, ::graph::message::Message>,
           public graph::IConfigurable,
@@ -715,6 +748,12 @@ namespace test {
     /**
      * @class FailingTestNode
      * @brief Node that can be configured to report failures
+     */
+    /**
+     * @class FailingTestNode
+     * @brief Failing Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
      */
     class FailingTestNode : public graph::NamedSinkNode<FailingTestNode, graph::message::Message>,
                            public graph::IMetricsCallbackProvider {
@@ -796,6 +835,12 @@ namespace test {
  * @class NSinkTestNode
  * @brief N sink test node implementation for GraphX.
  */
+    /**
+     * @class NSinkTestNode
+     * @brief Nsink Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class NSinkTestNode : public graph::NamedSinkNode<NSinkTestNode,
                                 graph::message::Message, 
                                 graph::message::Message, 
@@ -929,6 +974,12 @@ namespace test {
  * @class InteriorTestNode
  * @brief Interior test node implementation for GraphX.
  */
+    /**
+     * @class InteriorTestNode
+     * @brief Interior Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class InteriorTestNode
         : public graph::NamedInteriorNode<
               graph::TypeList<graph::message::Message>,
@@ -1103,6 +1154,12 @@ namespace test {
      *
      * Tracks message counts from each input port for advanced metrics validation.
      */
+    /**
+     * @class MergeTestNode
+     * @brief Merge Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class MergeTestNode 
         : public graph::MergeNode<2, ::graph::message::Message, ::graph::message::Message, MergeTestNode>,
           public graph::IMetricsCallbackProvider {
@@ -1257,6 +1314,12 @@ namespace test {
      * @brief Split node that replicates input to multiple output streams
      *
      * Tracks message counts through each output port for advanced metrics validation.
+     */
+    /**
+     * @class SplitTestNode
+     * @brief Split Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
      */
     class SplitTestNode
         : public graph::SplitNode2<::graph::message::Message>,

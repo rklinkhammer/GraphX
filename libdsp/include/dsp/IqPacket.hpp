@@ -1,8 +1,9 @@
 /**
  * @file IqPacket.hpp
- * @brief GraphX source file.
+ * @brief IQ Packet DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,14 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/*!
- * @file dsp/IqPacket.hpp
- * @brief IQ (In-phase/Quadrature) sample packet for DSP applications
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- */
 
 #pragma once
 
@@ -79,6 +72,12 @@ using Complex = std::complex<T>;
  * @tparam N Number of samples per packet
  *
  * @see SineWaveGenerator for example producer
+ */
+/**
+ * @class IqPacket
+ * @brief IQ Packet message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
  */
 template<typename SampleT, size_t N>
 class IqPacket {

@@ -1,8 +1,9 @@
 /**
  * @file PluginInspector.hpp
- * @brief GraphX source file.
+ * @brief Plugin Inspector Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,16 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file PluginInspector.hpp
- * @brief Plugin discovery and capability inspection for GraphX
- *
- * Provides programmatic access to discover installed plugins and query their
- * capabilities (IConfigurable, IDiagnosable, IParameterized interfaces).
- *
- * @author GraphX Team
- * @date 2026-01-06
- */
 
 #pragma once
 
@@ -50,12 +41,30 @@
 namespace graph {
 
 // Forward declarations
+/**
+ * @class PluginInspector
+ * @brief Plugin Inspector type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class PluginInspector;
+/**
+ * @class INodeMetadataService
+ * @brief Inode Metadata Service graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class INodeMetadataService;
 
 /**
  * @struct PluginInfo
  * @brief Metadata about a discovered plugin
+ */
+/**
+ * @struct PluginInfo
+ * @brief Plugin Info data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct PluginInfo {
     std::string name;              ///< Plugin name (e.g., "AltitudeFusionNode")
@@ -68,6 +77,12 @@ struct PluginInfo {
 /**
  * @struct InterfaceCapability
  * @brief Information about a specific interface capability
+ */
+/**
+ * @struct InterfaceCapability
+ * @brief Interface Capability data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct InterfaceCapability {
     std::string name;              ///< Interface name (e.g., "IConfigurable")
@@ -97,6 +112,12 @@ struct InterfaceCapability {
  *   bool has_diagnostic = ranges::any_of(all_plugins,
  *       [](const auto& p) { return p.HasIDiagnosable(); });
  * @endcode
+ */
+/**
+ * @struct PluginCapabilities
+ * @brief Plugin Capabilities data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct PluginCapabilities {
     PluginInfo info;
@@ -191,6 +212,12 @@ struct PluginCapabilities {
  *
  * @see RangesUtilities.hpp for CountIf() helper
  */
+/**
+ * @struct ComplianceStats
+ * @brief Compliance Stats data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct ComplianceStats {
     size_t total = 0;              ///< Total plugins inspected
     size_t configurable = 0;       ///< Plugins with IConfigurable
@@ -213,6 +240,12 @@ struct ComplianceStats {
 /**
  * @struct CacheInfo
  * @brief Caching statistics and configuration
+ */
+/**
+ * @struct CacheInfo
+ * @brief Cache Info data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct CacheInfo {
     bool enabled = true;                                    ///< Is caching enabled
@@ -246,6 +279,12 @@ struct CacheInfo {
  * @brief Semantic version with major.minor.patch format
  *
  * Supports parsing and comparison of semantic versions.
+ */
+/**
+ * @struct SemanticVersion
+ * @brief Semantic Version data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct SemanticVersion {
     int major = 0;     ///< Major version number
@@ -337,6 +376,12 @@ struct SemanticVersion {
  * @see RangesUtilities.hpp for helper functions
  * @note Non-copyable to prevent accidental duplication of plugin loading
  */
+/**
+ * @class PluginInspector
+ * @brief Plugin Inspector type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class PluginInspector {
 public:
     /**
@@ -355,11 +400,37 @@ public:
     ~PluginInspector();
     
     // Non-copyable
+    /**
+     * @brief Executes the Plugin Inspector operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param PluginInspector Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     PluginInspector(const PluginInspector&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param PluginInspector Input or configuration value consumed by the method.
+     */
     PluginInspector& operator=(const PluginInspector&) = delete;
     
     // Movable
+    /**
+     * @brief Executes the Plugin Inspector operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param PluginInspector Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     PluginInspector(PluginInspector&&) noexcept = default;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param PluginInspector Input or configuration value consumed by the method.
+     */
     PluginInspector& operator=(PluginInspector&&) noexcept = default;
     
     // ========================================================================

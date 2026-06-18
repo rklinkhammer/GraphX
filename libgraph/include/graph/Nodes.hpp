@@ -1,8 +1,9 @@
 /**
  * @file Nodes.hpp
- * @brief GraphX source file.
+ * @brief Nodes Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,27 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file Nodes.hpp
- * @brief Active Graph Node Framework - Type-safe dataflow processing nodes
- *
- * This file provides a compile-time type-safe framework for building dataflow graphs
- * with strongly-typed input and output ports. The framework supports:
- *
- * - **Source Nodes**: Produce data on output ports
- * - **Sink Nodes**: Consume data on input ports
- * - **Interior Nodes**: Transform data from input to output ports
- * - **Edges**: Connect output ports to input ports with type checking
- *
- * Key Features:
- * - Compile-time type safety for port connections
- * - Runtime reflection for port inspection
- * - Thread-safe queuing between nodes
- * - Backpressure support via bounded queues
- *
- * @author Robert Klinkhammer
- * @date 2025-11-29
- */
 
 #pragma once
 
@@ -125,6 +105,18 @@ namespace graph
     // - NodeLifecycleMixin: Defined in nodes/Lifecycle.hpp
     // ===================================================================================
 
+    /**
+
+     * @class SourceNodeBase
+
+     * @brief Source Node Base graph node.
+
+     *
+
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+
+     */
+
     template <typename Outputs>
     class SourceNodeBase;
 
@@ -133,6 +125,12 @@ namespace graph
  * @class SourceNodeBase
  * @brief Source node base implementation for GraphX.
  */
+    /**
+     * @class SourceNodeBase
+     * @brief Source Node Base graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class SourceNodeBase<TypeList<Outputs...>>
         : public NodeLifecycleMixin<SourceNodeBase<TypeList<Outputs...>>>,
           public OutputFn<Outputs>...
@@ -155,42 +153,96 @@ namespace graph
         using OutputPortType = typename std::tuple_element<PortID, std::tuple<Outputs...>>::type;
 
         static constexpr std::size_t NOutputs = sizeof...(Outputs);
+        /**
+         * @brief Releases resources owned by Source Node Base.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~SourceNodeBase() {
             auto logger = log4cxx::Logger::getLogger("SourceNodeBase");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, "Destroying SourceNodeBase");
         }
 
+        /**
+         * @brief Returns the Lifecycle State.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual LifecycleState GetLifecycleState() const override {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port GetLifecycleState`.");
             return this->GetLifecycleStateImpl();
         }
   
         virtual bool Init() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port Init.");
             return this->InitImpl();
         }
 
         virtual bool Start() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port Start.");
             return this->StartImpl();
         }
 
         virtual void Stop() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port Stop.");
             this->StopImpl();
         }
 
         virtual void Join() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port Join.");
             this->JoinImpl();
         }
 
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port JoinWithTimeout.");
             return this->JoinWithTimeoutImpl(timeout_ms);
         }
@@ -230,6 +282,13 @@ namespace graph
         /// Disable metrics collection for all output ports
         void DisableMetrics()
         {
+            /**
+             * @brief Executes the Enable Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param false Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableMetrics(false);
         }
 
@@ -253,6 +312,13 @@ namespace graph
         template<std::size_t Port>
         void GetPortQueueSizeImpl(std::size_t port_id, std::size_t& size) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<SourceNodeBase*>(this);
@@ -266,6 +332,13 @@ namespace graph
         template<std::size_t Port>
         void GetOutputQueueMetricsImpl(std::size_t port_id, const core::QueueMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<SourceNodeBase*>(this);
@@ -280,6 +353,13 @@ namespace graph
         template<std::size_t Port>
         void GetOutputPortThreadMetricsImpl(std::size_t port_id, const ThreadMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<SourceNodeBase*>(this);
@@ -294,6 +374,13 @@ namespace graph
         template<std::size_t Port>
         void ResetMetricsImpl()
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 auto* mutable_this = const_cast<SourceNodeBase*>(this);
                 auto* fn = static_cast<OutputFn<typename std::tuple_element<Port, std::tuple<Outputs...>>::type> *>(mutable_this);
@@ -306,12 +393,24 @@ namespace graph
 
         bool InitPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port InitPortsImpl.");
             return (OutputFn<Outputs>::Init() && ...);
         }
 
         bool StartPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port StartPortsImpl.");
             // Enable all output queues before starting
             (OutputFn<Outputs>::EnableQueue(), ...);
@@ -320,6 +419,12 @@ namespace graph
 
         void StopPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port StopPortsImpl.");
             (OutputFn<Outputs>::DisableQueue(), ...);
             (OutputFn<Outputs>::Stop(), ...);
@@ -327,6 +432,12 @@ namespace graph
 
         void JoinPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SourceNodeBase port JoinPortsImpl.");
             (OutputFn<Outputs>::Join(), ...);
         }
@@ -363,13 +474,38 @@ namespace graph
     template <typename... Outputs>
 /**
  * @class SourceNode
- * @brief SourceNode class.
+ * @brief Source Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class SourceNode
+     * @brief Source Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class SourceNode : public SourceNodeBase<typename MakePorts<TypeList<Outputs...>>::type>
     {
     public:
+        /**
+         * @brief Releases resources owned by Source Node.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~SourceNode() = default;
     };
+
+    /**
+
+     * @class SinkNodeBase
+
+     * @brief Sink Node Base graph node.
+
+     *
+
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+
+     */
 
     template <typename Inputs>
     class SinkNodeBase;
@@ -407,6 +543,12 @@ namespace graph
  * @class SinkNodeBase
  * @brief Sink node base implementation for GraphX.
  */
+    /**
+     * @class SinkNodeBase
+     * @brief Sink Node Base graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class SinkNodeBase<TypeList<Inputs...>>
         : public NodeLifecycleMixin<SinkNodeBase<TypeList<Inputs...>>>,
           public InputFn<Inputs>...
@@ -429,42 +571,96 @@ namespace graph
         using InputPortType = typename std::tuple_element<PortID, std::tuple<Inputs...>>::type;
 
         static constexpr std::size_t NInputs = sizeof...(Inputs);
+        /**
+         * @brief Releases resources owned by Sink Node Base.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~SinkNodeBase() {
             auto logger = log4cxx::Logger::getLogger("SinkNodeBase");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, "Destroying SinkNodeBase");
         }
 
+        /**
+         * @brief Returns the Lifecycle State.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual LifecycleState GetLifecycleState() const override {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port GetLifecycleState`.");
             return this->GetLifecycleStateImpl();
         }
         
         virtual bool Init() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port Init`.");
             return this->InitImpl();
         }
 
         virtual bool Start() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port Start`.");
             return this->StartImpl();
         }
 
         virtual void Stop() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port Stop`.");
             this->StopImpl();
         }
 
         virtual void Join() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port Join`.");
             this->JoinImpl();
         }
 
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port JoinWithTimeout`.");
             return this->JoinWithTimeoutImpl(timeout_ms);
         }
@@ -506,6 +702,13 @@ namespace graph
         /// Disable metrics collection for all input ports
         void DisableMetrics()
         {
+            /**
+             * @brief Executes the Enable Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param false Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableMetrics(false);
         }
 
@@ -519,6 +722,13 @@ namespace graph
         template<std::size_t Port>
         void GetInputQueueMetricsImpl(std::size_t port_id, const core::QueueMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<SinkNodeBase*>(this);
@@ -533,6 +743,13 @@ namespace graph
         template<std::size_t Port>
         void GetInputPortThreadMetricsImpl(std::size_t port_id, const ThreadMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<SinkNodeBase*>(this);
@@ -547,6 +764,13 @@ namespace graph
         template<std::size_t Port>
         void ResetMetricsImpl()
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 auto* mutable_this = const_cast<SinkNodeBase*>(this);
                 auto* fn = static_cast<InputFn<typename std::tuple_element<Port, std::tuple<Inputs...>>::type> *>(mutable_this);
@@ -559,12 +783,24 @@ namespace graph
 
         bool InitPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port InitPortsImpl`.");
             return (InputFn<Inputs>::Init() && ...);
         }
 
         bool StartPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port StartPortsImpl`.");
             // Enable all input queues before starting
             (InputFn<Inputs>::EnableQueue(), ...);
@@ -573,6 +809,12 @@ namespace graph
 
         void StopPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port StopPortsImpl`.");
             (InputFn<Inputs>::DisableQueue(), ...);
             (InputFn<Inputs>::Stop(), ...);
@@ -580,6 +822,12 @@ namespace graph
 
         void JoinPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "SinkNodeBase port JoinPortsImpl`.");
             (InputFn<Inputs>::Join(), ...);
         }
@@ -616,13 +864,38 @@ namespace graph
     template <typename... Inputs>
 /**
  * @class SinkNode
- * @brief SinkNode class.
+ * @brief Sink Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class SinkNode
+     * @brief Sink Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class SinkNode : public SinkNodeBase<typename MakePorts<TypeList<Inputs...>>::type>
     {
     public:
+        /**
+         * @brief Releases resources owned by Sink Node.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~SinkNode() = default;
    };
+
+    /**
+
+     * @class InteriorNodeBase
+
+     * @brief Interior Node Base graph node.
+
+     *
+
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+
+     */
 
     template <typename Inputs, typename Outputs>
     class InteriorNodeBase;
@@ -661,6 +934,12 @@ namespace graph
  * @class InteriorNodeBase
  * @brief Interior node base implementation for GraphX.
  */
+    /**
+     * @class InteriorNodeBase
+     * @brief Interior Node Base graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class InteriorNodeBase<TypeList<Inputs...>, TypeList<Outputs...>>
         : public NodeLifecycleMixin<InteriorNodeBase<TypeList<Inputs...>, TypeList<Outputs...>>>,
           public TransferFn<Inputs, Outputs>...
@@ -690,39 +969,86 @@ namespace graph
         static constexpr std::size_t NInputs = sizeof...(Inputs);
         static constexpr std::size_t NOutputs = sizeof...(Outputs);
 
+        /**
+         * @brief Releases resources owned by Interior Node Base.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~InteriorNodeBase() = default;
 
+        /**
+         * @brief Returns the Lifecycle State.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual LifecycleState GetLifecycleState() const override{
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port GetLifecycleState`.");
             return this->GetLifecycleStateImpl();
         }
   
         virtual bool Init() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port Init`.");
             return this->InitImpl();
         }
 
         virtual bool Start() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port Start`.");
             return this->StartImpl();
         }
 
         virtual void Stop() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port Stop`.");
             this->StopImpl();
         }
 
         virtual void Join() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port Join`.");
             this->JoinImpl();
         }
 
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port JoinWithTimeout`.");
             return this->JoinWithTimeoutImpl(timeout_ms);
         }
@@ -809,25 +1135,60 @@ namespace graph
         /// Disable metrics collection for input ports
         void DisableInputMetrics()
         {
+            /**
+             * @brief Executes the Enable Input Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param false Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableInputMetrics(false);
         }
 
         /// Disable metrics collection for output ports
         void DisableOutputMetrics()
         {
+            /**
+             * @brief Executes the Enable Output Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param false Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableOutputMetrics(false);
         }
 
         /// Enable metrics collection for all transfer ports (both input and output)
         void EnableMetrics(bool enabled = true)
         {
+            /**
+             * @brief Executes the Enable Input Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param enabled Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableInputMetrics(enabled);
+            /**
+             * @brief Executes the Enable Output Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param enabled Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableOutputMetrics(enabled);
         }
 
         /// Disable metrics collection for all transfer ports
         void DisableMetrics()
         {
+            /**
+             * @brief Executes the Enable Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param false Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableMetrics(false);
         }
 
@@ -842,6 +1203,13 @@ namespace graph
         template<std::size_t Port>
         void GetInputPortQueueSizeImpl(std::size_t port_id, std::size_t& size) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -857,6 +1225,13 @@ namespace graph
         template<std::size_t Port>
         void GetPortQueueSizeImpl(std::size_t port_id, std::size_t& size) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -871,6 +1246,13 @@ namespace graph
         template<std::size_t Port>
         void GetInputQueueMetricsImpl(std::size_t port_id, const core::QueueMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -886,6 +1268,13 @@ namespace graph
         template<std::size_t Port>
         void GetOutputQueueMetricsImpl(std::size_t port_id, const core::QueueMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -901,6 +1290,13 @@ namespace graph
         template<std::size_t Port>
         void GetInputPortThreadMetricsImpl(std::size_t port_id, const ThreadMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -916,6 +1312,13 @@ namespace graph
         template<std::size_t Port>
         void GetOutputPortThreadMetricsImpl(std::size_t port_id, const ThreadMetrics*& result) const
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NOutputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NOutputs) {
                 if (port_id == Port) {
                     auto* mutable_this = const_cast<InteriorNodeBase*>(this);
@@ -931,6 +1334,13 @@ namespace graph
         template<std::size_t Port>
         void ResetMetricsImpl()
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param NInputs Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < NInputs) {
                 auto* mutable_this = const_cast<InteriorNodeBase*>(this);
                 auto* fn = static_cast<TransferFn<typename std::tuple_element<Port, std::tuple<Inputs...>>::type,
@@ -944,12 +1354,24 @@ namespace graph
 
         bool InitPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port InitPortsImpl`.");
             return (TransferFn<Inputs, Outputs>::Init() && ...);
         }
 
         bool StartPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port StartPortsImpl`.");
             // Enable all input and output queues before starting
             (TransferFn<Inputs, Outputs>::EnableQueues(), ...);
@@ -958,6 +1380,12 @@ namespace graph
 
         void StopPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port StopPortsImpl`.");
             (TransferFn<Inputs, Outputs>::DisableQueues(), ...);
             (TransferFn<Inputs, Outputs>::Stop(), ...);
@@ -965,6 +1393,12 @@ namespace graph
 
         void JoinPortsImpl()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "InteriorNodeBase port JoinPortsImpl`.");
             (TransferFn<Inputs, Outputs>::Join(), ...);
         }
@@ -1006,12 +1440,25 @@ namespace graph
     template <typename InputList, typename OutputList>
 /**
  * @class InteriorNode
- * @brief InteriorNode class.
+ * @brief Interior Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class InteriorNode
+     * @brief Interior Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class InteriorNode
         : public InteriorNodeBase<typename MakePorts<InputList>::type, typename MakePorts<OutputList>::type>
     {
     public:
+        /**
+         * @brief Releases resources owned by Interior Node.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~InteriorNode() = default;
     };
 
@@ -1053,8 +1500,16 @@ namespace graph
     template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t DstPort>
 /**
  * @class Edge
- * @brief Edge class.
+ * @brief Edge type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class Edge
+     * @brief Edge type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class Edge
     {
     public:
@@ -1076,16 +1531,33 @@ namespace graph
         {
         }
 
+        /**
+         * @brief Releases resources owned by Edge.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~Edge() = default;
     
         virtual bool Init()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " Init.");
             return true;
         }
 
         virtual bool Start()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " Start.");
             
             // Perform type checking once at startup (not in hot loop)
@@ -1112,6 +1584,12 @@ namespace graph
             
             // Launch edge thread with type-specific enqueue path already determined
             auto t = [this]() -> void {
+                /**
+                 * @brief Executes the Edge Thread Func operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 EdgeThreadFunc();
             };
             thread_ = std::thread(t);
@@ -1120,6 +1598,12 @@ namespace graph
 
         virtual void Stop()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " Stop.");
             stop_requested_.store(true, std::memory_order_release);
             src_->Stop();
@@ -1128,6 +1612,12 @@ namespace graph
 
         virtual void Join()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " Join.");
             if (thread_.joinable())
             {
@@ -1148,13 +1638,32 @@ namespace graph
          */
         bool JoinWithTimeout(std::chrono::milliseconds timeout_ms)
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " JoinWithTimeout.");
             if (!thread_.joinable())
                 return true;
 
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param mtx_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock lock(mtx_);
             if (!cv_.wait_for(lock, timeout_ms, [&] { return stop_requested_.load(std::memory_order_acquire); }))
             {
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Thread did not finish within timeout");
                 return false;
             }
@@ -1190,6 +1699,12 @@ namespace graph
     private:
         void EdgeThreadFunc()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " running.");
             
             // Mark thread as active
@@ -1252,6 +1767,12 @@ namespace graph
             // Mark thread as inactive
             thread_metrics_.thread_active.store(false, std::memory_order_release);
             
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.edge"), "Edge from port " << SrcPort << " to port " << DstPort << " stopped.");
             cv_.notify_all();
        }
@@ -1298,8 +1819,16 @@ namespace graph
     template <std::size_t N, typename CommonInput, typename OutputT>
 /**
  * @class MergeNodeBase
- * @brief MergeNodeBase class.
+ * @brief Merge Node Base graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class MergeNodeBase
+     * @brief Merge Node Base graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class MergeNodeBase
         : public IMergeFn<CommonInput, OutputT>,
           public ExpandInputPorts<N, CommonInput>::InputBases,
@@ -1322,8 +1851,20 @@ namespace graph
             : ExpandInputPorts<N, CommonInput>::InputBases(unified_queue_) {
         }
 
+        /**
+         * @brief Releases resources owned by Merge Node Base.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~MergeNodeBase() {
             try {
+                /**
+                 * @brief Updates the Stop Request.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param true Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 SetStopRequest(true);
                 if (thread_.joinable()) {
                     thread_.join();
@@ -1338,36 +1879,73 @@ namespace graph
         // PUBLIC LIFECYCLE INTERFACE (from INode via NodeLifecycleMixin)
         // ====================================================================
 
+        /**
+         * @brief Returns the Lifecycle State.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual LifecycleState GetLifecycleState() const override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase GetLifecycleState.");
             return this->GetLifecycleStateImpl();
         }
 
+        /**
+         * @brief Performs the Init lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual bool Init() override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase Init.");
             return this->InitImpl();
         }
 
+        /**
+         * @brief Performs the Start lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual bool Start() override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase Start.");
             return this->StartImpl();
         }
 
+        /**
+         * @brief Performs the Stop lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual void Stop() override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase Stop.");
             this->StopImpl();
         }
 
+        /**
+         * @brief Performs the Join lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual void Join() override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase Join.");
             this->JoinImpl();
         }
 
+        /**
+         * @brief Executes the Join With Timeout operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param timeout_ms Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), 
                           "MergeNodeBase JoinWithTimeout.");
@@ -1378,10 +1956,22 @@ namespace graph
         // PORT METADATA
         // ====================================================================
 
+        /**
+         * @brief Creates or builds the object described by Build Inputs.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval auto build_inputs() {
             return ExpandInputPorts<N, CommonInput>::build_all_metadata();
         }
 
+        /**
+         * @brief Creates or builds the object described by Build Outputs.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval auto build_outputs() {
             return build_port_table<PortDirection::Output>(
                 TypeList<Port<OutputT, 0>>{});
@@ -1390,10 +1980,22 @@ namespace graph
         static constexpr auto input_table = build_inputs();
         static constexpr auto output_table = build_outputs();
 
+        /**
+         * @brief Executes the Input Ports operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual std::span<const PortInfo> InputPorts() const final {
             return input_table;
         }
 
+        /**
+         * @brief Executes the Output Ports operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         virtual std::span<const PortInfo> OutputPorts() const final {
             return output_table;
         }
@@ -1456,6 +2058,12 @@ namespace graph
 
         friend class NodeLifecycleMixin<MergeNodeBase<N, CommonInput, OutputT>>;
 
+        /**
+         * @brief Performs the Init Ports Impl lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool InitPortsImpl() {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase InitPortsImpl: setting up unified queue with "
@@ -1472,6 +2080,12 @@ namespace graph
             return true;
         }
 
+        /**
+         * @brief Executes the Start Ports Impl operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool StartPortsImpl() {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase StartPortsImpl: launching merge thread.");
@@ -1481,17 +2095,36 @@ namespace graph
             
             // Launch merge thread
             auto t = [this]() -> void {
+                /**
+                 * @brief Executes the Merge Thread Func operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 MergeThreadFunc();
             };
             thread_ = std::thread(t);
             return true;
         }
 
+        /**
+         * @brief Executes the Stop Ports Impl operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void StopPortsImpl() {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase StopPortsImpl: signaling merge thread.");
             
             // Signal merge thread to stop
+            /**
+             * @brief Updates the Stop Request.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param true Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetStopRequest(true);
             unified_queue_.Disable();
             // Disable output queue
@@ -1499,6 +2132,12 @@ namespace graph
             IOutputFn<Port<OutputT, 0>>::Stop();
         }
 
+        /**
+         * @brief Executes the Join Ports Impl operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void JoinPortsImpl() {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase JoinPortsImpl: waiting for merge thread.");
@@ -1512,6 +2151,13 @@ namespace graph
             //IOutputFn<Port<OutputT, 0>>::Join();
         }
 
+        /**
+         * @brief Executes the Join With Timeout Ports Impl operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param timeout_ms Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool JoinWithTimeoutPortsImpl(std::chrono::milliseconds timeout_ms) {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase JoinWithTimeoutPortsImpl.");
@@ -1522,6 +2168,13 @@ namespace graph
             // Wait for merge thread with timeout
             if (thread_.joinable()) {
                 // Wait with timeout using cv
+                /**
+                 * @brief Executes the Lock operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param mtx_ Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 std::unique_lock<std::mutex> lock(mtx_);
                 if (!cv_.wait_for(lock, half, [this] { return !thread_.joinable(); })) {
                     LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
@@ -1534,10 +2187,23 @@ namespace graph
             return IOutputFn<Port<OutputT, 0>>::JoinWithTimeout(timeout_ms / 2);
         }
 
+        /**
+         * @brief Reports whether Is Stop Requested is true.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool IsStopRequested() const {
             return stop_requested_.load(std::memory_order_acquire);
         }
 
+        /**
+         * @brief Updates the Stop Request.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param value Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void SetStopRequest(bool value) {
             stop_requested_.store(value, std::memory_order_release);
         }
@@ -1546,6 +2212,12 @@ namespace graph
         // MERGE THREAD IMPLEMENTATION
         // ====================================================================
 
+        /**
+         * @brief Executes the Merge Thread Func operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void MergeThreadFunc() {
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"),
                           "MergeNodeBase MergeThreadFunc started.");
@@ -1617,10 +2289,23 @@ namespace graph
     template <std::size_t N, typename InputType, typename OutputT, typename Derived>
 /**
  * @class MergeNode
- * @brief MergeNode class.
+ * @brief Merge Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class MergeNode
+     * @brief Merge Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class MergeNode : public MergeNodeBase<N, InputType, OutputT>, public NamedType<Derived> {
     public:
+        /**
+         * @brief Releases resources owned by Merge Node.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~MergeNode() = default;
 
         /**
@@ -1650,9 +2335,22 @@ namespace graph
     };
 
     // Forward declaration for trait specialization
+    /**
+     * @struct NodeToINodeConverter
+     * @brief Node To Inode Converter data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <typename T>
     struct NodeToINodeConverter {
         // Default: direct conversion
+        /**
+         * @brief Executes the Convert operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param node Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static std::shared_ptr<INode> Convert(std::shared_ptr<T> node) {
             return std::dynamic_pointer_cast<INode>(node);
         }

@@ -2,9 +2,10 @@
 
 /**
  * @file test_metal_runtime_failure_injection.cpp
- * @brief GraphX source file.
+ * @brief Test Metal Runtime Failure Injection GPU acceleration support.
+ *
+ * @details Provides GPU test coverage for accelerator contracts and runtime behavior. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include <array>

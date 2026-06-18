@@ -1,8 +1,9 @@
 /**
  * @file CommandRegistry.hpp
- * @brief GraphX source file.
+ * @brief Command Registry Graph runtime support.
+ *
+ * @details Provides command and metric helpers for interactive graph tooling. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -37,9 +38,21 @@
 #include "core/RangesUtilities.hpp"
 
 // Forward declarations
+/**
+ * @class CommandRegistry
+ * @brief Command Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class CommandRegistry;
 
 namespace capabilities {
+/**
+ * @class ICommandOutput
+ * @brief Icommand Output type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class ICommandOutput;
 }
 
@@ -48,6 +61,12 @@ class ICommandOutput;
  * @brief Result of executing a dashboard command
  *
  * Indicates whether the command succeeded and provides output/error message.
+ */
+/**
+ * @struct CommandResult
+ * @brief Command Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct CommandResult {
     bool success;       ///< Whether command execution succeeded
@@ -87,6 +106,12 @@ using CommandHandler = std::function<CommandResult(const std::vector<std::string
  * @brief Metadata for a registered command
  *
  * Contains command name, description, usage information, and the handler function.
+ */
+/**
+ * @struct CommandInfo
+ * @brief Command Info data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct CommandInfo {
     std::string name;           ///< Command name (e.g., "help", "run")
@@ -134,6 +159,12 @@ struct CommandInfo {
  *   
  *   // Execute command
  *   auto result = registry->ExecuteCommand("my_command arg1 arg2");
+ */
+/**
+ * @class CommandRegistry
+ * @brief Command Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class CommandRegistry {
 public:

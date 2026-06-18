@@ -1,8 +1,9 @@
 /**
  * @file CSVDataInjectionManager.hpp
- * @brief GraphX source file.
+ * @brief Csvdata Injection Manager Graph runtime support.
+ *
+ * @details Provides CSV ingestion support for data-injection graph workflows. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -42,6 +43,18 @@
 
 namespace csv {
 
+/**
+
+ * @struct CSVNodeConfig
+
+ * @brief Csvnode Config data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct CSVNodeConfig {
     std::string node_name;
     //sensors::SensorClassificationType sensor_classification_type;
@@ -52,12 +65,25 @@ struct CSVNodeConfig {
 
 /**
  * @class CSVDataInjectionManager
- * @brief CSVDataInjectionManager class.
+ * @brief Csvdata Injection Manager manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class CSVDataInjectionManager {
 public:
 
+    /**
+     * @brief Executes the Csvdata Injection Manager operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CSVDataInjectionManager() = default;
+    /**
+     * @brief Releases resources owned by Csvdata Injection Manager.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~CSVDataInjectionManager() = default;
 
 /**

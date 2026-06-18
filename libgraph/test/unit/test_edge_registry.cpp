@@ -1,8 +1,9 @@
 /**
  * @file test_edge_registry.cpp
- * @brief GraphX source file.
+ * @brief Test Edge Registry Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // Copyright (C) 2024 Graph Framework Contributors
 // SPDX-License-Identifier: MIT
 //
@@ -26,18 +27,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_edge_registry.cpp
- * @brief Comprehensive unit tests for EdgeRegistry
- *
- * Tests the EdgeRegistry class with:
- * - Registration of edge creators
- * - Runtime creation of edges
- * - Type-safe lookup with std::type_index
- * - Error handling and validation
- *
- * @author Test Suite
- */
 
 #include <gtest/gtest.h>
 #include <memory>

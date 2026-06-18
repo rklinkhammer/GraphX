@@ -1,8 +1,9 @@
 /**
  * @file TestNode.hpp
- * @brief GraphX source file.
+ * @brief Test Node Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file TestNode.hpp
- * @brief Example sensor node implementation for GraphX
- *
- * Provides a reusable TestNode class that demonstrates:
- * - Data generator implementation
- * - Notification signal creation
- * - Named node pattern
- * - Metrics collection and reporting
- *
- * @author Robert Klinkhammer
- * @date 2025-12-31
- */
 
 #pragma once
 
@@ -55,8 +43,16 @@ namespace test {
 
 /**
  * @class TestNode
- * @brief TestNode class.
+ * @brief Test Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class TestNode
+     * @brief Test Node graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class TestNode : public graph::NamedSinkNode<TestNode, ::graph::message::Message> {
     public: 
         static constexpr char kStatePort[] = "State";

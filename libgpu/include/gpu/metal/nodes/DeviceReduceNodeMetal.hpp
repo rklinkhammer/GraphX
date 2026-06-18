@@ -1,8 +1,9 @@
 /**
  * @file DeviceReduceNodeMetal.hpp
- * @brief GraphX source file.
+ * @brief Device Reduce Node Metal GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -34,7 +35,9 @@ namespace graph::gpu::metal::nodes {
 
 /**
  * @class DeviceReduceNodeMetal
- * @brief DeviceReduceNodeMetal class.
+ * @brief Device Reduce Node Metal graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class DeviceReduceNodeMetal
     : public graph::NamedInteriorNode<
@@ -45,13 +48,31 @@ class DeviceReduceNodeMetal
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
+    /**
+     * @brief Executes the Device Reduce Node Metal operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     DeviceReduceNodeMetal() = default;
+    /**
+     * @brief Releases resources owned by Device Reduce Node Metal.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~DeviceReduceNodeMetal() {
         if (owns_queue_ && context_ && queue_id_ != 0) {
             context_->DestroyCommandQueue(queue_id_);
         }
     }
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
@@ -76,8 +97,27 @@ public:
         if (kernel_ && has_pending_kernel_configuration_) {
             const auto effective_queue = configured_queue_id_ == 0 ? queue_id_ : configured_queue_id_;
             if (has_typed_kernel_descriptor_) {
+                /**
+                 * @brief Applies configuration to this object.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param configured_kernel_descriptor_ Input or configuration value consumed by the method.
+                 * @param configured_device_id_ Input or configuration value consumed by the method.
+                 * @param effective_queue Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 ConfigureKernelDescriptor(configured_kernel_descriptor_, configured_device_id_, effective_queue);
             } else {
+                /**
+                 * @brief Applies configuration to this object.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param configured_kernel_id_ Input or configuration value consumed by the method.
+                 * @param configured_kernel_name_ Input or configuration value consumed by the method.
+                 * @param configured_device_id_ Input or configuration value consumed by the method.
+                 * @param effective_queue Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 ConfigureKernel(configured_kernel_id_, configured_kernel_name_, configured_device_id_, effective_queue);
             }
             has_pending_kernel_configuration_ = false;
@@ -115,6 +155,12 @@ public:
         auto launch_ticket = kernel_ticket_;
         launch_ticket.arg_count = kDefaultArgCount;
         if (!PopulateRegisteredKernelExecution(launch_ticket)) {
+            /**
+             * @brief Executes the Apply Fallback Launch Defaults operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             ApplyFallbackLaunchDefaults(launch_ticket.launch);
         }
         launch_ticket.launch.grid_x = static_cast<std::uint32_t>(input.bytes);
@@ -146,6 +192,15 @@ public:
             capabilities::MetalKernelArgDescriptor{capabilities::MetalKernelArgKind::DeviceBuffer,
                                                    capabilities::MetalKernelArgAccess::WriteOnly},
         };
+        /**
+         * @brief Applies configuration to this object.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param descriptor Input or configuration value consumed by the method.
+         * @param device_id Input or configuration value consumed by the method.
+         * @param queue_id Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         ConfigureKernelDescriptor(descriptor, device_id, queue_id);
     }
 
@@ -163,6 +218,12 @@ public:
         kernel_ticket_.kernel_id = descriptor.kernel_id;
         kernel_ticket_.arg_count = kDefaultArgCount;
         kernel_ticket_.execution_queue_id = queue_id;
+        /**
+         * @brief Executes the Apply Fallback Launch Defaults operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         ApplyFallbackLaunchDefaults(kernel_ticket_.launch);
         owns_queue_ = false;
         queue_id_ = queue_id;
@@ -173,10 +234,24 @@ public:
             } else {
                 kernel_->RegisterKernel(descriptor.kernel_id, descriptor.function_name);
             }
+            /**
+             * @brief Updates or queries runtime registration through Populate Registered Kernel Execution.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param kernel_ticket_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             PopulateRegisteredKernelExecution(kernel_ticket_);
         }
     }
 
+    /**
+     * @brief Applies configuration to this object.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param cfg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Configure(const graph::JsonView& cfg) override {
         if (cfg.Contains("kernel_descriptor")) {
             auto descriptor_obj = cfg.TryGetObject("kernel_descriptor");
@@ -241,6 +316,12 @@ public:
         }
     }
 
+    /**
+     * @brief Returns the Parameters.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] graph::JsonView GetParameters() const override {
         static thread_local nlohmann::json params;
         params = {
@@ -261,6 +342,13 @@ public:
         return graph::JsonView(params);
     }
 
+    /**
+     * @brief Returns the Parameter Description.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param param_name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
         static thread_local nlohmann::json desc;
         if (param_name == "queue_id") {
@@ -284,6 +372,12 @@ public:
         return graph::JsonView(desc);
     }
 
+    /**
+     * @brief Returns the Parameter Names.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
         return {"queue_id", "device_id", "kernel_id", "kernel_name", "kernel_descriptor"};
     }
@@ -291,6 +385,13 @@ public:
 private:
     static constexpr std::uint32_t kDefaultArgCount = 2;
 
+    /**
+     * @brief Executes the Apply Fallback Launch Defaults operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param launch Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void ApplyFallbackLaunchDefaults(accel::KernelLaunchConfig& launch) {
         launch.grid_x = 1;
         launch.grid_y = 1;
@@ -300,6 +401,13 @@ private:
         launch.block_z = 1;
     }
 
+    /**
+     * @brief Updates or queries runtime registration through Populate Registered Kernel Execution.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ticket Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool PopulateRegisteredKernelExecution(accel::KernelTicket& ticket) const {
         if (!kernel_) {
             return false;

@@ -1,8 +1,9 @@
 /**
  * @file NamedNodes.hpp
- * @brief GraphX source file.
+ * @brief Named Nodes Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,86 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file NamedNodes.hpp
- * @brief Named node types and data producers for GraphX
- *
- * This header provides specialized node implementations that combine GraphX node types
- * with the NamedType mixin for runtime identification. It includes:
- *
- * - **Named Node Types**: NamedSourceNode, NamedSinkNode, NamedMergeNode5
- *   - Inherit from both their node type and NamedType mixin
- *   - Enable runtime node identification via GetName() and SetName()
- *   - Support lifecycle methods: Init(), Start(), Stop(), Join()
- *
- * - **Data Producer Pattern**: DataGeneratorBase and DataProducerWithNotification
- *   - Implements the producer-consumer pattern with typed data generation
- *   - Supports precise timing control and interval-based sampling
- *   - Emits completion signals when data is exhausted
- *   - Integrates with metrics collection (Phase 5-6)
- *   - Two-port design: Port 0 (data samples), Port 1 (completion signal)
- *
- * ## Usage Pattern
- *
- * Create a custom data producer by:
- * 1. Implement DataGeneratorBase<DataType> with Produce() method
- * 2. Subclass DataProducerWithNotification with your generator and notification types
- * 3. Override CreateNotification() to specify completion signal format
- * 4. Instantiate with sampling parameters (interval, ignore count, max samples)
- *
- * Example:
- * @code
- *   class MyGenerator : public DataGeneratorBase<int> {
- *       std::optional<int> Produce(size_t index) override { \/\/ implementation }
- *   };
- *
- *   class MyProducer : public DataProducerWithNotification<
- *       MyProducer, MyGenerator, int, CompletionSignal> {
- *       CompletionSignal CreateNotification() const override { \/\/ implementation }
- *   };
- *
- *   auto producer = std::make_unique<MyProducer>(
- *       std::make_unique<MyGenerator>(),
- *       std::chrono::microseconds(10000),  // 10ms interval
- *       5);  // ignore first 5 samples
- * @endcode
- *
- * ## Metrics Integration
- *
- * All producers support Phases 5-6 metrics:
- * - Thread metrics tracking: iteration count, operation timings
- * - Queue metrics tracking: enqueue/dequeue counts, peak sizes
- * - Enable via EnableMetrics(true) after Init()
- * - Query via GetOutputQueueMetrics(port), GetOutputPortThreadMetrics(port)
- * - Export via MetricsFormatter with text/JSON/CSV formats
- *
- * ## Port Architecture
- *
- * DataProducerWithNotification uses a two-port design:
- * - **Port 0**: Data samples of type Message(DataType)
- *   - Produced on every successful Produce() call
- *   - Respects sample_ignore skip count
- *   - Produced every sample_interval microseconds
- * - **Port 1**: Completion signals of type Message(NotificationType)
- *   - Single emission when generator is exhausted
- *   - Enables graph-level coordination
- *   - Contains metadata (reason, timestamp, sample count, custom message)
- *
- * ## Thread Safety
- *
- * - notification_queue_ is thread-safe (ActiveQueue)
- * - generator_ is only accessed from the producer thread
- * - total_samples_generated_ is atomic-safe for read-only access from other threads
- * - Metrics operations are thread-safe via atomic operations
- *
- * @author Robert Klinkhammer
- * @date 2025-12-31
- * @version 1.0
- *
- * @see Nodes.hpp for base node types and NamedType mixin
- * @see nodes/Message.hpp for Message wrapper type
- * @see core/ActiveQueue.hpp for thread-safe queue implementation
- */
 
 // MIT License
 //
@@ -158,7 +79,9 @@ namespace graph {
 template <typename NodeType, typename... Outputs>
 /**
  * @class NamedSourceNode
- * @brief NamedSourceNode class.
+ * @brief Named Source Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class NamedSourceNode : public SourceNode<Outputs...>, public NamedType<NodeType> {
 public:
@@ -231,7 +154,9 @@ public:
 template <typename NodeType, typename... Inputs>
 /**
  * @class NamedSinkNode
- * @brief NamedSinkNode class.
+ * @brief Named Sink Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class NamedSinkNode : public SinkNode<Inputs...>, public NamedType<NodeType> {
 public:
@@ -277,7 +202,9 @@ public:
 template <typename InputList, typename OutputList, typename NodeType>
 /**
  * @class NamedInteriorNode
- * @brief NamedInteriorNode class.
+ * @brief Named Interior Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class NamedInteriorNode : public InteriorNode<InputList, OutputList>, public NamedType<NodeType> {
 public:
@@ -338,7 +265,9 @@ public:
 template <std::size_t N, typename CommonInput, typename OutputType, typename NodeType>
 /**
  * @class NamedMergeNode
- * @brief NamedMergeNode class.
+ * @brief Named Merge Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class NamedMergeNode : public MergeNode<N, CommonInput, OutputType>, public NamedType<NodeType> {
 public:
@@ -362,6 +291,12 @@ public:
      */
     virtual std::vector<PortMetadata> GetInputPortMetadata() const override {
         std::vector<PortMetadata> out;
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (HasPorts<NodeType>::value) {
             std::apply([&](auto... p) {
                 ((p.direction == PortDirection::Input
@@ -383,6 +318,12 @@ public:
      */
     virtual std::vector<PortMetadata> GetOutputPortMetadata() const override {
         std::vector<PortMetadata> out;
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (HasPorts<NodeType>::value) {
             std::apply([&](auto... p) {
                 ((p.direction == PortDirection::Output

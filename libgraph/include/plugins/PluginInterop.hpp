@@ -1,8 +1,9 @@
 /**
  * @file PluginInterop.hpp
- * @brief GraphX source file.
+ * @brief Plugin Interop Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -16,11 +17,35 @@
 
 namespace graph {
 
+/**
+
+ * @struct NodeFacade
+
+ * @brief Node Facade data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct NodeFacade;
 
 using GetPluginInfoFunc = const char* (*)();
 using GetPluginApiVersionFunc = int (*)();
 using GetPluginFacadeFunc = const NodeFacade* (*)();
+
+/**
+
+ * @enum PluginInteropError
+
+ * @brief Plugin Interop Error values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
 
 enum class PluginInteropError {
     InvalidPluginHandle = 1,

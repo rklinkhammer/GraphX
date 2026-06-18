@@ -2,17 +2,10 @@
 
 /**
  * @file Reflection.hpp
- * @brief C++26 Reflection utilities for compile-time port metadata generation
- * 
- * This header provides reflection-based utilities to replace manual metaprogramming
- * (TypeList, MakePorts, build_port_table) with C++26 constexpr reflection.
- * 
- * Phase 1: Reflection-First Redesign
- * 
- * @author GraphX Contributors
- * @date 2026
+ * @brief Reflection Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <cstddef>
@@ -39,6 +32,12 @@ namespace graph::reflection {
     /**
      * @brief Direction of a port (input or output)
      */
+    /**
+     * @enum PortDirection
+     * @brief Port Direction values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class PortDirection {
         Input,
         Output
@@ -59,6 +58,14 @@ namespace graph::reflection {
             "Output12", "Output13", "Output14", "Output15"
         };
 
+        /**
+         * @brief Returns the Port Name.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param direction Input or configuration value consumed by the method.
+         * @param id Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         constexpr std::string_view GetPortName(PortDirection direction, std::size_t id) {
             if (direction == PortDirection::Input) {
                 if (id < kInputPortNames.size()) {
@@ -79,6 +86,12 @@ namespace graph::reflection {
      * 
      * This replaces manual PortInfo structures by auto-generating metadata
      * through C++26 reflection on Port<T, ID> types.
+     */
+    /**
+     * @struct PortMetadata
+     * @brief Port Metadata data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct PortMetadata {
         std::size_t id;                    ///< Port identifier (0-based index)
@@ -135,6 +148,12 @@ namespace graph::reflection {
     * @note Uses std::meta::name_of when available; fallback uses compiler-signature extraction.
      */
     template <typename T>
+    /**
+     * @brief Returns the Type Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval std::string_view get_type_name() {
         #if GRAPH_CPP26_REFLECTION_AVAILABLE
             // C++26: Use reflection to get type name
@@ -162,6 +181,13 @@ namespace graph::reflection {
      * @endcode
      */
     template <IsPort P>
+    /**
+     * @brief Executes the Reflect Port operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param direction Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval PortMetadata reflect_port(PortDirection direction = PortDirection::Output) {
         return PortMetadata{
             .id = P::id,
@@ -234,6 +260,12 @@ namespace graph::reflection {
      * @endcode
      */
     template <typename Node>
+    /**
+     * @brief Executes the Reflect Output Ports operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval auto reflect_output_ports() {
         if constexpr (requires {
             { Node::NOutputs } -> std::convertible_to<std::size_t>;
@@ -264,6 +296,12 @@ namespace graph::reflection {
      * @see reflect_output_ports() for details
      */
     template <typename Node>
+    /**
+     * @brief Executes the Reflect Input Ports operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval auto reflect_input_ports() {
         if constexpr (requires {
             { Node::NInputs } -> std::convertible_to<std::size_t>;
@@ -296,6 +334,12 @@ namespace graph::reflection {
      * Wraps compile-time PortMetadata in a struct suitable for runtime
      * querying by port ID or type name.
      */
+    /**
+     * @struct PortInfo
+     * @brief Port Info data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortInfo {
         std::size_t id;
         std::string_view name;
@@ -303,10 +347,24 @@ namespace graph::reflection {
         PortDirection direction;
         
         // Comparison operations for lookup
+        /**
+         * @brief Executes the Operator overload operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param port_id Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         constexpr bool operator==(std::size_t port_id) const {
             return id == port_id;
         }
         
+        /**
+         * @brief Executes the Operator overload operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param tname Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         constexpr bool operator==(std::string_view tname) const {
             return type_name == tname;
         }
@@ -386,6 +444,13 @@ namespace graph::reflection {
      * @return true if all IDs are unique, false otherwise
      */
     template <std::size_t N>
+    /**
+     * @brief Executes the Validate Port Ids operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param metadata Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr bool validate_port_ids(const std::array<PortMetadata, N>& metadata) {
         for (std::size_t i = 0; i < N; ++i) {
             for (std::size_t j = i + 1; j < N; ++j) {
@@ -407,6 +472,13 @@ namespace graph::reflection {
      * @return true if IDs are [0..N-1], false otherwise
      */
     template <std::size_t N>
+    /**
+     * @brief Executes the Validate Port ID Range operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param metadata Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr bool validate_port_id_range(const std::array<PortMetadata, N>& metadata) {
         for (std::size_t i = 0; i < N; ++i) {
             if (metadata[i].id >= N) {
@@ -439,26 +511,56 @@ namespace graph::reflection {
      *   };
      * @endcode
      */
+    /**
+     * @struct PortTraits
+     * @brief Port Traits data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <typename P>
     struct PortTraits;  // Intentionally not defined; users must specialize for custom ports
 
     // Specializations for standard types (used in C++20 mode)
     template <>
+    /**
+     * @struct PortTraits
+     * @brief Port Traits data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortTraits<int> {
         static constexpr std::string_view type_name = "int";
     };
 
     template <>
+    /**
+     * @struct PortTraits
+     * @brief Port Traits data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortTraits<double> {
         static constexpr std::string_view type_name = "double";
     };
 
     template <>
+    /**
+     * @struct PortTraits
+     * @brief Port Traits data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortTraits<float> {
         static constexpr std::string_view type_name = "float";
     };
 
     template <>
+    /**
+     * @struct PortTraits
+     * @brief Port Traits data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortTraits<bool> {
         static constexpr std::string_view type_name = "bool";
     };

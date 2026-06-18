@@ -1,8 +1,9 @@
 /**
  * @file IDataInjectionSource.hpp
- * @brief GraphX source file.
+ * @brief Idata Injection Source Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -36,6 +37,12 @@
 
 // Forward declarations
 namespace core {
+/**
+ * @class ActiveQueue
+ * @brief Active Queue type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 template <typename T>
 class ActiveQueue;
 }
@@ -56,7 +63,9 @@ namespace graph::datasources {
 
 /**
  * @class IDataInjectionSource
- * @brief IDataInjectionSource class.
+ * @brief Idata Injection Source type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class IDataInjectionSource {
 public:

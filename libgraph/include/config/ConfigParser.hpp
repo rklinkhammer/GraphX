@@ -1,8 +1,9 @@
 /**
  * @file ConfigParser.hpp
- * @brief GraphX source file.
+ * @brief Config Parser Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -56,6 +57,12 @@ namespace graph {
  * 
  * @tparam ConfigType The config struct type to parse into
  */
+/**
+ * @struct ConfigParser
+ * @brief Config Parser data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 template<typename ConfigType>
 struct ConfigParser {
     /**
@@ -73,6 +80,12 @@ struct ConfigParser {
     static ConfigType Parse(const JsonView& view);
     
     // Delete default instantiation - specializations required
+    /**
+     * @brief Executes the Config Parser operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ConfigParser() = delete;
 };
 

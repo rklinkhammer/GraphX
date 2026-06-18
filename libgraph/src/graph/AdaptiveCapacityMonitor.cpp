@@ -2,9 +2,10 @@
 
 /**
  * @file AdaptiveCapacityMonitor.cpp
- * @brief Implementation of adaptive capacity monitoring
+ * @brief Adaptive Capacity Monitor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "graph/AdaptiveCapacityMonitor.hpp"
 #include <algorithm>
 #include <iostream>

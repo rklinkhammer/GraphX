@@ -2,24 +2,10 @@
 
 /**
  * @file test_port_metadata_reflection.cpp
- * @brief Isolated tests for port metadata reflection on multi-port nodes
+ * @brief Test Port Metadata Reflection Graph runtime support.
  *
- * This test suite specifically targets Issue #1 from Stage 5.5a analysis:
- * PortMetadata Reflection Failure for multi-port nodes (InteriorTestNode, MergeTestNode, SplitTestNode)
- *
- * The Topology3_LinearSequentialPipeline test crashes during plugin facade
- * initialization when calling GetInputPortMetadata() on InteriorTestNode.
- *
- * This test suite isolates the problem by:
- * 1. Testing port metadata retrieval without plugin loading
- * 2. Testing each node type independently
- * 3. Verifying reflection works for single-port vs multi-port nodes
- * 4. Exposing the exact failure point in the reflection system
- *
- * @author Test Suite
- * @date May 23, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>

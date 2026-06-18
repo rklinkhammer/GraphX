@@ -2,67 +2,10 @@
 
 /**
  * @file JsonUtilities.hpp
- * @brief Type-safe JSON parsing and deserialization with std::expected (Phase 5b)
- * @author Robert Klinkhammer
- * @date May 7, 2026
+ * @brief JSON Utilities Graph runtime support.
  *
- * Safe JSON handling using std::expected<T, ErrorType> instead of try-catch blocks.
- * Provides compile-time error handling, composable error types, and zero-exception
- * overhead for production systems.
- *
- * ## Phase 5b Modernization
- *
- * Part of the Phase 5b "Complete expected<> Coverage" initiative:
- * - Replaces ~20 try-catch blocks with type-safe expected<>
- * - Provides consistent error handling throughout codebase
- * - Enables error composition and chaining
- * - Zero exceptions in hot paths
- *
- * ## Pattern Comparison
- *
- * ### Before (C++17 exceptions)
- * @code
- *   try {
- *       auto cfg = json::parse(json_str);
- *       if (cfg.contains("field")) {
- *           auto value = cfg["field"].get<int>();
- *       }
- *   } catch (const json::parse_error& e) {
- *       LOG_ERROR("JSON parse failed: " + std::string(e.what()));
- *       return false;
- *   } catch (const json::type_error& e) {
- *       LOG_ERROR("Type error: " + std::string(e.what()));
- *       return false;
- *   }
- * @endcode
- *
- * ### After (C++23 expected<>)
- * @code
- *   auto result = ParseJsonSafe(json_str);
- *   if (!result) {
- *       LOG_ERROR(result.error().message());
- *       return;
- *   }
- *
- *   auto cfg = result.value();
- *   auto field_result = ExtractField<int>(cfg, "field");
- *   if (!field_result) {
- *       LOG_ERROR(field_result.error().message());
- *       return;
- *   }
- * @endcode
- *
- * ## Benefits
- * - No exceptions in normal flow
- * - Explicit error types (not opaque exception messages)
- * - Composable error handling
- * - Zero-cost abstractions
- * - Compiler-enforced error checking
- *
- * @see app::error::JsonParseError for error codes
- * @see app::error::Errors.hpp for error types
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <expected>
@@ -86,6 +29,12 @@ using json = nlohmann::json;
  *
  * Contains either parsed JSON object or detailed error information
  * for logging and recovery.
+ */
+/**
+ * @struct JsonParseResult
+ * @brief JSON Parse Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct JsonParseResult {
     /// Parsed JSON object (valid when error == JsonParseError::Unknown is false)
@@ -421,6 +370,12 @@ ExtractField(const json& json_obj, std::string_view field_name) noexcept {
         const auto& field = json_obj[field_name];
 
         // Type checking
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (std::is_same_v<T, int>) {
             if (!field.is_number_integer()) {
                 return std::unexpected(error::JsonParseError::TypeMismatch);
@@ -472,6 +427,12 @@ template<typename T>
 
     const auto& field = json_obj[field_name];
 
+    /**
+     * @brief Executes the Constexpr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     if constexpr (std::is_same_v<T, int>) {
         return field.is_number_integer();
     } else if constexpr (std::is_same_v<T, double>) {

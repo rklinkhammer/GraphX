@@ -1,8 +1,9 @@
 /**
  * @file HostIngressPinnedSourceNodeMetal.hpp
- * @brief GraphX source file.
+ * @brief Host Ingress Pinned Source Node Metal GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -29,7 +30,9 @@ namespace graph::gpu::metal::nodes {
 
 /**
  * @class HostIngressPinnedSourceNodeMetal
- * @brief HostIngressPinnedSourceNodeMetal class.
+ * @brief Host Ingress Pinned Source Node Metal graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class HostIngressPinnedSourceNodeMetal
     : public graph::NamedSourceNode<HostIngressPinnedSourceNodeMetal, accel::HostPinnedBufferView>,
@@ -37,8 +40,21 @@ class HostIngressPinnedSourceNodeMetal
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
+    /**
+     * @brief Executes the Host Ingress Pinned Source Node Metal operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     HostIngressPinnedSourceNodeMetal() = default;
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         memory_pool_ = capability_bus.Get<capabilities::IMetalMemoryPoolCapability>();
         return memory_pool_ != nullptr;
@@ -85,10 +101,24 @@ public:
         return true;
     }
 
+    /**
+     * @brief Executes the Stage Next Buffer Bytes operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param bytes Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void StageNextBufferBytes(std::uint64_t bytes) {
         pending_bytes_ = bytes;
     }
 
+    /**
+     * @brief Applies configuration to this object.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param cfg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Configure(const graph::JsonView& cfg) override {
         if (cfg.Contains("staged_bytes")) {
             auto staged_bytes = cfg.TryGetInt("staged_bytes");
@@ -102,6 +132,12 @@ public:
         }
     }
 
+    /**
+     * @brief Returns the Parameters.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] graph::JsonView GetParameters() const override {
         static thread_local nlohmann::json params;
         params = {
@@ -110,6 +146,13 @@ public:
         return graph::JsonView(params);
     }
 
+    /**
+     * @brief Returns the Parameter Description.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param param_name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] graph::JsonView GetParameterDescription(const std::string& param_name) const override {
         static thread_local nlohmann::json desc;
         if (param_name == "staged_bytes") {
@@ -124,6 +167,12 @@ public:
         return graph::JsonView(desc);
     }
 
+    /**
+     * @brief Returns the Parameter Names.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
         return {"staged_bytes"};
     }

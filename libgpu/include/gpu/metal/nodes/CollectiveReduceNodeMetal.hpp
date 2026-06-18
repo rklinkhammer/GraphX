@@ -1,8 +1,9 @@
 /**
  * @file CollectiveReduceNodeMetal.hpp
- * @brief GraphX source file.
+ * @brief Collective Reduce Node Metal GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,7 +27,9 @@ namespace graph::gpu::metal::nodes {
 
 /**
  * @class CollectiveReduceNodeMetal
- * @brief CollectiveReduceNodeMetal class.
+ * @brief Collective Reduce Node Metal graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class CollectiveReduceNodeMetal
     : public graph::NamedInteriorNode<
@@ -35,8 +38,21 @@ class CollectiveReduceNodeMetal
           CollectiveReduceNodeMetal>,
       public graph::IGpuCapabilityBinding {
 public:
+    /**
+     * @brief Executes the Collective Reduce Node Metal operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CollectiveReduceNodeMetal() = default;
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         collective_ = capability_bus.Get<capabilities::IMetalCollectiveCapability>();
         return collective_ != nullptr;

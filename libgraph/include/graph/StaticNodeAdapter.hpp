@@ -1,8 +1,9 @@
 /**
  * @file StaticNodeAdapter.hpp
- * @brief GraphX source file.
+ * @brief Static Node Adapter Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -75,6 +76,12 @@ namespace graph::config {
  * 
  * @since Phase 2 (Unified Factory Implementation)
  */
+/**
+ * @class StaticNodeAdapter
+ * @brief Static Node Adapter graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class StaticNodeAdapter {
 public:
     /**
@@ -89,6 +96,12 @@ public:
      * - Implements a NodeFacade struct with bound function pointers
      * - Uses lambda functions to create closures over the INode
      * - Handles the C interface (void* handle, C-style function pointers)
+     */
+    /**
+     * @class StaticNodeInstance
+     * @brief Static Node Instance graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
      */
     class StaticNodeInstance {
     public:
@@ -116,9 +129,28 @@ public:
          * Prevent copying (move-only semantics)
          */
         StaticNodeInstance(const StaticNodeInstance&) = delete;
+        /**
+         * @brief Executes the Operator overload operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param StaticNodeInstance Input or configuration value consumed by the method.
+         */
         StaticNodeInstance& operator=(const StaticNodeInstance&) = delete;
 
+        /**
+         * @brief Executes the Static Node Instance operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param StaticNodeInstance Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         StaticNodeInstance(StaticNodeInstance&&) = default;
+        /**
+         * @brief Executes the Operator overload operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param StaticNodeInstance Input or configuration value consumed by the method.
+         */
         StaticNodeInstance& operator=(StaticNodeInstance&&) = default;
 
     private:

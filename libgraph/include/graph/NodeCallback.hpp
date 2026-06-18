@@ -1,8 +1,9 @@
 /**
  * @file NodeCallback.hpp
- * @brief GraphX source file.
+ * @brief Node Callback Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -46,10 +47,23 @@
 namespace graph {
 /**
  * @class NodeCallback
- * @brief NodeCallback class.
+ * @brief Node Callback graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+ /**
+  * @class NodeCallback
+  * @brief Node Callback graph node.
+  *
+  * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+  */
  class NodeCallback {
 public:
+    /**
+     * @brief Releases resources owned by Node Callback.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~NodeCallback() = default;
 
 protected:

@@ -1,8 +1,9 @@
 /**
  * @file IMetalCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Imetal Capabilities GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -23,10 +24,17 @@ namespace graph::gpu::metal::capabilities {
 
 /**
  * @class IMetalContextCapability
- * @brief IMetalContextCapability class.
+ * @brief Imetal Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalContextCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Context Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalContextCapability() = default;
 
 /**
@@ -79,10 +87,17 @@ public:
 
 /**
  * @class IMetalSharedQueueCapability
- * @brief IMetalSharedQueueCapability class.
+ * @brief Imetal Shared Queue Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalSharedQueueCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Shared Queue Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalSharedQueueCapability() = default;
 
 /**
@@ -96,19 +111,50 @@ public:
  * @class MetalSharedQueueCapability
  * @brief Metal shared queue capability implementation for GraphX.
  */
+/**
+ * @class MetalSharedQueueCapability
+ * @brief Metal Shared Queue Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class MetalSharedQueueCapability final : public IMetalSharedQueueCapability {
 public:
     explicit MetalSharedQueueCapability(std::shared_ptr<IMetalContextCapability> context)
         : context_(std::move(context)) {}
 
+    /**
+     * @brief Releases resources owned by Metal Shared Queue Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~MetalSharedQueueCapability() override {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::scoped_lock lock(mutex_);
         if (queue_id_ != 0 && context_ != nullptr) {
             context_->DestroyCommandQueue(queue_id_);
         }
     }
 
+    /**
+     * @brief Returns the Or Create Queue ID.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::uint64_t GetOrCreateQueueId() override {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::scoped_lock lock(mutex_);
         if (queue_id_ != 0) {
             return queue_id_;
@@ -128,11 +174,30 @@ private:
 
 /**
  * @class IMetalMemoryPoolCapability
- * @brief IMetalMemoryPoolCapability class.
+ * @brief Imetal Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalMemoryPoolCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Memory Pool Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalMemoryPoolCapability() = default;
+
+    /**
+
+     * @struct MemoryPoolSnapshot
+
+     * @brief Memory Pool Snapshot data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     struct MemoryPoolSnapshot {
         std::uint64_t live_device_bytes{0};
@@ -157,15 +222,28 @@ public:
  * @return Result of the operation.
  */
     virtual bool Release(const accel::BufferLease& lease) = 0;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] virtual MemoryPoolSnapshot Snapshot() const = 0;
 };
 
 /**
  * @class IMetalTransferCapability
- * @brief IMetalTransferCapability class.
+ * @brief Imetal Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalTransferCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Transfer Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalTransferCapability() = default;
 
     virtual bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -184,15 +262,51 @@ public:
                             accel::TransferTicket& out_ticket) = 0;
 };
 
+/**
+
+ * @enum MetalKernelSourceKind
+
+ * @brief Metal Kernel Source Kind values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
+
 enum class MetalKernelSourceKind : std::uint8_t {
     Builtin = 0,
     InlineSource,
     MetallibPath,
 };
 
+/**
+
+ * @enum MetalKernelArgKind
+
+ * @brief Metal Kernel Arg Kind values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
+
 enum class MetalKernelArgKind : std::uint8_t {
     DeviceBuffer = 0,
 };
+
+/**
+
+ * @enum MetalKernelArgAccess
+
+ * @brief Metal Kernel Arg Access values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
 
 enum class MetalKernelArgAccess : std::uint8_t {
     ReadOnly = 0,
@@ -200,10 +314,34 @@ enum class MetalKernelArgAccess : std::uint8_t {
     ReadWrite,
 };
 
+/**
+
+ * @struct MetalKernelArgDescriptor
+
+ * @brief Metal Kernel Arg Descriptor data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct MetalKernelArgDescriptor {
     MetalKernelArgKind kind{MetalKernelArgKind::DeviceBuffer};
     MetalKernelArgAccess access{MetalKernelArgAccess::ReadWrite};
 };
+
+/**
+
+ * @struct MetalKernelDispatchDescriptor
+
+ * @brief Metal Kernel Dispatch Descriptor data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct MetalKernelDispatchDescriptor {
     std::uint32_t default_grid_x{1};
@@ -213,6 +351,18 @@ struct MetalKernelDispatchDescriptor {
     std::uint32_t default_block_y{1};
     std::uint32_t default_block_z{1};
 };
+
+/**
+
+ * @struct MetalKernelDescriptor
+
+ * @brief Metal Kernel Descriptor data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct MetalKernelDescriptor {
     std::uint64_t kernel_id{0};
@@ -225,11 +375,30 @@ struct MetalKernelDescriptor {
 
 /**
  * @class IMetalKernelCapability
- * @brief IMetalKernelCapability class.
+ * @brief Imetal Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalKernelCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Kernel Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalKernelCapability() = default;
+
+    /**
+
+     * @struct RegisteredKernelExecution
+
+     * @brief Registered Kernel Execution data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     struct RegisteredKernelExecution {
         std::uint32_t arg_count{0};
@@ -250,10 +419,17 @@ public:
 
 /**
  * @class IMetalKernelDescriptorCapability
- * @brief IMetalKernelDescriptorCapability class.
+ * @brief Imetal Kernel Descriptor Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalKernelDescriptorCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Kernel Descriptor Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalKernelDescriptorCapability() = default;
 
 /**
@@ -266,11 +442,30 @@ public:
 
 /**
  * @class IMetalTelemetryCapability
- * @brief IMetalTelemetryCapability class.
+ * @brief Imetal Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalTelemetryCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Telemetry Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalTelemetryCapability() = default;
+
+    /**
+
+     * @struct TelemetrySnapshot
+
+     * @brief Telemetry Snapshot data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     struct TelemetrySnapshot {
         std::uint64_t transfer_samples{0};
@@ -294,15 +489,28 @@ public:
  * @param error_code Parameter for increment error counter.
  */
     virtual void IncrementErrorCounter(std::string_view error_code) = 0;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] virtual TelemetrySnapshot Snapshot() const = 0;
 };
 
 /**
  * @class IMetalCollectiveCapability
- * @brief IMetalCollectiveCapability class.
+ * @brief Imetal Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class IMetalCollectiveCapability {
 public:
+    /**
+     * @brief Releases resources owned by Imetal Collective Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetalCollectiveCapability() = default;
 
     virtual bool AllReduce(accel::DeviceBufferView& in_out,

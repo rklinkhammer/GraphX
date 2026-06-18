@@ -1,8 +1,9 @@
 /**
  * @file DataInjectionPolicy.hpp
- * @brief GraphX source file.
+ * @brief Data Injection Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -64,12 +65,25 @@ static auto data_injection_logger_ = log4cxx::Logger::getLogger("app.policies.Da
  *
  * @see IExecutionPolicy, IDataInjectionSource
  */
+/**
+ * @class DataInjectionPolicy
+ * @brief Data Injection Policy execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+ */
 class DataInjectionPolicy : public graph::IExecutionPolicy {
 public:
     /**
      * @brief Construct a data injection policy
      */
     DataInjectionPolicy() {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy initialized");
     }   
 
@@ -90,10 +104,31 @@ public:
      * @see OnStart, OnJoin
      */
     bool OnInit(capabilities::GraphCapability &context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy::OnInit() - creating DataInjectionManager");
         data_injection_capability_ = std::make_shared<capabilities::DataInjectionCapability>();
         context.GetCapabilityBus().Register<capabilities::DataInjectionCapability>(data_injection_capability_);
+        /**
+         * @brief Performs the Init Data Injection Sources lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param context Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         InitDataInjectionSources(context);
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy::OnInit() - discovered " );
          return true;
     }
@@ -110,6 +145,13 @@ public:
      * @see OnStop
      */
     bool OnStart(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy OnStart called");
         // Start data injection here
         return true;
@@ -126,6 +168,13 @@ public:
      * @see OnStart, OnJoin
      */
     void OnStop(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy OnStop called");
         // Stop data injection and cleanup here
     }
@@ -141,6 +190,13 @@ public:
      * @see OnStop, OnInit
      */
     void OnJoin(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param data_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy OnJoin called");
         // Finalize data injection reporting here
     }   

@@ -1,8 +1,9 @@
 /**
  * @file GraphExecutorBuilder.hpp
- * @brief GraphX source file.
+ * @brief Graph Executor Builder Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,37 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file GraphExecutorBuilder.hpp
- * @brief Builder for creating pre-configured graph executors
- *
- * Handles all setup concerns:
- * - JSON configuration loading via ConfigManager
- * - Plugin discovery and loading via NodeProviderBootstrap
- * - Graph building via GraphBuilder
- * - CSV input configuration (optional)
- * - Execution parameters (timeout, threads, logging)
- *
- * Returns appropriate executor type:
- * - GraphExecutor (no CSV inputs)
- * - CSVGraphExecutor (with CSV inputs)
- *
- * Usage (fluent API):
- * @code
- * auto executor = graph::GraphExecutorBuilder()
- *     .WithJsonConfig("config.json")
- *     .WithPluginDirectory("./plugins")
- *     .WithCSVInputs({{"data.csv", "SensorNode"}})
- *     .WithCSVInjectionRate(10)
- *     .WithExecutorTimeout(std::chrono::seconds(30))
- *     .WithGraphThreads(4)
- *     .WithVerboseLogging(true)
- *     .Build();  // Returns shared_ptr<GraphExecutor>
- * @endcode
- *
- * @author Copilot
- * @date 2026-01-07
- */
 
 #pragma once
 
@@ -83,6 +53,12 @@ namespace graph {
  * 6. Return appropriate executor type (with/without CSV support)
  *
  * Thread Safety: Not thread-safe. Each thread should use its own builder instance.
+ */
+/**
+ * @class GraphExecutorBuilder
+ * @brief Graph Executor Builder builder.
+ *
+ * @details Collects configuration and constructs GraphX runtime objects in a predictable order. Builder methods are intended to be chained before final construction.
  */
 class GraphExecutorBuilder {
 public:
@@ -318,6 +294,12 @@ public:
      */
     [[nodiscard]] std::expected<std::shared_ptr<GraphExecutor>,
                                 app::error::GraphExecutionFailure>
+    /**
+     * @brief Creates or builds the object described by Build Expected.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     BuildExpected() noexcept;
 
 private:

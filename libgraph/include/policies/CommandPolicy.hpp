@@ -1,8 +1,9 @@
 /**
  * @file CommandPolicy.hpp
- * @brief GraphX source file.
+ * @brief Command Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -76,12 +77,25 @@ static auto command_logger = log4cxx::Logger::getLogger("app.policies.CommandPol
  *
  * @see IExecutionPolicy, GraphExecutor
  */
+/**
+ * @class CommandPolicy
+ * @brief Command Policy execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+ */
 class CommandPolicy : public graph::IExecutionPolicy {
 public:
     /**
      * @brief Construct a command policy
      */
     CommandPolicy() {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param command_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(command_logger, "CommandPolicy initialized");
     }   
 
@@ -102,6 +116,13 @@ public:
      * @see OnStart, OnStop
      */
     bool OnInit(capabilities::GraphCapability &context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param command_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnInit called");
         
         // Phase 1: Create and register CommandRegistryCapability
@@ -122,6 +143,13 @@ public:
             context.GetCapabilityBus()
                 .Register<capabilities::CommandOutputCapability>(output_capability);
             output_cap_ = output_capability;
+            /**
+             * @brief Executes the Log4 Cxx Debug operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param command_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_DEBUG(command_logger, "CommandOutputCapability registered");
         }
         
@@ -152,18 +180,46 @@ public:
      * @see OnStop, OnJoin
      */
     bool OnStart(capabilities::GraphCapability &context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param command_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnStart called");
         auto graph_capability = context.GetCapabilityBus().Get<capabilities::GraphCapability>();
         dashboard_capability_ = context.GetCapabilityBus().Get<capabilities::DashboardCapability>();
         if (!graph_capability) {
+            /**
+             * @brief Executes the Log4 Cxx Warn operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param command_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - no GraphCapability registered");
             return false;
         }
         if (!dashboard_capability_) {
+            /**
+             * @brief Executes the Log4 Cxx Warn operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param command_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - no DashboardCapability registered");
             return false;
         }
         if (!cmd_processor_cap_ || !cmd_processor_cap_->IsReady()) {
+            /**
+             * @brief Executes the Log4 Cxx Warn operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param command_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_WARN(command_logger, "CommandPolicy OnStart failed - command processor is not ready");
             return false;
         }
@@ -172,6 +228,13 @@ public:
             // Command processing loop
             std::string command;
             while (dashboard_capability_->DequeueCommand(command) && !graph_capability->IsStopped()) {
+                /**
+                 * @brief Executes the Execute Command operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param command Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 ExecuteCommand(command);
             }
         };
@@ -191,6 +254,13 @@ public:
      * @see OnStart, OnJoin
      */
     void OnStop(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param command_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnStop called");
         if (dashboard_capability_) {
             dashboard_capability_->DisableCommandQueue();
@@ -209,6 +279,13 @@ public:
      * @see OnStop, OnStart
      */
     void OnJoin(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param command_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(command_logger, "CommandPolicy OnJoin called");
         // Finalize command processing here if needed
         if (command_thread_.joinable()) {
@@ -223,6 +300,13 @@ private:
     std::shared_ptr<capabilities::CommandOutputCapability> output_cap_;
     std::shared_ptr<capabilities::DashboardCapability> dashboard_capability_;
 
+    /**
+     * @brief Executes the Execute Command operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param cmd Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void ExecuteCommand(const std::string& cmd) {
         // Phase 2: Use CommandProcessorCapability for parsing and execution
         if (!cmd_processor_cap_ || !cmd_processor_cap_->IsReady()) {

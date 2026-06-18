@@ -1,8 +1,9 @@
 /**
  * @file test_capability_context.cpp
- * @brief GraphX source file.
+ * @brief Test Capability Context Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors

@@ -1,8 +1,9 @@
 /**
  * @file CSVNodeDescriptor.hpp
- * @brief GraphX source file.
+ * @brief Csvnode Descriptor Graph runtime support.
+ *
+ * @details Provides CSV ingestion support for data-injection graph workflows. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -38,6 +39,12 @@
 #include "graph/IDataInjectionSource.hpp"
 
 namespace graph {
+/**
+ * @class INode
+ * @brief Inode graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class INode;
 }
 
@@ -79,6 +86,12 @@ namespace app {
  *     queue.Enqueue(*payload);
  * }
  * ```
+ */
+/**
+ * @struct CSVNodeDescriptor
+ * @brief Csvnode Descriptor data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct CSVNodeDescriptor {
     // ========== Metadata ==========

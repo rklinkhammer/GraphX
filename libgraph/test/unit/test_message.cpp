@@ -2,21 +2,10 @@
 
 /**
  * @file test_message.cpp
- * @brief Comprehensive unit tests for Message class (Phase 1: P0 Priorities)
- * @author Robert Klinkhammer
- * @date May 10, 2026
+ * @brief Test Message Graph runtime support.
  *
- * Test Coverage:
- * - Category 1: Fundamentals (15 tests) - construction, destruction, assignment
- * - Category 2: Small Object Optimization (12 tests) - SSO paths and boundaries
- * - Category 3: Heap Allocation (12 tests) - memory management and semantics
- * - Category 4: Type Erasure (10 tests) - type safety and casting
- *
- * Total P0 Tests: 49
- * Framework: GTest
- * C++26 Features Validated: constexpr, type traits, if constexpr, noexcept
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <graph/Message.hpp>
 #include <array>

@@ -1,8 +1,9 @@
 /**
  * @file GraphCapability.hpp
- * @brief GraphX source file.
+ * @brief Graph Capability Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -37,22 +38,22 @@
 #include "graph/GraphManager.hpp"
 #include "graph/NodeProvider.hpp"
 
-/**
- * @file MetricsCapability.hpp
- * @brief Capability interface for metrics discovery and subscription
- *
- * Provides methods for discovering node metrics schemas and registering
- * callbacks to receive metrics events published during graph execution.
- */
 
 namespace capabilities {
 
 /**
  * @class GraphCapability
- * @brief GraphCapability class.
+ * @brief Graph Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class GraphCapability {
 public:
+    /**
+     * @brief Releases resources owned by Graph Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~GraphCapability() = default;
     
     /// @brief Set the GraphManager instance
@@ -67,10 +68,23 @@ public:
         return graph_manager;
     }
 
+    /**
+     * @brief Updates the Node Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param provider Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetNodeProvider(std::shared_ptr<graph::INodeProvider> provider) {
         node_provider = std::move(provider);
     }
 
+    /**
+     * @brief Returns the Node Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<graph::INodeProvider> GetNodeProvider() const {
         return node_provider;
     }
@@ -99,10 +113,23 @@ public:
         return edge_descriptions;
     }
 
+    /**
+     * @brief Returns the JSON Config Path.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::string GetJsonConfigPath() const {
         return json_config_path;
     }   
     
+    /**
+     * @brief Updates the JSON Config Path.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param path Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetJsonConfigPath(const std::string& path) {
         json_config_path = path;
     }
@@ -147,10 +174,23 @@ public:
         cli_mode_ = enabled;
     }
 
+    /**
+     * @brief Reports whether Is GPU Bootstrap Enabled is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool IsGpuBootstrapEnabled() const {
         return gpu_bootstrap_enabled_;
     }
 
+    /**
+     * @brief Updates the GPU Bootstrap Enabled.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param enabled Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetGpuBootstrapEnabled(bool enabled) {
         gpu_bootstrap_enabled_ = enabled;
     }

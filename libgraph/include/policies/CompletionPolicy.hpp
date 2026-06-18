@@ -1,8 +1,9 @@
 /**
  * @file CompletionPolicy.hpp
- * @brief GraphX source file.
+ * @brief Completion Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -65,6 +66,12 @@ namespace policies
      *
      * @see IExecutionPolicy, CompletionAggregatorNode
      */
+    /**
+     * @class CompletionPolicy
+     * @brief Completion Policy execution policy.
+     *
+     * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+     */
     class CompletionPolicy : public graph::IExecutionPolicy
     {
     public:
@@ -73,6 +80,13 @@ namespace policies
          */
         CompletionPolicy()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy initialized");
         }
 
@@ -94,14 +108,42 @@ namespace policies
          */
         bool OnInit(capabilities::GraphCapability &context) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnInit called");
             {
+                /**
+                 * @brief Executes the Lock operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_mutex_ Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 std::lock_guard lock(completion_mutex_);
                 completion_signaled_ = false;
                 stop_requested_ = false;
             }
             // Register callbacks with completion nodes
+            /**
+             * @brief Performs the Init Completion Callbacks lifecycle step.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param context Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             InitCompletionCallbacks(context);
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnInit completed");            
             return true;
         }
@@ -119,13 +161,34 @@ namespace policies
          */
         bool OnStart(capabilities::GraphCapability &context) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnStart called");
             // if(!cli_mode_) {
             //     return true;
             // }
             auto fn = [this, &context]()
             {
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_logger Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - waiting for completion signal or timeout");
+                /**
+                 * @brief Executes the Lock operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_mutex_ Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 std::unique_lock lock(completion_mutex_);
                 const auto deadline = std::chrono::steady_clock::now() + max_duration_;
                 const bool woke_for_signal = completion_cv_.wait_until(lock, deadline, [this] {
@@ -138,6 +201,13 @@ namespace policies
                     context.SetCompletionSignaled();
                 }
                 context.SetStopped();
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_logger Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(completion_logger, "CompletionPolicy::OnRun() - signaling shutdown");
             };
             completion_thread_ = std::jthread(fn);
@@ -146,8 +216,22 @@ namespace policies
 
         void OnStop(capabilities::GraphCapability &) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnStop called");
             {
+                /**
+                 * @brief Executes the Lock operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_mutex_ Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 std::lock_guard lock(completion_mutex_);
                 stop_requested_ = true;
             }
@@ -157,6 +241,13 @@ namespace policies
 
         void OnJoin(capabilities::GraphCapability &) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy OnJoin called");
             if (completion_thread_.joinable()) {
                 completion_thread_.join();
@@ -174,10 +265,24 @@ namespace policies
         void SetCompletionSignaled()
         {
             {
+                /**
+                 * @brief Executes the Lock operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_mutex_ Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 std::lock_guard lock(completion_mutex_);
                 completion_signaled_ = true;
             }
             completion_cv_.notify_all();
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger, "CompletionPolicy signaled completion");
         }
         

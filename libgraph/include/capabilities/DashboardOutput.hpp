@@ -1,8 +1,9 @@
 /**
  * @file DashboardOutput.hpp
- * @brief GraphX source file.
+ * @brief Dashboard Output Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -32,6 +33,12 @@
 
 // Forward declaration
 namespace capabilities {
+/**
+ * @class DashboardCapability
+ * @brief Dashboard Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class DashboardCapability;
 }
 
@@ -56,7 +63,9 @@ namespace capabilities {
  */
 /**
  * @class DashboardOutput
- * @brief DashboardOutput class.
+ * @brief Dashboard Output type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class DashboardOutput : public ICommandOutput {
 public:

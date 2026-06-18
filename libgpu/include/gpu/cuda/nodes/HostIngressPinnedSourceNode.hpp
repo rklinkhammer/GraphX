@@ -1,8 +1,9 @@
 /**
  * @file HostIngressPinnedSourceNode.hpp
- * @brief GraphX source file.
+ * @brief Host Ingress Pinned Source Node GPU acceleration support.
+ *
+ * @details Provides CUDA acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,14 +27,29 @@ namespace graph::gpu::cuda::nodes {
 
 /**
  * @class HostIngressPinnedSourceNode
- * @brief HostIngressPinnedSourceNode class.
+ * @brief Host Ingress Pinned Source Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class HostIngressPinnedSourceNode
     : public graph::NamedSourceNode<HostIngressPinnedSourceNode, accel::HostPinnedBufferView>,
       public graph::IGpuCapabilityBinding {
 public:
+    /**
+     * @brief Executes the Host Ingress Pinned Source Node operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     HostIngressPinnedSourceNode() = default;
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         memory_pool_ = capability_bus.Get<capabilities::ICudaMemoryPoolCapability>();
         return memory_pool_ != nullptr;
@@ -80,6 +96,13 @@ public:
         return true;
     }
 
+    /**
+     * @brief Executes the Stage Next Buffer Bytes operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param bytes Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void StageNextBufferBytes(std::uint64_t bytes) {
         pending_bytes_ = bytes;
     }

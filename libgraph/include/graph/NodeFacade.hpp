@@ -1,8 +1,9 @@
 /**
  * @file NodeFacade.hpp
- * @brief GraphX source file.
+ * @brief Node Facade Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -73,8 +74,19 @@ namespace graph {
  * All returned objects via shared_ptr have automatic lifetime management.
  * No manual deletion required.
  */
+/**
+ * @class INodeFacade
+ * @brief Inode Facade graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class INodeFacade {
 public:
+    /**
+     * @brief Releases resources owned by Inode Facade.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~INodeFacade() = default;
 
     // ========================================================================
@@ -84,6 +96,12 @@ public:
     /**
      * @struct PortInfo
      * @brief Information about a single port
+     */
+    /**
+     * @struct PortInfo
+     * @brief Port Info data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct PortInfo {
         std::string name;       ///< Port name (e.g., "temperature")
@@ -97,6 +115,12 @@ public:
      *
      * Provides all introspection info in a single structure.
      * Replaces the V1 pattern of calling separate methods for each piece of data.
+     */
+    /**
+     * @struct NodeMetadata
+     * @brief Node Metadata data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct NodeMetadata {
         std::string name;                       ///< Human-readable node name
@@ -293,6 +317,12 @@ public:
  * adapter.Stop();
  * ```
  */
+/**
+ * @class NodeFacadeAdapter
+ * @brief Node Facade Adapter graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class NodeFacadeAdapter : public INodeFacade {
 private:
     static log4cxx::LoggerPtr logger_;
@@ -372,7 +402,20 @@ public:
     NodeFacadeAdapter& operator=(NodeFacadeAdapter&& other) noexcept;
 
     // Disable copy semantics - each adapter owns a unique node handle
+    /**
+     * @brief Executes the Node Facade Adapter operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param NodeFacadeAdapter Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     NodeFacadeAdapter(const NodeFacadeAdapter&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param NodeFacadeAdapter Input or configuration value consumed by the method.
+     */
     NodeFacadeAdapter& operator=(const NodeFacadeAdapter&) = delete;
 
     /*
@@ -601,9 +644,25 @@ public:
     std::vector<PortMetadataC> GetOutputPortMetadata() const;
 
     [[nodiscard]] std::expected<RuntimePortHandle, RuntimePortLookupError>
+    /**
+     * @brief Returns the Input Port Handle.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param name_or_id Input or configuration value consumed by the method.
+     * @param node_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GetInputPortHandle(std::string_view name_or_id, std::size_t node_index) const;
 
     [[nodiscard]] std::expected<RuntimePortHandle, RuntimePortLookupError>
+    /**
+     * @brief Returns the Output Port Handle.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param name_or_id Input or configuration value consumed by the method.
+     * @param node_index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GetOutputPortHandle(std::string_view name_or_id, std::size_t node_index) const;
 
     /**
@@ -667,30 +726,72 @@ public:
 
     // Capability accessors for interfaces extracted at construction
 
+    /**
+     * @brief Returns the Configurable Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetConfigurablePtr() const {
         return configurable_ptr_;
     }
 
+    /**
+     * @brief Returns the Diagnosable Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetDiagnosablePtr() const {
         return diagnosable_ptr_;
     }   
     
+    /**
+     * @brief Returns the Parameterized Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetParameterizedPtr() const {
         return parameterized_ptr_;
     }   
 
+    /**
+     * @brief Returns the Data Injection Node Config Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetDataInjectionNodeConfigPtr() const {
         return data_injection_node_config_ptr_;
     }
 
+    /**
+     * @brief Returns the Metrics Callback Provider Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetMetricsCallbackProviderPtr() const {
         return metrics_callback_provider_ptr_;
     }
 
+    /**
+     * @brief Returns the Completion Callback Provider Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetCompletionCallbackProviderPtr() const {
         return completion_callback_provider_ptr_;
     }
 
+    /**
+     * @brief Returns the GPU Capability Binding Ptr.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<void> GetGpuCapabilityBindingPtr() const {
         return gpu_capability_binding_ptr_;
     }
@@ -778,6 +879,13 @@ public:
      */
     const NodeFacade* GetFacade() const { return facade_; }
 
+    /**
+     * @brief Updates the Metadata Service.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param metadata_service Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetMetadataService(const INodeMetadataService* metadata_service) {
         metadata_service_ = metadata_service ? metadata_service : &GetDefaultNodeMetadataService();
     }
@@ -820,6 +928,12 @@ public:
      * @endcode
      */
     template <typename NodeT>
+    /**
+     * @brief Returns the Node.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<NodeT> GetNode() const {
         if (!handle_ || !facade_ || !facade_->GetType) {
             return nullptr;
@@ -889,6 +1003,12 @@ public:
      * @note The actual type checking is done at compile time via template specialization
      */
     template <typename InterfaceT>
+    /**
+     * @brief Attempts Get Interface without throwing on expected failure.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<InterfaceT> TryGetInterface() const {
         // Default implementation returns nullptr
         // Specializations are provided for specific interface types
@@ -1007,6 +1127,13 @@ public:
      * ```
      */
     template <typename InterfaceT>
+    /**
+     * @brief Returns the Interface.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<InterfaceT> GetInterface(const std::string& name) const {
         // Get the void* interface
         auto void_ptr = GetInterface(name);

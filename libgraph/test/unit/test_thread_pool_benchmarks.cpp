@@ -1,8 +1,9 @@
 /**
  * @file test_thread_pool_benchmarks.cpp
- * @brief GraphX source file.
+ * @brief Test Thread Pool Benchmarks Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_thread_pool_benchmarks.cpp
- * @brief Performance benchmarking for ThreadPool (Optional Enhancement)
- *
- * Measures ThreadPool performance characteristics:
- * - Throughput (tasks/second)
- * - Latency (task execution time)
- * - Queue overhead
- * - Scalability (scaling with thread count)
- * - Memory efficiency
- *
- * @note Uses C++26 features for high-precision timing
- */
 
 #include <gtest/gtest.h>
 #include "graph/ThreadPool.hpp"

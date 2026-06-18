@@ -2,9 +2,10 @@
 
 /**
  * @file test_csv_parser.cpp
- * @brief GraphX source file.
+ * @brief Test CSV Parser Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>

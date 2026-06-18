@@ -1,8 +1,9 @@
 /**
  * @file NativeMetalCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Native Metal Capabilities GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -18,6 +19,18 @@
 
 namespace graph::gpu::metal::capabilities {
 
+/**
+
+ * @class NativeMetalRuntimeContext
+
+ * @brief Native Metal Runtime Context type.
+
+ *
+
+ * @details Part of the GraphX public API for libgpu. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
+ */
+
 class NativeMetalRuntimeContext;
 
 /**
@@ -30,7 +43,9 @@ std::shared_ptr<NativeMetalRuntimeContext> CreateNativeMetalRuntimeContext();
 // existing contract-safe defaults while native runtime plumbing is brought up.
 /**
  * @class NativeMetalContextCapability
- * @brief NativeMetalContextCapability class.
+ * @brief Native Metal Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalContextCapability final : public IMetalContextCapability {
 public:
@@ -89,7 +104,9 @@ private:
 
 /**
  * @class NativeMetalMemoryPoolCapability
- * @brief NativeMetalMemoryPoolCapability class.
+ * @brief Native Metal Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
@@ -109,6 +126,12 @@ public:
  * @return Result of the operation.
  */
     bool Release(const accel::BufferLease& lease) override;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] MemoryPoolSnapshot Snapshot() const override;
 
 private:
@@ -117,7 +140,9 @@ private:
 
 /**
  * @class NativeMetalTransferCapability
- * @brief NativeMetalTransferCapability class.
+ * @brief Native Metal Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalTransferCapability final : public IMetalTransferCapability {
 public:
@@ -146,7 +171,9 @@ private:
 
 /**
  * @class NativeMetalKernelCapability
- * @brief NativeMetalKernelCapability class.
+ * @brief Native Metal Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalKernelCapability final : public IMetalKernelCapability,
                                           public IMetalKernelDescriptorCapability {
@@ -200,7 +227,9 @@ private:
 
 /**
  * @class NativeMetalTelemetryCapability
- * @brief NativeMetalTelemetryCapability class.
+ * @brief Native Metal Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
@@ -217,10 +246,34 @@ public:
  * @param error_code Parameter for increment error counter.
  */
     void IncrementErrorCounter(std::string_view error_code) override;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] TelemetrySnapshot Snapshot() const override;
 
+    /**
+     * @brief Processes data through the Transfer Samples operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::uint64_t TransferSamples() const;
+    /**
+     * @brief Executes the Kernel Samples operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::uint64_t KernelSamples() const;
+    /**
+     * @brief Executes the Error Count operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::uint64_t ErrorCount() const;
 
 #if GRAPHX_ENABLE_GPU_TEST_HOOKS
@@ -236,7 +289,9 @@ private:
 
 /**
  * @class NativeMetalCollectiveCapability
- * @brief NativeMetalCollectiveCapability class.
+ * @brief Native Metal Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class NativeMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:

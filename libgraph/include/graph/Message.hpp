@@ -1,8 +1,9 @@
 /**
  * @file Message.hpp
- * @brief GraphX source file.
+ * @brief Message Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,12 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file nodes/Message.hpp
- * @brief Type-erased message container with small object optimization, constexpr-capable
- * @author Robert Klinkhammer
- * @date December 13, 2025
- */
 
 #pragma once
 
@@ -60,6 +55,12 @@ namespace graph::message {
 #endif
 
 // Policy struct for configuring Message storage
+/**
+ * @struct MessageStoragePolicy
+ * @brief Message Storage Policy data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 template <size_t Size = 32, size_t Align = 16>
 struct MessageStoragePolicy {
     static constexpr size_t SSO_SIZE = Size;
@@ -205,15 +206,35 @@ using SSEMessagePolicy = MessageStoragePolicy<32, 16>;      // For SSE operation
  */
 
 // Forward declarations for MessageTraits
+/**
+ * @struct MessageTraits
+ * @brief Message Traits data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 template <typename T>
 struct MessageTraits;
+
+/**
+
+ * @class Message
+
+ * @brief Message message type.
+
+ *
+
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
+
+ */
 
 class Message;
 
 template <typename Policy = DefaultMessagePolicy>
 /**
  * @class MessageStorage
- * @brief MessageStorage class.
+ * @brief Message Storage message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
  */
 class MessageStorage {
 public:
@@ -228,6 +249,12 @@ public:
     // Note: The runtime check using std::is_constant_evaluated() ensures that
     //       metric methods work correctly when called from constexpr contexts
 GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
+    /**
+     * @brief Executes the Message Creation Count operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static constexpr size_t message_creation_count() noexcept {
         if (!std::is_constant_evaluated()) {
             return s_creation_count.load(std::memory_order_relaxed);
@@ -235,6 +262,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
         return 0;
     }
 
+    /**
+     * @brief Executes the Message Destruction Count operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static constexpr size_t message_destruction_count() noexcept {
         if (!std::is_constant_evaluated()) {
             return s_destruction_count.load(std::memory_order_relaxed);
@@ -242,6 +275,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
         return 0;
     }
 
+    /**
+     * @brief Executes the Message Copy Count operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static constexpr size_t message_copy_count() noexcept {
         if (!std::is_constant_evaluated()) {
             return s_copy_count.load(std::memory_order_relaxed);
@@ -249,6 +288,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
         return 0;
     }
 
+    /**
+     * @brief Executes the Message Move Count operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static constexpr size_t message_move_count() noexcept {
         if (!std::is_constant_evaluated()) {
             return s_move_count.load(std::memory_order_relaxed);
@@ -275,6 +320,13 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
     inline static std::atomic<size_t> s_move_count{0};
 
     template<typename T>
+    /**
+     * @brief Executes the Emplace operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param value Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr void emplace(const T& value) {
         // Type constraint: Message only accepts types that can be moved without throwing.
         // This ensures exception-safe move operations and simplifies error handling.
@@ -282,6 +334,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
                       "Message requires nothrow-move-constructible types. "
                       "Add 'noexcept' to your type's move constructor.");
 
+        /**
+         * @brief Executes the Clear operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         clear();
         active_ = true;
 
@@ -332,25 +390,62 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
         }
     }
 
+    /**
+     * @brief Executes the Data operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr const void* data() const noexcept {
         return active_ ? (heap_ptr_ ? heap_ptr_ : static_cast<const void*>(&sso_)) : nullptr;
     }
 
 private:
+    /**
+     * @struct Ops
+     * @brief Ops data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct Ops {
         void (*destroy)(MessageStorage&) noexcept;
         void (*copy)(MessageStorage&, const MessageStorage&) noexcept;
         void (*move)(MessageStorage&, MessageStorage&) noexcept;
     };
 
+    /**
+
+     * @struct OpsTable
+
+     * @brief Ops Table data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
+
     template<typename T>
     struct OpsTable {
+        /**
+         * @brief Executes the Destroy operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param s Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static constexpr void destroy(MessageStorage& s) noexcept {
             if (s.heap_ptr_) {
                 T* ptr = static_cast<T*>(s.heap_ptr_);
                 ptr->~T();  // Call destructor explicitly
 
                 // Try to return to pool for large types
+                /**
+                 * @brief Executes the Constexpr operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 if constexpr (sizeof(T) > 32 && sizeof(T) <= 64) {
                     if (!std::is_constant_evaluated()) {
                         auto* pool = graph::MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
@@ -377,6 +472,14 @@ private:
            }
         }
 
+        /**
+         * @brief Executes the Copy operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param dst Input or configuration value consumed by the method.
+         * @param src Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static constexpr void copy(MessageStorage& dst, const MessageStorage& src) noexcept {
             dst.active_ = true;
             dst.ops_ = src.ops_;
@@ -384,6 +487,12 @@ private:
                 const T* src_ptr = static_cast<const T*>(src.heap_ptr_);
 
                 // Try pooled allocation for large types
+                /**
+                 * @brief Executes the Constexpr operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 if constexpr (sizeof(T) > 32 && sizeof(T) <= 64) {
                     if (!std::is_constant_evaluated()) {
                         auto* pool = graph::MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
@@ -418,6 +527,14 @@ private:
             }
         }
 
+        /**
+         * @brief Executes the Move operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param dst Input or configuration value consumed by the method.
+         * @param src Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static constexpr void move(MessageStorage& dst, MessageStorage& src) noexcept {
             dst.active_ = true;
             dst.ops_ = src.ops_;
@@ -455,6 +572,12 @@ private:
     const Ops*  ops_;
     bool        active_;
 
+    /**
+     * @brief Executes the Clear operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr void clear() noexcept {
         if (!active_ || !ops_) return;
         ops_->destroy(*this);
@@ -466,7 +589,9 @@ private:
 
 /**
  * @class Message
- * @brief Message class.
+ * @brief Message message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
  */
 class Message {
 public:
@@ -493,8 +618,19 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_PUSH
     }
 GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
 
+    /**
+     * @brief Executes the Message operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr Message() noexcept = default;
     
+    /**
+     * @brief Releases resources owned by Message.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     constexpr ~Message() {
         if (!std::is_constant_evaluated()) {
             MessageStorage<DefaultMessagePolicy>::s_destruction_count.fetch_add(1, std::memory_order_relaxed);
@@ -534,6 +670,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
         return *this;
     }
 
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param o Input or configuration value consumed by the method.
+     */
     constexpr Message& operator=(Message&& o) noexcept {
         if (this != &o) {
             storage_.clear();
@@ -561,6 +703,12 @@ GRAPHX_MESSAGE_CONSTEVAL_DIAGNOSTIC_POP
     constexpr bool valid() const noexcept { return type_.is_valid(); }
 
     template<typename T>
+    /**
+     * @brief Returns the requested value.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     constexpr const T& get() const {
         if (!valid() || !storage_.data() || type_.hash != TypeInfo::create<T>().hash) {
             throw std::bad_cast();

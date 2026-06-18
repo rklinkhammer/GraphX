@@ -1,8 +1,9 @@
 /**
  * @file GraphExecutorContext.hpp
- * @brief GraphX source file.
+ * @brief Graph Executor Context Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -35,6 +36,12 @@
 
 namespace graph
 {
+    /**
+     * @struct GraphExecutorContext
+     * @brief Graph Executor Context data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct GraphExecutorContext
     {
 

@@ -2,13 +2,10 @@
 
 /**
  * @file test_mergenode_threading.cpp
- * @brief Comprehensive threading tests for MergeNodeBase
+ * @brief Test Mergenode Threading Graph runtime support.
  *
- * Tests the MergeNodeBase thread lifecycle, synchronization, and port
- * metadata capabilities. Validates the thread is created, processes work,
- * and shuts down cleanly.
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <thread>

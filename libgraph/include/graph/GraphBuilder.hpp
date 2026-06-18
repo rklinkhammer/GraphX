@@ -38,6 +38,12 @@
 
 // Forward declarations
 namespace graph {
+    /**
+     * @class GraphManager
+     * @brief Graph Manager manager.
+     *
+     * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+     */
     class GraphManager;
 }
 

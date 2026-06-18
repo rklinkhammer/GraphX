@@ -1,8 +1,9 @@
 /**
  * @file ExecutionResult.hpp
- * @brief GraphX source file.
+ * @brief Execution Result Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -38,6 +39,12 @@ namespace graph {
  *
  * Contains success/failure information and per-node initialization details.
  */
+/**
+ * @struct InitializationResult
+ * @brief Initialization Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct InitializationResult {
     /// True if all nodes initialized successfully
     bool success = false;
@@ -65,6 +72,12 @@ struct InitializationResult {
  * @brief Result of execution operations (Start, Stop, etc.)
  *
  * Indicates whether the operation succeeded and provides status information.
+ */
+/**
+ * @struct ExecutionResult
+ * @brief Execution Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct ExecutionResult {
     /// True if operation succeeded

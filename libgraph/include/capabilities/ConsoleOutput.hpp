@@ -1,8 +1,9 @@
 /**
  * @file ConsoleOutput.hpp
- * @brief GraphX source file.
+ * @brief Console Output Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -57,7 +58,9 @@ namespace capabilities {
  */
 /**
  * @class ConsoleOutput
- * @brief ConsoleOutput class.
+ * @brief Console Output type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ConsoleOutput : public ICommandOutput {
 public:
@@ -138,21 +141,49 @@ private:
 // =========================================================================
 
 inline void ConsoleOutput::WriteMessage(const std::string& message) {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param console_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cout << "[OK] " << message << std::endl;
 }
 
 inline void ConsoleOutput::WriteError(const std::string& error) {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param console_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[ERROR] " << error << std::endl;
 }
 
 inline void ConsoleOutput::WriteWarning(const std::string& warning) {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param console_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(console_mutex_);
     std::cerr << "[WARN] " << warning << std::endl;
 }
 
 inline void ConsoleOutput::WriteHelp(const std::vector<CommandInfo>& commands) {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param console_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(console_mutex_);
     
     std::cout << "[HELP] Available commands:" << std::endl;

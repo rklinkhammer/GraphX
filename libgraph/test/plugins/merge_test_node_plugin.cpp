@@ -1,8 +1,9 @@
 /**
  * @file merge_test_node_plugin.cpp
- * @brief GraphX source file.
+ * @brief Merge Test Node Plugin Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file merge_test_node_plugin.cpp
- * @brief MergeTestNode as a dynamically-loadable plugin
- *
- * Exports MergeTestNode (multi-input node) as a dynamically-loadable plugin
- * for Stage 5.5a topology testing.
- */
 
 #include <memory>
 #include <log4cxx/logger.h>

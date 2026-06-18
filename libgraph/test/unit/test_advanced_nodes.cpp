@@ -2,24 +2,10 @@
 
 /**
  * @file test_advanced_nodes.cpp
- * @brief Comprehensive unit tests for advanced test nodes
+ * @brief Test Advanced Nodes Graph runtime support.
  *
- * Tests the advanced node implementations:
- * - MergeTestNode: Multi-input merge node (2 inputs -> 1 output)
- * - SplitTestNode: Single input to multiple outputs (1 input -> 2 outputs)
- * - InteriorTestNode: Interior/processing node (1 input -> 1 output)
- *
- * Tests cover:
- * - Initialization and lifecycle
- * - Port configuration and metadata
- * - Message handling and routing
- * - Process/Consume method functionality
- * - Edge cases and error conditions
- *
- * @author Test Suite
- * @date May 11, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>

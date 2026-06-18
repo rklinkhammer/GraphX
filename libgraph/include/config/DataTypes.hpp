@@ -1,8 +1,9 @@
 /**
  * @file DataTypes.hpp
- * @brief GraphX source file.
+ * @brief Data Types Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,17 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file sensor/SensorDataTypes.hpp
- * @brief Standard sensor data types for flight simulation and telemetry
- *
- * Defines timestamped sensor data structures compatible with OpenRocket,
- * RASAero, and JSBSim flight simulators. All types inherit from TimestampedData
- * for consistent timestamp management across the telemetry pipeline.
- *
- * @author GraphX Contributors
- * @date 2025
- */
 
 #pragma once
 
@@ -59,19 +49,45 @@ namespace sensors {
  * Used for representing timestamped sensor measurements such as accelerometer,
  * gyroscope, and magnetometer readings.
  */
+/**
+ * @struct TimestampedVector3D
+ * @brief Timestamped Vector3 D data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct TimestampedVector3D : public TimestampedData {
     Vector3D value;  ///< 3D vector value
     
+    /**
+     * @brief Executes the Timestamped Vector3 D operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     TimestampedVector3D() = default;
     
     /// Construct with individual components and timestamp (in seconds)
     TimestampedVector3D(double ts_seconds, float x, float y, float z) 
         : value(x, y, z) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
     
     /// Construct with Vector3D value and timestamp (in seconds)
     TimestampedVector3D(double ts_seconds, const Vector3D& v) : value(v) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
 };
@@ -87,13 +103,32 @@ struct TimestampedVector3D : public TimestampedData {
  * Used for single numeric measurements such as altitude, velocity magnitude,
  * or temperature.
  */
+/**
+ * @struct TimestampedScalar
+ * @brief Timestamped Scalar data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct TimestampedScalar : public TimestampedData {
     double value{0.0};  ///< Scalar value
     
+    /**
+     * @brief Executes the Timestamped Scalar operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     TimestampedScalar() = default;
     
     /// Construct with value and timestamp (in seconds)
     TimestampedScalar(double ts_seconds, double v) : value(v) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
 };
@@ -105,6 +140,12 @@ struct TimestampedScalar : public TimestampedData {
  * Comprehensive vehicle state combining position, velocity, acceleration,
  * attitude, angular velocity, magnetic field, mass, thrust, and confidence estimates.
  * Phase 3 enhancement adds magnetic field and per-field confidence metrics.
+ */
+/**
+ * @struct StateVector
+ * @brief State Vector data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct StateVector : public TimestampedData {
     // ===== Core Position & Velocity (Phase 1-2) =====
@@ -213,6 +254,12 @@ struct StateVector : public TimestampedData {
  * and quality indicators. Simplified alternative to GNSSData for
  * applications that only need position information.
  */
+/**
+ * @struct GPSPositionData
+ * @brief Gpsposition Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct GPSPositionData : public TimestampedData {
     double latitude{0.0};              ///< Latitude (degrees)
     double longitude{0.0};             ///< Longitude (degrees)
@@ -244,14 +291,33 @@ struct GPSPositionData : public TimestampedData {
  *
  * Represents 3-axis acceleration measurements from an accelerometer sensor.
  */
+/**
+ * @struct AccelerometerData
+ * @brief Accelerometer Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct AccelerometerData : public TimestampedData {
     Vector3D acceleration{0, 0, 0};  ///< Acceleration (m/s²)
     
+    /**
+     * @brief Executes the Accelerometer Data operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     AccelerometerData() = default;
     
     /// Construct from Vector3D with timestamp
     AccelerometerData(const Vector3D& accel, double ts_seconds = 0.0) 
         : acceleration(accel) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
     
@@ -267,14 +333,33 @@ struct AccelerometerData : public TimestampedData {
  *
  * Represents 3-axis angular velocity measurements from a gyroscope sensor.
  */
+/**
+ * @struct GyroscopeData
+ * @brief Gyroscope Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct GyroscopeData : public TimestampedData {
     Vector3D angular_velocity{0, 0, 0};  ///< Angular velocity (rad/s)
     
+    /**
+     * @brief Executes the Gyroscope Data operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GyroscopeData() = default;
     
     /// Construct from Vector3D with timestamp
     GyroscopeData(const Vector3D& gyro, double ts_seconds = 0.0) 
         : angular_velocity(gyro) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
     
@@ -290,14 +375,33 @@ struct GyroscopeData : public TimestampedData {
  *
  * Represents 3-axis magnetic field measurements from a magnetometer sensor.
  */
+/**
+ * @struct MagnetometerData
+ * @brief Magnetometer Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct MagnetometerData : public TimestampedData {
     Vector3D magnetic_field{0, 0, 0};  ///< Magnetic field (µT - microtesla)
     
+    /**
+     * @brief Executes the Magnetometer Data operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MagnetometerData() = default;
     
     /// Construct from Vector3D with timestamp
     MagnetometerData(const Vector3D& mag, double ts_seconds = 0.0) 
         : magnetic_field(mag) {
+        /**
+         * @brief Updates the Timestamp Seconds.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param ts_seconds Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         SetTimestampSeconds(ts_seconds);
     }
     
@@ -314,10 +418,22 @@ struct MagnetometerData : public TimestampedData {
  * Simplified pressure sensor data containing pressure and temperature readings.
  * Includes equality operators for testing and comparison.
  */
+/**
+ * @struct BarometricData
+ * @brief Barometric Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct BarometricData : public TimestampedData {
     float pressure_pa{0.0f};      ///< Pressure (Pa)
     float temperature_k{288.15f}; ///< Temperature (K) - defaults to standard sea level
     
+    /**
+     * @brief Executes the Barometric Data operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     BarometricData() = default;
     
     /// Construct with pressure and temperature

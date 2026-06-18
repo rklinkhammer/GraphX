@@ -2,9 +2,10 @@
 
 /**
  * @file WindowFunctions.hpp
- * @brief GraphX source file.
+ * @brief Window Functions DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <cmath>
@@ -20,6 +21,12 @@ namespace dsp {
  *
  * Window functions reduce spectral leakage by tapering the signal at edges.
  * Each has different trade-offs between main lobe width and sidelobe attenuation.
+ */
+/**
+ * @enum WindowType
+ * @brief Window Type values.
+ *
+ * @details Enumerates stable options or status values used by the libdsp API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class WindowType {
     RECTANGULAR,   ///< No windowing (box car) - sharp main lobe, high sidelobes
@@ -41,7 +48,9 @@ enum class WindowType {
  */
 /**
  * @class WindowFunctions
- * @brief WindowFunctions class.
+ * @brief Window Functions type.
+ *
+ * @details Part of the GraphX public API for libdsp. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class WindowFunctions {
 public:
@@ -54,6 +63,14 @@ public:
      * @return Vector of N window coefficients (normalized)
      */
     template<typename SampleT>
+    /**
+     * @brief Executes the Generate operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param window_type Input or configuration value consumed by the method.
+     * @param N Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::vector<SampleT> Generate(WindowType window_type, size_t N) {
         switch (window_type) {
             case WindowType::RECTANGULAR:
@@ -77,6 +94,13 @@ public:
      * @return Array of N window coefficients
      */
     template<typename SampleT, size_t N>
+    /**
+     * @brief Executes the Generate Array operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param window_type Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::array<SampleT, N> GenerateArray(WindowType window_type) {
         auto vec = Generate<SampleT>(window_type, N);
         std::array<SampleT, N> result;
@@ -192,6 +216,13 @@ private:
      * @brief No windowing (all ones)
      */
     template<typename SampleT>
+    /**
+     * @brief Executes the Generate Rectangular operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param N Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::vector<SampleT> GenerateRectangular(size_t N) {
         return std::vector<SampleT>(N, SampleT{1});
     }
@@ -200,6 +231,13 @@ private:
      * @brief Hann window: w[n] = 0.5 * (1 - cos(2π*n/(N-1)))
      */
     template<typename SampleT>
+    /**
+     * @brief Executes the Generate Hann operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param N Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::vector<SampleT> GenerateHann(size_t N) {
 /**
  * @brief Window.
@@ -222,6 +260,13 @@ private:
      * @brief Hamming window: w[n] = 0.54 - 0.46*cos(2π*n/(N-1))
      */
     template<typename SampleT>
+    /**
+     * @brief Executes the Generate Hamming operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param N Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::vector<SampleT> GenerateHamming(size_t N) {
 /**
  * @brief Window.
@@ -244,6 +289,13 @@ private:
      * @brief Blackman window: w[n] = 0.42 - 0.5*cos(2π*n/(N-1)) + 0.08*cos(4π*n/(N-1))
      */
     template<typename SampleT>
+    /**
+     * @brief Executes the Generate Blackman operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param N Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::vector<SampleT> GenerateBlackman(size_t N) {
 /**
  * @brief Window.

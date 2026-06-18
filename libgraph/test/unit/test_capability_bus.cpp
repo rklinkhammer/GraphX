@@ -1,8 +1,9 @@
 /**
  * @file test_capability_bus.cpp
- * @brief GraphX source file.
+ * @brief Test Capability Bus Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_capability_bus.cpp
- * @brief Comprehensive tests for CapabilityBus and DefaultCapabilityBus (Phase 4 Testing)
- *
- * Tests the capability discovery and registration system with:
- * - Multiple capability types
- * - Type-safe registration and retrieval
- * - Error conditions and edge cases
- * - Real-world usage patterns
- * - C++26 compliance verification
- *
- * @note Uses C++26 features: std::is_class_v, std::static_pointer_cast, constexpr, concepts
- */
 
 #include <gtest/gtest.h>
 #include "graph/CapabilityBus.hpp"

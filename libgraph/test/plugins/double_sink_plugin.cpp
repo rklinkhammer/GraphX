@@ -1,8 +1,9 @@
 /**
  * @file double_sink_plugin.cpp
- * @brief GraphX source file.
+ * @brief Double Sink Plugin Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file double_sink_plugin.cpp
- * @brief TestDoubleSinkNode as a dynamically-loadable plugin
- *
- * Exports TestDoubleSinkNode (double sink consumer) as a dynamically-loadable plugin
- * for producer-based topology testing.
- */
 
 #include <memory>
 #include <log4cxx/logger.h>

@@ -1,8 +1,9 @@
 /**
  * @file PortSpec.hpp
- * @brief GraphX source file.
+ * @brief Port Spec Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,28 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file PortSpec.hpp
- * @brief Port specification and metadata templates for compile-time port definitions
- *
- * Provides compile-time metaprogramming utilities for defining and introspecting
- * input and output port specifications. This includes:
- *
- * - **PortDirection enum**: Marks ports as Input or Output
- * - **PayloadList<Ts...>**: Parameter pack container for port payload types
- * - **PortSpec**: Compile-time port definition combining direction, transport, and payloads
- * - **TransportName()**: Constexpr type name extraction for transport types
- * - **PayloadListToString()**: Runtime conversion of payload types to pipe-delimited string
- *
- * Used throughout the framework for type-safe port definitions and reflection.
- *
- * @author GraphX Contributors
- * @date 2025-12-31
- * @version 1.0
- *
- * @see Nodes.hpp for usage in node port specifications
- * @see core/TypeInfo.hpp for type naming utilities
- */
 
 #pragma once
 
@@ -68,6 +47,12 @@ namespace graph {
  * @brief Indicates whether a port receives (Input) or produces (Output) data
  *
  * Used in PortSpec to define the direction of data flow through the port.
+ */
+/**
+ * @enum PortDirection
+ * @brief Port Direction values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class PortDirection {
     Input,   ///< Port receives data from connected nodes
@@ -96,6 +81,12 @@ enum class PortDirection {
  * using SensorPayloads = PayloadList<AccelerometerData, GyroData>;
  * static_assert(SensorPayloads::size == 2);
  * @endcode
+ */
+/**
+ * @struct PayloadList
+ * @brief Payload List data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 template <typename... Ts>
 struct PayloadList {
@@ -144,6 +135,12 @@ struct PayloadList {
  */
 template<std::size_t Index, typename TransportT, PortDirection Dir,
     const char* Name, typename Payloads = PayloadList<>>
+/**
+ * @struct PortSpec
+ * @brief Port Spec data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct PortSpec {
     /// Port index (0-based)
     static constexpr std::size_t index = Index;
@@ -217,6 +214,12 @@ constexpr std::string_view TransportName() {
  */
 template <typename... Ts>
 std::string PayloadListToString(PayloadList<Ts...>) {
+    /**
+     * @brief Executes the Constexpr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     if constexpr (sizeof...(Ts) == 0) {
         // Empty payload list
         return {};

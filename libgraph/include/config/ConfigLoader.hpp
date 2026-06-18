@@ -2,32 +2,10 @@
 
 /**
  * @file ConfigLoader.hpp
- * @brief Configuration loading with type-safe expected<> error handling (Phase 5b)
- * @author Robert Klinkhammer
- * @date May 7, 2026
+ * @brief Config Loader Graph runtime support.
  *
- * Type-safe configuration loading using JsonUtilities and expected<>.
- * Replaces try-catch blocks with composable error handling.
- *
- * ## Pattern
- *
- * @code
- *   // Load configuration with error handling
- *   auto config = LoadAppConfig("config.json");
- *   if (!config) {
- *       LOG_ERROR(app::error::ErrorMessage(config.error()));
- *       return false;
- *   }
- *
- *   // Use configuration
- *   auto port = ExtractField<int>(config.value(), "port");
- *   if (!port) {
- *       LOG_ERROR("Invalid port in configuration");
- *       return false;
- *   }
- * @endcode
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <expected>
@@ -44,6 +22,12 @@ using json = nlohmann::json;
  * @brief Dashboard window height configuration
  *
  * Percentages must sum to 100 for valid layout.
+ */
+/**
+ * @struct WindowHeightConfig
+ * @brief Window Height Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct WindowHeightConfig {
     int metrics_height_percent = 68;

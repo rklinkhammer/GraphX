@@ -1,8 +1,9 @@
 /**
  * @file JsonDynamicGraphLoader.cpp
- * @brief GraphX source file.
+ * @brief JSON Dynamic Graph Loader Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,10 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file JsonDynamicGraphLoader.cpp
- * @brief Implementation of JSON graph loader for NodeFacadeAdapter-based graphs
- */
 
 #include "graph/JsonDynamicGraphLoader.hpp"
 #include "graph/GraphConfigParser.hpp"

@@ -77,6 +77,12 @@ private:
     static log4cxx::LoggerPtr logger_;
 
 public:
+    /**
+     * @enum PluginRegistryError
+     * @brief Plugin Registry Error values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class PluginRegistryError {
         InvalidPluginHandle = 1,
         NullFacade = 2,
@@ -127,6 +133,13 @@ public:
     /// Calls the plugin's creation function to instantiate a node.
     /// The returned handle and facade can be used with NodeFacadeAdapter.
     [[nodiscard]] std::expected<std::pair<NodeHandle, const NodeFacade*>, PluginRegistryError>
+    /**
+     * @brief Creates or builds the object described by Create Node Expected.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param type_name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CreateNodeExpected(const std::string& type_name) noexcept;
 
     /// @brief Check if a node type is registered and available

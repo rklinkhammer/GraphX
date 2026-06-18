@@ -1,8 +1,9 @@
 /**
  * @file PortTypes.hpp
- * @brief GraphX source file.
+ * @brief Port Types Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,17 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file PortTypes.hpp
- * @brief Port type definitions and runtime reflection for the Active Graph framework
- * 
- * This header provides:
- * - Compile-time port machinery (TypeList, Port, MakePorts)
- * - Runtime port reflection (PortInfo, PortMetadata)
- * - Port direction enumeration
- * 
- * These types are used throughout the node framework to define typed input/output ports.
- */
 
 #pragma once
 
@@ -75,14 +65,38 @@ namespace graph
      * TypeList is used throughout the framework to pass collections of types
      * at compile time without instantiating any values.
      */
+    /**
+     * @struct TypeList
+     * @brief Type List data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <typename... Ts>
     struct TypeList
     {
     };
 
     // Helper to repeat a type N times
+    /**
+     * @struct RepeatType
+     * @brief Repeat Type data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <typename T, std::size_t N, typename = std::make_index_sequence<N>>
     struct RepeatType;
+
+    /**
+
+     * @struct RepeatType
+
+     * @brief Repeat Type data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     template <typename T, std::size_t N, std::size_t... Is>
     struct RepeatType<T, N, std::index_sequence<Is...>>
@@ -96,6 +110,18 @@ namespace graph
     template <typename T, std::size_t N>
     using RepeatType_t = typename RepeatType<T, N>::type;
 
+    /**
+
+     * @struct MakePorts
+
+     * @brief Make Ports data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
+
     template <typename List>
     struct MakePorts; // forward
 
@@ -108,12 +134,30 @@ namespace graph
      * port number. This enables type-safe port connections and allows the
      * compiler to verify that connected ports have compatible types.
      */
+    /**
+     * @struct Port
+     * @brief Port data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <typename T, std::size_t ID>
     struct Port
     {
         using type = T;                       ///< The data type for this port
         static constexpr std::size_t id = ID; ///< The port identifier
     };
+
+    /**
+
+     * @struct MakePorts
+
+     * @brief Make Ports data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     template <typename... Ts>
     struct MakePorts<TypeList<Ts...>>
@@ -122,6 +166,12 @@ namespace graph
         template <typename U, std::size_t ID>
         using PortT = Port<U, ID>;
         template <std::size_t... Is>
+        /**
+         * @brief Creates or builds the object described by Make.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static auto make(std::index_sequence<Is...>) -> TypeList<PortT<Ts, Is>...>;
 
     public:
@@ -147,6 +197,12 @@ namespace graph
      *
      * Contains metadata about a port that can be accessed at runtime,
      * enabling dynamic inspection, validation, and debugging.
+     */
+    /**
+     * @struct PortInfo
+     * @brief Port Info data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct PortInfo
     {
@@ -176,6 +232,12 @@ namespace graph
      * Used by the reflection system to capture input/output port information
      * for JSON export and real-time visualization.
      */
+    /**
+     * @struct PortMetadata
+     * @brief Port Metadata data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PortMetadata {
         std::size_t port_index;       ///< Port index (0-based)
         std::string payload_type;     // "AccelerometerData|GyroData" or "IqSample<float>"
@@ -187,6 +249,12 @@ namespace graph
     namespace message { class Message; }
     
     template <typename Port>
+    /**
+     * @brief Creates or builds the object described by Make Port Metadata.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     PortMetadata MakePortMetadata() {
         using T = typename Port::transport_type;
 
@@ -208,31 +276,91 @@ namespace graph
         }
     }
 
+    /**
+
+     * @struct HasPorts
+
+     * @brief Has Ports data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
+
     template <typename Derived>
     struct HasPorts;
 
     template <PortDirection Direction, typename PortsTuple, std::size_t... Is>
+    /**
+     * @brief Executes the Count Ports By Direction Impl operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval std::size_t CountPortsByDirectionImpl(std::index_sequence<Is...>) {
         return ((std::tuple_element_t<Is, PortsTuple>::direction == Direction ? 1u : 0u) + ... + 0u);
     }
 
     template <PortDirection Direction, typename PortsTuple>
+    /**
+     * @brief Executes the Count Ports By Direction operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     consteval std::size_t CountPortsByDirection() {
         return CountPortsByDirectionImpl<Direction, PortsTuple>(
             std::make_index_sequence<std::tuple_size_v<PortsTuple>>{});
     }
 
+    /**
+
+     * @struct NodePortDescriptor
+
+     * @brief Node Port Descriptor data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
+
     template <typename Node, typename = void>
     struct NodePortDescriptor {
+        /**
+         * @brief Reports whether Has Ports Tuple is true.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval bool HasPortsTuple() {
             return requires { typename Node::Ports; };
         }
 
+        /**
+         * @brief Reports whether Has Count Members is true.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval bool HasCountMembers() {
             return requires { Node::NInputs; Node::NOutputs; };
         }
 
+        /**
+         * @brief Executes the Input Count operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval std::size_t InputCount() {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (HasPortsTuple()) {
                 return CountPortsByDirection<PortDirection::Input, typename Node::Ports>();
             } else if constexpr (HasCountMembers()) {
@@ -242,7 +370,19 @@ namespace graph
             }
         }
 
+        /**
+         * @brief Executes the Output Count operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static consteval std::size_t OutputCount() {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (HasPortsTuple()) {
                 return CountPortsByDirection<PortDirection::Output, typename Node::Ports>();
             } else if constexpr (HasCountMembers()) {
@@ -261,19 +401,50 @@ namespace graph
     concept HasCompileTimePortCounts = NodePortDescriptor<Node>::available;
 
     template <typename NodeType, PortDirection Direction>
+    /**
+     * @brief Creates or builds the object described by Make Port Metadata For Direction.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::vector<PortMetadata> MakePortMetadataForDirection() {
         std::vector<PortMetadata> out;
 
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param Direction Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (Direction == PortDirection::Input) {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (NodePortDescriptor<NodeType>::available) {
                 out.reserve(NodePortDescriptor<NodeType>::input_count);
             }
         } else {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (NodePortDescriptor<NodeType>::available) {
                 out.reserve(NodePortDescriptor<NodeType>::output_count);
             }
         }
 
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (HasPorts<NodeType>::value) {
             std::apply(
                 [&](auto... port) {
@@ -290,6 +461,18 @@ namespace graph
 
         return out;
     }
+
+    /**
+
+     * @struct HasPorts
+
+     * @brief Has Ports data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
 
     template <typename Derived>
     struct HasPorts {

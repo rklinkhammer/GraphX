@@ -59,6 +59,12 @@ using json = nlohmann::json;
  * Describes what a plugin can do without runtime overhead.
  * Generated through C++26 reflection or explicit specialization.
  */
+/**
+ * @struct CapabilityMetadata
+ * @brief Capability Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct CapabilityMetadata {
     std::string_view name;              ///< Capability name (e.g., "IConfigurable")
     std::string_view description;       ///< Human-readable description
@@ -74,6 +80,12 @@ struct CapabilityMetadata {
  *
  * Aggregates all plugin information: name, version, capabilities, etc.
  * Generated from C++26 reflection or manual specialization.
+ */
+/**
+ * @struct PluginMetadata
+ * @brief Plugin Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct PluginMetadata {
     std::string_view name;              ///< Plugin name
@@ -228,6 +240,12 @@ consteval PluginMetadata GetPluginMetadata();
  *       wrapper.Configure(config);
  *   }
  * @endcode
+ */
+/**
+ * @class PluginReflectionWrapper
+ * @brief Plugin Reflection Wrapper type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 template<typename Plugin>
 class PluginReflectionWrapper {
@@ -392,6 +410,12 @@ private:
  *   }
  * @endcode
  */
+/**
+ * @class PluginRegistry
+ * @brief Plugin Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class PluginRegistry {
 public:
     /**
@@ -401,6 +425,13 @@ public:
      * @param plugin Reference to plugin instance
      */
     template<typename Plugin>
+    /**
+     * @brief Updates or queries runtime registration through Register.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param plugin Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Register(Plugin& plugin) {
         const auto metadata = GetPluginMetadata<Plugin>();
         const auto it = std::find_if(entries_.begin(), entries_.end(),
@@ -461,6 +492,12 @@ public:
     }
 
 private:
+    /**
+     * @struct RegisteredPlugin
+     * @brief Registered Plugin data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct RegisteredPlugin {
         PluginMetadata metadata;
         void* instance = nullptr;

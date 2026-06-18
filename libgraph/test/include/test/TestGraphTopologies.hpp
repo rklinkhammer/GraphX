@@ -2,29 +2,10 @@
 
 /**
  * @file TestGraphTopologies.hpp
- * @brief Graph topologies for testing GraphExecutorBuilder and related classes
+ * @brief Test Graph Topologies Graph runtime support.
  *
- * Provides a collection of predefined graph topologies using FluentGraphBuilder
- * for comprehensive testing of graph construction, execution, and validation.
- *
- * Topologies:
- * 1. Linear/Sequential: Source -> Interior -> Sink
- * 2. Merge Topology: Source + Source -> Merge -> Sink
- * 3. Split Topology: Source -> Split -> Sink + Sink
- * 4. Diamond Topology: Source -> Split -> Interior + Interior -> Merge -> Sink
- * 5. Multi-Path Sequential: Source -> Interior -> Interior -> Interior -> Sink
- * 6. Interior to Merge: Source -> Interior -> Merge -> Sink
- * 7. Parallel Merge: Source + Source + Interior -> 3-way merge -> Sink
- * 8. Complex Network: Multiple interleaved merge/split operations
- * 9. Minimal Graph: Source -> Sink (baseline)
- * 10. Source Only: Single source node (edge case)
- *
- * Each topology is independent and can be instantiated for specific tests.
- *
- * @author Test Suite
- * @date 2026-05-11
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include "graph/FluentGraphBuilder.hpp"
@@ -72,6 +53,12 @@ enum class TopologyType {
  * @brief Factory for creating various graph topologies
  *
  * Provides static methods to build different graph topologies for testing.
+ */
+/**
+ * @class TopologyBuilder
+ * @brief Topology Builder builder.
+ *
+ * @details Collects configuration and constructs GraphX runtime objects in a predictable order. Builder methods are intended to be chained before final construction.
  */
 class TopologyBuilder {
 public:

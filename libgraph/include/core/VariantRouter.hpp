@@ -1,8 +1,9 @@
 /**
  * @file VariantRouter.hpp
- * @brief GraphX source file.
+ * @brief Variant Router Graph runtime support.
+ *
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,48 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file VariantRouter.hpp
- * @brief Generic type-based routing for polymorphic variant types (Phase 4 Generalization)
- *
- * Implements a type-safe dispatcher for ANY std::variant type, supporting
- * extensible handler registration without modifying router code when new types are added.
- *
- * **Key Features**:
- * - Works with arbitrary std::variant types (not hardcoded to specific types)
- * - Type-safe handler registration via templates
- * - Zero-overhead dispatch via C++17 fold expressions
- * - Header-only template class
- *
- * **Use Cases**:
- * - Polymorphic sensor data routing (sensors::SensorPayload)
- * - Message dispatch systems
- * - State machine payload handling
- * - Any variant-based type routing
- *
- * @example
- * @code
- *   // Define custom variant type
- *   struct EventA { int x; };
- *   struct EventB { std::string msg; };
- *   using EventVariant = std::variant<EventA, EventB>;
- *
- *   // Create router
- *   graph::VariantRouter<EventVariant> router;
- *
- *   // Register handlers for each type
- *   router.RegisterHandler<EventA>([](const auto& event) {
- *       std::cout << "EventA: " << event.x << '\n';
- *   });
- *   router.RegisterHandler<EventB>([](const auto& event) {
- *       std::cout << "EventB: " << event.msg << '\n';
- *   });
- *
- *   // Dispatch polymorphic data
- *   EventVariant payload(std::in_place_type<EventA>, 42);
- *   router.Dispatch(payload);  // Routes to EventA handler
- * @endcode
- */
 
 #pragma once
 
@@ -111,7 +70,9 @@ namespace graph {
 template<typename Variant>
 /**
  * @class VariantRouter
- * @brief VariantRouter class.
+ * @brief Variant Router type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class VariantRouter {
 public:
@@ -141,10 +102,22 @@ public:
 
     /// Delete copy to avoid handler registration duplication
     VariantRouter(const VariantRouter&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param VariantRouter Input or configuration value consumed by the method.
+     */
     VariantRouter& operator=(const VariantRouter&) = delete;
 
     /// Allow move semantics for flexible container usage
     VariantRouter(VariantRouter&&) = default;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param VariantRouter Input or configuration value consumed by the method.
+     */
     VariantRouter& operator=(VariantRouter&&) = default;
 
     // ====================================================================
@@ -166,9 +139,23 @@ public:
      * Multiple registrations for the same type replace previous handler.
      */
     template<typename T>
+    /**
+     * @brief Updates or queries runtime registration through Register Handler.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param handler Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void RegisterHandler(Handler<T> handler) {
         handlers_[typeid(T).hash_code()] = [h = std::move(handler)](const Variant& payload) {
             if (const auto* ptr = std::get_if<T>(&payload)) {
+                /**
+                 * @brief Executes the H operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param ptr Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 h(*ptr);
             }
         };
@@ -222,6 +209,12 @@ public:
      * @return true if handler registered for type T, false otherwise
      */
     template<typename T>
+    /**
+     * @brief Reports whether Has Handler is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool HasHandler() const {
         return handlers_.find(typeid(T).hash_code()) != handlers_.end();
     }
@@ -241,6 +234,13 @@ private:
      * @param payload The variant data to dispatch
      */
     template<std::size_t... Is>
+    /**
+     * @brief Executes the Dispatch Helper operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param payload Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void DispatchHelper(const Variant& payload, std::index_sequence<Is...>) {
         // Fold expression: try dispatch for each variant alternative type
         // This expands at compile-time to:
@@ -260,6 +260,13 @@ private:
      * Calls handler if registered for this type.
      */
     template<typename T>
+    /**
+     * @brief Attempts Dispatch without throwing on expected failure.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param payload Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void TryDispatch(const Variant& payload) {
         if (const auto* ptr = std::get_if<T>(&payload)) {
             auto type_hash = typeid(T).hash_code();

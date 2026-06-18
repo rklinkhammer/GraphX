@@ -1,8 +1,9 @@
 /**
  * @file test_graph_1.cpp
- * @brief GraphX source file.
+ * @brief Test Graph 1 Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_graph_1.cpp
- * @brief Integration test for basic graph topology
- *
- * Tests sample ignoring, timing intervals, and basic data flow using
- * FluentGraphBuilder with real producer and sink nodes.
- *
- * Graph Topology (Test Graph 1):
- *     TestIntProducer
- *           |
- *           ├─ [Port 0] → TestIntSinkNode [Port 0]
- *           └─ [Port 1] → CompletionNode [Port 0]
- */
 
 #include <gtest/gtest.h>
 #include "graph/DataGeneratorBase.hpp"

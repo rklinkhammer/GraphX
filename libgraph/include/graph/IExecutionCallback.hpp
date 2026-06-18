@@ -1,8 +1,9 @@
 /**
  * @file IExecutionCallback.hpp
- * @brief GraphX source file.
+ * @brief Iexecution Callback Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -51,8 +52,19 @@ namespace graph {
  *
  * @see ExecutionPolicyChain, GraphExecutor
  */
+/**
+ * @class IExecutionCallback
+ * @brief Iexecution Callback type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class IExecutionCallback {
 public:
+    /**
+     * @brief Releases resources owned by Iexecution Callback.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IExecutionCallback() = default;
 
     /**

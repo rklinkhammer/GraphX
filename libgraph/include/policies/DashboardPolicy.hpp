@@ -1,8 +1,9 @@
 /**
  * @file DashboardPolicy.hpp
- * @brief GraphX source file.
+ * @brief Dashboard Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -89,6 +90,12 @@ namespace policies
      *
      * @see IExecutionPolicy, Dashboard, MetricsCapability, CommandRegistry
      */
+    /**
+     * @class DashboardPolicy
+     * @brief Dashboard Policy execution policy.
+     *
+     * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+     */
     class DashboardPolicy : public graph::IExecutionPolicy
     {
     public:
@@ -111,6 +118,13 @@ namespace policies
          */
         bool OnInit(capabilities::GraphCapability &context) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param dashboard_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnInit called");
             auto metrics_capability = context.GetCapabilityBus().Get<capabilities::MetricsCapability>();
             auto graph_capability = context.GetCapabilityBus().Get<capabilities::GraphCapability>();
@@ -135,6 +149,13 @@ namespace policies
          */
         bool OnStart(capabilities::GraphCapability &) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param dashboard_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnStart called");
             // auto ui = [this]() {
             //     dashboard_->Run();
@@ -155,9 +176,23 @@ namespace policies
          */
         void OnStop(capabilities::GraphCapability &context) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param dashboard_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnStop called");
             auto dashboard_capability = context.GetCapabilityBus().Get<capabilities::DashboardCapability>();
             if (!dashboard_capability) {
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param dashboard_logger Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnStop skipped - no DashboardCapability registered");
                 return;
             }
@@ -170,6 +205,13 @@ namespace policies
 
         void OnJoin(capabilities::GraphCapability &) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param dashboard_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(dashboard_logger, "DashboardPolicy OnJoin called");
             // if (dashboard_thread_.joinable()) {
             //     dashboard_thread_.join();

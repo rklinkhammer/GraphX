@@ -2,9 +2,10 @@
 
 /**
  * @file NodeResolutionRegistry.cpp
- * @brief GraphX source file.
+ * @brief Node Resolution Registry Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "graph/NodeResolutionRegistry.hpp"
 
 namespace graph {

@@ -1,8 +1,9 @@
 /**
  * @file EdgeRegistration.hpp
- * @brief GraphX source file.
+ * @brief Edge Registration Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file EdgeRegistration.hpp
- * @brief Edge creator registration for known node type combinations
- *
- * Phase 2: Node & Edge Instantiation
- *
- * Provides templates and macros for registering all valid (SrcNode, SrcPort, DstNode, DstPort)
- * edge combinations at program startup. These registrations enable runtime edge instantiation
- * from JSON configurations via type-name lookup.
- *
- * @author Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -63,6 +51,12 @@ namespace graph::config {
  *     nodes::FlightFSMNode, 0>()         // Dest node type and port
  * @endcode
  */
+/**
+ * @class EdgeRegistration
+ * @brief Edge Registration type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class EdgeRegistration {
 public:
     /**
@@ -81,6 +75,12 @@ public:
      * before any JSON graph loading begins.
      */
     template <typename SrcNode, std::size_t SrcPort, typename DstNode, std::size_t DstPort>
+    /**
+     * @brief Updates or queries runtime registration through Register.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void Register() {
         // Get human-readable type names
         std::string src_type_name = typeid(SrcNode).name();

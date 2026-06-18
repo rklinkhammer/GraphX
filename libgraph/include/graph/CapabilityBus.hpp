@@ -1,8 +1,9 @@
 /**
  * @file CapabilityBus.hpp
- * @brief GraphX source file.
+ * @brief Capability Bus Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -35,18 +36,38 @@ namespace graph {
 
 /**
  * @class CapabilityBus
- * @brief CapabilityBus class.
+ * @brief Capability Bus capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class CapabilityBus {
 public:
+    /**
+     * @brief Releases resources owned by Capability Bus.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~CapabilityBus() = default;
 
     template<typename CapabilityT>
+    /**
+     * @brief Updates or queries runtime registration through Register.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Register(std::shared_ptr<CapabilityT> capability) {
         capabilities_[std::type_index(typeid(CapabilityT))] = capability;
     }
 
     template<typename CapabilityT>
+    /**
+     * @brief Returns the requested value.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<CapabilityT> Get() const {
         auto it = capabilities_.find(std::type_index(typeid(CapabilityT)));
         if (it != capabilities_.end()) {
@@ -56,10 +77,22 @@ public:
     }
 
     template<typename CapabilityT>
+    /**
+     * @brief Reports whether Has is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Has() const {
         return capabilities_.find(std::type_index(typeid(CapabilityT))) != capabilities_.end();
     }
 
+    /**
+     * @brief Executes the Clear operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Clear() {
         capabilities_.clear();
     }

@@ -1,8 +1,9 @@
 /**
  * @file H2DAsyncNodeSycl.hpp
- * @brief GraphX source file.
+ * @brief H2 Dasync Node SYCL GPU acceleration support.
+ *
+ * @details Provides SYCL acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,7 +27,9 @@ namespace graph::gpu::sycl::nodes {
 
 /**
  * @class H2DAsyncNodeSycl
- * @brief H2DAsyncNodeSycl class.
+ * @brief H2 Dasync Node SYCL graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class H2DAsyncNodeSycl
     : public graph::NamedInteriorNode<
@@ -35,8 +38,21 @@ class H2DAsyncNodeSycl
           H2DAsyncNodeSycl>,
       public graph::IGpuCapabilityBinding {
 public:
+    /**
+     * @brief Executes the H2 Dasync Node Sycl operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     H2DAsyncNodeSycl() = default;
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         memory_pool_ = capability_bus.Get<capabilities::ISyclMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::ISyclTransferCapability>();

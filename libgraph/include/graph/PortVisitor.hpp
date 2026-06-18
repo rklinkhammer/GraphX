@@ -1,8 +1,9 @@
 /**
  * @file PortVisitor.hpp
- * @brief GraphX source file.
+ * @brief Port Visitor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -67,8 +68,16 @@ namespace graph
     template <typename Derived, std::size_t MaxPorts>
 /**
  * @class PortIterator
- * @brief PortIterator class.
+ * @brief Port Iterator type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class PortIterator
+     * @brief Port Iterator type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class PortIterator
     {
     private:
@@ -85,6 +94,13 @@ namespace graph
         template <std::size_t Port, typename Operation>
         static void ForEachPortImpl(Derived* node, std::size_t port_id, Operation& op)
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param MaxPorts Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < MaxPorts) {
                 if (port_id == Port) {
                     // Found the matching port, execute operation
@@ -109,6 +125,13 @@ namespace graph
         template <std::size_t Port, typename Operation>
         static void ForAllPortsImpl(Derived* node, Operation& op)
         {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param MaxPorts Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (Port < MaxPorts) {
                 // Execute operation for this port
                 op.template Execute<Port>(node);

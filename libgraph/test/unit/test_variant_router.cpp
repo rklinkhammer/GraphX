@@ -1,8 +1,9 @@
 /**
  * @file test_variant_router.cpp
- * @brief GraphX source file.
+ * @brief Test Variant Router Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_variant_router.cpp
- * @brief Comprehensive tests for generic VariantRouter template (Phase 4)
- *
- * Tests the VariantRouter<Variant> template with multiple variant types
- * including both simple test types and real sensor data types.
- */
 
 #include <gtest/gtest.h>
 #include "core/VariantRouter.hpp"

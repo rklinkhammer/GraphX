@@ -1,8 +1,9 @@
 /**
  * @file PeerCopyNodeMetal.hpp
- * @brief GraphX source file.
+ * @brief Peer Copy Node Metal GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,7 +27,9 @@ namespace graph::gpu::metal::nodes {
 
 /**
  * @class PeerCopyNodeMetal
- * @brief PeerCopyNodeMetal class.
+ * @brief Peer Copy Node Metal graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class PeerCopyNodeMetal
     : public graph::NamedInteriorNode<
@@ -35,13 +38,31 @@ class PeerCopyNodeMetal
           PeerCopyNodeMetal>,
       public graph::IGpuCapabilityBinding {
 public:
+    /**
+     * @brief Executes the Peer Copy Node Metal operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     PeerCopyNodeMetal() = default;
+    /**
+     * @brief Releases resources owned by Peer Copy Node Metal.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~PeerCopyNodeMetal() {
         if (owns_queue_ && context_ && queue_id_ != 0) {
             context_->DestroyCommandQueue(queue_id_);
         }
     }
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         context_ = capability_bus.Get<capabilities::IMetalContextCapability>();
         shared_queue_ = capability_bus.Get<capabilities::IMetalSharedQueueCapability>();
@@ -89,6 +110,13 @@ public:
         return output;
     }
 
+    /**
+     * @brief Updates the Queue.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param queue_id Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void SetQueue(std::uint64_t queue_id) {
         owns_queue_ = false;
         queue_id_ = queue_id;

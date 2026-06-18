@@ -1,8 +1,9 @@
 /**
  * @file DefaultMetalCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Default Metal Capabilities GPU acceleration support.
+ *
+ * @details Provides Metal acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -21,7 +22,9 @@ namespace graph::gpu::metal::capabilities {
 
 /**
  * @class DefaultMetalContextCapability
- * @brief DefaultMetalContextCapability class.
+ * @brief Default Metal Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalContextCapability final : public IMetalContextCapability {
 public:
@@ -83,7 +86,9 @@ private:
 
 /**
  * @class DefaultMetalMemoryPoolCapability
- * @brief DefaultMetalMemoryPoolCapability class.
+ * @brief Default Metal Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalMemoryPoolCapability final : public IMetalMemoryPoolCapability {
 public:
@@ -99,6 +104,12 @@ public:
  * @return Result of the operation.
  */
     bool Release(const accel::BufferLease& lease) override;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] MemoryPoolSnapshot Snapshot() const override;
 
 private:
@@ -118,7 +129,9 @@ private:
 
 /**
  * @class DefaultMetalTransferCapability
- * @brief DefaultMetalTransferCapability class.
+ * @brief Default Metal Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalTransferCapability final : public IMetalTransferCapability {
 public:
@@ -144,7 +157,9 @@ private:
 
 /**
  * @class DefaultMetalKernelCapability
- * @brief DefaultMetalKernelCapability class.
+ * @brief Default Metal Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalKernelCapability final : public IMetalKernelCapability,
                                            public IMetalKernelDescriptorCapability {
@@ -173,7 +188,9 @@ private:
 
 /**
  * @class DefaultMetalTelemetryCapability
- * @brief DefaultMetalTelemetryCapability class.
+ * @brief Default Metal Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalTelemetryCapability final : public IMetalTelemetryCapability {
 public:
@@ -186,6 +203,12 @@ public:
  * @param error_code Parameter for increment error counter.
  */
     void IncrementErrorCounter(std::string_view error_code) override;
+    /**
+     * @brief Executes the Snapshot operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] TelemetrySnapshot Snapshot() const override;
 
     [[nodiscard]] std::uint64_t TransferSamples() const { return transfer_samples_; }
@@ -207,7 +230,9 @@ private:
 
 /**
  * @class DefaultMetalCollectiveCapability
- * @brief DefaultMetalCollectiveCapability class.
+ * @brief Default Metal Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultMetalCollectiveCapability final : public IMetalCollectiveCapability {
 public:

@@ -2,24 +2,10 @@
 
 /**
  * @file test_producer_topologies.cpp
- * @brief Integration tests for producer-based graph topologies
+ * @brief Test Producer Topologies Graph runtime support.
  *
- * Tests the producer topology builders with dynamic plugin nodes:
- * - MinimalIntProducer: TestIntProducer → TestIntSinkNode + CompletionNode
- * - LinearSequentialIntProducer: TestIntProducer -> InteriorTestNode -> TestIntSinkNode + CompletionNode
- * - MinimalDoubleProducer: TestDoubleProducer → TestDoubleSinkNode + CompletionNode
- * - LinearSequentialDoubleProducer: TestDoubleProducer -> InteriorTestNode -> TestDoubleSinkNode + CompletionNode
- *
- * Validates:
- * - Two-port producer architecture (Port 0: data, Port 1: completion)
- * - Message encapsulation and unpacking for int and double types
- * - CompletionSignal delivery to dedicated completion node
- * - Full data flow from producer through sink nodes
- *
- * @author Test Suite
- * @date May 29, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <chrono>

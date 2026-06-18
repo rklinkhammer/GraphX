@@ -66,6 +66,12 @@ using json = nlohmann::json;
  * Specific error types from Phase 1 std::expected implementation.
  * Enables type-safe error handling without exceptions.
  */
+/**
+ * @enum DeserializationError
+ * @brief Deserialization Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class DeserializationError {
     InvalidJson,              ///< JSON parsing failed
     TypeMismatch,             ///< JSON type doesn't match expected type
@@ -201,6 +207,12 @@ template<typename T>
 requires std::is_arithmetic_v<T> || std::is_same_v<T, std::string>
 std::expected<T, DeserializationError> DeserializePrimitive(const json& json_value) {
     try {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (std::is_same_v<T, int>) {
             if (!json_value.is_number_integer()) {
                 return std::unexpected(DeserializationError::TypeMismatch);
@@ -243,6 +255,12 @@ std::expected<T, DeserializationError> DeserializePrimitive(const json& json_val
  * @brief Detailed deserialization result with error information
  *
  * Extends std::expected<T, E> with additional context about what failed.
+ */
+/**
+ * @struct DeserializationResult
+ * @brief Deserialization Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 template<typename T>
 struct DeserializationResult {

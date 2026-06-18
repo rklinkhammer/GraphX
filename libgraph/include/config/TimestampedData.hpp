@@ -1,8 +1,9 @@
 /**
  * @file TimestampedData.hpp
- * @brief GraphX source file.
+ * @brief Timestamped Data Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,14 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/*!
- * @file TimestampedData.hpp
- * @brief Base struct for all timestamped sensor data
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- */
 
 #pragma once
 
@@ -55,6 +48,12 @@ namespace sensors {
  * 
  * @note All sensor data types should inherit from TimestampedData
  * @see SensorDataTypes.hpp for concrete implementations
+ */
+/**
+ * @struct TimestampedData
+ * @brief Timestamped Data data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct TimestampedData {
     /// Timestamp in nanoseconds from launch (uniform across all sensors)

@@ -1,8 +1,9 @@
 /**
  * @file NodeFacadeAdapterWrapper.hpp
- * @brief GraphX source file.
+ * @brief Node Facade Adapter Wrapper Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,17 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file NodeFacadeAdapterWrapper.hpp
- * @brief Wrapper to make NodeFacadeAdapter compatible with INode interface
- * 
- * This file provides a wrapper class that allows NodeFacadeAdapter instances
- * (returned from dynamic plugin loading) to be used as INode instances in
- * the typed graph system.
- *
- * @author GitHub Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -58,6 +48,12 @@ namespace graph {
  * 
  * @note NodeFacadeAdapter has move semantics only, so this wrapper must also use move semantics
  */
+/**
+ * @class NodeFacadeAdapterWrapper
+ * @brief Node Facade Adapter Wrapper graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class NodeFacadeAdapterWrapper : public INode {
 private:
     std::shared_ptr<NodeFacadeAdapter> adapter_;
@@ -72,6 +68,11 @@ public:
         : adapter_(std::move(adapter)) {
     }
     
+    /**
+     * @brief Releases resources owned by Node Facade Adapter Wrapper.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~NodeFacadeAdapterWrapper() = default;
     
     /**
@@ -207,6 +208,12 @@ public:
      * @return shared_ptr to the node, or nullptr if cast fails
      */
     template<typename NodeT>
+    /**
+     * @brief Returns the Node.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<NodeT> GetNode() {
         if (!adapter_) {
             return nullptr;
@@ -225,6 +232,12 @@ public:
      * @return const shared_ptr to the node, or nullptr if cast fails
      */
     template<typename NodeT>
+    /**
+     * @brief Returns the Node.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<const NodeT> GetNode() const {
         if (!adapter_) {
             return nullptr;
@@ -272,6 +285,12 @@ public:
      * @endcode
      */
     template<typename InterfaceT>
+    /**
+     * @brief Attempts Get Interface without throwing on expected failure.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<InterfaceT> TryGetInterface() const {
         if (!adapter_) {
             return nullptr;

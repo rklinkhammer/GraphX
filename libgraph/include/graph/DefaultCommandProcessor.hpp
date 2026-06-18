@@ -1,8 +1,9 @@
 /**
  * @file DefaultCommandProcessor.hpp
- * @brief GraphX source file.
+ * @brief Default Command Processor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -64,7 +65,9 @@ namespace graph {
  */
 /**
  * @class DefaultCommandProcessor
- * @brief DefaultCommandProcessor class.
+ * @brief Default Command Processor type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class DefaultCommandProcessor : public ICommandProcessor {
 public:

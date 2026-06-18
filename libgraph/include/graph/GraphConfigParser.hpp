@@ -1,8 +1,9 @@
 /**
  * @file GraphConfigParser.hpp
- * @brief GraphX source file.
+ * @brief Graph Config Parser Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,16 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file GraphConfigParser.hpp
- * @brief Parse JSON text/files into GraphConfig structures
- *
- * Provides JSON parsing and schema validation for graph configurations.
- * Phase 1: Core Infrastructure
- *
- * @author Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -51,6 +42,12 @@ namespace graph::config {
  *
  * Stateless parser that converts JSON text into GraphConfig structures
  * with comprehensive validation.
+ */
+/**
+ * @class GraphConfigParser
+ * @brief Graph Config Parser parser.
+ *
+ * @details Translates external configuration or files into typed GraphX runtime data. Diagnostics should identify invalid inputs without changing runtime state.
  */
 class GraphConfigParser {
 public:
@@ -85,6 +82,13 @@ public:
      * @endcode
      */
     [[nodiscard]] static std::expected<GraphConfig, app::error::ConfigError>
+    /**
+     * @brief Executes the Parse Safe operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param json_text Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ParseSafe(const std::string& json_text) noexcept;
     
     /**
@@ -96,6 +100,13 @@ public:
      * Safe variant using expected<> instead of exceptions.
      */
     [[nodiscard]] static std::expected<GraphConfig, app::error::ConfigError>
+    /**
+     * @brief Executes the Parse File Safe operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param filepath Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ParseFileSafe(const std::string& filepath) noexcept;
     
     /**
@@ -141,6 +152,13 @@ private:
      * Parse a single node configuration with typed errors
      */
     [[nodiscard]] static std::expected<NodeConfig, app::error::ConfigError>
+    /**
+     * @brief Executes the Parse Node Safe operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param node_json Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ParseNodeSafe(const nlohmann::json& node_json) noexcept;
     
     /**
@@ -157,6 +175,13 @@ private:
      * Parse a single edge configuration with typed errors
      */
     [[nodiscard]] static std::expected<EdgeConfig, app::error::ConfigError>
+    /**
+     * @brief Executes the Parse Edge Safe operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param edge_json Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ParseEdgeSafe(const nlohmann::json& edge_json) noexcept;
     
     /**

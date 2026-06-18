@@ -2,9 +2,10 @@
 
 /**
  * @file PooledMessage.cpp
- * @brief Implementation of MessagePoolRegistry and message pooling utilities
+ * @brief Pooled Message Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <graph/PooledMessage.hpp>
 #include <algorithm>
 #include <stdexcept>

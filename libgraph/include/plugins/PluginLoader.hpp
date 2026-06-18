@@ -131,6 +131,13 @@ public:
     /// @note All plugin loading is logged via log4cxx (TRACE and ERROR levels)
     /// @note Caller must use [[nodiscard]] warning if ignoring result
     [[nodiscard]] std::expected<void, app::error::PluginLoadError>
+    /**
+     * @brief Updates or queries runtime registration through Load Plugin Safe.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param plugin_filename Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     LoadPluginSafe(const std::string& plugin_filename) noexcept;
 
     /// @brief Load all plugins from the plugin directory safely
@@ -160,6 +167,12 @@ public:
     /// @note Individual plugin errors are logged at WARN level but don't fail overall
     /// @note All plugin loading is logged via log4cxx (TRACE and ERROR levels)
     [[nodiscard]] std::expected<PluginLoadSummary, app::error::PluginLoadError>
+    /**
+     * @brief Updates or queries runtime registration through Load All Plugins Safe.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     LoadAllPluginsSafe() noexcept;
 
     // ========================================================================

@@ -1,8 +1,9 @@
 /**
  * @file GpuCapabilityBootstrap.cpp
- * @brief GraphX source file.
+ * @brief GPU Capability Bootstrap GPU acceleration support.
+ *
+ * @details Provides GPU capability bootstrap and backend integration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors

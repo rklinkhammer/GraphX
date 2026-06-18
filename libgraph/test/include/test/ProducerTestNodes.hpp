@@ -2,23 +2,10 @@
 
 /**
  * @file ProducerTestNodes.hpp
- * @brief Reusable test nodes for DataProducer and DataInjectionProducer testing
+ * @brief Producer Test Nodes Graph runtime support.
  *
- * Provides standard test implementations for producer-based graph testing:
- * - Generator implementations (counter-based, random, etc.)
- * - Producer node implementations with various configurations
- * - Sink node implementations for data validation
- * - Completion signal sink for testing completion semantics
- *
- * These nodes are designed to be reused across:
- * - Unit tests for DataProducer classes
- * - Integration tests with graph topologies
- * - Performance and stress testing
- *
- * @author Test Suite
- * @date May 29, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <atomic>
@@ -47,6 +34,18 @@ namespace test {
 // Node Classification Enum
 // =============================================================================
 
+/**
+
+ * @enum NodeClassification
+
+ * @brief Node Classification values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
+
 enum class NodeClassification {
     Unclassified = 0,
     IntProducer = 1,
@@ -66,6 +65,12 @@ enum class NodeClassification {
  *
  * Produces sequential integers from 0 to max-1, then becomes exhausted.
  * Useful for testing basic producer behavior with deterministic data.
+ */
+/**
+ * @class SimpleIntGenerator
+ * @brief Simple Int Generator type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class SimpleIntGenerator : public graph::DataGeneratorBase<int> {
 private:
@@ -100,6 +105,12 @@ public:
  * Produces sequential doubles from 0.0 to max-1.0, then becomes exhausted.
  * Useful for testing with floating-point data.
  */
+/**
+ * @class SimpleDoubleGenerator
+ * @brief Simple Double Generator type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class SimpleDoubleGenerator : public graph::DataGeneratorBase<double> {
 private:
     int counter_;
@@ -132,6 +143,12 @@ public:
  *
  * Produces random integers in range [min, max).
  * Useful for stress testing and random data scenarios.
+ */
+/**
+ * @class RandomIntGenerator
+ * @brief Random Int Generator type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class RandomIntGenerator : public graph::DataGeneratorBase<int> {
 private:
@@ -185,6 +202,12 @@ public:
  * - Port 0: int values
  * - Port 1: CompletionSignal
  */
+/**
+ * @class TestIntProducer
+ * @brief Test Int Producer type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class TestIntProducer : public graph::DataProducerWithNotification<TestIntProducer, SimpleIntGenerator, int, int,
                                                                     graph::message::CompletionSignal, NodeClassification,
                                                                     NodeClassification::IntProducer> {
@@ -226,6 +249,12 @@ public:
  * Outputs:
  * - Port 0: double values
  * - Port 1: CompletionSignal
+ */
+/**
+ * @class TestDoubleProducer
+ * @brief Test Double Producer type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class TestDoubleProducer
     : public graph::DataProducerWithNotification<TestDoubleProducer, SimpleDoubleGenerator, double, double,
@@ -272,11 +301,23 @@ public:
  * EXPECT_TRUE(producer->HasErrorOccurred());
  * ```
  */
+/**
+ * @class FailingProducerNode
+ * @brief Failing Producer Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class FailingProducerNode : public graph::DataProducerWithNotification<FailingProducerNode, SimpleIntGenerator, int,
                                                                         int, graph::message::CompletionSignal,
                                                                         NodeClassification,
                                                                         NodeClassification::IntProducer> {
 public:
+    /**
+     * @enum FailureMode
+     * @brief Failure Mode values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class FailureMode { NoFailure, ThrowException, ReturnInvalidData, ProduceOutOfOrder };
 
     /**
@@ -338,6 +379,12 @@ private:
  * - Data loss detection (gaps in sequence)
  * - Duplicate detection
  * - Timing information tracking
+ */
+/**
+ * @class TestIntSinkNode
+ * @brief Test Int Sink Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class TestIntSinkNode : public graph::NamedSinkNode<TestIntSinkNode, ::graph::message::Message> {
 public:
@@ -421,6 +468,12 @@ private:
  * - Timing information tracking
  * - Statistical analysis helpers
  */
+/**
+ * @class TestDoubleSinkNode
+ * @brief Test Double Sink Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class TestDoubleSinkNode : public graph::NamedSinkNode<TestDoubleSinkNode, ::graph::message::Message> {
 public:
     TestDoubleSinkNode() = default;
@@ -483,6 +536,12 @@ private:
  * - Records signal timing
  * - Provides completion callback support
  * - Stops after first signal (allows single-producer completion)
+ */
+/**
+ * @class CompletionNode
+ * @brief Completion Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class CompletionNode : public graph::NamedSinkNode<CompletionNode, graph::message::CompletionSignal>,
                        public graph::CompletionCallbackProvider {

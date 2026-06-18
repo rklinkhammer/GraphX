@@ -1,8 +1,9 @@
 /**
  * @file MetricsPolicy.hpp
- * @brief GraphX source file.
+ * @brief Metrics Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -54,8 +55,25 @@ static auto metrics_logger = log4cxx::Logger::getLogger("app.policies.MetricsPol
  *
  * @see IMetricsCallback, MetricsPolicy, MetricsCapability
  */
+/**
+ * @struct MetricsCapabilityCallback
+ * @brief Metrics Capability Callback data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct MetricsCapabilityCallback : public graph::IMetricsCallback {
+    /**
+     * @brief Executes the Metrics Capability Callback operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MetricsCapabilityCallback() = default;
+    /**
+     * @brief Releases resources owned by Metrics Capability Callback.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~MetricsCapabilityCallback() = default;
     
     /**
@@ -67,6 +85,13 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
      * @param event The metrics event to publish
      */
     bool PublishAsync(const app::metrics::MetricsEvent& event) noexcept override {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param publish_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(publish_mutex_);
         if (on_publish_async_) {
             return on_publish_async_(event);
@@ -127,12 +152,25 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
  *
  * @see IExecutionPolicy, MetricsCapability, MetricsEvent
  */
+/**
+ * @class MetricsPolicy
+ * @brief Metrics Policy execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+ */
 class MetricsPolicy : public graph::IExecutionPolicy {
 public:
     /**
      * @brief Construct a metrics policy with logging
      */
     MetricsPolicy() {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy initialized");
     }   
 
@@ -153,11 +191,39 @@ public:
      * @see OnStart, MetricsCapability
      */
     bool OnInit(capabilities::GraphCapability& context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy OnInit called");
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnInit() - creating MetricsCapability");
         metrics_capability_ = std::make_shared<capabilities::MetricsCapability>();
         context.GetCapabilityBus().Register<capabilities::MetricsCapability>(metrics_capability_);
+        /**
+         * @brief Performs the Init Metrics Sources lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param context Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         InitMetricsSources(context);
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnInit() - MetricsCapability registered in CapabilityBus");
         return true;
     }
@@ -176,6 +242,13 @@ public:
     bool OnStart(capabilities::GraphCapability& context) override
     {
         (void)context;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnStart()");
         bool ret = true;
         if (!metrics_capability_) {
@@ -197,6 +270,13 @@ public:
                     << "of type '" << event.event_type << "' with " << event.data.size() << " fields:");
                 for (const auto &[field, value] : event.data)
                 {
+                    /**
+                     * @brief Executes the Log4 Cxx Trace operation.
+                     *
+                     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                     * @param metrics_logger Input or configuration value consumed by the method.
+                     * @return Method-specific result, status, or produced value when the signature provides one.
+                     */
                     LOG4CXX_TRACE(metrics_logger, "  Field: " << field << " = " << value);
                 }
                 metrics_capability_->InvokeSubscribers(event);
@@ -208,12 +288,32 @@ public:
 
     void OnStop(capabilities::GraphCapability &) override
     {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy OnStop called");
         metrics_event_queue_.Disable();
         // Stop metrics collection and cleanup here if needed
     }
 
+    /**
+     * @brief Executes the On Join operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void OnJoin(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy OnJoin called");
         if (metrics_thread_.joinable()) {
             metrics_thread_.join();
@@ -226,6 +326,13 @@ public:
         
         // CRITICAL: Drain any remaining events from queue after thread exits
         // This ensures no metrics are lost when Disable() is called
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param metrics_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnJoin() - draining remaining metrics events");
         app::metrics::MetricsEvent event;
         size_t drained_count = 0;
@@ -236,10 +343,23 @@ public:
             ++drained_count;
         }
         if (drained_count > 0) {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param metrics_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnJoin() - drained " << drained_count << " remaining events");
         }
     }   
 
+    /**
+     * @brief Returns the Node Metrics Schemas.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::unordered_map<std::string, app::metrics::NodeMetricsSchema>& GetNodeMetricsSchemas() {
         return node_metrics_schemas_;
     }

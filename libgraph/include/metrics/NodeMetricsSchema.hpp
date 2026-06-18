@@ -1,8 +1,9 @@
 /**
  * @file NodeMetricsSchema.hpp
- * @brief GraphX source file.
+ * @brief Node Metrics Schema Graph runtime support.
+ *
+ * @details Provides metrics event and subscriber contracts for runtime observability. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -34,30 +35,6 @@
 #include <stdexcept>
 
 
-/**
- * @file MetricsSchemaDiscovery.hpp
- * @brief Dynamic discovery of node metrics capabilities via JSON schema
- *
- * MetricsSchemaDiscovery enables the dashboard to automatically discover
- * all nodes in the execution pipeline and their available metrics, without
- * requiring any hardcoded knowledge of node types.
- *
- * When a new node is added to the pipeline, it automatically appears in
- * the dashboard with appropriate panel rendering - no code changes needed.
- *
- * @section usage Usage
- *
- * \code
- * MetricsSchemaDiscovery discovery;
- * auto schemas = discovery.DiscoverAllNodes(executor);
- *
- * for (const auto& schema : schemas) {
- *     std::cout << "Node: " << schema.node_name << "\n";
- *     std::cout << "Type: " << schema.node_type << "\n";
- *     std::cout << "Metrics: " << schema.metrics_schema.dump() << "\n";
- * }
- * \endcode
- */
 namespace app::metrics {
 
 using json = nlohmann::json;
@@ -67,6 +44,12 @@ using json = nlohmann::json;
  *
  * Returned by discovery process to describe what metrics a node publishes
  * and how they should be rendered.
+ */
+/**
+ * @struct NodeMetricsSchema
+ * @brief Node Metrics Schema data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct NodeMetricsSchema {
     /**

@@ -1,8 +1,9 @@
 /**
  * @file NodeFacadeAdapterSpecializations.hpp
- * @brief GraphX source file.
+ * @brief Node Facade Adapter Specializations Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,24 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file NodeFacadeAdapterSpecializations.hpp
- * @brief Template specializations for NodeFacadeAdapter::TryGetInterface
- *
- * This header provides template specializations for TryGetInterface to work
- * with app-layer types like IDataInjectionSource. It must be included in files
- * that use TryGetInterface with these types.
- *
- * This separation is necessary because NodeFacade.hpp (framework layer) cannot
- * depend on app layer headers. The specializations are defined here where
- * app layer types are available.
- *
- * Include this header in any .cpp file that calls:
- *   adapter->TryGetInterface<graph::datasources::IDataInjectionSource>()
- *
- * @author GitHub Copilot
- * @date 2026-01-09
- */
 
 #pragma once
 

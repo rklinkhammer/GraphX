@@ -1,8 +1,9 @@
 /**
  * @file PortMetricsMixin.hpp
- * @brief GraphX source file.
+ * @brief Port Metrics Mixin Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -32,8 +33,20 @@
 namespace graph {
 
 // Forward declarations
+/**
+ * @class ThreadMetrics
+ * @brief Thread Metrics type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class ThreadMetrics;
 namespace core {
+    /**
+     * @struct QueueMetrics
+     * @brief Queue Metrics data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct QueueMetrics;
 }  // namespace core
 
@@ -59,6 +72,18 @@ namespace core {
  * - GetOutputPortCount() returning NOutputs
  *
  * This mixin provides the PUBLIC interface, derived class provides PRIVATE helpers.
+ */
+
+/**
+
+ * @class OutputPortMetricsMixin
+
+ * @brief Output Port Metrics Mixin type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
  */
 
 template <typename Derived>
@@ -113,6 +138,18 @@ public:
  * - GetInputPortCount() returning NInputs
  */
 
+/**
+
+ * @class InputPortMetricsMixin
+
+ * @brief Input Port Metrics Mixin type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
+ */
+
 template <typename Derived>
 class InputPortMetricsMixin {
 public:
@@ -156,6 +193,18 @@ public:
  *
  * Usage:
  *   class InteriorNodeBase : public BidirectionalPortMetricsMixin<InteriorNodeBase> { ... }
+ */
+
+/**
+
+ * @class BidirectionalPortMetricsMixin
+
+ * @brief Bidirectional Port Metrics Mixin type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
  */
 
 template <typename Derived>

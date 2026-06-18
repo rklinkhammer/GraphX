@@ -1,8 +1,9 @@
 /**
  * @file DataInjectionPolicy.cpp
- * @brief GraphX source file.
+ * @brief Data Injection Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer

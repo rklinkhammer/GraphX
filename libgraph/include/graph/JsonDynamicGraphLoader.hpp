@@ -1,8 +1,9 @@
 /**
  * @file JsonDynamicGraphLoader.hpp
- * @brief GraphX source file.
+ * @brief JSON Dynamic Graph Loader Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,39 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file JsonDynamicGraphLoader.hpp
- * @brief Load JSON graph configurations as NodeFacadeAdapter collections
- *
- * JsonDynamicGraphLoader replaces the old JsonGraphLoader with a cleaner,
- * simpler design that works with NodeFacadeAdapter instances.
- *
- * Key features:
- * - Uses INodeProvider for node creation and type discovery
- * - No integration with INode or compile-time type system
- * - Returns raw NodeFacadeAdapter instances for manual graph assembly
- * - Proven interface used by rocket_telemetry.cpp
- *
- * Usage:
- * @code
- * auto provider = std::make_shared<RegisteredNodeProvider>(registry);
- * auto nodes = JsonDynamicGraphLoader::LoadNodesSafe("config.json", provider);
- * auto edges = JsonDynamicGraphLoader::LoadEdgesSafe("config.json");
- * 
- * // Initialize and start nodes...
- * for (auto& node : nodes) {
- *     node.Init();
- *     node.Start();
- * }
- * @endcode
- *
- * @see graph::NodeFacadeAdapter
- * @see graph::INodeProvider
- * @see graph::config::GraphConfig
- *
- * @author GitHub Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -72,7 +40,19 @@
 
 namespace graph {
     // Forward declaration
+    /**
+     * @class INodeProvider
+     * @brief Inode Provider graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class INodeProvider;
+    /**
+     * @class INodeMetadataService
+     * @brief Inode Metadata Service graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class INodeMetadataService;
 }
 
@@ -92,6 +72,12 @@ namespace graph::config {
  * - Simpler API (just load nodes and edges)
  * - Manual edge connection (not automatic)
  * - Proven pattern from rocket_telemetry.cpp
+ */
+/**
+ * @class JsonDynamicGraphLoader
+ * @brief JSON Dynamic Graph Loader parser.
+ *
+ * @details Translates external configuration or files into typed GraphX runtime data. Diagnostics should identify invalid inputs without changing runtime state.
  */
 class JsonDynamicGraphLoader {
 public:
@@ -196,6 +182,13 @@ private:
      * @noexcept No exceptions in normal operation
      */
     [[nodiscard]] static std::expected<GraphConfig, app::error::ConfigError>
+    /**
+     * @brief Executes the Parse Config File Safe operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param filepath Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ParseConfigFileSafe(const std::string& filepath) noexcept;
 
     /**

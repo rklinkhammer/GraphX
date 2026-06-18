@@ -2,12 +2,10 @@
 
 /**
  * @file test_topologies_simple.cpp
- * @brief Simplified topology completion tests
+ * @brief Test Topologies Simple Graph runtime support.
  *
- * Direct tests without wrapper infrastructure.
- * Each test: build → init → start → run → stop → join → verify
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <chrono>

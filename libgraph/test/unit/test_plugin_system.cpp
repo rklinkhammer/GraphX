@@ -1,8 +1,9 @@
 /**
  * @file test_plugin_system.cpp
- * @brief GraphX source file.
+ * @brief Test Plugin System Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,18 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_plugin_system.cpp
- * @brief Comprehensive unit tests for Plugin System (Phase 5 Priority 1)
- *
- * Tests the plugin loading and registration system with:
- * - Plugin registry functionality (registration, discovery, creation)
- * - Plugin loader error handling (missing files, invalid plugins)
- * - Thread-safe registry operations
- * - C++26 compliance (expected<> error handling)
- *
- * @note Uses mock/stub patterns to avoid requiring compiled plugin files
- */
 
 #include <gtest/gtest.h>
 #include "graph/NodeProviderBootstrap.hpp"

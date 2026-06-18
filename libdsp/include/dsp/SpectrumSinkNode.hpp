@@ -1,8 +1,9 @@
 /**
  * @file SpectrumSinkNode.hpp
- * @brief GraphX source file.
+ * @brief Spectrum Sink Node DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file dsp/SpectrumSinkNode.hpp
- * @brief Sink node for power spectrum visualization and analysis
- *
- * Consumes MagnitudePacket output from FFTNode and provides:
- * - Real-time spectrum capture and storage
- * - Peak frequency and magnitude tracking
- * - Statistical analysis (RMS power, bandwidth, dynamics)
- * - Metrics and diagnostics for DSP signal processing
- *
- * @author GraphX Project
- * @date 2026-04-26
- */
 
 #pragma once
 
@@ -85,6 +73,12 @@ namespace dsp {
  *                            SpectrumSinkNode -> Consume()
  * ```
  */
+/**
+ * @class SpectrumSinkNode
+ * @brief Spectrum Sink Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 template<typename SampleT = float, size_t N = 256>
 class SpectrumSinkNode
     : public graph::NamedSinkNode<
@@ -110,6 +104,12 @@ public:
      * @brief Statistics computed from captured spectra
      *
      * Aggregates metrics useful for spectrum analysis and visualization.
+     */
+    /**
+     * @struct SpectrumStatistics
+     * @brief Spectrum Statistics data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct SpectrumStatistics {
         /// Number of spectra captured
@@ -430,6 +430,12 @@ private:
     bool completion_signaled_{false};
 
     // Peak tracking
+    /**
+     * @struct PeakTracker
+     * @brief Peak Tracker data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PeakTracker {
         SampleT max_frequency = 0;
         SampleT max_magnitude = 0;

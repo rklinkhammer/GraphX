@@ -1,8 +1,9 @@
 /**
  * @file CSVInjectionPolicy.hpp
- * @brief GraphX source file.
+ * @brief Csvinjection Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -72,12 +73,25 @@ static auto csv_injection_logger_ = log4cxx::Logger::getLogger("app.policies.CSV
  *
  * @see DataInjectionPolicy, IDataInjectionSource
  */
+/**
+ * @class CSVInjectionPolicy
+ * @brief Csvinjection Policy execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
+ */
 class CSVInjectionPolicy : public graph::IExecutionPolicy {
 public:
     /**
      * @brief Construct a CSV injection policy
      */
     CSVInjectionPolicy() {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param csv_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy initialized");
     }   
 
@@ -98,9 +112,23 @@ public:
      * @see OnStart, SetCSVInputPaths
      */
     bool OnInit(capabilities::GraphCapability &context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param csv_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnInit called");
         auto data_injection_capability = context.GetCapabilityBus().Get<capabilities::DataInjectionCapability>();
         if (!data_injection_capability) {
+            /**
+             * @brief Executes the Log4 Cxx Warn operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param csv_injection_logger_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_WARN(csv_injection_logger_, "CSVDataInjectionPolicy::OnInit() - no DataInjectionCapability");
             return false;
         }
@@ -126,6 +154,13 @@ public:
      * @see OnStop, SetCSVInputPaths
      */
     bool OnStart(capabilities::GraphCapability &context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param csv_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnStart called");
         if (!csv_data_injection_capability_) {
             LOG4CXX_WARN(csv_injection_logger_,
@@ -139,6 +174,13 @@ public:
         }
  
         auto fn = [this, &context]() {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param csv_injection_logger_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy::CSVInjectionThread started");
             while (!context.IsStopped()) {
                 capabilities::CSVDataInjectionCommand command;
@@ -175,6 +217,13 @@ public:
      * @see OnStart, OnJoin
      */
     void OnStop(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param csv_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnStop called");
         if (!csv_data_injection_capability_) {
             LOG4CXX_TRACE(csv_injection_logger_,
@@ -196,6 +245,13 @@ public:
      * @see OnStop, OnInit
      */
     void OnJoin(capabilities::GraphCapability &) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param csv_injection_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(csv_injection_logger_, "CSVInjectionPolicy OnJoin called");
         if (csv_injection_thread_.joinable()) {
             csv_injection_thread_.join();

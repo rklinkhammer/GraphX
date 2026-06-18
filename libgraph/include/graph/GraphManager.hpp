@@ -1,8 +1,9 @@
 /**
  * @file GraphManager.hpp
- * @brief GraphX source file.
+ * @brief Graph Manager Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,215 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file GraphManager.hpp
- * @brief Dataflow graph lifecycle management with per-node and per-edge metrics
- * 
- * ## Overview
- * 
- * GraphManager provides high-level orchestration of dataflow graphs, managing:
- * - Node lifecycle (construction, initialization, execution, cleanup)
- * - Edge creation and connectivity tracking
- * - Shared thread pool management for all graph components
- * - Per-edge type information recovery despite template erasure
- * - Aggregate and per-edge performance metrics collection
- * - Graph structure visualization (DOT, JSON, text formats)
- * 
- * ## Core Architecture
- * 
- * **Ownership Model**: GraphManager owns all nodes and edges via shared_ptr/unique_ptr.
- * - Nodes stored as shared_ptr<INode> in nodes_ vector
- * - Edges stored as unique_ptr<IEdgeBase> with type erasure via EdgeWrapper
- * - Type metadata captured at AddEdge() time to recover message types
- * - Single ThreadPool shared by all graph components
- * 
- * **Type Information Recovery** (Phase 14a)
- * - Edge templates lose type info after instantiation (IEdgeBase polymorphism)
- * - EdgeMetadata structure captures source/dest node IDs, ports, and message type names
- * - Enables DisplayGraphJSON/DOT to show accurate connectivity and message types
- * - Mangled C++ type names are demangled for human-readable output
- * 
- * **Per-Edge Metrics** (Phase 14d)
- * - EdgeMetrics struct tracks messages_enqueued, messages_dequeued, backpressure events
- * - Parallel vectors edge_metrics_ indexed by edge creation order
- * - Enables performance analysis: throughput, rejection rates, queue depth per edge
- * 
- * ## Lifecycle State Machine
- * 
- * ```
- * [Constructed] --AddNode()/AddEdge()-->  [Configured]
- *                                             |
- *                                           Init()
- *                                             |
- *                                        [Initialized]
- *                                             |
- *                                           Start()
- *                                             |
- *                                           [Running]
- *                                             |
- *                                           Stop()
- *                                             |
- *                                         [Stopping]
- *                                             |
- *                                           Join()
- *                                             |
- *                                         [Stopped]
- *                                             |
- *                                          Clear()
- *                                             |
- *                                        [Empty]
- * ```
- * 
- * Valid state transitions:
- * - Constructed → Configured: Multiple AddNode()/AddEdge() calls
- * - Configured → Initialized: Single Init() call
- * - Initialized → Running: Single Start() call
- * - Running → Stopping: Stop() call (can be called anytime)
- * - Stopping → Stopped: Join() or JoinWithTimeout() call
- * - Stopped → Empty: Clear() call (optional)
- * - Empty → Configured: New AddNode()/AddEdge() calls (rebuild graph)
- * 
- * Invalid/prevented transitions:
- * - AddNode/AddEdge after Init() → throws runtime_error (graph locked)
- * - Init() after Init() → returns false (prevents double-init)
- * - Start() before Init() → returns false (requires initialized state)
- * - Start() after Start() → returns false (prevents double-start)
- * - Destroy without Stop()+Join() → deadlock/crash risk
- * 
- * ## Thread Safety
- * 
- * **NOT thread-safe during configuration**:
- * - AddNode(), AddEdge() must complete before Init()
- * - Init() must complete before any other operations
- * - These methods are guarded by lifecycle_mtx_ to prevent concurrent calls
- * 
- * **Safe during execution**:
- * - Stop() is safe to call anytime (idempotent)
- * - Join() is safe to call after Stop() (idempotent)
- * - DisplayGraph() variants are safe to call while running (read-only snapshots)
- * - GetMetrics() is safe to call anytime (atomic reads)
- * 
- * **Thread coordination**:
- * - ThreadPool provides worker threads for node/edge execution
- * - Node port threads communicate via message queues
- * - Edge queues coordinate producer (port) and consumer (port) synchronization
- * 
- * ## Metrics & Observability
- * 
- * **Graph-level metrics** (GraphMetrics struct):
- * - Lifecycle timing: init_time_ns, start_time_ns, execution_time_ns
- * - Throughput: total_items_processed, GetThroughputItemsPerSec()
- * - Rejection: total_items_rejected, GetRejectionPercent()
- * - Backpressure: backpressure_events, peak_queue_depth
- * - Thread pool: peak_active_threads
- * - Failures: node/edge init/start failures
- * 
- * **Per-edge metrics** (EdgeMetrics struct):
- * - Queue statistics: messages_enqueued, messages_dequeued, messages_rejected
- * - Timing: total_queue_time_ns, GetThroughputPerSec()
- * - Backpressure: backpressure_events, peak_queue_depth
- * - Initialization status: initialized, started
- * 
- * Collected via EnableMetrics(true) call. All counters are atomic for safe concurrent reads.
- * 
- * ## Visualization
- * 
- * Three output formats for graph structure:
- * 1. **Text** (DisplayGraph()): Human-readable with node/edge details
- * 2. **JSON** (DisplayGraphJSON()): Structured data with node and edge arrays
- * 3. **Graphviz DOT** (DisplayGraphDOT()): Render with `dot` command-line tool
- * 
- * All formats show current runtime state (instantiated nodes, not topology definitions).
- * Type information recovered from EdgeMetadata enables accurate message type labels.
- * 
- * ## Comparison with std::thread
- * 
- * | Feature | GraphManager | Raw std::thread |
- * |---------|-------------|-----------------|
- * | Lifecycle | Explicit Init/Start/Stop/Join | Manual thread::join() |
- * | Synchronization | Atomic flags + mutexes | Condition variables |
- * | Resource mgmt | Own nodes/edges via smart pointers | Manual cleanup |
- * | Metrics | Built-in aggregate + per-edge | None |
- * | Type safety | Template Edge<>, type erasure for storage | No type tracking |
- * | Visualization | 3 output formats (DOT, JSON, text) | None |
- * 
- * ## Exception Handling
- * 
- * **Construction & configuration**:
- * - AddNode(), AddEdge() throw std::runtime_error on lock/creation failures
- * - Strong exception guarantee: vector unchanged on failure
- * 
- * **Lifecycle operations**:
- * - Init(), Start() return false on failure (no exceptions)
- * - Stop(), Join() suppress all exceptions internally
- * 
- * **Cleanup**:
- * - Destructor suppresses all exceptions
- * - Ensures cleanup happens even if node/edge destructors throw
- * 
- * ## Usage Example
- * 
- * @code
- * #include "GraphManager.hpp"
- * using namespace graphsim::engine;
- * 
- * int main() {
- *     // 1. Create graph with custom thread pool
- *     GraphManager graph(4);  // 4 worker threads
- *     
- *     // 2. Add nodes
- *     auto source = graph.AddNode<MySourceNode>(args...);
- *     auto sink = graph.AddNode<MySinkNode>(args...);
- *     
- *     // 3. Connect edges
- *     graph.AddEdge<MySourceNode, 0, MySinkNode, 0>(source, sink);
- *     
- *     // 4. Initialize
- *     if (!graph.Init()) {
- *         std::cerr << "Init failed\n";
- *         return 1;
- *     }
- *     
- *     // 5. Enable metrics (optional)
- *     graph.EnableMetrics(true);
- *     
- *     // 6. Start execution
- *     if (!graph.Start()) {
- *         std::cerr << "Start failed\n";
- *         return 1;
- *     }
- *     
- *     // 7. Let graph run...
- *     std::this_thread::sleep_for(std::chrono::seconds(10));
- *     
- *     // 8. Visualize structure
- *     std::cout << graph.DisplayGraphJSON() << std::endl;
- *     
- *     // 9. Graceful shutdown
- *     graph.Stop();
- *     graph.Join();
- *     
- *     // 10. Report metrics
- *     const auto& metrics = graph.GetMetrics();
- *     std::cout << "Processed: " << metrics.total_items_processed << " items\n";
- *     std::cout << "Throughput: " << metrics.GetThroughputItemsPerSec() << " items/sec\n";
- *     
- *     return 0;
- * }
- * @endcode
- * 
- * ## Decision References
- * 
- * - DECISION-013: Graph lifecycle thread safety model (see AI_DECISION_REGISTRY.md)
- * - Phase 14a: Edge metadata capture for type information recovery
- * - Phase 14d: Per-edge metrics collection and analysis
- * 
- * @author Robert Klinkhammer
- * @date 2025-12-08
- * @see ThreadPool.hpp for worker thread management
- * @see Nodes.hpp for node interface
- * @see Edge<> template for message passing
- */
 
 #pragma once
 
@@ -290,7 +82,9 @@ namespace graph {
  */
 /**
  * @class GraphManager
- * @brief GraphManager class.
+ * @brief Graph Manager manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class GraphManager {
 public:
@@ -310,6 +104,11 @@ public:
     explicit GraphManager(size_t num_threads, const ThreadPool::DeadlockConfig& config = ThreadPool::DeadlockConfig())
         : thread_pool_config_(config), thread_pool_(nullptr), num_threads_(num_threads) {}
     
+    /**
+     * @brief Releases resources owned by Graph Manager.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~GraphManager() {
         try {
             // CRITICAL: Must both Stop() AND Join() before destruction
@@ -412,9 +211,35 @@ public:
     }
     
     // Prevent copying and moving for safety
+    /**
+     * @brief Executes the Graph Manager operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param GraphManager Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GraphManager(const GraphManager&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param GraphManager Input or configuration value consumed by the method.
+     */
     GraphManager& operator=(const GraphManager&) = delete;
+    /**
+     * @brief Executes the Graph Manager operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param GraphManager Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GraphManager(GraphManager&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param GraphManager Input or configuration value consumed by the method.
+     */
     GraphManager& operator=(GraphManager&&) = delete;
     
     /**
@@ -445,7 +270,21 @@ public:
      * Creates a new node and stores it in the graph for lifecycle management.
      */
     template <reflection::GraphNode NodeType, typename... Args>
+    /**
+     * @brief Executes the Add Node operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param args Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<NodeType> AddNode(Args&&... args) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (initialized_.load(std::memory_order_acquire)) {
@@ -476,6 +315,13 @@ public:
      * Registers an existing node for lifecycle management.
      */
     void AddNode(std::shared_ptr<INode> node) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (!node) {
@@ -519,6 +365,13 @@ public:
         std::shared_ptr<DstNode> dst,
         std::size_t capacity = 8)
     {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
         
         if (initialized_.load(std::memory_order_acquire)) {
@@ -555,6 +408,13 @@ public:
         char* demangled = abi::__cxa_demangle(metadata.message_type_name.c_str(), nullptr, nullptr, &status);
         if (status == 0 && demangled) {
             metadata.message_type_demangled = demangled;
+            /**
+             * @brief Executes the Free operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param demangled Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             free(demangled);
         } else {
             metadata.message_type_demangled = metadata.message_type_name;
@@ -574,7 +434,21 @@ public:
     }
 
     [[nodiscard]] std::expected<IEdgeBase*, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Add Dynamic Edge Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param config Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     AddDynamicEdgeExpected(const DynamicEdgeConfig& config) noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
 
         if (initialized_.load(std::memory_order_acquire)) {
@@ -668,7 +542,20 @@ public:
     }
 
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
+    /**
+     * @brief Performs the Init Expected lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     InitExpected() noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
         const auto init_begin = std::chrono::steady_clock::now();
         
@@ -811,7 +698,20 @@ public:
     }
 
     [[nodiscard]] std::expected<void, app::error::GraphExecutionFailure>
+    /**
+     * @brief Executes the Start Expected operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     StartExpected() noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param lifecycle_mtx_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock lock(lifecycle_mtx_);
         const auto start_begin = std::chrono::steady_clock::now();
         
@@ -1177,6 +1077,13 @@ public:
         // All components joined successfully within timeout
         auto total_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::high_resolution_clock::now() - start);
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(logger, "GraphManager all components joined in " << total_elapsed.count() << "ms");
         
         return true;
@@ -1829,6 +1736,12 @@ public:
     }
 
 private:
+    /**
+     * @brief Executes the Now Steady Ns operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static uint64_t NowSteadyNs() noexcept {
         return static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -1859,6 +1772,13 @@ private:
      * @return Index in nodes_ vector, or SIZE_MAX if not found
      */
     template <typename NodeType>
+    /**
+     * @brief Returns the Node Index.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param node Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::size_t GetNodeIndex(const std::shared_ptr<NodeType>& node) const {
         // Cast to void* for pointer equality comparison (works across inheritance)
         const void* node_ptr = node.get();

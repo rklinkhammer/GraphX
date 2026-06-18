@@ -1,8 +1,9 @@
 /**
  * @file GraphMetrics.hpp
- * @brief GraphX source file.
+ * @brief Graph Metrics Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file GraphMetrics.hpp
- * @brief Data structures for collecting graph and edge performance metrics
- * 
- * This header defines:
- * - EdgeMetrics: Per-edge queue and throughput statistics
- * - EdgeMetadata: Edge connectivity and type information
- * - GraphMetrics: Graph-level aggregate statistics
- * 
- * All metrics use std::atomic for thread-safe access from any thread.
- * 
- * Related to DECISION-013: Metrics collection at graph level
- */
 
 #pragma once
 
@@ -50,8 +38,26 @@
 namespace graph {
 
 // Forward declarations
+/**
+ * @struct EdgeMetrics
+ * @brief Edge Metrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct EdgeMetrics;
+/**
+ * @struct EdgeMetadata
+ * @brief Edge Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct EdgeMetadata;
+/**
+ * @struct GraphMetrics
+ * @brief Graph Metrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct GraphMetrics;
 
 /**
@@ -62,6 +68,12 @@ struct GraphMetrics;
  * Enables type-aware metrics analysis and per-edge performance monitoring.
  * 
  * Note: Uses move_only pattern to work around atomic<T> non-copy/move limitations.
+ */
+/**
+ * @struct EdgeMetrics
+ * @brief Edge Metrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct EdgeMetrics {
     /// Messages enqueued on this edge
@@ -93,10 +105,22 @@ struct EdgeMetrics {
     
     /// Explicitly deleted copy operations (atomics can't be copied)
     EdgeMetrics(const EdgeMetrics&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param EdgeMetrics Input or configuration value consumed by the method.
+     */
     EdgeMetrics& operator=(const EdgeMetrics&) = delete;
     
     /// Explicitly deleted move operations (atomics can't be moved)
     EdgeMetrics(EdgeMetrics&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param EdgeMetrics Input or configuration value consumed by the method.
+     */
     EdgeMetrics& operator=(EdgeMetrics&&) = delete;
     
     /**
@@ -129,6 +153,12 @@ struct EdgeMetrics {
  * 
  * Phase 14a: Capture metadata while type information is available.
  * Enables type-aware metrics analysis and graph visualization.
+ */
+/**
+ * @struct EdgeMetadata
+ * @brief Edge Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct EdgeMetadata {
     /// Zero-based index of source node in GraphManager::nodes_ vector
@@ -167,6 +197,12 @@ struct EdgeMetadata {
  * All counters are atomic for thread-safe reads from any thread.
  * 
  * Related to DECISION-013: Metrics collection at graph level
+ */
+/**
+ * @struct GraphMetrics
+ * @brief Graph Metrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct GraphMetrics {
     // ====================================================================

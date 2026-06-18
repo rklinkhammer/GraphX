@@ -1,8 +1,9 @@
 /**
  * @file GpuPolicy.hpp
- * @brief GraphX source file.
+ * @brief GPU Policy Graph runtime support.
+ *
+ * @details Provides executor policy integration for commands, metrics, completion, and data injection. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -46,17 +47,51 @@ static auto gpu_policy_logger = log4cxx::Logger::getLogger("app.policies.GpuPoli
 
 /**
  * @class GpuPolicy
- * @brief GpuPolicy class.
+ * @brief GPU Policy execution policy.
+ *
+ * @details Extends executor behavior at well-defined lifecycle points. Policies keep cross-cutting runtime concerns separate from graph node implementations.
  */
 class GpuPolicy : public graph::IExecutionPolicy {
 public:
+    /**
+     * @brief Executes the GPU Policy operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GpuPolicy() {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param gpu_policy_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy initialized");
     }
 
+    /**
+     * @brief Releases resources owned by GPU Policy.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~GpuPolicy() override = default;
 
+    /**
+     * @brief Performs the On Init lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param context Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool OnInit(capabilities::GraphCapability& context) override {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param gpu_policy_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnInit called");
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
@@ -88,6 +123,13 @@ public:
         graph::CapabilityContext capability_context{context};
         auto nodes_result = capability_context.Nodes();
         if (!nodes_result) {
+            /**
+             * @brief Executes the Log4 Cxx Warn operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param gpu_policy_logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_WARN(gpu_policy_logger, "GpuPolicy OnInit no GraphManager available");
             return false;
         }
@@ -121,19 +163,61 @@ public:
         return true;
     }
 
+    /**
+     * @brief Executes the On Start operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param context Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool OnStart(capabilities::GraphCapability& context) override {
         (void)context;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param gpu_policy_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnStart called");
         return true;
     }
 
+    /**
+     * @brief Executes the On Stop operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param context Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void OnStop(capabilities::GraphCapability& context) override {
         (void)context;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param gpu_policy_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnStop called");
     }
 
+    /**
+     * @brief Executes the On Join operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param context Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void OnJoin(capabilities::GraphCapability& context) override {
         (void)context;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param gpu_policy_logger Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnJoin called");
     }
 };

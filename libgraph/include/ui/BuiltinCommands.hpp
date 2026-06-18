@@ -1,8 +1,9 @@
 /**
  * @file BuiltinCommands.hpp
- * @brief GraphX source file.
+ * @brief Builtin Commands Graph runtime support.
+ *
+ * @details Provides command and metric helpers for interactive graph tooling. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer

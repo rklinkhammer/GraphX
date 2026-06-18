@@ -2,58 +2,10 @@
 
 /**
  * @file Errors.hpp
- * @brief Comprehensive error types for std::expected<T, E> (Phase 5)
- * @author Robert Klinkhammer
- * @date May 7, 2026
+ * @brief Errors Graph runtime support.
  *
- * Central error definitions for use with std::expected<T, E> throughout
- * the dashboard project. This module replaces scattered error handling
- * with consistent, type-safe error codes.
- *
- * ## Phase 5 Modernization
- *
- * Phase 1 introduced std::expected<> for error handling. Phase 5 completes
- * coverage by:
- * - Defining comprehensive error enums for all error domains
- * - Providing error string formatting via FormatError()
- * - Ensuring consistent error reporting across modules
- *
- * ## Pattern Usage
- *
- * ### Before (C++17 try-catch)
- * @code
- *   try {
- *       auto cfg = json::parse(config_str);
- *       // use cfg
- *   } catch (const json::parse_error& e) {
- *       LOG_ERROR("JSON parse failed: " + std::string(e.what()));
- *       return false;
- *   }
- * @endcode
- *
- * ### After (C++26 expected<>)
- * @code
- *   auto result = ParseJsonSafe(config_str);
- *   if (!result) {
- *       LOG_ERROR(result.error().message());
- *       return;
- *   }
- *   auto cfg = result.value();
- * @endcode
- *
- * ## Error Hierarchy
- *
- * ```
- * ApplicationError
- *   ├── JsonParseError
- *   ├── PluginLoadError
- *   ├── ConfigError
- *   ├── DeserializationError
- *   ├── GraphExecutionError
- *   └── MetricsError
- * ```
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <string>
@@ -74,6 +26,12 @@ namespace app::error {
  * Used with std::expected<nlohmann::json, JsonParseError> for safe JSON handling.
  *
  * @see ParseJsonSafe() in JsonUtilities.hpp
+ */
+/**
+ * @enum JsonParseError
+ * @brief JSON Parse Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class JsonParseError {
     /// JSON is syntactically invalid
@@ -132,6 +90,12 @@ enum class JsonParseError {
  * Used with std::expected<Plugin, PluginLoadError> for safe plugin loading.
  *
  * @see LoadPluginSafe() in PluginLoader.hpp
+ */
+/**
+ * @enum PluginLoadError
+ * @brief Plugin Load Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class PluginLoadError {
     /// Plugin file not found at specified path
@@ -199,6 +163,12 @@ enum class PluginLoadError {
  *
  * @see LoadConfigFromFile() in Config.hpp
  */
+/**
+ * @enum ConfigError
+ * @brief Config Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class ConfigError {
     /// Configuration file not found
     FileNotFound = 1,
@@ -264,6 +234,12 @@ enum class ConfigError {
  * Used with std::expected<T, DeserializationError> for type-safe deserialization.
  *
  * @see Deserialize<T>() in JsonDeserialization.hpp
+ */
+/**
+ * @enum DeserializationError
+ * @brief Deserialization Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class DeserializationError {
     /// JSON input is not valid JSON
@@ -331,6 +307,12 @@ enum class DeserializationError {
  *
  * @see GraphExecutor::Execute() in GraphExecutor.hpp
  */
+/**
+ * @enum GraphExecutionError
+ * @brief Graph Execution Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class GraphExecutionError {
     /// Graph is not initialized
     NotInitialized = 1,
@@ -374,6 +356,12 @@ enum class GraphExecutionError {
  *
  * The code is stable and suitable for branching; message preserves the lifecycle
  * context that legacy ExecutionResult callers used for diagnostics.
+ */
+/**
+ * @struct GraphExecutionFailure
+ * @brief Graph Execution Failure data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct GraphExecutionFailure {
     GraphExecutionError code = GraphExecutionError::Unknown;
@@ -436,6 +424,12 @@ struct GraphExecutionFailure {
  * Used with std::expected<Metrics, MetricsError> for safe metrics operations.
  *
  * @see MetricsCapability in MetricsCapability.hpp
+ */
+/**
+ * @enum MetricsError
+ * @brief Metrics Error values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class MetricsError {
     /// Requested metric not found

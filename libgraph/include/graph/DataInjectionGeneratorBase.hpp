@@ -1,8 +1,9 @@
 /**
  * @file DataInjectionGeneratorBase.hpp
- * @brief GraphX source file.
+ * @brief Data Injection Generator Base Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,14 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/*!
- * @file DataInjectionGeneratorBase.hpp
- * @brief Queue data generator for reading timestamped data from queue sources
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- */
 
 #pragma once
 
@@ -65,6 +58,12 @@ namespace graph {
  * @note DataType is expected to inherit from or implement TimestampedData interface
  * @see DataGeneratorBase for interface definition
  * @see ActiveQueue for queue implementation details
+ */
+/**
+ * @class DataInjectionGeneratorBase
+ * @brief Data Injection Generator Base type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 template<typename DataType, typename PayloadType>
 class DataInjectionGeneratorBase : public DataGeneratorBase<DataType> {

@@ -2,9 +2,10 @@
 
 /**
  * @file test_sdr_graph.cpp
- * @brief Dynamic plugin test for a graph-based SDR pipeline.
+ * @brief Test Sdr Graph Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include <chrono>

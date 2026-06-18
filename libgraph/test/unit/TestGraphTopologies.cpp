@@ -2,18 +2,10 @@
 
 /**
  * @file TestGraphTopologies.cpp
- * @brief Implementation of graph topologies for GraphManager testing
+ * @brief Test Graph Topologies Graph runtime support.
  *
- * Provides a collection of predefined graph topologies for comprehensive
- * testing of graph construction, execution, and validation scenarios.
- *
- * Uses static templated node creation with AddNode<NodeType>() and
- * templated AddEdge for type-safe edge creation between nodes.
- *
- * @author Test Suite
- * @date 2026-05-14
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "test/TestGraphTopologies.hpp"
 #include "test/PluginInfrastructure.hpp"
 #include "test/AdvancedTestNodes.hpp"

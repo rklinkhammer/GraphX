@@ -2,48 +2,10 @@
 
 /**
  * @file FormatUtilities.hpp
- * @brief C++20 std::format utilities and helpers (Phase 5)
- * @author Robert Klinkhammer
- * @date May 7, 2026
+ * @brief Format Utilities Graph runtime support.
  *
- * Centralized formatting utilities using std::format for cleaner, faster
- * string building throughout the dashboard project. Replaces manual string
- * concatenation, std::stringstream, and std::to_string patterns with
- * modern, type-safe formatting.
- *
- * ## Phase 5 Modernization
- *
- * This module is part of the Phase 5 C++26 modernization initiative:
- * - Replaces 80+ string building patterns
- * - Provides performance benefits (compile-time format validation)
- * - Improves code clarity and maintainability
- * - Follows C++20+ best practices
- *
- * ## Usage Patterns
- *
- * ### Before (Legacy)
- * @code
- *   std::string msg = "Hit rate: " + std::to_string(hit_rate) 
- *       + "%, adjusting from " + std::to_string(old)
- *       + " to " + std::to_string(new);
- * @endcode
- *
- * ### After (Modern, Phase 5)
- * @code
- *   std::string msg = app::format::MetricAdjustment(hit_rate, old, new);
- * @endcode
- *
- * ## Compile-Time Validation
- *
- * std::format validates format strings at compile-time:
- * @code
- *   std::format("Value: {}", value);        // ✅ Valid
- *   std::format("Value: {}", arg1, arg2);   // ❌ Too few placeholders (compile error!)
- * @endcode
- *
- * @see https://en.cppreference.com/w/cpp/utility/format
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <format>

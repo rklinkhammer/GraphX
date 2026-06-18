@@ -1,8 +1,9 @@
 /**
  * @file Lifecycle.hpp
- * @brief GraphX source file.
+ * @brief Lifecycle Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file Lifecycle.hpp
- * @brief CRTP mixin for node lifecycle management
- * 
- * Provides default implementations of Init, Start, Stop, and Join lifecycle
- * methods for nodes using the Curiously Recurring Template Pattern (CRTP).
- */
 
 #pragma once
 
@@ -65,13 +59,38 @@ namespace graph
     template <typename Derived>
 /**
  * @class NodeLifecycleMixin
- * @brief NodeLifecycleMixin class.
+ * @brief Node Lifecycle Mixin graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
+    /**
+     * @class NodeLifecycleMixin
+     * @brief Node Lifecycle Mixin graph node.
+     *
+     * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+     */
     class NodeLifecycleMixin : public INode
     {
      protected:
 
+        /**
+         * @brief Releases resources owned by Node Lifecycle Mixin.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         ~NodeLifecycleMixin() = default;
+
+        /**
+
+         * @enum LifecycleState
+
+         * @brief Lifecycle State values.
+
+         *
+
+         * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+         */
 
         enum LifecycleState GetLifecycleStateImpl() const {
             return lifecycle_state_;
@@ -138,6 +157,13 @@ namespace graph
          */
         virtual LifecycleState GetLifecycleState() const override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " GetLifecycleState");
             return this->GetLifecycleStateImpl();
         }
@@ -147,6 +173,13 @@ namespace graph
          */
         virtual bool Init() override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " Init");
             return this->InitImpl();
         }
@@ -156,6 +189,13 @@ namespace graph
          */
         virtual bool Start() override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " Start");
             return this->StartImpl();
         }
@@ -165,6 +205,13 @@ namespace graph
          */
         virtual void Stop() override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " Stop");
             this->StopImpl();
         }
@@ -174,6 +221,13 @@ namespace graph
          */
         virtual void Join() override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " Join");
             this->JoinImpl();
         }
@@ -183,6 +237,13 @@ namespace graph
          */
         virtual bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
             auto logger = log4cxx::Logger::getLogger("graph.node");
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param logger Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(logger, GetDerivedClassName() + " JoinWithTimeout");
             return this->JoinWithTimeoutImpl(timeout_ms);
         }
@@ -203,6 +264,12 @@ namespace graph
 
     private:
         std::atomic<bool> started_{false};
+        /**
+         * @enum LifecycleState
+         * @brief Lifecycle State values.
+         *
+         * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+         */
         enum LifecycleState lifecycle_state_{LifecycleState::Uninitialized};
 
 

@@ -1,8 +1,9 @@
 /**
  * @file DefaultSyclCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Default SYCL Capabilities GPU acceleration support.
+ *
+ * @details Provides SYCL acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -31,14 +32,34 @@
 
 namespace graph::gpu::sycl::capabilities {
 
+/**
+
+ * @struct SyclRuntimeState
+
+ * @brief SYCL Runtime State data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct SyclRuntimeState;
 
 /**
  * @class DefaultSyclContextCapability
- * @brief DefaultSyclContextCapability class.
+ * @brief Default SYCL Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclContextCapability final : public ISyclContextCapability {
 public:
+    /**
+     * @brief Executes the Default Sycl Context Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     DefaultSyclContextCapability();
 
 /**
@@ -88,10 +109,18 @@ private:
 
 /**
  * @class DefaultSyclMemoryPoolCapability
- * @brief DefaultSyclMemoryPoolCapability class.
+ * @brief Default SYCL Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclMemoryPoolCapability final : public ISyclMemoryPoolCapability {
 public:
+    /**
+     * @brief Executes the Default Sycl Memory Pool Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     DefaultSyclMemoryPoolCapability();
 
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -118,10 +147,18 @@ private:
 
 /**
  * @class DefaultSyclTransferCapability
- * @brief DefaultSyclTransferCapability class.
+ * @brief Default SYCL Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclTransferCapability final : public ISyclTransferCapability {
 public:
+    /**
+     * @brief Processes data through the Default Sycl Transfer Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     DefaultSyclTransferCapability();
 
     bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -149,7 +186,9 @@ private:
 
 /**
  * @class DefaultSyclKernelCapability
- * @brief DefaultSyclKernelCapability class.
+ * @brief Default SYCL Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclKernelCapability final : public ISyclKernelCapability {
 public:
@@ -166,7 +205,9 @@ private:
 
 /**
  * @class DefaultSyclTelemetryCapability
- * @brief DefaultSyclTelemetryCapability class.
+ * @brief Default SYCL Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclTelemetryCapability final : public ISyclTelemetryCapability {
 public:
@@ -192,7 +233,9 @@ private:
 
 /**
  * @class DefaultSyclCollectiveCapability
- * @brief DefaultSyclCollectiveCapability class.
+ * @brief Default SYCL Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultSyclCollectiveCapability final : public ISyclCollectiveCapability {
 public:

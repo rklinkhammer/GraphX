@@ -1,8 +1,9 @@
 /**
  * @file PortMetadataHelper.hpp
- * @brief GraphX source file.
+ * @brief Port Metadata Helper Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,8 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/// @file PortMetadataHelper.hpp
 /// @brief Helper utilities for converting C++ PortMetadata to C-compatible format
 ///
 /// This header provides template functions to assist plugin implementations in creating

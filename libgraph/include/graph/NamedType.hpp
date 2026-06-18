@@ -1,8 +1,9 @@
 /**
  * @file NamedType.hpp
- * @brief GraphX source file.
+ * @brief Named Type Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,12 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file NamedType.hpp
- * @brief CRTP mixin for named type functionality
- * 
- * Provides compile-time and runtime type name information via CRTP.
- */
 
 #pragma once
 
@@ -50,10 +45,24 @@ namespace graph
     template <typename Derived>
 /**
  * @class NamedType
- * @brief NamedType class.
+ * @brief Named Type type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class NamedType
+     * @brief Named Type type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class NamedType {
     public:
+        /**
+         * @brief Executes the Qualified Type Name operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static const std::string& QualifiedTypeName() noexcept {
             static const std::string name = []{
                 constexpr auto sv = type_name_const<Derived>();
@@ -62,6 +71,12 @@ namespace graph
             return name;
         }
 
+        /**
+         * @brief Executes the Type Name operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static const std::string& TypeName() noexcept {
             static const std::string name = []{
                 constexpr auto sv = StripNamespace(type_name_const<Derived>());

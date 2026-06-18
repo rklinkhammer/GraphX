@@ -1,8 +1,9 @@
 /**
  * @file NodeDescriptor.hpp
- * @brief GraphX source file.
+ * @brief Node Descriptor Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -23,6 +24,18 @@
 
 namespace graph {
 
+/**
+
+ * @struct ConfigFieldMetadata
+
+ * @brief Config Field Metadata data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct ConfigFieldMetadata {
     std::string name;
     JsonType type{JsonType::Object};
@@ -37,6 +50,12 @@ struct ConfigFieldMetadata {
  * intentionally value-based so callers do not need to know whether the node is
  * native, plugin-backed, or adapter-backed.
  */
+/**
+ * @struct NodeDescriptor
+ * @brief Node Descriptor data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct NodeDescriptor {
     std::string name;
     std::string type;
@@ -48,6 +67,18 @@ struct NodeDescriptor {
     std::vector<PortMetadata> output_ports;
 };
 
+/**
+
+ * @struct NodeDescriptorSeed
+
+ * @brief Node Descriptor Seed data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct NodeDescriptorSeed {
     std::string name;
     std::string type;
@@ -55,6 +86,18 @@ struct NodeDescriptorSeed {
     LifecycleState lifecycle_state{LifecycleState::Invalid};
     bool supports_configuration{false};
 };
+
+/**
+
+ * @struct RuntimeNodeDescriptorRequest
+
+ * @brief Runtime Node Descriptor Request data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct RuntimeNodeDescriptorRequest {
     NodeDescriptorSeed seed;
@@ -65,10 +108,17 @@ struct RuntimeNodeDescriptorRequest {
 
 /**
  * @class INodeDescriptorProvider
- * @brief INodeDescriptorProvider class.
+ * @brief Inode Descriptor Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class INodeDescriptorProvider {
 public:
+    /**
+     * @brief Releases resources owned by Inode Descriptor Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~INodeDescriptorProvider() = default;
 
 /**
@@ -286,8 +336,21 @@ inline NodeDescriptor BuildRuntimeNodeDescriptor(
  * @class DefaultNodeDescriptorProvider
  * @brief Default node descriptor provider implementation for GraphX.
  */
+/**
+ * @class DefaultNodeDescriptorProvider
+ * @brief Default Node Descriptor Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class DefaultNodeDescriptorProvider final : public INodeDescriptorProvider {
 public:
+    /**
+     * @brief Creates or builds the object described by Build Runtime Descriptor.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param request Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     NodeDescriptor BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest request) const override {
         return BuildRuntimeNodeDescriptor(
             std::move(request.seed),

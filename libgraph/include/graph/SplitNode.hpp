@@ -1,8 +1,9 @@
 /**
  * @file SplitNode.hpp
- * @brief GraphX source file.
+ * @brief Split Node Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -76,8 +77,26 @@ namespace graph
  */
 
 // Helper to expand TypeList into template parameters
+/**
+ * @struct ExpandSourceNode
+ * @brief Expand Source Node data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 template<typename TypeList>
 struct ExpandSourceNode;
+
+/**
+
+ * @struct ExpandSourceNode
+
+ * @brief Expand Source Node data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 template<typename... Ts>
 struct ExpandSourceNode<TypeList<Ts...>> {
@@ -87,15 +106,29 @@ struct ExpandSourceNode<TypeList<Ts...>> {
 template <typename T, std::size_t N, typename Derived>
 /**
  * @class SplitNode
- * @brief SplitNode class.
+ * @brief Split Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class SplitNode : public SinkNode<T>, public ExpandSourceNode<RepeatType_t<T, N>>::type {
 public:
+    /**
+     * @brief Releases resources owned by Split Node.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~SplitNode() = default;
 
     static constexpr std::size_t NInputs = 1;
     static constexpr std::size_t NOutputs = N;
 
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param value Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume(const T& value, std::integral_constant<std::size_t, 0>) override {
         bool success = true;
         for (std::size_t i = 0; i < N; ++i) {
@@ -106,10 +139,24 @@ public:
 
     using SourceBase = typename ExpandSourceNode<RepeatType_t<T, N>>::type;
 
+    /**
+     * @brief Creates or builds the object described by Make Directional Port Name.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param prefix Input or configuration value consumed by the method.
+     * @param index Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static std::string MakeDirectionalPortName(const char* prefix, std::size_t index) {
         return std::string(prefix) + std::to_string(index);
     }
     
+    /**
+     * @brief Performs the Init lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Init() override {
         return SinkNode<T>::Init() && SourceBase::Init();
     }
@@ -122,10 +169,22 @@ public:
         return "SplitNode<" + std::to_string(N) + ">";
     }
 
+    /**
+     * @brief Performs the Start lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Start() override {
         return SinkNode<T>::Start() && SourceBase::Start();
     }
 
+    /**
+     * @brief Performs the Stop lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Stop() override {
         SinkNode<T>::Stop();
         SourceBase::Stop();
@@ -134,6 +193,12 @@ public:
         }
     }
 
+    /**
+     * @brief Performs the Join lifecycle step.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Join() override {
         SinkNode<T>::Join();
         SourceBase::Join();
@@ -143,10 +208,23 @@ public:
 
     int GetInputPortCount() const { return 1; }
 
+    /**
+     * @brief Returns the Lifecycle State.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     LifecycleState GetLifecycleState() const override {
         return SinkNode<T>::GetLifecycleState();
     }
 
+    /**
+     * @brief Executes the Join With Timeout operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param timeout_ms Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
         return SinkNode<T>::JoinWithTimeout(timeout_ms);
     }   
@@ -200,7 +278,19 @@ public:
 
 protected:
     template<std::size_t Index>
+    /**
+     * @brief Processes data through the Produce From Queue operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::optional<T> ProduceFromQueue() {
+        /**
+         * @brief Executes the Static Assert operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static_assert(Index < N, "SplitNode output index out of range");
         T value;
         if (input_queue_[Index].Dequeue(value)) {
@@ -214,6 +304,18 @@ protected:
 
 // Compile-time generated produce override chain for SplitNodeN (N=1..8)
 
+/**
+
+ * @class SplitProduceOverrideChain
+
+ * @brief Split Produce Override Chain type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
+ */
+
 template<typename T, std::size_t N, typename Derived, std::size_t PortIndex, bool Done = (PortIndex == N)>
 class SplitProduceOverrideChain;
 
@@ -222,16 +324,40 @@ template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
  * @class SplitProduceOverrideChain
  * @brief Split produce override chain implementation for GraphX.
  */
+/**
+ * @class SplitProduceOverrideChain
+ * @brief Split Produce Override Chain type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class SplitProduceOverrideChain<T, N, Derived, PortIndex, false>
     : public SplitProduceOverrideChain<T, N, Derived, PortIndex + 1, (PortIndex + 1 == N)> {
 public:
     using Next = SplitProduceOverrideChain<T, N, Derived, PortIndex + 1, (PortIndex + 1 == N)>;
     using Next::Produce;
 
+    /**
+     * @brief Processes data through the Produce operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::optional<T> Produce(std::integral_constant<std::size_t, PortIndex>) override {
         return this->template ProduceFromQueue<PortIndex>();
     }
 };
+
+/**
+
+ * @class SplitProduceOverrideChain
+
+ * @brief Split Produce Override Chain type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
+ */
 
 template<typename T, std::size_t N, typename Derived, std::size_t PortIndex>
 class SplitProduceOverrideChain<T, N, Derived, PortIndex, true>
@@ -243,15 +369,28 @@ public:
 template<typename T, std::size_t N>
 /**
  * @class SplitNodeN
- * @brief SplitNodeN class.
+ * @brief Split Node N graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class SplitNodeN
     : public SplitProduceOverrideChain<T, N, SplitNodeN<T, N>, 0, (0 == N)> {
 public:
+    /**
+     * @brief Executes the Static Assert operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static_assert(N >= 1 && N <= 8, "SplitNodeN supports 1-8 outputs");
 
     using SplitProduceOverrideChain<T, N, SplitNodeN<T, N>, 0, (0 == N)>::Produce;
 
+    /**
+     * @brief Releases resources owned by Split Node N.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~SplitNodeN() = default;
 
     std::string GetNodeTypeName() const { return "SplitNode" + std::to_string(N); }

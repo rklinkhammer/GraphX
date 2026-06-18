@@ -1,8 +1,9 @@
 /**
  * @file EdgeRegistration.cpp
- * @brief GraphX source file.
+ * @brief Edge Registration Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer

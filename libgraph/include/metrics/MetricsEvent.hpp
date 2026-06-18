@@ -1,8 +1,9 @@
 /**
  * @file MetricsEvent.hpp
- * @brief GraphX source file.
+ * @brief Metrics Event Graph runtime support.
+ *
+ * @details Provides metrics event and subscriber contracts for runtime observability. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -31,34 +32,6 @@
 #include <string>
 #include <map>
 
-/**
- * @file MetricsEvent.hpp
- * @brief Event structure for async metrics publishing from nodes
- *
- * Represents a metrics event published by a node when an important state
- * change occurs. Used by both polling and async metrics streams.
- *
- * @section usage Usage Example
- *
- * \code
- * // In FlightMonitorNode when phase changes
- * if (new_phase != current_phase_) {
- *     current_phase_ = new_phase;
- *
- *     MetricsEvent event{
- *         .timestamp = std::chrono::system_clock::now(),
- *         .source = "FlightMonitorNode",
- *         .event_type = "phase_transition",
- *         .data = {
- *             {"current_phase", EnumToString(new_phase)},
- *             {"timestamp_ms", std::to_string(GetElapsedMs())}
- *         }
- *     };
- *
- *     metrics_callback_->PublishAsync(event);
- * }
- * \endcode
- */
 
 namespace app::metrics {
 
@@ -76,6 +49,12 @@ namespace app::metrics {
  * @note Source identifies which node published the event
  * @note Event type describes what happened (e.g., "phase_transition")
  * @note Data is flexible key-value map for event-specific information
+ */
+/**
+ * @struct MetricsEvent
+ * @brief Metrics Event data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct MetricsEvent {
     /**

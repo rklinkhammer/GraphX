@@ -1,8 +1,9 @@
 /**
  * @file DashboardOutput.cpp
- * @brief GraphX source file.
+ * @brief Dashboard Output Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer

@@ -1,8 +1,9 @@
 /**
  * @file AccelFormatting.hpp
- * @brief GraphX source file.
+ * @brief Accel Formatting GPU acceleration support.
+ *
+ * @details Provides backend-neutral accelerator token and validation support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors

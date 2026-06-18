@@ -81,10 +81,28 @@ inline constexpr std::string_view type_name_v = type_name_const<T>();
 // - Clients use Message::make<T>(value) to construct.
 // ===================================================================================
 
+/**
+
+ * @struct TypeInfo
+
+ * @brief Type Info data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct TypeInfo {
     std::string_view name{};
     uint64_t hash{0};
     template<typename T>
+    /**
+     * @brief Creates or builds the object described by Create.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static TypeInfo create() {
         return { typeid(T).name(), static_cast<uint64_t>(typeid(T).hash_code()) };
     }

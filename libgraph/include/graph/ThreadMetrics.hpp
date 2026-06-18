@@ -1,8 +1,9 @@
 /**
  * @file ThreadMetrics.hpp
- * @brief GraphX source file.
+ * @brief Thread Metrics Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,13 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file ThreadMetrics.hpp
- * @brief Thread performance metrics for node port functions
- * 
- * This header provides the ThreadMetrics data structure for collecting
- * timing and call count statistics on port operations.
- */
 
 #pragma once
 
@@ -55,6 +49,12 @@ namespace graph
      * Related to requirements:
      * - Thread utilization tracking
      * - Method call interval averaging (Produce, Consume, Transfer)
+     */
+    /**
+     * @struct ThreadMetrics
+     * @brief Thread Metrics data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct ThreadMetrics {
         // ====================================================================

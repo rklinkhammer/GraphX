@@ -1,8 +1,9 @@
 /**
  * @file ISyclCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Isycl Capabilities GPU acceleration support.
+ *
+ * @details Provides SYCL acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -19,10 +20,17 @@ namespace graph::gpu::sycl::capabilities {
 
 /**
  * @class ISyclContextCapability
- * @brief ISyclContextCapability class.
+ * @brief Isycl Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclContextCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Context Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclContextCapability() = default;
 
 /**
@@ -62,10 +70,17 @@ public:
 
 /**
  * @class ISyclMemoryPoolCapability
- * @brief ISyclMemoryPoolCapability class.
+ * @brief Isycl Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclMemoryPoolCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Memory Pool Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclMemoryPoolCapability() = default;
 
     virtual bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
@@ -84,10 +99,17 @@ public:
 
 /**
  * @class ISyclTransferCapability
- * @brief ISyclTransferCapability class.
+ * @brief Isycl Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclTransferCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Transfer Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclTransferCapability() = default;
 
     virtual bool EnqueueH2D(const accel::HostPinnedBufferView& src,
@@ -108,10 +130,17 @@ public:
 
 /**
  * @class ISyclKernelCapability
- * @brief ISyclKernelCapability class.
+ * @brief Isycl Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclKernelCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Kernel Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclKernelCapability() = default;
 
     virtual bool RegisterKernel(std::uint64_t kernel_id,
@@ -124,10 +153,17 @@ public:
 
 /**
  * @class ISyclTelemetryCapability
- * @brief ISyclTelemetryCapability class.
+ * @brief Isycl Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclTelemetryCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Telemetry Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclTelemetryCapability() = default;
 
     virtual void RecordTransfer(const accel::TransferTicket& ticket,
@@ -143,10 +179,17 @@ public:
 
 /**
  * @class ISyclCollectiveCapability
- * @brief ISyclCollectiveCapability class.
+ * @brief Isycl Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class ISyclCollectiveCapability {
 public:
+    /**
+     * @brief Releases resources owned by Isycl Collective Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISyclCollectiveCapability() = default;
 
     virtual bool AllReduce(accel::DeviceBufferView& in_out,

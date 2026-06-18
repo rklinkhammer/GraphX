@@ -42,6 +42,18 @@ namespace app::callbacks {
 
 namespace detail {
 
+/**
+
+ * @class MoveOnlyFunction
+
+ * @brief Move Only Function type.
+
+ *
+
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+
+ */
+
 template<typename Signature>
 class MoveOnlyFunction;
 
@@ -50,14 +62,52 @@ template<typename ReturnT, typename... ArgsT>
  * @class MoveOnlyFunction
  * @brief Move only function implementation for GraphX.
  */
+/**
+ * @class MoveOnlyFunction
+ * @brief Move Only Function type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 class MoveOnlyFunction<ReturnT(ArgsT...)> {
 public:
+    /**
+     * @brief Executes the Move Only Function operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MoveOnlyFunction() = default;
     MoveOnlyFunction(std::nullptr_t) noexcept {}
 
+    /**
+     * @brief Executes the Move Only Function operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MoveOnlyFunction Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MoveOnlyFunction(const MoveOnlyFunction&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MoveOnlyFunction Input or configuration value consumed by the method.
+     */
     MoveOnlyFunction& operator=(const MoveOnlyFunction&) = delete;
+    /**
+     * @brief Executes the Move Only Function operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MoveOnlyFunction Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MoveOnlyFunction(MoveOnlyFunction&&) noexcept = default;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MoveOnlyFunction Input or configuration value consumed by the method.
+     */
     MoveOnlyFunction& operator=(MoveOnlyFunction&&) noexcept = default;
 
     template<typename Fn>
@@ -67,11 +117,23 @@ public:
     MoveOnlyFunction(Fn&& fn)
         : callable_(std::make_unique<Model<std::remove_cvref_t<Fn>>>(std::forward<Fn>(fn))) {}
 
+    /**
+     * @brief Executes the Bool operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     explicit operator bool() const noexcept {
         return static_cast<bool>(callable_);
     }
 
     ReturnT operator()(ArgsT... args) {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (std::is_void_v<ReturnT>) {
             callable_->Invoke(std::forward<ArgsT>(args)...);
         } else {
@@ -80,7 +142,18 @@ public:
     }
 
 private:
+    /**
+     * @struct Concept
+     * @brief Concept data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct Concept {
+        /**
+         * @brief Releases resources owned by Concept.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~Concept() = default;
 /**
  * @brief Invoke.
@@ -90,12 +163,37 @@ private:
         virtual ReturnT Invoke(ArgsT... args) = 0;
     };
 
+    /**
+
+     * @struct Model
+
+     * @brief Model data record.
+
+     *
+
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+     */
+
     template<typename Fn>
     struct Model final : Concept {
         template<typename Callable>
         explicit Model(Callable&& fn) : fn_(std::forward<Callable>(fn)) {}
 
+        /**
+         * @brief Executes the Invoke operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param args Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         ReturnT Invoke(ArgsT... args) override {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (std::is_void_v<ReturnT>) {
                 std::invoke(fn_, std::forward<ArgsT>(args)...);
             } else {
@@ -213,7 +311,9 @@ concept IsMoveOnlyCallbackWith = requires(T t, ArgsT... args) {
 template<typename ReturnT, typename... ArgsT>
 /**
  * @class CallbackChain
- * @brief CallbackChain class.
+ * @brief Callback Chain type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class CallbackChain {
 public:
@@ -244,7 +344,19 @@ public:
      */
     void InvokeAll(ArgsT... args) {
         for (auto& callback : callbacks_) {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (std::is_same_v<ReturnT, void>) {
+                /**
+                 * @brief Executes the Callback operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 callback(args...);
             } else {
                 // Ignore return values for non-void callbacks
@@ -308,35 +420,92 @@ private:
  *
  * @tparam ArgsT Event/message argument types
  */
+/**
+ * @class CallbackChain
+ * @brief Callback Chain type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 template<typename... ArgsT>
 class CallbackChain<void, ArgsT...> {
 public:
     using CallbackType = MoveOnlyCallback<void(ArgsT...)>;
 
+    /**
+     * @brief Executes the Callback Chain operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CallbackChain() = default;
 
+    /**
+     * @brief Executes the Add operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param callback Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Add(CallbackType callback) {
         callbacks_.push_back(std::move(callback));
     }
 
+    /**
+     * @brief Executes the Invoke All operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param args Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void InvokeAll(ArgsT... args) {
         for (auto& callback : callbacks_) {
+            /**
+             * @brief Executes the Callback operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             callback(args...);
         }
     }
 
+    /**
+     * @brief Executes the Size operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] size_t Size() const noexcept {
         return callbacks_.size();
     }
 
+    /**
+     * @brief Reports whether Is Empty is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] bool IsEmpty() const noexcept {
         return callbacks_.empty();
     }
 
+    /**
+     * @brief Executes the Clear operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Clear() noexcept {
         callbacks_.clear();
     }
 
+    /**
+     * @brief Executes the Reserve operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capacity Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Reserve(size_t capacity) {
         callbacks_.reserve(capacity);
     }
@@ -365,6 +534,12 @@ private:
 template<typename Signature>
 inline MoveOnlyCallback<Signature> CreateNoOpCallback() {
     // Note: Simple lambda that does nothing
+    /**
+     * @brief Executes the Constexpr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     if constexpr (std::is_invocable_v<std::function<Signature>>) {
         return [] { };  // Void callback
     } else {
@@ -403,6 +578,12 @@ inline MoveOnlyCallback<Signature> WrapWithLifetime(
     // Capture shared_ptr to keep T alive
     return [holder = std::move(lifetime_holder),
             cb = std::move(callback)]() mutable {
+        /**
+         * @brief Executes the Cb operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         cb();
     };
 }
@@ -434,27 +615,73 @@ inline MoveOnlyCallback<Signature> WrapWithLifetime(
 template<typename ReturnT, typename... ArgsT>
 /**
  * @class CallbackRegistry
- * @brief CallbackRegistry class.
+ * @brief Callback Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class CallbackRegistry {
 public:
     using CallbackType = MoveOnlyCallback<ReturnT(ArgsT...)>;
 
+    /**
+     * @brief Executes the Callback Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CallbackRegistry() = default;
+    /**
+     * @brief Releases resources owned by Callback Registry.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~CallbackRegistry() = default;
 
     // Delete copy operations - each registry is unique
+    /**
+     * @brief Executes the Callback Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param CallbackRegistry Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CallbackRegistry(const CallbackRegistry&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param CallbackRegistry Input or configuration value consumed by the method.
+     */
     CallbackRegistry& operator=(const CallbackRegistry&) = delete;
 
     // Allow move
+    /**
+     * @brief Executes the Callback Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param CallbackRegistry Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     CallbackRegistry(CallbackRegistry&&) = default;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param CallbackRegistry Input or configuration value consumed by the method.
+     */
     CallbackRegistry& operator=(CallbackRegistry&&) = default;
 
     /**
      * @brief Register callback (thread-safe)
      */
     void Register(CallbackType callback) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(mutex_);
         callbacks_.push_back(std::move(callback));
     }
@@ -463,9 +690,28 @@ public:
      * @brief Invoke all callbacks (thread-safe)
      */
     void BroadcastEvent(ArgsT... args) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(mutex_);
         for (auto& callback : callbacks_) {
+            /**
+             * @brief Executes the Constexpr operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             if constexpr (std::is_same_v<ReturnT, void>) {
+                /**
+                 * @brief Executes the Callback operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 callback(args...);
             } else {
                 static_cast<void>(callback(args...));
@@ -477,6 +723,13 @@ public:
      * @brief Get callback count (thread-safe)
      */
     [[nodiscard]] size_t Size() const noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(mutex_);
         return callbacks_.size();
     }
@@ -485,6 +738,13 @@ public:
      * @brief Clear all callbacks (thread-safe)
      */
     void Clear() noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(mutex_);
         callbacks_.clear();
     }

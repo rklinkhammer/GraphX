@@ -1,8 +1,9 @@
 /**
  * @file spectrum_sink_node_256_plugin.cpp
- * @brief GraphX source file.
+ * @brief Spectrum Sink Node 256 Plugin DSP support.
+ *
+ * @details Provides plugin registration unit for dynamically loading DSP graph nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors

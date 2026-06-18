@@ -1,8 +1,9 @@
 /**
  * @file StaticNodeAdapter.cpp
- * @brief GraphX source file.
+ * @brief Static Node Adapter Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors

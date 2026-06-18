@@ -1,8 +1,9 @@
 /**
  * @file EdgeRegistry.hpp
- * @brief GraphX source file.
+ * @brief Edge Registry Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,23 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file EdgeRegistry.hpp
- * @brief Type-aware edge creation registry
- *
- * Enables runtime creation of templated Edge<SrcNode, SrcPort, DstNode, DstPort>
- * by dispatching to compile-time registered creator functions.
- *
- * Key Pattern:
- * - At program startup: Register edge creators for each (SrcType, SrcPort, DstType, DstPort)
- * - At JSON load time: Lookup and dispatch based on (src_type_name, src_port, dst_type_name, dst_port)
- *
- * Note: The registry takes the GraphManager reference and node indices, not INode*,
- * because AddEdge is a template method that needs compile-time types.
- *
- * @author Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -57,6 +41,12 @@
 
 // GraphManager is declared in the graph namespace
 namespace graph {
+/**
+ * @class GraphManager
+ * @brief Graph Manager manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class GraphManager;
 }
 
@@ -77,6 +67,12 @@ using GraphManager = ::graph::GraphManager;
  * - No string formatting overhead
  * - Type-safe: type_index prevents typos in type names
  */
+/**
+ * @struct EdgeKey
+ * @brief Edge Key data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct EdgeKey {
     std::type_index src_type;   // Source node type
     std::size_t src_port;       // Source port index
@@ -87,6 +83,13 @@ struct EdgeKey {
             const std::type_index& dst, std::size_t dp)
         : src_type(src), src_port(sp), dst_type(dst), dst_port(dp) {}
     
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param other Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool operator==(const EdgeKey& other) const {
         return src_type == other.src_type &&
                src_port == other.src_port &&
@@ -100,6 +103,12 @@ struct EdgeKey {
  * @brief Hash function for EdgeKey using std::type_index hashing
  * 
  * Combines hash values of type_index and port indices for uniform distribution.
+ */
+/**
+ * @struct EdgeKeyHash
+ * @brief Edge Key Hash data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct EdgeKeyHash {
     std::size_t operator()(const EdgeKey& key) const noexcept {
@@ -143,8 +152,20 @@ struct EdgeKeyHash {
  *   graph, "DataInjectionAccelerometerNode", 0, "FlightFSMNode", 0, src_idx, dst_idx);
  * @endcode
  */
+/**
+ * @class EdgeRegistry
+ * @brief Edge Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class EdgeRegistry {
 public:
+    /**
+     * @enum EdgeCreationError
+     * @brief Edge Creation Error values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class EdgeCreationError {
         NoCreatorRegistered = 1,
         CreatorReturnedFalse = 2,
@@ -200,6 +221,13 @@ public:
         const std::string& dst_type_name,
         EdgeCreator creator) {
         
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(mutex_);
         
         // Get type indices for source and destination using typeid

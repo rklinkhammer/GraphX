@@ -1,8 +1,9 @@
 /**
  * @file NodeFacadeAbi.hpp
- * @brief GraphX source file.
+ * @brief Node Facade ABI Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -23,6 +24,18 @@ using CreateNodeFunc = NodeHandle (*)(void);
 inline constexpr int kPluginApiVersion = 1;
 inline constexpr const char* kPluginAbiTagLibStdCpp = "libstdc++_v1";
 inline constexpr const char* kPluginAbiTagLibCpp = "libc++_v1";
+
+/**
+
+ * @struct PortMetadataC
+
+ * @brief Port Metadata C data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct PortMetadataC {
     size_t index;
@@ -46,11 +59,44 @@ inline PortMetadataC MakePortMetadataC(
         destination[count] = '\0';
     };
 
+    /**
+     * @brief Executes the Copy Field operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param port_name Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     copy_field(metadata.port_name, sizeof(metadata.port_name), port_name);
+    /**
+     * @brief Executes the Copy Field operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param payload_type Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     copy_field(metadata.payload_type, sizeof(metadata.payload_type), payload_type);
+    /**
+     * @brief Executes the Copy Field operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param direction Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     copy_field(metadata.direction, sizeof(metadata.direction), direction);
     return metadata;
 }
+
+/**
+
+ * @struct ThreadMetricsC
+
+ * @brief Thread Metrics C data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct ThreadMetricsC {
     uint64_t total_iterations;
@@ -63,6 +109,18 @@ struct ThreadMetricsC {
     uint64_t total_idle_time_ns;
     bool thread_active;
 };
+
+/**
+
+ * @struct PortQueueMetrics
+
+ * @brief Port Queue Metrics data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct PortQueueMetrics {
     size_t port_index;
@@ -81,6 +139,12 @@ struct PortQueueMetrics {
  * This is the only ABI contract plugin-backed nodes need to share with the
  * host. C++ code should prefer NodeFacadeAdapter, CapabilityContext, and
  * NodeDescriptor instead of touching this table directly.
+ */
+/**
+ * @struct NodeFacade
+ * @brief Node Facade data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct NodeFacade {
     int (*GetLifecycleState)(NodeHandle handle);

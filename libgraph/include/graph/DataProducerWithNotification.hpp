@@ -1,8 +1,9 @@
 /**
  * @file DataProducerWithNotification.hpp
- * @brief GraphX source file.
+ * @brief Data Producer With Notification Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,14 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/*!
- * @file DataGeneratorBase.hpp
- * @brief Base interface for data generators (producers of templated data types)
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- */
 
 #pragma once
 
@@ -128,7 +121,9 @@ template <typename NodeType, typename DataGenerator, typename DataType, typename
     typename ClassificationType, ClassificationType Classification = ClassificationType::Unclassified>
 /**
  * @class DataProducerWithNotification
- * @brief DataProducerWithNotification class.
+ * @brief Data Producer With Notification type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class DataProducerWithNotification : 
     public NamedSourceNode<NodeType, graph::message::Message, NotificationType>,
@@ -165,6 +160,12 @@ public:
           generator_(std::move(generator)),
           start_time_(std::chrono::steady_clock::now()),
           next_time_(start_time_ + sample_interval),
+          /**
+           * @brief Executes the Total Samples Generated operation.
+           *
+           * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+           * @return Method-specific result, status, or produced value when the signature provides one.
+           */
           total_samples_generated_(0) {
 
     }
@@ -577,10 +578,22 @@ public:
     }
 
     protected:
+        /**
+         * @brief Returns the Generator.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         DataGenerator* GetGenerator() noexcept {
             return generator_.get();
         }
 
+        /**
+         * @brief Returns the Generator.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         const DataGenerator* GetGenerator() const noexcept {
             return generator_.get();
         }

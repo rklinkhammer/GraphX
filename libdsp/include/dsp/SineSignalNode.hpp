@@ -1,8 +1,9 @@
 /**
  * @file SineSignalNode.hpp
- * @brief GraphX source file.
+ * @brief Sine Signal Node DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -25,17 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file dsp/SineSignalNode.hpp
- * @brief Sine wave signal generator as a graph framework node
- *
- * Implements a DSP node that generates sine wave IQ samples at configurable
- * frequency, amplitude, and sample rate. The first production node to use
- * DataProducerWithNotification directly (not CSV-based injection).
- *
- * @author GraphX Contributors
- * @date 2025
- */
 
 #pragma once
 
@@ -81,6 +71,12 @@ namespace dsp {
  *   node->Start();   // Begin sample generation
  * @endcode
  */
+/**
+ * @class SineSignalNode
+ * @brief Sine Signal Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 template<size_t N = 256>
 class SineSignalNode : public graph::DataProducerWithNotification<
     SineSignalNode<N>,
@@ -120,6 +116,11 @@ public:
         this->SetName("__unnamed__");
     }
 
+    /**
+     * @brief Releases resources owned by Sine Signal Node.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~SineSignalNode() = default;
 
     /// @brief Port name constant for IQ samples output

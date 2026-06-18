@@ -1,8 +1,9 @@
 /**
  * @file AccelValidation.hpp
- * @brief GraphX source file.
+ * @brief Accel Validation GPU acceleration support.
+ *
+ * @details Provides backend-neutral accelerator token and validation support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -36,6 +37,12 @@ inline constexpr bool IsValidView(const DeviceBufferView& view) noexcept {
            view.device_ptr != nullptr &&
            view.bytes > 0 &&
            IsKnownDataType(view.dtype) &&
+           /**
+            * @brief Reports whether Is Valid Layout is true.
+            *
+            * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+            * @return Method-specific result, status, or produced value when the signature provides one.
+            */
            IsValidLayout(view.layout);
 }
 
@@ -43,6 +50,12 @@ inline constexpr bool IsValidView(const HostPinnedBufferView& view) noexcept {
     return view.host_ptr != nullptr &&
            view.bytes > 0 &&
            IsKnownDataType(view.dtype) &&
+           /**
+            * @brief Reports whether Is Valid Layout is true.
+            *
+            * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+            * @return Method-specific result, status, or produced value when the signature provides one.
+            */
            IsValidLayout(view.layout);
 }
 
@@ -69,6 +82,12 @@ inline constexpr bool IsValidShardDescriptor(const DeviceShardDescriptor& shard)
     return shard.shard_count > 0 &&
            shard.shard_index < shard.shard_count &&
            shard.element_length > 0 &&
+           /**
+            * @brief Reports whether Is Valid Layout is true.
+            *
+            * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+            * @return Method-specific result, status, or produced value when the signature provides one.
+            */
            IsValidLayout(shard.global_layout);
 }
 

@@ -1,8 +1,9 @@
 /**
  * @file test_execution_policies.cpp
- * @brief GraphX source file.
+ * @brief Test Execution Policies Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_execution_policies.cpp
- * @brief Comprehensive unit tests for Execution Policies (Phase 5 Priority 1)
- *
- * Tests the execution policy system with:
- * - IExecutionPolicy interface contract
- * - ExecutionPolicyChain chaining and composition
- * - Individual policy lifecycle (OnInit, OnStart, OnRun, OnStop, OnJoin)
- * - Error handling and state management
- * - C++26 compliance
- *
- * @note Uses mock/stub policies to test the framework without requiring complex graph setup
- */
 
 #include <gtest/gtest.h>
 #include "graph/IExecutionPolicy.hpp"

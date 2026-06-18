@@ -1,8 +1,9 @@
 /**
  * @file ThreadPool.hpp
- * @brief GraphX source file.
+ * @brief Thread Pool Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -40,162 +41,6 @@
 #include "core/Expected.hpp"
 #include "core/CallbackUtilities.hpp"
 
-/**
- * @file ThreadPool.hpp
- * @brief Centralized fixed-size thread pool with deterministic shutdown and deadlock detection
- *
- * @details
- * The ThreadPool provides a production-ready fixed-size pool of worker threads executing
- * user-supplied tasks from a shared FIFO queue. The design emphasizes:
- *
- * - **Explicit lifecycle management**: Construct → Init → Start → Stop → Join → Destroyed
- * - **Deterministic shutdown semantics**: No surprise task execution after Stop()
- * - **Deadlock detection**: Optional watchdog thread monitors long-running tasks
- * - **Safe task rejection**: Gracefully rejects tasks after shutdown is requested
- * - **Observable execution statistics**: Task counters, queue depth, timing metrics
- * - **Lock-free design**: Minimal lock contention via atomic operations and ActiveQueue
- *
- * ## Lifecycle Model
- *
- * The ThreadPool transitions through the following **strict, monotonic states**:
- *
- * ```
- * Constructed
- *     ↓
- * Init() called
- *     ↓
- * Started (StartExpected() called, threads spawned)
- *     ↓
- * Stop() called (threads begin shutdown)
- *     ↓
- * Stopped (Join() completes, all threads exited)
- *     ↓
- * Destroyed (~ThreadPool guarantees all threads joined)
- * ```
- *
- * Calling state-specific methods outside their valid state is **undefined behavior**
- * unless explicitly documented as idempotent (e.g., Stop()).
- *
- * ## Thread Safety Model
- *
- * - **Task queuing**: Fully thread-safe (ActiveQueue handles synchronization)
- * - **Worker threads**: Execute tasks concurrently with independent stacks
- * - **Statistics updates**: Atomic operations ensure consistency
- * - **Shutdown coordination**: Lock-free via atomic flags where possible
- * - **Join semantics**: Condition variable for blocking until completion
- *
- * Multiple threads may safely call QueueTask() and QueueTaskWithTimeout() concurrently.
- * Only the owning thread should call Init(), Start(), Stop(), and Join().
- *
- * ## Deadlock Detection System
- *
- * An optional watchdog thread monitors task execution time:
- *
- * 1. **Timing**: Each task's start time is recorded atomically
- * 2. **Monitoring**: Watchdog checks every watchdog_interval ms
- * 3. **Detection**: If any task exceeds task_timeout, deadlock_detected_ is set
- * 4. **Action**: Detection is **advisory** - execution is NOT interrupted
- * 5. **Recovery**: Call ClearDeadlockFlag() after investigation
- *
- * Useful for:
- * - Long-running or compute-intensive tasks
- * - Identifying tasks that unexpectedly block
- * - Monitoring system health and responsiveness
- *
- * ## Shutdown Guarantees
- *
- * Once Stop() is called:
- * - **No new tasks start**: Pending tasks are enqueued but not executed
- * - **Active tasks complete**: Already-running tasks finish normally
- * - **Queue drains**: Remaining queued tasks are discarded without execution
- * - **Threads exit**: All worker threads reach end-of-loop and terminate
- * - **Watchdog stops**: Optional watchdog thread also terminates
- *
- * The destructor **guarantees** no joinable threads remain after completion.
- *
- * ## Performance Characteristics
- *
- * - **Queue Operations**: O(1) lock-free enqueue/dequeue (ActiveQueue)
- * - **Task Startup Latency**: ~100-500 microseconds (platform dependent)
- * - **Context Switch Overhead**: Standard OS thread scheduling
- * - **Memory**: Fixed allocation at construction (no dynamic reallocation)
- * - **Scalability**: Scales to CPU core count; beyond that, contention increases
- *
- * ## Usage Patterns
- *
- * ### Basic Usage
- * @code
- *   ThreadPool pool(4);  // 4 worker threads
- *   pool.Init();
- *   pool.StartExpected();
- *   
- *   // Queue work
- *   for (int i = 0; i < 100; ++i) {
- *       pool.QueueTask([i] { std::cout << "Task " << i << std::endl; });
- *   }
- *   
- *   // Shutdown
- *   pool.Stop();
- *   pool.Join();  // Wait for worker exit; pending queued work may be cancelled
- * @endcode
- *
- * ### With Configuration
- * @code
- *   ThreadPool::DeadlockConfig cfg;
- *   cfg.task_timeout = std::chrono::milliseconds(1000);
- *   cfg.watchdog_interval = std::chrono::milliseconds(500);
- *   cfg.max_queue_size = 5000;
- *   cfg.enable_detection = true;
- *   
- *   ThreadPool pool(4, cfg);
- *   pool.Init();
- *   pool.StartExpected();
- * @endcode
- *
- * ### With Timeout
- * @code
- *   auto result = pool.QueueTaskWithTimeout(
- *       task,
- *       std::chrono::milliseconds(100)
- *   );
- *   if (result == ThreadPool::QueueResult::Ok) {
- *       // Successfully queued
- *   } else if (result == ThreadPool::QueueResult::Timeout) {
- *       // Queue full, timed out waiting
- *   } else if (result == ThreadPool::QueueResult::Stopped) {
- *       // Pool is shutting down
- *   }
- * @endcode
- *
- * ## Design Decisions
- *
- * **Why Fixed-Size?**
- * Deterministic resource allocation and predictable behavior.
- * Dynamic resizing adds complexity and can cause cascading thread creation.
- *
- * **Why Cancellation Only Before Start?**
- * Once started, tasks must complete. Pending queued tasks are cancelled on
- * Stop() so shutdown is deterministic and no new work begins after Stop().
- *
- * **Why ActiveQueue?**
- * Lock-free queuing minimizes contention and provides deterministic
- * performance without mutex-induced priority inversion.
- *
- * **Why No Return Values?**
- * Tasks return void by design. Use external synchronized data structures
- * for result aggregation (channels, atomic variables, synchronized maps).
- *
- * ## Atomic Operation Guarantees
- *
- * All operations use standard C++11 atomics with appropriate memory ordering:
- * - **memory_order_relaxed**: Statistics and flags (no ordering needed)
- * - **memory_order_acquire/release**: State transitions (synchronization points)
- * - **memory_order_seq_cst**: Stop/join coordination (strongest guarantee)
- *
- * @author Robert Klinkhammer
- * @date 2025-12-31
- * @version 2.0
- */
 
 
 namespace graph {
@@ -284,6 +129,12 @@ namespace graph {
  *
  * @see ThreadPool::GetStats() for access
  * @see ThreadPool::GetAverageTaskTimeMs() for derived metric
+ */
+/**
+ * @struct ThreadPoolStats
+ * @brief Thread Pool Stats data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct ThreadPoolStats {
     /// @brief Total tasks successfully enqueued (when QueueTask returns Ok)
@@ -472,7 +323,9 @@ struct ThreadPoolStats {
 
 /**
  * @class ThreadPool
- * @brief ThreadPool class.
+ * @brief Thread Pool type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ThreadPool {
 public:
@@ -488,6 +341,18 @@ public:
      * task copies and reduce per-task overhead by ~20-40 bytes.
      */
     using Task = app::callbacks::MoveOnlyCallback<void()>;
+
+    /**
+
+     * @enum QueueResult
+
+     * @brief Queue Result values.
+
+     *
+
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+     */
 
     enum class QueueResult { Ok, Stopped, Full, Timeout, Error };
 
@@ -512,6 +377,12 @@ public:
      *     }
      * }
      * ```
+     */
+    /**
+     * @enum ThreadPoolError
+     * @brief Thread Pool Error values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
      */
     enum class ThreadPoolError {
         Ok = 0,                        ///< Operation succeeded (success state)
@@ -592,6 +463,12 @@ public:
      *
      * @see ThreadPool constructors that accept DeadlockConfig
      * @see ThreadPoolStats::deadlock_detections for detection count
+     */
+    /**
+     * @struct DeadlockConfig
+     * @brief Deadlock Config data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct DeadlockConfig {
         /// @brief Maximum allowed single-task execution time (milliseconds)
@@ -695,9 +572,35 @@ public:
 
     // C++26: Explicitly deleted copy/move semantics
     // ThreadPool owns worker threads and cannot be safely copied or moved
+    /**
+     * @brief Executes the Thread Pool operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ThreadPool Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ThreadPool(const ThreadPool&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ThreadPool Input or configuration value consumed by the method.
+     */
     ThreadPool& operator=(const ThreadPool&) = delete;
+    /**
+     * @brief Executes the Thread Pool operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ThreadPool Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ThreadPool(ThreadPool&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ThreadPool Input or configuration value consumed by the method.
+     */
     ThreadPool& operator=(ThreadPool&&) = delete;
 
     /**
@@ -1704,6 +1607,12 @@ public:
         config_ = config;   
     }
 
+    /**
+     * @brief Returns the Stop Requested.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] bool GetStopRequested() const noexcept {
         return stop_requested_.load();
     }   

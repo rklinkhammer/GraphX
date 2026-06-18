@@ -2,15 +2,10 @@
 
 /**
  * @file TestMetricsSubscriber.hpp
- * @brief Shared test utility for capturing and validating metrics events
+ * @brief Test Metrics Subscriber Graph runtime support.
  *
- * Provides a reusable metrics subscriber implementation for test suites
- * that need to validate metrics publishing behavior.
- *
- * @author Test Suite
- * @date May 29, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <mutex>
@@ -45,6 +40,12 @@ namespace test {
  * EXPECT_GT(subscriber->GetEventCountBySource("MyNode"), 0);
  * EXPECT_GT(subscriber->GetEventCountByType("message_produced"), 0);
  * ```
+ */
+/**
+ * @class TestMetricsSubscriber
+ * @brief Test Metrics Subscriber type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class TestMetricsSubscriber : public app::metrics::IMetricsSubscriber {
 public:

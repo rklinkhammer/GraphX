@@ -1,8 +1,9 @@
 /**
  * @file CSVDataInjectionManager.cpp
- * @brief GraphX source file.
+ * @brief Csvdata Injection Manager Graph runtime support.
+ *
+ * @details Provides CSV ingestion support for data-injection graph workflows. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors

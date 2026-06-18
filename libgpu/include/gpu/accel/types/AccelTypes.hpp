@@ -1,8 +1,9 @@
 /**
  * @file AccelTypes.hpp
- * @brief GraphX source file.
+ * @brief Accel Types GPU acceleration support.
+ *
+ * @details Provides backend-neutral accelerator token and validation support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -18,12 +19,30 @@ namespace graph::gpu::accel {
 constexpr std::size_t kMaxTensorRank = 8;
 
 // Backend tag used to keep graph-facing payload contracts backend-neutral.
+/**
+ * @enum BackendKind
+ * @brief Backend Kind values.
+ *
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class BackendKind : std::uint8_t {
     Unknown = 0,
     CUDA,
     SYCL,
     Metal
 };
+
+/**
+
+ * @enum DataType
+
+ * @brief Data Type values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
 
 enum class DataType : std::uint8_t {
     Unknown = 0,
@@ -40,11 +59,35 @@ enum class DataType : std::uint8_t {
     UInt64
 };
 
+/**
+
+ * @enum ReleasePolicy
+
+ * @brief Release Policy values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
+
 enum class ReleasePolicy : std::uint8_t {
     Manual = 0,
     AutoOnNodeCompletion,
     AutoOnGraphCompletion
 };
+
+/**
+
+ * @enum CollectiveKind
+
+ * @brief Collective Kind values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgpu API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
 
 enum class CollectiveKind : std::uint8_t {
     Unknown = 0,
@@ -53,11 +96,35 @@ enum class CollectiveKind : std::uint8_t {
     ReduceScatter
 };
 
+/**
+
+ * @struct TensorLayout
+
+ * @brief Tensor Layout data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct TensorLayout {
     std::uint8_t rank{0};
     std::array<std::uint64_t, kMaxTensorRank> shape{};
     std::array<std::uint64_t, kMaxTensorRank> stride{};
 };
+
+/**
+
+ * @struct DeviceBufferView
+
+ * @brief Device Buffer View data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct DeviceBufferView {
     BackendKind backend{BackendKind::Unknown};
@@ -70,6 +137,18 @@ struct DeviceBufferView {
     std::uint64_t ready_event{0};
 };
 
+/**
+
+ * @struct HostPinnedBufferView
+
+ * @brief Host Pinned Buffer View data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct HostPinnedBufferView {
     BackendKind backend{BackendKind::Unknown};
     void* host_ptr{nullptr};
@@ -79,6 +158,18 @@ struct HostPinnedBufferView {
     std::uint64_t allocator_id{0};
 };
 
+/**
+
+ * @struct BufferLease
+
+ * @brief Buffer Lease data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct BufferLease {
     std::uint64_t pool_id{0};
     std::uint64_t allocation_id{0};
@@ -86,6 +177,18 @@ struct BufferLease {
     DeviceBufferView device_view{};
     HostPinnedBufferView host_view{};
 };
+
+/**
+
+ * @struct TransferTicket
+
+ * @brief Transfer Ticket data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct TransferTicket {
     BackendKind backend{BackendKind::Unknown};
@@ -98,6 +201,18 @@ struct TransferTicket {
     HostPinnedBufferView dst_host{};
 };
 
+/**
+
+ * @struct KernelLaunchConfig
+
+ * @brief Kernel Launch Config data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct KernelLaunchConfig {
     std::uint32_t grid_x{1};
     std::uint32_t grid_y{1};
@@ -108,6 +223,18 @@ struct KernelLaunchConfig {
     std::uint32_t shared_mem_bytes{0};
 };
 
+/**
+
+ * @struct KernelTicket
+
+ * @brief Kernel Ticket data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct KernelTicket {
     BackendKind backend{BackendKind::Unknown};
     std::uint64_t kernel_id{0};
@@ -117,6 +244,18 @@ struct KernelTicket {
     std::uint64_t completion_event{0};
 };
 
+/**
+
+ * @struct DeviceShardDescriptor
+
+ * @brief Device Shard Descriptor data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
+
 struct DeviceShardDescriptor {
     TensorLayout global_layout{};
     std::uint32_t shard_index{0};
@@ -125,6 +264,18 @@ struct DeviceShardDescriptor {
     std::uint64_t element_offset{0};
     std::uint64_t element_length{0};
 };
+
+/**
+
+ * @struct CollectiveTicket
+
+ * @brief Collective Ticket data record.
+
+ *
+
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+ */
 
 struct CollectiveTicket {
     BackendKind backend{BackendKind::Unknown};

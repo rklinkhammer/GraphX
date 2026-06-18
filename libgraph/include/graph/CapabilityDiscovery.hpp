@@ -1,8 +1,9 @@
 /**
  * @file CapabilityDiscovery.hpp
- * @brief GraphX source file.
+ * @brief Capability Discovery Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,22 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file CapabilityDiscovery.hpp
- * @brief Two-phase capability discovery helper for built-in and plugin nodes
- *
- * This header provides a unified mechanism for discovering optional capabilities
- * on nodes, supporting both:
- * - Built-in (statically-linked) nodes via direct dynamic_pointer_cast
- * - Plugin nodes via NodeFacadeAdapterWrapper::TryGetInterface specializations
- *
- * This standardizes the discovery pattern used throughout the codebase for
- * discovering interfaces like IDataInjectionSource, IMetricsCallbackProvider,
- * ICompletion, IConfigurable, etc.
- *
- * @author GitHub Copilot
- * @date 2026-01-10
- */
 
 #pragma once
 
@@ -171,6 +156,13 @@ inline bool DiscoverAndUseCapability(
     
     auto capability = DiscoverCapability<CapabilityT>(node);
     if (capability) {
+        /**
+         * @brief Executes the Fn operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param capability Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         fn(capability);
         return true;
     }

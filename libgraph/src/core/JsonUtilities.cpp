@@ -2,11 +2,10 @@
 
 /**
  * @file JsonUtilities.cpp
- * @brief Implementation of safe JSON utilities with expected<> (Phase 5b)
- * @author Robert Klinkhammer
- * @date May 7, 2026
+ * @brief JSON Utilities Graph runtime support.
+ *
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "config/JsonUtilities.hpp"
 
 #include <fstream>

@@ -2,18 +2,10 @@
 
 /**
  * @file MessagePoolRouter.hpp
- * @brief Intelligent router for SSO+ hybrid message allocation
- * @author Robert Klinkhammer
- * @date April 24, 2026
+ * @brief Message Pool Router Graph runtime support.
  *
- * Provides compile-time routing decisions for message allocation:
- * - Small payloads (<32B): Use SSO (no allocation)
- * - Large payloads (>32B): Route through MessagePoolRegistry for reuse
- *
- * Thread-Safety: All operations are thread-safe via atomic operations and mutex
- * for pool synchronization. Statistics use atomic counters for lock-free reads.
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <graph/PooledMessage.hpp>
@@ -48,6 +40,12 @@ namespace graph {
  *   Message msg(my_large_payload);  // Automatically pooled if size > 32
  * @endcode
  */
+/**
+ * @class MessagePoolRouter
+ * @brief Message Pool Router message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
+ */
 template <size_t SSO_THRESHOLD = 32>
 class MessagePoolRouter {
 public:
@@ -73,7 +71,19 @@ public:
      * Small types return nullptr (they use SSO).
      */
     template <typename T>
+    /**
+     * @brief Returns the Pool For Type.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static MessageBufferPool<64>* GetPoolForType() noexcept {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (ShouldPool<T>) {
             return MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
         }
@@ -90,7 +100,19 @@ public:
      * For large types, returns actual pool statistics (reuse rate, allocation count).
      */
     template <typename T>
+    /**
+     * @brief Returns the Pool Stats For Type.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static MessageBufferPool<64>::PoolStatsSnapshot GetPoolStatsForType() noexcept {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (ShouldPool<T>) {
             auto* pool = MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
             if (pool) {
@@ -137,6 +159,12 @@ public:
  *   printf("Total allocations: %lu\n", stats.total_allocations);
  *   printf("Total reuses: %lu\n", stats.total_reuses);
  * @endcode
+ */
+/**
+ * @struct AggregatePoolStats
+ * @brief Aggregate Pool Stats data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct AggregatePoolStats {
     uint64_t total_requests = 0;      ///< Total allocation requests across all pools

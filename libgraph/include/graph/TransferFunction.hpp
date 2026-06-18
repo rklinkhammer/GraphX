@@ -1,8 +1,9 @@
 /**
  * @file TransferFunction.hpp
- * @brief GraphX source file.
+ * @brief Transfer Function Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -47,13 +48,26 @@ namespace graph
     template <typename P>
 /**
  * @class ITransferFn
- * @brief ITransferFn class.
+ * @brief Itransfer Fn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class ITransferFn
+     * @brief Itransfer Fn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class ITransferFn : public IFn<P>
     {
     public:
         using T = typename P::type;
         static constexpr std::size_t port_id = P::id;
+        /**
+         * @brief Releases resources owned by Itransfer Fn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~ITransferFn() = default;
     };
 
@@ -76,8 +90,16 @@ namespace graph
     template <typename Pin, typename Pout>
 /**
  * @class TransferFn
- * @brief TransferFn class.
+ * @brief Transfer Fn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class TransferFn
+     * @brief Transfer Fn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class TransferFn : public IInputFn<Pin>, public IOutputFn<Pout>
     {
     public:
@@ -86,9 +108,21 @@ namespace graph
         static constexpr std::size_t in_port_id = Pin::id;
         static constexpr std::size_t out_port_id = Pout::id;
 
+        /**
+         * @brief Releases resources owned by Transfer Fn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~TransferFn() {
             try {
                 // STEP 1: Signal all threads to stop
+                /**
+                 * @brief Updates the Stop Request.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param true Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 SetStopRequest(true);
                 IInputFn<Pin>::Stop();
                 IOutputFn<Pout>::Stop();
@@ -124,6 +158,12 @@ namespace graph
         /// Initialize both input and output ports
         bool Init()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " Init.");
             return IInputFn<Pin>::Init() && IOutputFn<Pout>::Init();
         }
@@ -131,9 +171,21 @@ namespace graph
         /// Start the transfer thread
         bool Start()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " Start.");
             auto t = [this]() -> void
             {
+                /**
+                 * @brief Processes data through the Transfer Fn Thread Func operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 TransferFnThreadFunc();
             };
             thread_ = std::thread(t);
@@ -143,6 +195,12 @@ namespace graph
         /// Enable both input and output queues
         void EnableQueues()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " EnableQueues.");
             IInputFn<Pin>::EnableQueue();
             IOutputFn<Pout>::EnableQueue();
@@ -151,6 +209,12 @@ namespace graph
         /// Disable both input and output queues
         void DisableQueues()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " DisableQueues.");
             IInputFn<Pin>::DisableQueue();
             IOutputFn<Pout>::DisableQueue();
@@ -159,15 +223,34 @@ namespace graph
         /// Stop both input and output ports and the transfer thread
         void Stop()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " Stop.");
             IInputFn<Pin>::Stop();
             IOutputFn<Pout>::Stop();
+            /**
+             * @brief Updates the Stop Request.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param true Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetStopRequest(true);
         }
 
         /// Join transfer thread (blocking)
         void Join() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " Join.");
             IInputFn<Pin>::Join();
             IOutputFn<Pout>::Join();
@@ -181,6 +264,12 @@ namespace graph
         /// @return true if thread completed within timeout, false otherwise
         bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "TransferFn ports " << in_port_id << "->" << out_port_id << " JoinWithTimeout.");
             bool input_ok = IInputFn<Pin>::JoinWithTimeout(timeout_ms);
             bool output_ok = IOutputFn<Pout>::JoinWithTimeout(timeout_ms);
@@ -225,7 +314,21 @@ namespace graph
         
         /// Enable metrics for both sides
         void EnableMetrics(bool enabled = true) {
+            /**
+             * @brief Executes the Enable Input Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param enabled Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableInputMetrics(enabled);
+            /**
+             * @brief Executes the Enable Output Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param enabled Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             EnableOutputMetrics(enabled);
         }
         
@@ -261,7 +364,19 @@ namespace graph
         
         /// Reset all metrics (both sides)
         void ResetMetrics() {
+            /**
+             * @brief Executes the Reset Input Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             ResetInputMetrics();
+            /**
+             * @brief Executes the Reset Output Metrics operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             ResetOutputMetrics();
         }
 

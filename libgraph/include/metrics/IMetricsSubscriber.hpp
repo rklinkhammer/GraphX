@@ -1,8 +1,9 @@
 /**
  * @file IMetricsSubscriber.hpp
- * @brief GraphX source file.
+ * @brief Imetrics Subscriber Graph runtime support.
+ *
+ * @details Provides metrics event and subscriber contracts for runtime observability. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -29,10 +30,6 @@
 
 #include "metrics/MetricsEvent.hpp"
 
-/**
- * @file IMetricsSubscriber.hpp
- * @brief Interface for components that receive metrics from nodes
- */
 namespace app::metrics  {
 
 /**
@@ -46,7 +43,9 @@ namespace app::metrics  {
  */
 /**
  * @class IMetricsSubscriber
- * @brief IMetricsSubscriber class.
+ * @brief Imetrics Subscriber type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class IMetricsSubscriber {
 public:

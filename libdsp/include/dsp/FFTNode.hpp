@@ -2,9 +2,10 @@
 
 /**
  * @file FFTNode.hpp
- * @brief GraphX source file.
+ * @brief Fftnode DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include "dsp/FFTManager.hpp"
@@ -32,6 +33,12 @@ namespace dsp {
  * @brief Error codes for FFT node configuration (C++26)
  *
  * Used with std::expected<void, FFTConfigError> for type-safe configuration.
+ */
+/**
+ * @enum FFTConfigError
+ * @brief Fftconfig Error values.
+ *
+ * @details Enumerates stable options or status values used by the libdsp API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class FFTConfigError {
     /// Invalid accumulation count (must be 1-16)
@@ -95,7 +102,9 @@ enum class FFTConfigError {
 template<typename SampleT = float, size_t N = 256>
 /**
  * @class FFTNode
- * @brief FFTNode class.
+ * @brief Fftnode graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class FFTNode : public graph::NamedInteriorNode<
                     graph::TypeList<graph::message::Message>,

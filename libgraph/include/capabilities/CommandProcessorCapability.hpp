@@ -1,8 +1,9 @@
 /**
  * @file CommandProcessorCapability.hpp
- * @brief GraphX source file.
+ * @brief Command Processor Capability Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -35,6 +36,12 @@
 namespace capabilities {
 
 // Forward declaration
+/**
+ * @class CommandRegistryCapability
+ * @brief Command Registry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class CommandRegistryCapability;
 
 /**
@@ -87,7 +94,9 @@ class CommandRegistryCapability;
  */
 /**
  * @class CommandProcessorCapability
- * @brief CommandProcessorCapability class.
+ * @brief Command Processor Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class CommandProcessorCapability {
 public:
@@ -314,6 +323,13 @@ inline CommandProcessorCapability::CommandProcessorCapability() {
 
 inline CommandResult CommandProcessorCapability::ProcessCommand(
     const std::string& raw_command) const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return CommandResult(false, "Processor not initialized");
@@ -324,6 +340,13 @@ inline CommandResult CommandProcessorCapability::ProcessCommand(
 inline CommandResult CommandProcessorCapability::ProcessCommand(
     const std::string& name,
     const std::vector<std::string>& args) const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return CommandResult(false, "Processor not initialized");
@@ -333,6 +356,13 @@ inline CommandResult CommandProcessorCapability::ProcessCommand(
 
 inline bool CommandProcessorCapability::HasCommand(
     const std::string& name) const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return false;
@@ -342,6 +372,13 @@ inline bool CommandProcessorCapability::HasCommand(
 
 inline const CommandInfo* CommandProcessorCapability::GetCommandInfo(
     const std::string& name) const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return nullptr;
@@ -350,6 +387,13 @@ inline const CommandInfo* CommandProcessorCapability::GetCommandInfo(
 }
 
 inline std::vector<CommandInfo> CommandProcessorCapability::GetAllCommands() const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     if (!processor_) {
         return std::vector<CommandInfo>();
@@ -358,6 +402,13 @@ inline std::vector<CommandInfo> CommandProcessorCapability::GetAllCommands() con
 }
 
 inline std::shared_ptr<graph::ICommandProcessor> CommandProcessorCapability::GetProcessor() const {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     return processor_;
 }
@@ -368,6 +419,13 @@ inline void CommandProcessorCapability::SetProcessor(
         throw std::invalid_argument(
             "CommandProcessorCapability::SetProcessor: processor cannot be null");
     }
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param processor_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(processor_mutex_);
     processor_ = new_processor;
 }

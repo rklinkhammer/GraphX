@@ -1,8 +1,9 @@
 /**
  * @file ExecutionState.hpp
- * @brief GraphX source file.
+ * @brief Execution State Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 
 // MIT License
 //
@@ -58,6 +59,12 @@ namespace graph {
  *
  * Thread-Safety: ExecutionState is queried via thread-safe getter but not
  * directly mutable - transitions are managed by ExecutionController methods.
+ */
+/**
+ * @enum ExecutionState
+ * @brief Execution State values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class ExecutionState : uint8_t {
   INITIALIZED = 0,  ///< Ready to start, graph initialized

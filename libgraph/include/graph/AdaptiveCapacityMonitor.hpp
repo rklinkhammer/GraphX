@@ -2,17 +2,10 @@
 
 /**
  * @file AdaptiveCapacityMonitor.hpp
- * @brief Adaptive pool capacity monitoring and adjustment
- * @author Robert Klinkhammer
- * @date April 24, 2026
+ * @brief Adaptive Capacity Monitor Graph runtime support.
  *
- * Background monitoring system for message pool capacity auto-scaling.
- * Monitors hit rate and adjusts pool capacity based on configurable thresholds.
- *
- * Thread-Safety: Safe for concurrent pool access while monitoring.
- * Background thread runs independently, adjusts capacity asynchronously.
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <atomic>
@@ -29,6 +22,12 @@ namespace graph {
 /**
  * @struct AdaptiveCapacityConfig
  * @brief Configuration for adaptive capacity adjustment
+ */
+/**
+ * @struct AdaptiveCapacityConfig
+ * @brief Adaptive Capacity Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct AdaptiveCapacityConfig {
     /// Hit rate threshold below which capacity increases
@@ -67,6 +66,12 @@ struct AdaptiveCapacityConfig {
  * adjusting capacity up/down based on configured thresholds.
  *
  * Thread-safe: All operations protected by mutexes.
+ */
+/**
+ * @class AdaptiveCapacityMonitor
+ * @brief Adaptive Capacity Monitor type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class AdaptiveCapacityMonitor {
 public:
@@ -167,6 +172,12 @@ public:
      * @struct AdjustmentEvent
      * @brief Record of a capacity adjustment
      */
+    /**
+     * @struct AdjustmentEvent
+     * @brief Adjustment Event data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct AdjustmentEvent {
         size_t pool_id = 0;
         size_t old_capacity = 0;
@@ -230,6 +241,12 @@ private:
     std::atomic<bool> running_{false};
 
     // Pool monitoring
+    /**
+     * @struct PoolMonitor
+     * @brief Pool Monitor data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct PoolMonitor {
         app::callbacks::MoveOnlyCallback<double()> hit_rate_fn;  // Returns current hit rate
         app::callbacks::MoveOnlyCallback<void(size_t)> adjust_fn;  // Adjusts capacity

@@ -1,8 +1,9 @@
 /**
  * @file Config.hpp
- * @brief GraphX source file.
+ * @brief Config Graph runtime support.
+ *
+ * @details Provides configuration parsing, validation, and JSON utility support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -39,6 +40,12 @@ namespace graph {
  * JSON field type enumeration.
  * Used in schema metadata to define what types of values are expected.
  */
+/**
+ * @enum JsonType
+ * @brief JSON Type values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class JsonType {
     String,
     Number,
@@ -71,6 +78,12 @@ enum class JsonType {
  *     .description = "Process noise covariance"
  * }
  * @endcode
+ */
+/**
+ * @struct JsonField
+ * @brief JSON Field data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct JsonField {
     /// Field name in JSON
@@ -117,6 +130,12 @@ struct JsonField {
  *     }
  * };
  * @endcode
+ */
+/**
+ * @struct JsonSchema
+ * @brief JSON Schema data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct JsonSchema {
     /// Short title for the config type

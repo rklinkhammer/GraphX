@@ -1,8 +1,9 @@
 /**
  * @file sycl_lease_release_node_plugin.cpp
- * @brief GraphX source file.
+ * @brief SYCL Lease Release Node Plugin GPU acceleration support.
+ *
+ * @details Provides GPU plugin registration unit for dynamic graph-node loading. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors

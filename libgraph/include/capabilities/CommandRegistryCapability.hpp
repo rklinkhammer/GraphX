@@ -1,8 +1,9 @@
 /**
  * @file CommandRegistryCapability.hpp
- * @brief GraphX source file.
+ * @brief Command Registry Capability Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 graphlib contributors
@@ -77,6 +78,12 @@ namespace capabilities {
  *
  * @see CommandRegistry, CommandResult, CommandInfo, IExecutionPolicy
  */
+/**
+ * @class CommandRegistryCapability
+ * @brief Command Registry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class CommandRegistryCapability {
 public:
     /**
@@ -147,6 +154,13 @@ public:
         const std::string& description,
         const std::string& usage,
         CommandHandler handler) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param registry_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->RegisterCommand(name, description, usage, handler);
     }
@@ -180,6 +194,13 @@ public:
     CommandResult ExecuteCommand(
         const std::string& name,
         const std::vector<std::string>& args) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param registry_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->ExecuteCommand(name, args);
     }
@@ -195,6 +216,13 @@ public:
      * @return true if command exists, false otherwise
      */
     bool HasCommand(const std::string& name) const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param registry_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->HasCommand(name);
     }
@@ -209,6 +237,13 @@ public:
      * @note Do not store returned pointer; copy data instead
      */
     const CommandInfo* GetCommandInfo(const std::string& name) const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param registry_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->GetCommandInfo(name);
     }
@@ -236,6 +271,13 @@ public:
      * @see RangesUtilities.hpp for helper functions
      */
     std::vector<CommandInfo> GetAllCommands() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param registry_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(registry_mutex_);
         return registry_->GetAllCommands();
     }

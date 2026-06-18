@@ -1,8 +1,9 @@
 /**
  * @file CompletionAggregatorNode.hpp
- * @brief GraphX source file.
+ * @brief Completion Aggregator Node Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -44,7 +45,9 @@ namespace graph {
 
 /**
  * @class CompletionAggregatorNode
- * @brief CompletionAggregatorNode class.
+ * @brief Completion Aggregator Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class CompletionAggregatorNode : public NamedSinkNode<
     CompletionAggregatorNode,
@@ -67,44 +70,128 @@ public:
      */
     ~CompletionAggregatorNode() override = default;
 
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param msg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 0>) override  {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[0] = msg;
         received_completions_++;
         return CheckForAllCompletions();
     }
 
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param msg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 1>) override  {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[1] = msg;
         received_completions_++;
         return CheckForAllCompletions();
     }
    
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param msg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 2>) override  {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[2] = msg;
         received_completions_++;
         return CheckForAllCompletions();
     }
    
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param msg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 3>) override  {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[3] = msg;
         received_completions_++;
         return CheckForAllCompletions();
     }
     
+    /**
+     * @brief Processes data through the Consume operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param msg Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Consume (const graph::message::CompletionSignal& msg,std::integral_constant<std::size_t, 4>) override  {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         completion_signals_[4] = msg;
         received_completions_++;
         return CheckForAllCompletions();
     }
     
+    /**
+     * @brief Applies configuration to this object.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param config_json Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Configure(const graph::JsonView& config_json) override {
         using namespace graph;
         try {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param completion_logger_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(completion_logger_, "Configuring CompletionAggregatorNode from JSON");
             // Configure expected_sensors parameter if present
             if (config_json.Contains("expected_sensors")) {
@@ -117,7 +204,21 @@ public:
                     throw ConfigError("expected_sensors must be > 0 (got " + 
                                      std::to_string(expected_count) + ")");
                 }
+                /**
+                 * @brief Updates the Expected Sensors.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 SetExpectedSensors(static_cast<size_t>(expected_count));
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @param completion_logger_ Input or configuration value consumed by the method.
+                 * @param expected_count Input or configuration value consumed by the method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(completion_logger_, "Set expected_sensors to " << expected_count);
             }
         } catch (const std::exception& e) {
@@ -136,6 +237,13 @@ public:
      */
     bool Init() override
     {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param completion_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(completion_logger_, "CompletionAggregatorNode initializing");
         return SinkNode::Init();
     }
@@ -157,6 +265,13 @@ public:
     void Stop() override
     {
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param state_mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::lock_guard<std::mutex> lock(state_mutex_);
             LOG4CXX_TRACE(
                 completion_logger_,
@@ -172,6 +287,13 @@ public:
      */
     void Join() override
     {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param completion_logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(completion_logger_, "CompletionAggregatorNode joining");
         SinkNode::Join();
     }
@@ -193,8 +315,23 @@ public:
                 "SetExpectedSensors: count must be > 0 (got 0, callback would trigger immediately)");
             return;
         }
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param state_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(state_mutex_);
         expected_sensor_count_ = count;
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param completion_logger_ Input or configuration value consumed by the method.
+         * @param count Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(completion_logger_, "Expected sensors set to " << count);
     }
 

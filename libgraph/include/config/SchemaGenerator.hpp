@@ -62,8 +62,19 @@ using json = nlohmann::json;
  * @class INodeDescriptorSchemaProvider
  * @brief I node descriptor schema provider implementation for GraphX.
  */
+/**
+ * @class INodeDescriptorSchemaProvider
+ * @brief Inode Descriptor Schema Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class INodeDescriptorSchemaProvider {
 public:
+    /**
+     * @brief Releases resources owned by Inode Descriptor Schema Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~INodeDescriptorSchemaProvider() = default;
 
 /**
@@ -143,8 +154,21 @@ inline json GenerateNodeDescriptorSchema(const NodeDescriptor& descriptor) {
  * @class DefaultNodeDescriptorSchemaProvider
  * @brief Default node descriptor schema provider implementation for GraphX.
  */
+/**
+ * @class DefaultNodeDescriptorSchemaProvider
+ * @brief Default Node Descriptor Schema Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class DefaultNodeDescriptorSchemaProvider final : public INodeDescriptorSchemaProvider {
 public:
+    /**
+     * @brief Creates or builds the object described by Build Schema.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param descriptor Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     json BuildSchema(const NodeDescriptor& descriptor) const override {
         return GenerateNodeDescriptorSchema(descriptor);
     }
@@ -237,6 +261,12 @@ inline std::optional<json> ParseDefaultJsonValue(
  * - enum allowed values
  * - pattern matching (regex)
  */
+/**
+ * @struct FieldConstraint
+ * @brief Field Constraint data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct FieldConstraint {
     std::string_view constraint_type;  ///< "min", "max", "length", "enum", "pattern"
     json constraint_value;              ///< The constraint value(s)
@@ -249,6 +279,12 @@ struct FieldConstraint {
  *
  * Generated from C++26 reflection of struct members.
  * Includes type information, constraints, defaults, and descriptions.
+ */
+/**
+ * @struct ReflectedFieldMetadata
+ * @brief Reflected Field Metadata data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct ReflectedFieldMetadata {
     std::string_view field_name;        ///< Member variable name
@@ -270,6 +306,12 @@ struct ReflectedFieldMetadata {
  * - Serialize struct to JSON
  * - Generate documentation
  * - Perform runtime type checking
+ */
+/**
+ * @struct GeneratedSchema
+ * @brief Generated Schema data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct GeneratedSchema {
     std::string_view title;             ///< Schema title (usually type name)
@@ -306,6 +348,12 @@ consteval std::string_view GetTypeName() {
     return std::meta::name_of<T>();
 #else
     // C++20: Manual type checking
+    /**
+     * @brief Executes the Constexpr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     if constexpr (std::is_same_v<T, int>) {
         return "int";
     } else if constexpr (std::is_same_v<T, double>) {
@@ -452,6 +500,12 @@ inline GeneratedSchema GenerateSchemaFromType() {
  *       }
  *   }
  * @endcode
+ */
+/**
+ * @class SchemaValidator
+ * @brief Schema Validator type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 template<typename ConfigType>
 class SchemaValidator {

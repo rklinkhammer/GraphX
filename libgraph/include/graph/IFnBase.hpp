@@ -1,8 +1,9 @@
 /**
  * @file IFnBase.hpp
- * @brief GraphX source file.
+ * @brief Ifn Base Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -49,18 +50,37 @@ namespace graph
     template <typename P>
 /**
  * @class IFnBase
- * @brief IFnBase class.
+ * @brief Ifn Base type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class IFnBase
+     * @brief Ifn Base type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class IFnBase 
     {
     public:
         using T = typename P::type;                   ///< Data type for this port
         static constexpr std::size_t port_id = P::id; ///< Port identifier
         IFnBase(core::ActiveQueue<T>& queue) : queue_(queue) {}
+        /**
+         * @brief Releases resources owned by Ifn Base.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~IFnBase() = default;
 
         bool Init()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "IFn port " << port_id << " Init.");
             queue_.Enable();
             return true;
@@ -78,9 +98,27 @@ namespace graph
 
         void Stop()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "IFn port " << port_id << " Stop.");
+            /**
+             * @brief Updates the Stop Request.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetStopRequest();
             queue_.Disable();
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "IFn port " << port_id << " Size before clear: " << queue_.Size());
         }
 
@@ -145,13 +183,26 @@ namespace graph
     template <typename P>
 /**
  * @class IFn
- * @brief IFn class.
+ * @brief Ifn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class IFn
+     * @brief Ifn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class IFn : public IFnBase<P>
     {
     public:
         using T = typename P::type; ///< Data type for this port
         IFn() : IFnBase<P>(queue_) {}    
+        /**
+         * @brief Releases resources owned by Ifn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~IFn() = default;
 
     private:

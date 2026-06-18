@@ -2,9 +2,10 @@
 
 /**
  * @file test_graph_executor_lifecycle.cpp
- * @brief GraphExecutor lifecycle coverage across reusable test topologies.
+ * @brief Test Graph Executor Lifecycle Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include "capabilities/GraphCapability.hpp"

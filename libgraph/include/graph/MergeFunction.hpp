@@ -1,8 +1,9 @@
 /**
  * @file MergeFunction.hpp
- * @brief GraphX source file.
+ * @brief Merge Function Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -61,6 +62,12 @@ namespace graph
      *   class MyMerge : public ExpandInputPorts<5, Message>::InputBases { ... };
      * @endcode
      */
+    /**
+     * @struct ExpandInputPorts
+     * @brief Expand Input Ports data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     template <std::size_t N, typename T>
     struct ExpandInputPorts
     {
@@ -69,8 +76,32 @@ namespace graph
         template <std::size_t... Is>
         using ExpandedBases = TypeList<IInputCommonFn<Port<T, Is>>...>;
 
+        /**
+
+         * @struct ExpandHelper
+
+         * @brief Expand Helper data record.
+
+         *
+
+         * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+         */
+
         template <typename = std::make_index_sequence<N>>
         struct ExpandHelper;
+
+        /**
+
+         * @struct ExpandHelper
+
+         * @brief Expand Helper data record.
+
+         *
+
+         * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+         */
 
         template <std::size_t... Is>
         struct ExpandHelper<std::index_sequence<Is...>> : public IInputCommonFn<Port<T, Is>>...
@@ -131,14 +162,27 @@ namespace graph
     template <typename CommonInput, typename OutputT>
 /**
  * @class IMergeFn
- * @brief IMergeFn class.
+ * @brief Imerge Fn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class IMergeFn
+     * @brief Imerge Fn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class IMergeFn
     {
     public:
         using InputType  = CommonInput;
         using OutputType = OutputT;
 
+        /**
+         * @brief Releases resources owned by Imerge Fn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~IMergeFn() = default;
 
         /**

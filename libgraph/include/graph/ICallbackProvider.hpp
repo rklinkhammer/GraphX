@@ -1,8 +1,9 @@
 /**
  * @file ICallbackProvider.hpp
- * @brief GraphX source file.
+ * @brief Icallback Provider Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -32,91 +33,6 @@
 #include <functional>
 #include <log4cxx/logger.h>
 
-/**
- * @file ICallbackProvider.hpp
- * @brief Multi-strategy callback provider interfaces for different node types
- *
- * This file defines the callback provider strategies for monitoring different types of nodes
- * in the active graph execution pipeline. Each strategy corresponds to a node's role in the
- * data flow and provides appropriate hooks for tracking that node's behavior.
- *
- * @section multi_strategy_architecture Multi-Strategy Callback Architecture
- *
- * The callback system is built on the principle that different node types require different
- * monitoring hooks based on their role in the data processing pipeline:
- *
- * \code
- * [CSV Sensor] --data--> [Filter] --data--> [Aggregator]
- *     |                       |                    |
- *     v                       v                    v
- * ISourceCallback      IProcessingCallback   ISinkCallback
- * (data produced)     (received & produced)  (data consumed)
- * \endcode
- *
- * This multi-strategy approach provides several advantages:
- * 1. **Type-Specific Monitoring**: Each interface defines exactly the hooks needed for its node type
- * 2. **Clear Semantics**: Implementers know what role their node plays in the pipeline
- * 3. **Minimal Overhead**: Only override hooks relevant to your node's functionality
- * 4. **Extensible**: New callback strategies can be added without affecting existing ones
- * 5. **Safe Runtime Detection**: Graph executor uses dynamic_cast to find supported strategies
- *
- * @section implementation_patterns Implementation Patterns
- *
- * For each callback provider type, implementations follow this general pattern:
- *
- * \code
- * class MyNode : public INode, public ISourceCallbackProvider {
- * private:
- *     NodeCallback* callback_provider_{nullptr};
- *
- * public:
- *     // Required: Set the callback handler
- *     bool SetCallbackProvider(NodeCallback* provider) noexcept override {
- *         callback_provider_ = provider;
- *         return callback_provider_ != nullptr;
- *     }
- *
- *     // Required: Check if callbacks are enabled
- *     bool HasCallbackProvider() const noexcept override {
- *         return callback_provider_ != nullptr;
- *     }
- *
- * protected:
- *     // Optional: Override hooks to invoke callbacks at key points
- *     void OnSampleProduced() noexcept override {
- *         if (callback_provider_) {
- *             callback_provider_->RecordSampleProduced();
- *         }
- *     }
- * };
- * \endcode
- *
- * @section runtime_detection Runtime Detection
- *
- * The graph executor discovers and enables callbacks using safe dynamic_cast:
- *
- * \code
- * auto node = graph_->FindNode(node_id);
- *
- * // Try source callbacks
- * if (auto source = dynamic_cast<ISourceCallbackProvider*>(node.get())) {
- *     source->SetCallbackProvider(wrapper.get());
- * }
- *
- * // Try processing callbacks
- * if (auto proc = dynamic_cast<IProcessingCallbackProvider*>(node.get())) {
- *     proc->SetCallbackProvider(wrapper.get());
- * }
- *
- * // Try sink callbacks
- * if (auto sink = dynamic_cast<ISinkCallbackProvider*>(node.get())) {
- *     sink->SetCallbackProvider(wrapper.get());
- * }
- * \endcode
- *
- * This approach is **100% exception-safe**: dynamic_cast returns nullptr if the type
- * doesn't match, never throws an exception.
- */
 
 namespace graph {
 
@@ -138,10 +54,17 @@ namespace graph {
  */
 /**
  * @class ICallbackProvider
- * @brief ICallbackProvider class.
+ * @brief Icallback Provider type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ICallbackProvider {
 public:
+    /**
+     * @brief Releases resources owned by Icallback Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ICallbackProvider() = default;
 
     /**
@@ -187,10 +110,17 @@ protected:
 template<typename DataType>
 /**
  * @class ISourceCallbackProvider
- * @brief ISourceCallbackProvider class.
+ * @brief Isource Callback Provider type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ISourceCallbackProvider : public ICallbackProvider {
 public:
+    /**
+     * @brief Releases resources owned by Isource Callback Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISourceCallbackProvider() = default;
 
     /**
@@ -219,10 +149,17 @@ public:
 template<typename DataType>
 /**
  * @class IProcessingCallbackProvider
- * @brief IProcessingCallbackProvider class.
+ * @brief Iprocessing Callback Provider type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class IProcessingCallbackProvider : public ICallbackProvider {
 public:
+    /**
+     * @brief Releases resources owned by Iprocessing Callback Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IProcessingCallbackProvider() = default;
 
     /**
@@ -259,10 +196,17 @@ public:
 template<typename DataType>
 /**
  * @class ISinkCallbackProvider
- * @brief ISinkCallbackProvider class.
+ * @brief Isink Callback Provider type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class ISinkCallbackProvider : public ICallbackProvider {
 public:
+    /**
+     * @brief Releases resources owned by Isink Callback Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~ISinkCallbackProvider() = default;
 
     /**

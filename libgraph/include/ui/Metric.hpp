@@ -1,8 +1,9 @@
 /**
  * @file Metric.hpp
- * @brief GraphX source file.
+ * @brief Metric Graph runtime support.
+ *
+ * @details Provides command and metric helpers for interactive graph tooling. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -44,6 +45,12 @@
 // ============================================================================
 
 // Metric data type enumeration
+/**
+ * @enum MetricType
+ * @brief Metric Type values.
+ *
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+ */
 enum class MetricType {
     INT,
     FLOAT,
@@ -57,6 +64,12 @@ enum class MetricType {
  * Stores a single metric value with its type, schema information, and event context.
  * Supports parsing from MetricsEvent.data with type inference from NodeMetricsSchema.
  * Maintains history of last 60 values with timestamps for trend analysis.
+ */
+/**
+ * @struct Metric
+ * @brief Metric data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct Metric {
     std::string name;                                      // Metric name

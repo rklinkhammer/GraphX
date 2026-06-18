@@ -2,21 +2,10 @@
 
 /**
  * @file test_data_producers.cpp
- * @brief Comprehensive unit tests for DataProducer and DataInjectionProducer
+ * @brief Test Data Producers Graph runtime support.
  *
- * Tests the following components:
- * - DataGeneratorBase: Base generator interface and behavior
- * - SimpleIntGenerator: Counter-based integer generation
- * - SimpleDoubleGenerator: Counter-based double generation
- * - RandomIntGenerator: Random integer generation
- * - DataProducerWithNotification: Core producer timing and notifications
- * - Sample ignore semantics: Skipping first N samples
- * - Completion signal propagation: Two-port output validation
- *
- * @author Test Suite
- * @date May 29, 2026
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <atomic>
 #include <chrono>

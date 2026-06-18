@@ -1,8 +1,9 @@
 /**
  * @file DefaultCudaCapabilities.hpp
- * @brief GraphX source file.
+ * @brief Default CUDA Capabilities GPU acceleration support.
+ *
+ * @details Provides CUDA acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -21,7 +22,9 @@ namespace graph::gpu::cuda::capabilities {
 
 /**
  * @class DefaultCudaContextCapability
- * @brief DefaultCudaContextCapability class.
+ * @brief Default CUDA Context Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaContextCapability final : public ICudaContextCapability {
 public:
@@ -69,7 +72,9 @@ private:
 
 /**
  * @class DefaultCudaMemoryPoolCapability
- * @brief DefaultCudaMemoryPoolCapability class.
+ * @brief Default CUDA Memory Pool Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaMemoryPoolCapability final : public ICudaMemoryPoolCapability {
 public:
@@ -92,7 +97,9 @@ private:
 
 /**
  * @class DefaultCudaTransferCapability
- * @brief DefaultCudaTransferCapability class.
+ * @brief Default CUDA Transfer Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaTransferCapability final : public ICudaTransferCapability {
 public:
@@ -118,7 +125,9 @@ private:
 
 /**
  * @class DefaultCudaKernelCapability
- * @brief DefaultCudaKernelCapability class.
+ * @brief Default CUDA Kernel Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaKernelCapability final : public ICudaKernelCapability {
 public:
@@ -135,7 +144,9 @@ private:
 
 /**
  * @class DefaultCudaTelemetryCapability
- * @brief DefaultCudaTelemetryCapability class.
+ * @brief Default CUDA Telemetry Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaTelemetryCapability final : public ICudaTelemetryCapability {
 public:
@@ -161,7 +172,9 @@ private:
 
 /**
  * @class DefaultCudaCollectiveCapability
- * @brief DefaultCudaCollectiveCapability class.
+ * @brief Default CUDA Collective Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class DefaultCudaCollectiveCapability final : public ICudaCollectiveCapability {
 public:

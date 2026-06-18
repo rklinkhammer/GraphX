@@ -1,8 +1,9 @@
 /**
  * @file test_thread_pool_integration.cpp
- * @brief GraphX source file.
+ * @brief Test Thread Pool Integration Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,19 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_thread_pool_integration.cpp
- * @brief Integration tests for ThreadPool with GraphExecutor (Optional Enhancement)
- *
- * Tests ThreadPool interaction with graph execution:
- * - ThreadPool with various graph topologies
- * - Throughput measurement with real graph execution
- * - Task scheduling impact on graph completion
- * - Thread count scaling with graph complexity
- * - Resource management in graph context
- *
- * @note Tests real-world graph execution scenarios
- */
 
 #include <gtest/gtest.h>
 #include "graph/ThreadPool.hpp"

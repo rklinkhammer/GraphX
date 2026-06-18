@@ -2,25 +2,10 @@
 
 /**
  * @file test_json_utilities.cpp
- * @brief Comprehensive unit tests for JsonUtilities module (Phase 5b)
- * @author Test Framework
- * @date May 10, 2026
+ * @brief Test JSON Utilities Graph runtime support.
  *
- * Test Coverage: 184-223 tests
- * - 15-18 ParseJsonSafe tests
- * - 10-12 ParseJsonFile tests
- * - 8-10 ParseJsonDetailed tests
- * - 35-40 ExtractField tests
- * - 20-25 ExtractFieldOptional tests
- * - 15-18 HasField tests
- * - 25-30 ExtractArray tests
- * - 10-12 ExtractObjectArray tests
- * - 12-15 SerializeJsonSafe tests
- * - 12-15 WriteJsonFile tests
- * - 15-18 ValidateJsonStructure tests
- * - 8-10 JsonParseResult tests
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>

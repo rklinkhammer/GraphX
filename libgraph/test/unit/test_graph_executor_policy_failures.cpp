@@ -2,9 +2,10 @@
 
 /**
  * @file test_graph_executor_policy_failures.cpp
- * @brief GraphExecutor policy-chain failure and cleanup tests.
+ * @brief Test Graph Executor Policy Failures Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include "capabilities/GraphCapability.hpp"

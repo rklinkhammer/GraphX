@@ -1,8 +1,9 @@
 /**
  * @file DefaultCapabilityBus.hpp
- * @brief GraphX source file.
+ * @brief Default Capability Bus Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -81,6 +82,12 @@ namespace graph {
  *
  * @see CapabilityBus, MetricsCapability, GraphExecutor
  */
+/**
+ * @class DefaultCapabilityBus
+ * @brief Default Capability Bus capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class DefaultCapabilityBus : public CapabilityBus {
 public:
     /**
@@ -95,7 +102,20 @@ public:
      * @see Get(), Has()
      */
     template<typename CapabilityT>
+    /**
+     * @brief Updates or queries runtime registration through Register.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Register(std::shared_ptr<CapabilityT> capability) {
+        /**
+         * @brief Executes the Static Assert operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         static_assert(std::is_class_v<CapabilityT>);
         capabilities_[typeid(CapabilityT)] = std::move(capability);
     }
@@ -112,6 +132,12 @@ public:
      * @see Register(), Has()
      */
     template<typename CapabilityT>
+    /**
+     * @brief Returns the requested value.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::shared_ptr<CapabilityT> Get() const {
         auto it = capabilities_.find(typeid(CapabilityT));
         if (it == capabilities_.end()) {
@@ -132,6 +158,12 @@ public:
      * @see Get(), Register()
      */
     template<typename CapabilityT>
+    /**
+     * @brief Reports whether Has is true.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool Has() const {
         return capabilities_.count(typeid(CapabilityT)) != 0;
     }

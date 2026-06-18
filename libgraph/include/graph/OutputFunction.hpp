@@ -1,8 +1,9 @@
 /**
  * @file OutputFunction.hpp
- * @brief GraphX source file.
+ * @brief Output Function Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -49,17 +50,36 @@ namespace graph
     template <typename P>
 /**
  * @class IOutputFn
- * @brief IOutputFn class.
+ * @brief Ioutput Fn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class IOutputFn
+     * @brief Ioutput Fn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class IOutputFn : public IFn<P>
     {
     public:
         using T = typename P::type;
         static constexpr std::size_t port_id = P::id;
+        /**
+         * @brief Releases resources owned by Ioutput Fn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~IOutputFn() = default;
 
         std::optional<T> Dequeue(std::integral_constant<std::size_t, port_id>)
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "IOutputFn port " << port_id << " Dequeue.");
             T data;
             if (IFn<P>::Dequeue(data))
@@ -69,6 +89,12 @@ namespace graph
             else
             {
                 IFn<P>::SetStopRequest();
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "IOutputFn port " << port_id << " SetStopRequest.");
                 return std::nullopt;
             }
@@ -97,14 +123,27 @@ namespace graph
     template <typename P>
 /**
  * @class OutputFn
- * @brief OutputFn class.
+ * @brief Output Fn type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class OutputFn
+     * @brief Output Fn type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class OutputFn : public IOutputFn<P>
     {
     public:
         using T = typename P::type;
         static constexpr std::size_t port_id = P::id;
 
+        /**
+         * @brief Releases resources owned by Output Fn.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~OutputFn() {
             try {
                 if (this->thread_.joinable()) {
@@ -127,9 +166,21 @@ namespace graph
         /// Start the producer thread
         bool Start()
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "OutputFn port " << port_id << " Start.");
             auto t = [this]() -> void
             {
+                /**
+                 * @brief Executes the Output Fn Thread Func operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 OutputFnThreadFunc();
             };
             this->thread_ = std::thread(t);
@@ -139,6 +190,12 @@ namespace graph
         /// Enqueue a produced value into the output queue
         bool Enqueue(std::integral_constant<std::size_t, port_id>, T value)
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "OutputFn port " << port_id << " Enqueue.");
             return IFn<P>::Enqueue(value);
         }
@@ -146,6 +203,12 @@ namespace graph
         /// Join producer thread (blocking)
         void Join() override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "OutputFn port " << port_id << " Join.");
             if (this->thread_.joinable()) {
                 this->thread_.join();
@@ -157,16 +220,34 @@ namespace graph
         /// @return true if thread completed, false if timeout exceeded
         bool JoinWithTimeout(std::chrono::milliseconds timeout) override
         {
+            /**
+             * @brief Executes the Log4 Cxx Trace operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "OutputFn port " << port_id << " JoinWithTimeout.");
             if (!this->thread_.joinable())
                 return true;
 
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock lock(this->mtx_);
             bool stopped = this->cv_.wait_for(lock, timeout, [&] { return this->IsStopRequested(); });
             lock.unlock();  // Release lock before joining
 
             if (!stopped)
             {
+                /**
+                 * @brief Executes the Log4 Cxx Trace operation.
+                 *
+                 * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                 * @return Method-specific result, status, or produced value when the signature provides one.
+                 */
                 LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.node"), "OutputFn thread did not finish within timeout");
                 return false;  // Don't join if timeout expired
             }

@@ -2,20 +2,10 @@
 
 /**
  * @file PooledMessage.hpp
- * @brief Integration adapter for MessageBufferPool with Message class
- * @author Robert Klinkhammer
- * @date April 24, 2026
+ * @brief Pooled Message Graph runtime support.
  *
- * Provides utilities for transparent buffer pooling of Message payloads
- * that exceed the SSO threshold. Enables per-type pooling with:
- * - Automatic buffer return to pool on destruction
- * - Statistics exposure via Message API
- * - Compile-time type-size discovery for pool selection
- *
- * Thread-Safety: All operations are thread-safe. Buffer pools are shared
- * across threads with synchronization via mutex + atomic statistics.
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <graph/MessagePool.hpp>
@@ -26,6 +16,12 @@
 
 // Forward declarations to avoid circular include
 namespace graph::message {
+    /**
+     * @class Message
+     * @brief Message message type.
+     *
+     * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
+     */
     class Message;
 }
 
@@ -46,6 +42,12 @@ namespace graph {
  *   // ... use buffer ...
  *   pool->ReleaseBuffer(buffer);
  * @endcode
+ */
+/**
+ * @class MessagePoolRegistry
+ * @brief Message Pool Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
  */
 class MessagePoolRegistry {
 public:
@@ -103,6 +105,12 @@ public:
      * @brief Get aggregate statistics across all pools
      * @return Total statistics from all created pools
      */
+    /**
+     * @struct AggregateStats
+     * @brief Aggregate Stats data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+     */
     struct AggregateStats {
         uint64_t total_requests = 0;      ///< Total acquire calls across all pools
         uint64_t total_allocations = 0;   ///< Total malloc calls across all pools
@@ -127,12 +135,44 @@ public:
     void Reset() noexcept;
 
     // Non-copyable, non-movable (singleton)
+    /**
+     * @brief Executes the Message Pool Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessagePoolRegistry Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MessagePoolRegistry(const MessagePoolRegistry&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessagePoolRegistry Input or configuration value consumed by the method.
+     */
     MessagePoolRegistry& operator=(const MessagePoolRegistry&) = delete;
+    /**
+     * @brief Executes the Message Pool Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessagePoolRegistry Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MessagePoolRegistry(MessagePoolRegistry&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessagePoolRegistry Input or configuration value consumed by the method.
+     */
     MessagePoolRegistry& operator=(MessagePoolRegistry&&) = delete;
 
 private:
+    /**
+     * @brief Executes the Message Pool Registry operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MessagePoolRegistry() = default;
     ~MessagePoolRegistry() { ShutdownAllPools(); }
 
@@ -148,6 +188,12 @@ private:
  *
  * Provides compile-time helpers for determining whether a type should use pooling,
  * and runtime helpers for buffer allocation/deallocation with pool management.
+ */
+/**
+ * @class PooledMessageHelper
+ * @brief Pooled Message Helper message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
  */
 template <size_t SSO_THRESHOLD = 32>
 class PooledMessageHelper {
@@ -172,7 +218,19 @@ public:
      * For small types: returns nullptr (use SSO)
      */
     template <typename T>
+    /**
+     * @brief Executes the Allocate For Type operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void* AllocateForType() {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (ShouldPool<T>) {
             auto* pool = MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
             if (pool) {
@@ -191,7 +249,20 @@ public:
      * For small types: no-op (SSO buffer not freed)
      */
     template <typename T>
+    /**
+     * @brief Executes the Deallocate For Type operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param buffer Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static void DeallocateForType(void* buffer) noexcept {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (ShouldPool<T>) {
             if (buffer) {
                 auto* pool = MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
@@ -208,7 +279,19 @@ public:
      * @return PoolStatsSnapshot if type uses pooling, zeros otherwise
      */
     template <typename T>
+    /**
+     * @brief Returns the Pool Stats For Type.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static auto GetPoolStatsForType() {
+        /**
+         * @brief Executes the Constexpr operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         if constexpr (ShouldPool<T>) {
             auto* pool = MessagePoolRegistry::GetInstance().GetPoolForSize(sizeof(T));
             if (pool) {
@@ -222,6 +305,12 @@ public:
 /**
  * @struct PooledMessageConfig
  * @brief Configuration for message pooling behavior
+ */
+/**
+ * @struct PooledMessageConfig
+ * @brief Pooled Message Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct PooledMessageConfig {
     /// Enable message pooling globally
@@ -243,6 +332,12 @@ struct PooledMessageConfig {
  *
  * Provides observability into pooling behavior and hit rates.
  * Thread-safe: uses atomic reads for statistics counters.
+ */
+/**
+ * @class PooledMessageStats
+ * @brief Pooled Message Stats message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
  */
 class PooledMessageStats {
 public:

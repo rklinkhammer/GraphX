@@ -1,8 +1,9 @@
 /**
  * @file CapabilityContext.hpp
- * @brief GraphX source file.
+ * @brief Capability Context Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors
@@ -24,6 +25,18 @@
 
 namespace graph {
 
+/**
+
+ * @enum CapabilityContextError
+
+ * @brief Capability Context Error values.
+
+ *
+
+ * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+
+ */
+
 enum class CapabilityContextError {
     NullNode,
     MissingGraphManager,
@@ -40,7 +53,9 @@ enum class CapabilityContextError {
  */
 /**
  * @class CapabilityContext
- * @brief CapabilityContext class.
+ * @brief Capability Context capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
  */
 class CapabilityContext {
 public:
@@ -52,6 +67,12 @@ public:
                             metadata_service ? metadata_service : &GetDefaultNodeMetadataService()) {}
 
     [[nodiscard]] std::expected<std::shared_ptr<GraphManager>, CapabilityContextError>
+    /**
+     * @brief Executes the Graph Manager Ptr operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     GraphManagerPtr() const noexcept {
         auto manager = context_.GetGraphManager();
         if (!manager) {
@@ -61,6 +82,12 @@ public:
     }
 
     [[nodiscard]] std::expected<std::span<const std::shared_ptr<INode>>, CapabilityContextError>
+    /**
+     * @brief Executes the Nodes operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     Nodes() const noexcept {
         auto manager = GraphManagerPtr();
         if (!manager) {
@@ -71,6 +98,13 @@ public:
 
     template <typename CapabilityT>
     [[nodiscard]] std::expected<std::shared_ptr<CapabilityT>, CapabilityContextError>
+    /**
+     * @brief Executes the Node Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param node Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     NodeCapability(const std::shared_ptr<INode>& node) const {
         if (!node) {
             return std::unexpected(CapabilityContextError::NullNode);
@@ -85,6 +119,12 @@ public:
 
     template <typename CapabilityT>
     [[nodiscard]] std::expected<std::shared_ptr<CapabilityT>, CapabilityContextError>
+    /**
+     * @brief Executes the Bus Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     BusCapability() const {
         auto capability = context_.GetCapabilityBus().Get<CapabilityT>();
         if (!capability) {
@@ -93,6 +133,13 @@ public:
         return capability;
     }
 
+    /**
+     * @brief Executes the Describe Node operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param node Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] NodeDescriptor DescribeNode(const std::shared_ptr<INode>& node) const {
         NodeDescriptor descriptor{};
         if (!node) {
@@ -130,6 +177,12 @@ public:
         });
     }
 
+    /**
+     * @brief Executes the Graph Capability Ref operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] capabilities::GraphCapability& GraphCapabilityRef() const noexcept {
         return context_;
     }

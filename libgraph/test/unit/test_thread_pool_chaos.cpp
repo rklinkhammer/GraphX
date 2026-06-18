@@ -1,8 +1,9 @@
 /**
  * @file test_thread_pool_chaos.cpp
- * @brief GraphX source file.
+ * @brief Test Thread Pool Chaos Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,20 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_thread_pool_chaos.cpp
- * @brief Chaos testing for ThreadPool robustness (Optional Enhancement)
- *
- * Tests ThreadPool behavior under adverse conditions:
- * - Random task failures and exceptions
- * - Variable execution times
- * - Random stop/start cycles
- * - Memory pressure scenarios
- * - Rapid queue/dequeue operations
- * - Exception cascades
- *
- * @note Uses randomization for realistic fault scenarios
- */
 
 #include <gtest/gtest.h>
 #include "graph/ThreadPool.hpp"

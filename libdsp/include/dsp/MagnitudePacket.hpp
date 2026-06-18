@@ -2,9 +2,10 @@
 
 /**
  * @file MagnitudePacket.hpp
- * @brief GraphX source file.
+ * @brief Magnitude Packet DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <algorithm>
@@ -26,6 +27,12 @@ namespace dsp {
  *
  * @tparam SampleT Sample data type (typically float or double)
  * @tparam N FFT size (input packet size; output is N/2 due to Nyquist theorem)
+ */
+/**
+ * @struct MagnitudePacket
+ * @brief Magnitude Packet data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 template<typename SampleT, size_t N>
 struct MagnitudePacket {

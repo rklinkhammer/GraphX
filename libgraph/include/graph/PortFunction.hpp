@@ -1,8 +1,9 @@
 /**
  * @file PortFunction.hpp
- * @brief GraphX source file.
+ * @brief Port Function Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,21 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file PortFunction.hpp
- * @brief Concrete template implementation of IPortFunction
- *
- * Provides PortFunction<P>: a typed wrapper combining:
- * - Queue management for type P::type
- * - Metadata from Port<T, ID>
- * - Thread management (start, stop, join)
- *
- * This is the concrete implementation that IFn functionality was previously
- * providing, but now through the polymorphic IPortFunction interface.
- *
- * @see IPortFunction.hpp for virtual interface definition
- * @see Nodes.hpp for Port<T, ID> definition
- */
 
 #pragma once
 
@@ -98,8 +84,16 @@ namespace graph {
     template <typename P>
 /**
  * @class PortFunction
- * @brief PortFunction class.
+ * @brief Port Function type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
+    /**
+     * @class PortFunction
+     * @brief Port Function type.
+     *
+     * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+     */
     class PortFunction : public IPortFunction {
     public:
         // ====================================================================
@@ -121,9 +115,20 @@ namespace graph {
         explicit PortFunction(PortDirection dir = PortDirection::Input)
             : direction_(dir) {}
 
+        /**
+         * @brief Releases resources owned by Port Function.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         */
         virtual ~PortFunction() {
             try {
                 if (thread_.joinable()) {
+                    /**
+                     * @brief Performs the Stop lifecycle step.
+                     *
+                     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+                     * @return Method-specific result, status, or produced value when the signature provides one.
+                     */
                     Stop();
                     thread_.join();
                 }
@@ -136,18 +141,42 @@ namespace graph {
         // Metadata Access (IPortFunction implementation)
         // ====================================================================
 
+        /**
+         * @brief Returns the Port ID.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::size_t GetPortId() const override {
             return port_id;
         }
 
+        /**
+         * @brief Returns the Type Name.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::string_view GetTypeName() const override {
             return TypeName<T>();
         }
 
+        /**
+         * @brief Returns the Direction.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         PortDirection GetDirection() const override {
             return direction_;
         }
 
+        /**
+         * @brief Returns the Transport Type Name.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::string_view GetTransportTypeName() const override {
             return TypeName<core::ActiveQueue<T>>();
         }
@@ -156,14 +185,33 @@ namespace graph {
         // Queue Operations (IPortFunction implementation)
         // ====================================================================
 
+        /**
+         * @brief Updates the Capacity.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param capacity Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void SetCapacity(std::size_t capacity) override {
             queue_.SetCapacity(capacity);
         }
 
+        /**
+         * @brief Returns the Queue Size.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::size_t GetQueueSize() const override {
             return queue_.Size();
         }
 
+        /**
+         * @brief Performs the Init lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool Init() override {
             queue_.Enable();
             return true;
@@ -173,29 +221,67 @@ namespace graph {
         // Thread Management (IPortFunction implementation)
         // ====================================================================
 
+        /**
+         * @brief Performs the Start lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool Start() override {
             // Subclasses (InputFn, OutputFn) will override to spawn actual worker threads
             // Default implementation: just return true (no worker thread)
             return true;
         }
 
+        /**
+         * @brief Performs the Stop lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void Stop() override {
             queue_.Disable();
+            /**
+             * @brief Updates the Stop Request.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetStopRequest();
         }
 
+        /**
+         * @brief Performs the Join lifecycle step.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void Join() override {
             if (thread_.joinable()) {
                 thread_.join();
             }
         }
 
+        /**
+         * @brief Executes the Join With Timeout operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param timeout_ms Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
             if (!thread_.joinable()) {
                 return true;  // Already finished
             }
 
             // Use condition variable with timeout
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param mtx_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(mtx_);
             bool completed = cv_.wait_for(lock, timeout_ms, [this] {
                 return IsStopRequested();
@@ -209,6 +295,14 @@ namespace graph {
         }
 
         std::expected<void, RuntimePortConnectError>
+        /**
+         * @brief Executes the Connect To operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param destination Input or configuration value consumed by the method.
+         * @param capacity Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         ConnectTo(IPortFunction& destination, std::size_t capacity) override {
             if (GetDirection() != PortDirection::Output ||
                 destination.GetDirection() != PortDirection::Input) {
@@ -219,12 +313,26 @@ namespace graph {
                 return std::unexpected(RuntimePortConnectError::PayloadTypeMismatch);
             }
 
+            /**
+             * @brief Updates the Capacity.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param capacity Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             SetCapacity(capacity);
             destination.SetCapacity(capacity);
             return {};
         }
 
         std::expected<bool, RuntimePortConnectError>
+        /**
+         * @brief Processes data through the Transfer To operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param destination Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         TransferTo(IPortFunction& destination) override {
             if (GetDirection() != PortDirection::Output ||
                 destination.GetDirection() != PortDirection::Input) {
@@ -288,14 +396,32 @@ namespace graph {
         // Stop Request Signaling
         // ====================================================================
 
+        /**
+         * @brief Reports whether Is Stop Requested is true.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         bool IsStopRequested() const {
             return stop_requested_.load(std::memory_order_acquire);
         }
 
+        /**
+         * @brief Updates the Stop Request.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void SetStopRequest() {
             stop_requested_.store(true, std::memory_order_release);
         }
 
+        /**
+         * @brief Executes the Clear Stop Request operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         void ClearStopRequest() {
             stop_requested_.store(false, std::memory_order_release);
         }
@@ -305,6 +431,12 @@ namespace graph {
         // Internal Queue Void Pointer Access (IPortFunction implementation)
         // ====================================================================
 
+        /**
+         * @brief Returns the Queue Void.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         const void* GetQueueVoid() const override {
             return &queue_;
         }

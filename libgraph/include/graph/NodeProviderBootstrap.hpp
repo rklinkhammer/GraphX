@@ -1,8 +1,9 @@
 /**
  * @file NodeProviderBootstrap.hpp
- * @brief GraphX source file.
+ * @brief Node Provider Bootstrap Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -36,8 +37,26 @@
 
 // Forward declarations
 namespace graph {
+/**
+ * @class INodeProvider
+ * @brief Inode Provider graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class INodeProvider;
+/**
+ * @class PluginLoader
+ * @brief Plugin Loader parser.
+ *
+ * @details Translates external configuration or files into typed GraphX runtime data. Diagnostics should identify invalid inputs without changing runtime state.
+ */
 class PluginLoader;
+/**
+ * @class PluginRegistry
+ * @brief Plugin Registry manager.
+ *
+ * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
+ */
 class PluginRegistry;
 }
 
@@ -85,8 +104,20 @@ namespace app {
  * context.provider = provider;
  * @endcode
  */
+/**
+ * @class NodeProviderBootstrap
+ * @brief Node Provider Bootstrap graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
+ */
 class NodeProviderBootstrap {
 public:
+  /**
+   * @enum ProviderBootstrapError
+   * @brief Provider Bootstrap Error values.
+   *
+   * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+   */
   enum class ProviderBootstrapError {
     InvalidPluginDirectory = 1,
     RegistryCreationFailed = 2,
@@ -96,6 +127,18 @@ public:
     QueryFailed = 6,
     Unknown = 99,
   };
+
+  /**
+
+   * @struct ProviderBootstrapDiagnostics
+
+   * @brief Provider Bootstrap Diagnostics data record.
+
+   *
+
+   * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+   */
 
   struct ProviderBootstrapDiagnostics {
     std::string plugin_directory{};
@@ -107,11 +150,35 @@ public:
     std::chrono::milliseconds init_duration{0};
   };
 
+  /**
+
+   * @struct ProviderBootstrapHandle
+
+   * @brief Provider Bootstrap Handle data record.
+
+   *
+
+   * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+   */
+
   struct ProviderBootstrapHandle {
     std::shared_ptr<graph::PluginRegistry> plugin_registry;
     std::shared_ptr<graph::PluginLoader> loader;
     std::vector<std::shared_ptr<graph::PluginLoader>> loaders;
   };
+
+  /**
+
+   * @struct ProviderBootstrapResult
+
+   * @brief Provider Bootstrap Result data record.
+
+   *
+
+   * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+
+   */
 
   struct ProviderBootstrapResult {
     std::shared_ptr<graph::INodeProvider> provider;

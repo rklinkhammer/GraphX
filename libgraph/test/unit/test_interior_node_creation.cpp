@@ -2,16 +2,10 @@
 
 /**
  * @file test_interior_node_creation.cpp
- * @brief Standalone tests for InteriorTestNode creation and wrapping
+ * @brief Test Interior Node Creation Graph runtime support.
  *
- * Tests the same sequence of operations that the plugin performs,
- * but in a unit test context to isolate whether the crash is in:
- * - The plugin loading/initialization sequence
- * - The InteriorTestNode class itself
- * - The NodePluginInstance wrapper
- * - The multiple inheritance with IMetricsCallbackProvider
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <iostream>

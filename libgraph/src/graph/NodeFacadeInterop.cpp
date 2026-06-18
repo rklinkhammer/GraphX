@@ -1,8 +1,9 @@
 /**
  * @file NodeFacadeInterop.cpp
- * @brief GraphX source file.
+ * @brief Node Facade Interop Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX contributors

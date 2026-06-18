@@ -1,8 +1,9 @@
 /**
  * @file ActiveQueue.hpp
- * @brief GraphX source file.
+ * @brief Active Queue Graph runtime support.
+ *
+ * @details Provides core utility types used by the graph runtime. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -72,6 +73,12 @@ namespace core {
  *
  * Related to DECISION-013: Metrics collection at queue level
  */
+/**
+ * @struct QueueMetrics
+ * @brief Queue Metrics data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct QueueMetrics {
     // Counters (atomic for thread-safe access)
     std::atomic<uint64_t> enqueued_count{0};        /*!< Total items successfully enqueued */
@@ -89,6 +96,12 @@ struct QueueMetrics {
     std::atomic<uint64_t> current_size{0};          /*!< Current queue size snapshot */
 
     // Helpers for computing averages
+    /**
+     * @brief Returns the Average Enqueue Time Us.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     double GetAverageEnqueueTimeUs() const {
         uint64_t total_ns = total_enqueue_time_ns.load(std::memory_order_relaxed);
         uint64_t count = enqueued_count.load(std::memory_order_relaxed);
@@ -96,6 +109,12 @@ struct QueueMetrics {
         return static_cast<double>(total_ns) / (1000.0 * count);
     }
 
+    /**
+     * @brief Returns the Average Dequeue Time Us.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     double GetAverageDequeueTimeUs() const {
         uint64_t total_ns = total_dequeue_time_ns.load(std::memory_order_relaxed);
         uint64_t count = dequeued_count.load(std::memory_order_relaxed);
@@ -103,6 +122,12 @@ struct QueueMetrics {
         return static_cast<double>(total_ns) / (1000.0 * count);
     }
 
+    /**
+     * @brief Returns the Average Wait Time Us.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     double GetAverageWaitTimeUs() const {
         uint64_t total_ns = total_wait_time_ns.load(std::memory_order_relaxed);
         uint64_t count = dequeued_count.load(std::memory_order_relaxed);
@@ -149,17 +174,60 @@ public:
         : capacity_(capacity), block_on_full_(block_on_full), metrics_enabled_(false) {
     }
 
+    /**
+     * @brief Releases resources owned by Active Queue.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     ~ActiveQueue() {
+        /**
+         * @brief Executes the Disable operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         Disable();
+        /**
+         * @brief Executes the Clear operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         Clear();
     }
 
     // Explicit deletion of copy operations (C++26: non-copyable by design)
+    /**
+     * @brief Executes the Active Queue operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ActiveQueue Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ActiveQueue(const ActiveQueue&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ActiveQueue Input or configuration value consumed by the method.
+     */
     ActiveQueue& operator=(const ActiveQueue&) = delete;
 
     // Move operations are default-deleted due to mutex; provide explicit deletions
+    /**
+     * @brief Executes the Active Queue operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ActiveQueue Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     ActiveQueue(ActiveQueue&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param ActiveQueue Input or configuration value consumed by the method.
+     */
     ActiveQueue& operator=(ActiveQueue&&) = delete;
 
     /**
@@ -219,6 +287,13 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -315,6 +390,13 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -387,6 +469,13 @@ public:
      * @param comparator Function for comparison, or nullptr to disable sorted insertion
      */
     void SetComparator(std::function<bool(const Element&, const Element&)> comparator) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         comparator_ = comparator;
     }
@@ -404,6 +493,13 @@ public:
      *         <em>false</em> if there is nothing left to dequeue.
      */
     [[nodiscard]] bool DequeueNonBlocking(Element& element) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) {
             if (metrics_enabled_.load(std::memory_order_acquire)) {
@@ -448,6 +544,13 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         auto wait_start = metrics_enabled_.load(std::memory_order_acquire)
@@ -491,11 +594,25 @@ public:
     }
 
     template<class... Args>
+    /**
+     * @brief Executes the Emplace operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param args Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] bool Emplace(Args&&... args) {
         auto start_time = metrics_enabled_.load(std::memory_order_acquire)
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -566,6 +683,13 @@ public:
      */
     void Disable() noexcept {
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(mutex_);
             exit_ = true;
         }
@@ -581,6 +705,13 @@ public:
      */
     void Enable() noexcept {
         // set condition variable
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         exit_ = false;
     }
@@ -588,12 +719,38 @@ public:
     // -------------------------------------------------------------
     // Utility
     // -------------------------------------------------------------
+    /**
+     * @brief Executes the Size operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::size_t Size() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         return deque_.size();
     }
 
+    /**
+     * @brief Executes the Capacity operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] std::size_t Capacity() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         return capacity_;
     }
@@ -610,6 +767,13 @@ public:
     void SetCapacity(std::size_t new_capacity) noexcept {
         bool may_have_space = false;
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(mutex_);
             capacity_ = new_capacity;
             may_have_space = capacity_ == 0 || deque_.size() < capacity_;
@@ -631,6 +795,13 @@ public:
      * @return true if the setting was changed, false if queue contains data
      */
     [[nodiscard]] bool SetBlockOnFull(bool block_on_full) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         // Cannot change blocking behavior if there's data in the queue
@@ -648,24 +819,70 @@ public:
      * @return true if queue blocks when full, false if it drops elements
      */
     [[nodiscard]] bool GetBlockOnFull() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         return block_on_full_;
     }
 
+    /**
+     * @brief Executes the Empty operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] bool Empty() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         return deque_.empty();
     }
 
+    /**
+     * @brief Executes the Enabled operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     [[nodiscard]] bool Enabled() const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         return !exit_;
     }
 
     // Remove all items without blocking
+    /**
+     * @brief Executes the Clear operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     void Clear() noexcept {
         bool notify_enqueuers = false;
         {
+            /**
+             * @brief Executes the Lock operation.
+             *
+             * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+             * @param mutex_ Input or configuration value consumed by the method.
+             * @return Method-specific result, status, or produced value when the signature provides one.
+             */
             std::unique_lock<std::mutex> lock(mutex_);
             notify_enqueuers = capacity_ > 0 && !deque_.empty();
             deque_.clear();
@@ -691,6 +908,13 @@ public:
             ? std::chrono::high_resolution_clock::now()
             : std::chrono::high_resolution_clock::time_point{};
 
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (exit_) {
@@ -757,6 +981,13 @@ public:
      * @brief Remove element from the back of the queue (non-blocking)
      */
     [[nodiscard]] bool PopBack(Element& element) {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) {
             if (metrics_enabled_.load(std::memory_order_acquire)) {
@@ -785,6 +1016,13 @@ public:
      * @brief Access front element without removing (non-blocking)
      */
     [[nodiscard]] bool Front(Element& element) const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) return false;
 
@@ -796,6 +1034,13 @@ public:
      * @brief Access back element without removing (non-blocking)
      */
     [[nodiscard]] bool Back(Element& element) const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         if (deque_.empty()) return false;
 
@@ -807,6 +1052,13 @@ public:
      * @brief Access element at index (non-blocking, bounds-checked)
      */
     [[nodiscard]] bool At(std::size_t index, Element& element) const {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::unique_lock<std::mutex> lock(mutex_);
         if (index >= deque_.size()) return false;
 

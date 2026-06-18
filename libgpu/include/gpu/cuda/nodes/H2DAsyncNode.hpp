@@ -1,8 +1,9 @@
 /**
  * @file H2DAsyncNode.hpp
- * @brief GraphX source file.
+ * @brief H2 Dasync Node GPU acceleration support.
+ *
+ * @details Provides CUDA acceleration boundary and graph-node support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2026 GraphX Contributors
@@ -26,7 +27,9 @@ namespace graph::gpu::cuda::nodes {
 
 /**
  * @class H2DAsyncNode
- * @brief H2DAsyncNode class.
+ * @brief H2 Dasync Node graph node.
+ *
+ * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class H2DAsyncNode
     : public graph::NamedInteriorNode<
@@ -35,8 +38,21 @@ class H2DAsyncNode
           H2DAsyncNode>,
       public graph::IGpuCapabilityBinding {
 public:
+    /**
+     * @brief Executes the H2 Dasync Node operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     H2DAsyncNode() = default;
 
+    /**
+     * @brief Executes the Bind GPU Capabilities operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param capability_bus Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     bool BindGpuCapabilities(graph::CapabilityBus& capability_bus) override {
         memory_pool_ = capability_bus.Get<capabilities::ICudaMemoryPoolCapability>();
         transfer_ = capability_bus.Get<capabilities::ICudaTransferCapability>();

@@ -1,8 +1,9 @@
 /**
  * @file IMetricsCallback.hpp
- * @brief GraphX source file.
+ * @brief Imetrics Callback Graph runtime support.
+ *
+ * @details Provides metrics event and subscriber contracts for runtime observability. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -35,70 +36,6 @@
 #include <string>
 #include <map>
 
-/**
- * @file IMetricsCallback.hpp
- * @brief Interfaces for async metrics callbacks from nodes to MetricsPublisher
- *
- * This file defines the callback provider pattern for nodes that publish
- * async metrics events (key state changes, phase transitions, etc.).
- *
- * @section callback_provider_pattern Callback Provider Pattern
- *
- * Follows the same pattern as ICallbackProvider from the codebase:
- *
- * \code
- * class MyNode : public INode, public IMetricsCallbackProvider {
- * private:
- *     IMetricsCallback* metrics_callback_{nullptr};
- *
- * public:
- *     bool SetMetricsCallback(IMetricsCallback* callback) noexcept override {
- *         metrics_callback_ = callback;
- *         return callback != nullptr;
- *     }
- *
- *     bool HasMetricsCallback() const noexcept override {
- *         return metrics_callback_ != nullptr;
- *     }
- *
- * protected:
- *     void OnImportantStateChange() noexcept {
- *         if (metrics_callback_) {
- *             MetricsEvent event{
- *                 .timestamp = std::chrono::system_clock::now(),
- *                 .source = "MyNode",
- *                 .event_type = "state_change",
- *                 .data = {{"key", "value"}}
- *             };
- *             metrics_callback_->PublishAsync(event);
- *         }
- *     }
- * };
- * \endcode
- *
- * @section node_discovery Node Discovery
- *
- * The MetricsPublisher discovers metrics-capable nodes using dynamic_cast:
- *
- * \code
- * for (const auto& node : graph.GetNodes()) {
- *     auto* metrics_node = 
- *         dynamic_cast<IMetricsCallbackProvider*>(node.get());
- *     if (metrics_node) {
- *         // Wire the callback
- *         metrics_node->SetMetricsCallback(adapter.get());
- *     }
- * }
- * \endcode
- *
- * This is 100% exception-safe: dynamic_cast returns nullptr if type doesn't
- * match, never throws an exception.
- *
- * @section exception_safety Exception Safety
- *
- * All methods are marked noexcept. Implementations must never throw.
- * Callback handlers are expected to be thread-safe.
- */
 
 namespace graph {
 
@@ -116,10 +53,17 @@ namespace graph {
  */
 /**
  * @class IMetricsCallback
- * @brief IMetricsCallback class.
+ * @brief Imetrics Callback type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class IMetricsCallback {
 public:
+    /**
+     * @brief Releases resources owned by Imetrics Callback.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetricsCallback() = default;
 
     /**
@@ -175,10 +119,17 @@ public:
  */
 /**
  * @class IMetricsCallbackProvider
- * @brief IMetricsCallbackProvider class.
+ * @brief Imetrics Callback Provider type.
+ *
+ * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class IMetricsCallbackProvider {
 public:
+    /**
+     * @brief Releases resources owned by Imetrics Callback Provider.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IMetricsCallbackProvider() = default;
 
     /**

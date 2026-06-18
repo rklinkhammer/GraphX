@@ -1,8 +1,9 @@
 /**
  * @file IConfigurable.hpp
- * @brief GraphX source file.
+ * @brief Iconfigurable Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -62,7 +63,18 @@ namespace graph {
  * }
  * @endcode
  */
+/**
+ * @struct IConfigurable
+ * @brief Iconfigurable data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct IConfigurable {
+    /**
+     * @brief Releases resources owned by Iconfigurable.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IConfigurable() = default;
     
     /**
@@ -101,7 +113,18 @@ struct IConfigurable {
  * }
  * @endcode
  */
+/**
+ * @struct IDiagnosable
+ * @brief Idiagnosable data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct IDiagnosable {
+    /**
+     * @brief Releases resources owned by Idiagnosable.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IDiagnosable() = default;
     
     /**
@@ -141,7 +164,18 @@ struct IDiagnosable {
  * }
  * @endcode
  */
+/**
+ * @struct IParameterized
+ * @brief Iparameterized data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct IParameterized {
+    /**
+     * @brief Releases resources owned by Iparameterized.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~IParameterized() = default;
     
     /**

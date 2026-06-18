@@ -2,9 +2,10 @@
 
 /**
  * @file test_csv_pipeline_3.cpp
- * @brief GraphX source file.
+ * @brief Test CSV Pipeline 3 Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>

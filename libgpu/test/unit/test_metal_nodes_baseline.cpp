@@ -2,9 +2,10 @@
 
 /**
  * @file test_metal_nodes_baseline.cpp
- * @brief GraphX source file.
+ * @brief Test Metal Nodes Baseline GPU acceleration support.
+ *
+ * @details Provides GPU test coverage for accelerator contracts and runtime behavior. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include <gtest/gtest.h>
 
 #include <cstddef>

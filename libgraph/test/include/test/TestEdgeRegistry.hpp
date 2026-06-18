@@ -2,18 +2,10 @@
 
 /**
  * @file TestEdgeRegistry.hpp
- * @brief Edge registry initialization for test node topologies
+ * @brief Test Edge Registry Graph runtime support.
  *
- * Registers all possible edges between advanced test nodes so they can be
- * created at runtime via EdgeRegistry::CreateEdgeExpected().
- *
- * Usage:
- * @code
- * test::InitializeTestEdgeRegistry();
- * // Now all test node edges can be created dynamically
- * @endcode
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include "graph/EdgeRegistry.hpp"

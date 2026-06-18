@@ -2,9 +2,10 @@
 
 /**
  * @file FFTNode.cpp
- * @brief GraphX source file.
+ * @brief Fftnode DSP support.
+ *
+ * @details Provides DSP implementation unit backing the public signal-processing API. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #include "dsp/FFTNode.hpp"
 #include "log4cxx/logger.h"
 #include <nlohmann/json.hpp>

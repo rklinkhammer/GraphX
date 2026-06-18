@@ -2,9 +2,10 @@
 
 /**
  * @file DashboardCapability.hpp
- * @brief GraphX source file.
+ * @brief Dashboard Capability Graph runtime support.
+ *
+ * @details Provides capability API used to share runtime services between policies, nodes, and executors. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <string>
@@ -28,9 +29,26 @@ namespace capabilities {
  * - Enqueue log messages from business logic to UI
  * - Dequeue log messages from UI for display
  */
+/**
+ * @class DashboardCapability
+ * @brief Dashboard Capability capability contract.
+ *
+ * @details Describes a runtime service obtained through the capability bus. Implementations provide backend or policy services without coupling graph nodes to concrete subsystems.
+ */
 class DashboardCapability {
 public:
+    /**
+     * @brief Executes the Dashboard Capability operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     DashboardCapability() = default;
+    /**
+     * @brief Releases resources owned by Dashboard Capability.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     */
     virtual ~DashboardCapability() = default;
 
     /**

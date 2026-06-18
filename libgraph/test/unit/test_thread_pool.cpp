@@ -1,8 +1,9 @@
 /**
  * @file test_thread_pool.cpp
- * @brief GraphX source file.
+ * @brief Test Thread Pool Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,21 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_thread_pool.cpp
- * @brief Comprehensive unit tests for ThreadPool (Phase 5 Priority 1)
- *
- * Tests the fixed-size thread pool with:
- * - Constructor and lifecycle management
- * - Task queuing and execution
- * - Queue capacity enforcement
- * - Statistics tracking
- * - Deadlock detection
- * - Exception handling
- * - C++26 compliance (std::expected<>, atomics)
- *
- * @note Uses C++26 features: std::expected<>, lock-free atomics, move semantics
- */
 
 #include <gtest/gtest.h>
 #include "graph/ThreadPool.hpp"

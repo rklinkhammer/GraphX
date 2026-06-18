@@ -1,8 +1,9 @@
 /**
  * @file SineWaveGenerator.hpp
- * @brief GraphX source file.
+ * @brief Sine Wave Generator DSP support.
+ *
+ * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -24,14 +25,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-/*!
- * @file dsp/SineWaveGenerator.hpp
- * @brief Native sine wave signal generator implementing DataGeneratorBase
- * @author GraphX Contributors
- * @date 2025
- * @license MIT
- */
 
 #pragma once
 
@@ -92,6 +85,12 @@ namespace dsp {
  * @see IqPacket for packet structure
  * @see DataGeneratorBase for interface definition
  */
+/**
+ * @class SineWaveGenerator
+ * @brief Sine Wave Generator type.
+ *
+ * @details Part of the GraphX public API for libdsp. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
+ */
 template<typename SampleT, size_t N>
 class SineWaveGenerator : public graph::DataGeneratorBase<IqPacket<SampleT, N>> {
 private:
@@ -117,7 +116,20 @@ public:
           phase_offset_(0.0),
           sample_index_(0),
           packet_number_(0),
+          /**
+           * @brief Executes the Last Timestamp operation.
+           *
+           * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+           * @return Method-specific result, status, or produced value when the signature provides one.
+           */
           last_timestamp_(0) {
+        /**
+         * @brief Executes the Log4 Cxx Trace operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_TRACE(logger_, "SineWaveGenerator constructed");
     }
 
@@ -167,6 +179,13 @@ public:
     /// @brief Set sine wave frequency
     void SetFrequency(double hz) {
         frequency_hz_ = hz;
+        /**
+         * @brief Executes the Log4 Cxx Debug operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_DEBUG(logger_, "Frequency set to " << hz << " Hz");
     }
 
@@ -176,6 +195,14 @@ public:
     /// @brief Set signal amplitude
     void SetAmplitude(SampleT amplitude) {
         amplitude_ = amplitude;
+        /**
+         * @brief Executes the Log4 Cxx Debug operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @param amplitude Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_DEBUG(logger_, "Amplitude set to " << amplitude);
     }
 
@@ -185,6 +212,13 @@ public:
     /// @brief Set sample rate
     void SetSampleRate(double hz) {
         sample_rate_hz_ = hz;
+        /**
+         * @brief Executes the Log4 Cxx Debug operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_DEBUG(logger_, "Sample rate set to " << hz << " Hz");
     }
 
@@ -194,6 +228,13 @@ public:
     /// @brief Set phase offset in radians
     void SetPhaseOffset(double radians) {
         phase_offset_ = radians;
+        /**
+         * @brief Executes the Log4 Cxx Debug operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_DEBUG(logger_, "Phase offset set to " << radians << " rad");
     }
 
@@ -204,6 +245,13 @@ public:
     void Reset() {
         sample_index_ = 0;
         packet_number_ = 0;
+        /**
+         * @brief Executes the Log4 Cxx Debug operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param logger_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         LOG4CXX_DEBUG(logger_, "SineWaveGenerator reset");
     }
 

@@ -1,8 +1,9 @@
 /**
  * @file test_registered_node_provider.cpp
- * @brief GraphX source file.
+ * @brief Test Registered Node Provider Graph runtime support.
+ *
+ * @details Provides Graph runtime test coverage and test support nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,20 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file test_registered_node_provider.cpp
- * @brief Comprehensive unit tests for RegisteredNodeProvider
- *
- * Tests the RegisteredNodeProvider class with:
- * - Template-based compile-time node creation
- * - Lifecycle state machine validation
- * - Port metadata introspection
- * - Error handling scenarios
- * - Thread safety
- * - C++26 features
- *
- * @author Test Suite
- */
 
 #include <gtest/gtest.h>
 #include <memory>

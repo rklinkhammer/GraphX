@@ -1,8 +1,9 @@
 /**
  * @file sine_signal_node_512_plugin.cpp
- * @brief GraphX source file.
+ * @brief Sine Signal Node 512 Plugin DSP support.
+ *
+ * @details Provides plugin registration unit for dynamically loading DSP graph nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 GraphX Contributors
@@ -25,23 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file sine_signal_node_512_plugin.cpp
- * @brief SineSignalNode<512> as a dynamically-loadable plugin
- *
- * This file demonstrates how to expose SineSignalNode (a DSP sine wave generator)
- * with 512 samples per packet as a dynamically-loadable plugin using the
- * NodeFacade interface. This variant is suitable for high-throughput streaming
- * where latency is less critical than bandwidth efficiency.
- *
- * Compilation (from workspace root):
- *   mkdir -p build/plugins
- *   cd build
- *   cmake ..
- *   make sine_signal_node_512
- *
- * This produces: build/plugins/libsine_signal_node_512.so
- */
 
 #include <memory>
 #include <string>

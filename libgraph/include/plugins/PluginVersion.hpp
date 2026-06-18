@@ -1,8 +1,9 @@
 /**
  * @file PluginVersion.hpp
- * @brief GraphX source file.
+ * @brief Plugin Version Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors

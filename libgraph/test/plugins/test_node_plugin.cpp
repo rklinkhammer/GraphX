@@ -1,8 +1,9 @@
 /**
  * @file test_node_plugin.cpp
- * @brief GraphX source file.
+ * @brief Test Node Plugin Graph runtime support.
+ *
+ * @details Provides plugin loading, reflection, and dynamic node registration support. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 graphlib contributors
@@ -25,23 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file flight_monitor_node_plugin.cpp
- * @brief FlightMonitorNode as a dynamically-loadable plugin
- *
- * This file demonstrates how to expose FlightMonitorNode (flight phase determination)
- * as a dynamically-loadable plugin using the NodeFacade interface.
- *
- * Converts state vector data into discrete flight phase enumerations.
- *
- * Compilation (from workspace root):
- *   mkdir -p build/plugins
- *   cd build
- *   cmake ..
- *   make flight_monitor_node
- *
- * This produces: build/plugins/libflight_monitor_node.so
- */
 
 #include <memory>
 #include <log4cxx/logger.h>

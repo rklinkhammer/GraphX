@@ -1,8 +1,9 @@
 /**
  * @file GraphConfig.hpp
- * @brief GraphX source file.
+ * @brief Graph Config Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License
 //
 // Copyright (c) 2025 Robert Klinkhammer
@@ -25,16 +26,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/**
- * @file GraphConfig.hpp
- * @brief Configuration structures for JSON-based graph specification
- *
- * Defines the data structures that represent a complete graph configuration
- * parsed from JSON, before instantiation.
- *
- * @author Copilot
- * @date 2026-01-04
- */
 
 #pragma once
 
@@ -51,6 +42,12 @@ namespace graph {
  *
  * Represents the declarative specification of a node from JSON,
  * before the node is instantiated.
+ */
+/**
+ * @struct NodeConfig
+ * @brief Node Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct NodeConfig {
     /// Unique node identifier (must be alphanumeric with underscores)
@@ -106,6 +103,12 @@ struct NodeConfig {
  *
  * Specifies connectivity between two node ports.
  */
+/**
+ * @struct EdgeConfig
+ * @brief Edge Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct EdgeConfig {
     /// Source node ID
     std::string source_node_id;
@@ -153,6 +156,12 @@ struct EdgeConfig {
  *
  * Represents all information needed to instantiate a graph,
  * after parsing and validation but before node/edge creation.
+ */
+/**
+ * @struct GraphConfig
+ * @brief Graph Config data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct GraphConfig {
     /// Graph-level metadata
@@ -255,6 +264,12 @@ struct GraphConfig {
 /**
  * @struct ValidationResult
  * @brief Result of graph configuration validation
+ */
+/**
+ * @struct ValidationResult
+ * @brief Validation Result data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct ValidationResult {
     bool valid = false;                      ///< Whether configuration is valid

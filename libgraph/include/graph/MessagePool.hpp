@@ -2,18 +2,10 @@
 
 /**
  * @file MessagePool.hpp
- * @brief Thread-safe message buffer pool for pre-allocated heap management
- * @author Robert Klinkhammer
- * @date April 24, 2026
+ * @brief Message Pool Graph runtime support.
  *
- * Provides a reusable buffer pool to reduce allocation latency for large messages
- * that exceed Small Object Optimization (SSO) threshold. Uses malloc + placement new
- * for exact control over buffer allocation and lifecycle.
- *
- * Thread-Safety: All operations are protected by mutex. Statistics use atomic counters
- * for lock-free reads. Multiple threads can safely acquire/release buffers concurrently.
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 #pragma once
 
 #include <cstddef>
@@ -31,7 +23,19 @@ namespace graph {
  *
  * Controls pool behavior: allocation mode, capacity, TTL for eviction.
  */
+/**
+ * @struct MessagePoolPolicy
+ * @brief Message Pool Policy data record.
+ *
+ * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
+ */
 struct MessagePoolPolicy {
+    /**
+     * @enum AllocationMode
+     * @brief Allocation Mode values.
+     *
+     * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
+     */
     enum class AllocationMode {
         Prealloc,          ///< Pre-allocate all buffers upfront (MVP)
         LazyAllocate,      ///< Allocate on first use (Phase 4)
@@ -69,9 +73,21 @@ struct MessagePoolPolicy {
  *   pool.Shutdown();  // Free all buffers
  * @endcode
  */
+/**
+ * @class MessageBufferPool
+ * @brief Message Buffer Pool message type.
+ *
+ * @details Carries typed data between graph nodes. Fields describe payload shape, metadata, and sequencing information used by downstream processing.
+ */
 template <size_t BufferSize = 64, typename Policy = MessagePoolPolicy>
 class MessageBufferPool {
 public:
+    /**
+     * @brief Executes the Static Assert operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     static_assert(BufferSize > 0, "BufferSize must be > 0");
 
     /**
@@ -79,6 +95,12 @@ public:
      * @brief Statistics for pool observability and tuning
      *
      * All counters are atomic for lock-free reads from any thread.
+     */
+    /**
+     * @struct PoolStats
+     * @brief Pool Stats data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct PoolStats {
         std::atomic<uint64_t> total_requests{0};      ///< Total AcquireBuffer calls
@@ -120,6 +142,12 @@ public:
      *
      * Contains the same fields as PoolStats but with regular uint64_t
      * (non-atomic) for copyability. Used by GetStats() to return values.
+     */
+    /**
+     * @struct PoolStatsSnapshot
+     * @brief Pool Stats Snapshot data record.
+     *
+     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
      */
     struct PoolStatsSnapshot {
         uint64_t total_requests = 0;      ///< Total AcquireBuffer calls
@@ -234,6 +262,13 @@ public:
      * Safe to call from any thread at any time (lock-free reads).
      */
     [[nodiscard]] PoolStatsSnapshot GetStats() const noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param stats_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(stats_mutex_);
         return PoolStatsSnapshot{
             stats_.total_requests.load(std::memory_order_relaxed),
@@ -255,6 +290,13 @@ public:
      * @return true if Initialize() was called, false otherwise
      */
     [[nodiscard]] bool IsInitialized() const noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param pool_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_ > 0;
     }
@@ -270,6 +312,13 @@ public:
      * Safe to call from any thread.
      */
     [[nodiscard]] size_t GetCurrentCapacity() const noexcept {
+        /**
+         * @brief Executes the Lock operation.
+         *
+         * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+         * @param pool_mutex_ Input or configuration value consumed by the method.
+         * @return Method-specific result, status, or produced value when the signature provides one.
+         */
         std::lock_guard<std::mutex> lock(pool_mutex_);
         return total_capacity_;
     }
@@ -295,10 +344,36 @@ public:
     // Non-copyable, movable
     // ========================================================================
 
+    /**
+     * @brief Executes the Message Buffer Pool operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessageBufferPool Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MessageBufferPool(const MessageBufferPool&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessageBufferPool Input or configuration value consumed by the method.
+     */
     MessageBufferPool& operator=(const MessageBufferPool&) = delete;
 
+    /**
+     * @brief Executes the Message Buffer Pool operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessageBufferPool Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     MessageBufferPool(MessageBufferPool&&) = delete;
+    /**
+     * @brief Executes the Operator overload operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param MessageBufferPool Input or configuration value consumed by the method.
+     */
     MessageBufferPool& operator=(MessageBufferPool&&) = delete;
 
 private:
@@ -342,6 +417,13 @@ private:
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param pool_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (initialized_) {
@@ -418,6 +500,13 @@ inline void MessageBufferPool<BufferSize, Policy>::Initialize(size_t capacity) {
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param pool_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     // Free all buffers
@@ -431,6 +520,13 @@ inline void MessageBufferPool<BufferSize, Policy>::Shutdown() noexcept {
 
 template <size_t BufferSize, typename Policy>
 inline void* MessageBufferPool<BufferSize, Policy>::AcquireBuffer() {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param pool_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -508,6 +604,13 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
         return;  // Ignore null pointers
     }
 
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param pool_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {
@@ -551,6 +654,13 @@ inline void MessageBufferPool<BufferSize, Policy>::ReleaseBuffer(void* buffer) n
 
 template <size_t BufferSize, typename Policy>
 inline void MessageBufferPool<BufferSize, Policy>::SetCapacity(size_t new_capacity) noexcept {
+    /**
+     * @brief Executes the Lock operation.
+     *
+     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
+     * @param pool_mutex_ Input or configuration value consumed by the method.
+     * @return Method-specific result, status, or produced value when the signature provides one.
+     */
     std::lock_guard<std::mutex> lock(pool_mutex_);
 
     if (!initialized_) {

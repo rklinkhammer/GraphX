@@ -1,8 +1,9 @@
 /**
  * @file ThreadPool.cpp
- * @brief GraphX source file.
+ * @brief Thread Pool Graph runtime support.
+ *
+ * @details Provides graph construction, node execution, ports, messages, and runtime orchestration. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
-
 // MIT License - See header file for license text
 
 #include "graph/ThreadPool.hpp"
