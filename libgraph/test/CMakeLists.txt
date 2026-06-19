@@ -44,6 +44,9 @@ add_dependencies(test_libgraph_unit
     completion_node
     sine_signal_node_256
     fft_node_256
+    dsp_iq_h2d_node_256
+    metal_spectrum_dft_node_256
+    dsp_magnitude_d2h_node_256
     spectrum_sink_node_256
 )
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)

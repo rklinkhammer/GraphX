@@ -1,0 +1,71 @@
+{
+  "name": "dsp_sine_metal_dft_spectrum_256",
+  "execution_backend": "metal",
+  "backend_fallback_policy": "strict",
+  "resolver_diagnostics": true,
+  "nodes": [
+    {
+      "id": "sine",
+      "type": "SineSignalNode<256>",
+      "node_config": {
+        "frequency_hz": -1000.0,
+        "amplitude": 1.0,
+        "sample_rate_hz": 48000.0
+      }
+    },
+    {
+      "id": "h2d",
+      "type": "DspIqH2DNode<256>",
+      "node_config": {
+        "queue_id": 0,
+        "device_id": 0
+      }
+    },
+    {
+      "id": "metal_dft",
+      "type": "MetalSpectrumDftNode<256>",
+      "node_config": {
+        "queue_id": 0,
+        "device_id": 0
+      }
+    },
+    {
+      "id": "d2h",
+      "type": "DspMagnitudeD2HNode<256>",
+      "node_config": {
+        "queue_id": 0
+      }
+    },
+    {
+      "id": "spectrum",
+      "type": "SpectrumSinkNode<256>",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "sine",
+      "source_port": 0,
+      "target_node_id": "h2d",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "h2d",
+      "source_port": 0,
+      "target_node_id": "metal_dft",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "metal_dft",
+      "source_port": 0,
+      "target_node_id": "d2h",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "spectrum",
+      "target_port": 0
+    }
+  ]
+}

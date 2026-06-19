@@ -58,6 +58,30 @@ add_graphx_plugin(
 
 )
 
+# DSP IQ H2D transfer plugin - token-preserving host-to-device boundary
+add_graphx_plugin(
+    TARGET_NAME dsp_iq_h2d_node_256
+    SOURCE_FILE dsp_iq_h2d_node_256_plugin.cpp
+    DESCRIPTION "DSP IQ host-to-device transfer node (256 samples/packet)"
+    DEPENDENCIES dsp
+)
+
+# MetalSpectrumDftNode Plugin - real Metal direct DFT spectrum transform
+add_graphx_plugin(
+    TARGET_NAME metal_spectrum_dft_node_256
+    SOURCE_FILE metal_spectrum_dft_node_256_plugin.cpp
+    DESCRIPTION "Metal direct DFT spectrum transform (256 samples/packet)"
+    DEPENDENCIES dsp
+)
+
+# DSP magnitude D2H transfer plugin - token-preserving device-to-host boundary
+add_graphx_plugin(
+    TARGET_NAME dsp_magnitude_d2h_node_256
+    SOURCE_FILE dsp_magnitude_d2h_node_256_plugin.cpp
+    DESCRIPTION "DSP magnitude device-to-host transfer node (256 samples/packet)"
+    DEPENDENCIES dsp
+)
+
 # SpectrumSinkNode Plugin - DSP analyzer sink for FFT magnitude packets
 add_graphx_plugin(
     TARGET_NAME spectrum_sink_node_256
