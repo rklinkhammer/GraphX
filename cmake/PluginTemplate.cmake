@@ -223,6 +223,12 @@ function(add_graphx_plugin)
     message(STATUS "  Output directory: ${PLUGIN_OUTPUT_DIRECTORY}")
     message(STATUS "")
 
+    if(NOT TARGET graphx_dynamic_nodes)
+        add_custom_target(graphx_dynamic_nodes ALL
+            COMMENT "Building all GraphX dynamic node plugins")
+    endif()
+    add_dependencies(graphx_dynamic_nodes ${PLUGIN_TARGET_NAME})
+
 endfunction()
 
 # ============================================================================
@@ -251,6 +257,11 @@ function(add_graphx_plugins_directory)
 
     # Create directory
     file(MAKE_DIRECTORY ${PLUGINDIR_OUTPUT_DIR})
+
+    if(NOT TARGET graphx_dynamic_nodes)
+        add_custom_target(graphx_dynamic_nodes ALL
+            COMMENT "Building all GraphX dynamic node plugins")
+    endif()
 
     # Set in parent scope for use in add_graphx_plugin
     set(GRAPHX_PLUGIN_OUTPUT_DIRECTORY ${PLUGINDIR_OUTPUT_DIR} PARENT_SCOPE)

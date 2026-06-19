@@ -20,6 +20,9 @@ target_compile_definitions(dsp_spectrum_demo PRIVATE
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     DSP_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_fft_spectrum_256.json"
 )
+if(TARGET graphx_dynamic_nodes)
+    add_dependencies(dsp_spectrum_demo graphx_dynamic_nodes)
+endif()
 
 install(TARGETS dsp_spectrum_demo
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

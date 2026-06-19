@@ -288,6 +288,10 @@ TEST(MetalSpectrumDftNodeTest, RegistersInlineMetalDftKernelDescriptor) {
               std::string::npos);
     EXPECT_NE(kernel->last_descriptor.source_payload.find("for (uint n = 0; n < kSampleCount; ++n)"),
               std::string::npos);
+    EXPECT_NE(kernel->last_descriptor.source_payload.find("hann_window"),
+              std::string::npos);
+    EXPECT_NE(kernel->last_descriptor.source_payload.find("/ float(kSampleCount)"),
+              std::string::npos);
     EXPECT_EQ(kernel->last_descriptor.source_payload.find("FFTManager"), std::string::npos);
     ASSERT_EQ(kernel->last_descriptor.arg_layout.size(), 2u);
     EXPECT_EQ(kernel->last_descriptor.dispatch.default_grid_x,

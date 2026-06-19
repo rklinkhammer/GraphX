@@ -29,26 +29,9 @@ target_compile_definitions(test_libgraph_unit PRIVATE
 # repeating graph as a final fallback resolver.
 target_link_libraries(test_libgraph_unit PRIVATE dsp graph gpu graph GTest::gtest_main Threads::Threads log4cxx)
 target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
-add_dependencies(test_libgraph_unit
-    test_node
-    source_test_node
-    sink_test_node
-    optional_config_test_node
-    interior_test_node
-    merge_test_node
-    split_test_node
-    int_producer
-    double_producer
-    int_sink
-    double_sink
-    completion_node
-    sine_signal_node_256
-    fft_node_256
-    dsp_iq_h2d_node_256
-    metal_spectrum_dft_node_256
-    dsp_magnitude_d2h_node_256
-    spectrum_sink_node_256
-)
+if(TARGET graphx_dynamic_nodes)
+    add_dependencies(test_libgraph_unit graphx_dynamic_nodes)
+endif()
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 
 if(ENABLE_THREADPOOL_EXTENDED_TESTS)
@@ -78,6 +61,9 @@ if(INTEGRATION_TEST_SOURCES)
     )
     target_link_libraries(test_libgraph_integration PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
     target_link_libraries(test_libgraph_integration PRIVATE graphx_project_options)
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libgraph_integration graphx_dynamic_nodes)
+    endif()
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
 endif()
 

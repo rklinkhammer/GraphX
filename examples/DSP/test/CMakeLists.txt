@@ -22,9 +22,9 @@ target_link_libraries(test_dsp_example_unit PRIVATE
 )
 add_dependencies(test_dsp_example_unit
     dsp_spectrum_demo
-    sine_signal_node_256
-    fft_node_256
-    spectrum_sink_node_256
 )
+if(TARGET graphx_dynamic_nodes)
+    add_dependencies(test_dsp_example_unit graphx_dynamic_nodes)
+endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)

@@ -342,14 +342,15 @@ std::string MetalSpectrumDftNode<N>::BuildKernelSource() const {
            << "    if (gid >= kBinCount) { return; }\n"
            << "    float2 accum = float2(0.0f, 0.0f);\n"
            << "    for (uint n = 0; n < kSampleCount; ++n) {\n"
+           << "        const float hann_window = 0.5f * (1.0f - cos(kTwoPi * float(n) / float(kSampleCount - 1u)));\n"
            << "        const float angle = -kTwoPi * float(gid) * float(n) / float(kSampleCount);\n"
            << "        const float c = cos(angle);\n"
            << "        const float s = sin(angle);\n"
-           << "        const float2 sample = iq[n];\n"
+           << "        const float2 sample = iq[n] * hann_window;\n"
            << "        accum.x += sample.x * c - sample.y * s;\n"
            << "        accum.y += sample.x * s + sample.y * c;\n"
            << "    }\n"
-           << "    magnitudes[gid] = sqrt(accum.x * accum.x + accum.y * accum.y);\n"
+           << "    magnitudes[gid] = sqrt(accum.x * accum.x + accum.y * accum.y) / float(kSampleCount);\n"
            << "}\n";
     return source.str();
 }

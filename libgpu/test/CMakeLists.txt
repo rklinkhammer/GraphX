@@ -28,25 +28,8 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
         log4cxx
         graphx_project_options
     )
-    if(GRAPHX_BUILD_GPU_STUB_PLUGINS)
-        add_dependencies(test_libgpu_stub_unit
-            cuda_host_ingress_pinned_source_node
-            cuda_h2d_async_node
-            cuda_d2h_async_node
-            cuda_host_egress_sink_node
-            cuda_lease_release_node
-            sycl_host_ingress_pinned_source_node
-            sycl_h2d_async_node
-            sycl_d2h_async_node
-            sycl_host_egress_sink_node
-            sycl_lease_release_node
-            metal_host_ingress_pinned_source_node
-            metal_h2d_async_node
-            metal_d2h_async_node
-            metal_host_egress_sink_node
-            metal_lease_release_node
-            metal_device_kernel_node
-        )
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libgpu_stub_unit graphx_dynamic_nodes)
     endif()
     add_test(NAME libgpu_stub_unit COMMAND test_libgpu_stub_unit)
 endif()
@@ -67,6 +50,9 @@ if((GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED) AND GPU_
         log4cxx
         graphx_project_options
     )
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libgpu_backend_unit graphx_dynamic_nodes)
+    endif()
     add_test(NAME libgpu_backend_unit COMMAND test_libgpu_backend_unit)
 endif()
 
@@ -88,6 +74,9 @@ if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
             log4cxx
             graphx_project_options
         )
+        if(TARGET graphx_dynamic_nodes)
+            add_dependencies(test_libgpu_metal_runtime graphx_dynamic_nodes)
+        endif()
         add_test(NAME libgpu_metal_runtime COMMAND test_libgpu_metal_runtime)
     endif()
 endif()
@@ -108,6 +97,9 @@ if(GPU_INTEGRATION_TEST_SOURCES)
         log4cxx
         graphx_project_options
     )
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libgpu_integration graphx_dynamic_nodes)
+    endif()
     add_test(NAME libgpu_integration COMMAND test_libgpu_integration)
 endif()
 
@@ -127,5 +119,8 @@ if(GPU_PERF_TEST_SOURCES)
         log4cxx
         graphx_project_options
     )
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libgpu_perf graphx_dynamic_nodes)
+    endif()
     add_test(NAME libgpu_perf COMMAND test_libgpu_perf)
 endif()
