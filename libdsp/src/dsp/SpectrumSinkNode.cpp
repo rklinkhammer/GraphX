@@ -39,8 +39,9 @@ SpectrumSinkNode<SampleT, N>::SpectrumSinkNode() {
 
 template<typename SampleT, size_t N>
 bool SpectrumSinkNode<SampleT, N>::Consume(
-    const MagnitudePacketType& packet,
+    const MagnitudeTokenType& token,
     std::integral_constant<std::size_t, 0>) {
+    const auto& packet = token.sidecar;
     bool should_signal_completion = false;
     {
         std::lock_guard<std::mutex> lock(spectrum_mutex_);

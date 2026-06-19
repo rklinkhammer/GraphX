@@ -42,6 +42,7 @@
 #include "graph/NamedNodes.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/ICompletionCallback.hpp"
+#include "gpu/accel/types/AccelTypes.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include "dsp/MagnitudePacket.hpp"
 #include "metrics/NodeMetricsSchema.hpp"
@@ -56,7 +57,7 @@ namespace dsp {
  * @tparam SampleT Floating point type (float or double)
  * @tparam N FFT size from input MagnitudePacket
  *
- * **Input Port 0:** MagnitudePacket<SampleT, N> - Power spectrum from FFTNode
+ * **Input Port 0:** ControlToken<MagnitudePacket<SampleT, N>> - Power spectrum from FFTNode
  *
  * **Features:**
  * - Captures and buffers spectrum data with configurable history
@@ -83,7 +84,7 @@ template<typename SampleT = float, size_t N = 256>
 class SpectrumSinkNode
     : public graph::NamedSinkNode<
         SpectrumSinkNode<SampleT, N>,
-        MagnitudePacket<SampleT, N>>,
+        graph::gpu::accel::ControlToken<MagnitudePacket<SampleT, N>>>,
       public graph::IConfigurable,
       public graph::IDiagnosable,
       public graph::IMetricsCallbackProvider,
@@ -94,6 +95,7 @@ public:
     // ========================================================================
 
     using MagnitudePacketType = MagnitudePacket<SampleT, N>;
+    using MagnitudeTokenType = graph::gpu::accel::ControlToken<MagnitudePacketType>;
     using SpectrumArray = std::array<SampleT, N>;
 
     // ========================================================================
@@ -180,18 +182,18 @@ public:
     // ========================================================================
 
     /**
-     * @brief Consume a MagnitudePacket from FFTNode
+     * @brief Consume a token-wrapped MagnitudePacket from FFTNode
      *
      * Called by GraphX framework when spectrum data arrives.
      * Stores spectrum in buffer and updates peak tracking.
      *
-     * @param packet The MagnitudePacket to consume
+     * @param packet The token-wrapped MagnitudePacket to consume
      * @param integral_constant Port identifier (always 0)
      * @return true to continue consuming
      *
      * @thread_safety This method is thread-safe.
      */
-    bool Consume(const MagnitudePacketType& packet,
+    bool Consume(const MagnitudeTokenType& packet,
                  std::integral_constant<std::size_t, 0>) override;
 
     // ========================================================================

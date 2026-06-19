@@ -85,7 +85,7 @@ TEST(ExternalBaselinePolicyRegistryTest, EncodesLicensingAndArchitectureBoundari
     ASSERT_TRUE(registry.contains("architecture_protection"));
     const auto& architecture = registry.at("architecture_protection");
     EXPECT_EQ(architecture.at("canonical_runtime_contract").get<std::string>(),
-              "AccelControlToken<SarSidecar>");
+              "ControlToken<SarSidecar>");
     EXPECT_TRUE(architecture.at("metal_first_backend").get<bool>());
     EXPECT_TRUE(architecture.at("preserve_dynamic_loading").get<bool>());
     EXPECT_TRUE(architecture.at("preserve_resolver_behavior").get<bool>());
@@ -139,7 +139,7 @@ TEST(ExternalBaselinePolicyRegistryTest, PolicyDeclaresComparatorOnlyBoundaries)
     EXPECT_NE(policy.find("ISCE3"), std::string::npos);
     EXPECT_NE(policy.find("gotcha-back"), std::string::npos);
     EXPECT_NE(policy.find("Do not modify `libgraph` or `libgpu` contracts"), std::string::npos);
-    EXPECT_NE(policy.find("AccelControlToken<SarSidecar>"), std::string::npos);
+    EXPECT_NE(policy.find("ControlToken<SarSidecar>"), std::string::npos);
     EXPECT_NE(policy.find("deterministic_internal_reference"), std::string::npos);
     EXPECT_NE(policy.find("external_baseline"), std::string::npos);
     EXPECT_NE(policy.find("graphx_runtime"), std::string::npos);

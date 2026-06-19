@@ -287,4 +287,29 @@ struct CollectiveTicket {
     std::uint64_t completion_event{0};
 };
 
+/**
+ * @struct ControlToken
+ * @brief Backend-neutral control envelope for accelerated graph stages.
+ *
+ * @details Carries a domain-defined sidecar together with opaque accelerator
+ * transport metadata. The sidecar owns domain identity and routing semantics.
+ * Buffer views, leases, transfer tickets, and kernel tickets describe transport
+ * state only and must not be used as domain identity.
+ */
+template <typename SidecarT>
+struct ControlToken {
+    std::uint64_t token_id{};
+    SidecarT sidecar{};
+    BufferLease lease{};
+    DeviceBufferView device_view{};
+    HostPinnedBufferView host_view{};
+    TransferTicket transfer_ticket{};
+    KernelTicket kernel_ticket{};
+    bool has_lease{false};
+    bool has_device_view{false};
+    bool has_host_view{false};
+    bool has_transfer_ticket{false};
+    bool has_kernel_ticket{false};
+};
+
 } // namespace graph::gpu::accel

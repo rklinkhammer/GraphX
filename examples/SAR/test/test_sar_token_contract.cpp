@@ -74,7 +74,7 @@ TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
 
 TEST(SarTokenContractTest, SarAccelTokenUsesSarSidecar) {
     EXPECT_TRUE((std::is_same_v<sar::SarAccelControlToken,
-                                sar::AccelControlToken<sar::SarSidecar>>));
+                                graph::gpu::accel::ControlToken<sar::SarSidecar>>));
 }
 
 TEST(SarTokenContractTest, CanonicalSarGpuStagesUseExplicitAccelTypeNames) {

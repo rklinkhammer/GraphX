@@ -231,8 +231,8 @@ message(STATUS "GraphX multi-GPU tests: ${MULTI_GPU_TESTS}")
 # Add projects
 add_subdirectory(libgraph)
 add_subdirectory(libsensor)
-add_subdirectory(libdsp)
 add_subdirectory(libgpu)
+add_subdirectory(libdsp)
 
 if(GRAPHX_BUILD_EXAMPLES_SAR)
     add_subdirectory(examples/SAR)

@@ -50,15 +50,30 @@ FFTNode<SampleT, N>::Transfer(const IqMessageType& packet,
         return std::nullopt;
     }
 
-    auto result = fft_manager_->ProcessPacket(packet.template get<IqPacketType>());
+    auto result = fft_manager_->ProcessPacket(packet.sidecar.template get<IqPacketType>());
 
     if (result) {
         // Record peak frequency in history
         peak_frequency_history_.push_back(result->peak_frequency_hz);
         TrimPeakHistory();
+
+        MagnitudePacketType output{};
+        output.token_id = packet.token_id;
+        output.lease = packet.lease;
+        output.device_view = packet.device_view;
+        output.host_view = packet.host_view;
+        output.transfer_ticket = packet.transfer_ticket;
+        output.kernel_ticket = packet.kernel_ticket;
+        output.has_lease = packet.has_lease;
+        output.has_device_view = packet.has_device_view;
+        output.has_host_view = packet.has_host_view;
+        output.has_transfer_ticket = packet.has_transfer_ticket;
+        output.has_kernel_ticket = packet.has_kernel_ticket;
+        output.sidecar = std::move(*result);
+        return output;
     }
 
-    return result;
+    return std::nullopt;
 }
 
 // ============================================================================

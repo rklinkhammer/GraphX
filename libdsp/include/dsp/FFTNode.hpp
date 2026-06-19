@@ -20,6 +20,8 @@
 #include "config/JsonView.hpp"
 #include "metrics/NodeMetricsSchema.hpp"
 
+#include "gpu/accel/types/AccelTypes.hpp"
+
 #include <memory>
 #include <optional>
 #include <expected>
@@ -107,8 +109,8 @@ template<typename SampleT = float, size_t N = 256>
  * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
 class FFTNode : public graph::NamedInteriorNode<
-                    graph::TypeList<graph::message::Message>,
-                    graph::TypeList<MagnitudePacket<SampleT, N>>,
+                    graph::TypeList<graph::gpu::accel::ControlToken<graph::message::Message>>,
+                    graph::TypeList<graph::gpu::accel::ControlToken<MagnitudePacket<SampleT, N>>>,
                     FFTNode<SampleT, N>>,
                 public graph::IConfigurable,
                 public graph::IDiagnosable,
@@ -119,8 +121,8 @@ public:
     // ========================================================================
 
     using IqPacketType = IqPacket<SampleT, N>;
-    using IqMessageType = graph::message::Message;
-    using MagnitudePacketType = MagnitudePacket<SampleT, N>;
+    using IqMessageType = graph::gpu::accel::ControlToken<graph::message::Message>;
+    using MagnitudePacketType = graph::gpu::accel::ControlToken<MagnitudePacket<SampleT, N>>;
     using FFTManagerType = FFTManager<SampleT, N>;
 
     // ========================================================================

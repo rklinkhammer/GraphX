@@ -38,6 +38,7 @@ if(SOURCES)
     # Link with libgraph (required dependency)
     target_link_libraries(dsp PUBLIC
         graph
+        gpu
         sensor
         nlohmann_json::nlohmann_json
         Eigen3::Eigen
@@ -64,6 +65,7 @@ else()
     )
     target_link_libraries(dsp INTERFACE
         graph
+        gpu
         sensor
         nlohmann_json::nlohmann_json
         Eigen3::Eigen

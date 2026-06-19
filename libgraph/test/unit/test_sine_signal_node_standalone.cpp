@@ -25,10 +25,10 @@ constexpr double kPi = 3.14159265358979323846;
 TEST(SineSignalNodeStandaloneTest, ProducesExpectedDefaultWaveformPacket) {
     dsp::SineSignalNode<kPacketSize> node;
 
-    const auto message = node.Produce(std::integral_constant<std::size_t, 0>{});
-    ASSERT_TRUE(message.has_value());
+    const auto token = node.Produce(std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(token.has_value());
 
-    const auto& packet = message->template get<dsp::IqPacket<float, kPacketSize>>();
+    const auto& packet = token->sidecar.template get<dsp::IqPacket<float, kPacketSize>>();
 
     EXPECT_EQ(packet.packet_number, 0u);
     EXPECT_DOUBLE_EQ(packet.sample_rate_hz, kDefaultSampleRateHz);

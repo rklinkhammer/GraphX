@@ -18,18 +18,21 @@ add_graphx_plugin(
     TARGET_NAME sine_signal_node_256
     SOURCE_FILE sine_signal_node_256_plugin.cpp
     DESCRIPTION "Sine wave DSP node (256 samples/packet)"
+    DEPENDENCIES dsp
 )
 
 add_graphx_plugin(
     TARGET_NAME sine_signal_node_512
     SOURCE_FILE sine_signal_node_512_plugin.cpp
     DESCRIPTION "Sine wave DSP node (512 samples/packet)"
+    DEPENDENCIES dsp
 )
 
 add_graphx_plugin(
     TARGET_NAME sine_signal_node_1024
     SOURCE_FILE sine_signal_node_1024_plugin.cpp
     DESCRIPTION "Sine wave DSP node (1024 samples/packet)"
+    DEPENDENCIES dsp
 )
 
 # FFTNode Plugins - DSP FFT processor with different packet sizes

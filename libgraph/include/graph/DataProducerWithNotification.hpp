@@ -32,6 +32,8 @@
 #include <chrono>
 #include <memory>
 #include <atomic>
+#include <type_traits>
+#include <utility>
 #include "graph/NamedNodes.hpp"
 #include "graph/DataGeneratorBase.hpp"
 #include "graph/Message.hpp"
@@ -117,8 +119,9 @@ namespace graph {
  * - Metrics are collected via atomics with memory_order_relaxed
  * - Port operations are thread-safe (managed by SourceNode base class)
  */
-template <typename NodeType, typename DataGenerator, typename DataType, typename PayloadType, typename NotificationType, 
-    typename ClassificationType, ClassificationType Classification = ClassificationType::Unclassified>
+template <typename NodeType, typename DataGenerator, typename DataType, typename PayloadType, typename NotificationType,
+    typename ClassificationType, ClassificationType Classification = ClassificationType::Unclassified,
+    typename OutputType = graph::message::Message>
 /**
  * @class DataProducerWithNotification
  * @brief Data Producer With Notification type.
@@ -126,7 +129,7 @@ template <typename NodeType, typename DataGenerator, typename DataType, typename
  * @details Part of the GraphX public API for libgraph. The type documents its runtime role, ownership expectations, and interaction with neighboring graph components.
  */
 class DataProducerWithNotification : 
-    public NamedSourceNode<NodeType, graph::message::Message, NotificationType>,
+    public NamedSourceNode<NodeType, OutputType, NotificationType>,
     public graph::ISourceCallbackProvider<DataType> {
 public:
     /**
@@ -239,7 +242,7 @@ public:
      * - total_samples_generated_: Incremented on each generator->Produce() success
      * - notification_queue_: Single message enqueued on exhaustion
      */
-    std::optional<::graph::message::Message> Produce(std::integral_constant<std::size_t, 0>) override {
+    std::optional<OutputType> Produce(std::integral_constant<std::size_t, 0>) override {
         while (true) {
             next_time_ += GetNextSampleInterval();
             std::this_thread::sleep_until(next_time_);
@@ -254,7 +257,7 @@ public:
  * @return Result of the operation.
  */
                     PayloadType payload(sample.value());
-                    return ::graph::message::Message(payload);
+                    return MakeOutput(std::move(payload));
                 }
                 continue;
             }
@@ -530,7 +533,7 @@ public:
     void Stop() override {
         notification_queue_.Clear();
         notification_queue_.Disable();
-        NamedSourceNode<NodeType, ::graph::message::Message, NotificationType>::Stop();
+        NamedSourceNode<NodeType, OutputType, NotificationType>::Stop();
     }
 
     /**
@@ -610,7 +613,17 @@ public:
         /// Logs "Data exhausted" message when generator is exhausted
         log4cxx::LoggerPtr logger_ = log4cxx::Logger::getLogger("nodes.DataProducerWithNotification");
         
-    private:
+private:
+    static OutputType MakeOutput(PayloadType&& payload) {
+        if constexpr (std::is_same_v<OutputType, graph::message::Message>) {
+            return graph::message::Message(std::move(payload));
+        } else {
+            OutputType output{};
+            output.sidecar = graph::message::Message(std::move(payload));
+            return output;
+        }
+    }
+
         /// @brief Data source generator (moved in constructor, never null after construction)
         std::unique_ptr<DataGenerator> generator_;
         

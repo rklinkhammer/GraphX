@@ -3,7 +3,7 @@
   "program": "GraphX SAR external baselines",
   "comparator_only": true,
   "architecture_protection": {
-    "canonical_runtime_contract": "AccelControlToken<SarSidecar>",
+    "canonical_runtime_contract": "ControlToken<SarSidecar>",
     "metal_first_backend": true,
     "preserve_dynamic_loading": true,
     "preserve_resolver_behavior": true,

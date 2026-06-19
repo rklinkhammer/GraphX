@@ -40,6 +40,7 @@
 #include "graph/DataProducerWithNotification.hpp"
 #include "graph/Message.hpp"
 #include "graph/IConfigurable.hpp"
+#include "gpu/accel/types/AccelTypes.hpp"
 #include "metrics/IMetricsCallback.hpp"
 #include "dsp/SineWaveGenerator.hpp"
 #include "dsp/IqPacket.hpp"
@@ -59,7 +60,7 @@ namespace dsp {
  * **Architecture:**
  * - Extends DataProducerWithNotification (first production use of this base)
  * - Template parameter N: IQ packet size (default 256 samples)
- * - Port 0: IqSamples - outputs Message<IqPacket<float, N>>
+ * - Port 0: IqSamples - outputs ControlToken<Message<IqPacket<float, N>>>
  * - Port 1: Notify - outputs message::CompletionSignal
  * - Uses SineWaveGenerator<float, N> for internal data generation
  *
@@ -84,13 +85,19 @@ class SineSignalNode : public graph::DataProducerWithNotification<
     IqPacket<float, N>,
     IqPacket<float, N>,
     graph::message::CompletionSignal,
-    int, 0>,
+    int,
+    0,
+    graph::gpu::accel::ControlToken<graph::message::Message>>,
                        public graph::IConfigurable,
                        public graph::IParameterized,
                        public graph::IDiagnosable,
                        public graph::IMetricsCallbackProvider {
 
 public:
+    using IqPacketType = IqPacket<float, N>;
+    using IqMessageType = graph::message::Message;
+    using IqTokenType = graph::gpu::accel::ControlToken<IqMessageType>;
+
     /**
      * @brief Construct a SineSignalNode with default configuration
      *
@@ -109,7 +116,9 @@ public:
             IqPacket<float, N>,
             IqPacket<float, N>,
             graph::message::CompletionSignal,
-            int,0>(
+            int,
+            0,
+            IqTokenType>(
                 std::make_unique<SineWaveGenerator<float, N>>(),
                 std::chrono::microseconds(10000),  // 10ms default interval
                 0) {  // No samples ignored by default
@@ -133,11 +142,11 @@ public:
      * @brief Port specifications tuple
      *
      * Defines the two output ports:
-     * - Port 0: IqSamples - Message<IqPacket<float, N>>
+     * - Port 0: IqSamples - ControlToken<Message<IqPacket<float, N>>>
      * - Port 1: Notify - CompletionSignal
      */
     using Ports = std::tuple<
-        graph::PortSpec<0, ::graph::message::Message, graph::PortDirection::Output,
+        graph::PortSpec<0, IqTokenType, graph::PortDirection::Output,
             kIqSamplesPort, graph::PayloadList<IqPacket<float, N>>>,
         graph::PortSpec<1, ::graph::message::CompletionSignal, graph::PortDirection::Output,
             kNotifyPort, graph::PayloadList<>>>;

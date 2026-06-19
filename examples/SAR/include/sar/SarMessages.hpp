@@ -98,7 +98,7 @@ struct SarSidecar {
     SarStageTimingMetrics stage_timings{};
 };
 
-// AccelControlToken carries both SAR identity semantics and opaque GPU transport metadata.
+// SarAccelControlToken carries both SAR identity semantics and opaque GPU transport metadata.
 //
 // SAR IDENTITY SEMANTICS (from sidecar):
 // - SAR identity MUST be derived ONLY from the sidecar fields:
@@ -115,23 +115,7 @@ struct SarSidecar {
 // - Code must NOT use device_view.ready_event or host_view.host_ptr for SAR identity decisions.
 //
 // This contract ensures SAR algorithm logic is decoupled from GPU transport implementation.
-template <typename SidecarT>
-struct AccelControlToken {
-    std::uint64_t token_id{};
-    SidecarT sidecar{};
-    graph::gpu::accel::BufferLease lease{};
-    graph::gpu::accel::DeviceBufferView device_view{};  // device_view.ready_event is opaque
-    graph::gpu::accel::HostPinnedBufferView host_view{};  // host_view.host_ptr is opaque
-    graph::gpu::accel::TransferTicket transfer_ticket{};
-    graph::gpu::accel::KernelTicket kernel_ticket{};
-    bool has_lease{false};
-    bool has_device_view{false};
-    bool has_host_view{false};
-    bool has_transfer_ticket{false};
-    bool has_kernel_ticket{false};
-};
-
-using SarAccelControlToken = AccelControlToken<SarSidecar>;
+using SarAccelControlToken = graph::gpu::accel::ControlToken<SarSidecar>;
 
 struct SarDiagnosticsSnapshot {
     SarSidecar sidecar{};
