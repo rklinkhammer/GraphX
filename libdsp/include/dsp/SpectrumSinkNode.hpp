@@ -57,7 +57,7 @@ namespace dsp {
  * @tparam SampleT Floating point type (float or double)
  * @tparam N FFT size from input MagnitudePacket
  *
- * **Input Port 0:** ControlToken<MagnitudePacket<SampleT, N>> - Power spectrum from FFTNode
+ * **Input Port 0:** ControlToken<MagnitudePacket<SampleT, N>> - Power spectrum from CpuSpectrumDftNode
  *
  * **Features:**
  * - Captures and buffers spectrum data with configurable history
@@ -68,7 +68,7 @@ namespace dsp {
  *
  * **Typical Usage:**
  * ```
- * FFTNode -> Transfer(IqPacket) -> MagnitudePacket
+ * CpuSpectrumDftNode -> Transfer(IqPacket) -> MagnitudePacket
  *                                         |
  *                                         v
  *                            SpectrumSinkNode -> Consume()
@@ -182,7 +182,7 @@ public:
     // ========================================================================
 
     /**
-     * @brief Consume a token-wrapped MagnitudePacket from FFTNode
+     * @brief Consume a token-wrapped MagnitudePacket from CpuSpectrumDftNode
      *
      * Called by GraphX framework when spectrum data arrives.
      * Stores spectrum in buffer and updates peak tracking.

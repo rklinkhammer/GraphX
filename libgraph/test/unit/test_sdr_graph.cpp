@@ -12,7 +12,7 @@
 #include <memory>
 #include <stdexcept>
 
-#include "dsp/FFTNode.hpp"
+#include "dsp/CpuSpectrumDftNode.hpp"
 #include "dsp/SineSignalNode.hpp"
 #include "dsp/SpectrumSinkNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -31,7 +31,7 @@ using graph::NodeFacadeAdapter;
 using graph::NodeFacadeAdapterWrapper;
 using test::PluginInfrastructure;
 using SineSourceNode = dsp::SineSignalNode<kPacketSize>;
-using FFTProcessorNode = dsp::FFTNode<float, kPacketSize>;
+using FFTProcessorNode = dsp::CpuSpectrumDftNode<float, kPacketSize>;
 using AnalyzerSinkNode = dsp::SpectrumSinkNode<float, kPacketSize>;
 
 std::shared_ptr<NodeFacadeAdapterWrapper> CreatePluginNodeWithFallback(
@@ -101,7 +101,7 @@ std::shared_ptr<GraphManager> BuildSDRGraph(
     }
 
     fft_wrapper = CreatePluginNodeWithFallback(
-        {"FFTNode<256>", "FFTNode<float, 256>"},
+        {"CpuSpectrumDftNode<256>", "CpuSpectrumDftNode<float, 256>"},
         failure_reason);
     if (!fft_wrapper) {
         failure_reason = "FFT plugin unavailable: " + failure_reason;
@@ -211,7 +211,7 @@ TEST(SDRGraphTest, DynamicTopologyHasExpectedNodesAndEdges) {
     ASSERT_EQ(2u, graph->GetEdges().size());
 
     EXPECT_EQ("SineSignalNode<>", source_wrapper->GetType());
-    EXPECT_EQ("FFTNode<float, 256>", fft_wrapper->GetType());
+    EXPECT_EQ("CpuSpectrumDftNode<float, 256>", fft_wrapper->GetType());
     EXPECT_EQ("SpectrumSinkNode<float, 256>", analyzer_wrapper->GetType());
 
     const auto* iq_edge = graph->GetEdgeMetadata(0);

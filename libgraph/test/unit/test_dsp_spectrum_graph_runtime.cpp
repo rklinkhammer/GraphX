@@ -97,7 +97,7 @@ TEST(DspSpectrumGraphRuntimeTest, ConfigUsesCpuOnlyDspNodes) {
 
     const std::set<std::string> expected_types{
         "SineSignalNode<256>",
-        "FFTNode<256>",
+        "CpuSpectrumDftNode<256>",
         "SpectrumSinkNode<256>",
     };
     std::set<std::string> actual_types;
@@ -130,7 +130,7 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     ASSERT_TRUE(available);
     const std::set<std::string> available_types(available->begin(), available->end());
     EXPECT_TRUE(available_types.contains("SineSignalNode<256>"));
-    EXPECT_TRUE(available_types.contains("FFTNode<256>"));
+    EXPECT_TRUE(available_types.contains("CpuSpectrumDftNode<256>"));
     EXPECT_TRUE(available_types.contains("SpectrumSinkNode<256>"));
 
     auto executor = graph::GraphExecutorBuilder()

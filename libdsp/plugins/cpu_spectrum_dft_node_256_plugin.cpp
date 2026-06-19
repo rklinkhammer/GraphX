@@ -1,6 +1,6 @@
 /**
- * @file fft_node_512_plugin.cpp
- * @brief FFT Node 512 Plugin DSP support.
+ * @file cpu_spectrum_dft_node_256_plugin.cpp
+ * @brief FFT Node 256 Plugin DSP support.
  *
  * @details Provides plugin registration unit for dynamically loading DSP graph nodes. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
@@ -31,20 +31,20 @@
 #include <string>
 #include <log4cxx/logger.h>
 #include "plugins/NodePluginTemplate.hpp"
-#include "dsp/FFTNode.hpp"
+#include "dsp/CpuSpectrumDftNode.hpp"
 
 using namespace graph;
-using dsp::FFTNode;
+using dsp::CpuSpectrumDftNode;
 
 // ============================================================================
 // Policy specialization
 // ============================================================================
 
-struct FFTNode512Policy : PluginPolicy<dsp::FFTNode<float, 512>> {
+struct CpuSpectrumDftNode256Policy : PluginPolicy<dsp::CpuSpectrumDftNode<float, 256>> {
     static constexpr const char* Description =
-        "FFT DSP processor (512 samples/packet, high throughput)";
+        "FFT DSP processor (256 samples/packet, standard latency)";
 
-    static bool SetProperty(NodePluginInstance<dsp::FFTNode<float, 512>>* inst,
+    static bool SetProperty(NodePluginInstance<dsp::CpuSpectrumDftNode<float, 256>>* inst,
                             const char*, const char*) {
         LOG4CXX_TRACE(inst->logger, "No properties supported");
         return true;
@@ -55,8 +55,8 @@ struct FFTNode512Policy : PluginPolicy<dsp::FFTNode<float, 512>> {
 // Facade
 // ============================================================================
 
-using Glue = PluginGlue<dsp::FFTNode<float, 512>, FFTNode512Policy>;
-static const NodeFacade fft_node_512_facade = Glue::MakeFacade();
+using Glue = PluginGlue<dsp::CpuSpectrumDftNode<float, 256>, CpuSpectrumDftNode256Policy>;
+static const NodeFacade cpu_spectrum_dft_node_256_facade = Glue::MakeFacade();
 
 // ============================================================================
 // C exports
@@ -65,13 +65,13 @@ static const NodeFacade fft_node_512_facade = Glue::MakeFacade();
 extern "C" {
 
 /**
- * @brief Plugin create fft node 512.
+ * @brief Plugin create fft node 256.
  */
-void* plugin_create_fft_node_512() {
+void* plugin_create_cpu_spectrum_dft_node_256() {
     try {
-        auto node = std::make_shared<dsp::FFTNode<float, 512>>();
-        return new NodePluginInstance<dsp::FFTNode<float, 512>>(
-            node, "FFTNode", "plugin.FFTNode.512");
+        auto node = std::make_shared<dsp::CpuSpectrumDftNode<float, 256>>();
+        return new NodePluginInstance<dsp::CpuSpectrumDftNode<float, 256>>(
+            node, "CpuSpectrumDftNode", "plugin.CpuSpectrumDftNode.256");
     } catch (...) {
         return nullptr;
     }
@@ -81,8 +81,8 @@ void* plugin_create_fft_node_512() {
  * @brief Plugin get info.
  */
 const char* plugin_get_info() {
-    return "FFTNode<512>|FFT DSP processor (512 samples/packet)|1.0|"
-           "plugin_create_fft_node_512|"
+    return "CpuSpectrumDftNode<256>|FFT DSP processor (256 samples/packet)|1.0|"
+           "plugin_create_cpu_spectrum_dft_node_256|"
 #ifdef _LIBCPP_VERSION
            "libc++_v1";
 #else
@@ -94,7 +94,7 @@ const char* plugin_get_info() {
  * @brief Plugin get facade.
  */
 NodeFacade* plugin_get_facade() {
-    return const_cast<NodeFacade*>(&fft_node_512_facade);
+    return const_cast<NodeFacade*>(&cpu_spectrum_dft_node_256_facade);
 }
 
 // Phase 4: Plugin API version negotiation

@@ -227,7 +227,7 @@ TEST(DspSpectrumDemoGuardrailTest, ConfigDeclaresCpuOnlyDspNodeTypes) {
         EXPECT_EQ(type.find("Gpu"), std::string::npos) << type;
 
         saw_sine = saw_sine || type == "SineSignalNode<256>";
-        saw_fft = saw_fft || type == "FFTNode<256>";
+        saw_fft = saw_fft || type == "CpuSpectrumDftNode<256>";
         saw_spectrum = saw_spectrum || type == "SpectrumSinkNode<256>";
     }
 
@@ -250,7 +250,7 @@ TEST(DspSpectrumDemoGuardrailTest, RunnerAndDocsStateCpuOnlyDirectDftTruthInLabe
 
     ExpectContains(demo_text, "Execution mode: CPU-only direct DFT");
 
-    ExpectContains(doc_text, "SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>");
+    ExpectContains(doc_text, "SineSignalNode<256> -> CpuSpectrumDftNode<float, 256> -> SpectrumSinkNode<float, 256>");
     ExpectContains(doc_text, "CPU-only");
     ExpectContains(doc_text, "direct DFT");
     ExpectContains(doc_text, "GPU Metal direct DFT");

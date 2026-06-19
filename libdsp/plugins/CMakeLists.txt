@@ -35,24 +35,24 @@ add_graphx_plugin(
     DEPENDENCIES dsp
 )
 
-# FFTNode Plugins - DSP FFT processor with different packet sizes
+# CpuSpectrumDftNode Plugins - DSP FFT processor with different packet sizes
 add_graphx_plugin(
-    TARGET_NAME fft_node_256
-    SOURCE_FILE fft_node_256_plugin.cpp
+    TARGET_NAME cpu_spectrum_dft_node_256
+    SOURCE_FILE cpu_spectrum_dft_node_256_plugin.cpp
     DESCRIPTION "FFT DSP processor (256 samples/packet)"
     DEPENDENCIES dsp
 )
 
 add_graphx_plugin(
-    TARGET_NAME fft_node_512
-    SOURCE_FILE fft_node_512_plugin.cpp
+    TARGET_NAME cpu_spectrum_dft_node_512
+    SOURCE_FILE cpu_spectrum_dft_node_512_plugin.cpp
     DESCRIPTION "FFT DSP processor (512 samples/packet)"
     DEPENDENCIES dsp
 )
 
 add_graphx_plugin(
-    TARGET_NAME fft_node_1024
-    SOURCE_FILE fft_node_1024_plugin.cpp
+    TARGET_NAME cpu_spectrum_dft_node_1024
+    SOURCE_FILE cpu_spectrum_dft_node_1024_plugin.cpp
     DESCRIPTION "FFT DSP processor (1024 samples/packet)"
     DEPENDENCIES dsp
 

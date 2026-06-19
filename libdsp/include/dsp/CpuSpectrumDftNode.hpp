@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * @file FFTNode.hpp
- * @brief Fftnode DSP support.
+ * @file CpuSpectrumDftNode.hpp
+ * @brief CpuSpectrumDftNode DSP support.
  *
  * @details Provides public DSP API for deterministic signal-processing graph nodes and packets. This file is documented for Doxygen so public APIs and test support surfaces can be browsed consistently.
  */
@@ -103,15 +103,15 @@ enum class FFTConfigError {
  */
 template<typename SampleT = float, size_t N = 256>
 /**
- * @class FFTNode
- * @brief Fftnode graph node.
+ * @class CpuSpectrumDftNode
+ * @brief CpuSpectrumDftNode graph node.
  *
  * @details Implements a GraphX node boundary with typed inputs, outputs, configuration, and lifecycle hooks. The node participates in graph execution through the standard port and message contracts.
  */
-class FFTNode : public graph::NamedInteriorNode<
+class CpuSpectrumDftNode : public graph::NamedInteriorNode<
                     graph::TypeList<graph::gpu::accel::ControlToken<graph::message::Message>>,
                     graph::TypeList<graph::gpu::accel::ControlToken<MagnitudePacket<SampleT, N>>>,
-                    FFTNode<SampleT, N>>,
+                    CpuSpectrumDftNode<SampleT, N>>,
                 public graph::IConfigurable,
                 public graph::IDiagnosable,
                 public graph::IMetricsCallbackProvider {
@@ -141,7 +141,7 @@ public:
  * @brief Fft node.
  * @return Result of the operation.
  */
-    explicit FFTNode();
+    explicit CpuSpectrumDftNode();
 
     /**
      * @brief Constructor with configuration
@@ -150,13 +150,13 @@ public:
      * @param sample_rate_hz Sample rate in Hz
      * @param window_type Window function type
      */
-    explicit FFTNode(size_t accumulation_count, double sample_rate_hz,
+    explicit CpuSpectrumDftNode(size_t accumulation_count, double sample_rate_hz,
                      WindowType window_type = WindowType::HANN);
 
     /**
      * @brief Virtual destructor
      */
-    virtual ~FFTNode() = default;
+    virtual ~CpuSpectrumDftNode() = default;
 
     // ========================================================================
     // Core Transfer Method
@@ -457,8 +457,8 @@ private:
 };
 
 // Explicit instantiations (common sizes)
-extern template class FFTNode<float, 256>;
-extern template class FFTNode<float, 512>;
-extern template class FFTNode<float, 1024>;
+extern template class CpuSpectrumDftNode<float, 256>;
+extern template class CpuSpectrumDftNode<float, 512>;
+extern template class CpuSpectrumDftNode<float, 1024>;
 
 }  // namespace dsp

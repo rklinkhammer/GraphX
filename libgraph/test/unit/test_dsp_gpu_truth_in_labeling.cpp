@@ -143,7 +143,7 @@ TEST(DspGpuTruthInLabelingTest, CpuConfigRemainsCpuOnly) {
         EXPECT_NE(type, "DspMagnitudeD2HNode<256>");
 
         saw_sine = saw_sine || type == "SineSignalNode<256>";
-        saw_fft = saw_fft || type == "FFTNode<256>";
+        saw_fft = saw_fft || type == "CpuSpectrumDftNode<256>";
         saw_sink = saw_sink || type == "SpectrumSinkNode<256>";
     }
 

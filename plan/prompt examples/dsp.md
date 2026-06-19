@@ -92,3 +92,48 @@ Suggested PR shape:
 - PR3: Documentation and guardrails for CPU-only/non-GPU truth-in-labeling.
 - Future, out of scope: Metal DSP implementation and spectrogram image sink.
 ```
+
+
+================
+
+Recommended improvements:
+
+1. **Rename / split the CPU FFT path**
+   The current `FFTNode` is really a CPU spectrum node using `FFTManager`, whose comment says it uses a direct DFT for `N <= 1024`, not a true FFT. Rename it to `CpuSpectrumDftNode` or replace the implementation with an actual radix-2 FFT. Otherwise it conflicts conceptually with `MetalSpectrumDftNode`, which is explicitly `direct_dft`.  
+
+2. **Unify CPU and Metal output semantics**
+   `MetalSpectrumDftNode` always emits `MagnitudePacket` with `num_accumulated_packets = 1`, while the CPU path supports accumulation through `FFTManager`. Either add accumulation to the GPU path or make accumulation a separate upstream node so CPU/GPU spectrum nodes are comparable.  
+
+3. **Do not hard-code Hann inside the Metal kernel**
+   The Metal DFT kernel embeds Hann windowing directly in generated source. Move window type into config and either generate the proper kernel source or pass precomputed window coefficients as a device buffer. 
+
+4. **Fix diagnostics**
+   `FFTNode::GetDiagnostics()` returns an empty object, while the Metal/H2D/D2H nodes expose useful state such as backend, bytes, tickets, peak bin, and algorithm. Add diagnostics for sample rate, window type, accumulation count, packet counters, FFT/DFT count, average compute time, peak frequency history, and last output validity.  
+
+5. **Make config validation consistent**
+   `FFTNode::Configure()` silently ignores invalid `accumulation_count <= 0` and unknown window names, while `ConfigureExpected()` rejects them. Use one validation policy and make invalid configuration fail loudly. 
+
+6. **Catch sidecar type errors in `FFTNode`**
+   The GPU DFT path catches `std::bad_cast` when extracting the IQ sidecar. `FFTNode` directly calls `packet.sidecar.template get<IqPacketType>()`. Add the same guarded extraction so malformed tokens return `nullopt` instead of throwing through the graph.  
+
+7. **Add algorithm selection**
+   Introduce a common node parameter:
+   `algorithm = direct_dft | radix2_fft | metal_dft | metal_fft`
+   Then use a common spectrum interface so tests can compare CPU DFT, CPU FFT, and Metal DFT from the same IQ input.
+
+8. **Improve GPU execution model**
+   The Metal DFT launches one thread per bin with one serial loop over all samples. That is fine for validation, but should be labeled reference-quality. For performance, add a real Metal FFT path using staged radix-2 butterflies, shared/threadgroup memory where possible, and separate magnitude extraction.
+
+9. **Separate “complex spectrum” from “magnitude spectrum”**
+   Both CPU and Metal paths collapse directly to magnitudes. For SAR, phase matters. Add an intermediate `ComplexSpectrumPacket` / complex device layout, then make magnitude a downstream optional node.
+
+10. **Fix D2H synchronization semantics**
+    `DspMagnitudeD2HNode` waits on the kernel event before enqueueing D2H. Prefer preserving async graph semantics by having D2H depend on the kernel ticket/event instead of host-blocking, unless this node is explicitly a synchronization boundary. 
+
+Highest-priority PR order:
+
+**PR1:** Rename/document CPU DFT vs FFT and fix config/error handling.
+**PR2:** Add useful diagnostics and metrics.
+**PR3:** Unify CPU/GPU spectrum semantics and tests.
+**PR4:** Add complex spectrum output.
+**PR5:** Add real FFT backend after correctness is locked.

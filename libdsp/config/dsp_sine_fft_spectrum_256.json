@@ -15,7 +15,7 @@
     },
     {
       "id": "fft",
-      "type": "FFTNode<256>",
+      "type": "CpuSpectrumDftNode<256>",
       "node_config": {}
     },
     {
