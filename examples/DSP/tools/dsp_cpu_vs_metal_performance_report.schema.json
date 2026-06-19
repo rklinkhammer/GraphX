@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "graphx.dsp.cpu_vs_metal_execute_timing.schema.json",
+  "title": "GraphX DSP CPU vs Metal Execute Timing Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "mode",
+    "cpu_config_path",
+    "gpu_config_path",
+    "build_preset_or_binary_path",
+    "plugin_directories",
+    "measurement_context",
+    "native_metal_available",
+    "native_metal_diagnostics",
+    "warmup_iterations",
+    "measured_iterations",
+    "executor_timeout_s",
+    "timing_source",
+    "strict_gate",
+    "speedup_ratio",
+    "correctness_summary",
+    "cpu",
+    "gpu"
+  ],
+  "properties": {
+    "schema": {
+      "const": "graphx.dsp.cpu_vs_metal_execute_timing.v1"
+    },
+    "mode": {
+      "enum": ["informational", "gate_enforced"]
+    },
+    "cpu_config_path": {
+      "type": "string"
+    },
+    "gpu_config_path": {
+      "type": "string"
+    },
+    "build_preset_or_binary_path": {
+      "type": "string"
+    },
+    "plugin_directories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "measurement_context": {
+      "const": "measured on this host/config"
+    },
+    "native_metal_available": {
+      "type": "boolean"
+    },
+    "native_metal_diagnostics": {
+      "type": "string"
+    },
+    "warmup_iterations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "measured_iterations": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "executor_timeout_s": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timing_source": {
+      "const": "GraphExecutor::Execute() ExecutionResult"
+    },
+    "strict_gate": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "required_env",
+        "threshold_env",
+        "min_speedup_ratio",
+        "basis",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "required_env": {
+          "const": "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP"
+        },
+        "threshold_env": {
+          "const": "GRAPHX_DSP_MIN_METAL_SPEEDUP_RATIO"
+        },
+        "min_speedup_ratio": {
+          "type": "number"
+        },
+        "basis": {
+          "const": "run_elapsed_time_ms"
+        },
+        "status": {
+          "enum": [
+            "disabled",
+            "passed",
+            "native_metal_unavailable",
+            "gpu_failed",
+            "correctness_failed",
+            "speedup_below_threshold",
+            "missing_timing"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "speedup_ratio": {
+      "type": "object",
+      "required": ["elapsed_time_ms", "run_elapsed_time_ms"],
+      "properties": {
+        "elapsed_time_ms": {
+          "type": ["number", "null"]
+        },
+        "run_elapsed_time_ms": {
+          "type": ["number", "null"]
+        }
+      }
+    },
+    "correctness_summary": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "cpu": {
+      "$ref": "#/$defs/lane"
+    },
+    "gpu": {
+      "$ref": "#/$defs/lane"
+    }
+  },
+  "$defs": {
+    "lane": {
+      "type": "object",
+      "required": [
+        "status",
+        "message",
+        "warmup_iterations",
+        "measured_iterations",
+        "summary"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["ok", "failed", "unavailable", "not_run"]
+        },
+        "message": {
+          "type": "string"
+        },
+        "warmup_iterations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/iteration"
+          }
+        },
+        "measured_iterations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/iteration"
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["elapsed_time_ms", "run_elapsed_time_ms"],
+          "properties": {
+            "elapsed_time_ms": {
+              "$ref": "#/$defs/statistics"
+            },
+            "run_elapsed_time_ms": {
+              "$ref": "#/$defs/statistics"
+            }
+          }
+        }
+      }
+    },
+    "iteration": {
+      "type": "object",
+      "required": [
+        "iteration",
+        "execute_result",
+        "completion_signaled",
+        "peak_frequency_hz",
+        "peak_magnitude",
+        "peak_bin",
+        "sample_rate_hz",
+        "selected_bins"
+      ],
+      "properties": {
+        "iteration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "execute_result": {
+          "$ref": "#/$defs/execute_result"
+        },
+        "completion_signaled": {
+          "type": "boolean"
+        },
+        "peak_frequency_hz": {
+          "type": "number"
+        },
+        "peak_magnitude": {
+          "type": "number"
+        },
+        "peak_bin": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sample_rate_hz": {
+          "type": "number"
+        },
+        "selected_bins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bin", "magnitude"],
+            "properties": {
+              "bin": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "magnitude": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "execute_result": {
+      "type": "object",
+      "required": [
+        "success",
+        "message",
+        "elapsed_time_ms",
+        "init_elapsed_time_ms",
+        "start_elapsed_time_ms",
+        "run_elapsed_time_ms",
+        "stop_elapsed_time_ms",
+        "join_elapsed_time_ms",
+        "error_details"
+      ],
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "init_elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "run_elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stop_elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "join_elapsed_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error_details": {
+          "type": "string"
+        }
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "required": ["count", "min", "median", "mean", "stddev"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min": {
+          "type": ["number", "null"]
+        },
+        "median": {
+          "type": ["number", "null"]
+        },
+        "mean": {
+          "type": ["number", "null"]
+        },
+        "stddev": {
+          "type": ["number", "null"]
+        }
+      }
+    }
+  }
+}

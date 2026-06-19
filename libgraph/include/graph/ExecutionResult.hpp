@@ -89,8 +89,23 @@ struct ExecutionResult {
     /// Current execution state after operation
     graph::ExecutionState current_state = graph::ExecutionState::ERROR;
 
-    /// Time taken for operation (milliseconds)
+    /// Time taken for operation, or total Execute() wall-clock time (milliseconds)
     uint32_t elapsed_time_ms = 0;
+
+    /// Execute() Init phase duration (milliseconds)
+    uint32_t init_elapsed_time_ms = 0;
+
+    /// Execute() Start phase duration (milliseconds)
+    uint32_t start_elapsed_time_ms = 0;
+
+    /// Execute() Run phase duration (milliseconds)
+    uint32_t run_elapsed_time_ms = 0;
+
+    /// Execute() Stop phase duration (milliseconds)
+    uint32_t stop_elapsed_time_ms = 0;
+
+    /// Execute() Join phase duration (milliseconds)
+    uint32_t join_elapsed_time_ms = 0;
 
     /// Error details if operation failed
     std::string error_details;

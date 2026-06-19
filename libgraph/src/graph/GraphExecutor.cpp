@@ -395,12 +395,16 @@ std::expected<ExecutionResult, app::error::GraphExecutionFailure>
 GraphExecutor::ExecuteExpected() noexcept {
     return CaptureLifecycleFailure<ExecutionResult>("Execute", [&]()
         -> std::expected<ExecutionResult, app::error::GraphExecutionFailure> {
+        auto execute_start_time = std::chrono::high_resolution_clock::now();
+        ExecutionResult result;
+
         auto init_result = InitExpected();
         if (!init_result) {
             LOG4CXX_ERROR(logger_, "Execute failed during Init(): "
                                      << init_result.error().message);
             return std::unexpected(init_result.error());
         }
+        result.init_elapsed_time_ms = init_result->elapsed_time_ms;
 
         auto start_result = StartExpected();
         if (!start_result) {
@@ -408,6 +412,7 @@ GraphExecutor::ExecuteExpected() noexcept {
                                      << start_result.error().message);
             return std::unexpected(start_result.error());
         }
+        result.start_elapsed_time_ms = start_result->elapsed_time_ms;
 
         auto run_result = RunExpected();
         if (!run_result) {
@@ -415,6 +420,7 @@ GraphExecutor::ExecuteExpected() noexcept {
                                      << run_result.error().message);
             return std::unexpected(run_result.error());
         }
+        result.run_elapsed_time_ms = run_result->elapsed_time_ms;
 
         auto stop_result = StopExpected();
         if (!stop_result) {
@@ -422,6 +428,7 @@ GraphExecutor::ExecuteExpected() noexcept {
                                      << stop_result.error().message);
             return std::unexpected(stop_result.error());
         }
+        result.stop_elapsed_time_ms = stop_result->elapsed_time_ms;
 
         auto join_result = JoinExpected();
         if (!join_result) {
@@ -429,11 +436,14 @@ GraphExecutor::ExecuteExpected() noexcept {
                                      << join_result.error().message);
             return std::unexpected(join_result.error());
         }
+        result.join_elapsed_time_ms = join_result->elapsed_time_ms;
 
-        ExecutionResult result;
         result.success = true;
         result.message = "Execute completed successfully";
         result.current_state = GetExecutionState();
+        auto execute_end_time = std::chrono::high_resolution_clock::now();
+        result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            execute_end_time - execute_start_time).count();
         return result;
     });
 }

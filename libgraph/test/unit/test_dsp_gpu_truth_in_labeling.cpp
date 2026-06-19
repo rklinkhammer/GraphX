@@ -55,6 +55,12 @@ std::string ActiveMetalSpectrumDftText() {
            LoadText(root / "libdsp/plugins/metal_spectrum_dft_node_256_plugin.cpp");
 }
 
+std::string ActiveDspPerformanceDocsText() {
+    const auto root = SourceRoot();
+    return LoadText(root / "docs/dsp/spectrum_demo.md") + "\n" +
+           LoadText(root / "README.md");
+}
+
 }  // namespace
 
 TEST(DspGpuTruthInLabelingTest, GpuDocsStateDirectDftNotFft) {
@@ -144,4 +150,72 @@ TEST(DspGpuTruthInLabelingTest, CpuConfigRemainsCpuOnly) {
     EXPECT_TRUE(saw_sine);
     EXPECT_TRUE(saw_fft);
     EXPECT_TRUE(saw_sink);
+}
+
+TEST(DspGpuTruthInLabelingTest, PerformanceDocsRequireMeasuredOnHostQualifier) {
+    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
+    const auto readme = LoadText(SourceRoot() / "README.md");
+
+    ExpectContains(docs, "speedup ratio");
+    ExpectContains(docs, "measured on the current host/config");
+    ExpectContains(docs, "measurements for the recorded host/config");
+    ExpectContains(readme, "measured on the current host/config");
+}
+
+TEST(DspGpuTruthInLabelingTest, PerformanceDocsDoNotClaimGeneralGpuSuperiority) {
+    const auto text = ActiveDspPerformanceDocsText();
+
+    ExpectNotContains(text, "Metal is faster");
+    ExpectNotContains(text, "GPU is faster");
+    ExpectNotContains(text, "Metal outperforms");
+    ExpectNotContains(text, "GPU outperforms");
+    ExpectNotContains(text, "general GPU superiority");
+    ExpectNotContains(text, "guaranteed speedup");
+}
+
+TEST(DspGpuTruthInLabelingTest, MetalDftIsNeverDocumentedAsGpuFft) {
+    const auto text = ActiveDspPerformanceDocsText() + "\n" +
+                      ActiveMetalSpectrumDftText();
+
+    ExpectContains(text, "Metal direct DFT");
+    ExpectContains(text, "not a GPU FFT");
+    ExpectContains(text, "not implement an optimized FFT");
+
+    ExpectNotContains(text, "MetalSpectrumDftNode<256>` is a GPU FFT");
+    ExpectNotContains(text, "MetalSpectrumDftNode<256> is a GPU FFT");
+    ExpectNotContains(text, "MetalSpectrumDftNode<256>` implements a GPU FFT");
+    ExpectNotContains(text, "MetalSpectrumDftNode<256> implements a GPU FFT");
+}
+
+TEST(DspGpuTruthInLabelingTest, DefaultCiDoesNotRequireSpeedup) {
+    const auto dsp_test_cmake = LoadText(SourceRoot() / "examples/DSP/test/CMakeLists.txt");
+    const auto libgraph_test_cmake = LoadText(SourceRoot() / "libgraph/test/CMakeLists.txt");
+    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
+    const auto readme = LoadText(SourceRoot() / "README.md");
+    const auto example_test = LoadText(SourceRoot() / "examples/DSP/test/test_dsp_spectrum_demo.cpp");
+
+    ExpectNotContains(dsp_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
+    ExpectNotContains(libgraph_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
+    ExpectContains(docs, "not part of default CI");
+    ExpectContains(readme, "not part of default CI");
+    ExpectContains(example_test, "DefaultComparisonModeDoesNotFailForUnavailableOrSlowerMetal");
+    ExpectContains(example_test, "StrictGateRequiresExplicitEnvironmentOptIn");
+}
+
+TEST(DspGpuTruthInLabelingTest, PerformanceReportsUseExecuteResultTiming) {
+    const auto schema = LoadJson(
+        SourceRoot() / "examples/DSP/tools/dsp_cpu_vs_metal_performance_report.schema.json");
+    const auto runner = LoadText(SourceRoot() / "examples/DSP/src/main.cpp");
+    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
+    const auto readme = LoadText(SourceRoot() / "README.md");
+
+    EXPECT_EQ(schema.at("properties").at("timing_source").at("const").get<std::string>(),
+              "GraphExecutor::Execute() ExecutionResult");
+    EXPECT_EQ(schema.at("properties").at("strict_gate")
+                  .at("properties").at("basis").at("const").get<std::string>(),
+              "run_elapsed_time_ms");
+    ExpectContains(runner, "&graph::ExecutionResult::run_elapsed_time_ms");
+    ExpectContains(runner, "Timing source: GraphExecutor::Execute() ExecutionResult");
+    ExpectContains(docs, "`GraphExecutor::Execute()`");
+    ExpectContains(readme, "`GraphExecutor::Execute()`");
 }

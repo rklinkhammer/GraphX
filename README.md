@@ -230,6 +230,45 @@ tmpdir="$(mktemp -d)"
   --summary-json "$tmpdir/summary.json"
 ```
 
+Optional informational CPU-vs-Metal execute-timing comparison:
+
+```bash
+tmpdir="$(mktemp -d)"
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
+  --compare-cpu-metal \
+  --cpu-config libdsp/config/dsp_sine_fft_spectrum_256.json \
+  --gpu-config libdsp/config/dsp_sine_metal_dft_spectrum_256.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --warmup-iterations 1 \
+  --measured-iterations 3 \
+  --executor-timeout-s 8 \
+  --report-json "$tmpdir/dsp_cpu_vs_metal_report.json"
+```
+
+The comparison report is informational by default and uses
+`GraphExecutor::Execute()` result fields. `elapsed_time_ms` is total execute
+wall-clock time; `run_elapsed_time_ms` is the executor run phase. The Metal lane
+is a direct DFT lane, not a GPU FFT, and reports should be interpreted as
+measured on the current host/config.
+
+An optional local-only strict gate is available when explicitly enabled:
+
+```bash
+GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1 \
+GRAPHX_DSP_MIN_METAL_SPEEDUP_RATIO=1.10 \
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
+  --compare-cpu-metal \
+  --cpu-config libdsp/config/dsp_sine_fft_spectrum_256.json \
+  --gpu-config libdsp/config/dsp_sine_metal_dft_spectrum_256.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --warmup-iterations 1 \
+  --measured-iterations 3 \
+  --executor-timeout-s 8
+```
+
+The strict gate uses `run_elapsed_time_ms` from `GraphExecutor::Execute()` and
+is not part of default CI.
+
 ## SAR/GOTCHA Testing
 
 The SAR example tests live under `examples/SAR` and are built into the
