@@ -179,3 +179,102 @@ Future out of scope:
 - Multi-frame spectrogram image sink.
 - CPU-vs-Metal performance instrumentation.
 - Streaming audio input.
+
+Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Task:
+Create a PR-sized roadmap for comparing CPU DSP graph performance against Metal DSP graph performance in a Metal-enabled build.
+
+Goal:
+It should be possible to run a CPU-based DSP graph and a Metal-enabled DSP graph under the same GraphX runtime and compare executor timing values from `GraphExecutor` return/results to validate whether the Metal lane provides a measurable performance improvement.
+
+Inputs:
+- plan/roadmap/DSP_GPU_SPECTRUM_PR_ROADMAP.md
+- plan/agents/DSP_GPU_SPECTRUM_PR_AGENTS.md
+- docs/dsp/spectrum_demo.md
+- libdsp/config/dsp_sine_fft_spectrum_256.json
+- libdsp/config/dsp_sine_metal_dft_spectrum_256.json
+- libgraph/test/unit/test_dsp_gpu_spectrum_parity.cpp
+- libgraph/test/unit/test_dsp_gpu_spectrum_graph_runtime.cpp
+- examples/DSP/src/main.cpp
+- Current repository state
+
+Planning requirements:
+- Do not implement code.
+- Do not redesign GraphX runtime contracts.
+- Do not rename `MetalSpectrumDftNode` to FFT.
+- Do not claim Metal is faster unless measured timings show it.
+- Preserve CPU DSP lane as the correctness reference.
+- Preserve GPU DSP lane as explicit:
+  `SineSignalNode<256> -> DspIqH2DNode<256> -> MetalSpectrumDftNode<256> -> DspMagnitudeD2HNode<256> -> SpectrumSinkNode<256>`
+- Use existing GraphBuilder, GraphExecutor, JSON config, plugin loading, executor completion, and timing/result conventions.
+- Timing comparison must use executor result timing fields where available.
+- Include warm-up/iteration rules to reduce one-time plugin loading, graph construction, and Metal kernel setup noise.
+- Keep CI-safe behavior: performance comparison should skip clearly when native Metal is unavailable and should not fail CI on “not faster”.
+- Add optional local-only strict performance gate only if explicitly enabled.
+- Avoid performance claims in docs without recorded measurement context.
+- Do not add external benchmark dependencies.
+- Do not require real data, audio devices, SAR, GOTCHA, CRSD, MATLAB, SarPy, or external datasets.
+- Do not add spectrogram image output.
+- Do not implement true Metal FFT.
+
+Required planning coverage:
+1. Identify current executor timing fields and whether they represent build time, init time, run time, total wall time, or completion wait time.
+2. Define a CPU-vs-Metal DSP benchmark harness using existing CPU and GPU configs.
+3. Define deterministic run controls:
+   - same sine settings;
+   - same FFT/DFT size;
+   - same executor timeout;
+   - same plugin directory;
+   - warm-up iterations;
+   - measured iterations;
+   - repeated run summary statistics.
+4. Define output artifact schema:
+   - cpu_config_path;
+   - gpu_config_path;
+   - build preset / binary path;
+   - native Metal availability diagnostics;
+   - iteration timings;
+   - min/median/mean/stddev;
+   - speedup ratio;
+   - correctness/parity summary;
+   - whether the run is informational or gate-enforced.
+5. Define tests:
+   - schema/unit tests for benchmark report JSON;
+   - harness tests using deterministic fixture/config;
+   - skip behavior when Metal is unavailable;
+   - guardrail that default CI does not fail only because Metal is slower;
+   - optional local-only strict gate test enabled by an environment variable.
+6. Define docs updates:
+   - how to run the CPU-vs-Metal comparison;
+   - how to interpret timing values;
+   - warning that current GPU lane is direct DFT, not FFT;
+   - warning that first-run timings include setup noise unless warm-up is used.
+7. Define truth-in-labeling guardrails:
+   - performance docs must say “measured on this host/config”;
+   - docs must not imply general GPU superiority;
+   - Metal DFT must not be described as GPU FFT.
+8. Define whether this belongs in:
+   - `examples/DSP` runner;
+   - a new benchmark executable;
+   - libgraph tests;
+   - docs only.
+9. Include a final PR that verifies all active docs/tests avoid unqualified performance claims.
+
+Output:
+Save the planner report to:
+
+plan/roadmap/DSP_CPU_VS_METAL_PERFORMANCE_PR_ROADMAP.md
+
+Report format:
+For each planned PR provide:
+- title
+- purpose
+- files to touch
+- files to delete
+- tests to add
+- tests to delete
+- acceptance criteria
+- risks
+- rollback plan
+- whether it is CI-safe or local-only

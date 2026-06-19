@@ -14,7 +14,7 @@ and CRSD conversion/testing, see `docs/CONSOLIDATED_OPERATIONS.md`.
 For the CRSD-to-focused-image flow definition, guardrails, and evidence matrix,
 see `docs/sar/crsd_to_focused_image.md`.
 
-For the DSP spectrum demo lane, CPU-only truth-in-labeling, and guardrails,
+For the DSP spectrum demo lane, GPU Metal direct DFT lane, and truth-in-labeling guardrails,
 see `docs/dsp/spectrum_demo.md`.
 
 ## Canonical SAR Lanes
@@ -197,11 +197,18 @@ A summary target is also available in test-enabled builds:
 cmake --build build-ninja/ninja-debug --target test-summary
 ```
 
-## DSP Spectrum Demo (CPU-Only)
+## DSP Spectrum Demo And GPU DFT Lane
 
-The current DSP demo is a **CPU-only direct DFT** lane and uses:
+The runnable DSP demo command is a **CPU-only direct DFT** reference lane and uses:
 
 `SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>`
+
+The separate GPU graph lane is a **Metal direct DFT**, not a GPU FFT:
+
+`SineSignalNode<256> -> DspIqH2DNode<256> -> MetalSpectrumDftNode<256> -> DspMagnitudeD2HNode<256> -> SpectrumSinkNode<float, 256>`
+
+Future true Metal FFT work should use FFT naming only after a real FFT algorithm
+is implemented.
 
 Build and run:
 

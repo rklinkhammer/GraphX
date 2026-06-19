@@ -199,10 +199,12 @@ TEST(DspSpectrumDemoGuardrailTest, RunnerAndDocsStateCpuOnlyDirectDftTruthInLabe
     ExpectContains(doc_text, "SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>");
     ExpectContains(doc_text, "CPU-only");
     ExpectContains(doc_text, "direct DFT");
-    ExpectContains(doc_text, "not a GPU FFT");
-    ExpectContains(doc_text, "not an external FFT library");
+    ExpectContains(doc_text, "GPU Metal direct DFT");
+    ExpectContains(doc_text, "MetalSpectrumDftNode<256>` is not a GPU FFT");
+    ExpectContains(doc_text, "future true Metal FFT lane");
 
     // README is example-indexed in this repository, so keep a narrow DSP truth-in-labeling entry.
-    ExpectContains(readme_text, "DSP Spectrum Demo (CPU-Only)");
+    ExpectContains(readme_text, "DSP Spectrum Demo And GPU DFT Lane");
     ExpectContains(readme_text, "CPU-only direct DFT");
+    ExpectContains(readme_text, "Metal direct DFT");
 }
