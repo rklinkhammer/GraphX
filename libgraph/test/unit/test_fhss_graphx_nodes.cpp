@@ -211,6 +211,10 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                 FHSSCpsmSymbolDecisionPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<
+                    FHSSPulseWordDecoderNode::OutputType<0>>::type,
+                FHSSDecodedPulseWordsPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<
                     FHSSMessageAssemblerNode::OutputType<0>>::type,
                 FHSSAssembledMessagePacket>);
 
@@ -257,6 +261,8 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
   ASSERT_TRUE(metrics.has_value());
   EXPECT_EQ(metrics->sidecar.trellis_state_count, 4u);
   EXPECT_FALSE(metrics->sidecar.branch_costs.empty());
+  EXPECT_EQ(metrics->sidecar.pulse_metrics.size(),
+            candidate_stream->sidecar.ordered_candidates.size());
 
   CPSMViterbiDecoderNode viterbi;
   auto symbols = viterbi.Transfer(*metrics,
@@ -265,17 +271,22 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
   ASSERT_TRUE(symbols.has_value());
   EXPECT_EQ(symbols->sidecar.symbols.size(),
             FHSSProtocolConstants::kBitsPerPulse);
+  EXPECT_EQ(symbols->sidecar.pulse_decisions.size(),
+            candidate_stream->sidecar.ordered_candidates.size());
   EXPECT_FALSE(symbols->sidecar.truth_metadata_required_for_decision);
 
   FHSSPulseWordDecoderNode word_decoder;
   auto decoded = word_decoder.Transfer(
       *symbols, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
+                        std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(decoded.has_value());
-  EXPECT_EQ(decoded->sidecar.status, FHSSGraphXDecodeStatus::Ok);
-  EXPECT_EQ(decoded->sidecar.decoded_value,
+  ASSERT_FALSE(decoded->sidecar.decoded_pulses.empty());
+  EXPECT_EQ(decoded->sidecar.decoded_pulses.front().status,
+            FHSSGraphXDecodeStatus::Ok);
+  EXPECT_EQ(decoded->sidecar.decoded_pulses.front().decoded_value,
             synthetic->sidecar.truth_pulses.front().value);
-  EXPECT_EQ(decoded->sidecar.pulse.frequency.frequency_index,
+  EXPECT_EQ(decoded->sidecar.decoded_pulses.front()
+                .pulse.frequency.frequency_index,
             synthetic->sidecar.truth_pulses.front().frequency_index);
   EXPECT_FALSE(decoded->sidecar.truth_metadata_required_for_decision);
 }
@@ -299,9 +310,9 @@ TEST(FHSSGraphXNodeTest,
 
   FHSSMessageAssemblerNode assembler(
       AssemblerConfig(synthetic->sidecar.truth_pulses));
-  auto message =
-      assembler.Transfer(decoded_words, std::integral_constant<std::size_t, 0>{},
-                         std::integral_constant<std::size_t, 0>{});
+  auto message = assembler.Transfer(*preamble,
+                                    std::integral_constant<std::size_t, 0>{},
+                                    std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(message.has_value());
   EXPECT_EQ(message->sidecar.status, FHSSGraphXDecodeStatus::Ok);
   EXPECT_TRUE(message->sidecar.preamble_lock);

@@ -8,17 +8,18 @@
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace dsp::fhss {
 
 class FHSSPulseWordDecoderNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FHSSCpsmSymbolDecisionToken>,
-          graph::TypeList<FHSSDecodedPulseWordToken>,
+          graph::TypeList<FHSSDecodedPulseWordsToken>,
           FHSSPulseWordDecoderNode> {
 public:
   using InputTokenType = FHSSCpsmSymbolDecisionToken;
-  using OutputTokenType = FHSSDecodedPulseWordToken;
+  using OutputTokenType = FHSSDecodedPulseWordsToken;
 
   FHSSPulseWordDecoderNode() = default;
   explicit FHSSPulseWordDecoderNode(FHSSPulseWordDecoderConfig config)
@@ -31,20 +32,40 @@ public:
   std::optional<OutputTokenType>
   Transfer(const InputTokenType &input, std::integral_constant<std::size_t, 0>,
            std::integral_constant<std::size_t, 0>) override {
-    CPSMViterbiResult viterbi{};
-    viterbi.symbols = input.sidecar.symbols;
-    viterbi.phase_states = input.sidecar.phase_states;
-    viterbi.best_path_metric = input.sidecar.best_path_metric;
-    viterbi.confidence = input.sidecar.confidence;
-
-    FHSSPulseCandidate candidate{};
-    candidate.detected_pulse = FHSSDetectedPulseFromGraphX(input.sidecar.pulse);
-    auto decoded =
-        FHSSPulseWordDecoderKernel::Decode(candidate, viterbi, config_);
-
     OutputTokenType output{};
     output.token_id = input.token_id;
-    output.sidecar = FHSSGraphXDecodedPulseWordFromKernel(decoded);
+    const auto &decisions = input.sidecar.pulse_decisions.empty()
+                                ? std::vector<FHSSCpsmPulseSymbolDecision>{
+                                      FHSSCpsmPulseSymbolDecision{
+                                          .pulse = input.sidecar.pulse,
+                                          .symbols = input.sidecar.symbols,
+                                          .phase_states =
+                                              input.sidecar.phase_states,
+                                          .best_path_metric =
+                                              input.sidecar.best_path_metric,
+                                          .confidence =
+                                              input.sidecar.confidence,
+                                          .status = input.sidecar.status,
+                                          .status_message =
+                                              input.sidecar.status_message}}
+                                : input.sidecar.pulse_decisions;
+    output.sidecar.decoded_pulses.reserve(decisions.size());
+    for (const auto &decision : decisions) {
+      CPSMViterbiResult viterbi{};
+      viterbi.symbols = decision.symbols;
+      viterbi.phase_states = decision.phase_states;
+      viterbi.best_path_metric = decision.best_path_metric;
+      viterbi.confidence = decision.confidence;
+
+      FHSSPulseCandidate candidate{};
+      candidate.detected_pulse = FHSSDetectedPulseFromGraphX(decision.pulse);
+      auto decoded =
+          FHSSPulseWordDecoderKernel::Decode(candidate, viterbi, config_);
+      output.sidecar.decoded_pulses.push_back(
+          FHSSGraphXDecodedPulseWordFromKernel(decoded));
+    }
+    output.sidecar.globally_ordered = true;
+    output.sidecar.truth_metadata_required_for_decision = false;
     return output;
   }
 

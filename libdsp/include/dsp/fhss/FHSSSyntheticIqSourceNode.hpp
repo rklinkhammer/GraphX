@@ -1,7 +1,9 @@
 #pragma once
 
+#include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <complex>
@@ -16,7 +18,9 @@ namespace dsp::fhss {
 
 class FHSSSyntheticIqSourceNode
     : public graph::NamedSourceNode<FHSSSyntheticIqSourceNode,
-                                    FHSSSyntheticIqToken> {
+                                    FHSSSyntheticIqToken>,
+      public graph::IConfigurable,
+      public graph::IParameterized {
 public:
   using OutputTokenType = FHSSSyntheticIqToken;
 
@@ -27,6 +31,23 @@ public:
   void SetConfig(FHSSSyntheticIqGeneratorConfig config) {
     config_ = std::move(config);
     emitted_ = false;
+  }
+
+  void Configure(const graph::JsonView &cfg) override {
+    SetConfig(FHSSSyntheticIqGeneratorConfigFromJson(cfg));
+  }
+
+  [[nodiscard]] graph::JsonView GetParameters() const override {
+    return FHSSFixtureParametersJson();
+  }
+
+  [[nodiscard]] graph::JsonView
+  GetParameterDescription(const std::string &param_name) const override {
+    return FHSSFixtureParameterDescription(param_name);
+  }
+
+  [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+    return FHSSFixtureParameterNames();
   }
 
   std::optional<OutputTokenType>

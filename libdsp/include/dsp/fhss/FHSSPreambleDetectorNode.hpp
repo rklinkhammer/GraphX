@@ -1,7 +1,9 @@
 #pragma once
 
+#include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <optional>
@@ -15,7 +17,9 @@ class FHSSPreambleDetectorNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FHSSDecodedPulseWordsToken>,
           graph::TypeList<FHSSAssembledMessageToken>,
-          FHSSPreambleDetectorNode> {
+          FHSSPreambleDetectorNode>,
+      public graph::IConfigurable,
+      public graph::IParameterized {
 public:
   using InputTokenType = FHSSDecodedPulseWordsToken;
   using OutputTokenType = FHSSAssembledMessageToken;
@@ -26,6 +30,23 @@ public:
 
   void SetPreamble(std::vector<FHSSPreamblePulseSpec> preamble) {
     preamble_ = std::move(preamble);
+  }
+
+  void Configure(const graph::JsonView &cfg) override {
+    SetPreamble(FHSSPreamblePulseSpecsFromJson(cfg));
+  }
+
+  [[nodiscard]] graph::JsonView GetParameters() const override {
+    return FHSSFixtureParametersJson();
+  }
+
+  [[nodiscard]] graph::JsonView
+  GetParameterDescription(const std::string &param_name) const override {
+    return FHSSFixtureParameterDescription(param_name);
+  }
+
+  [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+    return FHSSFixtureParameterNames();
   }
 
   std::optional<OutputTokenType>
@@ -46,6 +67,21 @@ public:
     output.sidecar.preamble_lock = lock.preamble_lock;
     output.sidecar.diagnostics.pulse_count = input.sidecar.decoded_pulses.size();
     output.sidecar.diagnostics.preamble_lock = lock.preamble_lock;
+    output.sidecar.diagnostics.unsupported_overlap_rejected = true;
+    output.sidecar.diagnostics.unsupported_impairments_rejected = true;
+    output.sidecar.diagnostics.synchronization_assumption =
+        "known message_start_sample = 0";
+    if (!input.sidecar.decoded_pulses.empty()) {
+      const auto &first = input.sidecar.decoded_pulses.front();
+      output.sidecar.diagnostics.global_start_sample =
+          first.pulse.timing.global_start_sample;
+      output.sidecar.diagnostics.frequency_index =
+          first.pulse.frequency.frequency_index;
+      output.sidecar.diagnostics.confidence = first.confidence;
+      output.sidecar.diagnostics.viterbi_path_metric =
+          first.viterbi_path_metric;
+      output.sidecar.diagnostics.decoded_value = first.decoded_value;
+    }
     output.sidecar.status = lock.status == FHSSMessageAssemblyStatus::Ok
                                 ? FHSSGraphXDecodeStatus::Ok
                                 : FHSSGraphXDecodeStatus::InvalidEvidence;

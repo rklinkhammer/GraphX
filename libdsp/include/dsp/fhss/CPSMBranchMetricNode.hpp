@@ -30,24 +30,35 @@ public:
     if (input.sidecar.ordered_candidates.empty()) {
       return std::nullopt;
     }
-    const auto &candidate = input.sidecar.ordered_candidates.front();
-    if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
-      return std::nullopt;
-    }
-    auto metrics = CPSMBranchMetricKernel::Compute(
-        *candidate.complex_evidence.host_complex64_samples, config_);
-    if (!metrics) {
-      return std::nullopt;
-    }
 
     OutputTokenType output{};
     output.token_id = input.token_id;
-    output.sidecar.candidate = candidate;
-    output.sidecar.trellis_state_count =
-        CPSMPhaseStateCount(config_.modulation_index);
-    output.sidecar.branch_costs.reserve(metrics->size());
-    for (const auto &metric : *metrics) {
-      output.sidecar.branch_costs.push_back(metric.cost);
+    output.sidecar.pulse_metrics.reserve(
+        input.sidecar.ordered_candidates.size());
+    for (const auto &candidate : input.sidecar.ordered_candidates) {
+      if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
+        return std::nullopt;
+      }
+      auto metrics = CPSMBranchMetricKernel::Compute(
+          *candidate.complex_evidence.host_complex64_samples, config_);
+      if (!metrics) {
+        return std::nullopt;
+      }
+
+      FHSSCpsmPulseBranchMetric pulse_metric{};
+      pulse_metric.candidate = candidate;
+      pulse_metric.trellis_state_count =
+          CPSMPhaseStateCount(config_.modulation_index);
+      pulse_metric.branch_costs.reserve(metrics->size());
+      for (const auto &metric : *metrics) {
+        pulse_metric.branch_costs.push_back(metric.cost);
+      }
+      if (output.sidecar.pulse_metrics.empty()) {
+        output.sidecar.candidate = pulse_metric.candidate;
+        output.sidecar.trellis_state_count = pulse_metric.trellis_state_count;
+        output.sidecar.branch_costs = pulse_metric.branch_costs;
+      }
+      output.sidecar.pulse_metrics.push_back(std::move(pulse_metric));
     }
     output.sidecar.truth_metadata_required_for_decision = false;
     return output;

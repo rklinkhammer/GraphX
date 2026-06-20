@@ -163,6 +163,24 @@ struct FHSSGraphXTruthMismatch {
   std::string message;
 };
 
+struct FHSSCpsmPulseBranchMetric {
+  FHSSGraphXPulseCandidate candidate{};
+  std::vector<double> branch_costs;
+  std::uint32_t trellis_state_count = 0;
+  double best_path_metric = 0.0;
+  double second_best_path_metric = 0.0;
+};
+
+struct FHSSCpsmPulseSymbolDecision {
+  FHSSGraphXPulseMetadata pulse{};
+  std::vector<double> symbols;
+  std::vector<std::uint32_t> phase_states;
+  double best_path_metric = 0.0;
+  double confidence = 0.0;
+  FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
+  std::string status_message;
+};
+
 struct FHSSSyntheticIqOutputPacket {
   FHSSGraphXComplexEvidence iq{};
   std::vector<FHSSTruthPulse> truth_pulses;
@@ -187,6 +205,7 @@ struct FHSSPulseCandidateEvidencePacket {
 struct FHSSCpsmBranchMetricPacket {
   FHSSGraphXPulseCandidate candidate{};
   std::vector<double> branch_costs;
+  std::vector<FHSSCpsmPulseBranchMetric> pulse_metrics;
   std::uint32_t trellis_state_count = 0;
   double best_path_metric = 0.0;
   double second_best_path_metric = 0.0;
@@ -197,6 +216,7 @@ struct FHSSCpsmSymbolDecisionPacket {
   FHSSGraphXPulseMetadata pulse{};
   std::vector<double> symbols;
   std::vector<std::uint32_t> phase_states;
+  std::vector<FHSSCpsmPulseSymbolDecision> pulse_decisions;
   double best_path_metric = 0.0;
   double confidence = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
@@ -232,6 +252,9 @@ struct FHSSDiagnosticsPacket {
   std::optional<std::uint32_t> decoded_value{};
   std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
   bool truth_is_validation_only = true;
+  bool unsupported_overlap_rejected = true;
+  bool unsupported_impairments_rejected = true;
+  std::string synchronization_assumption = "known message_start_sample = 0";
 };
 
 struct FHSSAssembledMessagePacket {

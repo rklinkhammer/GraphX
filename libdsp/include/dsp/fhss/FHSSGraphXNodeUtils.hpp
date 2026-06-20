@@ -92,6 +92,17 @@ FHSSGraphXSampleTimeMapFromMergeMap(const FHSSSampleTimeMap &map) {
       .output_sample_rate_hz = map.sample_rate_hz};
 }
 
+[[nodiscard]] inline FHSSGraphXSampleTimeMap
+FHSSGraphXSampleTimeMapFromPulse(const FHSSDetectedPulse &pulse) {
+  FHSSGraphXSampleTimeMap map{};
+  map.input_packet_global_start_sample =
+      pulse.global_start_sample - pulse.channel_start_sample;
+  map.output_start_sample = pulse.global_start_sample;
+  map.input_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
+  map.output_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
+  return map;
+}
+
 [[nodiscard]] inline FHSSComplexEvidence
 FHSSComplexEvidenceFromGraphX(const FHSSGraphXComplexEvidence &evidence) {
   return FHSSComplexEvidence{.samples = evidence.host_complex64_samples,
@@ -180,7 +191,8 @@ FHSSGraphXPulseCandidateFromMergeCandidate(
       FHSSGraphXSampleTimeMapFromMergeMap(FHSSSampleTimeMap{});
   FHSSGraphXPulseCandidate out{};
   out.pulse = FHSSGraphXPulseMetadataFromDetectedPulse(
-      candidate.candidate.detected_pulse, sample_time_map);
+      candidate.candidate.detected_pulse,
+      FHSSGraphXSampleTimeMapFromPulse(candidate.candidate.detected_pulse));
   out.provisional_slot_index = candidate.candidate.provisional_slot_index;
   out.final_slot_index = candidate.candidate.final_slot_index;
   out.complex_evidence =
@@ -216,7 +228,8 @@ FHSSDecodedPulseWordFromGraphX(const FHSSDecodedPulseWordPacket &packet) {
 FHSSGraphXDecodedPulseWordFromKernel(const FHSSDecodedPulseWord &decoded) {
   return FHSSDecodedPulseWordPacket{
       .pulse = FHSSGraphXPulseMetadataFromDetectedPulse(
-          decoded.candidate.detected_pulse),
+          decoded.candidate.detected_pulse,
+          FHSSGraphXSampleTimeMapFromPulse(decoded.candidate.detected_pulse)),
       .decoded_value = decoded.decoded_value,
       .confidence = decoded.confidence,
       .viterbi_path_metric = decoded.viterbi_path_metric,
@@ -273,10 +286,26 @@ FHSSGraphXAssembledMessageFromKernel(const FHSSAssembledMessage &message) {
   for (const auto &decoded : message.ordered_pulses) {
     packet.ordered_pulses.push_back(FHSSGraphXDecodedPulseWordFromKernel(decoded));
   }
+  if (!packet.ordered_pulses.empty()) {
+    const auto &first = packet.ordered_pulses.front();
+    packet.diagnostics.global_start_sample =
+        first.pulse.timing.global_start_sample;
+    packet.diagnostics.frequency_index =
+        first.pulse.frequency.frequency_index;
+    packet.diagnostics.confidence = first.confidence;
+    packet.diagnostics.viterbi_path_metric = first.viterbi_path_metric;
+    packet.diagnostics.decoded_value = first.decoded_value;
+  }
+  packet.diagnostics.truth_is_validation_only = true;
+  packet.diagnostics.unsupported_overlap_rejected = true;
+  packet.diagnostics.unsupported_impairments_rejected = true;
+  packet.diagnostics.synchronization_assumption =
+      "known message_start_sample = 0";
   packet.truth_mismatches.reserve(message.truth_mismatches.size());
   for (const auto &mismatch : message.truth_mismatches) {
     packet.truth_mismatches.push_back(FHSSGraphXTruthMismatchFromKernel(mismatch));
   }
+  packet.diagnostics.truth_mismatches = packet.truth_mismatches;
   return packet;
 }
 

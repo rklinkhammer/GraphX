@@ -1,7 +1,9 @@
 #pragma once
 
 #include "dsp/fhss/FHSSCorrelatorBankDetector.hpp"
+#include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
 #include <optional>
@@ -14,7 +16,9 @@ class FHSSCorrelatorBankDetectorNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FHSSSyntheticIqToken>,
           graph::TypeList<FHSSDetectedPulseToken>,
-          FHSSCorrelatorBankDetectorNode> {
+          FHSSCorrelatorBankDetectorNode>,
+      public graph::IConfigurable,
+      public graph::IParameterized {
 public:
   using InputTokenType = FHSSSyntheticIqToken;
   using OutputTokenType = FHSSDetectedPulseToken;
@@ -26,6 +30,23 @@ public:
 
   void SetConfig(FHSSCorrelatorBankDetectorConfig config) {
     config_ = std::move(config);
+  }
+
+  void Configure(const graph::JsonView &cfg) override {
+    SetConfig(FHSSCorrelatorBankDetectorConfigFromJson(cfg));
+  }
+
+  [[nodiscard]] graph::JsonView GetParameters() const override {
+    return FHSSFixtureParametersJson();
+  }
+
+  [[nodiscard]] graph::JsonView
+  GetParameterDescription(const std::string &param_name) const override {
+    return FHSSFixtureParameterDescription(param_name);
+  }
+
+  [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
+    return FHSSFixtureParameterNames();
   }
 
   std::optional<OutputTokenType>

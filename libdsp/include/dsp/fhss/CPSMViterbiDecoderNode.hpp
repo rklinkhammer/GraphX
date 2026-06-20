@@ -28,25 +28,45 @@ public:
   std::optional<OutputTokenType>
   Transfer(const InputTokenType &input, std::integral_constant<std::size_t, 0>,
            std::integral_constant<std::size_t, 0>) override {
-    const auto &candidate = input.sidecar.candidate;
-    if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
-      return std::nullopt;
-    }
-    auto decoded = CPSMViterbiDecoderKernel::Decode(
-        *candidate.complex_evidence.host_complex64_samples, config_);
-    if (!decoded) {
-      return std::nullopt;
-    }
-
     OutputTokenType output{};
     output.token_id = input.token_id;
-    output.sidecar.pulse = candidate.pulse;
-    output.sidecar.symbols = std::move(decoded->symbols);
-    output.sidecar.phase_states = std::move(decoded->phase_states);
-    output.sidecar.best_path_metric = decoded->best_path_metric;
-    output.sidecar.confidence = decoded->confidence;
-    output.sidecar.status = FHSSGraphXDecodeStatus::Ok;
-    output.sidecar.status_message = "Ok";
+    const auto &metrics = input.sidecar.pulse_metrics.empty()
+                              ? std::vector<FHSSCpsmPulseBranchMetric>{
+                                    FHSSCpsmPulseBranchMetric{
+                                        .candidate = input.sidecar.candidate}}
+                              : input.sidecar.pulse_metrics;
+
+    output.sidecar.pulse_decisions.reserve(metrics.size());
+    for (const auto &metric : metrics) {
+      const auto &candidate = metric.candidate;
+      if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
+        return std::nullopt;
+      }
+      auto decoded = CPSMViterbiDecoderKernel::Decode(
+          *candidate.complex_evidence.host_complex64_samples, config_);
+      if (!decoded) {
+        return std::nullopt;
+      }
+
+      FHSSCpsmPulseSymbolDecision decision{};
+      decision.pulse = candidate.pulse;
+      decision.symbols = std::move(decoded->symbols);
+      decision.phase_states = std::move(decoded->phase_states);
+      decision.best_path_metric = decoded->best_path_metric;
+      decision.confidence = decoded->confidence;
+      decision.status = FHSSGraphXDecodeStatus::Ok;
+      decision.status_message = "Ok";
+      if (output.sidecar.pulse_decisions.empty()) {
+        output.sidecar.pulse = decision.pulse;
+        output.sidecar.symbols = decision.symbols;
+        output.sidecar.phase_states = decision.phase_states;
+        output.sidecar.best_path_metric = decision.best_path_metric;
+        output.sidecar.confidence = decision.confidence;
+        output.sidecar.status = decision.status;
+        output.sidecar.status_message = decision.status_message;
+      }
+      output.sidecar.pulse_decisions.push_back(std::move(decision));
+    }
     output.sidecar.truth_metadata_required_for_decision = false;
     return output;
   }
