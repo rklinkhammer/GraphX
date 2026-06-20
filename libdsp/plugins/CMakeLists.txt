@@ -89,3 +89,74 @@ add_graphx_plugin(
     DESCRIPTION "Spectrum sink DSP analyzer (256 samples/packet)"
     DEPENDENCIES dsp
 )
+
+# FHSS GraphX node plugins - one dynamically loadable plugin per node.
+add_graphx_plugin(
+    TARGET_NAME fhss_synthetic_iq_source_node
+    SOURCE_FILE fhss_synthetic_iq_source_node_plugin.cpp
+    DESCRIPTION "FHSS synthetic IQ source GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_correlator_bank_detector_node
+    SOURCE_FILE fhss_correlator_bank_detector_node_plugin.cpp
+    DESCRIPTION "FHSS correlator-bank detector GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_pulse_merge_node
+    SOURCE_FILE fhss_pulse_merge_node_plugin.cpp
+    DESCRIPTION "FHSS pulse merge GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_pulse_candidate_node
+    SOURCE_FILE fhss_pulse_candidate_node_plugin.cpp
+    DESCRIPTION "FHSS pulse candidate boundary GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME cpsm_branch_metric_node
+    SOURCE_FILE cpsm_branch_metric_node_plugin.cpp
+    DESCRIPTION "CPSM branch metric GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME cpsm_viterbi_decoder_node
+    SOURCE_FILE cpsm_viterbi_decoder_node_plugin.cpp
+    DESCRIPTION "CPSM Viterbi decoder GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_pulse_word_decoder_node
+    SOURCE_FILE fhss_pulse_word_decoder_node_plugin.cpp
+    DESCRIPTION "FHSS pulse word decoder GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_preamble_detector_node
+    SOURCE_FILE fhss_preamble_detector_node_plugin.cpp
+    DESCRIPTION "FHSS preamble detector GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_message_assembler_node
+    SOURCE_FILE fhss_message_assembler_node_plugin.cpp
+    DESCRIPTION "FHSS message assembler GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_message_sink_node
+    SOURCE_FILE fhss_message_sink_node_plugin.cpp
+    DESCRIPTION "FHSS message sink GraphX node"
+    DEPENDENCIES dsp
+)

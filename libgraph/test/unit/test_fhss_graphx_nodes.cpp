@@ -2,15 +2,40 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <type_traits>
 #include <vector>
 
-#include "dsp/fhss/FHSSGraphXNodes.hpp"
+#include "dsp/fhss/CPSMBranchMetricNode.hpp"
+#include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
+#include "dsp/fhss/FHSSCorrelatorBankDetectorNode.hpp"
+#include "dsp/fhss/FHSSMessageAssemblerNode.hpp"
+#include "dsp/fhss/FHSSMessageSinkNode.hpp"
+#include "dsp/fhss/FHSSPreambleDetectorNode.hpp"
+#include "dsp/fhss/FHSSPulseCandidateNode.hpp"
+#include "dsp/fhss/FHSSPulseMergeNode.hpp"
+#include "dsp/fhss/FHSSPulseWordDecoderNode.hpp"
+#include "dsp/fhss/FHSSSyntheticIqSourceNode.hpp"
+#include "graph/RegisteredNodeProvider.hpp"
+#include "plugins/PluginLoader.hpp"
+#include "plugins/PluginRegistry.hpp"
+
+#ifndef PLUGIN_OUTPUT_DIRECTORY
+#define PLUGIN_OUTPUT_DIRECTORY "./plugins"
+#endif
 
 namespace {
 
 using namespace dsp::fhss;
+
+#ifdef __APPLE__
+constexpr const char *kSharedLibraryExtension = ".dylib";
+#else
+constexpr const char *kSharedLibraryExtension = ".so";
+#endif
 
 template <typename T> struct IsControlToken : std::false_type {};
 
@@ -119,6 +144,32 @@ FHSSDecodedPulseWordsToken DecodedWordsFromTruth(
         .truth_metadata_required_for_decision = false});
   }
   return token;
+}
+
+std::string PluginFilename(const std::string &target_name) {
+  return "lib" + target_name + kSharedLibraryExtension;
+}
+
+struct FHSSPluginExpectation {
+  const char *type_name;
+  const char *target_name;
+};
+
+const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
+  static const std::vector<FHSSPluginExpectation> expectations{
+      {"FHSSSyntheticIqSourceNode", "fhss_synthetic_iq_source_node"},
+      {"FHSSCorrelatorBankDetectorNode",
+       "fhss_correlator_bank_detector_node"},
+      {"FHSSPulseMergeNode", "fhss_pulse_merge_node"},
+      {"FHSSPulseCandidateNode", "fhss_pulse_candidate_node"},
+      {"CPSMBranchMetricNode", "cpsm_branch_metric_node"},
+      {"CPSMViterbiDecoderNode", "cpsm_viterbi_decoder_node"},
+      {"FHSSPulseWordDecoderNode", "fhss_pulse_word_decoder_node"},
+      {"FHSSPreambleDetectorNode", "fhss_preamble_detector_node"},
+      {"FHSSMessageAssemblerNode", "fhss_message_assembler_node"},
+      {"FHSSMessageSinkNode", "fhss_message_sink_node"},
+  };
+  return expectations;
 }
 
 TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
@@ -263,6 +314,30 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_TRUE(sink.last_diagnostics().preamble_lock);
   EXPECT_EQ(sink.last_diagnostics().pulse_count,
             decoded_words.sidecar.decoded_pulses.size());
+}
+
+TEST(FHSSGraphXNodeTest, EveryNodeIsRegisteredAndDynamicallyLoadable) {
+  const auto registry = std::make_shared<graph::PluginRegistry>();
+  graph::PluginLoader loader(PLUGIN_OUTPUT_DIRECTORY, registry);
+
+  for (const auto &expectation : FHSSPluginExpectations()) {
+    const auto filename = PluginFilename(expectation.target_name);
+    ASSERT_TRUE(std::filesystem::exists(
+        std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY) / filename))
+        << filename;
+    auto loaded = loader.LoadPluginSafe(filename);
+    ASSERT_TRUE(loaded.has_value()) << expectation.type_name;
+    EXPECT_TRUE(registry->HasNodeType(expectation.type_name))
+        << expectation.type_name;
+  }
+
+  graph::RegisteredNodeProvider provider(registry);
+  for (const auto &expectation : FHSSPluginExpectations()) {
+    EXPECT_TRUE(provider.IsNodeTypeAvailable(expectation.type_name))
+        << expectation.type_name;
+    auto node = provider.CreateNodeExpected(expectation.type_name);
+    EXPECT_TRUE(node.has_value()) << expectation.type_name;
+  }
 }
 
 } // namespace
