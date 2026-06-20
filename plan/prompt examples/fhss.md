@@ -84,15 +84,11 @@ Derived default:
 active_hop_frequency_count = 4
 ```
 
-The planner must decide whether:
-
-* the four active frequencies are ordered;
-* the four active frequencies are reused cyclically;
-* or whether the preamble hopping pattern itself determines the complete hop sequence.
-
 Decision: payload/body pulses may use only the four selected preamble frequencies. There is no defined hop behavior for the message body beyond that active-frequency constraint.
 
-The planner must document how generated fixtures choose body pulse frequencies from the four active frequencies, such as deterministic pseudo-random selection with a fixed seed.
+Decision: generated message-body fixtures shall choose randomly from the four selected preamble frequencies. The random selection must be deterministic for CI, using a configured seed.
+
+The receiver active frequencies are derived from the externally supplied preamble hopping pattern.
 
 ---
 
@@ -106,7 +102,7 @@ followed by
 payload pulses
 ```
 
-Messages may contain no more than 256 pulses total, including preamble pulses, unless the planner explicitly chooses and justifies a different interpretation.
+Messages may contain no more than 256 pulses total, including the 16 preamble pulses.
 
 Derived defaults:
 
@@ -465,6 +461,13 @@ Possible future impairments:
 
 All impairments shall be disabled by default.
 
+Decision: the plan must consider Doppler effects and noise, especially when the transmitter is moving relative to the receiver. PR1 may keep Doppler/noise disabled for deterministic CI, but node interfaces, estimator assumptions, and diagnostics should leave a clear path for:
+
+* carrier frequency offset from Doppler;
+* time-varying phase drift;
+* reduced CPSM estimator confidence under noise;
+* SNR-dependent detection thresholds.
+
 ---
 
 ## Truth Metadata
@@ -632,6 +635,46 @@ struct FHSSMessage {
     std::vector<FHSSPulse> payload_pulses;
 };
 
+struct FHSSFrequencyMapEntry {
+    uint32_t frequency_index;
+    double rf_frequency_hz;
+    double iq_offset_frequency_hz;
+    uint32_t channel_id;
+};
+
+struct FHSSDetectedPulse {
+    uint64_t global_start_sample;
+    uint64_t global_end_sample;
+    uint64_t duration_samples;
+
+    uint64_t channel_start_sample;
+    uint32_t channel_id;
+
+    uint32_t frequency_index;
+    double rf_frequency_hz;
+    double iq_offset_frequency_hz;
+    double estimated_center_frequency_hz;
+    double frequency_error_hz;
+
+    double amplitude;
+    double power_db;
+    double snr_db;
+    double noise_floor_db;
+
+    double phase_at_start_rad;
+    double phase_slope_rad_per_sample;
+    double cfo_hz;
+
+    double bandwidth_hz;
+    double confidence;
+
+    uint64_t detector_id;
+    uint64_t packet_sequence;
+
+    uint64_t provisional_slot_index;
+    std::optional<uint64_t> slot_index;
+};
+
 struct FHSSProtocolConfig {
     double base_frequency_hz;
     double frequency_spacing_hz;
@@ -642,6 +685,7 @@ struct FHSSProtocolConfig {
     uint32_t max_message_pulses;
 
     std::vector<uint32_t> active_frequency_indices;
+    std::vector<FHSSFrequencyMapEntry> frequency_map;
     std::vector<uint32_t> preamble_hop_pattern;
     std::vector<uint32_t> preamble_words;
 
@@ -674,6 +718,29 @@ struct FHSSDecodeConfig {
 ```
 
 The planner may collapse or rename these structs during implementation, but the roadmap must preserve the protocol fields and validation rules.
+
+Detected pulses from per-frequency or per-channel detectors must carry global sample timing metadata. Channel-local sample offsets are insufficient for cross-channel pulse association.
+
+Use:
+
+```text
+global_start_sample =
+    input_packet_global_start_sample + local_start_offset
+
+global_end_sample =
+    global_start_sample + duration_samples
+```
+
+Important fields for association and message assembly:
+
+* `global_start_sample`
+* `duration_samples`
+* `frequency_index`
+* active `channel_id`
+* `snr_db` / `confidence`
+* `frequency_error_hz`
+* `phase_at_start_rad`, `phase_slope_rad_per_sample`, and `cfo_hz`
+* provisional or final pulse slot index
 
 Protocol validation should reject:
 
@@ -718,11 +785,17 @@ Suggested model:
 
 ```cpp
 struct FHSSPulseCandidate {
+    uint64_t global_start_sample;
+    uint64_t global_end_sample;
     uint64_t start_sample;
     uint64_t duration_samples;
+    uint64_t provisional_slot_index;
+    std::optional<uint64_t> slot_index;
 
     uint32_t frequency_index;
     double frequency_hz;
+    double frequency_error_hz;
+    double cfo_hz;
 
     std::vector<std::complex<float>> baseband_samples;
 
@@ -762,9 +835,17 @@ FHSSSyntheticIqSourceNode
     ->
 optional conditioning/windowing or framing adapter
     ->
-CPU correlator bank / DFT / future channelizer
+ChannelizerNode
+    ->
+PerChannelPulseDetectorNode[]
+    ->
+FHSSPulseMergeNode
     ->
 FHSSPulseCandidateNode
+    ->
+CPSMBranchMetricNode
+    ->
+CPSMViterbiDecoderNode
     ->
 FHSSPulseWordDecoderNode
     ->
@@ -778,6 +859,45 @@ FHSSMessageSinkNode
 If existing DSP node contracts make this awkward, stop and provide an architectural analysis to allow the user to make a decision about next steps. One of those steps may be to update the DSP node contract rather than creating an adapter node. GraphX nodes are evolving.
 
 DFT or channelizer may be implementation details inside hop detection and do not necessarily need to appear as separate visible nodes.
+
+For PR1 without a real channelizer, use the same metadata model with an easier implementation:
+
+```text
+IQ stream
+    ->
+CorrelatorBankDetectorNode
+    ->
+FHSSPulseMergeNode
+    ->
+FHSSPulseCandidateNode
+    ->
+CPSMBranchMetricNode
+    ->
+CPSMViterbiDecoderNode
+    ->
+FHSSPulseWordDecoderNode
+    ->
+FHSSPreambleDetectorNode
+    ->
+FHSSMessageAssemblerNode
+    ->
+FHSSMessageSinkNode
+```
+
+Conceptual channelizer topology:
+
+```text
+IQ stream
+  -> ChannelizerNode
+      -> Channel[0] -> PerChannelPulseDetectorNode
+      -> Channel[1] -> PerChannelPulseDetectorNode
+      -> Channel[2] -> PerChannelPulseDetectorNode
+      -> Channel[3] -> PerChannelPulseDetectorNode
+  -> FHSSPulseMergeNode
+  -> CPSM/Viterbi Decoder
+  -> FHSSPreambleDetectorNode
+  -> FHSSMessageAssemblerNode
+```
 
 ---
 
@@ -821,6 +941,22 @@ Bit and symbol mapping for pulse `p`:
 b[p,k] = bit k of value[p], MSB first unless overridden
 a[p,k] = +1 if b[p,k] = 0
 a[p,k] = -1 if b[p,k] = 1
+```
+
+For payload/body pulse `p`, choose frequency index from the four active preamble frequencies using deterministic random selection:
+
+```text
+active_set = unique({H_pre[k] | k in [0, 15]})
+require |active_set| == 4
+
+r[p] = DeterministicRng(seed).next_uint() mod 4
+i[p] = active_set[r[p]]
+```
+
+For preamble pulse `p < 16`:
+
+```text
+i[p] = H_pre[p]
 ```
 
 Recommended full-response rectangular CPM frequency pulse and corresponding phase response:
@@ -907,9 +1043,9 @@ x_w[n] = w[n] * x[n]
 
 Windowed magnitude outputs must not be the canonical input to word decoding.
 
-## Hop Detector / Pulse Candidate Node
+## PerChannelPulseDetectorNode / CorrelatorBankDetectorNode
 
-For each candidate frequency `i`, mix down:
+For each candidate frequency `i` in the active set derived from the preamble pattern, mix down:
 
 ```text
 y_i[n] = x[n] * exp(-j * 2*pi * f_i * n / F_s)
@@ -923,33 +1059,40 @@ sum_r |y_i[n0 + r]|^2
 
 is independent of candidate frequency for a constant-envelope waveform. Hop detection must use a phase-coherence, spectral, channelizer, or CPM likelihood metric.
 
-Because the first fixture is noise-free and slot-aligned, the initial detector may evaluate only expected slot starts:
+Decision: PR1 uses a known message start.
 
 ```text
-n0[p] = n_message_start + p * N_period
+message_start_sample = 0
+n0[p] = message_start_sample + p * N_period
 ```
 
-For each candidate frequency `i` and slot start `n0`, compute the best CPM likelihood over allowable symbol sequences:
+The detector should emit candidate timing/frequency metadata and must not duplicate the full CPSM branch metric / Viterbi work unless it can pass reusable likelihood state downstream. The default PR1 responsibility split is:
+
+```text
+PerChannelPulseDetectorNode / CorrelatorBankDetectorNode:
+    timing, channel, frequency, amplitude/SNR/confidence metadata
+
+CPSMBranchMetricNode:
+    per-symbol/per-state branch metrics from complex candidate samples
+
+CPSMViterbiDecoderNode:
+    MLSE/Viterbi path selection
+```
+
+For each candidate active frequency `i` and slot start `n0`, the detector may compute a lightweight coherent score for timing/frequency ranking:
 
 ```text
 y_i,r = y_i[n0 + r],  r in [0, N_pulse - 1]
-t_r = r / F_s
-
-theta_a[r] =
-    2*pi*h * sum_{k=0}^{K-1} a[k] * q(t_r - k*T_b)
-
-s_a[r] = exp(j * theta_a[r])
-
-Gamma_i[n0] =
-    max_{a in {-1,+1}^K} Re{ sum_{r=0}^{N_pulse-1} y_i,r * conj(s_a[r]) }
+coherent_score_i[n0] =
+    detector-defined phase/coherence/channelizer score using complex y_i,r
 ```
 
-The planner must implement `Gamma_i` efficiently and must not brute-force all `2^32` sequences. For expected-slot CI fixtures, this metric may be evaluated only at expected slot starts. If scanning is required, candidate starts are local maxima of a coherent CPM likelihood or channelizer/detection metric subject to width and spacing constraints.
+The detector score must be sufficient to rank the four active frequencies and find/validate slot starts, but full sequence evidence belongs to `CPSMBranchMetricNode` and `CPSMViterbiDecoderNode` by default. If the detector computes reusable CPM likelihood state, the planner must define the handoff contract and prove it avoids duplicated work.
 
 Estimated hop:
 
 ```text
-i_hat[p] = argmax_i Gamma_i[n0[p]]
+i_hat[p] = argmax_i coherent_score_i[n0[p]]
 f_hat[p] = f_abs[i_hat[p]]
 ```
 
@@ -957,22 +1100,140 @@ Candidate confidence may be:
 
 ```text
 confidence_freq =
-    (Gamma_best - Gamma_second_best) / max(abs(Gamma_best), epsilon)
+    (score_best - score_second_best) / max(abs(score_best), epsilon)
 ```
 
-The output `FHSSPulseCandidate` must include:
+For a channelized topology, each detector reports local and global timing:
 
 ```text
-start_sample = n0[p]
-duration_samples = N_pulse
-frequency_index = i_hat[p]
-frequency_hz = f_abs[i_hat[p]]
-baseband_samples[r] = y_{i_hat}[n0[p] + r]
-snr_db or likelihood_ratio diagnostic
-confidence = confidence_freq
+global_start_sample =
+    input_packet_global_start_sample + local_start_offset
+
+global_end_sample =
+    global_start_sample + duration_samples
+
+channel_start_sample = local_start_offset
+channel_id = detector channel id
 ```
 
-## FHSSPulseWordDecoderNode
+Before preamble lock or message epoch resolution, compute:
+
+```text
+provisional_slot_index =
+    global_start_sample / N_period
+```
+
+If a message epoch is known later:
+
+```text
+slot_index =
+    (global_start_sample - message_epoch_sample) / N_period
+```
+
+The output `FHSSDetectedPulse` must include:
+
+```text
+global_start_sample
+global_end_sample
+duration_samples = N_pulse
+channel_start_sample
+channel_id
+frequency_index = i_hat[p]
+rf_frequency_hz = f_abs[i_hat[p]]
+iq_offset_frequency_hz = f_i_hat
+estimated_center_frequency_hz
+frequency_error_hz
+amplitude
+power_db
+snr_db or likelihood_ratio diagnostic
+noise_floor_db
+phase_at_start_rad
+phase_slope_rad_per_sample
+cfo_hz
+bandwidth_hz
+confidence = confidence_freq
+detector_id
+packet_sequence
+provisional_slot_index
+```
+
+The detector does not need to decode or validate the preamble. It may emit pulse candidates and decoded pulse evidence for the message decoder/preamble detector to interpret. Overlapped messages are possible future/advanced cases; PR1 shall reject and report overlap as unsupported.
+
+## FHSSPulseMergeNode
+
+Responsibilities:
+
+```text
+consume detected pulses from multiple channel detectors
+convert channel-local sample offsets to global sample offsets
+sort by global_start_sample
+reject duplicate detections
+resolve collisions
+emit ordered FHSSPulseCandidate stream
+```
+
+Input pulses must already carry global timing. The merge node validates:
+
+```text
+global_start_sample =
+    input_packet_global_start_sample + channel_start_sample
+
+global_end_sample =
+    global_start_sample + duration_samples
+```
+
+Ordering:
+
+```text
+ordered_pulses = sort(detected_pulses, key = global_start_sample)
+```
+
+Duplicate rejection for pulses `u` and `v`:
+
+```text
+same_frequency =
+    u.frequency_index == v.frequency_index
+
+overlap_samples =
+    max(0, min(u.global_end_sample, v.global_end_sample)
+           - max(u.global_start_sample, v.global_start_sample))
+
+duplicate =
+    same_frequency &&
+    overlap_samples / min(u.duration_samples, v.duration_samples)
+        >= duplicate_overlap_threshold
+```
+
+When duplicates are detected, keep the pulse with higher confidence or SNR:
+
+```text
+keep = argmax_{p in duplicate_group} (p.confidence, p.snr_db)
+```
+
+Collision detection:
+
+```text
+collision =
+    !same_frequency &&
+    overlap_samples > collision_overlap_threshold_samples
+```
+
+The PR1 planner must decide whether collisions are rejected, flagged, or emitted as ambiguous candidate groups.
+
+Candidate stream for CPSM decoding:
+
+```text
+FHSSPulseCandidate.global_start_sample = detected.global_start_sample
+FHSSPulseCandidate.duration_samples = detected.duration_samples
+FHSSPulseCandidate.frequency_index = detected.frequency_index
+FHSSPulseCandidate.frequency_hz = detected.rf_frequency_hz
+FHSSPulseCandidate.baseband_samples = dehopped complex samples for detected pulse
+FHSSPulseCandidate.confidence = detected.confidence
+```
+
+The merge node is the boundary that normalizes pulses into one shared sample-time domain before CPSM demodulation and message assembly.
+
+## CPSMBranchMetricNode
 
 Given dehopped candidate samples:
 
@@ -981,7 +1242,18 @@ y_p[r] = baseband_samples[r],  r in [0, N_pulse - 1]
 t_r = r / F_s
 ```
 
-For binary CPM, the optimal deterministic receiver is a maximum-likelihood sequence estimator over `a[k] in {-1,+1}` using the configured `q(t)`.
+For binary CPM, branch metrics are computed from the configured trellis model.
+
+PR1 trellis assumptions:
+
+```text
+modulation_index = h = 1/2
+phase_pulse = rectangular full-response
+initial_phase = 0
+terminal_phase = unconstrained unless the planner chooses to check it
+state = accumulated CPM phase modulo 2*pi
+continuity_scope = inside each pulse only
+```
 
 For any candidate symbol sequence `a`, synthesize:
 
@@ -998,13 +1270,21 @@ Sequence metric:
 Lambda(a) = Re{ sum_{r=0}^{N_pulse-1} y_p[r] * conj(s_a[r]) }
 ```
 
+The branch metric node must expose per-state/per-symbol metrics suitable for the selected low-state MLSE/Viterbi implementation. It must not require brute force over all `2^32` pulse words.
+
+## CPSMViterbiDecoderNode
+
 Decoded symbol sequence:
 
 ```text
 a_hat = argmax_{a in {-1,+1}^K} Lambda(a)
 ```
 
-The planner should implement the estimator efficiently. For full brute force, `2^32` sequences is not acceptable. With rectangular full-response CPM, the planner should derive an equivalent low-state Viterbi or differential phase estimator and prove it is equivalent for the deterministic fixture.
+The planner should implement the estimator efficiently. For full brute force, `2^32` sequences is not acceptable. With `h = 1/2` and rectangular full-response CPM, the planner must derive a low-state Viterbi/MLSE or equivalent estimator and prove it is equivalent for the deterministic fixture.
+
+## FHSSPulseWordDecoderNode
+
+The pulse word decoder maps the Viterbi/MLSE symbol decisions to bits and then to one `uint32_t`.
 
 Symbol-to-bit mapping:
 
@@ -1033,22 +1313,22 @@ If a reduced estimator is used, it must expose an analogous confidence metric.
 
 ## FHSSPreambleDetectorNode
 
-Given decoded pulses `d[p]`, configured preamble words `W_pre[k]`, and configured preamble hop pattern `H_pre[k]`:
+Given decoded pulses `d[p]` and configured preamble hop pattern `H_pre[k]`:
 
 ```text
-match_word[p,k] = (d[p+k].value == W_pre[k])
 match_hop[p,k] = (d[p+k].frequency_index == H_pre[k])
 ```
 
-Preamble score:
+Hop-only preamble score:
 
 ```text
 S_pre[p] =
-    sum_{k=0}^{15} I(match_word[p,k]) +
     sum_{k=0}^{15} I(match_hop[p,k])
 ```
 
-If preamble words are not configured, use only hop matching. If both words and hops are configured, both must match unless the planner defines a tolerance policy.
+Decision: preamble detection is hop-only. Preamble word values are not required for preamble lock and must not contribute to `S_pre`.
+
+However, identical preamble frequencies shall have identical word values in generated truth fixtures. This is a fixture consistency and secondary validation rule, not the primary preamble detector criterion.
 
 Preamble lock:
 
@@ -1124,6 +1404,20 @@ success =
 
 The sink/report must include mismatched pulse indices, expected/actual fields, and confidence diagnostics.
 
+Minimum PR1 diagnostics, even though the final schema may be deferred:
+
+```text
+pulse_count
+rejected_count
+global_start_sample
+frequency_index
+confidence
+viterbi_path_metric
+decoded_value
+preamble_lock
+truth_mismatch_count
+```
+
 ---
 
 # Plan Correctness Validation
@@ -1141,9 +1435,17 @@ The planner must validate these correctness points before emitting a roadmap:
 5. Magnitude-only boundary:
    `CpuSpectrumDftNode`/`MagnitudePacket` may support diagnostics or hop-energy detection, but cannot feed word decoding because CPSM decoding requires complex phase evidence.
 6. Message protocol:
-   The 16-pulse preamble must resolve exactly four active frequencies; all payload/body pulses must use only that active set; total message length must be at most 256 pulses unless explicitly redefined.
+   The 16-pulse preamble pattern must resolve exactly four active frequencies; preamble detection is hop-only; identical preamble frequencies must have identical word values in generated truth fixtures; all payload/body pulses must use only that active set; total message length includes the 16 preamble pulses and must be at most 256 pulses.
 7. Node split:
    The efficient implementation may combine hop candidate extraction and CPSM sequence estimation internally, but the plan must preserve separate conceptual outputs for candidate evidence, decoded pulse words, preamble lock, assembled message, and truth comparison.
+8. Impairment boundary:
+   PR1 may disable noise and Doppler for deterministic CI, but the plan must identify how Doppler/frequency offset and noise would affect hop detection, CPSM estimation, confidence, and diagnostics.
+9. Overlap boundary:
+   Overlapped messages are possible. PR1 rejects and reports overlap as unsupported.
+10. Global timing boundary:
+   Detected pulses from all channels must be normalized to one global sample-time domain before ordering, CPSM decoding, preamble detection, or message assembly. Channel-local offsets alone are invalid for association.
+11. Bandwidth/channelizer boundary:
+   A 5 Mbps CPSM signal on 4 MHz-spaced hop channels may not be cleanly separable depending on `q(t)` and filtering. The planner must require spectral-occupancy validation and a channelizer filter-width decision before claiming channelizer separation.
 
 ---
 
@@ -1161,6 +1463,7 @@ Inputs:
 * pulse spacing
 * ordered preamble truth pulses
 * ordered payload truth pulses
+* deterministic RNG seed for message-body frequency selection
 
 The generator shall:
 
@@ -1169,6 +1472,8 @@ The generator shall:
 * enforce the 128-frequency table and 4-frequency active hop set
 * enforce 16 preamble pulses
 * enforce maximum message length
+* choose payload/body pulse frequencies randomly from the four active preamble frequencies using a deterministic seed
+* enforce that identical preamble frequencies have identical preamble word values
 * emit exact truth metadata
 * support later optional noise
 
@@ -1209,17 +1514,26 @@ Plan deterministic tests for:
 * frequency index recovery
 * pulse start recovery
 * pulse duration recovery
+* global sample timing recovery from packet global start plus local detector offset
+* provisional slot-index assignment before preamble/message epoch lock
+* duplicate detection and collision handling through `FHSSPulseMergeNode`
+* PR1 overlap rejection/reporting
 
 ### Decoder
 
 * exact `uint32_t` pulse value recovery
+* branch metric generation
+* Viterbi/MLSE path decoding
 
 ### Message Layer
 
 * preamble detection
+* hop-only preamble lock
+* preamble word secondary consistency validation
 * payload assembly
 * enforcement that only the 4 active preamble frequencies appear after preamble lock
 * enforcement of the 256-pulse message limit
+* ordering of merged candidates by `global_start_sample`
 
 ### Graph Integration
 
@@ -1268,6 +1582,9 @@ Plan tests for:
 * corrupted pulse value
 * empty input
 * overlapping pulses if unsupported
+* overlapped messages rejected as unsupported in PR1
+* duplicate pulse detections from multiple channels
+* channel-local pulses without valid global timing metadata
 * preamble pattern with more or fewer than 4 active frequencies
 * preamble with more or fewer than 16 pulses
 * payload pulse on a frequency outside the active preamble set
@@ -1287,6 +1604,7 @@ Plan documentation covering:
 * 16-pulse preamble and 4-frequency active hop rule
 * 256-pulse maximum message rule
 * 6.4 us pulse width, 6.6 us dead time, and 5 Mbps modulation assumptions
+* CPSM spectral occupancy and channelizer filter-width assumptions
 * any chosen deviation from the 500 Msps fixture assumption
 * synthetic fixture encoding
 * CPU-only status
@@ -1315,10 +1633,8 @@ Additional theory/code references and required decisions:
 - Initial receiver should avoid claiming general RF synchronization.
 - Pulse-value decoding must consume complex IQ or complex channelized/baseband samples.
 - Magnitude-only DFT/spectrum output may be used for hop detection or diagnostics, but not as the only input to pulse-value decoding.
-- Planner must decide whether to implement hop detection first using:
-  1. a simple CPU matched-filter/correlator bank over known hop frequencies, or
-  2. existing `CpuSpectrumDftNode` magnitude output.
-  Prefer the correlator bank for the deterministic first lane because it preserves complex evidence for CPSM symbol estimation.
+- Hop detection starts with the four active frequencies derived from the preamble pattern. The detector does not need to decode or validate the preamble; preamble interpretation belongs to the message decoder/preamble detector.
+- Prefer a CPU matched-filter/correlator or CPSM likelihood bank over the four active frequencies for the deterministic first lane because it preserves complex evidence for CPSM symbol estimation.
 - Existing GraphX DSP code reference:
   - `CpuSpectrumDftNode` extracts IQ from token sidecar and emits magnitude sidecar while preserving token fields.
   - Therefore FHSS nodes should follow the same token/sidecar style but should not collapse complex IQ into magnitude before word decoding.
@@ -1343,6 +1659,7 @@ At minimum, cover these gaps:
 * Existing DSP spectrum packets are magnitude-only and cannot be the canonical input to CPSM, PSK, or other phase-based word decoding.
 * No complex intermediate exists for channelized/baseband pulse evidence; the first FHSS lane needs either `FHSSPulseCandidate` with complex samples or an equivalent complex evidence packet.
 * No message-layer state machine exists for preamble detection, payload assembly, missing/corrupt pulse handling, or truth comparison.
+* No pulse merge/association boundary exists yet for normalizing per-channel detections into a shared global sample-time stream.
 * No protocol-validation layer exists for the 128-entry frequency table, 4-frequency active hop subset, 16-pulse preamble, or 256-pulse message limit.
 * The exact CPSM modulation index, rectangular phase-pulse normalization/support, matched filter, and receiver estimator are not selected yet.
 * No FHSS-specific diagnostics schema exists for reporting detected pulse count, rejected candidates, SNR/confidence, recovered words, preamble lock, or assembly status.
@@ -1355,6 +1672,9 @@ At minimum, cover these gaps:
 * No helper exists to derive the 128-hop frequency table from base frequency and spacing while preserving integer-index validation.
 * No timing helper exists to derive and validate 500 Msps fixture counts for 5 Mbps symbols, 6.4 us pulses, 6.6 us dead time, and 13 us pulse periods.
 * No CPU correlator/matched-filter bank exists for known hop frequencies and symbol timing.
+* No CPSM spectral occupancy check or channelizer filter-width decision exists for 4 MHz hop spacing.
+* No CPSM branch metric node or Viterbi/MLSE decoder exists.
+* No `FHSSPulseMergeNode` exists for sorting, duplicate rejection, collision handling, and global sample-time association.
 * No CPSM decoder exists for recovering 32 bits from complex pulse samples.
 * No tolerance policy exists for pulse start, duration, frequency, SNR/confidence, or bit/word decisions.
 * No FHSS GraphX plugins, JSON configs, CMake wiring, or end-to-end executor tests exist.
@@ -1369,15 +1689,14 @@ The planner must make explicit decisions for:
 
 * `FHSSPulseCandidate` versus lower-level `FHSSFrequencyObservation` as the first receiver intermediate.
 * MSB-first versus LSB-first bit ordering inside a 32-symbol pulse.
-* Pulse and guard-interval sample counts for CI-safe fixtures, using the decided 500 Msps fixture rate.
-* CPSM modulation index, rectangular phase-pulse normalization/support, matched filter, and receiver estimator.
-* Whether the 256-pulse maximum includes the 16-pulse preamble. Default to yes unless explicitly changed.
-* Whether preamble words are fixed values, externally supplied values, or both fixed values and an externally supplied hop pattern.
-* How fixture generation chooses message-body frequencies from the four selected preamble frequencies. There is no defined body hop behavior beyond that active-frequency constraint.
+* Exact rectangular phase-pulse normalization/support and matched filter details for the decided CPSM model.
 * Whether PR1 introduces only header/model/test fixtures or also a small pure function generator.
 * Whether hop detection and word decoding live in one initial node or two separate nodes; choose the most efficient architecture and provide the analysis supporting that choice.
+* Whether PR1 supports a real channelizer topology or implements the same global-timing metadata through a simpler correlator-bank detector.
+* CPSM spectral occupancy and channelizer filter-width assumptions for 4 MHz spacing.
+* How Doppler/noise considerations affect future estimator thresholds, confidence, and diagnostics while staying disabled by default in deterministic CI.
 * The minimum plugin/config surface needed for a runnable graph without overfitting to a single fixture.
-* How truth comparison reports mismatches so CI failures are diagnosable.
+* How much of the final diagnostics/report schema can be deferred until node contracts are better defined.
 
 ---
 
@@ -1391,20 +1710,26 @@ Decided:
 2. Modulation scope: implement pure binary CPSM using `theta(t)=2*pi*h*sum_k a[k]*q(t-k*T_b)`.
 3. Payload/body frequency rule: message-body pulses may use only the four selected preamble frequencies; no additional hop behavior is defined for the body.
 4. Node split criterion: choose the most efficient architecture for hop detection and word decoding, and include the architectural analysis supporting the choice.
+5. Preamble detection: hop-only. Identical preamble frequencies shall have identical word values in generated truth fixtures.
+6. Message length: the 256-pulse maximum includes the 16 preamble pulses.
+7. Message-body fixture generation: use deterministic random selection from the four selected preamble frequencies.
+8. Detector frequency scope: the detector starts with the four active frequencies derived from the preamble pattern; it does not need to decode the preamble itself.
+9. Active-set discovery: active frequencies are derived from the externally supplied preamble pattern.
+10. DSP contract direction: propose a DSP contract update if the current token/sidecar model is awkward for this modem lane.
+11. Diagnostics/report schema: defer final schema details until nodes are better defined.
+12. PR1 synchronization: use `message_start_sample = 0`; pulse-start acquisition is future work.
+13. Overlap policy: reject and report overlapped messages as unsupported in PR1.
+14. Preamble words: fixture consistency and secondary validation only; not part of hop-only preamble lock.
 
 Still open:
 
-1. Preamble word sequence: decide whether the preamble is identified by hop pattern only, word values only, or both hop pattern and word values.
-2. Message length interpretation: decide whether the 256-pulse maximum includes the 16-pulse preamble. Default assumption remains yes.
-3. Message-body fixture generation: decide how synthetic payload/body pulse frequencies are selected from the four active preamble frequencies.
-4. Frequency representation: decide whether indexes are canonical and frequencies are derived, or whether configs store both and validate consistency.
-5. Receiver synchronization assumptions: decide how much the first lane may assume about known slot timing, sample alignment, pulse width, and pulse period.
-6. Detection algorithm boundary: decide whether first hop/pulse detection is a correlator bank over the 4 active frequencies, over all 128 frequencies before preamble lock, or a two-stage detector.
-7. Active-set discovery: decide whether the receiver knows the 4-frequency active set before detecting preamble, or derives it from the preamble pattern/config.
-8. Error model: decide how to represent unknown frequency, low confidence, bad word decode, missing preamble, invalid timing configuration, and overlength message failures.
-9. Node contract direction: decide whether FHSS work should adapt to current token/sidecar DSP contracts or propose a DSP contract update if the current contracts block a clean modem lane.
-10. Diagnostics format: decide the minimum JSON/report fields needed for decoded pulses, rejected candidates, preamble lock status, timing assumptions, modulation assumptions, and truth mismatches.
-11. CPSM estimator details: choose modulation index, exact rectangular phase-pulse definition, continuity across pulse boundaries, matched filter, and receiver estimator. Initial recommended values are `h=1/2`, rectangular phase pulse, 5 Mbps, 500 Msps, 100 samples per symbol, and continuity inside each pulse only.
+1. Frequency representation: decide whether indexes are canonical and frequencies are derived, or whether configs store both and validate consistency.
+2. Receiver synchronization assumptions beyond PR1: decide when/how to add pulse-start acquisition beyond `message_start_sample = 0`.
+3. Doppler/noise policy: decide which Doppler/noise fields belong in PR1 configs and diagnostics even if impairments are disabled by default.
+4. Error model: decide how to represent unknown frequency, low confidence, bad word decode, missing preamble, invalid timing configuration, overlap unsupported, Doppler/noise unsupported, and overlength message failures.
+5. CPSM estimator details: pin down exact rectangular phase-pulse definition, matched filter, Viterbi/MLSE state model, terminal phase policy, and estimator confidence. Initial recommended values are `h=1/2`, rectangular full-response phase pulse, initial phase `0`, terminal phase unconstrained or checked, state as accumulated CPM phase modulo `2*pi`, 5 Mbps, 500 Msps, 100 samples per symbol, and continuity inside each pulse only.
+6. Bandwidth/channelizer feasibility: validate spectral occupancy for 5 Mbps CPSM on 4 MHz-spaced channels and choose channelizer filter width.
+7. Detector/decoder metric handoff: decide whether detector emits only timing/frequency candidates or passes reusable likelihood state downstream to avoid duplicate metric computation.
 
 ---
 
@@ -1414,17 +1739,19 @@ Still open:
 
 2. Synthetic FHSS IQ generator.
 
-3. Hop detection and pulse candidate extraction.
+3. Hop detection, detected-pulse metadata, and pulse merge/association.
 
-4. Pulse-word decoder for one-`uint32_t`-per-pulse fixture encoding.
+4. CPSM branch metric and Viterbi/MLSE decoder.
 
-5. Preamble detector and message assembler.
+5. FHSS pulse-word decoder.
 
-6. End-to-end GraphX JSON config and executor tests.
+6. Preamble detector and message assembler.
 
-7. Documentation and truth-in-labeling guardrails.
+7. End-to-end GraphX JSON config and executor tests.
 
-8. Future/out-of-scope:
+8. Documentation and truth-in-labeling guardrails.
+
+9. Future/out-of-scope:
 
    * Metal acceleration
    * channelizer acceleration
