@@ -2,15 +2,30 @@
 
 Scope: planning only. Do not implement code from this document directly. Each PR must compile and test independently, keep the first lane CPU-only and deterministic, preserve complex IQ evidence for decoding, and avoid forcing the modem/receiver architecture through generic PDWs.
 
-This roadmap targets a deterministic GraphX FHSS DSP fixture where one pulse carries one full `uint32_t`. The protocol uses 128 RF metadata frequencies starting at 1 GHz with 4 MHz spacing, a 16-pulse hop-only preamble, four active frequencies derived from the preamble pattern, and messages of at most 256 pulses including preamble. Fixture IQ must use baseband or offset frequencies because absolute 1 GHz RF cannot be directly sampled at `500 Msps` without aliasing.
+This roadmap targets a deterministic GraphX FHSS DSP fixture where one pulse carries one full `uint32_t`. The protocol uses 64 RF metadata frequencies starting at 1 GHz with 8 MHz spacing, a 16-pulse hop-only preamble, four active frequencies derived from the preamble pattern, and messages of at most 256 pulses including preamble. Selectable frequency indices are `[1, 62]`; indices `0` and `63` are reserved edge/guard entries and must never be selected. Fixture IQ must use baseband or offset frequencies because absolute 1 GHz RF cannot be directly sampled at `500 Msps` without aliasing.
+
+
+## RF Correctness Summary
+
+The current graph architecture is retained. The main RF/signal-processing corrections are constraints on how that graph is configured and validated:
+
+- treat the 1 GHz hop table as RF metadata, not directly sampled fixture IQ;
+- operate the deterministic fixture on complex baseband/IF offsets;
+- validate offset frequencies against Nyquist, occupied bandwidth, and CFO guard bands;
+- do not claim that all 64 RF centers fit alias-free into one 500 Msps complex-baseband fixture while preserving the 8 MHz spacing;
+- do not claim production channelizer separation until 5 Mbps CPSM occupied bandwidth and channel filter requirements are defined;
+- keep detector timing/frequency evidence separate from CPSM branch metric/Viterbi sequence estimation;
+- preserve global sample-time mapping across any channelizer, detector, or merge boundary.
 
 ## Decided Baseline
 
 - Sample rate: `500 Msps`.
 - Bit rate: `5 Mbps`.
 - Symbol timing: `100 samples/symbol`, `32 symbols/pulse`, `3200` pulse samples, `3300` gap samples, `6500` samples per pulse period.
+- Frequency table: 64 RF metadata entries; selectable active indices are `[1, 62]`; reserved edge indices `0` and `63` are invalid for preamble and payload selection.
 - Modulation: binary CPSM using `theta(t)=2*pi*h*sum_k a[k]*q(t-k*T_b)`.
 - Initial CPSM assumptions: `h=1/2`, rectangular full-response phase pulse, initial phase `0`, continuity inside each pulse only, terminal phase unconstrained unless checked by the decoder PR.
+- RF realism caveat: 5 Mbps CPSM on 8 MHz-spaced channels requires occupied-bandwidth/channel-filter validation before any production-like channelizer claim.
 - Preamble detection: hop-only. Preamble word values are fixture consistency / secondary validation only.
 - Payload/body frequency rule: randomly select from the four active preamble frequencies using a deterministic seed.
 - PR1 synchronization: `message_start_sample = 0`; pulse-start acquisition is future work.
@@ -24,8 +39,150 @@ This roadmap targets a deterministic GraphX FHSS DSP fixture where one pulse car
 - Doppler/noise policy: decide which config and diagnostic fields belong in PR1 even though impairments are disabled by default.
 - Error model: define status values for unknown frequency, low confidence, bad word decode, missing preamble, invalid timing config, unsupported overlap, unsupported Doppler/noise, and overlength message.
 - CPSM estimator details: pin down exact rectangular `q(t)` normalization/support, matched filter, Viterbi/MLSE state model, terminal phase policy, and confidence metric.
-- Bandwidth/channelizer feasibility: validate 5 Mbps CPSM spectral occupancy against 4 MHz channel spacing and choose channelizer filter width before claiming channelizer separation.
+- Bandwidth/channelizer feasibility: validate 5 Mbps CPSM spectral occupancy against 8 MHz channel spacing and choose channelizer filter width before claiming channelizer separation.
 - Detector/decoder metric handoff: decide whether detectors emit only timing/frequency candidates or pass reusable likelihood state downstream.
+
+
+## RF And Signal-Processing Correctness Addendum
+
+The graph architecture is intentionally unchanged. The following items are additional correctness constraints and planning decisions that must be carried through the existing graph and PR sequence.
+
+### RF Metadata Versus Simulated IQ Frequencies
+
+Absolute RF hop frequencies are protocol metadata. The fixture IQ path must operate on complex baseband or IF-offset frequencies. A sampled complex IQ stream at `500 Msps` has a nominal Nyquist interval of `[-250 MHz, +250 MHz)`, so directly synthesizing `1 GHz + 8 MHz * index` into the fixture IQ aliases unless an explicit downconversion model is part of the simulation.
+
+Required model:
+
+```cpp
+struct FHSSFrequencyMapEntry {
+    uint32_t index;
+    double rf_frequency_hz;        // 1 GHz + index * 8 MHz
+    double iq_offset_frequency_hz; // CI-safe complex baseband/IF offset
+};
+```
+
+Validation rules:
+
+```text
+rf_frequency_hz = base_frequency_hz + index * frequency_spacing_hz
+abs(iq_offset_frequency_hz) + occupied_bandwidth_hz / 2 + max_abs_cfo_hz < sample_rate_hz / 2
+all active iq_offset_frequency_hz values are distinct modulo sample_rate_hz
+```
+
+Important consequence:
+
+```text
+64 frequencies at 8 MHz spacing span 504 MHz between lowest and highest center frequencies.
+That full RF table cannot be represented as one alias-free 500 Msps complex-baseband fixture while preserving all absolute spacings at once.
+```
+
+Indices `0` and `63` are reserved edge/guard metadata entries. The valid selectable set for active preamble and payload/body hopping is `[1, 62]`.
+
+Therefore PR1 may operate only on the four active preamble-derived frequencies. A future full-table detector over the selectable interior frequency set must use one of these approaches:
+
+* a higher fixture sample rate;
+* a downconverted sub-band selection model;
+* a bank of retuned captures/windows;
+* a sparse active-frequency scheduler;
+* or an explicit aliasing model, if that is really intended.
+
+Do not silently map all 64 RF frequencies into one 500 Msps baseband span while pretending it is an alias-free RF capture.
+
+### 8 MHz Hop Spacing Versus 5 Mbps CPSM Occupancy
+
+The roadmap uses 5 Mbps CPSM and 8 MHz hop spacing. That is a potential adjacent-channel issue. The graph may remain unchanged, but the plan must not claim clean channelizer separation until the occupied bandwidth and filter design are validated.
+
+Required planning decision:
+
+```text
+Define occupied_bandwidth_hz for the selected CPSM phase pulse and envelope, or mark it as a fixture-only unresolved RF-realism item.
+```
+
+For PR1, the detector may use coherent known-frequency correlation over four configured offsets in a noise-free fixture. That can pass deterministic tests even when a production channelizer would require more careful pulse shaping and adjacent-channel rejection.
+
+Future channelizer planning must specify:
+
+* channel spacing;
+* channel filter passband width;
+* transition bandwidth;
+* stopband attenuation;
+* group delay;
+* timing alignment from channelized samples back to global input sample time;
+* adjacent-channel rejection requirements;
+* whether active channels are 8 MHz-spaced, more widely spaced in the fixture, or intentionally stress adjacent-channel behavior.
+
+### CPM/CPSM Trellis And Estimator Boundary
+
+The roadmap requires CPSM demodulation by branch metrics plus Viterbi/MLSE, but the PR must pin down the trellis before implementation.
+
+For the initial recommended binary full-response rectangular CPM fixture:
+
+```text
+h = 1/2
+L = 1 full-response phase pulse
+initial_phase = 0
+phase state = accumulated CPM phase modulo 2*pi
+continuity inside pulse only
+terminal phase = unconstrained unless explicitly checked
+```
+
+The planner must derive the finite-state trellis for this exact model and include a small reduced-length brute-force oracle test to verify the Viterbi implementation. The implementation must not enumerate `2^32` full pulse words.
+
+### Detector Versus Decoder Evidence Ownership
+
+The detector may estimate timing and frequency, but CPSM sequence recovery belongs to the branch metric/Viterbi decoder unless a reusable likelihood handoff is explicitly designed.
+
+Required decision:
+
+```text
+Detector output = timing/frequency candidate + dehopped complex evidence.
+CPSMBranchMetricNode owns sequence likelihood calculation.
+CPSMViterbiDecoderNode owns symbol sequence decision.
+```
+
+If the detector computes a coherent metric to rank frequencies, that metric may be reported as detection confidence, but it must not become an undocumented partial decoder.
+
+### Global Sample-Time And Rate Changes
+
+The graph combines detections from multiple channels. All channelizer or correlator outputs must preserve a mapping back to the original input sample index.
+
+Required metadata for any channelized or decimated future path:
+
+```cpp
+struct SampleTimeMap {
+    uint64_t input_global_start_sample;
+    uint64_t output_start_sample;
+    uint32_t decimation_factor;
+    int64_t group_delay_input_samples;
+    double sample_rate_hz;
+};
+```
+
+For PR1 without decimation, `decimation_factor = 1` and `group_delay_input_samples = 0`. Future channelizers must compensate group delay before `FHSSPulseMergeNode` sorts or assigns slot indices.
+
+### Synchronization Boundary
+
+PR1 assumes:
+
+```text
+message_start_sample = 0
+pulse starts are aligned to N_period = 6500 samples
+```
+
+That is acceptable for the deterministic fixture, but it must be visible in diagnostics and config. Pulse-start acquisition, fractional timing error, and message-start search are future work.
+
+### Frequency Error, Doppler, And Phase Drift
+
+Noise and Doppler are disabled in PR1, but field names and diagnostics should leave room for:
+
+* carrier frequency offset in Hz;
+* phase slope in rad/sample;
+* residual CFO after dehopping;
+* symbol timing error;
+* confidence degradation under noise;
+* rejection reason for unsupported impairments.
+
+Do not add noisy/Doppler tests to PR1 unless they are deterministic and disabled by default in the main CI fixture.
 
 ## Target Graph
 
@@ -66,7 +223,7 @@ Purpose:
 
 - Remove protocol ambiguity before implementing signal generation or decoding.
 - Add the canonical type/config model for FHSS truth pulses, detected pulses, pulse candidates, messages, frequency-map entries, and decode configuration.
-- Lock fixture validation for the 128-frequency table, four active preamble frequencies, 16-pulse preamble, 256-pulse message limit, `500 Msps` timing, and baseband/offset IQ frequency mapping.
+- Lock fixture validation for the 64-frequency table, four active preamble frequencies selected only from indices `[1, 62]`, 16-pulse preamble, 256-pulse message limit, `500 Msps` timing, and baseband/offset IQ frequency mapping.
 
 Files to touch:
 
@@ -81,14 +238,18 @@ Files to delete:
 
 Tests to add:
 
-- Frequency table derives exactly 128 RF metadata frequencies from 1 GHz at 4 MHz spacing.
+- Frequency table derives exactly 64 RF metadata frequencies from 1 GHz at 8 MHz spacing.
 - `FHSSFrequencyMapEntry` rejects sampled absolute 1 GHz RF at `500 Msps` unless downconversion/aliasing is explicitly modeled.
 - Active preamble set validation requires exactly four distinct frequency indices.
+- Active preamble set validation rejects reserved edge indices `0` and `63`.
+- Frequency index validation rejects values outside `[0, 63]`.
 - Preamble pattern validation requires exactly 16 pulses.
 - Message length validation rejects more than 256 pulses including preamble.
 - Timing validation proves `500 Msps / 5 Mbps = 100`, `N_pulse = 3200`, `N_gap = 3300`, and `N_period = 6500`.
-- Deterministic RNG seed produces stable payload/body frequency selections from the four active frequencies.
+- Deterministic RNG seed produces stable payload/body frequency selections from the four active frequencies, all of which must be selectable indices in `[1, 62]`.
 - Identical preamble frequencies require identical preamble word values in generated truth fixtures.
+- IQ offset validation rejects any active offset whose occupied-bandwidth guard would exceed the `500 Msps` Nyquist interval.
+- Full-table validation documents that all 64 RF centers cannot be represented alias-free in one `500 Msps` complex-baseband span while preserving 8 MHz spacing.
 
 Tests to delete:
 
@@ -99,6 +260,7 @@ Acceptance criteria:
 - The protocol/type model compiles independently.
 - Invalid protocol configs fail loudly with diagnosable errors.
 - The RF metadata table and IQ offset map are distinct and validated.
+- The first fixture uses only the four active offsets for IQ generation/detection; those active offsets must correspond to selectable indices `[1, 62]`, and all 64 RF frequencies remain metadata unless a future all-band model is explicitly added.
 - No node runtime, graph execution, Metal/GPU work, or real RF capture support is added.
 
 Risks:
@@ -138,10 +300,13 @@ Tests to add:
 - Generator emits the expected number of samples for a known preamble and payload.
 - Every truth pulse has exact `global_start_sample`, duration `3200`, frequency index, RF metadata frequency, IQ offset frequency, value, and preamble flag.
 - Payload/body frequencies are deterministic random selections from the four active preamble frequencies.
+- Generator never selects reserved edge indices `0` or `63` for preamble or payload/body pulses.
 - Generated preamble truth satisfies identical-frequency/identical-word consistency.
 - CPSM output has constant envelope inside pulse for the noise-free fixture.
 - Phase continuity holds according to the selected rectangular full-response `q(t)`.
 - Gap samples are zero or documented idle samples.
+- Generated IQ uses `iq_offset_frequency_hz`, not `rf_frequency_hz`, in the complex exponential.
+- Phase, frequency, and sample-time metadata remain consistent with the RF frequency index.
 - Overlap fixture is rejected for PR1.
 
 Tests to delete:
@@ -153,6 +318,7 @@ Acceptance criteria:
 - Generator is deterministic and CI-safe.
 - No decoder or graph runtime integration is required yet.
 - Generated IQ carries the pulse value in complex phase evidence, not only metadata.
+- The generator documents fixture-only spectral realism and does not claim 8 MHz channel separability without occupied-bandwidth validation.
 - Noise, Doppler, and multipath are disabled by default but config/diagnostic extension points are identified.
 
 Risks:
@@ -196,6 +362,7 @@ Tests to add:
 - Provisional slot index uses `global_start_sample / N_period`.
 - Final slot index uses `(global_start_sample - message_epoch_sample) / N_period` when epoch is known.
 - Missing or inconsistent global timing metadata is rejected.
+- Any future decimated/channelized input must carry sample-time mapping fields sufficient to recover original input global sample indices.
 
 Tests to delete:
 
@@ -205,6 +372,7 @@ Acceptance criteria:
 
 - `FHSSPulseMergeNode` emits an ordered `FHSSPulseCandidate` stream with complex sample references/payload preserved.
 - Channel-local timing alone is never accepted for association.
+- Sample-time mapping is explicit even when PR1 uses `decimation_factor = 1` and zero group delay.
 - PR1 overlap behavior is deterministic and diagnosable.
 - No CPSM word decoding is added in this PR.
 
@@ -243,7 +411,9 @@ Tests to add:
 
 - Known-slot detector uses `message_start_sample = 0` and `N_period = 6500`.
 - Detector ranks the correct active frequency among the four active offsets.
-- Detector does not scan all 128 frequencies in PR1.
+- Detector uses offset frequencies and never directly mixes against absolute 1 GHz RF metadata in the `500 Msps` fixture.
+- Detector does not scan the full 64-entry frequency table in PR1.
+- Detector active frequency configuration rejects reserved edge indices `0` and `63`.
 - Detector emits `FHSSDetectedPulse` with RF metadata frequency, IQ offset frequency, frequency error, CFO placeholder/estimate, SNR/confidence, detector id, packet sequence, and global timing.
 - Detector does not require preamble decoding.
 - Detector rejects unsupported overlapped messages.
@@ -257,10 +427,12 @@ Acceptance criteria:
 - Detector output is sufficient for `FHSSPulseMergeNode` and later CPSM decoding.
 - Detector does not rely on magnitude-only `MagnitudePacket` for word recovery.
 - Detector does not duplicate full Viterbi/MLSE work unless a reusable metric handoff contract is explicitly implemented.
+- Detector emits timing/frequency candidate evidence plus dehopped complex samples; CPSM branch metrics remain owned by PR5 unless the roadmap explicitly revises that boundary.
 
 Risks:
 
 - Constant-envelope CPSM means raw mixed-down energy cannot choose hop frequency; detector must use coherent phase/channelizer/correlation evidence.
+- 8 MHz channel spacing with 5 Mbps CPSM may make simple channelizer separation unrealistic without filter/occupied-bandwidth analysis; PR4 must label this as fixture detection, not RF performance.
 - The metric chosen here may need adjustment after PR5 branch metrics are implemented.
 
 Rollback plan:
@@ -294,6 +466,7 @@ Tests to add:
 
 - Rectangular full-response `q(t)` makes `theta(t)` continuous.
 - Trellis state is accumulated CPM phase modulo `2*pi`.
+- Trellis state count and transition table are derived from `h=1/2`, binary symbols, and the selected full-response rectangular phase pulse.
 - Known generated pulse decodes to the expected 32-symbol sequence.
 - Viterbi/MLSE result matches a brute-force oracle on very small reduced fixtures, not full 32-symbol pulses.
 - Terminal phase unconstrained or checked according to the implemented policy.
@@ -308,6 +481,7 @@ Acceptance criteria:
 
 - No `2^32` brute-force pulse decode path exists.
 - Estimator assumptions are explicit: `h=1/2`, rectangular full-response, initial phase `0`, continuity inside each pulse only.
+- Branch metric equations include any matched-filter, integrate-and-dump, whitening, or normalization assumptions used by the MLSE.
 - The branch metric and Viterbi nodes compile and test independently of message assembly.
 
 Risks:
@@ -446,6 +620,7 @@ Tests to add:
 - Decoded pulses match truth for start, duration, frequency index, and value.
 - Assembled message locks on hop-only preamble and validates active set.
 - Diagnostics contain required minimum fields.
+- Diagnostics also identify RF metadata frequency, IQ offset frequency, sample-time mapping, synchronization assumption, and any unsupported-overlap/unsupported-impairment rejection.
 - Graph is CPU-only and does not use Metal/GPU nodes.
 
 Tests to delete:
@@ -544,6 +719,8 @@ Acceptance criteria:
 - Future work remains explicitly out of scope for PR1 through PR9.
 - Candidate future work is limited to:
   - real channelizer topology and filter-width validation;
+  - occupied-bandwidth measurement/estimation for the selected CPSM pulse shape;
+  - explicit full-table/selectable-frequency scanning strategy if preserving 8 MHz spacing at 500 Msps is insufficient;
   - Doppler/noise/phase-offset impairments and estimator robustness;
   - pulse-start acquisition beyond `message_start_sample = 0`;
   - overlap-aware message separation;

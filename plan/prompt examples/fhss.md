@@ -48,33 +48,35 @@ It is not a production RF interoperability claim.
 
 ## Frequency Set
 
-The complete frequency set contains 128 frequencies.
+The complete frequency set contains 64 frequencies.
 
-Frequencies start at 1 GHz and are spaced every 4 MHz.
+Frequencies start at 1 GHz and are spaced every 8 MHz.
 
 Derived frequency table:
 
 ```text
 frequency_hz(index) =
     1'000'000'000 +
-    index * 4'000'000
+    index * 8'000'000
 
-where index ∈ [0,127]
+where index ∈ [0,63]
 ```
 
 Derived defaults:
 
 ```text
-frequency_count = 128
+frequency_count = 64
 base_frequency_hz = 1'000'000'000
-frequency_spacing_hz = 4'000'000
+frequency_spacing_hz = 8'000'000
+selectable_frequency_indices = [1, 62]
+reserved_frequency_indices = {0, 63}
 ```
 
 ---
 
 ## Active Hop Pattern
 
-Although 128 frequencies exist, only four frequencies are active during a message.
+Although 64 frequencies exist, only four frequencies are active during a message.
 
 The active hop frequencies are determined by the externally supplied preamble hopping pattern.
 
@@ -83,6 +85,8 @@ Derived default:
 ```text
 active_hop_frequency_count = 4
 ```
+
+Decision: active frequencies must be selected only from indices `[1, 62]`. Frequency indices `0` and `63` are reserved edge/guard frequencies and must never be selected for the preamble pattern or message body.
 
 Decision: payload/body pulses may use only the four selected preamble frequencies. There is no defined hop behavior for the message body beyond that active-frequency constraint.
 
@@ -744,10 +748,11 @@ Important fields for association and message assembly:
 
 Protocol validation should reject:
 
-* a frequency count other than 128 for the first fixture lane
+* a frequency count other than 64 for the first fixture lane
 * preamble hop patterns that are not exactly 16 pulses
 * active hop sets with anything other than 4 distinct frequency indices
-* active frequency indices outside `[0, 127]`
+* active frequency indices outside `[0, 63]`
+* active frequency indices equal to reserved edge index `0` or `63`
 * preamble hop entries outside the active frequency set
 * payload pulse frequencies outside the active frequency set
 * messages longer than 256 pulses
@@ -924,7 +929,7 @@ A = 1.0 initially recommended
 Frequency table:
 
 ```text
-f_abs[i] = 1'000'000'000 + 4'000'000 * i,  i in [0, 127]
+f_abs[i] = 1'000'000'000 + 8'000'000 * i,  i in [0, 63]
 ```
 
 For GraphX fixture tests, use baseband or offset frequencies:
@@ -1445,7 +1450,7 @@ The planner must validate these correctness points before emitting a roadmap:
 10. Global timing boundary:
    Detected pulses from all channels must be normalized to one global sample-time domain before ordering, CPSM decoding, preamble detection, or message assembly. Channel-local offsets alone are invalid for association.
 11. Bandwidth/channelizer boundary:
-   A 5 Mbps CPSM signal on 4 MHz-spaced hop channels may not be cleanly separable depending on `q(t)` and filtering. The planner must require spectral-occupancy validation and a channelizer filter-width decision before claiming channelizer separation.
+   A 5 Mbps CPSM signal on 8 MHz-spaced hop channels may not be cleanly separable depending on `q(t)` and filtering. The planner must require spectral-occupancy validation and a channelizer filter-width decision before claiming channelizer separation.
 
 ---
 
@@ -1469,7 +1474,8 @@ The generator shall:
 
 * generate complex IQ
 * generate one pulse per `uint32_t`
-* enforce the 128-frequency table and 4-frequency active hop set
+* enforce the 64-frequency table and 4-frequency active hop set
+* never select reserved edge frequency indices `0` or `63`
 * enforce 16 preamble pulses
 * enforce maximum message length
 * choose payload/body pulse frequencies randomly from the four active preamble frequencies using a deterministic seed
@@ -1562,10 +1568,12 @@ including:
 
 ### Protocol Validation
 
-* generated 128-entry frequency table starts at 1 GHz and advances by 4 MHz
+* generated 64-entry frequency table starts at 1 GHz and advances by 8 MHz
 * active hopping pattern contains exactly 4 distinct indices
+* active hopping pattern never uses reserved edge indices `0` or `63`
 * preamble contains exactly 16 pulses
 * payload rejects frequencies outside the active set
+* payload/body fixture generation never selects reserved edge indices `0` or `63`
 * 6.4 us pulse width at 5 Mbps maps to exactly 32 data bits
 * 500 Msps yields deterministic pulse/symbol/gap sample counts
 * max-message-length handling is deterministic and documented
@@ -1587,9 +1595,10 @@ Plan tests for:
 * channel-local pulses without valid global timing metadata
 * preamble pattern with more or fewer than 4 active frequencies
 * preamble with more or fewer than 16 pulses
+* preamble or payload using reserved edge frequency index `0` or `63`
 * payload pulse on a frequency outside the active preamble set
 * message longer than 256 pulses
-* frequency index outside the 128-entry hop table
+* frequency index outside the 64-entry hop table
 * invalid timing configuration that does not match the selected 500 Msps fixture lane
 
 ---
@@ -1600,7 +1609,7 @@ Plan documentation covering:
 
 * one pulse equals one `uint32_t`
 * FHSS pulse and message model
-* 128-frequency protocol table
+* 64-frequency protocol table
 * 16-pulse preamble and 4-frequency active hop rule
 * 256-pulse maximum message rule
 * 6.4 us pulse width, 6.6 us dead time, and 5 Mbps modulation assumptions
@@ -1660,7 +1669,7 @@ At minimum, cover these gaps:
 * No complex intermediate exists for channelized/baseband pulse evidence; the first FHSS lane needs either `FHSSPulseCandidate` with complex samples or an equivalent complex evidence packet.
 * No message-layer state machine exists for preamble detection, payload assembly, missing/corrupt pulse handling, or truth comparison.
 * No pulse merge/association boundary exists yet for normalizing per-channel detections into a shared global sample-time stream.
-* No protocol-validation layer exists for the 128-entry frequency table, 4-frequency active hop subset, 16-pulse preamble, or 256-pulse message limit.
+* No protocol-validation layer exists for the 64-entry frequency table, 4-frequency active hop subset, 16-pulse preamble, or 256-pulse message limit.
 * The exact CPSM modulation index, rectangular phase-pulse normalization/support, matched filter, and receiver estimator are not selected yet.
 * No FHSS-specific diagnostics schema exists for reporting detected pulse count, rejected candidates, SNR/confidence, recovered words, preamble lock, or assembly status.
 * No clear future boundary exists yet between modem decoding and optional PDW/ESM diagnostics; the plan must keep PDW optional and non-canonical.
@@ -1669,10 +1678,10 @@ At minimum, cover these gaps:
 
 * No deterministic FHSS synthetic IQ source exists.
 * No fixture schema exists for hop tables, pulse timing, `uint32_t` values, preamble words, payload words, and expected decoded messages.
-* No helper exists to derive the 128-hop frequency table from base frequency and spacing while preserving integer-index validation.
+* No helper exists to derive the 64-hop frequency table from base frequency and spacing while preserving integer-index validation.
 * No timing helper exists to derive and validate 500 Msps fixture counts for 5 Mbps symbols, 6.4 us pulses, 6.6 us dead time, and 13 us pulse periods.
 * No CPU correlator/matched-filter bank exists for known hop frequencies and symbol timing.
-* No CPSM spectral occupancy check or channelizer filter-width decision exists for 4 MHz hop spacing.
+* No CPSM spectral occupancy check or channelizer filter-width decision exists for 8 MHz hop spacing.
 * No CPSM branch metric node or Viterbi/MLSE decoder exists.
 * No `FHSSPulseMergeNode` exists for sorting, duplicate rejection, collision handling, and global sample-time association.
 * No CPSM decoder exists for recovering 32 bits from complex pulse samples.
@@ -1693,7 +1702,7 @@ The planner must make explicit decisions for:
 * Whether PR1 introduces only header/model/test fixtures or also a small pure function generator.
 * Whether hop detection and word decoding live in one initial node or two separate nodes; choose the most efficient architecture and provide the analysis supporting that choice.
 * Whether PR1 supports a real channelizer topology or implements the same global-timing metadata through a simpler correlator-bank detector.
-* CPSM spectral occupancy and channelizer filter-width assumptions for 4 MHz spacing.
+* CPSM spectral occupancy and channelizer filter-width assumptions for 8 MHz spacing.
 * How Doppler/noise considerations affect future estimator thresholds, confidence, and diagnostics while staying disabled by default in deterministic CI.
 * The minimum plugin/config surface needed for a runnable graph without overfitting to a single fixture.
 * How much of the final diagnostics/report schema can be deferred until node contracts are better defined.
@@ -1728,7 +1737,7 @@ Still open:
 3. Doppler/noise policy: decide which Doppler/noise fields belong in PR1 configs and diagnostics even if impairments are disabled by default.
 4. Error model: decide how to represent unknown frequency, low confidence, bad word decode, missing preamble, invalid timing configuration, overlap unsupported, Doppler/noise unsupported, and overlength message failures.
 5. CPSM estimator details: pin down exact rectangular phase-pulse definition, matched filter, Viterbi/MLSE state model, terminal phase policy, and estimator confidence. Initial recommended values are `h=1/2`, rectangular full-response phase pulse, initial phase `0`, terminal phase unconstrained or checked, state as accumulated CPM phase modulo `2*pi`, 5 Mbps, 500 Msps, 100 samples per symbol, and continuity inside each pulse only.
-6. Bandwidth/channelizer feasibility: validate spectral occupancy for 5 Mbps CPSM on 4 MHz-spaced channels and choose channelizer filter width.
+6. Bandwidth/channelizer feasibility: validate spectral occupancy for 5 Mbps CPSM on 8 MHz-spaced channels and choose channelizer filter width.
 7. Detector/decoder metric handoff: decide whether detector emits only timing/frequency candidates or passes reusable likelihood state downstream to avoid duplicate metric computation.
 
 ---
