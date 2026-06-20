@@ -21,6 +21,7 @@ Global constraints for every PR:
 - Treat absolute RF frequencies as metadata; fixture IQ must use baseband/IF offset frequencies.
 - Reject unsupported overlapped messages in PR1 behavior.
 - Keep Doppler, noise, multipath, real channelizer, Metal/GPU, PDW diagnostics, and pulse-start acquisition out of scope unless the named PR explicitly includes them.
+- After PR7, FHSS `...Node` names mean real GraphX nodes using GraphX edge packet contracts. The earlier PR1-PR7 helper/pseudo-node scaffolding must be replaced and removed by PR7A-PR7C before PR8 graph JSON/runtime work.
 - Stop after the requested implementer or verifier report.
 
 ---
@@ -395,7 +396,7 @@ Prerequisite:
 - PR6 decoded pulse words with timing/frequency metadata must already exist.
 
 Scope:
-- Add FHSSPreambleDetectorNode, FHSSMessageAssemblerNode, and FHSSMessageSinkNode or repository-consistent equivalents.
+- Add FHSSPreambleDetectorNode, FHSSMessageAssemblerNode, and FHSSMessageSinkNode as temporary pre-GraphX scaffolding only; PR7A-PR7C must replace them with real GraphX nodes before PR8.
 - Implement hop-only preamble lock over exactly 16 pulses.
 - Treat preamble word values as fixture consistency / secondary validation only.
 - Enforce active set after lock as exactly four selectable frequencies.
@@ -443,6 +444,166 @@ Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR7.md.
 
 ---
 
+## PR7A: FHSS GraphX Edge Contracts And Accel-Ready Data Model
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR7A from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS GraphX Edge Contracts And Accel-Ready Data Model.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisite:
+- PR1 through PR7 helper/scaffold behavior must already exist.
+
+Scope:
+- Define canonical GraphX FHSS edge packet/contract types for synthetic IQ output, detected pulse/candidate evidence, CPSM metrics/symbol decisions, decoded pulse words, assembled messages, and diagnostics.
+- Make complex IQ evidence ownership/reference semantics explicit for GraphX edges.
+- Preserve global sample time, RF metadata frequency, IQ offset frequency, and future sample-time mapping fields in the packet model.
+- Document and test the future accelerator-token/sidecar compatibility boundary without adding Metal/GPU execution.
+- Ensure decoder decision contracts do not depend on truth metadata.
+- Add focused compile/runtime contract tests.
+
+Do not convert helper pseudo-nodes into runtime nodes in this PR.
+Do not add graph JSON, plugin runtime wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claims.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR7A.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR7A from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS GraphX Edge Contracts And Accel-Ready Data Model.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Canonical GraphX FHSS edge packet/contract types exist for every target graph edge.
+- Complex IQ evidence ownership/reference semantics are explicit and suitable for GraphX edges.
+- Global sample time, RF metadata frequency, IQ offset frequency, and sample-time mapping fields survive the packet model.
+- Future accelerator-token/sidecar compatibility is documented/tested without adding GPU execution.
+- Decoder decision contracts do not depend on truth metadata.
+- No helper pseudo-node is made canonical by the new contracts.
+- No graph JSON, plugin runtime wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claim was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR7A.md.
+```
+
+---
+
+## PR7B: Replace FHSS Pseudo-Nodes With Real GraphX Nodes
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR7B from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Replace FHSS Pseudo-Nodes With Real GraphX Nodes.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR7A GraphX FHSS edge packet/contract types must already exist.
+- PR1 through PR7 helper/scaffold tests identify the behavior that must be preserved through GraphX node tests.
+
+Scope:
+- Replace every FHSS `...Node` pseudo-node/helper class with a repository-consistent real GraphX node.
+- Implement GraphX nodes for the target CPU lane: synthetic IQ source, correlator-bank detector, pulse merge/candidate boundary, CPSM branch metric, CPSM Viterbi, pulse-word decoder, preamble detector, message assembler, and message sink.
+- Use PR7A GraphX FHSS edge packet/contract types for all node inputs and outputs.
+- Rewrite tests so FHSS node behavior is exercised through the GraphX node API and packet contracts, not direct calls to old helper `Node` classes.
+- Preserve PR1-PR7 deterministic behavior through the new GraphX node tests.
+- Add plugin/provider registration tests for any node exposed through the plugin path in this PR.
+- Delete old public pre-GraphX pseudo-node headers/classes and direct pseudo-node tests once equivalent GraphX node coverage exists.
+
+Do not keep compatibility shims for old pseudo-node APIs.
+Do not add graph JSON end-to-end executor wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claims.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR7B.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR7B from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Replace FHSS Pseudo-Nodes With Real GraphX Nodes.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Every FHSS `...Node` named component in the target graph is a real GraphX node.
+- GraphX nodes use PR7A edge packet/contract types for inputs and outputs.
+- Old public pre-GraphX pseudo-node headers/classes are deleted or renamed into private non-node algorithm kernels.
+- No compatibility shim preserves the old pseudo-node API.
+- FHSS tests exercise GraphX node APIs and packet contracts, not direct old helper `Node` calls.
+- PR1-PR7 behavior remains covered through GraphX node tests.
+- Plugin/provider registration tests exist for nodes exposed through plugins.
+- No graph JSON end-to-end executor wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claim was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR7B.md.
+```
+
+---
+
+## PR7C: Remove Pre-GraphX FHSS Node Scaffolding And Guard Against Regression
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR7C from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Remove Pre-GraphX FHSS Node Scaffolding And Guard Against Regression.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisite:
+- PR7B real GraphX FHSS nodes and rewritten GraphX node tests must already exist.
+
+Scope:
+- Delete all remaining public FHSS helper/pseudo-node types with `Node` names that are not real GraphX nodes.
+- Delete all remaining tests that directly exercise old pseudo-node APIs.
+- Add guardrail tests preventing new public FHSS pseudo-node headers/classes from returning.
+- Add guardrail tests ensuring FHSS tests do not include deleted pseudo-node headers.
+- Keep the GraphX node test suite passing after deletion.
+
+Do not preserve backward compatibility for old pseudo-node APIs.
+Do not add graph JSON end-to-end executor wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claims.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR7C.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR7C from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Remove Pre-GraphX FHSS Node Scaffolding And Guard Against Regression.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- No public FHSS `...Node` class/header remains unless it is a real GraphX node.
+- No tests directly include or call deleted pre-GraphX pseudo-node APIs.
+- Guardrail tests prevent pseudo-node scaffolding from returning.
+- GraphX node tests remain the canonical FHSS node tests and pass.
+- No backward compatibility shim for old pseudo-node APIs remains.
+- No graph JSON end-to-end executor wiring, real channelizer, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claim was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR7C.md.
+```
+
+---
+
 ## PR8: End-To-End Graph JSON, Executor Test, And Minimal Diagnostics
 
 ### Implementer Agent
@@ -455,12 +616,14 @@ Implement exactly PR8 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: End-To-E
 Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 
 Prerequisites:
-- PR1 through PR7 must already exist.
+- PR1 through PR7 must already exist as validated behavior.
+- PR7A through PR7C must already have replaced the pre-GraphX pseudo-node scaffolding with real GraphX FHSS nodes and edge contracts.
 
 Scope:
 - Add a repository-consistent FHSS CPSM fixture graph JSON such as libdsp/config/fhss_cpsm_fixture_500msps.json.
 - Wire synthetic IQ through detector, merge, CPSM branch metrics, Viterbi, pulse-word decode, hop-only preamble lock, message assembly, and truth comparison.
 - Register/load FHSS nodes through the existing plugin/provider path.
+- Use only real GraphX FHSS nodes and PR7A edge packet/contract types; do not reference deleted pre-GraphX pseudo-node helpers.
 - Add an end-to-end executor test that runs the deterministic CPU fixture to completion.
 - Verify decoded pulses match truth for start, duration, frequency index, and value.
 - Verify assembled message locks on hop-only preamble and validates active set.
@@ -483,6 +646,8 @@ Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 
 Required checks:
 - FHSS graph config loads nodes through the existing plugin/provider path.
+- FHSS graph config uses only real GraphX FHSS nodes and PR7A edge packet/contract types.
+- No deleted pre-GraphX pseudo-node helper is referenced by config, plugins, tests, or runtime wiring.
 - Executor runs the full deterministic fixture to completion.
 - Synthetic IQ flows through detector, merge, CPSM branch metrics, Viterbi, pulse-word decode, preamble lock, message assembly, and truth comparison.
 - Decoded pulses match truth for start, duration, frequency index, and value.
@@ -511,6 +676,7 @@ Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 
 Prerequisite:
 - PR8 end-to-end FHSS lane should already exist, or docs must name any missing implementation pieces accurately.
+- PR7A through PR7C should already have replaced pre-GraphX pseudo-node scaffolding with real GraphX FHSS nodes, or docs must clearly identify that as incomplete.
 
 Scope:
 - Add docs/dsp/fhss_decoder.md or a repository-consistent FHSS DSP doc.
@@ -519,6 +685,7 @@ Scope:
 - Explain that 1 GHz RF frequencies are metadata and fixture IQ uses baseband/IF offsets at 500 Msps.
 - Explain that magnitude-only DFT/FFT output is not the canonical decoder input.
 - Explain CPU-only PR1-through-PR8 behavior and future boundaries for channelizer, Doppler/noise, overlap support, Metal acceleration, and optional PDW diagnostics.
+- Explain that the canonical FHSS implementation uses GraphX nodes and GraphX edge packet contracts, not the deleted pre-GraphX pseudo-node scaffolding.
 - Update README only if DSP examples are indexed there.
 - Add guardrail tests where existing conventions support them.
 
@@ -543,6 +710,7 @@ Required checks:
 - Docs mention baseband/offset frequencies and do not claim direct 1 GHz RF sampling at 500 Msps.
 - Docs describe the 64-entry RF metadata table, selectable indices [1, 62], and reserved edge indices 0 and 63.
 - Docs/config identify CPU-only behavior.
+- Docs/config identify GraphX nodes and GraphX edge contracts as the canonical FHSS model and do not describe deleted pre-GraphX pseudo-nodes as current.
 - Docs state that magnitude-only DFT/FFT output is not the canonical decoder input.
 - Docs state that overlap is unsupported in PR1 behavior.
 - Docs capture future boundaries for channelizer implementation, Doppler/noise, overlap support, Metal acceleration, and optional PDW diagnostics.

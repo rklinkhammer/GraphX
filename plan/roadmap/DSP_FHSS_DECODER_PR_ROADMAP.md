@@ -186,6 +186,29 @@ Do not add noisy/Doppler tests to PR1 unless they are deterministic and disabled
 
 ## Target Graph
 
+All boxes in the target graph are **GraphX nodes**, not helper classes with
+node-like names. GraphX node means a repository-consistent runtime node with
+declared GraphX input/output types, plugin/provider registration when graph
+loaded, JSON/topology compatibility when applicable, and tests that exercise
+the GraphX node contract rather than directly calling private algorithm
+helpers.
+
+The first FHSS lane remains CPU-only through this roadmap, but its edge data
+types must be designed so a future Metal/GPU lane can use GraphX accelerator
+contracts without changing the FHSS semantic model. Any edge that may later
+cross a host/device boundary must have an explicit packet/sidecar boundary,
+complex-evidence ownership model, and future `AccelControlToken` compatibility
+story. Do not encode future GPU identity in raw pointers, local offsets, or
+ad-hoc helper structs.
+
+The PR1-PR7 helper implementations are now considered **pre-GraphX
+scaffolding**. They may be used as temporary algorithm references while
+creating real GraphX nodes, but they must not remain as the canonical FHSS
+node implementation. After PR7 and before the end-to-end graph PR, the plan
+must replace every previous pseudo-node with a GraphX node and rewrite tests to
+use GraphX node contracts. The old pre-GraphX pseudo-node classes and direct
+helper-node tests must be removed; backward compatibility is not required.
+
 Longer-term channelized shape:
 
 ```text
@@ -553,7 +576,7 @@ Purpose:
 
 Files to touch:
 
-- `FHSSPreambleDetectorNode`, `FHSSMessageAssemblerNode`, and `FHSSMessageSinkNode` headers/sources.
+- `FHSSPreambleDetectorNode`, `FHSSMessageAssemblerNode`, and `FHSSMessageSinkNode` headers/sources as temporary pre-GraphX scaffolding only; PR7A-PR7C must replace them with real GraphX nodes before PR8.
 - Unit tests for preamble lock, active set, payload validation, length checks, and truth comparison.
 - Plugin/CMake wiring if graph-loaded in this PR.
 
@@ -594,6 +617,168 @@ CI-safe or local-only:
 
 - CI-safe.
 
+## PR7A: FHSS GraphX Edge Contracts And Accel-Ready Data Model
+
+Purpose:
+
+- Define the canonical GraphX data contracts for the FHSS lane before runtime nodes are wired.
+- Replace ambiguous helper/pseudo-node payloads with GraphX edge packet types that can be used by CPU nodes now and mapped to accelerator-token sidecars later.
+- Make ownership and lifetime of complex IQ evidence explicit across GraphX edges.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/` for FHSS GraphX edge packet and sidecar types.
+- `libgraph/test/unit` or `libdsp/test` for compile-time and runtime contract tests.
+- CMake wiring only as required by the new tests.
+
+Files to delete:
+
+- None in this PR unless a pre-GraphX type is already fully replaced by the new edge contract.
+
+Tests to add:
+
+- GraphX packet types exist for synthetic IQ output, detected pulse/candidate evidence, CPSM metrics/symbol decisions, decoded pulse words, assembled messages, and diagnostics.
+- Complex IQ evidence uses explicit ownership/reference semantics suitable for GraphX edges, not local-only helper assumptions.
+- Global sample time, RF metadata frequency, IQ offset frequency, and future sample-time mapping survive through the packet model.
+- Future accelerator compatibility is documented in type names/comments/tests: CPU payloads and future accel-token sidecars carry the same FHSS semantic metadata.
+- No GraphX edge contract depends on truth metadata for decoder decisions.
+
+Tests to delete:
+
+- None.
+
+Acceptance criteria:
+
+- The canonical FHSS edge data model is GraphX-owned and does not depend on pseudo-node helper structs as the public contract.
+- Each target graph edge has a named GraphX packet/contract type.
+- The model is CPU-only today but does not block a future `AccelControlToken`/sidecar implementation.
+- No runtime nodes are required yet.
+
+Risks:
+
+- Choosing packet boundaries too narrowly could force churn when PR7B converts helpers into GraphX nodes.
+- Over-generalizing for future GPU work could make the deterministic CPU lane harder to review.
+
+Rollback plan:
+
+- Remove the new GraphX FHSS edge packet headers and tests.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR7B: Replace FHSS Pseudo-Nodes With Real GraphX Nodes
+
+Purpose:
+
+- Replace every PR1-PR7 pseudo-node/helper class that used a `Node` suffix with repository-consistent GraphX runtime nodes.
+- Preserve the validated FHSS algorithms while moving the public execution surface to GraphX node contracts.
+- Keep the lane CPU-only, deterministic, and CI-safe.
+
+Files to touch:
+
+- FHSS GraphX node headers/sources for:
+  - `FHSSSyntheticIqSourceNode`
+  - `CorrelatorBankDetectorNode`
+  - `FHSSPulseMergeNode`
+  - `FHSSPulseCandidateNode` if still needed as a distinct graph boundary
+  - `CPSMBranchMetricNode`
+  - `CPSMViterbiDecoderNode`
+  - `FHSSPulseWordDecoderNode`
+  - `FHSSPreambleDetectorNode`
+  - `FHSSMessageAssemblerNode`
+  - `FHSSMessageSinkNode`
+- Existing FHSS helper headers may be renamed into non-node algorithm kernels only if they are private/internal and no longer expose old pseudo-node names.
+- Plugin/provider CMake files if the nodes are graph-loadable in this PR.
+- Unit tests rewritten to instantiate and execute the GraphX nodes through their GraphX input/output packet contracts.
+
+Files to delete:
+
+- Old public pre-GraphX pseudo-node headers/classes that used `Node` names but were not GraphX nodes.
+- Direct pseudo-node unit tests that bypass GraphX node contracts.
+
+Tests to add:
+
+- Each FHSS GraphX node accepts and emits the PR7A GraphX packet types.
+- Node tests execute via the repository's standard GraphX node API, not direct calls to old helper `Node` classes.
+- GraphX node outputs preserve the behavior previously verified by PR1-PR7: protocol validation, deterministic generation, detection, merge, CPSM symbol decisions, word decode, hop-only preamble lock, assembly, and diagnostics.
+- Plugin/provider registration tests exist for any node exposed through the plugin path in this PR.
+- No test includes or calls deleted pseudo-node classes.
+
+Tests to delete:
+
+- PR1-PR7 direct helper-node tests after equivalent GraphX node tests exist.
+
+Acceptance criteria:
+
+- Every `...Node` named FHSS component in the target graph is a real GraphX node.
+- Previous pre-GraphX pseudo-nodes are removed from the code base.
+- There is no compatibility shim preserving the old pseudo-node API.
+- All FHSS behavior remains covered through GraphX node tests.
+- The lane remains CPU-only and does not introduce Metal/GPU execution.
+
+Risks:
+
+- This is a broad architectural correction and may touch many tests.
+- GraphX node APIs may expose awkward fan-in/streaming boundaries that require small contract adjustments from PR7A.
+
+Rollback plan:
+
+- Revert the GraphX node conversion and restore the last verified PR7 helper state if the conversion cannot be completed safely.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR7C: Remove Pre-GraphX FHSS Node Scaffolding And Guard Against Regression
+
+Purpose:
+
+- Complete the cleanup by deleting all remaining pre-GraphX pseudo-node scaffolding and adding guardrails so it does not return.
+- Ensure the code base has one canonical FHSS node model: GraphX nodes using PR7A GraphX edge contracts.
+
+Files to touch:
+
+- FHSS headers/sources to remove leftover pseudo-node types.
+- Tests and docs that still reference helper `...Node` classes.
+- Guardrail tests or repository scans for forbidden pseudo-node patterns.
+
+Files to delete:
+
+- Any remaining public FHSS helper headers/classes with `Node` names that are not GraphX nodes.
+- Any tests that directly exercise deleted pseudo-node APIs.
+- Any reports/docs that describe the deleted pseudo-nodes as canonical.
+
+Tests to add:
+
+- Guardrail test that FHSS public `...Node` classes inherit/implement the repository's GraphX node contract or are registered GraphX plugin nodes.
+- Guardrail test that no `libdsp/include/dsp/fhss/*Node*.hpp` pseudo-node headers remain unless they are real GraphX nodes.
+- Guardrail test that FHSS tests do not include deleted pre-GraphX pseudo-node headers.
+- GraphX node test suite still passes after deletion.
+
+Tests to delete:
+
+- All remaining tests that directly call old pseudo-node APIs.
+
+Acceptance criteria:
+
+- The old pre-GraphX pseudo-node implementation is gone from the code base.
+- GraphX node tests are the only canonical FHSS node tests.
+- The target graph names correspond to real GraphX nodes only.
+- No backward compatibility is preserved for the old pseudo-node APIs.
+
+Risks:
+
+- Report files under `plan/reviews/` may still mention old pseudo-node names; guardrails should focus on source/test contracts unless the PR explicitly updates historical reports.
+
+Rollback plan:
+
+- Restore deleted files only if a real GraphX node replacement is missing.
+
+CI-safe or local-only:
+
+- CI-safe.
+
 ## PR8: End-To-End Graph JSON, Executor Test, And Minimal Diagnostics
 
 Purpose:
@@ -601,6 +786,7 @@ Purpose:
 - Wire the PR1-friendly CPU graph through existing GraphX JSON config, plugin loading, graph builder, executor, and completion conventions.
 - Exercise synthetic IQ through detector, merge, CPSM branch metrics, Viterbi, pulse-word decode, preamble lock, message assembly, and truth comparison.
 - Emit minimum deterministic diagnostics.
+- Use only real GraphX FHSS nodes and GraphX FHSS edge packet contracts introduced by PR7A-PR7C.
 
 Files to touch:
 
@@ -616,6 +802,7 @@ Files to delete:
 Tests to add:
 
 - Graph config loads the FHSS nodes through the existing plugin/provider path.
+- Graph config uses only real GraphX FHSS nodes from PR7B/PR7C; no pre-GraphX pseudo-node helpers are referenced.
 - Executor runs the full deterministic fixture to completion.
 - Decoded pulses match truth for start, duration, frequency index, and value.
 - Assembled message locks on hop-only preamble and validates active set.
@@ -631,6 +818,8 @@ Acceptance criteria:
 
 - Full deterministic FHSS lane passes in CI.
 - The graph preserves complex IQ through word recovery.
+- All graph edges use the PR7A GraphX FHSS edge packet contracts.
+- No deleted pre-GraphX pseudo-node class is used by config, plugins, tests, or runtime wiring.
 - No real RF capture, external dataset, GPU/Metal, or production RF claim is introduced.
 
 Risks:
@@ -652,6 +841,7 @@ Purpose:
 
 - Document the FHSS fixture lane, protocol limits, CPSM assumptions, baseband/offset frequency mapping, unsupported overlap policy, and future boundaries.
 - Add guardrails against mislabeling the fixture as production RF, external waveform compatibility, GPU/Metal acceleration, or magnitude-only decoding.
+- Document that PR7A-PR7C replaced the earlier pre-GraphX pseudo-node scaffolding and that the canonical FHSS implementation uses GraphX nodes and GraphX edge contracts.
 
 Files to touch:
 
@@ -667,6 +857,7 @@ Tests to add:
 
 - Guardrail test that FHSS docs mention baseband/offset frequencies and do not claim direct 1 GHz RF sampling at `500 Msps`.
 - Guardrail test that docs/config identify CPU-only PR1 behavior.
+- Guardrail test that docs/config identify GraphX nodes as the canonical FHSS node model and do not describe deleted pre-GraphX pseudo-nodes as current.
 - Guardrail test that magnitude-only DFT is not the canonical decoder input.
 - Guardrail test that overlap is unsupported in PR1.
 
@@ -716,7 +907,7 @@ Tests to delete:
 
 Acceptance criteria:
 
-- Future work remains explicitly out of scope for PR1 through PR9.
+- Future work remains explicitly out of scope for PR1 through PR9, including the PR7A-PR7C GraphX node correction gate.
 - Candidate future work is limited to:
   - real channelizer topology and filter-width validation;
   - occupied-bandwidth measurement/estimation for the selected CPSM pulse shape;
