@@ -17,6 +17,9 @@ see `docs/sar/crsd_to_focused_image.md`.
 For the DSP spectrum demo lane, GPU Metal direct DFT lane, and truth-in-labeling guardrails,
 see `docs/dsp/spectrum_demo.md`.
 
+For the deterministic CPU-only FHSS CPSM fixture lane, GraphX FHSS node model,
+and RF truth-in-labeling boundaries, see `docs/dsp/fhss_decoder.md`.
+
 ## Canonical SAR Lanes
 
 Active SAR operations are organized into three lanes:

@@ -4,9 +4,11 @@
 
 #include <filesystem>
 #include <fstream>
+#include <cctype>
 #include <regex>
 #include <sstream>
 #include <string>
+#include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -52,6 +54,14 @@ std::vector<std::string> ClassNamesMatching(const std::string &text,
     names.push_back((*it)[1].str());
   }
   return names;
+}
+
+std::string Lowercase(std::string text) {
+  std::transform(text.begin(), text.end(), text.begin(),
+                 [](unsigned char ch) {
+                   return static_cast<char>(std::tolower(ch));
+                 });
+  return text;
 }
 
 TEST(FHSSGraphXGuardrailTest,
@@ -190,6 +200,99 @@ TEST(FHSSGraphXGuardrailTest, FhssTestsDoNotCallDeletedPseudoNodeApis) {
         << test_file << " must not include the deleted unified FHSS GraphX "
         << "node header";
   }
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssDocsDescribeBasebandOffsetRfMetadataBoundary) {
+  const auto root = RepositoryRoot();
+  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  ASSERT_TRUE(std::filesystem::exists(doc));
+  const auto text = Lowercase(ReadFile(doc));
+
+  EXPECT_NE(text.find("1 ghz rf frequencies are metadata"),
+            std::string::npos);
+  EXPECT_NE(text.find("baseband/if offset"), std::string::npos);
+  EXPECT_NE(text.find("500 msps"), std::string::npos);
+  EXPECT_NE(text.find("cannot represent the full 64-entry 1 ghz rf"),
+            std::string::npos);
+  EXPECT_NE(text.find("as direct sampled rf"), std::string::npos);
+  EXPECT_EQ(text.find("uses direct 1 ghz rf sampling"), std::string::npos);
+  EXPECT_EQ(text.find("implements direct 1 ghz rf sampling"),
+            std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssDocsKeepCpuOnlyFixtureAndFutureBoundariesHonest) {
+  const auto root = RepositoryRoot();
+  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  ASSERT_TRUE(std::filesystem::exists(doc));
+  const auto text = Lowercase(ReadFile(doc));
+
+  EXPECT_NE(text.find("cpu-only"), std::string::npos);
+  EXPECT_NE(text.find("real channelizer topology"), std::string::npos);
+  EXPECT_NE(text.find("doppler, noise, multipath"), std::string::npos);
+  EXPECT_NE(text.find("overlap is unsupported"), std::string::npos);
+  EXPECT_NE(text.find("metal/gpu acceleration of the fhss lane"),
+            std::string::npos);
+  EXPECT_NE(text.find("pdw diagnostics as canonical decoder output"),
+            std::string::npos);
+
+  EXPECT_EQ(text.find("is a production rf receiver"), std::string::npos);
+  EXPECT_EQ(text.find("provides production rf compatibility"),
+            std::string::npos);
+  EXPECT_EQ(text.find("is external waveform compatible"), std::string::npos);
+  EXPECT_EQ(text.find("is gpu accelerated"), std::string::npos);
+  EXPECT_EQ(text.find("is overlap-aware"), std::string::npos);
+  EXPECT_EQ(text.find("is doppler/noise-capable"), std::string::npos);
+  EXPECT_EQ(text.find("is pdw-driven"), std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssDocsIdentifyGraphXNodesAsCanonicalModel) {
+  const auto root = RepositoryRoot();
+  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  ASSERT_TRUE(std::filesystem::exists(doc));
+  const auto text = Lowercase(ReadFile(doc));
+
+  EXPECT_NE(text.find("canonical fhss implementation uses real graphx nodes"),
+            std::string::npos);
+  EXPECT_NE(text.find("controltoken"), std::string::npos);
+  EXPECT_NE(text.find("deleted pre-graphx pseudo-node"), std::string::npos);
+  EXPECT_NE(text.find("scaffolding is not the current node model"),
+            std::string::npos);
+  EXPECT_NE(text.find("not the current node model"), std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssDocsRejectMagnitudeOnlyDftAsCanonicalDecoderInput) {
+  const auto root = RepositoryRoot();
+  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  ASSERT_TRUE(std::filesystem::exists(doc));
+  const auto text = Lowercase(ReadFile(doc));
+
+  EXPECT_NE(text.find("magnitude-only dft/fft output is not the canonical "
+                      "decoder input"),
+            std::string::npos);
+  EXPECT_NE(text.find("complex iq evidence"), std::string::npos);
+  EXPECT_NE(text.find("cpsm branch metrics"), std::string::npos);
+  EXPECT_NE(text.find("viterbi/mlse"), std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssConfigRemainsCpuOnlyFixtureWithoutChannelizerOrImpairments) {
+  const auto root = RepositoryRoot();
+  const auto config =
+      root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json";
+  ASSERT_TRUE(std::filesystem::exists(config));
+  const auto text = Lowercase(ReadFile(config));
+
+  EXPECT_EQ(text.find("metal"), std::string::npos);
+  EXPECT_EQ(text.find("gpu"), std::string::npos);
+  EXPECT_EQ(text.find("channelizer"), std::string::npos);
+  EXPECT_NE(text.find("\"enable_doppler\": false"), std::string::npos);
+  EXPECT_NE(text.find("\"enable_noise\": false"), std::string::npos);
+  EXPECT_NE(text.find("\"enable_multipath\": false"), std::string::npos);
+  EXPECT_NE(text.find("\"allow_overlap\": false"), std::string::npos);
 }
 
 } // namespace
