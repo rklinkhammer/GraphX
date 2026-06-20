@@ -162,7 +162,7 @@ ValidateCPSMEvidence(const std::vector<std::complex<double>> &samples,
   return {};
 }
 
-class CPSMBranchMetricNode {
+class CPSMBranchMetricKernel {
 public:
   [[nodiscard]] static CPSMBranchMetric ScoreBranch(
       const std::vector<std::complex<double>> &samples,
@@ -222,7 +222,7 @@ public:
   }
 };
 
-class CPSMViterbiDecoderNode {
+class CPSMViterbiDecoderKernel {
 public:
   [[nodiscard]] static FHSSResult<CPSMViterbiResult>
   Decode(const std::vector<std::complex<double>> &samples,
@@ -258,7 +258,7 @@ public:
           continue;
         }
         for (const double symbol : {1.0, -1.0}) {
-          const auto metric = CPSMBranchMetricNode::ScoreBranch(
+          const auto metric = CPSMBranchMetricKernel::ScoreBranch(
               samples, symbol_index, from_state, symbol, config);
           const double candidate_metric =
               previous[from_state] + metric.cost;

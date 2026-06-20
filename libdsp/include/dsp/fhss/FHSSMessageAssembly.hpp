@@ -135,7 +135,7 @@ DeriveActiveFrequenciesFromPreamble(
   return {active.begin(), active.end()};
 }
 
-class FHSSPreambleDetectorNode {
+class FHSSPreambleDetectorKernel {
 public:
   [[nodiscard]] static FHSSPreambleDetectionResult Detect(
       const std::vector<FHSSDecodedPulseWord> &ordered_pulses,
@@ -231,7 +231,7 @@ CompareDecodedPulsesToTruth(
   return mismatches;
 }
 
-class FHSSMessageAssemblerNode {
+class FHSSMessageAssemblerKernel {
 public:
   [[nodiscard]] static FHSSAssembledMessage Assemble(
       std::vector<FHSSDecodedPulseWord> decoded_pulses,
@@ -262,8 +262,8 @@ public:
                     "FHSS PR7 keeps PR1 overlapped-message rejection");
     }
 
-    auto preamble = FHSSPreambleDetectorNode::Detect(message.ordered_pulses,
-                                                     config.preamble_pulses);
+    auto preamble = FHSSPreambleDetectorKernel::Detect(message.ordered_pulses,
+                                                       config.preamble_pulses);
     message.active_frequency_indices = preamble.active_frequency_indices;
     message.diagnostics.preamble_lock = preamble.preamble_lock;
     if (!preamble.preamble_lock) {
@@ -299,7 +299,7 @@ public:
   }
 };
 
-class FHSSMessageSinkNode {
+class FHSSMessageSinkKernel {
 public:
   [[nodiscard]] static FHSSMessageDiagnostics
   Diagnostics(const FHSSAssembledMessage &message) {

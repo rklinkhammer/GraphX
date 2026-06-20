@@ -91,7 +91,7 @@ AssembleFHSSPulseWordMsbFirst(const std::vector<double> &symbols) {
   return value;
 }
 
-class FHSSPulseWordDecoderNode {
+class FHSSPulseWordDecoderKernel {
 public:
   [[nodiscard]] static FHSSDecodedPulseWord
   Decode(const FHSSPulseCandidate &candidate,

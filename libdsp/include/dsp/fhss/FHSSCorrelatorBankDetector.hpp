@@ -146,7 +146,7 @@ AveragePowerDb(const std::vector<std::complex<double>> &samples) {
   return 10.0 * std::log10(std::max(power, std::numeric_limits<double>::min()));
 }
 
-class FHSSCorrelatorBankDetectorNode {
+class FHSSCorrelatorBankDetectorKernel {
 public:
   [[nodiscard]] static FHSSResult<FHSSCorrelatorBankDetectionResult>
   Detect(const std::vector<std::complex<double>> &samples,

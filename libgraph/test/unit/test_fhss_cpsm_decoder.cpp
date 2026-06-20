@@ -17,11 +17,11 @@
 
 namespace {
 
-using dsp::fhss::CPSMBranchMetricNode;
+using dsp::fhss::CPSMBranchMetricKernel;
 using dsp::fhss::CPSMDecoderConfig;
-using dsp::fhss::CPSMViterbiDecoderNode;
+using dsp::fhss::CPSMViterbiDecoderKernel;
 using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
-using dsp::fhss::FHSSCorrelatorBankDetectorNode;
+using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
 using dsp::fhss::FHSSPreamblePulseSpec;
@@ -111,7 +111,7 @@ double SequenceMetric(const std::vector<std::complex<double>> &samples,
   double metric = 0.0;
   for (std::uint32_t i = 0; i < symbols.size(); ++i) {
     const auto branch =
-        CPSMBranchMetricNode::ScoreBranch(samples, i, state, symbols[i],
+        CPSMBranchMetricKernel::ScoreBranch(samples, i, state, symbols[i],
                                           config);
     metric += branch.cost;
     state = branch.to_state;
@@ -173,9 +173,9 @@ TEST(FHSSCpsmDecoderTest, BranchMetricFavorsMatchingSymbolAndState) {
   config.symbol_count = 2;
 
   const auto matching =
-      CPSMBranchMetricNode::ScoreBranch(samples, 0, 0, 1.0, config);
+      CPSMBranchMetricKernel::ScoreBranch(samples, 0, 0, 1.0, config);
   const auto wrong =
-      CPSMBranchMetricNode::ScoreBranch(samples, 0, 0, -1.0, config);
+      CPSMBranchMetricKernel::ScoreBranch(samples, 0, 0, -1.0, config);
 
   EXPECT_LT(matching.cost, 1.0e-12);
   EXPECT_GT(wrong.cost, matching.cost + 0.5);
@@ -191,12 +191,12 @@ TEST(FHSSCpsmDecoderTest, KnownGeneratedPulseDecodesToSymbols) {
   FHSSCorrelatorBankDetectorConfig detector_config{};
   detector_config.decode_config = DecodeConfig();
   const auto detected =
-      FHSSCorrelatorBankDetectorNode::Detect(fixture->samples, detector_config);
+      FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples, detector_config);
   ASSERT_TRUE(detected.has_value()) << detected.error().message;
   ASSERT_FALSE(detected->local_detections.empty());
   ASSERT_TRUE(detected->local_detections.front().complex_evidence.samples);
 
-  const auto decoded = CPSMViterbiDecoderNode::Decode(
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(
       *detected->local_detections.front().complex_evidence.samples);
 
   ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
@@ -211,7 +211,7 @@ TEST(FHSSCpsmDecoderTest, ViterbiMatchesReducedBruteForceOracle) {
   CPSMDecoderConfig config{};
   config.symbol_count = static_cast<std::uint32_t>(expected.size());
 
-  const auto decoded = CPSMViterbiDecoderNode::Decode(samples, config);
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
   const auto oracle =
       BruteForceOracleReduced(samples, static_cast<std::uint32_t>(
                                            expected.size()));
@@ -227,28 +227,28 @@ TEST(FHSSCpsmDecoderTest, TerminalPhasePolicyCanBeCheckedOrUnconstrained) {
   CPSMDecoderConfig config{};
   config.symbol_count = 3;
 
-  auto decoded = CPSMViterbiDecoderNode::Decode(samples, config);
+  auto decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
   ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
   EXPECT_FALSE(decoded->terminal_phase_checked);
   EXPECT_EQ(decoded->terminal_phase_state, 1u);
 
   config.check_terminal_phase = true;
   config.expected_terminal_phase_state = 1;
-  decoded = CPSMViterbiDecoderNode::Decode(samples, config);
+  decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
   ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
   EXPECT_TRUE(decoded->terminal_phase_checked);
 
   config.expected_terminal_phase_state = 2;
-  decoded = CPSMViterbiDecoderNode::Decode(samples, config);
+  decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
   ASSERT_FALSE(decoded.has_value());
   EXPECT_EQ(decoded.error().code, FHSSValidationCode::InvalidTiming);
 }
 
 TEST(FHSSCpsmDecoderTest, MagnitudeOnlyInputIsImpossibleByDecoderType) {
-  static_assert(std::is_invocable_v<decltype(&CPSMViterbiDecoderNode::Decode),
+  static_assert(std::is_invocable_v<decltype(&CPSMViterbiDecoderKernel::Decode),
                                     const std::vector<std::complex<double>> &,
                                     const CPSMDecoderConfig &>);
-  static_assert(!std::is_invocable_v<decltype(&CPSMViterbiDecoderNode::Decode),
+  static_assert(!std::is_invocable_v<decltype(&CPSMViterbiDecoderKernel::Decode),
                                      const std::vector<double> &,
                                      const CPSMDecoderConfig &>);
 }
@@ -257,7 +257,7 @@ TEST(FHSSCpsmDecoderTest, InvalidEvidenceLengthIsRejected) {
   const std::vector<std::complex<double>> magnitude_like_samples(32, {1.0,
                                                                       0.0});
 
-  const auto decoded = CPSMViterbiDecoderNode::Decode(magnitude_like_samples);
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(magnitude_like_samples);
 
   ASSERT_FALSE(decoded.has_value());
   EXPECT_EQ(decoded.error().code, FHSSValidationCode::InvalidGlobalTiming);

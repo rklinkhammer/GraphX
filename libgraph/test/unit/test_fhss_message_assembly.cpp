@@ -13,10 +13,10 @@ namespace {
 using dsp::fhss::FHSSAssembledMessage;
 using dsp::fhss::FHSSDecodedPulseWord;
 using dsp::fhss::FHSSMessageAssemblerConfig;
-using dsp::fhss::FHSSMessageAssemblerNode;
+using dsp::fhss::FHSSMessageAssemblerKernel;
 using dsp::fhss::FHSSMessageAssemblyStatus;
-using dsp::fhss::FHSSMessageSinkNode;
-using dsp::fhss::FHSSPreambleDetectorNode;
+using dsp::fhss::FHSSMessageSinkKernel;
+using dsp::fhss::FHSSPreambleDetectorKernel;
 using dsp::fhss::FHSSPreamblePulseSpec;
 using dsp::fhss::FHSSProtocolConstants;
 using dsp::fhss::FHSSTruthMismatchKind;
@@ -103,7 +103,7 @@ FHSSMessageAssemblerConfig Config(
 TEST(FHSSMessageAssemblyTest, LocksHopOnlyPreambleOverSixteenPulses) {
   auto pulses = MessagePulses();
 
-  const auto lock = FHSSPreambleDetectorNode::Detect(pulses, Preamble());
+  const auto lock = FHSSPreambleDetectorKernel::Detect(pulses, Preamble());
 
   EXPECT_TRUE(lock.preamble_lock);
   EXPECT_EQ(lock.status, FHSSMessageAssemblyStatus::Ok);
@@ -118,7 +118,7 @@ TEST(FHSSMessageAssemblyTest, WordMismatchesDoNotPreventHopOnlyLock) {
   }
 
   const auto assembled =
-      FHSSMessageAssemblerNode::Assemble(pulses, Config(MessagePulses()));
+      FHSSMessageAssemblerKernel::Assemble(pulses, Config(MessagePulses()));
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::Ok);
   EXPECT_TRUE(assembled.diagnostics.preamble_lock);
@@ -131,7 +131,7 @@ TEST(FHSSMessageAssemblyTest,
   preamble[4].word_value ^= 0x1u;
 
   const auto lock =
-      FHSSPreambleDetectorNode::Detect(MessagePulses(), preamble);
+      FHSSPreambleDetectorKernel::Detect(MessagePulses(), preamble);
 
   EXPECT_FALSE(lock.preamble_lock);
   EXPECT_EQ(lock.status, FHSSMessageAssemblyStatus::InvalidPreambleFixture);
@@ -152,7 +152,7 @@ TEST(FHSSMessageAssemblyTest, RejectsInvalidActiveSetAfterLock) {
     }
   }
 
-  const auto lock = FHSSPreambleDetectorNode::Detect(pulses, preamble);
+  const auto lock = FHSSPreambleDetectorKernel::Detect(pulses, preamble);
 
   EXPECT_FALSE(lock.preamble_lock);
   EXPECT_EQ(lock.status, FHSSMessageAssemblyStatus::InvalidActiveSet);
@@ -162,7 +162,7 @@ TEST(FHSSMessageAssemblyTest, RejectsPayloadFrequencyOutsideActiveSet) {
   auto pulses = MessagePulses();
   pulses.push_back(Pulse(18, 20, 0x2020'2020u));
 
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::PayloadFrequencyRejected);
   EXPECT_EQ(assembled.diagnostics.rejected_count, pulses.size());
@@ -171,7 +171,7 @@ TEST(FHSSMessageAssemblyTest, RejectsPayloadFrequencyOutsideActiveSet) {
 TEST(FHSSMessageAssemblyTest, RejectsMessageLongerThanTwoHundredFiftySixPulses) {
   auto pulses = MessagePulses(241);
 
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::MessageTooLong);
   EXPECT_EQ(assembled.diagnostics.pulse_count, 257u);
@@ -181,7 +181,7 @@ TEST(FHSSMessageAssemblyTest, RejectsMissingPreamble) {
   auto pulses = MessagePulses();
   pulses[0].candidate.detected_pulse.frequency_index = 7;
 
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::MissingPreamble);
   EXPECT_FALSE(assembled.diagnostics.preamble_lock);
@@ -191,7 +191,7 @@ TEST(FHSSMessageAssemblyTest, OperatesOnGloballyOrderedDecodedPulses) {
   auto pulses = MessagePulses();
   std::reverse(pulses.begin(), pulses.end());
 
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::Ok);
   ASSERT_GE(assembled.ordered_pulses.size(), 2u);
@@ -214,7 +214,7 @@ TEST(FHSSMessageAssemblyTest,
   FHSSMessageAssemblerConfig config{};
   config.preamble_pulses = Preamble();
   config.truth_pulses = truth;
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, config);
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, config);
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::Ok);
   EXPECT_EQ(assembled.diagnostics.truth_mismatch_count, 4u);
@@ -234,9 +234,9 @@ TEST(FHSSMessageAssemblyTest,
 
 TEST(FHSSMessageAssemblyTest, SinkReportsMinimumDiagnostics) {
   auto pulses = MessagePulses();
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
-  const auto diagnostics = FHSSMessageSinkNode::Diagnostics(assembled);
+  const auto diagnostics = FHSSMessageSinkKernel::Diagnostics(assembled);
 
   EXPECT_EQ(diagnostics.pulse_count, pulses.size());
   EXPECT_EQ(diagnostics.rejected_count, 0u);
@@ -252,7 +252,7 @@ TEST(FHSSMessageAssemblyTest, RejectsPr1OverlappedMessagesDeterministically) {
       pulses[1].candidate.detected_pulse.global_start_sample +
       FHSSProtocolConstants::kPulseWidthSamples;
 
-  const auto assembled = FHSSMessageAssemblerNode::Assemble(pulses, Config());
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::UnsupportedOverlap);
   EXPECT_FALSE(assembled.diagnostics.preamble_lock);

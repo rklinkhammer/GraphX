@@ -57,7 +57,7 @@ inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 8>
         {FHSSGraphXEdgeContract::CpsmSymbolDecisions, "CpsmSymbolDecisions",
          "FHSSCpsmSymbolDecisionPacket", true},
         {FHSSGraphXEdgeContract::DecodedPulseWords, "DecodedPulseWords",
-         "FHSSDecodedPulseWordPacket", true},
+         "FHSSDecodedPulseWordsPacket", true},
         {FHSSGraphXEdgeContract::AssembledMessages, "AssembledMessages",
          "FHSSAssembledMessagePacket", true},
         {FHSSGraphXEdgeContract::Diagnostics, "Diagnostics",
@@ -172,6 +172,7 @@ struct FHSSSyntheticIqOutputPacket {
 
 struct FHSSDetectedPulseEvidencePacket {
   std::vector<FHSSGraphXPulseMetadata> detected_pulses;
+  std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
   FHSSGraphXComplexEvidence source_iq{};
   bool truth_metadata_required_for_decision = false;
 };
@@ -213,12 +214,10 @@ struct FHSSDecodedPulseWordPacket {
   bool truth_metadata_required_for_decision = false;
 };
 
-struct FHSSAssembledMessagePacket {
-  std::vector<FHSSDecodedPulseWordPacket> ordered_pulses;
-  std::vector<std::uint32_t> active_frequency_indices;
-  bool preamble_lock = false;
-  std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
-  bool truth_is_validation_only = true;
+struct FHSSDecodedPulseWordsPacket {
+  std::vector<FHSSDecodedPulseWordPacket> decoded_pulses;
+  bool globally_ordered = false;
+  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDiagnosticsPacket {
@@ -231,6 +230,17 @@ struct FHSSDiagnosticsPacket {
   std::optional<double> confidence{};
   std::optional<double> viterbi_path_metric{};
   std::optional<std::uint32_t> decoded_value{};
+  std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
+  bool truth_is_validation_only = true;
+};
+
+struct FHSSAssembledMessagePacket {
+  std::vector<FHSSDecodedPulseWordPacket> ordered_pulses;
+  std::vector<std::uint32_t> active_frequency_indices;
+  bool preamble_lock = false;
+  FHSSDiagnosticsPacket diagnostics{};
+  FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
+  std::string status_message;
   std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
   bool truth_is_validation_only = true;
 };

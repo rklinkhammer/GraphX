@@ -15,7 +15,7 @@ using dsp::fhss::FHSSComplexEvidence;
 using dsp::fhss::FHSSLocalPulseDetection;
 using dsp::fhss::FHSSProtocolConstants;
 using dsp::fhss::FHSSPulseMergeConfig;
-using dsp::fhss::FHSSPulseMergeNode;
+using dsp::fhss::FHSSPulseMergeKernel;
 using dsp::fhss::FHSSPulseMergeRejectReason;
 using dsp::fhss::FHSSSampleTimeMap;
 using dsp::fhss::FHSSValidationCode;
@@ -135,7 +135,7 @@ TEST(FHSSPulseMergeTest, SortsDetectedPulsesByGlobalStartSample) {
       LocalDetection(10'000, FHSSProtocolConstants::kPulsePeriodSamples, 7,
                      0.8)};
 
-  const auto result = FHSSPulseMergeNode::Merge(detections);
+  const auto result = FHSSPulseMergeKernel::Merge(detections);
 
   ASSERT_EQ(result.ordered_candidates.size(), 3u);
   EXPECT_EQ(
@@ -154,7 +154,7 @@ TEST(FHSSPulseMergeTest, DuplicateDetectionsKeepHigherConfidenceCandidate) {
   auto lower = LocalDetection(1'000, 100, 7, 0.2, 5.0);
   auto higher = LocalDetection(1'000, 110, 7, 0.9, 20.0);
 
-  const auto result = FHSSPulseMergeNode::Merge({lower, higher});
+  const auto result = FHSSPulseMergeKernel::Merge({lower, higher});
 
   ASSERT_EQ(result.ordered_candidates.size(), 1u);
   ASSERT_EQ(result.rejections.size(), 1u);
@@ -175,7 +175,7 @@ TEST(FHSSPulseMergeTest, CrossFrequencyCollisionsAreRejectedAsUnsupported) {
   auto first = LocalDetection(2'000, 0, 1, 0.9);
   auto overlapping = LocalDetection(2'000, 100, 7, 0.8);
 
-  const auto result = FHSSPulseMergeNode::Merge({first, overlapping});
+  const auto result = FHSSPulseMergeKernel::Merge({first, overlapping});
 
   ASSERT_EQ(result.ordered_candidates.size(), 1u);
   ASSERT_EQ(result.rejections.size(), 1u);
@@ -210,7 +210,7 @@ TEST(FHSSPulseMergeTest, PreservesComplexEvidenceThroughCandidateStream) {
   auto local = LocalDetection(1'000, 0, 1, 0.9);
   const auto evidence = local.complex_evidence.samples;
 
-  const auto result = FHSSPulseMergeNode::Merge({local});
+  const auto result = FHSSPulseMergeKernel::Merge({local});
 
   ASSERT_EQ(result.ordered_candidates.size(), 1u);
   EXPECT_EQ(result.ordered_candidates.front().complex_evidence.samples,

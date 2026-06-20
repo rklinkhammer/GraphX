@@ -20,6 +20,7 @@ TEST(FHSSGraphXPacketContractTest, DefinesEveryTargetEdgePacketContract) {
   static_assert(std::is_default_constructible_v<FHSSCpsmBranchMetricPacket>);
   static_assert(std::is_default_constructible_v<FHSSCpsmSymbolDecisionPacket>);
   static_assert(std::is_default_constructible_v<FHSSDecodedPulseWordPacket>);
+  static_assert(std::is_default_constructible_v<FHSSDecodedPulseWordsPacket>);
   static_assert(std::is_default_constructible_v<FHSSAssembledMessagePacket>);
   static_assert(std::is_default_constructible_v<FHSSDiagnosticsPacket>);
 

@@ -673,6 +673,7 @@ Purpose:
 
 - Replace every PR1-PR7 pseudo-node/helper class that used a `Node` suffix with repository-consistent GraphX runtime nodes.
 - Preserve the validated FHSS algorithms while moving the public execution surface to GraphX node contracts.
+- Require every FHSS GraphX node input/output edge to use `graph::gpu::accel::ControlToken<...>` typed payloads, following the existing `DspIqH2DNode` and `CpuSpectrumDftNode` edge model.
 - Keep the lane CPU-only, deterministic, and CI-safe.
 
 Files to touch:
@@ -699,7 +700,8 @@ Files to delete:
 
 Tests to add:
 
-- Each FHSS GraphX node accepts and emits the PR7A GraphX packet types.
+- Each FHSS GraphX node accepts and emits the PR7A GraphX packet types wrapped in `graph::gpu::accel::ControlToken<...>`.
+- Compile-time/type-contract tests prove every FHSS node port type is a `graph::gpu::accel::ControlToken<PR7A_PACKET_TYPE>` or, where repository-consistent, `graph::gpu::accel::ControlToken<graph::message::Message>` carrying a PR7A packet sidecar. Raw PR7A packet edges are not acceptable.
 - Node tests execute via the repository's standard GraphX node API, not direct calls to old helper `Node` classes.
 - GraphX node outputs preserve the behavior previously verified by PR1-PR7: protocol validation, deterministic generation, detection, merge, CPSM symbol decisions, word decode, hop-only preamble lock, assembly, and diagnostics.
 - Plugin/provider registration tests exist for any node exposed through the plugin path in this PR.
@@ -712,6 +714,8 @@ Tests to delete:
 Acceptance criteria:
 
 - Every `...Node` named FHSS component in the target graph is a real GraphX node.
+- Every FHSS GraphX node edge data type is a `graph::gpu::accel::ControlToken` template type; raw FHSS packet payloads must not be exposed as GraphX node input/output port types.
+- PR7A packet contracts are carried as token sidecars/payloads so that FHSS semantic metadata is preserved independently from future accelerator transport state.
 - Previous pre-GraphX pseudo-nodes are removed from the code base.
 - There is no compatibility shim preserving the old pseudo-node API.
 - All FHSS behavior remains covered through GraphX node tests.

@@ -516,7 +516,10 @@ Scope:
 - Replace every FHSS `...Node` pseudo-node/helper class with a repository-consistent real GraphX node.
 - Implement GraphX nodes for the target CPU lane: synthetic IQ source, correlator-bank detector, pulse merge/candidate boundary, CPSM branch metric, CPSM Viterbi, pulse-word decoder, preamble detector, message assembler, and message sink.
 - Use PR7A GraphX FHSS edge packet/contract types for all node inputs and outputs.
+- Require every FHSS GraphX node input/output edge data type to be a `graph::gpu::accel::ControlToken<...>` template type, following the existing `DspIqH2DNode` and `CpuSpectrumDftNode` pattern.
+- Carry PR7A FHSS packet contracts as token sidecars/payloads, either as `graph::gpu::accel::ControlToken<PR7A_PACKET_TYPE>` or, where repository-consistent, `graph::gpu::accel::ControlToken<graph::message::Message>` containing the PR7A packet. Raw PR7A packet types must not appear as GraphX node port types.
 - Rewrite tests so FHSS node behavior is exercised through the GraphX node API and packet contracts, not direct calls to old helper `Node` classes.
+- Add compile-time/type-contract tests proving every FHSS node input/output port type is token-wrapped and accel-ready.
 - Preserve PR1-PR7 deterministic behavior through the new GraphX node tests.
 - Add plugin/provider registration tests for any node exposed through the plugin path in this PR.
 - Delete old public pre-GraphX pseudo-node headers/classes and direct pseudo-node tests once equivalent GraphX node coverage exists.
@@ -540,6 +543,9 @@ Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 Required checks:
 - Every FHSS `...Node` named component in the target graph is a real GraphX node.
 - GraphX nodes use PR7A edge packet/contract types for inputs and outputs.
+- Every FHSS GraphX node input/output edge data type is a `graph::gpu::accel::ControlToken<...>` template type, following the `DspIqH2DNode` / `CpuSpectrumDftNode` pattern.
+- Raw PR7A FHSS packet types are not exposed directly as GraphX node port types.
+- Type-contract tests prove PR7A FHSS packet contracts are carried as token sidecars/payloads and preserve FHSS semantic metadata independently from future accelerator transport state.
 - Old public pre-GraphX pseudo-node headers/classes are deleted or renamed into private non-node algorithm kernels.
 - No compatibility shim preserves the old pseudo-node API.
 - FHSS tests exercise GraphX node APIs and packet contracts, not direct old helper `Node` calls.

@@ -12,13 +12,13 @@
 namespace {
 
 using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
-using dsp::fhss::FHSSCorrelatorBankDetectorNode;
+using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
 using dsp::fhss::FHSSPreamblePulseSpec;
 using dsp::fhss::FHSSProtocolConstants;
 using dsp::fhss::FHSSPulseMergeConfig;
-using dsp::fhss::FHSSPulseMergeNode;
+using dsp::fhss::FHSSPulseMergeKernel;
 using dsp::fhss::FHSSSyntheticIqGeneratorConfig;
 using dsp::fhss::FHSSValidationCode;
 
@@ -98,7 +98,7 @@ TEST(FHSSCorrelatorBankDetectorTest, RanksCorrectActiveFrequencyPerKnownSlot) {
   const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(GeneratorConfig());
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
 
-  const auto result = FHSSCorrelatorBankDetectorNode::Detect(fixture->samples,
+  const auto result = FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples,
                                                              DetectorConfig());
 
   ASSERT_TRUE(result.has_value()) << result.error().message;
@@ -121,7 +121,7 @@ TEST(FHSSCorrelatorBankDetectorTest, EmitsMetadataAndGlobalTimingForMerge) {
   auto detector_config = DetectorConfig();
   detector_config.input_packet_global_start_sample = 50'000;
   const auto result =
-      FHSSCorrelatorBankDetectorNode::Detect(fixture->samples, detector_config);
+      FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples, detector_config);
 
   ASSERT_TRUE(result.has_value()) << result.error().message;
   ASSERT_FALSE(result->local_detections.empty());
@@ -150,7 +150,7 @@ TEST(FHSSCorrelatorBankDetectorTest, UsesIqOffsetForDehoppedEvidence) {
   const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(GeneratorConfig());
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
 
-  const auto result = FHSSCorrelatorBankDetectorNode::Detect(fixture->samples,
+  const auto result = FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples,
                                                              DetectorConfig());
 
   ASSERT_TRUE(result.has_value()) << result.error().message;
@@ -172,13 +172,13 @@ TEST(FHSSCorrelatorBankDetectorTest,
   const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(GeneratorConfig());
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
 
-  const auto detections = FHSSCorrelatorBankDetectorNode::Detect(
+  const auto detections = FHSSCorrelatorBankDetectorKernel::Detect(
       fixture->samples, DetectorConfig());
   ASSERT_TRUE(detections.has_value()) << detections.error().message;
 
   FHSSPulseMergeConfig merge_config{};
   const auto merged =
-      FHSSPulseMergeNode::Merge(detections->local_detections, merge_config);
+      FHSSPulseMergeKernel::Merge(detections->local_detections, merge_config);
 
   ASSERT_EQ(merged.ordered_candidates.size(), fixture->truth_pulses.size());
   ASSERT_TRUE(merged.rejections.empty());

@@ -3,7 +3,7 @@
  * @brief FHSS detected-pulse normalization and merge helpers.
  *
  * @details PR3 CPU-only association contracts. This file models the
- * FHSSPulseMergeNode semantics without adding a GraphX runtime node or plugin.
+ * FHSS pulse merge semantics without adding a GraphX runtime node or plugin.
  */
 // MIT License
 //
@@ -230,7 +230,7 @@ IsHigherQualityCandidate(const FHSSPulseCandidateWithEvidence &candidate,
          incumbent.candidate.detected_pulse.snr_db;
 }
 
-class FHSSPulseMergeNode {
+class FHSSPulseMergeKernel {
 public:
   [[nodiscard]] static FHSSPulseMergeResult
   Merge(const std::vector<FHSSLocalPulseDetection> &local_detections,

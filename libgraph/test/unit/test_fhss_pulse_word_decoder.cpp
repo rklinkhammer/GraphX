@@ -13,10 +13,10 @@
 
 namespace {
 
-using dsp::fhss::CPSMViterbiDecoderNode;
+using dsp::fhss::CPSMViterbiDecoderKernel;
 using dsp::fhss::CPSMViterbiResult;
 using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
-using dsp::fhss::FHSSCorrelatorBankDetectorNode;
+using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
 using dsp::fhss::FHSSPreamblePulseSpec;
@@ -24,7 +24,7 @@ using dsp::fhss::FHSSProtocolConstants;
 using dsp::fhss::FHSSPulseCandidate;
 using dsp::fhss::FHSSPulseWordDecodeStatus;
 using dsp::fhss::FHSSPulseWordDecoderConfig;
-using dsp::fhss::FHSSPulseWordDecoderNode;
+using dsp::fhss::FHSSPulseWordDecoderKernel;
 using dsp::fhss::FHSSSyntheticIqGeneratorConfig;
 using dsp::fhss::FHSSValidationCode;
 
@@ -133,7 +133,7 @@ TEST(FHSSPulseWordDecoderTest, PreservesPulseMetadataAndConfidence) {
   const auto candidate = Candidate();
   const auto viterbi = ViterbiForSymbols(SymbolsForWord(0xDEAD'BEEFu), 0.82);
 
-  const auto decoded = FHSSPulseWordDecoderNode::Decode(candidate, viterbi);
+  const auto decoded = FHSSPulseWordDecoderKernel::Decode(candidate, viterbi);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::Ok);
   EXPECT_EQ(decoded.decoded_value, 0xDEAD'BEEFu);
@@ -153,21 +153,21 @@ TEST(FHSSPulseWordDecoderTest, PreservesPulseMetadataAndConfidence) {
 
 TEST(FHSSPulseWordDecoderTest, ReportsInvalidViterbiOutput) {
   auto short_viterbi = ViterbiForSymbols({1.0, -1.0});
-  auto decoded = FHSSPulseWordDecoderNode::Decode(Candidate(), short_viterbi);
+  auto decoded = FHSSPulseWordDecoderKernel::Decode(Candidate(), short_viterbi);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::InvalidSymbolCount);
   EXPECT_FALSE(decoded.status_message.empty());
 
   auto invalid_symbol = ViterbiForSymbols(SymbolsForWord(0x1234'5678u));
   invalid_symbol.symbols[5] = 0.25;
-  decoded = FHSSPulseWordDecoderNode::Decode(Candidate(), invalid_symbol);
+  decoded = FHSSPulseWordDecoderKernel::Decode(Candidate(), invalid_symbol);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::InvalidSymbolDecision);
   EXPECT_FALSE(decoded.status_message.empty());
 
   auto invalid_metric = ViterbiForSymbols(SymbolsForWord(0x1234'5678u));
   invalid_metric.best_path_metric = std::numeric_limits<double>::infinity();
-  decoded = FHSSPulseWordDecoderNode::Decode(Candidate(), invalid_metric);
+  decoded = FHSSPulseWordDecoderKernel::Decode(Candidate(), invalid_metric);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::InvalidPathMetric);
   EXPECT_FALSE(decoded.status_message.empty());
@@ -179,7 +179,7 @@ TEST(FHSSPulseWordDecoderTest, ReportsLowConfidenceButPreservesValue) {
   const auto viterbi = ViterbiForSymbols(SymbolsForWord(0xCAFEBABEu), 0.1);
 
   const auto decoded =
-      FHSSPulseWordDecoderNode::Decode(Candidate(), viterbi, config);
+      FHSSPulseWordDecoderKernel::Decode(Candidate(), viterbi, config);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::LowConfidence);
   EXPECT_EQ(decoded.decoded_value, 0xCAFEBABEu);
@@ -199,12 +199,12 @@ TEST(FHSSPulseWordDecoderTest,
   FHSSCorrelatorBankDetectorConfig detector_config{};
   detector_config.decode_config = DecodeConfig(kExpected);
   const auto detected =
-      FHSSCorrelatorBankDetectorNode::Detect(fixture->samples, detector_config);
+      FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples, detector_config);
   ASSERT_TRUE(detected.has_value()) << detected.error().message;
   ASSERT_FALSE(detected->local_detections.empty());
   ASSERT_TRUE(detected->local_detections.front().complex_evidence.samples);
 
-  const auto viterbi = CPSMViterbiDecoderNode::Decode(
+  const auto viterbi = CPSMViterbiDecoderKernel::Decode(
       *detected->local_detections.front().complex_evidence.samples);
   ASSERT_TRUE(viterbi.has_value()) << viterbi.error().message;
 
@@ -214,7 +214,7 @@ TEST(FHSSPulseWordDecoderTest,
   candidate.detected_pulse.frequency_index =
       detected->local_detections.front().frequency_index;
   const auto decoded =
-      FHSSPulseWordDecoderNode::Decode(candidate, *viterbi);
+      FHSSPulseWordDecoderKernel::Decode(candidate, *viterbi);
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::Ok);
   EXPECT_EQ(decoded.decoded_value, kExpected);
