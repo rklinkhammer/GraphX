@@ -60,9 +60,12 @@ enum class FHSSValidationCode {
   InvalidPayloadFrequency,
   InvalidMessageLength,
   InvalidTiming,
+  InvalidGlobalTiming,
   InvalidIqOffset,
   DuplicateIqOffset,
-  PreambleWordMismatch
+  PreambleWordMismatch,
+  DuplicatePulse,
+  UnsupportedOverlap
 };
 
 struct FHSSValidationError {
