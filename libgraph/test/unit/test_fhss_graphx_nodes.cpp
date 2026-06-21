@@ -271,6 +271,11 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
   static_assert(IsControlTokenV<FHSSDownconverterNode::OutputType<0>>);
   static_assert(IsControlTokenV<ChannelizerNode::InputType<0>>);
   static_assert(IsControlTokenV<ChannelizerNode::OutputType<0>>);
+  static_assert(IsControlTokenV<ChannelizerNode::OutputType<1>>);
+  static_assert(IsControlTokenV<ChannelizerNode::OutputType<62>>);
+  static_assert(IsControlTokenV<ChannelizerNode::OutputType<63>>);
+  static_assert(ChannelizerNode::NOutputs ==
+                FHSSProtocolConstants::kFrequencyCount);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseCandidateNode::InputType<0>>);
@@ -301,7 +306,16 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                 FHSSDownconvertedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<ChannelizerNode::OutputType<0>>::type,
-                FHSSChannelizedIqStreamPacket>);
+                FHSSChannelizedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<ChannelizerNode::OutputType<1>>::type,
+                FHSSChannelizedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<ChannelizerNode::OutputType<62>>::type,
+                FHSSChannelizedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<ChannelizerNode::OutputType<63>>::type,
+                FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<FHSSPulseMergeNode::OutputType<0>>::type,
                 FHSSPulseCandidateEvidencePacket>);
@@ -462,7 +476,7 @@ TEST(FHSSGraphXNodeTest,
 }
 
 TEST(FHSSGraphXNodeTest,
-     ChannelizerEmitsOnePacketPerConfiguredFrequencyAndPreservesMetadata) {
+     ChannelizerOutputPortsMapDirectlyToFrequencyIndexAndChannelId) {
   auto samples = std::make_shared<const std::vector<std::complex<double>>>(
       std::vector<std::complex<double>>(16, {1.0, 0.0}));
   auto synthetic = SyntheticTokenFromSamples(samples, 10'000);
@@ -473,25 +487,40 @@ TEST(FHSSGraphXNodeTest,
   ASSERT_TRUE(downconverted.has_value());
 
   ChannelizerNode channelizer(ChannelizerConfig());
-  auto channelized = channelizer.Transfer(
-      *downconverted, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
-  ASSERT_TRUE(channelized.has_value());
-  ASSERT_EQ(channelized->sidecar.channels.size(),
-            FHSSProtocolConstants::kFrequencyCount);
-  EXPECT_TRUE(channelized->sidecar.channel_count_matches_frequency_count);
+  EXPECT_EQ(channelizer.GetOutputPortCount(),
+            static_cast<int>(FHSSProtocolConstants::kFrequencyCount));
 
-  const auto &first = channelized->sidecar.channels.front();
-  const auto &last = channelized->sidecar.channels.back();
-  EXPECT_EQ(first.channel.channel_id, 0u);
-  EXPECT_EQ(first.channel.frequency_index, 0u);
-  EXPECT_TRUE(first.receiver_guard_or_metadata_channel);
-  EXPECT_EQ(last.channel.channel_id, 63u);
-  EXPECT_EQ(last.channel.frequency_index, 63u);
-  EXPECT_TRUE(last.receiver_guard_or_metadata_channel);
-  EXPECT_FALSE(channelized->sidecar.channels[1].receiver_guard_or_metadata_channel);
+  ASSERT_TRUE(
+      channelizer.Consume(*downconverted,
+                          std::integral_constant<std::size_t, 0>{}));
+  auto channel0 = channelizer.Produce(std::integral_constant<std::size_t, 0>{});
+  auto channel1 = channelizer.Produce(std::integral_constant<std::size_t, 1>{});
+  auto channel24 =
+      channelizer.Produce(std::integral_constant<std::size_t, 24>{});
+  auto channel62 =
+      channelizer.Produce(std::integral_constant<std::size_t, 62>{});
+  auto channel63 =
+      channelizer.Produce(std::integral_constant<std::size_t, 63>{});
+  ASSERT_TRUE(channel0.has_value());
+  ASSERT_TRUE(channel1.has_value());
+  ASSERT_TRUE(channel24.has_value());
+  ASSERT_TRUE(channel62.has_value());
+  ASSERT_TRUE(channel63.has_value());
 
-  const auto &channel = channelized->sidecar.channels[24];
+  EXPECT_EQ(channel0->sidecar.channel.channel_id, 0u);
+  EXPECT_EQ(channel0->sidecar.channel.frequency_index, 0u);
+  EXPECT_TRUE(channel0->sidecar.receiver_guard_or_metadata_channel);
+  EXPECT_EQ(channel1->sidecar.channel.channel_id, 1u);
+  EXPECT_EQ(channel1->sidecar.channel.frequency_index, 1u);
+  EXPECT_FALSE(channel1->sidecar.receiver_guard_or_metadata_channel);
+  EXPECT_EQ(channel62->sidecar.channel.channel_id, 62u);
+  EXPECT_EQ(channel62->sidecar.channel.frequency_index, 62u);
+  EXPECT_FALSE(channel62->sidecar.receiver_guard_or_metadata_channel);
+  EXPECT_EQ(channel63->sidecar.channel.channel_id, 63u);
+  EXPECT_EQ(channel63->sidecar.channel.frequency_index, 63u);
+  EXPECT_TRUE(channel63->sidecar.receiver_guard_or_metadata_channel);
+
+  const auto &channel = channel24->sidecar;
   EXPECT_EQ(channel.channel.channel_id, 24u);
   EXPECT_EQ(channel.channel.frequency_index, 24u);
   EXPECT_DOUBLE_EQ(channel.channel.rf_frequency_hz, RfFrequencyHz(24));

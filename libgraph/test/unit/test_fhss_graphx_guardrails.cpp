@@ -168,6 +168,14 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
     const auto node_classes = ClassNamesMatching(text, node_class_regex);
     ASSERT_EQ(node_classes.size(), 1u) << header;
     const auto &name = node_classes.front();
+    if (name == "ChannelizerNode") {
+      EXPECT_NE(text.find("public graph::SinkNode"), std::string::npos)
+          << name << " must consume a GraphX input port";
+      EXPECT_NE(text.find("public FHSSChannelizerSourceBase"),
+                std::string::npos)
+          << name << " must expose GraphX output ports";
+      continue;
+    }
     const std::regex real_graphx_node_regex(
         "class\\s+" + name +
             R"(\s*:[\s\S]*public\s+graph::Named(?:Source|Interior|Sink)Node)",
@@ -175,6 +183,23 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
     EXPECT_TRUE(std::regex_search(text, real_graphx_node_regex))
         << name << " must inherit a repository GraphX node base";
   }
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     ChannelizerDoesNotExposeAggregateChannelOutputContract) {
+  const auto root = RepositoryRoot();
+  const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
+  const auto packets = ReadFile(fhss_include / "FHSSGraphXPackets.hpp");
+  const auto utils = ReadFile(fhss_include / "FHSSGraphXNodeUtils.hpp");
+  const auto channelizer = ReadFile(fhss_include / "ChannelizerNode.hpp");
+
+  EXPECT_EQ(packets.find("FHSSChannelizedIqStreamPacket"), std::string::npos);
+  EXPECT_EQ(utils.find("FHSSChannelizedIqStreamToken"), std::string::npos);
+  EXPECT_EQ(channelizer.find("FHSSChannelizedIqStream"), std::string::npos);
+  EXPECT_EQ(channelizer.find("std::vector<FHSSChannelizedIqPacket>"),
+            std::string::npos);
+  EXPECT_NE(channelizer.find("FHSSProtocolConstants::kFrequencyCount"),
+            std::string::npos);
 }
 
 TEST(FHSSGraphXGuardrailTest, SharedFhssGraphXUtilityDefinesNoNodeClasses) {

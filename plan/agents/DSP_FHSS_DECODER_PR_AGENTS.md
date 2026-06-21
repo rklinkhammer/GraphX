@@ -19,7 +19,8 @@ Global constraints for every PR:
 - Use only four active transmitted frequencies derived from the 16-pulse preamble pattern unless the named PR explicitly changes message/source configuration.
 - PR1-PR9 payload/body frequencies use deterministic random selections from the four active preamble frequencies. PR10+ replaces this with explicit configured message pulse schedules.
 - Treat absolute RF frequencies as metadata; fixture IQ must use baseband/IF offset frequencies and explicit IQ reference-frame metadata.
-- PR11+ channelized work must preserve the invariant that the receiver/channelizer model has one logical channel per configured FHSS frequency entry; the four active transmitted frequencies are not a receiver channel-count limit.
+- PR11+ channelized work must preserve the invariant that the receiver/channelizer model has one logical GraphX output channel per configured FHSS frequency entry; the four active transmitted frequencies are not a receiver channel-count limit.
+- PR12B+ requires `ChannelizerNode` to expose exactly 64 GraphX output ports for the 64-entry FHSS table. Output port `N` maps to frequency index/channel id `N`. A vector/list/stream sidecar, aggregate packet, fanout payload, or single edge carrying multiple channel packets does not satisfy this invariant.
 - PR11+ channelized work must include an explicit `FHSSDownconverterNode` before `ChannelizerNode`; the downconverter may be validated passthrough when source and channelizer IQ reference frames already match.
 - Reject unsupported overlapped messages in PR1 behavior.
 - Keep Doppler, noise, multipath, Metal/GPU, PDW diagnostics, overlap-aware separation, and pulse-start acquisition out of scope unless the named PR explicitly includes them.
@@ -1002,6 +1003,68 @@ Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR12.md.
 
 ---
 
+## PR12B: Correct Channelizer Graph Shape To 64 Output Ports
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR12B from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Correct Channelizer Graph Shape To 64 Output Ports.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR12 `FHSSDownconverterNode` and `ChannelizerNode` should already exist, or any missing pieces must be named accurately in the report.
+- PR11 `FHSSChannelizedIqPacket` and token-ready GraphX packet contracts must already exist.
+
+Scope:
+- Correct `ChannelizerNode` so the channel-per-frequency invariant is represented by GraphX output ports, not by an aggregate sidecar payload.
+- Require `ChannelizerNode` to expose exactly 64 GraphX output ports for the 64-entry FHSS frequency table.
+- Require every `ChannelizerNode` output port to be `graph::gpu::accel::ControlToken<FHSSChannelizedIqPacket>`.
+- Require output port `N` to emit the channel packet for frequency index `N` and channel id `N`.
+- Preserve reserved receiver guard/metadata output ports 0 and 63 while keeping indices 0 and 63 invalid for transmitted preamble/body pulses.
+- Remove or de-canonicalize any `FHSSChannelizedIqStreamPacket`, `FHSSChannelizedIqStreamToken`, vector/list stream sidecar, fanout payload, or other aggregate single-edge channelizer output contract.
+- Rewrite tests that previously accepted one edge carrying 64 channel packets.
+- Add compile-time tests proving exactly 64 output ports and representative output port types for ports 0, 1, 62, and 63.
+- Add runtime tests proving output port `N` emits metadata with `frequency_index == N` and `channel_id == N`.
+- Add guardrail tests preventing aggregate channelizer output contracts from returning as canonical GraphX node port types.
+- Preserve PR12 downconverter passthrough and declared frequency-translation behavior.
+- Keep plugin/provider dynamic loading for the corrected `ChannelizerNode`.
+
+Do not add per-channel pulse detector implementation, graph JSON end-to-end executor wiring, real RF capture, production channelizer claims, Metal/GPU, Doppler/noise behavior, or overlap-aware separation.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR12B.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR12B from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Correct Channelizer Graph Shape To 64 Output Ports.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- `ChannelizerNode` exposes exactly 64 GraphX output ports.
+- Every `ChannelizerNode` output port type is `graph::gpu::accel::ControlToken<FHSSChannelizedIqPacket>`.
+- Output port `N` maps to frequency index `N` and channel id `N`.
+- Ports 0 and 63 exist as receiver guard/metadata channels while indices 0 and 63 remain invalid transmitted preamble/body frequencies.
+- No `FHSSChannelizedIqStreamPacket`, `FHSSChannelizedIqStreamToken`, vector/list stream sidecar, fanout payload, or aggregate single-edge channelizer output is canonical or used as a `ChannelizerNode` GraphX output port type.
+- Tests prove representative ports 0, 1, 62, and 63 are token-wrapped `FHSSChannelizedIqPacket` outputs.
+- Tests prove the corrected `ChannelizerNode` remains a real GraphX node and remains plugin/provider loadable.
+- PR12 downconverter passthrough and declared frequency-translation behavior remains covered.
+- PR13 can instantiate one `PerChannelPulseDetectorNode` per channelizer output port when PR13 is implemented.
+- No per-channel pulse detector implementation, graph JSON end-to-end executor wiring, real RF capture, production channelizer claim, Metal/GPU, Doppler/noise behavior, or overlap-aware separation was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR12B.md.
+```
+
+---
+
 ## PR13: PerChannelPulseDetectorNode And Merge Handoff
 
 ### Implementer Agent
@@ -1015,13 +1078,13 @@ Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 
 Prerequisites:
 - PR11 channelized/per-channel packet contracts must already exist.
-- PR12 ChannelizerNode should already emit one channel packet per configured frequency.
+- PR12B ChannelizerNode must expose exactly 64 output ports, one per configured frequency.
 - PR3/PR7A pulse merge/candidate contracts must already exist.
 
 Scope:
-- Add a real GraphX `PerChannelPulseDetectorNode` for one channelized IQ stream.
+- Add a real GraphX `PerChannelPulseDetectorNode` for one channelized IQ stream from one `ChannelizerNode` output port.
 - Use PR11 packet contracts and `graph::gpu::accel::ControlToken<...>` port types.
-- Consume exactly one channel packet and emit detected pulse metadata in shared global sample time.
+- Consume exactly one `ControlToken<FHSSChannelizedIqPacket>` and emit detected pulse metadata in shared global sample time.
 - Use the single frequency index and channel metadata supplied by `ChannelizerNode`; do not scan across frequencies.
 - Preserve/dehop complex evidence for downstream CPSM branch metrics.
 - Emit frequency index, RF metadata frequency, IQ offset frequency, estimated center frequency, CFO/frequency error placeholder or estimate, SNR/confidence, detector id, packet sequence, channel id, and global timing.
@@ -1200,7 +1263,7 @@ Scope:
 - Define occupied-bandwidth/channel-filter requirements for 5 Mbps CPSM on 8 MHz spacing, or explicitly keep them unresolved with no production channelizer claim.
 - Choose the future strategy for selectable-frequency coverage without pretending all 64 RF centers fit alias-free in one 500 Msps complex-baseband capture.
 - Strategy options may include higher sample rate, retuned sub-band windows, sparse active scheduling, or explicit alias/downconversion modeling.
-- Preserve the invariant that receiver configuration has one logical channel per configured frequency.
+- Preserve the invariant that receiver configuration has one logical GraphX channel output port per configured frequency.
 - Define which impairment diagnostics and status values become canonical before implementing Doppler/noise/CFO/phase drift/multipath behavior.
 - Keep optional PDW diagnostics non-canonical unless a later PR explicitly changes the decoder contract.
 - Update roadmap/docs and add guardrail tests if new claims are introduced.
@@ -1224,7 +1287,7 @@ Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
 Required checks:
 - Plan/docs define occupied-bandwidth/channel-filter requirements or explicitly keep them unresolved with no production channelizer claim.
 - Plan/docs choose or clearly defer the future strategy for selectable-frequency coverage without claiming all 64 RF centers fit alias-free in one 500 Msps complex-baseband capture.
-- Plan/docs preserve the invariant that receiver configuration has one logical channel per configured frequency.
+- Plan/docs preserve the invariant that receiver configuration has one logical GraphX channel output port per configured frequency.
 - Plan/docs define canonical impairment diagnostics/status values before implementation, or explicitly defer them.
 - Optional PDW diagnostics remain non-canonical unless a later PR explicitly changes the decoder contract.
 - Guardrail tests exist where new claims are introduced.

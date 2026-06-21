@@ -31,8 +31,6 @@ using FHSSSyntheticIqToken = FHSSGraphXToken<FHSSSyntheticIqOutputPacket>;
 using FHSSDownconvertedIqToken =
     FHSSGraphXToken<FHSSDownconvertedIqPacket>;
 using FHSSChannelizedIqToken = FHSSGraphXToken<FHSSChannelizedIqPacket>;
-using FHSSChannelizedIqStreamToken =
-    FHSSGraphXToken<FHSSChannelizedIqStreamPacket>;
 using FHSSPerChannelPulseEvidenceToken =
     FHSSGraphXToken<FHSSPerChannelPulseEvidencePacket>;
 using FHSSDetectedPulseToken =
@@ -60,9 +58,6 @@ static_assert(std::is_same_v<FHSSDownconvertedIqToken,
 static_assert(std::is_same_v<FHSSChannelizedIqToken,
                              graph::gpu::accel::ControlToken<
                                  FHSSChannelizedIqPacket>>);
-static_assert(std::is_same_v<FHSSChannelizedIqStreamToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSChannelizedIqStreamPacket>>);
 static_assert(std::is_same_v<FHSSPerChannelPulseEvidenceToken,
                              graph::gpu::accel::ControlToken<
                                  FHSSPerChannelPulseEvidencePacket>>);

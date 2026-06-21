@@ -178,16 +178,21 @@ rediscovering them from scattered caveats.
   channelizer. The node may be a validated passthrough when the source IQ frame
   already matches the channelizer input frame, but the graph must not hide that
   frequency-frame assumption inside the channelizer.
-- Define a `ChannelizerNode` contract that takes sampled complex IQ and emits
-  one channel packet per configured FHSS frequency, preserving global sample
-  time, decimation factor, filter group delay, RF metadata frequency, IQ offset
-  frequency, frequency index, and channel id.
+- Define a `ChannelizerNode` contract that takes sampled complex IQ and exposes
+  one GraphX output port per configured FHSS frequency. Output port `N` must
+  emit the channel packet for frequency index/channel id `N`, preserving global
+  sample time, decimation factor, filter group delay, RF metadata frequency, IQ
+  offset frequency, frequency index, and channel id.
 - Define `PerChannelPulseDetectorNode` input/output contracts. The detector
   should consume one channel stream and emit timing/frequency pulse evidence
   for that channel only.
-- PR11+ channelizer work must preserve the invariant that channel count equals
-  configured frequency count. The four active preamble-derived frequencies are
-  a transmit/message active set, not a limit on receiver channel topology.
+- PR11+ channelizer work must preserve the invariant that GraphX channel output
+  port count equals configured frequency count. The four active preamble-derived
+  frequencies are a transmit/message active set, not a limit on receiver
+  channel topology.
+- A single aggregate/vector/stream edge carrying multiple channel packets does
+  not satisfy the channel-per-frequency invariant. The graph shape must support
+  one downstream per-channel pulse detector per channel output port.
 - Define duplicate/collision semantics when two channel detectors emit
   candidates for the same global pulse slot.
 - Keep CPSM branch metric/Viterbi as the owner of symbol sequence evidence.
@@ -203,7 +208,7 @@ rediscovering them from scattered caveats.
 - Decide whether future full selectable-frequency coverage uses a higher sample
   rate, retuned sub-band windows, sparse active-frequency scheduling, or an
   explicit aliasing/downconversion model. Whatever strategy is chosen, it must
-  retain one logical channel per configured FHSS frequency.
+  retain one logical GraphX channel output port per configured FHSS frequency.
 - Preserve the rule that absolute 1 GHz RF frequencies are metadata while
   fixture IQ uses baseband/IF offsets. The downconverter translates between
   declared IQ reference frames; it must not directly mix against absolute
@@ -1404,8 +1409,10 @@ Purpose:
 - Add a CPU `FHSSDownconverterNode` that converts source IQ into the
   channelizer reference frame, or validates explicit passthrough when no
   frequency translation is required.
-- Add a CPU `ChannelizerNode` for the deterministic FHSS fixture using one
-  logical output channel per configured FHSS frequency.
+- Add a CPU `ChannelizerNode` for the deterministic FHSS fixture. PR12 may
+  establish the first real node and fixture-grade channel packet generation,
+  but PR12B is the required corrective PR that makes the GraphX shape expose
+  one output port per configured FHSS frequency.
 - Produce per-channel complex IQ packets with explicit sample-time mapping for
   later per-channel pulse detectors.
 - Keep the implementation fixture-grade and do not claim production channelizer
@@ -1437,7 +1444,9 @@ Tests to add:
 - Downconverter rejects implicit frequency-frame mismatches.
 - Channelizer config may include reserved indices `0` and `63` as receiver
   channels, but rejects them as transmitted active/pulse frequencies.
-- Channelizer emits one channel packet per configured frequency index.
+- Channelizer emits one channel packet per configured frequency index. This
+  must become one GraphX output port per configured frequency in PR12B; a
+  single aggregate channel stream is not the final accepted topology.
 - Channelizer rejects duplicate configured frequency indices or duplicate
   channel ids.
 - Channel packets preserve RF metadata frequency, IQ offset frequency, channel
@@ -1463,7 +1472,16 @@ Acceptance criteria:
 - `ChannelizerNode` exists as a real GraphX node and is plugin-loadable if
   exposed through the plugin path.
 - The node uses PR11 channelized packet contracts.
-- The node enforces a documented mapping between configured frequency entries and realized channel outputs. If the fixture realizes fewer than all logical entries at `500 Msps`, the node must expose the capture subset and metadata-only guard treatment explicitly.
+- The node enforces a documented mapping between configured frequency entries
+  and realized channel outputs. PR12B must make this mapping mechanical:
+  GraphX output port `N` corresponds to configured frequency index/channel id
+  `N`.
+- A vector/list/stream sidecar, aggregate packet, fanout payload, or other
+  single-edge representation of multiple channels is not accepted as the final
+  `ChannelizerNode` output topology.
+- If the fixture realizes fewer than all logical entries at `500 Msps`, the
+  node must expose the capture subset and metadata-only guard treatment
+  explicitly while preserving one GraphX output port per configured frequency.
 - The first implementation may still use fixture-safe IQ offsets, but it must
   not collapse multiple frequencies into one channel.
 - The node does not replace the PR8 graph yet unless explicitly wired in a
@@ -1486,11 +1504,105 @@ CI-safe or local-only:
 
 - CI-safe.
 
+## PR12B: Correct Channelizer Graph Shape To 64 Output Ports
+
+Purpose:
+
+- Correct the PR12 channelizer topology so the channel-per-frequency invariant
+  is represented by GraphX edges, not by an aggregate sidecar payload.
+- Replace any single-output aggregate/vector/stream channelizer output with
+  exactly one GraphX output port per configured FHSS frequency entry.
+- Make output port index equal frequency index and channel id for the 64-entry
+  fixture: output port `0` is receiver guard channel/frequency index `0`, output
+  port `63` is receiver guard channel/frequency index `63`, and ports `[1, 62]`
+  are selectable receiver channels.
+- Preserve the PR12 downconverter behavior and fixture-grade CPU channel packet
+  generation while changing only the channelizer graph shape and tests.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/ChannelizerNode.hpp`.
+- `libdsp/src/dsp/ChannelizerNode.cpp`.
+- `libdsp/include/dsp/fhss/FHSSGraphXPackets.hpp` and
+  `FHSSGraphXNodeUtils.hpp` if an aggregate channel stream contract must be
+  deleted.
+- FHSS GraphX node tests, packet tests, guardrails, and plugin/provider tests.
+- `plan/reviews/` for implementer/verifier reports.
+
+Files to delete:
+
+- Delete any `FHSSChannelizedIqStreamPacket`,
+  `FHSSChannelizedIqStreamToken`, or equivalent aggregate channelizer output
+  contract if it exists solely to carry multiple channels on one GraphX edge.
+- Delete tests that accept a single channelizer output edge carrying all 64
+  channels.
+
+Tests to add:
+
+- Compile-time test proving `ChannelizerNode` exposes exactly
+  `FHSSProtocolConstants::kFrequencyCount` GraphX output ports.
+- Compile-time tests proving representative output ports `0`, `1`, `62`, and
+  `63` are `graph::gpu::accel::ControlToken<FHSSChannelizedIqPacket>`.
+- Runtime tests proving output port `N` emits a channel packet whose
+  `frequency_index == N` and `channel_id == N`.
+- Tests proving reserved output ports `0` and `63` emit receiver guard/metadata
+  channels while `0` and `63` remain invalid transmitted active/pulse
+  frequencies.
+- Guardrail test proving `ChannelizerNode` does not expose
+  `FHSSChannelizedIqStreamPacket`, `std::vector<FHSSChannelizedIqPacket>`, or
+  another aggregate channel payload as its GraphX output port type.
+- Registration/plugin tests proving the corrected 64-output `ChannelizerNode`
+  remains dynamically loadable.
+- Regression test proving PR13 can instantiate one `PerChannelPulseDetectorNode`
+  per channelizer output port when PR13 is implemented.
+
+Tests to delete:
+
+- Delete or rewrite any PR12 test that treats “one edge carrying 64 channel
+  packets” as satisfying the channel-per-frequency invariant.
+
+Acceptance criteria:
+
+- `ChannelizerNode` has exactly 64 GraphX output ports for the 64-entry FHSS
+  frequency table.
+- Every channelizer output port type is
+  `graph::gpu::accel::ControlToken<FHSSChannelizedIqPacket>`.
+- Output port index maps one-to-one to frequency index and channel id.
+- No raw `FHSSChannelizedIqPacket` or aggregate channel stream type appears as
+  a GraphX node port type.
+- Any aggregate channelized-stream packet introduced by PR12 is removed or made
+  non-canonical/private, and it is not used as the `ChannelizerNode` output
+  contract.
+- Reserved indices `0` and `63` remain receiver guard/metadata output ports but
+  remain invalid transmitted preamble/body frequencies.
+- PR12 downconverter passthrough/translation behavior remains covered.
+- No per-channel pulse detector implementation, graph JSON end-to-end executor
+  wiring, real RF capture, production channelizer claim, Metal/GPU execution,
+  Doppler/noise behavior, or overlap-aware separation is added.
+
+Risks:
+
+- A 64-output static GraphX type can be verbose. Prefer small local template
+  helpers or type aliases, but do not hide the 64 channels inside one aggregate
+  edge.
+- Existing plugin/reflection metadata must correctly expose all 64 output
+  ports.
+
+Rollback plan:
+
+- Revert the channelizer output-port correction and restore the last passing
+  PR12 node, then re-plan before PR13.
+
+CI-safe or local-only:
+
+- CI-safe.
+
 ## PR13: PerChannelPulseDetectorNode And Merge Handoff
 
 Purpose:
 
-- Add `PerChannelPulseDetectorNode` for one channelized IQ stream.
+- Add `PerChannelPulseDetectorNode` for one channelized IQ stream from one
+  `ChannelizerNode` output port.
 - Replace the correlator-bank detector's monolithic active-frequency ranking
   with per-channel pulse candidate extraction while leaving CPSM sequence
   estimation downstream.
@@ -1511,8 +1623,9 @@ Files to delete:
 
 Tests to add:
 
-- Detector consumes a single channel packet and emits detected pulse metadata
-  in shared global sample time.
+- Detector consumes a single `ControlToken<FHSSChannelizedIqPacket>` from one
+  channelizer output port and emits detected pulse metadata in shared global
+  sample time.
 - Detector channel metadata identifies exactly one configured frequency index.
 - Detector preserves/dehops complex evidence for CPSM branch metrics.
 - Detector reports frequency index, RF metadata frequency, IQ offset frequency,
@@ -1529,6 +1642,8 @@ Tests to delete:
 
 Acceptance criteria:
 
+- PR12B has corrected `ChannelizerNode` to expose 64 output ports, so PR13 can
+  instantiate one detector per port.
 - Per-channel detector output is compatible with `FHSSPulseMergeNode`.
 - Per-channel detector preserves complex evidence and global sample-time
   mapping.
@@ -1561,7 +1676,8 @@ Purpose:
 - Keep the PR8 correlator-bank fixture graph available as a reference until the
   channelized lane has equivalent coverage.
 - Prove the channelized CPU lane decodes the deterministic fixture to the same
-  message truth while keeping one logical channel per configured frequency.
+  message truth while keeping one channelizer output port and one per-channel
+  detector lane per configured frequency.
 
 Files to touch:
 
