@@ -146,6 +146,8 @@ struct FHSSGraphXPulseTiming {
 struct FHSSGraphXPulseMetadata {
   FHSSGraphXPulseTiming timing{};
   FHSSGraphXFrequencyMetadata frequency{};
+  bool downconverter_passthrough = true;
+  double downconverter_translation_frequency_hz = 0.0;
   double amplitude = 0.0;
   double power_db = 0.0;
   double snr_db = 0.0;
@@ -184,6 +186,8 @@ struct FHSSGraphXChannelMetadata {
   std::uint32_t frequency_index = 0;
   double rf_frequency_hz = 0.0;
   double iq_offset_frequency_hz = 0.0;
+  bool downconverter_passthrough = true;
+  double downconverter_translation_frequency_hz = 0.0;
   double channel_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
   std::uint32_t decimation_factor = 1;
   std::int64_t filter_group_delay_input_samples = 0;

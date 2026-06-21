@@ -13,6 +13,7 @@
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoder.hpp"
+#include "config/JsonView.hpp"
 #include "gpu/accel/types/AccelTypes.hpp"
 
 #include <complex>
@@ -21,6 +22,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace dsp::fhss {
 
@@ -122,6 +125,36 @@ FHSSComplexEvidenceFromGraphX(const FHSSGraphXComplexEvidence &evidence) {
   return FHSSComplexEvidence{.samples = evidence.host_complex64_samples,
                              .sample_offset = evidence.sample_offset,
                              .sample_count = evidence.sample_count};
+}
+
+[[nodiscard]] inline std::vector<std::complex<double>>
+FHSSGraphXComplexEvidenceSamples(const FHSSGraphXComplexEvidence &evidence) {
+  if (!FHSSGraphXEvidenceHasHostComplexIq(evidence)) {
+    return {};
+  }
+  const auto &source = *evidence.host_complex64_samples;
+  if (evidence.sample_offset > source.size() ||
+      evidence.sample_count > source.size() - evidence.sample_offset) {
+    return {};
+  }
+  return std::vector<std::complex<double>>(
+      source.begin() + static_cast<std::ptrdiff_t>(evidence.sample_offset),
+      source.begin() + static_cast<std::ptrdiff_t>(evidence.sample_offset +
+                                                   evidence.sample_count));
+}
+
+[[nodiscard]] inline graph::JsonView
+FHSSStableParameterJsonView(nlohmann::json value) {
+  static thread_local nlohmann::json storage;
+  storage = std::move(value);
+  return graph::JsonView(storage);
+}
+
+[[nodiscard]] inline graph::JsonView
+FHSSStableParameterDescriptionJsonView(nlohmann::json value) {
+  static thread_local nlohmann::json storage;
+  storage = std::move(value);
+  return graph::JsonView(storage);
 }
 
 [[nodiscard]] inline FHSSGraphXComplexEvidence

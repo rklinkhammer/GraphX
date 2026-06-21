@@ -63,6 +63,7 @@ public:
     OutputTokenType output{};
     output.token_id = input.token_id;
     output.sidecar = FHSSGraphXAssembledMessageFromKernel(assembled);
+    output.sidecar.ordered_pulses = input.sidecar.ordered_pulses;
     output.sidecar.diagnostics.unsupported_overlap_rejected = true;
     output.sidecar.diagnostics.unsupported_impairments_rejected = true;
     output.sidecar.diagnostics.synchronization_assumption =

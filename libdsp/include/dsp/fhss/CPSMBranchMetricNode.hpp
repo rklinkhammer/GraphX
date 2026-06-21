@@ -39,8 +39,13 @@ public:
       if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
         return std::nullopt;
       }
+      auto evidence_samples =
+          FHSSGraphXComplexEvidenceSamples(candidate.complex_evidence);
+      if (evidence_samples.empty()) {
+        return std::nullopt;
+      }
       auto metrics = CPSMBranchMetricKernel::Compute(
-          *candidate.complex_evidence.host_complex64_samples, config_);
+          evidence_samples, config_);
       if (!metrics) {
         return std::nullopt;
       }

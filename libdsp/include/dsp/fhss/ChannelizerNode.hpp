@@ -202,20 +202,43 @@ public:
 
   [[nodiscard]] graph::JsonView GetParameters() const override {
     nlohmann::json params;
+    params["frequency_count"] = config_.frequency.frequency_count;
+    params["iq_center_frequency_hz"] = 0.0;
+    params["iq_offsets"] = nlohmann::json::array();
+    params["sample_rate_hz"] = config_.frequency.sample_rate_hz;
+    params["occupied_bandwidth_hz"] = config_.frequency.occupied_bandwidth_hz;
+    params["max_abs_cfo_hz"] = config_.frequency.max_abs_cfo_hz;
+    params["receiver_frequency_indices"] = config_.receiver_frequency_indices;
+    params["channel_ids"] = config_.channel_ids;
+    params["transmitted_active_frequency_indices"] =
+        config_.transmitted_active_frequency_indices;
+    params["transmitted_pulse_frequency_indices"] =
+        config_.transmitted_pulse_frequency_indices;
     params["channel_sample_rate_hz"] = config_.channel_sample_rate_hz;
     params["decimation_factor"] = config_.decimation_factor;
     params["filter_group_delay_input_samples"] =
         config_.filter_group_delay_input_samples;
-    return graph::JsonView(params);
+    return FHSSStableParameterJsonView(std::move(params));
   }
 
   [[nodiscard]] graph::JsonView
   GetParameterDescription(const std::string &) const override {
-    return graph::JsonView(nlohmann::json::object());
+    return FHSSStableParameterDescriptionJsonView(nlohmann::json::object());
   }
 
   [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
-    return {"channel_sample_rate_hz", "decimation_factor",
+    return {"frequency_count",
+            "iq_center_frequency_hz",
+            "iq_offsets",
+            "sample_rate_hz",
+            "occupied_bandwidth_hz",
+            "max_abs_cfo_hz",
+            "receiver_frequency_indices",
+            "channel_ids",
+            "transmitted_active_frequency_indices",
+            "transmitted_pulse_frequency_indices",
+            "channel_sample_rate_hz",
+            "decimation_factor",
             "filter_group_delay_input_samples"};
   }
 
@@ -244,7 +267,7 @@ public:
       OutputTokenType output{};
       output.token_id = input.token_id;
       output.sidecar =
-          BuildChannelPacket(input.sidecar.iq, (*map_result)[port], port);
+          BuildChannelPacket(input.sidecar, (*map_result)[port], port);
       success &= output_queues_[port].Enqueue(output);
     }
     return success;
@@ -403,7 +426,7 @@ private:
   }
 
   [[nodiscard]] FHSSChannelizedIqPacket
-  BuildChannelPacket(const FHSSGraphXComplexEvidence &input,
+  BuildChannelPacket(const FHSSDownconvertedIqPacket &input,
                      const FHSSFrequencyMapEntry &entry,
                      std::uint32_t channel_id) const {
     FHSSChannelizedIqPacket packet{};
@@ -411,18 +434,22 @@ private:
     packet.channel.frequency_index = entry.index;
     packet.channel.rf_frequency_hz = entry.rf_frequency_hz;
     packet.channel.iq_offset_frequency_hz = entry.iq_offset_frequency_hz;
+    packet.channel.downconverter_passthrough =
+        input.downconverter.passthrough;
+    packet.channel.downconverter_translation_frequency_hz =
+        input.downconverter.translation_frequency_hz;
     packet.channel.channel_sample_rate_hz = config_.channel_sample_rate_hz;
     packet.channel.decimation_factor = config_.decimation_factor;
     packet.channel.filter_group_delay_input_samples =
         config_.filter_group_delay_input_samples;
     packet.channel.input_global_start_sample =
-        input.sample_time_map.input_packet_global_start_sample;
+        input.iq.sample_time_map.input_packet_global_start_sample;
     packet.channel.channel_global_start_sample =
-        input.sample_time_map.input_packet_global_start_sample +
+        input.iq.sample_time_map.input_packet_global_start_sample +
         static_cast<std::uint64_t>(
             std::max<std::int64_t>(0,
                                    config_.filter_group_delay_input_samples));
-    packet.channel.sample_time_map = input.sample_time_map;
+    packet.channel.sample_time_map = input.iq.sample_time_map;
     packet.channel.sample_time_map.decimation_factor =
         config_.decimation_factor;
     packet.channel.sample_time_map.group_delay_input_samples =
@@ -434,7 +461,7 @@ private:
     packet.receiver_guard_or_metadata_channel =
         IsReservedFrequencyIndex(entry.index);
     packet.truth_metadata_required_for_decision = false;
-    packet.iq = MixAndDecimate(input, entry.iq_offset_frequency_hz,
+    packet.iq = MixAndDecimate(input.iq, entry.iq_offset_frequency_hz,
                                packet.channel.sample_time_map);
     return packet;
   }

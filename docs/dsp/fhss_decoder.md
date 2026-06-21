@@ -1,7 +1,7 @@
 # DSP FHSS Decoder Fixture
 
-This document describes the deterministic GraphX FHSS CPSM fixture lane added
-through PR1 through PR8. It is a CPU-only test fixture and decoder pipeline. It
+This document describes the deterministic GraphX FHSS CPSM fixture lanes added
+through PR1 through PR14. They are CPU-only test fixture and decoder pipelines. They
 is not a production RF receiver, not a claim of compatibility with any external
 RF waveform, and not a direct 1 GHz RF sampling model.
 
@@ -11,7 +11,7 @@ The canonical FHSS implementation uses real GraphX nodes, dynamically loadable
 plugins, and GraphX edge packet contracts. The deleted pre-GraphX pseudo-node
 scaffolding is not the current node model.
 
-The PR8 fixture config is:
+The PR8 correlator-bank reference fixture config is:
 
 ```text
 libdsp/config/fhss_cpsm_fixture_500msps.json
@@ -31,6 +31,36 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageAssemblerNode
   -> FHSSMessageSinkNode
 ```
+
+The PR14 channelized fixture config is:
+
+```text
+libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
+```
+
+The channelized CPU lane is:
+
+```text
+FHSSSyntheticIqSourceNode
+  -> FHSSDownconverterNode
+  -> ChannelizerNode
+  -> PerChannelPulseDetectorNode[64]
+  -> FHSSPulseMergeNode
+  -> FHSSPulseCandidateNode
+  -> CPSMBranchMetricNode
+  -> CPSMViterbiDecoderNode
+  -> FHSSPulseWordDecoderNode
+  -> FHSSPreambleDetectorNode
+  -> FHSSMessageAssemblerNode
+  -> FHSSMessageSinkNode
+```
+
+The PR14 graph always wires the source through `FHSSDownconverterNode` before
+channelization, even when the downconverter is configured as validated
+passthrough. `ChannelizerNode` exposes exactly 64 GraphX output ports, one per
+frequency index. Output port `N` feeds one `PerChannelPulseDetectorNode` for
+frequency index `N` and channel id `N`; ports `0` and `63` remain receiver
+guard/metadata channels and are still invalid transmitted pulse frequencies.
 
 FHSS GraphX node ports use `graph::gpu::accel::ControlToken<...>` carrying the
 FHSS PR7A packet sidecars. Complex IQ evidence, timing metadata, frequency
@@ -158,14 +188,14 @@ Magnitude-only DFT/FFT output is not the canonical decoder input. Word recovery
 comes from complex IQ evidence via CPSM branch metrics, Viterbi/MLSE symbol
 decisions, and pulse-word decoding.
 
-## Unsupported In PR1 Through PR8
+## Unsupported In PR1 Through PR14
 
 The current deterministic lane rejects or leaves out the following behavior:
 
 - real RF capture;
 - external datasets;
 - direct 1 GHz RF sampling at 500 Msps;
-- real channelizer topology or channelizer separation claims;
+- production channelizer separation claims beyond the deterministic CPU fixture channelizer;
 - Doppler, noise, multipath, and phase-impairment behavior;
 - overlapped message separation;
 - Metal/GPU acceleration of the FHSS lane;

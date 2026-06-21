@@ -61,8 +61,9 @@ public:
       candidate.detected_pulse = FHSSDetectedPulseFromGraphX(decision.pulse);
       auto decoded =
           FHSSPulseWordDecoderKernel::Decode(candidate, viterbi, config_);
-      output.sidecar.decoded_pulses.push_back(
-          FHSSGraphXDecodedPulseWordFromKernel(decoded));
+      auto packet = FHSSGraphXDecodedPulseWordFromKernel(decoded);
+      packet.pulse = decision.pulse;
+      output.sidecar.decoded_pulses.push_back(std::move(packet));
     }
     output.sidecar.globally_ordered = true;
     output.sidecar.truth_metadata_required_for_decision = false;

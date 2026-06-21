@@ -179,6 +179,14 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
           << name << " must expose GraphX output ports";
       continue;
     }
+    if (name == "FHSSPulseMergeNode") {
+      EXPECT_NE(text.find("public FHSSPulseMergeSinkBase"),
+                std::string::npos)
+          << name << " must consume GraphX input ports";
+      EXPECT_NE(text.find("public graph::SourceNode"), std::string::npos)
+          << name << " must expose GraphX output ports";
+      continue;
+    }
     const std::regex real_graphx_node_regex(
         "class\\s+" + name +
             R"(\s*:[\s\S]*public\s+graph::Named(?:Source|Interior|Sink)Node)",
@@ -263,7 +271,10 @@ TEST(FHSSGraphXGuardrailTest,
   const auto text = Lowercase(ReadFile(doc));
 
   EXPECT_NE(text.find("cpu-only"), std::string::npos);
-  EXPECT_NE(text.find("real channelizer topology"), std::string::npos);
+  EXPECT_NE(text.find("production channelizer separation claims"),
+            std::string::npos);
+  EXPECT_NE(text.find("deterministic cpu fixture channelizer"),
+            std::string::npos);
   EXPECT_NE(text.find("doppler, noise, multipath"), std::string::npos);
   EXPECT_NE(text.find("overlap is unsupported"), std::string::npos);
   EXPECT_NE(text.find("metal/gpu acceleration of the fhss lane"),

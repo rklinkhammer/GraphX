@@ -42,8 +42,13 @@ public:
       if (!FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence)) {
         return std::nullopt;
       }
+      auto evidence_samples =
+          FHSSGraphXComplexEvidenceSamples(candidate.complex_evidence);
+      if (evidence_samples.empty()) {
+        return std::nullopt;
+      }
       auto decoded = CPSMViterbiDecoderKernel::Decode(
-          *candidate.complex_evidence.host_complex64_samples, config_);
+          evidence_samples, config_);
       if (!decoded) {
         return std::nullopt;
       }

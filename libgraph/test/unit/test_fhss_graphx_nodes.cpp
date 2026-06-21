@@ -584,9 +584,22 @@ TEST(FHSSGraphXNodeTest,
 
 TEST(FHSSGraphXNodeTest,
      PerChannelPulseDetectorUsesSingleChannelMetadataAndMerges) {
-  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
-      std::vector<std::complex<double>>(
-          FHSSProtocolConstants::kPulseWidthSamples, {1.0, 0.0}));
+  auto fixture_samples = std::make_shared<std::vector<std::complex<double>>>();
+  fixture_samples->reserve(FHSSProtocolConstants::kPulseWidthSamples);
+  constexpr double kTwoPi = 6.283185307179586476925286766559;
+  const auto frequency = FullReceiverFrequencyConfig().iq_offset_frequency_hz[24];
+  for (std::uint64_t n = 0; n < FHSSProtocolConstants::kPulseWidthSamples;
+       ++n) {
+    const double phase =
+        kTwoPi * frequency *
+        static_cast<double>(20'000u + n) /
+        FHSSProtocolConstants::kSampleRateHz;
+    fixture_samples->push_back(
+        std::complex<double>(std::cos(phase), std::sin(phase)));
+  }
+  auto samples =
+      std::static_pointer_cast<const std::vector<std::complex<double>>>(
+          fixture_samples);
   auto synthetic = SyntheticTokenFromSamples(samples, 20'000);
   FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
   auto downconverted = downconverter.Transfer(

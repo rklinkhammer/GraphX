@@ -140,12 +140,12 @@ public:
     params["translation_frequency_hz"] = config_.translation_frequency_hz;
     params["passthrough"] = config_.passthrough;
     params["sample_rate_hz"] = config_.sample_rate_hz;
-    return graph::JsonView(params);
+    return FHSSStableParameterJsonView(std::move(params));
   }
 
   [[nodiscard]] graph::JsonView
   GetParameterDescription(const std::string &) const override {
-    return graph::JsonView(nlohmann::json::object());
+    return FHSSStableParameterDescriptionJsonView(nlohmann::json::object());
   }
 
   [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
