@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
@@ -90,7 +91,23 @@ FHSSDecodeConfig DecodeConfig() {
 FHSSSyntheticIqGeneratorConfig GeneratorConfig() {
   FHSSSyntheticIqGeneratorConfig config{};
   config.decode_config = DecodeConfig();
-  config.payload_values = {0x0102'0304u, 0xA5A5'5A5Au};
+  FHSSScheduledMessageSpec message{};
+  message.message_id = 1;
+  for (const auto &pulse : Preamble()) {
+    message.pulses.push_back(FHSSMessagePulseSpec{
+        .frequency_index = pulse.frequency_index,
+        .value = pulse.word_value,
+        .role = FHSSMessagePulseRole::Preamble});
+  }
+  message.pulses.push_back(FHSSMessagePulseSpec{
+      .frequency_index = 1,
+      .value = 0x0102'0304u,
+      .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(FHSSMessagePulseSpec{
+      .frequency_index = 7,
+      .value = 0xA5A5'5A5Au,
+      .role = FHSSMessagePulseRole::Body});
+  config.messages.push_back(std::move(message));
   return config;
 }
 

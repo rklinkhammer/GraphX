@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace dsp::fhss {
@@ -66,6 +67,19 @@ inline bool FHSSJsonBool(const nlohmann::json &json, const std::string &field,
   return json.at(field).get<bool>();
 }
 
+inline std::string FHSSJsonString(const nlohmann::json &json,
+                                  const std::string &field,
+                                  std::string fallback = {}) {
+  if (!json.contains(field)) {
+    return fallback;
+  }
+  if (!json.at(field).is_string()) {
+    throw graph::ConfigError("FHSS config field '" + field +
+                             "' must be a string");
+  }
+  return json.at(field).get<std::string>();
+}
+
 inline std::vector<std::uint32_t>
 FHSSJsonUint32Array(const nlohmann::json &json, const std::string &field) {
   if (!json.contains(field) || !json.at(field).is_array()) {
@@ -85,14 +99,20 @@ FHSSJsonUint32Array(const nlohmann::json &json, const std::string &field) {
   return values;
 }
 
-inline FHSSDecodeConfig
-FHSSDecodeConfigFromJson(const graph::JsonView &cfg) {
-  const auto &json = cfg.Raw();
-  FHSSDecodeConfig config{};
-  config.frequency.occupied_bandwidth_hz =
+inline FHSSFrequencyConfig FHSSFrequencyConfigFromJson(const nlohmann::json &json) {
+  FHSSFrequencyConfig frequency{};
+  frequency.occupied_bandwidth_hz =
       FHSSJsonDouble(json, "occupied_bandwidth_hz", 5'000'000.0);
-  config.frequency.max_abs_cfo_hz =
-      FHSSJsonDouble(json, "max_abs_cfo_hz", 1'000.0);
+  frequency.max_abs_cfo_hz = FHSSJsonDouble(json, "max_abs_cfo_hz", 1'000.0);
+
+  if (json.contains("iq_center_frequency_hz")) {
+    const double center = FHSSJsonDouble(json, "iq_center_frequency_hz");
+    for (std::uint32_t index = 0; index < FHSSProtocolConstants::kFrequencyCount;
+         ++index) {
+      frequency.iq_offset_frequency_hz[index] =
+          RfFrequencyHz(index, frequency) - center;
+    }
+  }
 
   if (json.contains("iq_offsets")) {
     if (!json.at("iq_offsets").is_array()) {
@@ -103,31 +123,108 @@ FHSSDecodeConfigFromJson(const graph::JsonView &cfg) {
         throw graph::ConfigError("FHSS iq_offsets entries must be objects");
       }
       const auto index = FHSSJsonUint32(entry, "index");
-      if (index >= config.frequency.iq_offset_frequency_hz.size()) {
+      if (index >= frequency.iq_offset_frequency_hz.size()) {
         throw graph::ConfigError("FHSS iq offset index is outside [0, 63]");
       }
-      config.frequency.iq_offset_frequency_hz[index] =
+      frequency.iq_offset_frequency_hz[index] =
           FHSSJsonDouble(entry, "iq_offset_frequency_hz");
     }
   }
 
-  config.active_frequency_indices =
-      FHSSJsonUint32Array(json, "active_frequency_indices");
+  return frequency;
+}
 
-  if (!json.contains("preamble_pulses") ||
-      !json.at("preamble_pulses").is_array()) {
+inline std::vector<FHSSPreamblePulseSpec>
+FHSSPreamblePulseSpecsFromJsonArray(const nlohmann::json &json) {
+  if (!json.is_array()) {
     throw graph::ConfigError(
         "FHSS config field 'preamble_pulses' must be an array");
   }
-  config.preamble_pulses.reserve(json.at("preamble_pulses").size());
-  for (const auto &pulse : json.at("preamble_pulses")) {
+
+  std::vector<FHSSPreamblePulseSpec> preamble_pulses;
+  preamble_pulses.reserve(json.size());
+  for (const auto &pulse : json) {
     if (!pulse.is_object()) {
       throw graph::ConfigError("FHSS preamble_pulses entries must be objects");
     }
-    config.preamble_pulses.push_back(FHSSPreamblePulseSpec{
+    preamble_pulses.push_back(FHSSPreamblePulseSpec{
         .frequency_index = FHSSJsonUint32(pulse, "frequency_index"),
         .word_value = FHSSJsonUint32(pulse, "word_value")});
   }
+  return preamble_pulses;
+}
+
+inline FHSSMessagePulseRole FHSSMessagePulseRoleFromJson(
+    const nlohmann::json &json) {
+  if (json.contains("role")) {
+    const auto role = FHSSJsonString(json, "role");
+    if (role == "preamble") {
+      return FHSSMessagePulseRole::Preamble;
+    }
+    if (role == "body" || role == "payload") {
+      return FHSSMessagePulseRole::Body;
+    }
+    throw graph::ConfigError(
+        "FHSS message pulse role must be 'preamble' or 'body'");
+  }
+  if (json.contains("is_preamble")) {
+    return FHSSJsonBool(json, "is_preamble") ? FHSSMessagePulseRole::Preamble
+                                             : FHSSMessagePulseRole::Body;
+  }
+  throw graph::ConfigError(
+      "FHSS message pulse must specify 'role' or 'is_preamble'");
+}
+
+inline std::vector<FHSSScheduledMessageSpec>
+FHSSMessagesFromJson(const nlohmann::json &json) {
+  if (!json.contains("messages") || !json.at("messages").is_array()) {
+    throw graph::ConfigError("FHSS config field 'messages' must be an array");
+  }
+
+  std::vector<FHSSScheduledMessageSpec> messages;
+  messages.reserve(json.at("messages").size());
+  for (const auto &message_json : json.at("messages")) {
+    if (!message_json.is_object()) {
+      throw graph::ConfigError("FHSS messages entries must be objects");
+    }
+    if (!message_json.contains("pulses") ||
+        !message_json.at("pulses").is_array()) {
+      throw graph::ConfigError("FHSS message field 'pulses' must be an array");
+    }
+    FHSSScheduledMessageSpec message{};
+    message.message_id = FHSSJsonUint64(message_json, "message_id");
+    message.transmit_start_sample =
+        FHSSJsonUint64(message_json, "transmit_start_sample", 0);
+    message.pulses.reserve(message_json.at("pulses").size());
+    for (const auto &pulse_json : message_json.at("pulses")) {
+      if (!pulse_json.is_object()) {
+        throw graph::ConfigError("FHSS message pulse entries must be objects");
+      }
+      message.pulses.push_back(FHSSMessagePulseSpec{
+          .frequency_index = FHSSJsonUint32(pulse_json, "frequency_index"),
+          .value = FHSSJsonUint32(pulse_json, "value"),
+          .role = FHSSMessagePulseRoleFromJson(pulse_json)});
+    }
+    messages.push_back(std::move(message));
+  }
+  return messages;
+}
+
+inline FHSSDecodeConfig
+FHSSDecodeConfigFromJson(const graph::JsonView &cfg) {
+  const auto &json = cfg.Raw();
+  FHSSDecodeConfig config{};
+  config.frequency = FHSSFrequencyConfigFromJson(json);
+
+  config.active_frequency_indices =
+      FHSSJsonUint32Array(json, "active_frequency_indices");
+
+  if (!json.contains("preamble_pulses")) {
+    throw graph::ConfigError(
+        "FHSS config field 'preamble_pulses' must be an array");
+  }
+  config.preamble_pulses =
+      FHSSPreamblePulseSpecsFromJsonArray(json.at("preamble_pulses"));
 
   config.payload_random.rng_seed =
       FHSSJsonUint64(json, "payload_random_seed", 0);
@@ -140,8 +237,21 @@ inline FHSSSyntheticIqGeneratorConfig
 FHSSSyntheticIqGeneratorConfigFromJson(const graph::JsonView &cfg) {
   const auto &json = cfg.Raw();
   FHSSSyntheticIqGeneratorConfig config{};
-  config.decode_config = FHSSDecodeConfigFromJson(cfg);
-  config.payload_values = FHSSJsonUint32Array(json, "payload_values");
+  config.decode_config.frequency = FHSSFrequencyConfigFromJson(json);
+  config.decode_config.active_frequency_indices =
+      FHSSJsonUint32Array(json, "active_frequency_indices");
+  config.messages = FHSSMessagesFromJson(json);
+  if (!config.messages.empty()) {
+    config.decode_config.preamble_pulses =
+        PreamblePatternFromMessage(config.messages.front());
+  }
+  const auto idle_mode = FHSSJsonString(json, "idle_mode", "zero");
+  if (idle_mode != "zero" && idle_mode != "null") {
+    throw graph::ConfigError(
+        "FHSS PR10 source idle_mode must be 'zero' or 'null'");
+  }
+  config.idle_duration_samples =
+      FHSSJsonUint64(json, "idle_duration_samples", 0);
   config.enable_noise = FHSSJsonBool(json, "enable_noise", false);
   config.enable_doppler = FHSSJsonBool(json, "enable_doppler", false);
   config.enable_multipath = FHSSJsonBool(json, "enable_multipath", false);
@@ -191,9 +301,10 @@ inline const std::vector<std::string> &FHSSFixtureParameterNames() {
   static const std::vector<std::string> names{
       "active_frequency_indices",
       "preamble_pulses",
-      "payload_values",
-      "payload_random_seed",
-      "payload_random_deterministic",
+      "messages",
+      "idle_mode",
+      "idle_duration_samples",
+      "iq_center_frequency_hz",
       "iq_offsets",
       "occupied_bandwidth_hz",
       "max_abs_cfo_hz",
@@ -215,9 +326,10 @@ inline graph::JsonView FHSSFixtureParametersJson() {
   params = nlohmann::json::object({
       {"active_frequency_indices", nlohmann::json::array()},
       {"preamble_pulses", nlohmann::json::array()},
-      {"payload_values", nlohmann::json::array()},
-      {"payload_random_seed", 0},
-      {"payload_random_deterministic", true},
+      {"messages", nlohmann::json::array()},
+      {"idle_mode", "zero"},
+      {"idle_duration_samples", 0},
+      {"iq_center_frequency_hz", 0.0},
       {"iq_offsets", nlohmann::json::array()},
       {"occupied_bandwidth_hz", 5'000'000.0},
       {"max_abs_cfo_hz", 1'000.0},
@@ -238,20 +350,21 @@ inline graph::JsonView
 FHSSFixtureParameterDescription(const std::string &param_name) {
   static thread_local nlohmann::json description;
   const bool is_array = param_name == "active_frequency_indices" ||
+                        param_name == "messages" ||
                         param_name == "preamble_pulses" ||
-                        param_name == "payload_values" ||
                         param_name == "iq_offsets";
-  const bool is_bool = param_name == "payload_random_deterministic" ||
-                       param_name == "enable_noise" ||
+  const bool is_bool = param_name == "enable_noise" ||
                        param_name == "enable_doppler" ||
                        param_name == "enable_multipath" ||
                        param_name == "allow_overlap" ||
                        param_name == "truth_from_fixture";
   const bool is_number = param_name == "occupied_bandwidth_hz" ||
-                         param_name == "max_abs_cfo_hz";
+                         param_name == "max_abs_cfo_hz" ||
+                         param_name == "iq_center_frequency_hz";
+  const bool is_string = param_name == "idle_mode";
   description = {
       {"type", is_array ? "array" : (is_bool ? "boolean" :
-                   (is_number ? "number" : "integer"))},
+                   (is_number ? "number" : (is_string ? "string" : "integer")))},
       {"required", false},
       {"description", "FHSS deterministic fixture GraphX node configuration"},
   };

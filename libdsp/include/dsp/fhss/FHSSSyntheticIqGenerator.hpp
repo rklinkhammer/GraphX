@@ -15,18 +15,19 @@
 
 #include "dsp/fhss/FHSSProtocol.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstdint>
 #include <numbers>
-#include <random>
 #include <vector>
 
 namespace dsp::fhss {
 
 struct FHSSSyntheticIqGeneratorConfig {
   FHSSDecodeConfig decode_config{};
-  std::vector<std::uint32_t> payload_values;
+  std::vector<FHSSScheduledMessageSpec> messages;
+  std::uint64_t idle_duration_samples = 0;
   bool enable_noise = false;
   bool enable_doppler = false;
   bool enable_multipath = false;
@@ -36,7 +37,6 @@ struct FHSSSyntheticIqGeneratorConfig {
 struct FHSSSyntheticIqFixture {
   std::vector<std::complex<double>> samples;
   std::vector<FHSSTruthPulse> truth_pulses;
-  std::vector<std::uint32_t> payload_frequency_indices;
   FHSSTimingModel timing{};
 };
 
@@ -63,22 +63,6 @@ RectangularFullResponsePhasePulse(std::uint32_t sample_in_symbol,
                                   std::uint32_t samples_per_symbol) {
   return 0.5 * static_cast<double>(sample_in_symbol) /
          static_cast<double>(samples_per_symbol);
-}
-
-[[nodiscard]] inline std::vector<std::uint32_t>
-GenerateDeterministicPayloadFrequencyIndices(
-    const std::vector<std::uint32_t> &active_frequency_indices,
-    std::size_t payload_count, std::uint64_t seed) {
-  std::mt19937_64 rng(seed);
-  std::uniform_int_distribution<std::size_t> distribution(
-      0, active_frequency_indices.size() - 1u);
-
-  std::vector<std::uint32_t> indices;
-  indices.reserve(payload_count);
-  for (std::size_t i = 0; i < payload_count; ++i) {
-    indices.push_back(active_frequency_indices[distribution(rng)]);
-  }
-  return indices;
 }
 
 inline void AppendCpsmPulseSamples(std::vector<std::complex<double>> &samples,
@@ -117,6 +101,112 @@ inline void AppendCpsmPulseSamples(std::vector<std::complex<double>> &samples,
   }
 }
 
+inline void EnsureSampleSize(std::vector<std::complex<double>> &samples,
+                             std::uint64_t size) {
+  if (samples.size() < size) {
+    samples.resize(static_cast<std::size_t>(size),
+                   std::complex<double>{0.0, 0.0});
+  }
+}
+
+[[nodiscard]] inline FHSSVoidResult ValidateScheduledMessage(
+    const FHSSScheduledMessageSpec &message,
+    const FHSSDecodeConfig &decode_config) {
+  if (message.pulses.size() < FHSSProtocolConstants::kPreamblePulseCount) {
+    return std::unexpected(MakeError(
+        FHSSValidationCode::InvalidPreambleLength,
+        "scheduled FHSS message must include a 16-pulse preamble"));
+  }
+  if (auto length = ValidateMessageLength(
+          FHSSProtocolConstants::kPreamblePulseCount,
+          message.pulses.size() - FHSSProtocolConstants::kPreamblePulseCount);
+      !length) {
+    return length;
+  }
+
+  for (std::size_t i = 0; i < message.pulses.size(); ++i) {
+    const auto &pulse = message.pulses[i];
+    if (i < FHSSProtocolConstants::kPreamblePulseCount) {
+      if (pulse.role != FHSSMessagePulseRole::Preamble) {
+        return std::unexpected(MakeError(
+            FHSSValidationCode::InvalidPreambleFrequency,
+            "first 16 scheduled message pulses must be marked preamble"));
+      }
+    } else if (pulse.role != FHSSMessagePulseRole::Body) {
+      return std::unexpected(MakeError(
+          FHSSValidationCode::InvalidPayloadFrequency,
+          "scheduled message body pulses must be marked body"));
+    }
+  }
+
+  const auto preamble = PreamblePatternFromMessage(message);
+  if (auto validation =
+          ValidatePreamblePattern(preamble,
+                                  decode_config.active_frequency_indices);
+      !validation) {
+    return validation;
+  }
+  if (auto words = ValidatePreambleWordConsistency(preamble); !words) {
+    return words;
+  }
+
+  std::vector<std::uint32_t> body_frequency_indices;
+  body_frequency_indices.reserve(
+      message.pulses.size() - FHSSProtocolConstants::kPreamblePulseCount);
+  for (std::size_t i = FHSSProtocolConstants::kPreamblePulseCount;
+       i < message.pulses.size(); ++i) {
+    body_frequency_indices.push_back(message.pulses[i].frequency_index);
+  }
+  if (auto payload =
+          ValidatePayloadFrequencies(body_frequency_indices,
+                                     decode_config.active_frequency_indices);
+      !payload) {
+    return payload;
+  }
+
+  return {};
+}
+
+[[nodiscard]] inline FHSSVoidResult ValidateMessageSchedule(
+    const std::vector<FHSSScheduledMessageSpec> &messages,
+    const FHSSDecodeConfig &decode_config, const FHSSTimingModel &timing,
+    bool allow_overlap) {
+  if (allow_overlap && messages.size() > 1u) {
+    return std::unexpected(MakeError(
+        FHSSValidationCode::UnsupportedOverlap,
+        "FHSS PR10 scheduled messages do not support overlap"));
+  }
+
+  std::uint64_t previous_end_sample = 0;
+  bool have_previous = false;
+  for (const auto &message : messages) {
+    if (auto validation = ValidateScheduledMessage(message, decode_config);
+        !validation) {
+      return validation;
+    }
+
+    const auto message_duration =
+        static_cast<std::uint64_t>(message.pulses.size()) *
+        timing.pulse_period_samples;
+    const auto message_end_sample =
+        message.transmit_start_sample + message_duration;
+    if (message_end_sample < message.transmit_start_sample) {
+      return std::unexpected(
+          MakeError(FHSSValidationCode::InvalidGlobalTiming,
+                    "scheduled FHSS message sample range overflowed"));
+    }
+    if (have_previous && message.transmit_start_sample < previous_end_sample) {
+      return std::unexpected(MakeError(
+          FHSSValidationCode::UnsupportedOverlap,
+          "scheduled FHSS messages overlap, which is unsupported in PR10"));
+    }
+    previous_end_sample = message_end_sample;
+    have_previous = true;
+  }
+
+  return {};
+}
+
 [[nodiscard]] inline FHSSResult<FHSSSyntheticIqFixture>
 GenerateSyntheticIqFixture(const FHSSSyntheticIqGeneratorConfig &config) {
   if (auto flags = ValidateGeneratorFeatureFlags(config); !flags) {
@@ -140,40 +230,12 @@ GenerateSyntheticIqFixture(const FHSSSyntheticIqGeneratorConfig &config) {
       !iq) {
     return std::unexpected(iq.error());
   }
-  if (auto preamble = ValidatePreamblePattern(
-          config.decode_config.preamble_pulses,
-          config.decode_config.active_frequency_indices);
-      !preamble) {
-    return std::unexpected(preamble.error());
-  }
-  if (auto words =
-          ValidatePreambleWordConsistency(config.decode_config.preamble_pulses);
-      !words) {
-    return std::unexpected(words.error());
-  }
-  if (auto length =
-          ValidateMessageLength(config.decode_config.preamble_pulses.size(),
-                                config.payload_values.size());
-      !length) {
-    return std::unexpected(length.error());
-  }
-  if (!config.decode_config.payload_random.deterministic) {
-    return std::unexpected(MakeError(
-        FHSSValidationCode::InvalidPayloadFrequency,
-        "FHSS PR2 payload/body frequency selection must be deterministic"));
-  }
 
   const auto timing = DeriveTimingModel(config.decode_config.timing).value();
-  auto payload_frequency_indices = GenerateDeterministicPayloadFrequencyIndices(
-      config.decode_config.active_frequency_indices,
-      config.payload_values.size(),
-      config.decode_config.payload_random.rng_seed);
-
-  if (auto payload = ValidatePayloadFrequencies(
-          payload_frequency_indices,
-          config.decode_config.active_frequency_indices);
-      !payload) {
-    return std::unexpected(payload.error());
+  if (auto schedule = ValidateMessageSchedule(
+          config.messages, config.decode_config, timing, config.allow_overlap);
+      !schedule) {
+    return std::unexpected(schedule.error());
   }
 
   const auto frequency_map = BuildFrequencyMap(config.decode_config.frequency);
@@ -181,19 +243,27 @@ GenerateSyntheticIqFixture(const FHSSSyntheticIqGeneratorConfig &config) {
     return std::unexpected(frequency_map.error());
   }
 
-  const auto total_pulses = config.decode_config.preamble_pulses.size() +
-                            config.payload_values.size();
+  std::size_t total_pulses = 0;
+  std::uint64_t total_samples = config.idle_duration_samples;
+  for (const auto &message : config.messages) {
+    total_pulses += message.pulses.size();
+    const auto message_end_sample =
+        message.transmit_start_sample +
+        static_cast<std::uint64_t>(message.pulses.size()) *
+            timing.pulse_period_samples;
+    total_samples = std::max(total_samples, message_end_sample);
+  }
+
   FHSSSyntheticIqFixture fixture{};
   fixture.timing = timing;
-  fixture.payload_frequency_indices = payload_frequency_indices;
-  fixture.samples.reserve(total_pulses * timing.pulse_period_samples);
+  fixture.samples.reserve(static_cast<std::size_t>(total_samples));
   fixture.truth_pulses.reserve(total_pulses);
+  EnsureSampleSize(fixture.samples, total_samples);
 
-  auto append_pulse = [&](std::uint64_t pulse_index,
+  auto append_pulse = [&](std::uint64_t global_start_sample,
                           std::uint32_t frequency_index, std::uint32_t value,
-                          bool is_preamble) {
+                          bool is_preamble, std::uint64_t message_id) {
     const auto &entry = (*frequency_map)[frequency_index];
-    const auto global_start_sample = pulse_index * timing.pulse_period_samples;
     fixture.truth_pulses.push_back(
         FHSSTruthPulse{.global_start_sample = global_start_sample,
                        .duration_samples = timing.pulse_width_samples,
@@ -201,24 +271,31 @@ GenerateSyntheticIqFixture(const FHSSSyntheticIqGeneratorConfig &config) {
                        .rf_frequency_hz = entry.rf_frequency_hz,
                        .iq_offset_frequency_hz = entry.iq_offset_frequency_hz,
                        .value = value,
-                       .is_preamble = is_preamble});
+                       .is_preamble = is_preamble,
+                       .message_id = message_id});
 
+    const auto previous_size = fixture.samples.size();
+    fixture.samples.resize(static_cast<std::size_t>(global_start_sample));
     AppendCpsmPulseSamples(fixture.samples, global_start_sample, value,
                            entry.iq_offset_frequency_hz,
                            config.decode_config.timing, timing);
-    fixture.samples.insert(fixture.samples.end(), timing.pulse_gap_samples,
-                           std::complex<double>{0.0, 0.0});
+    EnsureSampleSize(fixture.samples,
+                     global_start_sample + timing.pulse_period_samples);
+    if (fixture.samples.size() < previous_size) {
+      fixture.samples.resize(previous_size);
+    }
   };
 
-  std::uint64_t pulse_index = 0;
-  for (const auto &pulse : config.decode_config.preamble_pulses) {
-    append_pulse(pulse_index, pulse.frequency_index, pulse.word_value, true);
-    ++pulse_index;
-  }
-  for (std::size_t i = 0; i < config.payload_values.size(); ++i) {
-    append_pulse(pulse_index, payload_frequency_indices[i],
-                 config.payload_values[i], false);
-    ++pulse_index;
+  for (const auto &message : config.messages) {
+    for (std::size_t i = 0; i < message.pulses.size(); ++i) {
+      const auto &pulse = message.pulses[i];
+      const auto global_start_sample =
+          message.transmit_start_sample +
+          static_cast<std::uint64_t>(i) * timing.pulse_period_samples;
+      append_pulse(global_start_sample, pulse.frequency_index, pulse.value,
+                   pulse.role == FHSSMessagePulseRole::Preamble,
+                   message.message_id);
+    }
   }
 
   return fixture;

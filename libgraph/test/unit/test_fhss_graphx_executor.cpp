@@ -166,7 +166,7 @@ TEST(FHSSGraphXExecutorTest,
 
   const auto active =
       diagnostics.at("active_frequency_indices").get<std::vector<std::uint32_t>>();
-  EXPECT_EQ(active, (std::vector<std::uint32_t>{1, 7, 12, 62}));
+  EXPECT_EQ(active, (std::vector<std::uint32_t>{24, 28, 32, 36}));
 
   ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array());
   ASSERT_EQ(diagnostics.at("decoded_pulses").size(),

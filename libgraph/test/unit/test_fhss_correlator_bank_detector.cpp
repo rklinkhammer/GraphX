@@ -4,6 +4,7 @@
 
 #include <complex>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "dsp/fhss/FHSSCorrelatorBankDetector.hpp"
@@ -59,7 +60,23 @@ FHSSDecodeConfig DecodeConfig() {
 FHSSSyntheticIqGeneratorConfig GeneratorConfig() {
   FHSSSyntheticIqGeneratorConfig config{};
   config.decode_config = DecodeConfig();
-  config.payload_values = {0x0102'0304u, 0xA5A5'5A5Au};
+  dsp::fhss::FHSSScheduledMessageSpec message{};
+  message.message_id = 1;
+  for (const auto &pulse : Preamble()) {
+    message.pulses.push_back(dsp::fhss::FHSSMessagePulseSpec{
+        .frequency_index = pulse.frequency_index,
+        .value = pulse.word_value,
+        .role = dsp::fhss::FHSSMessagePulseRole::Preamble});
+  }
+  message.pulses.push_back(dsp::fhss::FHSSMessagePulseSpec{
+      .frequency_index = 1,
+      .value = 0x0102'0304u,
+      .role = dsp::fhss::FHSSMessagePulseRole::Body});
+  message.pulses.push_back(dsp::fhss::FHSSMessagePulseSpec{
+      .frequency_index = 7,
+      .value = 0xA5A5'5A5Au,
+      .role = dsp::fhss::FHSSMessagePulseRole::Body});
+  config.messages.push_back(std::move(message));
   return config;
 }
 

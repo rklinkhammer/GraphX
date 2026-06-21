@@ -9,6 +9,7 @@
 #include <limits>
 #include <numbers>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "dsp/fhss/FHSSCpsmDecoder.hpp"
@@ -24,8 +25,11 @@ using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
 using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
+using dsp::fhss::FHSSMessagePulseRole;
+using dsp::fhss::FHSSMessagePulseSpec;
 using dsp::fhss::FHSSPreamblePulseSpec;
 using dsp::fhss::FHSSProtocolConstants;
+using dsp::fhss::FHSSScheduledMessageSpec;
 using dsp::fhss::FHSSSyntheticIqGeneratorConfig;
 using dsp::fhss::FHSSValidationCode;
 
@@ -70,6 +74,15 @@ FHSSSyntheticIqGeneratorConfig GeneratorConfig(std::uint32_t value) {
   config.decode_config.preamble_pulses[4].word_value = value;
   config.decode_config.preamble_pulses[8].word_value = value;
   config.decode_config.preamble_pulses[12].word_value = value;
+  FHSSScheduledMessageSpec message{};
+  message.message_id = 1;
+  for (const auto &pulse : config.decode_config.preamble_pulses) {
+    message.pulses.push_back(FHSSMessagePulseSpec{
+        .frequency_index = pulse.frequency_index,
+        .value = pulse.word_value,
+        .role = FHSSMessagePulseRole::Preamble});
+  }
+  config.messages.push_back(std::move(message));
   return config;
 }
 

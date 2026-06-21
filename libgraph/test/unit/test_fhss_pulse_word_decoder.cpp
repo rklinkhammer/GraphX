@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "dsp/fhss/FHSSCorrelatorBankDetector.hpp"
@@ -19,12 +20,15 @@ using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
 using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
+using dsp::fhss::FHSSMessagePulseRole;
+using dsp::fhss::FHSSMessagePulseSpec;
 using dsp::fhss::FHSSPreamblePulseSpec;
 using dsp::fhss::FHSSProtocolConstants;
 using dsp::fhss::FHSSPulseCandidate;
 using dsp::fhss::FHSSPulseWordDecodeStatus;
 using dsp::fhss::FHSSPulseWordDecoderConfig;
 using dsp::fhss::FHSSPulseWordDecoderKernel;
+using dsp::fhss::FHSSScheduledMessageSpec;
 using dsp::fhss::FHSSSyntheticIqGeneratorConfig;
 using dsp::fhss::FHSSValidationCode;
 
@@ -192,6 +196,15 @@ TEST(FHSSPulseWordDecoderTest,
   constexpr std::uint32_t kExpected = 0xA5A5'5A5Au;
   FHSSSyntheticIqGeneratorConfig generator_config{};
   generator_config.decode_config = DecodeConfig(kExpected);
+  FHSSScheduledMessageSpec message{};
+  message.message_id = 1;
+  for (const auto &pulse : generator_config.decode_config.preamble_pulses) {
+    message.pulses.push_back(FHSSMessagePulseSpec{
+        .frequency_index = pulse.frequency_index,
+        .value = pulse.word_value,
+        .role = FHSSMessagePulseRole::Preamble});
+  }
+  generator_config.messages.push_back(std::move(message));
   const auto fixture =
       dsp::fhss::GenerateSyntheticIqFixture(generator_config);
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;

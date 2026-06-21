@@ -64,6 +64,7 @@ enum class FHSSValidationCode {
   InvalidIqOffset,
   DuplicateIqOffset,
   PreambleWordMismatch,
+  InvalidMessageSchedule,
   DuplicatePulse,
   UnsupportedOverlap
 };
@@ -127,6 +128,21 @@ struct FHSSTruthPulse {
   double iq_offset_frequency_hz = 0.0;
   std::uint32_t value = 0;
   bool is_preamble = false;
+  std::uint64_t message_id = 0;
+};
+
+enum class FHSSMessagePulseRole { Preamble, Body };
+
+struct FHSSMessagePulseSpec {
+  std::uint32_t frequency_index = 0;
+  std::uint32_t value = 0;
+  FHSSMessagePulseRole role = FHSSMessagePulseRole::Body;
+};
+
+struct FHSSScheduledMessageSpec {
+  std::uint64_t message_id = 0;
+  std::uint64_t transmit_start_sample = 0;
+  std::vector<FHSSMessagePulseSpec> pulses;
 };
 
 struct FHSSDetectedPulse {
@@ -178,6 +194,25 @@ struct FHSSDecodeConfig {
   std::vector<FHSSPreamblePulseSpec> preamble_pulses;
   std::vector<std::uint32_t> payload_frequency_indices;
 };
+
+[[nodiscard]] inline FHSSPreamblePulseSpec
+PreambleSpecFromMessagePulse(const FHSSMessagePulseSpec &pulse) {
+  return FHSSPreamblePulseSpec{.frequency_index = pulse.frequency_index,
+                               .word_value = pulse.value};
+}
+
+[[nodiscard]] inline std::vector<FHSSPreamblePulseSpec>
+PreamblePatternFromMessage(const FHSSScheduledMessageSpec &message) {
+  std::vector<FHSSPreamblePulseSpec> preamble;
+  preamble.reserve(FHSSProtocolConstants::kPreamblePulseCount);
+  for (std::size_t i = 0;
+       i < message.pulses.size() &&
+       i < FHSSProtocolConstants::kPreamblePulseCount;
+       ++i) {
+    preamble.push_back(PreambleSpecFromMessagePulse(message.pulses[i]));
+  }
+  return preamble;
+}
 
 [[nodiscard]] inline FHSSValidationError MakeError(FHSSValidationCode code,
                                                    std::string message) {

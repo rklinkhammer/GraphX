@@ -50,6 +50,9 @@ The deterministic fixture uses:
 - `3300` gap samples.
 - `6500` samples per pulse period.
 - At most `256` total pulses, including the preamble.
+- Explicit source message schedules. `FHSSSyntheticIqSourceNode` is configured
+  with `messages[]`; each message has a stable `message_id`, a
+  `transmit_start_sample`, and an ordered pulse list.
 
 The RF metadata table has exactly 64 entries:
 
@@ -60,9 +63,36 @@ frequency_index in [0, 63]
 
 Indices `0` and `63` are reserved edge/guard entries. Selectable active
 frequencies are limited to indices `[1, 62]`. The current fixture uses exactly
-four active frequencies derived from the 16-pulse preamble pattern. Payload/body
-pulse frequencies are deterministic random selections from those four active
-preamble frequencies.
+four transmitted active frequencies derived from the 16-pulse preamble pattern.
+Payload/body pulse frequencies are not selected randomly by the source; every
+transmitted pulse explicitly supplies its `frequency_index`, `value`, and
+`role`.
+
+The source message schema is:
+
+```json
+{
+  "active_frequency_indices": [24, 28, 32, 36],
+  "iq_center_frequency_hz": 1240000000.0,
+  "messages": [
+    {
+      "message_id": 1,
+      "transmit_start_sample": 0,
+      "pulses": [
+        {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+        {"frequency_index": 28, "value": 16909060, "role": "body"}
+      ]
+    }
+  ],
+  "idle_mode": "zero",
+  "idle_duration_samples": 0
+}
+```
+
+The first 16 pulses of each message are the preamble and must be marked
+`"preamble"`. Remaining message pulses must be marked `"body"`. Zero-message
+source configs are allowed when they provide an explicit idle duration; they
+emit deterministic zero/NULL complex samples.
 
 The preamble is hop-only:
 
@@ -89,6 +119,17 @@ double iq_offset_frequency_hz; // sampled fixture offset
 The IQ offset is what the generator uses in the complex exponential and what
 the detector uses for dehopping. RF center frequency remains metadata for truth
 comparison and diagnostics.
+
+PR10 source configs may derive offsets from the RF metadata table and an IQ
+center:
+
+```text
+iq_offset_frequency_hz = rf_frequency_hz - iq_center_frequency_hz
+```
+
+The derived offsets are still validated against Nyquist, occupied-bandwidth,
+and CFO guards. The bundled fixture uses active indices close enough to the IQ
+center for those guards to pass in a 500 Msps complex-baseband span.
 
 ## CPSM Assumptions
 

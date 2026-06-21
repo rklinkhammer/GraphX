@@ -16,11 +16,13 @@ Global constraints for every PR:
 - Use `500 Msps`, `5 Mbps`, `100 samples/symbol`, `3200` pulse samples, `3300` gap samples, and `6500` samples per pulse period.
 - Use a 64-entry RF metadata table starting at 1 GHz with 8 MHz spacing.
 - Treat frequency indices `0` and `63` as reserved edge/guard entries; selectable active indices are `[1, 62]`.
-- Use only four active frequencies derived from the 16-pulse preamble pattern.
-- Payload/body frequencies must be deterministic random selections from the four active preamble frequencies.
-- Treat absolute RF frequencies as metadata; fixture IQ must use baseband/IF offset frequencies.
+- Use only four active transmitted frequencies derived from the 16-pulse preamble pattern unless the named PR explicitly changes message/source configuration.
+- PR1-PR9 payload/body frequencies use deterministic random selections from the four active preamble frequencies. PR10+ replaces this with explicit configured message pulse schedules.
+- Treat absolute RF frequencies as metadata; fixture IQ must use baseband/IF offset frequencies and explicit IQ reference-frame metadata.
+- PR11+ channelized work must preserve the invariant that the receiver/channelizer model has one logical channel per configured FHSS frequency entry; the four active transmitted frequencies are not a receiver channel-count limit.
+- PR11+ channelized work must include an explicit `FHSSDownconverterNode` before `ChannelizerNode`; the downconverter may be validated passthrough when source and channelizer IQ reference frames already match.
 - Reject unsupported overlapped messages in PR1 behavior.
-- Keep Doppler, noise, multipath, real channelizer, Metal/GPU, PDW diagnostics, and pulse-start acquisition out of scope unless the named PR explicitly includes them.
+- Keep Doppler, noise, multipath, Metal/GPU, PDW diagnostics, overlap-aware separation, and pulse-start acquisition out of scope unless the named PR explicitly includes them.
 - After PR7, FHSS `...Node` names mean real GraphX nodes using GraphX edge packet contracts. The earlier PR1-PR7 helper/pseudo-node scaffolding must be replaced and removed by PR7A-PR7D before PR8 graph JSON/runtime work.
 - Stop after the requested implementer or verifier report.
 
@@ -795,4 +797,439 @@ Required checks:
 
 Stop after verifier report.
 Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR9.md.
+```
+
+---
+
+## PR10: Explicit FHSS IQ Source Message Schedule And Frequency Mapping
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR10 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Explicit FHSS IQ Source Message Schedule And Frequency Mapping.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR8 end-to-end fixture behavior and PR7A-PR7D GraphX node contracts should already exist.
+
+Scope:
+- Replace the PR8 source fixture's implicit single-message/random-payload model with an explicit configured `messages[]` schedule.
+- Add message schedule protocol/config types with stable `message_id`, transmit time, and ordered pulse list.
+- Let each message specify `transmit_start_sample` or a validated equivalent transmit time converted to global samples.
+- Require every configured pulse to explicitly provide `frequency_index`, `uint32_t value`, and preamble/body role.
+- Remove source dependence on `payload_random_seed`, `payload_random_deterministic`, and random payload/body frequency selection once equivalent explicit-message tests exist.
+- Derive `iq_offset_frequency_hz` from supplied RF table entries and explicit `iq_center_frequency_hz`.
+- Validate all derived IQ offsets against Nyquist, occupied-bandwidth guard, and max CFO guard fields.
+- Support zero configured messages with explicit deterministic idle behavior and explicit output duration; default idle mode should be zero/NULL complex samples.
+- Fill gaps before, between, and after scheduled messages according to the explicit idle policy.
+- Reject reserved indices 0 and 63 in any transmitted preamble/body pulse.
+- Reject messages over 256 pulses including preamble.
+- Reject overlapping scheduled messages in PR10.
+- Preserve identical-frequency preamble word consistency.
+- Rewrite the PR8 fixture config into the new explicit-message schema.
+- Update docs for the explicit source message schedule.
+- Add focused config/source/generator tests and CMake wiring.
+
+Do not add receiver acquisition, overlap-aware separation, channelizer implementation, downconverter implementation, Doppler/noise behavior, Metal/GPU, or production RF claims.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR10.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR10 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Explicit FHSS IQ Source Message Schedule And Frequency Mapping.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Source config accepts `messages[]` with multiple messages.
+- Each message has a stable `message_id`.
+- Each message has `transmit_start_sample` or validated equivalent transmit time converted to global samples.
+- Every pulse explicitly supplies `frequency_index`, `value`, and preamble/body role.
+- Generated truth metadata matches configured message id, transmit time, global pulse start, duration, frequency index, RF metadata frequency, derived IQ offset frequency, value, and preamble flag.
+- Payload/body pulse frequencies are not selected randomly.
+- Removed/deprecated random payload fields are no longer required by the source path.
+- Source rejects reserved indices 0 and 63 in any transmitted pulse.
+- Source rejects overlength messages above 256 pulses including preamble.
+- Source rejects overlapping scheduled messages.
+- Source validates identical-frequency preamble word consistency.
+- IQ offsets are derived as `rf_frequency_hz - iq_center_frequency_hz` and checked against Nyquist, occupied-bandwidth, and CFO guards.
+- Zero-message config emits deterministic idle samples according to explicit idle mode and explicit output duration.
+- Existing deterministic PR8 fixture behavior remains covered through the new explicit-message schema.
+- No receiver acquisition, overlap-aware separation, channelizer implementation, downconverter implementation, Doppler/noise behavior, Metal/GPU, or production RF claim was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR10.md.
+```
+
+---
+
+## PR11: FHSS Channelizer And Per-Channel Edge Contracts
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR11 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS Channelizer And Per-Channel Edge Contracts.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR7A GraphX FHSS edge packet/contract types must already exist.
+- PR10 explicit source message schedule should exist, or any missing pieces must be named accurately in the report.
+
+Scope:
+- Define GraphX packet/contract types for the source-to-downconverter, downconverter-to-channelizer, channelizer-to-per-channel-detector, and per-channel-detector-to-merge edges.
+- Define an `FHSSDownconvertedIqPacket` or repository-consistent equivalent for IQ entering the channelizer.
+- Define `FHSSChannelizedIqPacket` or equivalent for per-frequency channel IQ.
+- Define `FHSSPerChannelPulseEvidencePacket` or equivalent for per-channel detector output.
+- Make downconverter metadata explicit: input IQ center/reference frequency, output/channelizer center/reference frequency, translation frequency, passthrough flag, phase convention, sample rate, and preserved global sample origin.
+- Make channelizer metadata explicit: channel id, frequency index, RF metadata frequency, IQ offset frequency, channel sample rate, decimation factor, filter group delay, and input global sample origin.
+- Enforce the channel-per-frequency invariant in contracts: channel count equals configured FHSS frequency count.
+- Permit reserved indices 0 and 63 as receiver guard/metadata channels while keeping them invalid for transmitted preamble/body selection.
+- Preserve complex IQ evidence and sample-time mapping through all contracts.
+- Ensure every new GraphX edge type is token-wrapped with `graph::gpu::accel::ControlToken<...>`.
+- Add focused compile/runtime contract tests.
+
+Do not implement downconverter DSP, channelizer DSP, per-channel detector DSP, graph JSON, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claims.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR11.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR11 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS Channelizer And Per-Channel Edge Contracts.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- `FHSSDownconvertedIqPacket` or equivalent exists for IQ entering the channelizer.
+- `FHSSChannelizedIqPacket` or equivalent exists for per-channel IQ.
+- `FHSSPerChannelPulseEvidencePacket` or equivalent exists for per-channel detector output.
+- Downconverter contract states passthrough versus frequency translation and preserves source global sample timing.
+- Downconverter contract includes input center/reference, output/channelizer center/reference, translation frequency, passthrough flag, phase convention, sample rate, and global sample origin.
+- Channelizer contract includes channel id, frequency index, RF metadata frequency, IQ offset frequency, channel sample rate, decimation factor, group delay, and input global sample origin.
+- Contract states channel count equals configured frequency count.
+- Channel ids map one-to-one with configured frequency indices.
+- Reserved indices 0 and 63 can exist as receiver channels while remaining invalid for transmitted preamble/body selection.
+- Complex IQ evidence and global sample-time mapping survive the packet contracts.
+- New GraphX edge types are `graph::gpu::accel::ControlToken<...>` token-wrapped.
+- No downconverter DSP, channelizer DSP, detector DSP, graph JSON, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or production RF claim was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR11.md.
+```
+
+---
+
+## PR12: FHSS DownconverterNode And Frequency-Parallel CPU ChannelizerNode
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR12 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS DownconverterNode And Frequency-Parallel CPU ChannelizerNode.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR11 downconverter/channelizer edge contracts must already exist.
+- PR7B-PR7D real GraphX node and plugin/provider conventions must already exist.
+
+Scope:
+- Add a real GraphX `FHSSDownconverterNode`.
+- Add a real GraphX `ChannelizerNode`.
+- Use PR11 packet contracts and `graph::gpu::accel::ControlToken<...>` port types for all node inputs/outputs.
+- Implement downconverter validated passthrough when source and channelizer IQ reference frames match.
+- Implement downconverter frequency translation by declared IQ offset delta when reference frames differ.
+- Ensure downconverter never mixes by absolute 1 GHz RF metadata at 500 Msps.
+- Reject implicit frequency-frame mismatches.
+- Implement CPU channelizer output with one logical channel packet per configured FHSS frequency index.
+- Preserve RF metadata frequency, IQ offset frequency, channel id, channel sample rate, decimation factor, group delay, and input global sample origin in every channel packet.
+- Allow reserved indices 0 and 63 as receiver guard/metadata channels while rejecting them as transmitted active/pulse frequencies.
+- Reject duplicate configured frequency indices and duplicate channel ids.
+- Add plugin/provider registration if these nodes are dynamically loadable in this PR.
+- Add focused GraphX node API, type-contract, registration, passthrough, frequency-translation, and channel-count tests.
+
+Do not replace the PR8 graph yet unless the roadmap explicitly wires it in a later PR.
+Do not add per-channel pulse detector implementation, graph JSON end-to-end executor wiring, real RF capture, production channelizer claims, Metal/GPU, Doppler/noise behavior, or overlap-aware separation.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR12.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR12 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: FHSS DownconverterNode And Frequency-Parallel CPU ChannelizerNode.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- `FHSSDownconverterNode` exists as a real GraphX node.
+- `ChannelizerNode` exists as a real GraphX node.
+- All node ports use `graph::gpu::accel::ControlToken<...>` carrying PR11 packet contracts.
+- Downconverter config declares source IQ center/reference, channelizer center/reference, translation frequency, and passthrough mode.
+- Downconverter passthrough preserves complex samples and global timing exactly when reference frames match.
+- Downconverter frequency translation mixes by declared IQ offset delta, not absolute 1 GHz RF metadata.
+- Downconverter rejects implicit frequency-frame mismatches.
+- Channelizer emits one channel packet per configured frequency index.
+- Channelizer enforces channel count equals configured frequency count.
+- Reserved indices 0 and 63 may exist as receiver channels but are rejected as transmitted active/pulse frequencies.
+- Duplicate configured frequency indices or duplicate channel ids are rejected.
+- Channel packets preserve RF metadata frequency, IQ offset frequency, channel id, channel sample rate, decimation factor, group delay, and input global sample origin.
+- Plugin/provider registration tests exist if nodes are exposed through plugins.
+- No per-channel detector implementation, graph JSON end-to-end executor wiring, real RF capture, production channelizer claim, Metal/GPU, Doppler/noise behavior, or overlap-aware separation was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR12.md.
+```
+
+---
+
+## PR13: PerChannelPulseDetectorNode And Merge Handoff
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR13 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: PerChannelPulseDetectorNode And Merge Handoff.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR11 channelized/per-channel packet contracts must already exist.
+- PR12 ChannelizerNode should already emit one channel packet per configured frequency.
+- PR3/PR7A pulse merge/candidate contracts must already exist.
+
+Scope:
+- Add a real GraphX `PerChannelPulseDetectorNode` for one channelized IQ stream.
+- Use PR11 packet contracts and `graph::gpu::accel::ControlToken<...>` port types.
+- Consume exactly one channel packet and emit detected pulse metadata in shared global sample time.
+- Use the single frequency index and channel metadata supplied by `ChannelizerNode`; do not scan across frequencies.
+- Preserve/dehop complex evidence for downstream CPSM branch metrics.
+- Emit frequency index, RF metadata frequency, IQ offset frequency, estimated center frequency, CFO/frequency error placeholder or estimate, SNR/confidence, detector id, packet sequence, channel id, and global timing.
+- Ensure output merges cleanly through `FHSSPulseMergeNode`.
+- Add plugin/provider registration if exposed through the plugin path.
+- Add focused GraphX node API, type-contract, registration, timing, metadata, confidence, and merge-handoff tests.
+
+Do not decode words, preamble, or CPSM symbol sequences.
+Do not add CPSM Viterbi/MLSE duplication, message assembly, graph JSON end-to-end executor wiring, Metal/GPU, Doppler/noise behavior, or overlap-aware separation.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR13.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR13 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: PerChannelPulseDetectorNode And Merge Handoff.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- `PerChannelPulseDetectorNode` exists as a real GraphX node.
+- All node ports use `graph::gpu::accel::ControlToken<...>` carrying PR11 packet contracts.
+- Detector consumes a single channel packet and emits detected pulse metadata in shared global sample time.
+- Detector channel metadata identifies exactly one configured frequency index.
+- Detector does not scan across frequencies.
+- Detector preserves/dehops complex evidence for CPSM branch metrics.
+- Detector reports frequency index, RF metadata frequency, IQ offset frequency, estimated center frequency, CFO/frequency error, SNR/confidence, detector id, packet sequence, channel id, and global timing.
+- Detector output is compatible with `FHSSPulseMergeNode`.
+- Plugin/provider registration tests exist if exposed through plugins.
+- Detector does not decode words, preamble, or CPSM symbol sequences.
+- No CPSM Viterbi/MLSE duplication, message assembly, graph JSON executor wiring, Metal/GPU, Doppler/noise behavior, or overlap-aware separation was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR13.md.
+```
+
+---
+
+## PR14: Channelized FHSS Graph JSON And Executor Test
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR14 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Channelized FHSS Graph JSON And Executor Test.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisites:
+- PR10 explicit message source schedule must already exist.
+- PR12 FHSSDownconverterNode and ChannelizerNode must already exist.
+- PR13 PerChannelPulseDetectorNode must already exist.
+- PR7A-PR7D and PR8 downstream GraphX FHSS nodes/contracts must already exist.
+
+Scope:
+- Add an alternate channelized FHSS graph JSON using:
+  `FHSSSyntheticIqSourceNode -> FHSSDownconverterNode -> ChannelizerNode -> PerChannelPulseDetectorNode[] -> FHSSPulseMergeNode -> FHSSPulseCandidateNode -> CPSMBranchMetricNode -> CPSMViterbiDecoderNode -> FHSSPulseWordDecoderNode -> FHSSPreambleDetectorNode -> FHSSMessageAssemblerNode -> FHSSMessageSinkNode`.
+- Load all FHSS nodes through the plugin/provider path.
+- Wire source IQ through the downconverter before channelization, even when configured as validated passthrough.
+- Instantiate one `PerChannelPulseDetectorNode` per configured frequency.
+- Prove detector node count equals configured frequency count.
+- Run the channelized deterministic fixture to completion through GraphExecutorBuilder/repository-consistent GraphX executor methods.
+- Verify decoded pulses match truth for start, duration, frequency index, and value.
+- Verify assembled message locks on hop-only preamble and validates the four-frequency active transmit set.
+- Emit diagnostics for channelizer sample-time mapping, channel ids, group delay/decimation, downconverter passthrough/translation state, synchronization assumption, unsupported overlap, and unsupported impairments.
+- Keep PR8 correlator-bank fixture graph available as a reference unless explicitly removed by a later PR.
+- Add focused graph config, plugin-loading, executor, truth-match, and diagnostics tests.
+
+Do not invent new GraphX adaptors or accessors.
+Do not add real RF capture, production channelizer separation claims, external datasets, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or canonical PDW diagnostics.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR14.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR14 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Channelized FHSS Graph JSON And Executor Test.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Channelized graph config uses `FHSSSyntheticIqSourceNode -> FHSSDownconverterNode -> ChannelizerNode -> PerChannelPulseDetectorNode[] -> FHSSPulseMergeNode`.
+- Graph config wires source IQ through the downconverter before channelization, even if passthrough.
+- Graph config loads all FHSS nodes through the plugin/provider path.
+- Graph config uses real GraphX FHSS nodes and token-wrapped packet contracts only.
+- One `PerChannelPulseDetectorNode` instance exists per configured frequency.
+- Detector node count equals configured frequency count.
+- Executor uses GraphExecutorBuilder/repository-consistent GraphX executor methods and runs the deterministic fixture to completion.
+- Decoded pulses match truth for start, duration, frequency index, and value.
+- Message locks on hop-only preamble and validates the four-frequency active transmit set.
+- Diagnostics include channelizer sample-time mapping, channel ids, group delay/decimation, downconverter passthrough/translation state, synchronization assumption, unsupported-overlap, and unsupported-impairment status.
+- PR8 correlator-bank graph remains available as reference unless roadmap explicitly removed it.
+- Graph remains CPU-only and uses no Metal/GPU nodes.
+- No invented GraphX adaptors/accessors, real RF capture, production channelizer claim, external dataset, Doppler/noise behavior, overlap-aware separation, or canonical PDW diagnostic path was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR14.md.
+```
+
+---
+
+## PR15: Channelized Lane Promotion And Correlator-Bank Deprecation Plan
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR15 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Channelized Lane Promotion And Correlator-Bank Deprecation Plan.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Prerequisite:
+- PR14 channelized graph JSON and executor test should already exist.
+
+Scope:
+- Decide and document whether the channelized graph is now the canonical FHSS fixture graph.
+- Mark the PR8 correlator-bank detector graph as a compatibility/reference topology or remove it if channelized coverage fully replaces it.
+- Consolidate docs, config naming, aliases, and guardrails around the selected canonical graph.
+- Add guardrail tests identifying the canonical FHSS graph config.
+- Add regression tests proving no doc/config labels the correlator-bank detector as production-like channelization.
+- If retained, document and test the correlator-bank graph as a reference fixture path only.
+- Keep at least one full deterministic FHSS executor lane covered in CI.
+
+Do not change protocol behavior, add production RF claims, add Metal/GPU, Doppler/noise behavior, overlap-aware separation, or canonical PDW diagnostics.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR15.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR15 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: Channelized Lane Promotion And Correlator-Bank Deprecation Plan.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Roadmap/docs/config clearly identify the canonical FHSS graph shape.
+- Correlator-bank detector graph is either removed after equivalent channelized coverage or clearly labeled compatibility/reference only.
+- Guardrail test identifies the canonical FHSS graph config.
+- Regression test proves no doc/config labels the correlator-bank detector as production-like channelization.
+- At least one full deterministic FHSS executor lane remains covered in CI.
+- No protocol behavior change, production RF claim, Metal/GPU, Doppler/noise behavior, overlap-aware separation, or canonical PDW diagnostic path was added.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR15.md.
+```
+
+---
+
+## PR16: RF Feasibility, Full Selectable-Frequency Strategy, And Impairment Plan
+
+### Implementer Agent
+
+```text
+Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Implement exactly PR16 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: RF Feasibility, Full Selectable-Frequency Strategy, And Impairment Plan.
+
+Use the implementer prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Scope:
+- Resolve or explicitly document deferred RF feasibility items before expanding receiver coverage claims or impairments.
+- Define occupied-bandwidth/channel-filter requirements for 5 Mbps CPSM on 8 MHz spacing, or explicitly keep them unresolved with no production channelizer claim.
+- Choose the future strategy for selectable-frequency coverage without pretending all 64 RF centers fit alias-free in one 500 Msps complex-baseband capture.
+- Strategy options may include higher sample rate, retuned sub-band windows, sparse active scheduling, or explicit alias/downconversion modeling.
+- Preserve the invariant that receiver configuration has one logical channel per configured frequency.
+- Define which impairment diagnostics and status values become canonical before implementing Doppler/noise/CFO/phase drift/multipath behavior.
+- Keep optional PDW diagnostics non-canonical unless a later PR explicitly changes the decoder contract.
+- Update roadmap/docs and add guardrail tests if new claims are introduced.
+- Add optional offline spectral-analysis fixture tests only if a deterministic occupied-bandwidth estimator is added.
+
+Do not implement Doppler/noise/CFO/multipath support, Metal/GPU, overlap-aware separation, external datasets, or production RF claims in this PR.
+
+Output the standard IMPLEMENTER summary.
+Save the report to plan/reviews/DSP_FHSS_DECODER_IMPL_PR16.md.
+```
+
+### Verifier Agent
+
+```text
+Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+
+Verify exactly PR16 from plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md: RF Feasibility, Full Selectable-Frequency Strategy, And Impairment Plan.
+
+Use the verifier prompt from: plan/agents/DSP_FHSS_DECODER_PR_AGENTS.md
+
+Required checks:
+- Plan/docs define occupied-bandwidth/channel-filter requirements or explicitly keep them unresolved with no production channelizer claim.
+- Plan/docs choose or clearly defer the future strategy for selectable-frequency coverage without claiming all 64 RF centers fit alias-free in one 500 Msps complex-baseband capture.
+- Plan/docs preserve the invariant that receiver configuration has one logical channel per configured frequency.
+- Plan/docs define canonical impairment diagnostics/status values before implementation, or explicitly defer them.
+- Optional PDW diagnostics remain non-canonical unless a later PR explicitly changes the decoder contract.
+- Guardrail tests exist where new claims are introduced.
+- No Doppler/noise/CFO/multipath support, Metal/GPU, overlap-aware separation, external dataset, or production RF claim was implemented.
+
+Stop after verifier report.
+Save the report to plan/reviews/DSP_FHSS_DECODER_VERIFY_PR16.md.
 ```
