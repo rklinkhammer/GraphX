@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <cmath>
+#include <complex>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -12,7 +14,9 @@
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
 #include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
+#include "dsp/fhss/ChannelizerNode.hpp"
 #include "dsp/fhss/FHSSCorrelatorBankDetectorNode.hpp"
+#include "dsp/fhss/FHSSDownconverterNode.hpp"
 #include "dsp/fhss/FHSSMessageAssemblerNode.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
 #include "dsp/fhss/FHSSPreambleDetectorNode.hpp"
@@ -62,6 +66,19 @@ FHSSFrequencyConfig FrequencyConfig() {
   config.iq_offset_frequency_hz[7] = -64'000'000.0;
   config.iq_offset_frequency_hz[12] = 48'000'000.0;
   config.iq_offset_frequency_hz[62] = 112'000'000.0;
+  return config;
+}
+
+FHSSFrequencyConfig FullReceiverFrequencyConfig() {
+  FHSSFrequencyConfig config{};
+  config.occupied_bandwidth_hz = 5'000'000.0;
+  config.max_abs_cfo_hz = 1'000.0;
+  const double iq_center_hz = 1'252'000'000.0;
+  for (std::uint32_t index = 0; index < FHSSProtocolConstants::kFrequencyCount;
+       ++index) {
+    config.iq_offset_frequency_hz[index] = RfFrequencyHz(index, config) -
+                                           iq_center_hz;
+  }
   return config;
 }
 
@@ -117,6 +134,58 @@ FHSSCorrelatorBankDetectorConfig DetectorConfig() {
   config.detector_id = 7;
   config.packet_sequence = 9;
   return config;
+}
+
+FHSSDownconverterConfig PassthroughDownconverterConfig() {
+  FHSSDownconverterConfig config{};
+  config.input_iq_center_frequency_hz = 1'252'000'000.0;
+  config.input_reference_frequency_hz = 1'252'000'000.0;
+  config.output_iq_center_frequency_hz = 1'252'000'000.0;
+  config.output_reference_frequency_hz = 1'252'000'000.0;
+  config.translation_frequency_hz = 0.0;
+  config.passthrough = true;
+  config.phase_convention =
+      FHSSGraphXDownconverterPhaseConvention::PassthroughNoPhaseRotation;
+  return config;
+}
+
+FHSSDownconverterConfig TranslationDownconverterConfig() {
+  FHSSDownconverterConfig config{};
+  config.input_iq_center_frequency_hz = 1'252'000'000.0;
+  config.input_reference_frequency_hz = 1'252'000'000.0;
+  config.output_iq_center_frequency_hz = 1'260'000'000.0;
+  config.output_reference_frequency_hz = 1'260'000'000.0;
+  config.translation_frequency_hz = 8'000'000.0;
+  config.passthrough = false;
+  config.phase_convention =
+      FHSSGraphXDownconverterPhaseConvention::
+          OutputTimesExpNegativeJTwoPiTranslationT;
+  return config;
+}
+
+FHSSChannelizerConfig ChannelizerConfig() {
+  FHSSChannelizerConfig config{};
+  config.frequency = FullReceiverFrequencyConfig();
+  config.receiver_frequency_indices = FHSSAllFrequencyIndices();
+  config.channel_ids = config.receiver_frequency_indices;
+  config.transmitted_active_frequency_indices = {1, 7, 12, 62};
+  config.transmitted_pulse_frequency_indices = {1, 7, 12, 62};
+  config.decimation_factor = 2;
+  config.channel_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz / 2.0;
+  config.filter_group_delay_input_samples = 0;
+  return config;
+}
+
+FHSSSyntheticIqToken SyntheticTokenFromSamples(
+    std::shared_ptr<const std::vector<std::complex<double>>> samples,
+    std::uint64_t global_start_sample = 0) {
+  FHSSSyntheticIqToken token{};
+  token.token_id = 123;
+  FHSSGraphXSampleTimeMap map{};
+  map.input_packet_global_start_sample = global_start_sample;
+  token.sidecar.iq =
+      FHSSGraphXComplexEvidenceFromHostSamples(samples, samples->size(), map);
+  return token;
 }
 
 FHSSMessageAssemblerConfig AssemblerConfig(
@@ -177,6 +246,8 @@ const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
       {"FHSSSyntheticIqSourceNode", "fhss_synthetic_iq_source_node"},
       {"FHSSCorrelatorBankDetectorNode",
        "fhss_correlator_bank_detector_node"},
+      {"FHSSDownconverterNode", "fhss_downconverter_node"},
+      {"ChannelizerNode", "channelizer_node"},
       {"FHSSPulseMergeNode", "fhss_pulse_merge_node"},
       {"FHSSPulseCandidateNode", "fhss_pulse_candidate_node"},
       {"CPSMBranchMetricNode", "cpsm_branch_metric_node"},
@@ -196,6 +267,10 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
       IsControlTokenV<FHSSCorrelatorBankDetectorNode::InputType<0>>);
   static_assert(
       IsControlTokenV<FHSSCorrelatorBankDetectorNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSDownconverterNode::InputType<0>>);
+  static_assert(IsControlTokenV<FHSSDownconverterNode::OutputType<0>>);
+  static_assert(IsControlTokenV<ChannelizerNode::InputType<0>>);
+  static_assert(IsControlTokenV<ChannelizerNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseCandidateNode::InputType<0>>);
@@ -220,6 +295,13 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                 typename TokenSidecar<
                     FHSSCorrelatorBankDetectorNode::OutputType<0>>::type,
                 FHSSDetectedPulseEvidencePacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<
+                    FHSSDownconverterNode::OutputType<0>>::type,
+                FHSSDownconvertedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<ChannelizerNode::OutputType<0>>::type,
+                FHSSChannelizedIqStreamPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<FHSSPulseMergeNode::OutputType<0>>::type,
                 FHSSPulseCandidateEvidencePacket>);
@@ -306,6 +388,142 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
                 .pulse.frequency.frequency_index,
             synthetic->sidecar.truth_pulses.front().frequency_index);
   EXPECT_FALSE(decoded->sidecar.truth_metadata_required_for_decision);
+}
+
+TEST(FHSSGraphXNodeTest,
+     DownconverterPassthroughPreservesSamplesAndGlobalTiming) {
+  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+      std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0},
+                                        {-1.0, 0.0}});
+  auto input = SyntheticTokenFromSamples(samples, 42'000);
+
+  FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
+  auto output = downconverter.Transfer(input,
+                                       std::integral_constant<std::size_t, 0>{},
+                                       std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(output.has_value());
+  EXPECT_EQ(output->token_id, input.token_id);
+  EXPECT_EQ(output->sidecar.iq.host_complex64_samples, samples);
+  EXPECT_EQ(output->sidecar.iq.sample_count, samples->size());
+  EXPECT_EQ(output->sidecar.iq.sample_time_map.input_packet_global_start_sample,
+            42'000u);
+  EXPECT_TRUE(output->sidecar.downconverter.passthrough);
+  EXPECT_DOUBLE_EQ(output->sidecar.downconverter.translation_frequency_hz, 0.0);
+  EXPECT_EQ(output->sidecar.downconverter.input_global_start_sample, 42'000u);
+  EXPECT_EQ(output->sidecar.downconverter.output_global_start_sample, 42'000u);
+}
+
+TEST(FHSSGraphXNodeTest,
+     DownconverterTranslatesByDeclaredDeltaNotAbsoluteRfMetadata) {
+  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+      std::vector<std::complex<double>>(4, {1.0, 0.0}));
+  auto input = SyntheticTokenFromSamples(samples, 0);
+
+  FHSSDownconverterNode downconverter(TranslationDownconverterConfig());
+  auto output = downconverter.Transfer(input,
+                                       std::integral_constant<std::size_t, 0>{},
+                                       std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(output.has_value());
+  ASSERT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(output->sidecar.iq));
+  ASSERT_EQ(output->sidecar.iq.host_complex64_samples->size(), 4u);
+
+  constexpr double kTwoPi = 6.283185307179586476925286766559;
+  const double radians_per_sample =
+      -kTwoPi * 8'000'000.0 / FHSSProtocolConstants::kSampleRateHz;
+  for (std::size_t i = 0; i < output->sidecar.iq.host_complex64_samples->size();
+       ++i) {
+    const auto expected =
+        std::complex<double>(std::cos(radians_per_sample *
+                                      static_cast<double>(i)),
+                             std::sin(radians_per_sample *
+                                      static_cast<double>(i)));
+    const auto actual = output->sidecar.iq.host_complex64_samples->at(i);
+    EXPECT_NEAR(actual.real(), expected.real(), 1.0e-12);
+    EXPECT_NEAR(actual.imag(), expected.imag(), 1.0e-12);
+  }
+  EXPECT_FALSE(output->sidecar.downconverter.passthrough);
+  EXPECT_DOUBLE_EQ(output->sidecar.downconverter.translation_frequency_hz,
+                   8'000'000.0);
+}
+
+TEST(FHSSGraphXNodeTest,
+     DownconverterRejectsImplicitFrequencyFrameMismatch) {
+  auto bad = TranslationDownconverterConfig();
+  bad.translation_frequency_hz = 1'000'000'000.0;
+  FHSSDownconverterNode downconverter(bad);
+  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+      std::vector<std::complex<double>>(4, {1.0, 0.0}));
+  auto input = SyntheticTokenFromSamples(samples);
+
+  auto output = downconverter.Transfer(input,
+                                       std::integral_constant<std::size_t, 0>{},
+                                       std::integral_constant<std::size_t, 0>{});
+  EXPECT_FALSE(output.has_value());
+}
+
+TEST(FHSSGraphXNodeTest,
+     ChannelizerEmitsOnePacketPerConfiguredFrequencyAndPreservesMetadata) {
+  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+      std::vector<std::complex<double>>(16, {1.0, 0.0}));
+  auto synthetic = SyntheticTokenFromSamples(samples, 10'000);
+  FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
+  auto downconverted = downconverter.Transfer(
+      synthetic, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(downconverted.has_value());
+
+  ChannelizerNode channelizer(ChannelizerConfig());
+  auto channelized = channelizer.Transfer(
+      *downconverted, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(channelized.has_value());
+  ASSERT_EQ(channelized->sidecar.channels.size(),
+            FHSSProtocolConstants::kFrequencyCount);
+  EXPECT_TRUE(channelized->sidecar.channel_count_matches_frequency_count);
+
+  const auto &first = channelized->sidecar.channels.front();
+  const auto &last = channelized->sidecar.channels.back();
+  EXPECT_EQ(first.channel.channel_id, 0u);
+  EXPECT_EQ(first.channel.frequency_index, 0u);
+  EXPECT_TRUE(first.receiver_guard_or_metadata_channel);
+  EXPECT_EQ(last.channel.channel_id, 63u);
+  EXPECT_EQ(last.channel.frequency_index, 63u);
+  EXPECT_TRUE(last.receiver_guard_or_metadata_channel);
+  EXPECT_FALSE(channelized->sidecar.channels[1].receiver_guard_or_metadata_channel);
+
+  const auto &channel = channelized->sidecar.channels[24];
+  EXPECT_EQ(channel.channel.channel_id, 24u);
+  EXPECT_EQ(channel.channel.frequency_index, 24u);
+  EXPECT_DOUBLE_EQ(channel.channel.rf_frequency_hz, RfFrequencyHz(24));
+  EXPECT_DOUBLE_EQ(channel.channel.iq_offset_frequency_hz,
+                   FullReceiverFrequencyConfig().iq_offset_frequency_hz[24]);
+  EXPECT_DOUBLE_EQ(channel.channel.channel_sample_rate_hz,
+                   FHSSProtocolConstants::kSampleRateHz / 2.0);
+  EXPECT_EQ(channel.channel.decimation_factor, 2u);
+  EXPECT_EQ(channel.channel.filter_group_delay_input_samples, 0);
+  EXPECT_EQ(channel.channel.input_global_start_sample, 10'000u);
+  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(channel.iq));
+  EXPECT_EQ(channel.iq.host_complex64_samples->size(), 8u);
+  EXPECT_FALSE(channel.truth_metadata_required_for_decision);
+}
+
+TEST(FHSSGraphXNodeTest,
+     ChannelizerRejectsReservedTransmitAndDuplicateReceiverConfiguration) {
+  auto config = ChannelizerConfig();
+  config.transmitted_active_frequency_indices = {0, 1, 7, 12};
+  EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
+
+  config = ChannelizerConfig();
+  config.transmitted_pulse_frequency_indices = {1, 7, 12, 63};
+  EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
+
+  config = ChannelizerConfig();
+  config.receiver_frequency_indices[5] = config.receiver_frequency_indices[4];
+  EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
+
+  config = ChannelizerConfig();
+  config.channel_ids[5] = config.channel_ids[4];
+  EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
 }
 
 TEST(FHSSGraphXNodeTest,

@@ -27,6 +27,8 @@ TEST(FHSSGraphXPacketContractTest, DefinesEveryTargetEdgePacketContract) {
   static_assert(std::is_default_constructible_v<FHSSDownconvertedIqPacket>);
   static_assert(std::is_default_constructible_v<FHSSChannelizedIqPacket>);
   static_assert(
+      std::is_default_constructible_v<FHSSChannelizedIqStreamPacket>);
+  static_assert(
       std::is_default_constructible_v<FHSSPerChannelPulseEvidencePacket>);
   static_assert(std::is_default_constructible_v<FHSSDetectedPulseEvidencePacket>);
   static_assert(
@@ -38,7 +40,7 @@ TEST(FHSSGraphXPacketContractTest, DefinesEveryTargetEdgePacketContract) {
   static_assert(std::is_default_constructible_v<FHSSAssembledMessagePacket>);
   static_assert(std::is_default_constructible_v<FHSSDiagnosticsPacket>);
 
-  ASSERT_EQ(kFHSSGraphXEdgeContracts.size(), 11u);
+  ASSERT_EQ(kFHSSGraphXEdgeContracts.size(), 12u);
   for (const auto &contract : kFHSSGraphXEdgeContracts) {
     EXPECT_NE(contract.edge_name, nullptr);
     EXPECT_NE(contract.packet_type_name, nullptr);
@@ -52,6 +54,7 @@ TEST(FHSSGraphXPacketContractTest, NewChannelizedEdgesAreAccelTokenSidecars) {
   static_assert(IsControlTokenV<FHSSSyntheticIqToken>);
   static_assert(IsControlTokenV<FHSSDownconvertedIqToken>);
   static_assert(IsControlTokenV<FHSSChannelizedIqToken>);
+  static_assert(IsControlTokenV<FHSSChannelizedIqStreamToken>);
   static_assert(IsControlTokenV<FHSSPerChannelPulseEvidenceToken>);
 
   static_assert(std::is_same_v<FHSSSyntheticIqToken,
@@ -63,6 +66,9 @@ TEST(FHSSGraphXPacketContractTest, NewChannelizedEdgesAreAccelTokenSidecars) {
   static_assert(std::is_same_v<FHSSChannelizedIqToken,
                                graph::gpu::accel::ControlToken<
                                    FHSSChannelizedIqPacket>>);
+  static_assert(std::is_same_v<FHSSChannelizedIqStreamToken,
+                               graph::gpu::accel::ControlToken<
+                                   FHSSChannelizedIqStreamPacket>>);
   static_assert(std::is_same_v<FHSSPerChannelPulseEvidenceToken,
                                graph::gpu::accel::ControlToken<
                                    FHSSPerChannelPulseEvidencePacket>>);

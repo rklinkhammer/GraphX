@@ -30,6 +30,7 @@ enum class FHSSGraphXEdgeContract {
   SyntheticIqOutput,
   DownconvertedIq,
   ChannelizedIq,
+  ChannelizedIqStream,
   PerChannelPulseEvidence,
   DetectedPulseEvidence,
   PulseCandidateEvidence,
@@ -47,7 +48,7 @@ struct FHSSGraphXEdgeContractDescriptor {
   bool future_accel_sidecar_compatible = true;
 };
 
-inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 11>
+inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 12>
     kFHSSGraphXEdgeContracts{{
         {FHSSGraphXEdgeContract::SyntheticIqOutput, "SyntheticIqOutput",
          "FHSSSyntheticIqOutputPacket", true},
@@ -55,6 +56,8 @@ inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 11>
          "FHSSDownconvertedIqPacket", true},
         {FHSSGraphXEdgeContract::ChannelizedIq, "ChannelizedIq",
          "FHSSChannelizedIqPacket", true},
+        {FHSSGraphXEdgeContract::ChannelizedIqStream, "ChannelizedIqStream",
+         "FHSSChannelizedIqStreamPacket", true},
         {FHSSGraphXEdgeContract::PerChannelPulseEvidence,
          "PerChannelPulseEvidence", "FHSSPerChannelPulseEvidencePacket", true},
         {FHSSGraphXEdgeContract::DetectedPulseEvidence,
@@ -240,6 +243,12 @@ struct FHSSChannelizedIqPacket {
   FHSSGraphXChannelMetadata channel{};
   FHSSGraphXComplexEvidence iq{};
   bool receiver_guard_or_metadata_channel = false;
+  bool truth_metadata_required_for_decision = false;
+};
+
+struct FHSSChannelizedIqStreamPacket {
+  std::vector<FHSSChannelizedIqPacket> channels;
+  bool channel_count_matches_frequency_count = false;
   bool truth_metadata_required_for_decision = false;
 };
 

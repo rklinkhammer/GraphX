@@ -106,6 +106,20 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
+    TARGET_NAME fhss_downconverter_node
+    SOURCE_FILE fhss_downconverter_node_plugin.cpp
+    DESCRIPTION "FHSS downconverter GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME channelizer_node
+    SOURCE_FILE channelizer_node_plugin.cpp
+    DESCRIPTION "FHSS frequency-parallel CPU channelizer GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
     TARGET_NAME fhss_pulse_merge_node
     SOURCE_FILE fhss_pulse_merge_node_plugin.cpp
     DESCRIPTION "FHSS pulse merge GraphX node"
