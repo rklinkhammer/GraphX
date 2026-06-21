@@ -17,35 +17,270 @@ The current graph architecture is retained. The main RF/signal-processing correc
 - keep detector timing/frequency evidence separate from CPSM branch metric/Viterbi sequence estimation;
 - preserve global sample-time mapping across any channelizer, detector, or merge boundary.
 
+
+## RF/SIGNAL-PROCESSING REVIEW UPDATE
+
+The existing graph architecture is retained. The corrections below tighten the RF and DSP assumptions without changing the node topology.
+
+### 1. Full 64-Frequency Channelization At 500 Msps Is Not Automatically Valid
+
+The current table has 64 RF metadata centers at 8 MHz spacing. The full edge-to-edge center span from index 0 to index 63 is:
+
+```text
+(63 - 0) * 8 MHz = 504 MHz
+```
+
+A complex sampled stream at 500 Msps has only a 500 MHz Nyquist-width interval. Therefore, all 64 centers cannot be represented as simultaneously active, alias-free complex-baseband channels with nonzero occupied bandwidth. This is true even before CFO, filter transition width, and guard requirements are considered.
+
+The selectable interior range `[1, 62]` spans:
+
+```text
+(62 - 1) * 8 MHz = 488 MHz
+```
+
+That interior set may fit into a 500 Msps complex-baseband fixture only if:
+
+```text
+occupied_bandwidth_hz + 2 * max_abs_cfo_hz + filter_transition_guard_hz <= 12 MHz
+```
+
+and only if the edge/guard channels `0` and `63` are not treated as simultaneously realized occupied channels.
+
+Roadmap correction:
+
+```text
+At 500 Msps, the first channelized fixture may instantiate logical metadata for all 64 indices, but physical/sample-domain channelization must be limited to a validated capture subset unless the occupied bandwidth and guard analysis proves the selected channel set fits inside the complex Nyquist interval. Reserved indices 0 and 63 may be metadata/guard entries, but they must not require occupied sampled channels in the 500 Msps fixture.
+```
+
+If the plan wants true simultaneous full-table channelization, it must choose a higher fixture sample rate or retuned capture windows. A safe rule is:
+
+```text
+required_sample_rate_hz >
+    (max_center_offset_hz - min_center_offset_hz)
+  + occupied_bandwidth_hz
+  + 2 * max_abs_cfo_hz
+  + filter_transition_guard_hz
+```
+
+### 2. 8 MHz Spacing Is Plausible For A Fixture But Still Requires Occupied-Bandwidth Proof
+
+The move from 4 MHz to 8 MHz spacing is directionally correct for a 5 Mbps CPSM waveform. However, the roadmap must not claim production-grade adjacent-channel separation until the CPSM occupied bandwidth is measured or bounded.
+
+For `h = 1/2` full-response rectangular CPM, the instantaneous frequency deviation scale is approximately:
+
+```text
+delta_f = h / (2 * T_b)
+        = 0.5 / (2 * 200 ns)
+        = 1.25 MHz
+```
+
+This does not by itself define occupied bandwidth. Burst envelope truncation, rectangular frequency pulse shape, receiver filter shape, and spectral mask convention all affect the usable bandwidth. PRs should therefore add either a deterministic spectral-occupancy measurement fixture or continue labeling the 8 MHz grid as fixture-grade only.
+
+Required test/analysis addition:
+
+```text
+Generate a representative CPSM pulse train and estimate occupied bandwidth under a declared threshold, such as 99% power bandwidth or -40 dBc bandwidth. Use that result only as fixture validation unless a real RF spectral mask is later adopted.
+```
+
+### 3. Channelizer Count Must Distinguish Logical Frequency Entries From Realized Sample-Domain Channels
+
+The current roadmap says channel count equals configured frequency count. That is acceptable as a logical GraphX contract, but it becomes RF-incorrect if interpreted as “all 64 RF channels are physically present in one 500 Msps complex-baseband sampled stream.”
+
+Roadmap correction:
+
+```text
+Configured frequency count = protocol/logical table size.
+Realized channel count = number of frequency entries included in the current capture/sub-band/channelizer configuration.
+For PR11-PR14, the planner must explicitly state whether ChannelizerNode instantiates all logical entries, only the active/capture subset, or metadata-only guard entries.
+```
+
+The graph topology does not change. The channelizer node simply needs a configuration distinction between:
+
+```text
+protocol_frequency_table[]
+capture_frequency_subset[]
+metadata_only_guard_indices[]
+```
+
+### 4. Detector And Viterbi Boundary Remains Correct
+
+The detector should emit timing/frequency hypotheses and dehopped complex evidence. It should not become an undocumented CPSM decoder. The CPSM branch metric and Viterbi/MLSE stages remain the owners of sequence decisions. This separation is architecturally correct and should be preserved.
+
+### 5. Rectangular Pulse Envelope Is Deterministic But RF-Noisy
+
+The current fixture uses rectangular active pulse gating. That is acceptable for deterministic CI, but it creates spectral splatter at pulse boundaries. The roadmap should explicitly state that raised-cosine or other amplitude tapering is future work and may change occupied bandwidth, detector thresholds, and truth-comparison tolerances.
+
+PR1-PR9 should keep the rectangular envelope for reproducibility, but must avoid RF-performance claims based on it.
+
+### 6. Synchronization Assumption Is Acceptable But Must Be Visible In Outputs
+
+`message_start_sample = 0` and known slot timing are valid PR1 assumptions. Diagnostics should include:
+
+```text
+synchronization_mode = known_start_sample
+message_start_sample = 0
+pulse_period_samples = 6500
+slot_alignment = integer_sample_aligned
+```
+
+Future acquisition can be added later without changing the graph.
+
+### 7. Missing Decisions To Add To The Roadmap
+
+The following decisions remain needed before RF/channelizer claims can be strengthened:
+
+1. Define the exact occupied-bandwidth metric: 99% power, -X dBc, or explicit spectral mask.
+2. Decide whether PR11-PR14 channelization realizes all 64 entries, only `[1,62]`, only the active four, or a capture subset.
+3. Decide whether guard indices `0` and `63` are metadata-only, instantiated empty channels, or actual filtered edge channels.
+4. Define channel filter passband, transition width, stopband attenuation, and group delay.
+5. Define `capture_center_frequency_hz` and `iq_center_frequency_hz` semantics for offset generation.
+6. Define whether IQ offsets are allowed to be negative, how they are ordered, and how channel id maps to frequency index.
+7. Define whether rectangular burst edges are acceptable for all deterministic tests or whether an optional tapered-envelope fixture is added later.
+8. Define whether terminal CPM phase is ignored, reported, or used as a weak consistency check.
+9. Define the maximum expected CFO/Doppler guard even while impairments are disabled.
+10. Define the minimum channelizer feasibility test that prevents accidental production RF claims.
+
 ## Decided Baseline
 
 - Sample rate: `500 Msps`.
 - Bit rate: `5 Mbps`.
 - Symbol timing: `100 samples/symbol`, `32 symbols/pulse`, `3200` pulse samples, `3300` gap samples, `6500` samples per pulse period.
 - Frequency table: 64 RF metadata entries; selectable active indices are `[1, 62]`; reserved edge indices `0` and `63` are invalid for preamble and payload selection.
+- Channelization invariant: the receiver/channelizer model must keep one
+  logical frequency identity per configured FHSS frequency entry. At `500 Msps`,
+  this must not be misread as a claim that all 64 RF centers are physically
+  realized as simultaneous alias-free sampled channels. Reserved edge indices
+  `0` and `63` may exist as guard/metadata entries, but they remain invalid for
+  transmitted preamble or payload/body pulses. Any realized channelizer must
+  explicitly state its capture subset and guard treatment.
 - Modulation: binary CPSM using `theta(t)=2*pi*h*sum_k a[k]*q(t-k*T_b)`.
 - Initial CPSM assumptions: `h=1/2`, rectangular full-response phase pulse, initial phase `0`, continuity inside each pulse only, terminal phase unconstrained unless checked by the decoder PR.
 - RF realism caveat: 5 Mbps CPSM on 8 MHz-spaced channels requires occupied-bandwidth/channel-filter validation before any production-like channelizer claim.
 - Preamble detection: hop-only. Preamble word values are fixture consistency / secondary validation only.
-- Payload/body frequency rule: randomly select from the four active preamble frequencies using a deterministic seed.
+- Current PR8 payload/body frequency rule: randomly select from the four active preamble frequencies using a deterministic seed.
+- Planned source/message rule: replace random payload selection with explicit message definitions. Each configured message must specify its transmit time and every pulse's frequency index and `uint32_t` value.
 - PR1 synchronization: `message_start_sample = 0`; pulse-start acquisition is future work.
 - PR1 overlap policy: reject and report overlapped messages as unsupported.
 - Diagnostics: final schema may be deferred, but PR1+ must expose at least `pulse_count`, `rejected_count`, `global_start_sample`, `frequency_index`, `confidence`, `viterbi_path_metric`, `decoded_value`, `preamble_lock`, and `truth_mismatch_count` when relevant.
 
-## Remaining Planning Decisions
+## Consolidated Deferred Work Backlog
 
-- Frequency representation: decide whether `frequency_index` is canonical with derived frequencies, or whether configs store both and validate consistency. PR1 should prefer canonical index plus `FHSSFrequencyMapEntry` validation.
-- Future synchronization: decide when to add pulse-start acquisition beyond `message_start_sample = 0`.
-- Doppler/noise policy: decide which config and diagnostic fields belong in PR1 even though impairments are disabled by default.
-- Error model: define status values for unknown frequency, low confidence, bad word decode, missing preamble, invalid timing config, unsupported overlap, unsupported Doppler/noise, and overlength message.
-- CPSM estimator details: pin down exact rectangular `q(t)` normalization/support, matched filter, Viterbi/MLSE state model, terminal phase policy, and confidence metric.
-- Bandwidth/channelizer feasibility: validate 5 Mbps CPSM spectral occupancy against 8 MHz channel spacing and choose channelizer filter width before claiming channelizer separation.
-- Detector/decoder metric handoff: decide whether detectors emit only timing/frequency candidates or pass reusable likelihood state downstream.
+The following items are deferred from the deterministic PR1-through-PR9 lane.
+They are collected here so later PRs can promote them deliberately rather than
+rediscovering them from scattered caveats.
+
+### Channelizer And Per-Channel Detector Path
+
+- Refactor the IQ source before channelizer work so tests can specify complete
+  message schedules rather than relying on implicit random payload frequency
+  selection.
+- Define an explicit `FHSSDownconverterNode` between the IQ source and
+  channelizer. The node may be a validated passthrough when the source IQ frame
+  already matches the channelizer input frame, but the graph must not hide that
+  frequency-frame assumption inside the channelizer.
+- Define a `ChannelizerNode` contract that takes sampled complex IQ and emits
+  one channel packet per configured FHSS frequency, preserving global sample
+  time, decimation factor, filter group delay, RF metadata frequency, IQ offset
+  frequency, frequency index, and channel id.
+- Define `PerChannelPulseDetectorNode` input/output contracts. The detector
+  should consume one channel stream and emit timing/frequency pulse evidence
+  for that channel only.
+- PR11+ channelizer work must preserve the invariant that channel count equals
+  configured frequency count. The four active preamble-derived frequencies are
+  a transmit/message active set, not a limit on receiver channel topology.
+- Define duplicate/collision semantics when two channel detectors emit
+  candidates for the same global pulse slot.
+- Keep CPSM branch metric/Viterbi as the owner of symbol sequence evidence.
+  Per-channel detectors may estimate timing/frequency and dehopped evidence,
+  but must not become undocumented word decoders.
+
+### RF And Spectral Feasibility
+
+- Validate 5 Mbps CPSM occupied bandwidth against 8 MHz hop spacing.
+- Choose channel filter passband width, transition bandwidth, stopband
+  attenuation, group delay, adjacent-channel rejection, and sample-rate/decimation
+  policy before making channelizer separation claims.
+- Decide whether future full selectable-frequency coverage uses a higher sample
+  rate, retuned sub-band windows, sparse active-frequency scheduling, or an
+  explicit aliasing/downconversion model. Whatever strategy is chosen, it must
+  retain one logical channel per configured FHSS frequency.
+- Preserve the rule that absolute 1 GHz RF frequencies are metadata while
+  fixture IQ uses baseband/IF offsets. The downconverter translates between
+  declared IQ reference frames; it must not directly mix against absolute
+  1 GHz RF at `500 Msps`.
+
+### Synchronization And Timing
+
+- Add source-message transmit time semantics before receiver acquisition work.
+  A message should be placed by `transmit_start_sample` or an equivalent
+  validated `transmit_start_seconds` converted to global samples.
+- Add pulse-start acquisition beyond `message_start_sample = 0`.
+- Add fractional timing error handling and message-start search.
+- Define how channelizer group delay is compensated before pulse merge,
+  provisional slot indexing, final slot indexing, and preamble lock.
+
+### Source Message Configuration
+
+- Replace `payload_values` plus `payload_random_seed` with an explicit
+  `messages[]` schema.
+- Each message must specify a stable `message_id`, a transmit time, and an
+  ordered pulse list.
+- Each pulse must specify `frequency_index`, `value`, and whether it belongs to
+  the preamble or body/payload.
+- The source should support zero messages with an explicit idle output policy:
+  prefer `idle_mode = "zero"` as the deterministic default; optionally add
+  deterministic noise later with a separate seed and impairment policy.
+- A zero-message source still needs an explicit output duration, such as
+  `idle_duration_samples` or the repository's equivalent source packet length.
+- Multiple scheduled messages must be rejected if their pulse windows overlap
+  until overlap-aware separation is implemented.
+- IQ offset frequencies should be derived from supplied RF frequencies and an
+  explicit downconversion/capture center, for example:
+
+```text
+rf_frequency_hz = rf_frequency_table_hz[frequency_index]
+iq_offset_frequency_hz = rf_frequency_hz - iq_center_frequency_hz
+```
+
+- Validation must still enforce Nyquist, occupied-bandwidth, and CFO guards for
+  all active pulse offsets.
+
+### Impairments And Estimator Robustness
+
+- Add deterministic noise, Doppler, CFO, phase drift, multipath, and symbol
+  timing error fixtures only after the noise-free channelized lane is stable.
+- Define confidence degradation and diagnostics under impairments.
+- Decide when unsupported-impairment rejection changes into supported
+  impairment estimation.
+
+### Message Association And Overlap
+
+- Keep PR1-through-PR9 overlap behavior as deterministic rejection.
+- Add overlap-aware pulse association and message separation in a later PR only
+  after channelized pulse timing and collision diagnostics are stable.
+
+### Error Model And Diagnostics
+
+- Define stable status values for unknown frequency, low confidence, bad word
+  decode, missing preamble, invalid timing config, unsupported overlap,
+  unsupported Doppler/noise, channelizer rejection, overlength message, and
+  truth mismatch.
+- Promote the current minimum diagnostics into a stable schema only after the
+  channelizer/per-channel detector contracts settle.
+- Keep optional PDW diagnostics separate from canonical decoder output.
+
+### Acceleration
+
+- Keep the FHSS lane CPU-only until channelized CPU correctness is locked.
+- Future Metal/GPU acceleration must preserve the PR7A semantic sidecar model
+  and `graph::gpu::accel::ControlToken<...>` edge contracts.
 
 
 ## RF And Signal-Processing Correctness Addendum
 
-The graph architecture is intentionally unchanged. The following items are additional correctness constraints and planning decisions that must be carried through the existing graph and PR sequence.
+The following items are additional correctness constraints and planning
+decisions that apply to the current PR1-through-PR9 fixture graph and must be
+carried forward into the PR11+ channelizer/per-channel detector sequence.
 
 ### RF Metadata Versus Simulated IQ Frequencies
 
@@ -209,10 +444,47 @@ must replace every previous pseudo-node with a GraphX node and rewrite tests to
 use GraphX node contracts. The old pre-GraphX pseudo-node classes and direct
 helper-node tests must be removed; backward compatibility is not required.
 
-Longer-term channelized shape:
+The roadmap now has two graph shapes:
+
+- **Current PR8 CPU fixture graph:** uses `FHSSCorrelatorBankDetectorNode` as a
+  deterministic, known-slot, four-active-frequency stand-in for channelized
+  detection.
+- **Longer-term channelized graph:** introduces `FHSSDownconverterNode`,
+  `ChannelizerNode`, and per-frequency/per-channel pulse detectors, then keeps
+  the existing merge, CPSM decode, pulse-word, preamble, assembler, and sink
+  contracts downstream.
+
+The migration should preserve the downstream PR7A packet contracts. The
+channelizer/per-channel detector path replaces only the detector front end:
 
 ```text
 FHSSSyntheticIqSourceNode
+  -> FHSSDownconverterNode
+  -> ChannelizerNode
+      -> PerChannelPulseDetectorNode[frequency 0]
+      -> PerChannelPulseDetectorNode[frequency 1]
+      -> ...
+      -> PerChannelPulseDetectorNode[frequency N-1]
+  -> FHSSPulseMergeNode
+  -> FHSSPulseCandidateNode
+  -> CPSMBranchMetricNode
+  -> CPSMViterbiDecoderNode
+  -> FHSSPulseWordDecoderNode
+  -> FHSSPreambleDetectorNode
+  -> FHSSMessageAssemblerNode
+  -> FHSSMessageSinkNode
+```
+
+The invariant is that `N` equals the number of configured FHSS frequency
+entries. With the full 64-entry table, `N = 64`; indices `0` and `63` are still
+reserved for transmission even if guard/metadata channels are instantiated.
+
+Longer-term channelized shape once full selectable-frequency receiver coverage
+is explicitly planned:
+
+```text
+FHSSSyntheticIqSourceNode
+  -> FHSSDownconverterNode
   -> ChannelizerNode
       -> PerChannelPulseDetectorNode[]
   -> FHSSPulseMergeNode
@@ -229,7 +501,7 @@ PR1-friendly CPU shape without a real channelizer:
 
 ```text
 FHSSSyntheticIqSourceNode
-  -> CorrelatorBankDetectorNode
+  -> FHSSCorrelatorBankDetectorNode
   -> FHSSPulseMergeNode
   -> FHSSPulseCandidateNode
   -> CPSMBranchMetricNode
@@ -273,6 +545,7 @@ Tests to add:
 - Identical preamble frequencies require identical preamble word values in generated truth fixtures.
 - IQ offset validation rejects any active offset whose occupied-bandwidth guard would exceed the `500 Msps` Nyquist interval.
 - Full-table validation documents that all 64 RF centers cannot be represented alias-free in one `500 Msps` complex-baseband span while preserving 8 MHz spacing.
+- Interior selectable-set validation documents the remaining 12 MHz Nyquist margin for `[1,62]` and requires `occupied_bandwidth_hz + 2*CFO + filter_guard <= 12 MHz` before claiming simultaneous interior-set channelization.
 
 Tests to delete:
 
@@ -951,11 +1224,529 @@ CI-safe or local-only:
 
 - CI-safe.
 
-## Future Boundary: Channelizer, Doppler/Noise, Metal, And PDW Diagnostics
+## PR10: Explicit FHSS IQ Source Message Schedule And Frequency Mapping
 
 Purpose:
 
-- Capture future work without pulling it into the first deterministic FHSS lane.
+- Replace the PR8 source fixture's implicit single-message/random-payload model
+  with an explicit configured message schedule.
+- Let `FHSSSyntheticIqSourceNode` generate IQ from a set of configured messages,
+  each with a transmit time and a complete ordered pulse list.
+- Derive `iq_offset_frequency_hz` from supplied RF frequency values and an
+  explicit IQ/downconversion center instead of requiring every active offset to
+  be hard-coded independently.
+- Define deterministic idle output behavior when no messages are configured.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/FHSSProtocol.hpp` or equivalent protocol/config
+  header for message schedule types.
+- `libdsp/include/dsp/fhss/FHSSSyntheticIqGenerator.hpp`.
+- `libdsp/include/dsp/fhss/FHSSSyntheticIqSourceNode.hpp`.
+- `libdsp/include/dsp/fhss/FHSSGraphXConfig.hpp`.
+- `libdsp/config/fhss_cpsm_fixture_500msps.json`.
+- FHSS generator/source/config tests under `libgraph/test/unit`.
+- `docs/dsp/fhss_decoder.md` for the explicit message schedule schema.
+
+Files to delete:
+
+- Remove or deprecate source config fields that exist only for implicit random
+  payload selection once equivalent explicit-message tests exist:
+  `payload_values`, `payload_random_seed`, and
+  `payload_random_deterministic`.
+
+Tests to add:
+
+- Source config accepts `messages[]` with multiple messages.
+- Each message has a stable `message_id`.
+- Each message has `transmit_start_sample` or a validated equivalent transmit
+  time converted to global samples.
+- Each pulse explicitly supplies `frequency_index`, `value`, and preamble/body
+  role.
+- Generated truth metadata matches configured message id, transmit time,
+  global pulse start, duration, frequency index, RF metadata frequency, derived
+  IQ offset frequency, value, and preamble flag.
+- Gaps before, between, and after messages are filled according to the explicit
+  idle policy.
+- Payload/body pulse frequencies are not selected randomly.
+- The source rejects reserved indices `0` and `63` in any message pulse.
+- The source rejects overlength messages above 256 pulses including preamble.
+- The source rejects overlapping scheduled messages in PR10.
+- The source validates identical-frequency preamble word consistency.
+- IQ offsets are derived as `rf_frequency_hz - iq_center_frequency_hz` and
+  checked against Nyquist, occupied-bandwidth, and CFO guards.
+- No-message config emits deterministic idle samples according to explicit
+  `idle_mode` and explicit output duration; default should be zero/NULL
+  complex samples, not random noise.
+- Tests prove any random-noise idle mode, if added, is deterministic and kept
+  separate from Doppler/noise impairment support.
+
+Tests to delete:
+
+- Tests whose only purpose is deterministic random payload frequency selection,
+  after explicit message schedule coverage replaces them.
+
+Acceptance criteria:
+
+- `FHSSSyntheticIqSourceNode` can be configured through the existing GraphX
+  `Configure` path with a full message schedule.
+- A message completely specifies all transmitted pulse frequency indices and
+  pulse values and has a stable `message_id`.
+- The source no longer needs a random seed to select payload/body frequencies.
+- Frequency metadata can be supplied as RF table values plus an IQ center; IQ
+  offsets are derived and validated.
+- Messages can start at nonzero transmit times.
+- Multiple messages are allowed when their scheduled sample windows do not
+  overlap.
+- Zero-message source behavior is explicit and deterministic, including the
+  number of idle samples emitted.
+- Existing PR8 end-to-end fixture behavior remains covered by rewriting the
+  fixture config into the new explicit-message schema.
+- No receiver acquisition, overlap support, channelizer implementation,
+  Doppler/noise behavior, Metal/GPU execution, or production RF claim is added.
+
+Risks:
+
+- Updating the source schema will require matching updates to detector,
+  assembler truth generation, docs, and PR8 graph JSON tests.
+- Supporting multiple non-overlapping messages may expose assumptions in the
+  current one-message assembler; keep overlap unsupported unless a later PR
+  adds association/tracking.
+
+Rollback plan:
+
+- Restore the PR8 source config schema and deterministic-random payload tests.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR11: FHSS Channelizer And Per-Channel Edge Contracts
+
+Purpose:
+
+- Define the GraphX packet contracts needed to replace the PR8
+  correlator-bank front end with an explicit downconverter, channelizer, and
+  per-channel pulse detectors.
+- Define the `FHSSDownconverterNode` edge contract between synthetic/source IQ
+  and channelizer input. Passthrough is allowed when the input and output IQ
+  reference frames match, but the passthrough must be explicit and validated.
+- Preserve global sample-time mapping through channelization before any
+  channelizer implementation is added.
+- Make the channel-per-frequency invariant explicit: every configured FHSS
+  frequency entry has exactly one logical channel contract.
+- Keep transmit active-set validation separate from receiver channel topology;
+  the four active preamble-derived frequencies do not limit channel count.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/` for channelized FHSS packet/metadata contracts.
+- FHSS GraphX packet contract tests under `libgraph/test/unit`.
+- `docs/dsp/fhss_decoder.md` if a short architecture note is needed.
+
+Files to delete:
+
+- None.
+
+Tests to add:
+
+- Compile-time tests that channelizer input/output and per-channel detector
+  input/output edge types are `graph::gpu::accel::ControlToken<...>` sidecars.
+- Contract tests for channel id, frequency index, RF metadata frequency, IQ
+  offset frequency, channel sample rate, decimation factor, group delay, and
+  input global sample origin.
+- Contract tests for downconverter input center/reference frequency,
+  output/channelizer center frequency, translation frequency, passthrough flag,
+  phase convention, sample rate, and preserved global sample origin.
+- Tests proving global sample time can be reconstructed after channelization.
+- Tests proving channel ids map one-to-one with configured frequency indices.
+- Tests proving reserved indices `0` and `63` can exist as receiver channels
+  while remaining invalid for transmitted preamble/body selection.
+
+Tests to delete:
+
+- None.
+
+Acceptance criteria:
+
+- `FHSSChannelizedIqPacket` or equivalent contract exists for per-channel IQ.
+- `FHSSDownconvertedIqPacket` or equivalent contract exists for IQ entering the
+  channelizer.
+- `FHSSPerChannelPulseEvidencePacket` or equivalent contract exists for
+  per-channel detector output.
+- The downconverter contract states whether the operation is passthrough or
+  frequency translation and preserves source global sample timing.
+- The contract states that channel count equals configured frequency count.
+- Contracts preserve complex IQ evidence and global sample-time mapping.
+- Contracts do not expose raw FHSS packet payloads as GraphX node port types.
+- No channelizer implementation, detector implementation, graph JSON, Metal/GPU
+  execution, Doppler/noise behavior, or production RF claim is added.
+
+Risks:
+
+- Over-generalizing the channelizer contract could make the CPU lane harder to
+  review.
+- Under-specifying group delay or decimation could make later pulse merge
+  timing ambiguous.
+
+Rollback plan:
+
+- Remove the new packet contracts and tests.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR12: FHSS DownconverterNode And Frequency-Parallel CPU ChannelizerNode
+
+Purpose:
+
+- Add a CPU `FHSSDownconverterNode` that converts source IQ into the
+  channelizer reference frame, or validates explicit passthrough when no
+  frequency translation is required.
+- Add a CPU `ChannelizerNode` for the deterministic FHSS fixture using one
+  logical output channel per configured FHSS frequency.
+- Produce per-channel complex IQ packets with explicit sample-time mapping for
+  later per-channel pulse detectors.
+- Keep the implementation fixture-grade and do not claim production channelizer
+  separation.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/FHSSDownconverterNode.hpp` or repository-consistent
+  name.
+- `libdsp/src/dsp/FHSSDownconverterNode.cpp`.
+- `libdsp/include/dsp/fhss/ChannelizerNode.hpp` or repository-consistent name.
+- `libdsp/src/dsp/ChannelizerNode.cpp`.
+- FHSS plugin/provider wiring if the node is dynamically loadable in this PR.
+- FHSS GraphX node tests and guardrails.
+- `docs/dsp/fhss_decoder.md` for the fixture-only channelizer note if needed.
+
+Files to delete:
+
+- None.
+
+Tests to add:
+
+- Downconverter config declares source IQ center/reference, channelizer
+  center/reference, translation frequency, and passthrough mode.
+- Downconverter passthrough mode preserves complex samples and global timing
+  exactly when source and channelizer reference frames match.
+- Downconverter frequency-translation mode mixes by the declared IQ offset
+  delta, not by absolute 1 GHz RF metadata.
+- Downconverter rejects implicit frequency-frame mismatches.
+- Channelizer config may include reserved indices `0` and `63` as receiver
+  channels, but rejects them as transmitted active/pulse frequencies.
+- Channelizer emits one channel packet per configured frequency index.
+- Channelizer rejects duplicate configured frequency indices or duplicate
+  channel ids.
+- Channel packets preserve RF metadata frequency, IQ offset frequency, channel
+  id, channel sample rate, decimation factor, group delay, and input global
+  sample origin.
+- Channelized complex evidence remains usable by downstream per-channel pulse
+  detection.
+- Type/registration tests prove `ChannelizerNode` is a real GraphX node with
+  token-wrapped edges.
+- Type/registration tests prove `FHSSDownconverterNode` is a real GraphX node
+  with token-wrapped edges.
+
+Tests to delete:
+
+- None.
+
+Acceptance criteria:
+
+- `FHSSDownconverterNode` exists as a real GraphX node and is plugin-loadable if
+  exposed through the plugin path.
+- The downconverter emits PR11 downconverted IQ packet contracts and makes
+  passthrough versus translation explicit.
+- `ChannelizerNode` exists as a real GraphX node and is plugin-loadable if
+  exposed through the plugin path.
+- The node uses PR11 channelized packet contracts.
+- The node enforces a documented mapping between configured frequency entries and realized channel outputs. If the fixture realizes fewer than all logical entries at `500 Msps`, the node must expose the capture subset and metadata-only guard treatment explicitly.
+- The first implementation may still use fixture-safe IQ offsets, but it must
+  not collapse multiple frequencies into one channel.
+- The node does not replace the PR8 graph yet unless explicitly wired in a
+  later PR.
+- No real RF capture, production channelizer claim, Metal/GPU execution,
+  Doppler/noise behavior, or overlap-aware separation is added.
+
+Risks:
+
+- A simple mixer/filter/downsample path may not represent production
+  channelizer quality. Label it as fixture-grade until occupied bandwidth and
+  filter requirements are validated.
+- Incorrect group-delay reporting would break merge timing later.
+
+Rollback plan:
+
+- Remove the downconverter/channelizer nodes, plugin registration, and tests.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR13: PerChannelPulseDetectorNode And Merge Handoff
+
+Purpose:
+
+- Add `PerChannelPulseDetectorNode` for one channelized IQ stream.
+- Replace the correlator-bank detector's monolithic active-frequency ranking
+  with per-channel pulse candidate extraction while leaving CPSM sequence
+  estimation downstream.
+- Emit the same semantic detected-pulse/candidate evidence needed by
+  `FHSSPulseMergeNode`.
+
+Files to touch:
+
+- `libdsp/include/dsp/fhss/PerChannelPulseDetectorNode.hpp` or
+  repository-consistent name.
+- `libdsp/src/dsp/PerChannelPulseDetectorNode.cpp`.
+- FHSS plugin/provider wiring if exposed through the plugin path.
+- FHSS GraphX node tests and guardrails.
+
+Files to delete:
+
+- None.
+
+Tests to add:
+
+- Detector consumes a single channel packet and emits detected pulse metadata
+  in shared global sample time.
+- Detector channel metadata identifies exactly one configured frequency index.
+- Detector preserves/dehops complex evidence for CPSM branch metrics.
+- Detector reports frequency index, RF metadata frequency, IQ offset frequency,
+  estimated center frequency, CFO/frequency error placeholder or estimate,
+  SNR/confidence, detector id, packet sequence, and channel id.
+- Detector output merges cleanly through `FHSSPulseMergeNode`.
+- Detector does not decode words, preamble, or CPSM symbol sequences.
+- Type/registration tests prove `PerChannelPulseDetectorNode` is a real GraphX
+  node with token-wrapped edges.
+
+Tests to delete:
+
+- None.
+
+Acceptance criteria:
+
+- Per-channel detector output is compatible with `FHSSPulseMergeNode`.
+- Per-channel detector preserves complex evidence and global sample-time
+  mapping.
+- Detector does not scan across frequencies; it uses the single frequency index
+  and channel metadata supplied by `ChannelizerNode`.
+- No CPSM Viterbi/MLSE duplication, word decode, preamble detection, message
+  assembly, Metal/GPU execution, Doppler/noise behavior, or overlap-aware
+  separation is added.
+
+Risks:
+
+- Pulse timing in channelized samples can drift if group delay and decimation
+  are not handled precisely.
+- Detector confidence may need later refinement under noise/Doppler.
+
+Rollback plan:
+
+- Remove the per-channel detector node, plugin registration, and tests.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR14: Channelized FHSS Graph JSON And Executor Test
+
+Purpose:
+
+- Add an alternate end-to-end FHSS graph JSON that uses
+  `FHSSDownconverterNode -> ChannelizerNode -> PerChannelPulseDetectorNode[] -> FHSSPulseMergeNode`.
+- Keep the PR8 correlator-bank fixture graph available as a reference until the
+  channelized lane has equivalent coverage.
+- Prove the channelized CPU lane decodes the deterministic fixture to the same
+  message truth while keeping one logical channel per configured frequency.
+
+Files to touch:
+
+- `libdsp/config/` for a channelized FHSS fixture graph JSON.
+- `libgraph/test/unit` for channelized executor tests.
+- `docs/dsp/fhss_decoder.md` for the new graph command/test reference.
+
+Files to delete:
+
+- None.
+
+Tests to add:
+
+- Graph config loads `FHSSDownconverterNode`, `ChannelizerNode`, and one
+  `PerChannelPulseDetectorNode` instance per configured frequency through the
+  plugin/provider path.
+- Graph config wires source IQ through the downconverter before channelization,
+  even when the downconverter is configured as validated passthrough.
+- Test config proves the detector node count equals the configured frequency
+  count.
+- Executor runs the channelized deterministic fixture to completion.
+- Decoded pulses match truth for start, duration, frequency index, and value.
+- Message locks on hop-only preamble and validates the active set.
+- Diagnostics include channelizer sample-time mapping, channel ids, group
+  delay/decimation, downconverter passthrough/translation state,
+  synchronization assumption, and unsupported-overlap and
+  unsupported-impairment rejection.
+- Test proves the graph remains CPU-only and uses no Metal/GPU nodes.
+
+Tests to delete:
+
+- None initially.
+
+Acceptance criteria:
+
+- Channelized CPU graph passes in CI and preserves complex IQ through word
+  recovery.
+- PR8 correlator-bank graph and PR14 channelized graph produce equivalent
+  decoded message truth on the deterministic fixture.
+- The graph does not claim production channelizer separation or that the full
+  64-entry RF table is alias-free in one 500 Msps complex-baseband capture.
+- No real RF capture, external dataset, Metal/GPU execution, Doppler/noise
+  behavior, overlap-aware separation, or canonical PDW diagnostic path is added.
+
+Risks:
+
+- Runtime graph fan-out/fan-in for one detector per configured frequency may
+  expose GraphX scheduling or completion assumptions.
+- Equivalent decode may require careful channelizer timing compensation.
+
+Rollback plan:
+
+- Remove the channelized graph JSON and executor tests; keep PR11-PR13 contracts
+  and nodes if independently valid.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR15: Channelized Lane Promotion And Correlator-Bank Deprecation Plan
+
+Purpose:
+
+- Decide when the channelized graph becomes the primary FHSS fixture graph.
+- Mark the correlator-bank detector graph as a PR1 compatibility/reference
+  topology or remove it if the channelized lane fully replaces it.
+- Consolidate documentation and guardrails around the selected canonical graph.
+
+Files to touch:
+
+- `docs/dsp/fhss_decoder.md`.
+- `libdsp/config/` graph config naming or aliases.
+- FHSS executor and guardrail tests.
+- Roadmap/review notes if the correlator-bank graph is retained as reference.
+
+Files to delete:
+
+- Optional: the PR8 correlator-bank graph config and dedicated tests only if the
+  channelized graph is explicitly promoted and equivalent coverage exists.
+
+Tests to add:
+
+- Guardrail test identifying the canonical FHSS graph config.
+- Regression test proving no doc/config labels the correlator-bank detector as
+  production-like channelization.
+- If retained, test that the correlator-bank graph is documented as a reference
+  fixture path only.
+
+Tests to delete:
+
+- Optional correlator-bank-only executor tests after equivalent channelized
+  coverage exists.
+
+Acceptance criteria:
+
+- The roadmap and docs clearly identify the canonical FHSS graph shape.
+- No ambiguity remains between fixture correlator-bank detection and the
+  longer-term channelizer/per-channel detector topology.
+- CI still covers at least one full deterministic FHSS executor lane.
+
+Risks:
+
+- Removing the correlator-bank graph too early could make regressions harder to
+  diagnose.
+- Keeping both graphs indefinitely could split attention and confuse users.
+
+Rollback plan:
+
+- Restore the PR8 correlator-bank graph as the canonical fixture graph.
+
+CI-safe or local-only:
+
+- CI-safe.
+
+## PR16: RF Feasibility, Full Selectable-Frequency Strategy, And Impairment Plan
+
+Purpose:
+
+- Resolve the deferred RF feasibility items before expanding receiver coverage
+  claims or adding impairments.
+- Choose the strategy for scanning/selecting from the interior `[1, 62]`
+  frequency set without pretending all 64 RF centers fit alias-free in one
+  500 Msps baseband capture.
+- Preserve the invariant that a receiver configuration has one logical channel
+  per configured frequency, even if physical capture must use higher sample
+  rate, retuned sub-band windows, or explicit downconversion to realize those
+  channels.
+- Define the testable plan for Doppler/noise/CFO/phase drift and optional PDW
+  diagnostics without implementing them in the channelized CPU fixture PRs.
+
+Files to touch:
+
+- `plan/roadmap/DSP_FHSS_DECODER_PR_ROADMAP.md`.
+- `docs/dsp/fhss_decoder.md`.
+- Optional analysis notes under `plan/reviews/` or `docs/dsp/`.
+
+Files to delete:
+
+- None.
+
+Tests to add:
+
+- Documentation/guardrail tests only if new claims are introduced.
+- Optional offline spectral-analysis fixture tests if a deterministic
+  occupied-bandwidth estimator is added.
+
+Tests to delete:
+
+- None.
+
+Acceptance criteria:
+
+- The plan defines occupied-bandwidth/channel-filter requirements or explicitly
+  keeps them unresolved with no production channelizer claim.
+- The plan chooses higher sample rate, retuned sub-band windows, sparse active
+  scheduling, or explicit alias/downconversion modeling for future full
+  selectable-frequency coverage.
+- The plan defines which impairment diagnostics and status values become
+  canonical before implementation.
+- Optional PDW diagnostics remain non-canonical unless a later PR explicitly
+  changes the decoder contract.
+
+Risks:
+
+- RF-realism analysis could force changes to fixture defaults or channel
+  spacing assumptions.
+- Premature full-table RF realism claims could obscure the simpler
+  frequency-parallel message decoding goal.
+
+Rollback plan:
+
+- Revert to fixture-safe configured frequencies while preserving the
+  channel-per-frequency invariant.
+
+CI-safe or local-only:
+
+- CI-safe for docs/guardrails; local-only if external RF analysis tooling is
+  introduced.
+
+## Future Boundary After The Channelized CPU Lane
+
+Purpose:
+
+- Capture work that remains beyond the PR11-through-PR16 channelized CPU
+  migration path.
 
 Files to touch:
 
@@ -975,16 +1766,16 @@ Tests to delete:
 
 Acceptance criteria:
 
-- Future work remains explicitly out of scope for PR1 through PR9, including the PR7A-PR7D GraphX node correction gate.
-- Candidate future work is limited to:
-  - real channelizer topology and filter-width validation;
-  - occupied-bandwidth measurement/estimation for the selected CPSM pulse shape;
-  - explicit full-table/selectable-frequency scanning strategy if preserving 8 MHz spacing at 500 Msps is insufficient;
+- The PR11-through-PR16 sequence moves toward a CPU channelizer and per-channel
+  pulse detector without adding production RF claims.
+- Work that remains explicitly deferred after that sequence includes:
   - Doppler/noise/phase-offset impairments and estimator robustness;
-  - pulse-start acquisition beyond `message_start_sample = 0`;
+  - pulse-start acquisition beyond `message_start_sample = 0`, unless promoted
+    earlier by a dedicated synchronization PR;
   - overlap-aware message separation;
-  - Metal acceleration after CPU correctness is locked;
-  - optional PDW diagnostics that do not become the canonical decoder input.
+  - Metal acceleration after channelized CPU correctness is locked;
+  - optional PDW diagnostics that do not become the canonical decoder input
+    unless a later PR explicitly changes the decoder contract.
 
 Risks:
 
