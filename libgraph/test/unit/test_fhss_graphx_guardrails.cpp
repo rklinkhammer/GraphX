@@ -13,6 +13,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 namespace {
 
 std::filesystem::path RepositoryRoot() {
@@ -28,6 +30,13 @@ std::string ReadFile(const std::filesystem::path &path) {
   std::ostringstream buffer;
   buffer << input.rdbuf();
   return buffer.str();
+}
+
+nlohmann::json LoadJson(const std::filesystem::path &path) {
+  std::ifstream input(path);
+  nlohmann::json json;
+  input >> json;
+  return json;
 }
 
 std::vector<std::filesystem::path>
@@ -306,6 +315,70 @@ TEST(FHSSGraphXGuardrailTest,
   EXPECT_NE(text.find("scaffolding is not the current node model"),
             std::string::npos);
   EXPECT_NE(text.find("not the current node model"), std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest, FhssCanonicalGraphConfigIsChannelized) {
+  const auto root = RepositoryRoot();
+  const auto config_dir = root / "libdsp" / "config";
+  const auto canonical =
+      config_dir / "fhss_cpsm_channelized_fixture_500msps.json";
+  const auto reference = config_dir / "fhss_cpsm_fixture_500msps.json";
+  ASSERT_TRUE(std::filesystem::exists(canonical));
+  ASSERT_TRUE(std::filesystem::exists(reference));
+
+  const auto canonical_json = LoadJson(canonical);
+  EXPECT_EQ(canonical_json.at("fhss_graph_role").get<std::string>(),
+            "canonical_channelized_fixture");
+  EXPECT_TRUE(canonical_json.at("canonical_fhss_graph").get<bool>());
+  EXPECT_FALSE(canonical_json.at("reference_only").get<bool>());
+
+  const auto reference_json = LoadJson(reference);
+  EXPECT_EQ(reference_json.at("fhss_graph_role").get<std::string>(),
+            "reference_correlator_bank_fixture");
+  EXPECT_FALSE(reference_json.at("canonical_fhss_graph").get<bool>());
+  EXPECT_TRUE(reference_json.at("reference_only").get<bool>());
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssDocsAndConfigsKeepCorrelatorBankReferenceOnly) {
+  const auto root = RepositoryRoot();
+  const std::vector<std::filesystem::path> paths{
+      root / "docs" / "dsp" / "fhss_decoder.md",
+      root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json",
+      root / "libdsp" / "config" /
+          "fhss_cpsm_channelized_fixture_500msps.json",
+  };
+  const std::vector<std::string> forbidden_phrases{
+      "correlator-bank production-like channelization",
+      "correlator bank production-like channelization",
+      "correlator-bank graph is canonical",
+      "correlator bank graph is canonical",
+      "correlator-bank topology is canonical",
+      "correlator bank topology is canonical",
+      "canonical correlator-bank",
+      "canonical correlator bank",
+      "production-like correlator-bank",
+      "production-like correlator bank",
+  };
+
+  for (const auto &path : paths) {
+    ASSERT_TRUE(std::filesystem::exists(path)) << path;
+    const auto text = Lowercase(ReadFile(path));
+    for (const auto &phrase : forbidden_phrases) {
+      EXPECT_EQ(text.find(phrase), std::string::npos)
+          << path << " must not label the correlator-bank graph as "
+          << "canonical or production-like channelization";
+    }
+  }
+
+  const auto doc =
+      Lowercase(ReadFile(root / "docs" / "dsp" / "fhss_decoder.md"));
+  EXPECT_NE(doc.find("canonical fhss fixture graph"), std::string::npos);
+  EXPECT_NE(doc.find("channelized graph"), std::string::npos);
+  EXPECT_NE(doc.find("compatibility and"), std::string::npos);
+  EXPECT_NE(doc.find("reference topology"), std::string::npos);
+  EXPECT_NE(doc.find("must not be described as production-like channelization"),
+            std::string::npos);
 }
 
 TEST(FHSSGraphXGuardrailTest,

@@ -1,5 +1,9 @@
 {
   "name": "fhss_cpsm_fixture_500msps",
+  "fhss_graph_role": "reference_correlator_bank_fixture",
+  "canonical_fhss_graph": false,
+  "reference_only": true,
+  "description": "PR8 compatibility/reference fixture. This correlator-bank topology is not production-like channelization.",
   "execution_backend": "auto",
   "backend_fallback_policy": "strict",
   "resolver_diagnostics": true,

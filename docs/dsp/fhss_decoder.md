@@ -1,23 +1,49 @@
 # DSP FHSS Decoder Fixture
 
 This document describes the deterministic GraphX FHSS CPSM fixture lanes added
-through PR1 through PR14. They are CPU-only test fixture and decoder pipelines. They
-is not a production RF receiver, not a claim of compatibility with any external
-RF waveform, and not a direct 1 GHz RF sampling model.
+through PR1 through PR15. They are CPU-only test fixture and decoder pipelines.
+They are not production RF receivers, not claims of compatibility with any
+external RF waveform, and not direct 1 GHz RF sampling models.
 
 ## Current Graph
 
 The canonical FHSS implementation uses real GraphX nodes, dynamically loadable
-plugins, and GraphX edge packet contracts. The deleted pre-GraphX pseudo-node
-scaffolding is not the current node model.
+plugins, and GraphX edge packet contracts. The canonical FHSS fixture graph is
+the channelized graph:
 
-The PR8 correlator-bank reference fixture config is:
+```text
+libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
+```
+
+Its top-level config metadata sets:
+
+```json
+{
+  "fhss_graph_role": "canonical_channelized_fixture",
+  "canonical_fhss_graph": true
+}
+```
+
+The deleted pre-GraphX pseudo-node scaffolding is not the current node model.
+
+The PR8 correlator-bank fixture config is retained only as a compatibility and
+reference topology:
 
 ```text
 libdsp/config/fhss_cpsm_fixture_500msps.json
 ```
 
-The CPU lane is:
+Its top-level config metadata sets:
+
+```json
+{
+  "fhss_graph_role": "reference_correlator_bank_fixture",
+  "canonical_fhss_graph": false,
+  "reference_only": true
+}
+```
+
+The reference CPU lane is:
 
 ```text
 FHSSSyntheticIqSourceNode
@@ -32,13 +58,13 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageSinkNode
 ```
 
-The PR14 channelized fixture config is:
+The canonical PR14/PR15 channelized fixture config is:
 
 ```text
 libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
 ```
 
-The channelized CPU lane is:
+The canonical channelized CPU lane is:
 
 ```text
 FHSSSyntheticIqSourceNode
@@ -55,7 +81,7 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageSinkNode
 ```
 
-The PR14 graph always wires the source through `FHSSDownconverterNode` before
+The canonical graph always wires the source through `FHSSDownconverterNode` before
 channelization, even when the downconverter is configured as validated
 passthrough. `ChannelizerNode` exposes exactly 64 GraphX output ports, one per
 frequency index. Output port `N` feeds one `PerChannelPulseDetectorNode` for
@@ -188,7 +214,12 @@ Magnitude-only DFT/FFT output is not the canonical decoder input. Word recovery
 comes from complex IQ evidence via CPSM branch metrics, Viterbi/MLSE symbol
 decisions, and pulse-word decoding.
 
-## Unsupported In PR1 Through PR14
+The correlator-bank graph is useful for regression comparison and PR1
+compatibility. It must not be described as production-like channelization, and
+new end-to-end fixture work should target the canonical channelized graph unless
+a PR explicitly states otherwise.
+
+## Unsupported In PR1 Through PR15
 
 The current deterministic lane rejects or leaves out the following behavior:
 

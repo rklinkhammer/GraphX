@@ -1,5 +1,9 @@
 {
   "name": "fhss_cpsm_channelized_fixture_500msps",
+  "fhss_graph_role": "canonical_channelized_fixture",
+  "canonical_fhss_graph": true,
+  "reference_only": false,
+  "description": "Canonical deterministic FHSS fixture graph using downconverter, 64-port channelizer, and one per-channel detector per frequency.",
   "execution_backend": "auto",
   "backend_fallback_policy": "strict",
   "resolver_diagnostics": true,
