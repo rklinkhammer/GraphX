@@ -28,6 +28,9 @@ namespace dsp::fhss {
 
 enum class FHSSGraphXEdgeContract {
   SyntheticIqOutput,
+  DownconvertedIq,
+  ChannelizedIq,
+  PerChannelPulseEvidence,
   DetectedPulseEvidence,
   PulseCandidateEvidence,
   CpsmBranchMetrics,
@@ -44,10 +47,16 @@ struct FHSSGraphXEdgeContractDescriptor {
   bool future_accel_sidecar_compatible = true;
 };
 
-inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 8>
+inline constexpr std::array<FHSSGraphXEdgeContractDescriptor, 11>
     kFHSSGraphXEdgeContracts{{
         {FHSSGraphXEdgeContract::SyntheticIqOutput, "SyntheticIqOutput",
          "FHSSSyntheticIqOutputPacket", true},
+        {FHSSGraphXEdgeContract::DownconvertedIq, "DownconvertedIq",
+         "FHSSDownconvertedIqPacket", true},
+        {FHSSGraphXEdgeContract::ChannelizedIq, "ChannelizedIq",
+         "FHSSChannelizedIqPacket", true},
+        {FHSSGraphXEdgeContract::PerChannelPulseEvidence,
+         "PerChannelPulseEvidence", "FHSSPerChannelPulseEvidencePacket", true},
         {FHSSGraphXEdgeContract::DetectedPulseEvidence,
          "DetectedPulseEvidence", "FHSSDetectedPulseEvidencePacket", true},
         {FHSSGraphXEdgeContract::PulseCandidateEvidence,
@@ -150,6 +159,39 @@ struct FHSSGraphXPulseMetadata {
   std::uint64_t packet_sequence = 0;
 };
 
+enum class FHSSGraphXDownconverterPhaseConvention {
+  OutputTimesExpNegativeJTwoPiTranslationT,
+  PassthroughNoPhaseRotation
+};
+
+struct FHSSGraphXDownconverterMetadata {
+  double input_iq_center_frequency_hz = 0.0;
+  double input_reference_frequency_hz = 0.0;
+  double output_iq_center_frequency_hz = 0.0;
+  double output_reference_frequency_hz = 0.0;
+  double translation_frequency_hz = 0.0;
+  bool passthrough = true;
+  FHSSGraphXDownconverterPhaseConvention phase_convention =
+      FHSSGraphXDownconverterPhaseConvention::PassthroughNoPhaseRotation;
+  double sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
+  std::uint64_t input_global_start_sample = 0;
+  std::uint64_t output_global_start_sample = 0;
+  FHSSGraphXSampleTimeMap sample_time_map{};
+};
+
+struct FHSSGraphXChannelMetadata {
+  std::uint32_t channel_id = 0;
+  std::uint32_t frequency_index = 0;
+  double rf_frequency_hz = 0.0;
+  double iq_offset_frequency_hz = 0.0;
+  double channel_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
+  std::uint32_t decimation_factor = 1;
+  std::int64_t filter_group_delay_input_samples = 0;
+  std::uint64_t input_global_start_sample = 0;
+  std::uint64_t channel_global_start_sample = 0;
+  FHSSGraphXSampleTimeMap sample_time_map{};
+};
+
 struct FHSSGraphXPulseCandidate {
   FHSSGraphXPulseMetadata pulse{};
   std::optional<std::uint64_t> provisional_slot_index{};
@@ -186,6 +228,27 @@ struct FHSSSyntheticIqOutputPacket {
   std::vector<FHSSTruthPulse> truth_pulses;
   FHSSTimingModel timing{};
   bool truth_is_validation_only = true;
+};
+
+struct FHSSDownconvertedIqPacket {
+  FHSSGraphXComplexEvidence iq{};
+  FHSSGraphXDownconverterMetadata downconverter{};
+  bool truth_metadata_required_for_decision = false;
+};
+
+struct FHSSChannelizedIqPacket {
+  FHSSGraphXChannelMetadata channel{};
+  FHSSGraphXComplexEvidence iq{};
+  bool receiver_guard_or_metadata_channel = false;
+  bool truth_metadata_required_for_decision = false;
+};
+
+struct FHSSPerChannelPulseEvidencePacket {
+  FHSSGraphXChannelMetadata channel{};
+  std::vector<FHSSGraphXPulseMetadata> detected_pulses;
+  std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
+  FHSSGraphXComplexEvidence channel_iq{};
+  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDetectedPulseEvidencePacket {
@@ -308,6 +371,56 @@ FHSSGraphXEvidenceIsFutureAccelSidecarCompatible(
              FHSSGraphXPayloadResidency::FutureAccelTokenSidecar &&
          !evidence.truth_metadata_required_for_decision &&
          evidence.sample_time_map.has_input_global_start_sample;
+}
+
+[[nodiscard]] inline bool
+FHSSGraphXDownconverterMetadataIsValid(
+    const FHSSGraphXDownconverterMetadata &metadata) {
+  if (metadata.sample_rate_hz <= 0.0) {
+    return false;
+  }
+  if (metadata.passthrough) {
+    return NearlyEqual(metadata.translation_frequency_hz, 0.0) &&
+           metadata.phase_convention ==
+               FHSSGraphXDownconverterPhaseConvention::
+                   PassthroughNoPhaseRotation &&
+           NearlyEqual(metadata.input_iq_center_frequency_hz,
+                       metadata.output_iq_center_frequency_hz);
+  }
+  return metadata.phase_convention ==
+         FHSSGraphXDownconverterPhaseConvention::
+             OutputTimesExpNegativeJTwoPiTranslationT;
+}
+
+[[nodiscard]] inline bool
+FHSSGraphXChannelCountMatchesFrequencyTable(
+    std::size_t channel_count, const FHSSFrequencyConfig &config = {}) {
+  return ValidateFrequencyConfig(config).has_value() &&
+         channel_count == config.frequency_count;
+}
+
+[[nodiscard]] inline bool
+FHSSGraphXChannelMetadataMatchesFrequencyEntry(
+    const FHSSGraphXChannelMetadata &metadata,
+    const FHSSFrequencyMapEntry &entry) {
+  return ValidateFrequencyIndex(metadata.frequency_index).has_value() &&
+         metadata.channel_id == metadata.frequency_index &&
+         metadata.frequency_index == entry.index &&
+         NearlyEqual(metadata.rf_frequency_hz, entry.rf_frequency_hz) &&
+         NearlyEqual(metadata.iq_offset_frequency_hz,
+                     entry.iq_offset_frequency_hz) &&
+         metadata.decimation_factor > 0 &&
+         metadata.channel_sample_rate_hz > 0.0;
+}
+
+[[nodiscard]] inline std::int64_t
+FHSSGraphXInputGlobalSampleForChannelSample(
+    const FHSSGraphXChannelMetadata &metadata,
+    std::uint64_t channel_sample) {
+  return static_cast<std::int64_t>(metadata.input_global_start_sample) +
+         metadata.filter_group_delay_input_samples +
+         static_cast<std::int64_t>(channel_sample) *
+             static_cast<std::int64_t>(metadata.decimation_factor);
 }
 
 [[nodiscard]] inline FHSSGraphXPulseMetadata

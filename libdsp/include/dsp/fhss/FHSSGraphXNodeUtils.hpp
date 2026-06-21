@@ -28,6 +28,11 @@ template <typename PacketT>
 using FHSSGraphXToken = graph::gpu::accel::ControlToken<PacketT>;
 
 using FHSSSyntheticIqToken = FHSSGraphXToken<FHSSSyntheticIqOutputPacket>;
+using FHSSDownconvertedIqToken =
+    FHSSGraphXToken<FHSSDownconvertedIqPacket>;
+using FHSSChannelizedIqToken = FHSSGraphXToken<FHSSChannelizedIqPacket>;
+using FHSSPerChannelPulseEvidenceToken =
+    FHSSGraphXToken<FHSSPerChannelPulseEvidencePacket>;
 using FHSSDetectedPulseToken =
     FHSSGraphXToken<FHSSDetectedPulseEvidencePacket>;
 using FHSSPulseCandidateToken =
@@ -47,6 +52,15 @@ using FHSSDiagnosticsToken = FHSSGraphXToken<FHSSDiagnosticsPacket>;
 static_assert(std::is_same_v<FHSSSyntheticIqToken,
                              graph::gpu::accel::ControlToken<
                                  FHSSSyntheticIqOutputPacket>>);
+static_assert(std::is_same_v<FHSSDownconvertedIqToken,
+                             graph::gpu::accel::ControlToken<
+                                 FHSSDownconvertedIqPacket>>);
+static_assert(std::is_same_v<FHSSChannelizedIqToken,
+                             graph::gpu::accel::ControlToken<
+                                 FHSSChannelizedIqPacket>>);
+static_assert(std::is_same_v<FHSSPerChannelPulseEvidenceToken,
+                             graph::gpu::accel::ControlToken<
+                                 FHSSPerChannelPulseEvidencePacket>>);
 static_assert(std::is_same_v<FHSSDecodedPulseWordsToken,
                              graph::gpu::accel::ControlToken<
                                  FHSSDecodedPulseWordsPacket>>);
