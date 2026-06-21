@@ -24,6 +24,7 @@
 #include "dsp/fhss/FHSSPulseMergeNode.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoderNode.hpp"
 #include "dsp/fhss/FHSSSyntheticIqSourceNode.hpp"
+#include "dsp/fhss/PerChannelPulseDetectorNode.hpp"
 #include "graph/RegisteredNodeProvider.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
@@ -176,6 +177,14 @@ FHSSChannelizerConfig ChannelizerConfig() {
   return config;
 }
 
+PerChannelPulseDetectorConfig PerChannelDetectorConfig() {
+  PerChannelPulseDetectorConfig config{};
+  config.detector_id = 17;
+  config.packet_sequence = 19;
+  config.min_power_linear = 1.0e-18;
+  return config;
+}
+
 FHSSSyntheticIqToken SyntheticTokenFromSamples(
     std::shared_ptr<const std::vector<std::complex<double>>> samples,
     std::uint64_t global_start_sample = 0) {
@@ -248,6 +257,7 @@ const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
        "fhss_correlator_bank_detector_node"},
       {"FHSSDownconverterNode", "fhss_downconverter_node"},
       {"ChannelizerNode", "channelizer_node"},
+      {"PerChannelPulseDetectorNode", "per_channel_pulse_detector_node"},
       {"FHSSPulseMergeNode", "fhss_pulse_merge_node"},
       {"FHSSPulseCandidateNode", "fhss_pulse_candidate_node"},
       {"CPSMBranchMetricNode", "cpsm_branch_metric_node"},
@@ -276,8 +286,12 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
   static_assert(IsControlTokenV<ChannelizerNode::OutputType<63>>);
   static_assert(ChannelizerNode::NOutputs ==
                 FHSSProtocolConstants::kFrequencyCount);
+  static_assert(IsControlTokenV<PerChannelPulseDetectorNode::InputType<0>>);
+  static_assert(IsControlTokenV<PerChannelPulseDetectorNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<1>>);
+  static_assert(IsControlTokenV<FHSSPulseMergeNode::OutputType<1>>);
   static_assert(IsControlTokenV<FHSSPulseCandidateNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseCandidateNode::OutputType<0>>);
   static_assert(IsControlTokenV<CPSMBranchMetricNode::InputType<0>>);
@@ -317,6 +331,17 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                 typename TokenSidecar<ChannelizerNode::OutputType<63>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
+                typename TokenSidecar<
+                    PerChannelPulseDetectorNode::InputType<0>>::type,
+                FHSSChannelizedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<
+                    PerChannelPulseDetectorNode::OutputType<0>>::type,
+                FHSSPerChannelPulseEvidencePacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<FHSSPulseMergeNode::InputType<1>>::type,
+                FHSSPerChannelPulseEvidencePacket>);
+  static_assert(std::is_same_v<
                 typename TokenSidecar<FHSSPulseMergeNode::OutputType<0>>::type,
                 FHSSPulseCandidateEvidencePacket>);
   static_assert(std::is_same_v<
@@ -333,6 +358,8 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
 
   static_assert(!std::is_same_v<FHSSPulseMergeNode::InputType<0>,
                                 FHSSDetectedPulseEvidencePacket>);
+  static_assert(!std::is_same_v<PerChannelPulseDetectorNode::OutputType<0>,
+                                FHSSPerChannelPulseEvidencePacket>);
 }
 
 TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
@@ -553,6 +580,73 @@ TEST(FHSSGraphXNodeTest,
   config = ChannelizerConfig();
   config.channel_ids[5] = config.channel_ids[4];
   EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
+}
+
+TEST(FHSSGraphXNodeTest,
+     PerChannelPulseDetectorUsesSingleChannelMetadataAndMerges) {
+  auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+      std::vector<std::complex<double>>(
+          FHSSProtocolConstants::kPulseWidthSamples, {1.0, 0.0}));
+  auto synthetic = SyntheticTokenFromSamples(samples, 20'000);
+  FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
+  auto downconverted = downconverter.Transfer(
+      synthetic, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(downconverted.has_value());
+
+  ChannelizerNode channelizer(ChannelizerConfig());
+  ASSERT_TRUE(
+      channelizer.Consume(*downconverted,
+                          std::integral_constant<std::size_t, 0>{}));
+  auto channel24 =
+      channelizer.Produce(std::integral_constant<std::size_t, 24>{});
+  ASSERT_TRUE(channel24.has_value());
+
+  PerChannelPulseDetectorNode detector(PerChannelDetectorConfig());
+  auto per_channel = detector.Transfer(
+      *channel24, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(per_channel.has_value());
+  ASSERT_EQ(per_channel->sidecar.detected_pulses.size(), 1u);
+  ASSERT_EQ(per_channel->sidecar.pulse_evidence.size(), 1u);
+  EXPECT_EQ(per_channel->sidecar.channel.frequency_index, 24u);
+  EXPECT_EQ(per_channel->sidecar.channel.channel_id, 24u);
+  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(
+      per_channel->sidecar.channel_iq));
+  EXPECT_FALSE(per_channel->sidecar.truth_metadata_required_for_decision);
+
+  const auto &pulse = per_channel->sidecar.detected_pulses.front();
+  EXPECT_EQ(pulse.frequency.frequency_index, 24u);
+  EXPECT_DOUBLE_EQ(pulse.frequency.rf_frequency_hz, RfFrequencyHz(24));
+  EXPECT_DOUBLE_EQ(pulse.frequency.iq_offset_frequency_hz,
+                   FullReceiverFrequencyConfig().iq_offset_frequency_hz[24]);
+  EXPECT_DOUBLE_EQ(pulse.frequency.estimated_center_frequency_hz,
+                   pulse.frequency.iq_offset_frequency_hz);
+  EXPECT_DOUBLE_EQ(pulse.frequency.frequency_error_hz, 0.0);
+  EXPECT_DOUBLE_EQ(pulse.cfo_hz, 0.0);
+  EXPECT_EQ(pulse.detector_id, 17u);
+  EXPECT_EQ(pulse.packet_sequence, 19u);
+  EXPECT_EQ(pulse.timing.channel_id, 24u);
+  EXPECT_EQ(pulse.timing.global_start_sample, 20'000u);
+  EXPECT_EQ(pulse.timing.duration_samples,
+            FHSSProtocolConstants::kPulseWidthSamples);
+  EXPECT_GT(pulse.confidence, 0.0);
+  EXPECT_GT(pulse.snr_db, 0.0);
+  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(
+      per_channel->sidecar.pulse_evidence.front()));
+
+  FHSSPulseMergeNode merge;
+  auto candidates = merge.Transfer(
+      *per_channel, std::integral_constant<std::size_t, 1>{},
+      std::integral_constant<std::size_t, 1>{});
+  ASSERT_TRUE(candidates.has_value());
+  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 1u);
+  const auto &candidate = candidates->sidecar.ordered_candidates.front();
+  EXPECT_EQ(candidate.pulse.frequency.frequency_index, 24u);
+  EXPECT_EQ(candidate.pulse.timing.global_start_sample, 20'000u);
+  EXPECT_EQ(candidate.provisional_slot_index,
+            20'000u / FHSSProtocolConstants::kPulsePeriodSamples);
+  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence));
 }
 
 TEST(FHSSGraphXNodeTest,

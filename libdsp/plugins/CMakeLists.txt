@@ -120,6 +120,13 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
+    TARGET_NAME per_channel_pulse_detector_node
+    SOURCE_FILE per_channel_pulse_detector_node_plugin.cpp
+    DESCRIPTION "FHSS per-channel pulse detector GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
     TARGET_NAME fhss_pulse_merge_node
     SOURCE_FILE fhss_pulse_merge_node_plugin.cpp
     DESCRIPTION "FHSS pulse merge GraphX node"
