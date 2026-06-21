@@ -1,16 +1,14 @@
-# GraphX SAR Agent Roles
+# GraphX Agent Roles
 
-These agent roles are intended for GraphX SAR cleanup and validation work where:
+These agent roles are intended for GraphX cleanup and validation work where:
 
-* SAR GPU edges use explicit `AccelControlToken<SarSidecar>`.
+* All DSP use explicit `AccelControlToken<DataType>`.
 * Backward compatibility is not required.
-* Obsolete SAR/GPU message paths should be deleted.
 * Metal is the first backend.
 * GraphX DAG semantics take priority over SAR convenience.
 * Code is not duplicated.
-* `examples/SAR/main.cpp` is always tested.
-* `examples/SAR/main.cpp` reports performance metrics.
-* External SAR comparison packages are used to validate GraphX outputs, not to dictate GraphX architecture.
+* `examples` are always tested.
+* `examples` report performance metrics.
 
 ---
 
@@ -40,6 +38,8 @@ Inspect:
 
 * SAR messages
 * SAR GPU nodes
+* DSP Nodes
+* FHSS Nodes
 * Metal nodes
 * resolver/provider logic
 * JSON topology contracts
@@ -48,8 +48,8 @@ Inspect:
 * use of `host_ptr`
 * use of `ready_event`
 * existence of duplicate `elapsedUs` functions
-* `examples/SAR/main.cpp` test coverage
-* `examples/SAR/main.cpp` performance reporting
+* `examples` test coverage
+* `examples` performance reporting
 * external baseline hooks, if any
 
 ## Output
@@ -63,7 +63,7 @@ Produce:
 5. Violations of accel-token architecture.
 6. Obsolete abstractions.
 7. Complexity hotspots.
-8. Blockers for `AccelControlToken<SarSidecar>`.
+8. Blockers for `AccelControlToken<DataType>`.
 9. Existing external comparison/baseline hooks.
 
 Stop after analysis.
@@ -98,11 +98,11 @@ There shall be exactly one canonical SAR GPU path:
 ```text
 SAR DSP/source nodes
     ↓
-AccelControlToken<SarSidecar>
+AccelControlToken<DataType>
     ↓
 Generic GPU transfer/kernel nodes
     ↓
-AccelControlToken<SarSidecar>
+AccelControlToken<DataType>
     ↓
 SAR merge/diagnostics nodes
 ```
@@ -150,7 +150,7 @@ Convert the target architecture into small reviewable PRs.
 
 ## Preferred Core PR Order
 
-1. Introduce explicit `AccelControlToken<SidecarT>` and `SarSidecar`.
+1. Introduce explicit `AccelControlToken<SidecarT>` and `DataType`.
 2. Remove encoded `host_ptr` / `ready_event` identity.
 3. Convert SAR H2D/kernel/D2H path to explicit tokens.
 4. Delete old SAR transfer/lease message types.
@@ -217,7 +217,7 @@ Implement exactly one approved PR.
 
 If implementing the accel-token cleanup:
 
-* Use explicit `AccelControlToken<SarSidecar>`.
+* Use explicit `AccelControlToken<DataType>`.
 * Preserve SAR sidecar through H2D, kernel, and D2H.
 * Keep generic GPU nodes SAR-unaware.
 * Keep SAR semantics in SAR nodes.
@@ -299,11 +299,11 @@ Do not implement optimizations unless explicitly asked.
 
 ---
 
-# 6. SAR_REVIEWER
+# 6. GRAPHX_REVIEWER
 
 ## Role
 
-You are the SAR domain reviewer.
+You are the GraphX domain reviewer.
 
 ## Mission
 
@@ -435,7 +435,7 @@ Verify that the implemented PR:
 
 * satisfies the approved PR scope,
 * meets its acceptance criteria,
-* preserves the `AccelControlToken<SarSidecar>` architecture,
+* preserves the `AccelControlToken<DataType>` architecture,
 * removes obsolete cruft when required,
 * does not introduce compatibility shims,
 * does not introduce dual SAR GPU paths,
@@ -448,9 +448,9 @@ Verify that the implemented PR:
 Use these artifacts when available:
 
 ```text
-plan/reviews/SAR_INSPECTOR_REPORT.md
-plan/reviews/SAR_SIMPLIFIER_REPORT.md
-plan/reviews/SAR_PR_ROADMAP.md
+plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+plan/reviews/GRAPHX_PR_ROADMAP.md
 current PR description
 current repository state
 current patch/diff
@@ -518,11 +518,11 @@ Verify that the SAR GPU path uses exactly one canonical model:
 ```text
 SAR DSP/source nodes
     ↓
-AccelControlToken<SarSidecar>
+AccelControlToken<DataType>
     ↓
 Generic GPU transfer/kernel nodes
     ↓
-AccelControlToken<SarSidecar>
+AccelControlToken<DataType>
     ↓
 SAR merge/diagnostics nodes
 ```
@@ -582,7 +582,7 @@ Check that resolver diagnostics, tests, or code paths prove:
 
 ### 6. Sidecar Preservation Check
 
-Verify tests prove that `SarSidecar` survives:
+Verify tests prove that `DataType` survives:
 
 * split/source to H2D
 * H2D to kernel
@@ -776,7 +776,7 @@ Do not declare success without test evidence.
 
 ---
 
-# 9. EXTERNAL_SAR_BASELINE_REVIEWER
+# 9. EXTERNAL_GRAPHX_BASELINE_REVIEWER
 
 ## Role
 

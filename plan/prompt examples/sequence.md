@@ -1,19 +1,19 @@
-Act as EXTERNAL_SAR_BASELINE_REVIEWER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as EXTERNAL_SAR_BASELINE_REVIEWER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
 
 =====
 
-Act as INSPECTOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as INSPECTOR using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Analyze the current repository only. Do not redesign or implement. Stop after the current-state report.
-Save inspector output to plan/reviews/SAR_INSPECTOR_REPORT.md
+Save inspector output to plan/reviews/GRAPHX_INSPECTOR_REPORT.md
 ====
-Act as SIMPLIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as SIMPLIFIER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Use the attached/current Inspector report as the authoritative current-state input:
 
-plan/reviews/SAR_INSPECTOR_REPORT.md
+plan/reviews/GRAPHX_INSPECTOR_REPORT.md
 
 Do not reinspect from scratch unless needed to clarify a specific finding.
 
@@ -36,14 +36,14 @@ Produce only:
 
 Do not implement code.
 Do not produce a PR plan yet.
-save simplifer output to plan/reviews/SAR_SIMPLIFIER_REPORT.md
+save simplifer output to plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
 ========
-Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PLANNER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Use these two reports as inputs:
 
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
 
 Produce a PR-sized cleanup roadmap.
 
@@ -70,13 +70,13 @@ After GraphX SAR token architecture and basic performance instrumentation are st
 Do not implement code.
 save planner output as plan/roadmap/SAR_PR_ROADMAP.md
 =======
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR1_1_REPORT.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/reviews/GRAPHX_VERIFIER_PR1_1_REPORT.md
 
 
 
@@ -120,7 +120,7 @@ Required output:
 6. Test commands run.
 7. Remaining follow-up items.
 ======
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as VERIFIER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
@@ -147,15 +147,15 @@ Output:
 - Non-blocking issues.
 - Suggested fixes.
 =============
-save verifier output as plan//reviews/SAR_VERIFIER_PR1_1_REPORT.md
+save verifier output as plan//reviews/GRAPHX_VERIFIER_PR1_1_REPORT.md
 ====
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR1_!_REPORT.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/reviews/GRAPHX_VERIFIER_PR1_!_REPORT.md
 Task:
 Implement PR1 only.
 
@@ -188,12 +188,12 @@ Required output:
 
 
 
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
 
 Task:
 Implement PR2 only.
@@ -227,7 +227,7 @@ Required output:
 
 
 
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as VERIFIER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
@@ -259,12 +259,12 @@ Output:
 - Suggested fixes.
 ==========
 
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
 - Most recent VERIFIER report
 - Current repository state
 - Current diff
@@ -304,13 +304,13 @@ Required output:
 
 =========
 
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR4_!_REPORT.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/reviews/GRAPHX_VERIFIER_PR4_!_REPORT.md
 - Current repository state
 - Current diff
 
@@ -350,7 +350,7 @@ Required output:
 
 ====
 
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as VERIFIER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
@@ -375,7 +375,7 @@ Output:
 
 ===
 
-Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PRINCIPAL_ARCHITECT using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - plan/reviews/*.md
@@ -388,13 +388,13 @@ Do not redesign unless there is architectural drift.
 
 =======
 
-Act as IMPLEMENTER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR7_*_REPORT.md
+- plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/reviews/GRAPHX_VERIFIER_PR7_*_REPORT.md
 - Current repository state
 - Current diff
 
@@ -430,7 +430,7 @@ Required output:
 
 ====
 
-Act as VERIFIER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as VERIFIER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
@@ -456,7 +456,7 @@ Output:
 
 ======
 
-Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - SAR_INSPECTOR_REPORT.md
@@ -477,7 +477,7 @@ Output:
 
 
 
-Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PERFORMANCE_AUDITOR using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
 - current repository state
@@ -524,14 +524,14 @@ Stop before proposing optimizations.
 
 =======
 
-Act as PLANNER using plan/agents/GRAPHX_SAR_AGENT_ROLES.md.
+Act as PLANNER using plan/agents/GRAPHX_AGENT_ROLES.md.
 
 Inputs:
-- plan/reviews/SAR_PERFORMANCE_AUDIT.md report
-  plan/reviews/SAR_INSPECTOR_REPORT.md
-- plan/reviews/SAR_SIMPLIFIER_REPORT.md
-- plan/reviews/SAR_PR_ROADMAP.md
-- plan/reviews/SAR_VERIFIER_PR8_*_REPORT.md
+- plan/reviews/GRAPHX_PERFORMANCE_AUDIT.md report
+  plan/reviews/GRAPHX_INSPECTOR_REPORT.md
+- plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/reviews/GRAPHX_VERIFIER_PR8_*_REPORT.md
 - Current repository state
 - Current diff
 - current PR roadmap
