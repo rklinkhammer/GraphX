@@ -449,15 +449,18 @@ must replace every previous pseudo-node with a GraphX node and rewrite tests to
 use GraphX node contracts. The old pre-GraphX pseudo-node classes and direct
 helper-node tests must be removed; backward compatibility is not required.
 
-The roadmap now has two graph shapes:
+The roadmap now has one canonical deterministic fixture graph and one retained
+reference graph:
 
-- **Current PR8 CPU fixture graph:** uses `FHSSCorrelatorBankDetectorNode` as a
-  deterministic, known-slot, four-active-frequency stand-in for channelized
-  detection.
-- **Longer-term channelized graph:** introduces `FHSSDownconverterNode`,
-  `ChannelizerNode`, and per-frequency/per-channel pulse detectors, then keeps
-  the existing merge, CPSM decode, pulse-word, preamble, assembler, and sink
-  contracts downstream.
+- **Canonical channelized CPU fixture graph:** uses `FHSSDownconverterNode`,
+  `ChannelizerNode`, and one `PerChannelPulseDetectorNode` per configured
+  frequency, then keeps the existing merge, CPSM decode, pulse-word, preamble,
+  assembler, and sink contracts downstream.
+- **PR8 correlator-bank reference graph:** uses
+  `FHSSCorrelatorBankDetectorNode` as a deterministic, known-slot,
+  four-active-frequency compatibility/reference stand-in. It is retained for
+  regression comparison only and must not be described as canonical or
+  production-like channelization.
 
 The migration should preserve the downstream PR7A packet contracts. The
 channelizer/per-channel detector path replaces only the detector front end:
@@ -484,8 +487,7 @@ The invariant is that `N` equals the number of configured FHSS frequency
 entries. With the full 64-entry table, `N = 64`; indices `0` and `63` are still
 reserved for transmission even if guard/metadata channels are instantiated.
 
-Longer-term channelized shape once full selectable-frequency receiver coverage
-is explicitly planned:
+Canonical channelized shape:
 
 ```text
 FHSSSyntheticIqSourceNode
@@ -502,7 +504,7 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageSinkNode
 ```
 
-PR1-friendly CPU shape without a real channelizer:
+Reference PR8 CPU shape without a real channelizer:
 
 ```text
 FHSSSyntheticIqSourceNode
@@ -1830,13 +1832,22 @@ Tests to delete:
 
 Acceptance criteria:
 
-- The plan defines occupied-bandwidth/channel-filter requirements or explicitly
-  keeps them unresolved with no production channelizer claim.
-- The plan chooses higher sample rate, retuned sub-band windows, sparse active
-  scheduling, or explicit alias/downconversion modeling for future full
-  selectable-frequency coverage.
-- The plan defines which impairment diagnostics and status values become
-  canonical before implementation.
+- The plan keeps the exact occupied-bandwidth/channel-filter requirements
+  unresolved and explicitly forbids production channelizer claims until a later
+  deterministic spectral-occupancy estimator or RF spectral mask PR defines:
+  occupied-bandwidth metric, channel filter passband, transition width,
+  stopband attenuation, group delay, and adjacent-channel rejection threshold.
+- The plan chooses retuned sub-band windows as the default future strategy for
+  full selectable-frequency coverage. A receiver may instantiate one logical
+  GraphX output port per configured frequency, but a physical 500 Msps capture
+  window only realizes the subset whose RF centers and occupied bandwidth fit
+  the declared sub-band. Full-table simultaneous alias-free capture requires a
+  higher sample rate or a later explicit alias/downconversion model.
+- The plan defines the future canonical impairment status vocabulary before
+  implementation: `unsupported`, `disabled`, `configured_rejected`,
+  `estimated`, `degraded`, and `invalid`. PR16 does not add impairment
+  estimation behavior; current fixture diagnostics remain
+  `unsupported_impairments_rejected` and disabled impairment config fields.
 - Optional PDW diagnostics remain non-canonical unless a later PR explicitly
   changes the decoder contract.
 

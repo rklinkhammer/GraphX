@@ -302,6 +302,37 @@ TEST(FHSSGraphXGuardrailTest,
 }
 
 TEST(FHSSGraphXGuardrailTest,
+     FhssDocsCaptureRfFeasibilityAndImpairmentPlan) {
+  const auto root = RepositoryRoot();
+  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  ASSERT_TRUE(std::filesystem::exists(doc));
+  const auto text = Lowercase(ReadFile(doc));
+
+  EXPECT_NE(text.find("not claim production channelizer separation"),
+            std::string::npos);
+  EXPECT_NE(text.find("occupied-bandwidth and channel-filter requirements"),
+            std::string::npos);
+  EXPECT_NE(text.find("remain unresolved in pr16"), std::string::npos);
+  EXPECT_NE(text.find("retuned"), std::string::npos);
+  EXPECT_NE(text.find("sub-band windows"), std::string::npos);
+  EXPECT_NE(text.find("one logical graphx"), std::string::npos);
+  EXPECT_NE(text.find("channel output port per configured frequency"),
+            std::string::npos);
+  EXPECT_NE(text.find("must not be described as one simultaneous alias-free"),
+            std::string::npos);
+  EXPECT_NE(text.find("500 msps"), std::string::npos);
+  EXPECT_NE(text.find("complex-baseband capture"), std::string::npos);
+  EXPECT_NE(text.find("unsupported_impairments_rejected"), std::string::npos);
+  EXPECT_NE(text.find("configured_rejected"), std::string::npos);
+  EXPECT_NE(text.find("pdw diagnostics remain optional and non-canonical"),
+            std::string::npos);
+
+  EXPECT_EQ(text.find("implements doppler/noise"), std::string::npos);
+  EXPECT_EQ(text.find("implements cfo"), std::string::npos);
+  EXPECT_EQ(text.find("implements multipath"), std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
      FhssDocsIdentifyGraphXNodesAsCanonicalModel) {
   const auto root = RepositoryRoot();
   const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
@@ -378,6 +409,34 @@ TEST(FHSSGraphXGuardrailTest,
   EXPECT_NE(doc.find("compatibility and"), std::string::npos);
   EXPECT_NE(doc.find("reference topology"), std::string::npos);
   EXPECT_NE(doc.find("must not be described as production-like channelization"),
+            std::string::npos);
+}
+
+TEST(FHSSGraphXGuardrailTest,
+     FhssRoadmapIdentifiesCanonicalGraphAndRfFeasibilityPlan) {
+  const auto root = RepositoryRoot();
+  const auto roadmap =
+      root / "plan" / "roadmap" / "DSP_FHSS_DECODER_PR_ROADMAP.md";
+  ASSERT_TRUE(std::filesystem::exists(roadmap));
+  const auto text = Lowercase(ReadFile(roadmap));
+
+  EXPECT_NE(text.find("canonical channelized cpu fixture graph"),
+            std::string::npos);
+  EXPECT_NE(text.find("pr8 correlator-bank reference graph"),
+            std::string::npos);
+  EXPECT_NE(text.find("must not be described as canonical"),
+            std::string::npos);
+  EXPECT_NE(text.find("production-like channelization"), std::string::npos);
+  EXPECT_NE(text.find("retuned sub-band windows"), std::string::npos);
+  EXPECT_NE(text.find("full-table simultaneous alias-free capture requires"),
+            std::string::npos);
+  EXPECT_NE(text.find("higher sample rate"), std::string::npos);
+  EXPECT_NE(text.find("configured_rejected"), std::string::npos);
+  EXPECT_NE(text.find("unsupported_impairments_rejected"), std::string::npos);
+
+  EXPECT_EQ(text.find("all 64 rf centers are alias-free in one 500 msps"),
+            std::string::npos);
+  EXPECT_EQ(text.find("production channelizer separation is supported"),
             std::string::npos);
 }
 

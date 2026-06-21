@@ -1,7 +1,7 @@
 # DSP FHSS Decoder Fixture
 
 This document describes the deterministic GraphX FHSS CPSM fixture lanes added
-through PR1 through PR15. They are CPU-only test fixture and decoder pipelines.
+through PR1 through PR16. They are CPU-only test fixture and decoder pipelines.
 They are not production RF receivers, not claims of compatibility with any
 external RF waveform, and not direct 1 GHz RF sampling models.
 
@@ -187,6 +187,44 @@ The derived offsets are still validated against Nyquist, occupied-bandwidth,
 and CFO guards. The bundled fixture uses active indices close enough to the IQ
 center for those guards to pass in a 500 Msps complex-baseband span.
 
+## RF Feasibility And Future Coverage Strategy
+
+The current deterministic channelized graph is still a fixture graph. It does
+not claim production channelizer separation.
+
+The exact occupied-bandwidth and channel-filter requirements for 5 Mbps CPSM on
+8 MHz spacing remain unresolved in PR16. A later PR must define the
+occupied-bandwidth metric or RF spectral mask, channel filter passband,
+transition width, stopband attenuation, group delay, and adjacent-channel
+rejection threshold before the decoder can make production channelizer claims.
+
+The default future full selectable-frequency coverage strategy is retuned
+sub-band windows. The receiver configuration preserves one logical GraphX
+channel output port per configured frequency, but a physical 500 Msps capture
+window realizes only the frequency subset whose RF centers, occupied bandwidth,
+CFO allowance, and filter guards fit in that sub-band. The full 64-entry RF
+metadata table must not be described as one simultaneous alias-free 500 Msps
+complex-baseband capture. Full-table simultaneous capture requires a higher
+sample rate or a later explicit alias/downconversion model.
+
+Current canonical impairment diagnostics remain limited to disabled/rejected
+fixture status, including `unsupported_impairments_rejected`. Future impairment
+work must use a planned status vocabulary before adding Doppler/noise/CFO/phase
+drift/multipath behavior:
+
+```text
+unsupported
+disabled
+configured_rejected
+estimated
+degraded
+invalid
+```
+
+PDW diagnostics remain optional and non-canonical. They must not replace the
+GraphX FHSS decoder packet contracts or become the canonical decoder output
+unless a later PR explicitly changes that contract.
+
 ## CPSM Assumptions
 
 The fixture uses binary CPSM modeled as continuous phase modulation:
@@ -219,7 +257,7 @@ compatibility. It must not be described as production-like channelization, and
 new end-to-end fixture work should target the canonical channelized graph unless
 a PR explicitly states otherwise.
 
-## Unsupported In PR1 Through PR15
+## Unsupported In PR1 Through PR16
 
 The current deterministic lane rejects or leaves out the following behavior:
 
