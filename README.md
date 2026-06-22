@@ -327,7 +327,10 @@ FHSS truth-in-labeling:
   non-canonical.
 - Guardrail wording: PDW diagnostics remain optional and non-canonical.
 - Guardrail wording: deleted pre-GraphX pseudo-node scaffolding is not the current node model.
-- Guardrail wording: retained correlator-bank graph is reference and not the canonical graph.
+- The canonical channelized graph is the only active FHSS receiver topology.
+- The old correlator-bank graph, node, config, and plugin were removed from
+  active support; do not describe them as retained, canonical, or
+  production-like.
 
 Focused tests:
 

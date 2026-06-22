@@ -75,8 +75,6 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 Inputs:
 - plan/reviews/GRAPHX_INSPECTOR_REPORT.md
 - plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
-- plan/reviews/GRAPHX_PR_ROADMAP.md
-- plan/reviews/GRAPHX_VERIFIER_PR1_1_REPORT.md
 
 
 

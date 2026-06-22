@@ -99,13 +99,6 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
-    TARGET_NAME fhss_correlator_bank_detector_node
-    SOURCE_FILE fhss_correlator_bank_detector_node_plugin.cpp
-    DESCRIPTION "FHSS correlator-bank detector GraphX node"
-    DEPENDENCIES dsp
-)
-
-add_graphx_plugin(
     TARGET_NAME fhss_downconverter_node
     SOURCE_FILE fhss_downconverter_node_plugin.cpp
     DESCRIPTION "FHSS downconverter GraphX node"

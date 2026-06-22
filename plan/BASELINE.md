@@ -128,11 +128,10 @@ FHSS node/edge requirements:
   frequencies.
 - `FHSSPulseMergeNode` normalizes detections into shared global sample time and
   preserves complex evidence for CPSM decoding.
-- The retained correlator-bank graph is reference/compatibility only, not the
-  canonical graph and not production-like channelization.
-- The retained correlator-bank graph is reference/compatibility only and not
-  the canonical graph.
-- Guardrail wording: retained correlator-bank graph is reference and not the canonical graph.
+- The canonical channelized graph is the only active FHSS receiver topology.
+- The old correlator-bank graph, node, config, and plugin were removed from
+  active support; do not describe them as retained, canonical, or
+  production-like.
 
 FHSS truth-in-labeling:
 

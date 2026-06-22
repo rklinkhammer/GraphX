@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "dsp/fhss/FHSSCpsmDecoder.hpp"
-#include "dsp/fhss/FHSSCorrelatorBankDetector.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
 
 namespace {
@@ -21,8 +20,6 @@ namespace {
 using dsp::fhss::CPSMBranchMetricKernel;
 using dsp::fhss::CPSMDecoderConfig;
 using dsp::fhss::CPSMViterbiDecoderKernel;
-using dsp::fhss::FHSSCorrelatorBankDetectorConfig;
-using dsp::fhss::FHSSCorrelatorBankDetectorKernel;
 using dsp::fhss::FHSSDecodeConfig;
 using dsp::fhss::FHSSFrequencyConfig;
 using dsp::fhss::FHSSMessagePulseRole;
@@ -115,6 +112,26 @@ std::vector<double> ExpectedSymbolsForWord(std::uint32_t value) {
   return expected;
 }
 
+std::vector<std::complex<double>> ExtractDehoppedPulseSamples(
+    const dsp::fhss::FHSSSyntheticIqFixture &fixture,
+    std::size_t pulse_index = 0) {
+  const auto &truth = fixture.truth_pulses.at(pulse_index);
+  std::vector<std::complex<double>> samples;
+  samples.reserve(static_cast<std::size_t>(truth.duration_samples));
+  constexpr double kTwoPi = 6.283185307179586476925286766559;
+  for (std::uint64_t i = 0; i < truth.duration_samples; ++i) {
+    const auto global_sample = truth.global_start_sample + i;
+    const auto mixedown = std::exp(std::complex<double>(
+        0.0, -kTwoPi * truth.iq_offset_frequency_hz *
+                 static_cast<double>(global_sample) /
+                 FHSSProtocolConstants::kSampleRateHz));
+    samples.push_back(
+        fixture.samples.at(static_cast<std::size_t>(global_sample)) *
+        mixedown);
+  }
+  return samples;
+}
+
 double SequenceMetric(const std::vector<std::complex<double>> &samples,
                       const std::vector<double> &symbols) {
   CPSMDecoderConfig config{};
@@ -201,16 +218,8 @@ TEST(FHSSCpsmDecoderTest, KnownGeneratedPulseDecodesToSymbols) {
       dsp::fhss::GenerateSyntheticIqFixture(GeneratorConfig(kValue));
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
 
-  FHSSCorrelatorBankDetectorConfig detector_config{};
-  detector_config.decode_config = DecodeConfig();
-  const auto detected =
-      FHSSCorrelatorBankDetectorKernel::Detect(fixture->samples, detector_config);
-  ASSERT_TRUE(detected.has_value()) << detected.error().message;
-  ASSERT_FALSE(detected->local_detections.empty());
-  ASSERT_TRUE(detected->local_detections.front().complex_evidence.samples);
-
-  const auto decoded = CPSMViterbiDecoderKernel::Decode(
-      *detected->local_detections.front().complex_evidence.samples);
+  const auto evidence = ExtractDehoppedPulseSamples(*fixture);
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(evidence);
 
   ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
   EXPECT_EQ(decoded->symbols, ExpectedSymbolsForWord(kValue));

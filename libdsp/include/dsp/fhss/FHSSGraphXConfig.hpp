@@ -10,7 +10,6 @@
 
 #include "config/ConfigError.hpp"
 #include "config/JsonView.hpp"
-#include "dsp/fhss/FHSSCorrelatorBankDetector.hpp"
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
 
@@ -255,21 +254,6 @@ FHSSSyntheticIqGeneratorConfigFromJson(const graph::JsonView &cfg) {
   config.enable_noise = FHSSJsonBool(json, "enable_noise", false);
   config.enable_doppler = FHSSJsonBool(json, "enable_doppler", false);
   config.enable_multipath = FHSSJsonBool(json, "enable_multipath", false);
-  config.allow_overlap = FHSSJsonBool(json, "allow_overlap", false);
-  return config;
-}
-
-inline FHSSCorrelatorBankDetectorConfig
-FHSSCorrelatorBankDetectorConfigFromJson(const graph::JsonView &cfg) {
-  const auto &json = cfg.Raw();
-  FHSSCorrelatorBankDetectorConfig config{};
-  config.decode_config = FHSSDecodeConfigFromJson(cfg);
-  config.input_packet_global_start_sample =
-      FHSSJsonUint64(json, "input_packet_global_start_sample", 0);
-  config.message_start_sample =
-      FHSSJsonUint64(json, "message_start_sample", 0);
-  config.detector_id = FHSSJsonUint64(json, "detector_id", 0);
-  config.packet_sequence = FHSSJsonUint64(json, "packet_sequence", 0);
   config.allow_overlap = FHSSJsonBool(json, "allow_overlap", false);
   return config;
 }

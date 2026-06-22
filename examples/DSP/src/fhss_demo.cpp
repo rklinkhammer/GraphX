@@ -241,8 +241,7 @@ void PatchNodeConfigs(nlohmann::json &graph_config,
     if (type == "FHSSSyntheticIqSourceNode") {
       auto &node_config = node["node_config"];
       node_config = source_config;
-    } else if (type == "FHSSCorrelatorBankDetectorNode" ||
-               type == "FHSSPreambleDetectorNode") {
+    } else if (type == "FHSSPreambleDetectorNode") {
       auto &node_config = node["node_config"];
       if (!node_config.is_object()) {
         node_config = nlohmann::json::object();

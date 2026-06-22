@@ -89,13 +89,10 @@ TEST(FHSSGraphXGuardrailTest, EachFhssGraphXNodeHasOwnHeaderAndSource) {
   const auto dsp_src = root / "libdsp" / "src" / "dsp";
   const std::unordered_map<std::string, std::string> expected_headers{
       {"FHSSSyntheticIqSourceNode", "FHSSSyntheticIqSourceNode.hpp"},
-      {"FHSSCorrelatorBankDetectorNode",
-       "FHSSCorrelatorBankDetectorNode.hpp"},
       {"FHSSDownconverterNode", "FHSSDownconverterNode.hpp"},
       {"ChannelizerNode", "ChannelizerNode.hpp"},
       {"PerChannelPulseDetectorNode", "PerChannelPulseDetectorNode.hpp"},
       {"FHSSPulseMergeNode", "FHSSPulseMergeNode.hpp"},
-      {"FHSSPulseMergeInteriorNode", "FHSSPulseMergeInteriorNode.hpp"},
       {"FHSSPulseCandidateNode", "FHSSPulseCandidateNode.hpp"},
       {"CPSMBranchMetricNode", "CPSMBranchMetricNode.hpp"},
       {"CPSMViterbiDecoderNode", "CPSMViterbiDecoderNode.hpp"},
@@ -125,12 +122,10 @@ TEST(FHSSGraphXGuardrailTest,
   const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
   const std::unordered_set<std::string> allowed_node_headers{
       "FHSSSyntheticIqSourceNode.hpp",
-      "FHSSCorrelatorBankDetectorNode.hpp",
       "FHSSDownconverterNode.hpp",
       "ChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
-      "FHSSPulseMergeInteriorNode.hpp",
       "FHSSPulseCandidateNode.hpp",
       "CPSMBranchMetricNode.hpp",
       "CPSMViterbiDecoderNode.hpp",
@@ -161,12 +156,10 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
   const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
   const std::unordered_set<std::string> node_headers{
       "FHSSSyntheticIqSourceNode.hpp",
-      "FHSSCorrelatorBankDetectorNode.hpp",
       "FHSSDownconverterNode.hpp",
       "ChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
-      "FHSSPulseMergeInteriorNode.hpp",
       "FHSSPulseCandidateNode.hpp",
       "CPSMBranchMetricNode.hpp",
       "CPSMViterbiDecoderNode.hpp",
@@ -197,12 +190,6 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
           << name << " must consume and produce GraphX ports";
       continue;
     }
-    if (name == "FHSSPulseMergeInteriorNode") {
-      EXPECT_NE(text.find("public graph::NamedFixedFanInOutNode"),
-                std::string::npos)
-          << name << " must consume and produce GraphX ports";
-      continue;
-    }
     const std::regex real_graphx_node_regex(
         "class\\s+" + name +
             R"(\s*:[\s\S]*public\s+graph::Named(?:Source|Interior|Sink)Node)",
@@ -210,6 +197,38 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
     EXPECT_TRUE(std::regex_search(text, real_graphx_node_regex))
         << name << " must inherit a repository GraphX node base";
   }
+}
+
+TEST(FHSSGraphXGuardrailTest, DuplicatePulseMergeInteriorNodeWasDeleted) {
+  const auto root = RepositoryRoot();
+  const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
+  const auto dsp_src = root / "libdsp" / "src" / "dsp";
+
+  EXPECT_FALSE(std::filesystem::exists(fhss_include /
+                                       "FHSSPulseMergeInteriorNode.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(dsp_src /
+                                       "FHSSPulseMergeInteriorNode.cpp"));
+}
+
+TEST(FHSSGraphXGuardrailTest, CorrelatorBankCanonicalSurfaceWasDeleted) {
+  const auto root = RepositoryRoot();
+  const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
+
+  EXPECT_FALSE(std::filesystem::exists(
+      fhss_include / "FHSSCorrelatorBankDetector.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      fhss_include / "FHSSCorrelatorBankDetectorNode.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "src" / "dsp" /
+      "FHSSCorrelatorBankDetectorNode.cpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "plugins" /
+      "fhss_correlator_bank_detector_node_plugin.cpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libgraph" / "test" / "unit" /
+      "test_fhss_correlator_bank_detector.cpp"));
 }
 
 TEST(FHSSGraphXGuardrailTest,
@@ -370,7 +389,7 @@ TEST(FHSSGraphXGuardrailTest, FhssCanonicalGraphConfigIsChannelized) {
       config_dir / "fhss_cpsm_channelized_fixture_500msps.json";
   const auto reference = config_dir / "fhss_cpsm_fixture_500msps.json";
   ASSERT_TRUE(std::filesystem::exists(canonical));
-  ASSERT_TRUE(std::filesystem::exists(reference));
+  EXPECT_FALSE(std::filesystem::exists(reference));
 
   const auto canonical_json = LoadJson(canonical);
   EXPECT_EQ(canonical_json.at("fhss_graph_role").get<std::string>(),
@@ -378,24 +397,25 @@ TEST(FHSSGraphXGuardrailTest, FhssCanonicalGraphConfigIsChannelized) {
   EXPECT_TRUE(canonical_json.at("canonical_fhss_graph").get<bool>());
   EXPECT_FALSE(canonical_json.at("reference_only").get<bool>());
 
-  const auto reference_json = LoadJson(reference);
-  EXPECT_EQ(reference_json.at("fhss_graph_role").get<std::string>(),
-            "reference_correlator_bank_fixture");
-  EXPECT_FALSE(reference_json.at("canonical_fhss_graph").get<bool>());
-  EXPECT_TRUE(reference_json.at("reference_only").get<bool>());
 }
 
 TEST(FHSSGraphXGuardrailTest,
-     FhssDocsAndConfigsKeepCorrelatorBankReferenceOnly) {
+     FhssDocsAndConfigsKeepOnlyChannelizedCanonicalGraph) {
   const auto root = RepositoryRoot();
   const std::vector<std::filesystem::path> paths{
       root / "README.md",
       root / "plan" / "BASELINE.md",
-      root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json",
       root / "libdsp" / "config" /
           "fhss_cpsm_channelized_fixture_500msps.json",
   };
   const std::vector<std::string> forbidden_phrases{
+      "fhsscorrelatorbankdetectornode",
+      "fhss_correlator_bank_detector_node",
+      "reference_correlator_bank_fixture",
+      "retained correlator-bank",
+      "retained correlator bank",
+      "reference correlator-bank",
+      "reference correlator bank",
       "correlator-bank production-like channelization",
       "correlator bank production-like channelization",
       "correlator-bank graph is canonical",
@@ -422,9 +442,8 @@ TEST(FHSSGraphXGuardrailTest,
       Lowercase(ReadFile(root / "README.md") + "\n" +
                 ReadFile(root / "plan" / "BASELINE.md"));
   EXPECT_NE(doc.find("canonical channelized graph"), std::string::npos);
-  EXPECT_NE(doc.find("retained correlator-bank graph is reference"),
+  EXPECT_NE(doc.find("only active fhss receiver topology"),
             std::string::npos);
-  EXPECT_NE(doc.find("not the canonical graph"), std::string::npos);
   EXPECT_NE(doc.find("production channelizer performance are not implemented"),
             std::string::npos);
 }
@@ -438,9 +457,7 @@ TEST(FHSSGraphXGuardrailTest,
 
   EXPECT_NE(text.find("canonical fhss graph"),
             std::string::npos);
-  EXPECT_NE(text.find("retained correlator-bank graph is reference"),
-            std::string::npos);
-  EXPECT_NE(text.find("not the canonical graph"),
+  EXPECT_NE(text.find("only active fhss receiver topology"),
             std::string::npos);
   EXPECT_NE(text.find("production channelizer performance are not implemented"),
             std::string::npos);
@@ -474,16 +491,18 @@ TEST(FHSSGraphXGuardrailTest,
 }
 
 TEST(FHSSGraphXGuardrailTest,
-     FhssConfigRemainsCpuOnlyFixtureWithoutChannelizerOrImpairments) {
+     FhssChannelizedConfigRemainsCpuOnlyFixtureWithoutImpairments) {
   const auto root = RepositoryRoot();
   const auto config =
-      root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json";
+      root / "libdsp" / "config" /
+      "fhss_cpsm_channelized_fixture_500msps.json";
   ASSERT_TRUE(std::filesystem::exists(config));
   const auto text = Lowercase(ReadFile(config));
 
   EXPECT_EQ(text.find("metal"), std::string::npos);
   EXPECT_EQ(text.find("gpu"), std::string::npos);
-  EXPECT_EQ(text.find("channelizer"), std::string::npos);
+  EXPECT_NE(text.find("channelizer"), std::string::npos);
+  EXPECT_EQ(text.find("fhsscorrelatorbankdetectornode"), std::string::npos);
   EXPECT_NE(text.find("\"enable_doppler\": false"), std::string::npos);
   EXPECT_NE(text.find("\"enable_noise\": false"), std::string::npos);
   EXPECT_NE(text.find("\"enable_multipath\": false"), std::string::npos);
