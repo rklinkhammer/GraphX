@@ -192,11 +192,9 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
       continue;
     }
     if (name == "FHSSPulseMergeNode") {
-      EXPECT_NE(text.find("public FHSSPulseMergeSinkBase"),
+      EXPECT_NE(text.find("public graph::NamedFixedFanInOutNode"),
                 std::string::npos)
-          << name << " must consume GraphX input ports";
-      EXPECT_NE(text.find("public graph::SourceNode"), std::string::npos)
-          << name << " must expose GraphX output ports";
+          << name << " must consume and produce GraphX ports";
       continue;
     }
     if (name == "FHSSPulseMergeInteriorNode") {

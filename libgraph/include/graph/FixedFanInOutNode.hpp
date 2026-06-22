@@ -54,6 +54,9 @@ class FixedFanInOutNodeBase<Derived, TypeList<InputPortTs...>,
       public RoutedInputFn<InputPortTs, Derived>...,
       public RoutedOutputFn<OutputPortTs, Derived>... {
 public:
+  using LifecycleBase = NodeLifecycleMixin<FixedFanInOutNodeBase<
+      Derived, TypeList<InputPortTs...>, TypeList<OutputPortTs...>>>;
+
   using RoutedInputFn<InputPortTs, Derived>::Consume...;
   using RoutedOutputFn<OutputPortTs, Derived>::Produce...;
 
@@ -87,6 +90,22 @@ public:
 
   int GetInputPortCount() const { return static_cast<int>(NInputs); }
   int GetOutputPortCount() const { return static_cast<int>(NOutputs); }
+
+  LifecycleState GetLifecycleState() const override {
+    return LifecycleBase::GetLifecycleState();
+  }
+
+  bool Init() override { return LifecycleBase::Init(); }
+
+  bool Start() override { return LifecycleBase::Start(); }
+
+  void Stop() override { LifecycleBase::Stop(); }
+
+  void Join() override { LifecycleBase::Join(); }
+
+  bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
+    return LifecycleBase::JoinWithTimeout(timeout_ms);
+  }
 
   template <std::size_t PortID>
   bool EnqueueOutput(const OutputType<PortID> &output) {

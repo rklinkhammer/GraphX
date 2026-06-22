@@ -1,84 +1,57 @@
 #pragma once
 
 #include "config/ConfigError.hpp"
-#include "core/ActiveQueue.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
+#include "graph/FixedFanInOutNode.hpp"
 #include "graph/IConfigurable.hpp"
-#include "graph/NamedNodes.hpp"
 
-#include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <optional>
-#include <type_traits>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace dsp::fhss {
 
-template <typename First, typename TypeList> struct FHSSPrependTypeList;
-
-template <typename First, typename... Rest>
-struct FHSSPrependTypeList<First, graph::TypeList<Rest...>> {
-  using type = graph::TypeList<First, Rest...>;
-};
-
-template <typename TokenT, typename Sequence>
-struct FHSSPulseMergeRepeatedTokenTypeList;
-
-template <typename TokenT, std::size_t... Indices>
-struct FHSSPulseMergeRepeatedTokenTypeList<TokenT,
-                                           std::index_sequence<Indices...>> {
-  template <std::size_t> using TokenForIndex = TokenT;
-  using type = graph::TypeList<TokenForIndex<Indices>...>;
-};
-
-using FHSSPulseMergePerChannelInputList =
-    typename FHSSPulseMergeRepeatedTokenTypeList<
-        FHSSPerChannelPulseEvidenceToken,
-        std::make_index_sequence<
-            FHSSProtocolConstants::kFrequencyCount>>::type;
-
 using FHSSPulseMergeInputList =
-    typename FHSSPrependTypeList<FHSSDetectedPulseToken,
-                                 FHSSPulseMergePerChannelInputList>::type;
+    graph::PrependTypeList_t<FHSSDetectedPulseToken,
+                             graph::RepeatType_t<
+                                 FHSSPerChannelPulseEvidenceToken,
+                                 FHSSProtocolConstants::kFrequencyCount>>;
 
-template <typename TypeList> struct FHSSPulseMergeSinkBase;
-
-template <typename... Inputs>
-struct FHSSPulseMergeSinkBase<graph::TypeList<Inputs...>> {
-  using type = graph::SinkNode<Inputs...>;
-};
+using FHSSPulseMergeOutputList =
+    graph::TypeList<FHSSPulseCandidateToken, FHSSPulseCandidateToken>;
 
 class FHSSPulseMergeNode
-    : public FHSSPulseMergeSinkBase<FHSSPulseMergeInputList>::type,
-      public graph::SourceNode<FHSSPulseCandidateToken, FHSSPulseCandidateToken>,
-      public graph::NamedType<FHSSPulseMergeNode>,
+    : public graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
+                                           FHSSPulseMergeInputList,
+                                           FHSSPulseMergeOutputList>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
-  using SinkBase =
-      typename FHSSPulseMergeSinkBase<FHSSPulseMergeInputList>::type;
-  using SourceBase =
-      graph::SourceNode<FHSSPulseCandidateToken, FHSSPulseCandidateToken>;
+  using Base = graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
+                                             FHSSPulseMergeInputList,
+                                             FHSSPulseMergeOutputList>;
   using InputTokenType = FHSSDetectedPulseToken;
   using PerChannelInputTokenType = FHSSPerChannelPulseEvidenceToken;
   using OutputTokenType = FHSSPulseCandidateToken;
 
   static constexpr std::size_t kPerChannelInputCount =
       FHSSProtocolConstants::kFrequencyCount;
-  static constexpr std::size_t NInputs = 1 + kPerChannelInputCount;
-  static constexpr std::size_t NOutputs = 2;
+  static constexpr std::size_t NInputs = Base::NInputs;
+  static constexpr std::size_t NOutputs = Base::NOutputs;
 
   template <std::size_t PortID>
-  using InputType = typename SinkBase::template InputType<PortID>;
+  using InputType = typename Base::template InputType<PortID>;
   template <std::size_t PortID>
-  using InputPortType = typename SinkBase::template InputPortType<PortID>;
+  using InputPortType = typename Base::template InputPortType<PortID>;
   template <std::size_t PortID>
-  using OutputType = typename SourceBase::template OutputType<PortID>;
+  using OutputType = typename Base::template OutputType<PortID>;
   template <std::size_t PortID>
-  using OutputPortType = typename SourceBase::template OutputPortType<PortID>;
+  using OutputPortType = typename Base::template OutputPortType<PortID>;
 
   FHSSPulseMergeNode() = default;
   explicit FHSSPulseMergeNode(FHSSPulseMergeConfig config)
@@ -118,14 +91,6 @@ public:
     return "FHSSPulseMergeNode";
   }
 
-  [[nodiscard]] int GetInputPortCount() const {
-    return static_cast<int>(NInputs);
-  }
-
-  [[nodiscard]] int GetOutputPortCount() const {
-    return static_cast<int>(NOutputs);
-  }
-
   std::vector<graph::PortMetadata> GetInputPortMetadata() const override {
     std::vector<graph::PortMetadata> out;
     out.reserve(NInputs);
@@ -160,141 +125,23 @@ public:
     };
   }
 
-  bool Consume(const InputTokenType &input,
-               std::integral_constant<std::size_t, 0>) override {
-    auto output = Transfer(input, std::integral_constant<std::size_t, 0>{},
-                           std::integral_constant<std::size_t, 0>{});
-    if (!output) {
-      return false;
-    }
-    return output_queues_[0].Enqueue(*output);
-  }
-
   template <std::size_t Port>
-  bool ConsumePerChannel(const PerChannelInputTokenType &input) {
-    static_assert(Port >= 1 && Port <= kPerChannelInputCount);
-    auto output = AccumulatePerChannel(input);
-    if (!output) {
-      return true;
+  bool ConsumeInput(const typename Base::template InputType<Port> &input) {
+    if constexpr (Port == 0) {
+      auto output = Transfer(input, std::integral_constant<std::size_t, 0>{},
+                             std::integral_constant<std::size_t, 0>{});
+      if (!output) {
+        return false;
+      }
+      return EnqueueOutput<0>(*output);
+    } else {
+      static_assert(Port <= kPerChannelInputCount);
+      auto output = AccumulatePerChannel(input);
+      if (!output) {
+        return true;
+      }
+      return EnqueueOutput<1>(*output);
     }
-    return output_queues_[1].Enqueue(*output);
-  }
-
-#define FHSS_PULSE_MERGE_CONSUME(PORT)                                        \
-  bool Consume(const PerChannelInputTokenType &input,                         \
-               std::integral_constant<std::size_t, PORT>) override {          \
-    return ConsumePerChannel<PORT>(input);                                    \
-  }
-
-  FHSS_PULSE_MERGE_CONSUME(1)
-  FHSS_PULSE_MERGE_CONSUME(2)
-  FHSS_PULSE_MERGE_CONSUME(3)
-  FHSS_PULSE_MERGE_CONSUME(4)
-  FHSS_PULSE_MERGE_CONSUME(5)
-  FHSS_PULSE_MERGE_CONSUME(6)
-  FHSS_PULSE_MERGE_CONSUME(7)
-  FHSS_PULSE_MERGE_CONSUME(8)
-  FHSS_PULSE_MERGE_CONSUME(9)
-  FHSS_PULSE_MERGE_CONSUME(10)
-  FHSS_PULSE_MERGE_CONSUME(11)
-  FHSS_PULSE_MERGE_CONSUME(12)
-  FHSS_PULSE_MERGE_CONSUME(13)
-  FHSS_PULSE_MERGE_CONSUME(14)
-  FHSS_PULSE_MERGE_CONSUME(15)
-  FHSS_PULSE_MERGE_CONSUME(16)
-  FHSS_PULSE_MERGE_CONSUME(17)
-  FHSS_PULSE_MERGE_CONSUME(18)
-  FHSS_PULSE_MERGE_CONSUME(19)
-  FHSS_PULSE_MERGE_CONSUME(20)
-  FHSS_PULSE_MERGE_CONSUME(21)
-  FHSS_PULSE_MERGE_CONSUME(22)
-  FHSS_PULSE_MERGE_CONSUME(23)
-  FHSS_PULSE_MERGE_CONSUME(24)
-  FHSS_PULSE_MERGE_CONSUME(25)
-  FHSS_PULSE_MERGE_CONSUME(26)
-  FHSS_PULSE_MERGE_CONSUME(27)
-  FHSS_PULSE_MERGE_CONSUME(28)
-  FHSS_PULSE_MERGE_CONSUME(29)
-  FHSS_PULSE_MERGE_CONSUME(30)
-  FHSS_PULSE_MERGE_CONSUME(31)
-  FHSS_PULSE_MERGE_CONSUME(32)
-  FHSS_PULSE_MERGE_CONSUME(33)
-  FHSS_PULSE_MERGE_CONSUME(34)
-  FHSS_PULSE_MERGE_CONSUME(35)
-  FHSS_PULSE_MERGE_CONSUME(36)
-  FHSS_PULSE_MERGE_CONSUME(37)
-  FHSS_PULSE_MERGE_CONSUME(38)
-  FHSS_PULSE_MERGE_CONSUME(39)
-  FHSS_PULSE_MERGE_CONSUME(40)
-  FHSS_PULSE_MERGE_CONSUME(41)
-  FHSS_PULSE_MERGE_CONSUME(42)
-  FHSS_PULSE_MERGE_CONSUME(43)
-  FHSS_PULSE_MERGE_CONSUME(44)
-  FHSS_PULSE_MERGE_CONSUME(45)
-  FHSS_PULSE_MERGE_CONSUME(46)
-  FHSS_PULSE_MERGE_CONSUME(47)
-  FHSS_PULSE_MERGE_CONSUME(48)
-  FHSS_PULSE_MERGE_CONSUME(49)
-  FHSS_PULSE_MERGE_CONSUME(50)
-  FHSS_PULSE_MERGE_CONSUME(51)
-  FHSS_PULSE_MERGE_CONSUME(52)
-  FHSS_PULSE_MERGE_CONSUME(53)
-  FHSS_PULSE_MERGE_CONSUME(54)
-  FHSS_PULSE_MERGE_CONSUME(55)
-  FHSS_PULSE_MERGE_CONSUME(56)
-  FHSS_PULSE_MERGE_CONSUME(57)
-  FHSS_PULSE_MERGE_CONSUME(58)
-  FHSS_PULSE_MERGE_CONSUME(59)
-  FHSS_PULSE_MERGE_CONSUME(60)
-  FHSS_PULSE_MERGE_CONSUME(61)
-  FHSS_PULSE_MERGE_CONSUME(62)
-  FHSS_PULSE_MERGE_CONSUME(63)
-  FHSS_PULSE_MERGE_CONSUME(64)
-
-#undef FHSS_PULSE_MERGE_CONSUME
-
-  std::optional<OutputTokenType>
-  Produce(std::integral_constant<std::size_t, 0>) override {
-    OutputTokenType output{};
-    if (output_queues_[0].Dequeue(output)) {
-      return output;
-    }
-    return std::nullopt;
-  }
-
-  std::optional<OutputTokenType>
-  Produce(std::integral_constant<std::size_t, 1>) override {
-    OutputTokenType output{};
-    if (output_queues_[1].Dequeue(output)) {
-      return output;
-    }
-    return std::nullopt;
-  }
-
-  bool Init() override { return SinkBase::Init() && SourceBase::Init(); }
-
-  bool Start() override { return SinkBase::Start() && SourceBase::Start(); }
-
-  void Stop() override {
-    SinkBase::Stop();
-    SourceBase::Stop();
-    for (auto &queue : output_queues_) {
-      queue.Disable();
-    }
-  }
-
-  void Join() override {
-    SinkBase::Join();
-    SourceBase::Join();
-  }
-
-  bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
-    return SinkBase::JoinWithTimeout(timeout_ms) &&
-           SourceBase::JoinWithTimeout(timeout_ms);
-  }
-
-  graph::LifecycleState GetLifecycleState() const override {
-    return SinkBase::GetLifecycleState();
   }
 
   std::optional<OutputTokenType>
@@ -315,10 +162,12 @@ public:
     return BuildOutput(input.token_id, local_detections);
   }
 
+  template <std::size_t Port>
   std::optional<OutputTokenType>
   Transfer(const PerChannelInputTokenType &input,
-           std::integral_constant<std::size_t, 1>,
+           std::integral_constant<std::size_t, Port>,
            std::integral_constant<std::size_t, 1>) {
+    static_assert(Port >= 1 && Port <= kPerChannelInputCount);
     const auto saved_count = config_.expected_per_channel_packet_count;
     config_.expected_per_channel_packet_count = 1;
     auto output = AccumulatePerChannel(input);
@@ -375,7 +224,6 @@ private:
   std::mutex per_channel_mutex_;
   std::vector<FHSSLocalPulseDetection> pending_per_channel_detections_;
   std::uint32_t pending_per_channel_packet_count_ = 0;
-  core::ActiveQueue<OutputTokenType> output_queues_[NOutputs];
 };
 
 } // namespace dsp::fhss
