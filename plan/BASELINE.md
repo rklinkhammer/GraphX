@@ -18,6 +18,14 @@ next steps, known issues, and future work for SAR and FHSS.
 - Preserve truth-in-labeling: fixture, test, reference, local-only, GPU, and
   production-like claims must be named exactly.
 
+Current active cleanup roadmap:
+
+- `plan/roadmap/GRAPHX_PR_ROADMAP.md`
+
+Current active cleanup implementer/verifier prompts:
+
+- `plan/agents/GRAPHX_PR_AGENTS.md`
+
 ## Current Architecture
 
 ### Core GraphX Runtime
@@ -63,6 +71,14 @@ SAR truth-in-labeling:
 - Metal SAR nodes must state whether they are transfer, memory, sync/control,
   generic kernel, or domain algorithm nodes.
 - Experimental or incomplete Metal behavior must remain labeled as such.
+- Current canonical SAR GPU-path candidate:
+  `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json`.
+  It is the only active SAR GPU-path candidate for cleanup planning, and it
+  remains experimental/incomplete until explicitly promoted by tests and
+  baseline updates.
+- Other SAR Metal configs are development, reference, or historical paths until
+  SAR config consolidation selects otherwise. They must not be described as a
+  second canonical SAR GPU path.
 
 ### FHSS
 

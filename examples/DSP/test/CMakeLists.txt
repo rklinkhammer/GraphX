@@ -6,6 +6,7 @@ find_package(nlohmann_json REQUIRED)
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
+    test_dsp_fhss_baseline_guardrails.cpp
 )
 
 target_compile_features(test_dsp_example_unit PRIVATE cxx_std_26)

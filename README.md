@@ -10,6 +10,8 @@ testing the repository. Historical docs were archived during the 2026-06
 baseline consolidation:
 
 - active planning baseline: `plan/BASELINE.md`
+- active cleanup roadmap: `plan/roadmap/GRAPHX_PR_ROADMAP.md`
+- active cleanup PR prompts: `plan/agents/GRAPHX_PR_AGENTS.md`
 - archived plan material: `plan/archive/2026-06-baseline/`
 - archived user docs: `docs/archive/2026-06-baseline/`
 
@@ -461,6 +463,16 @@ Common SAR config files:
 | `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` | CI-safe CRSD focused-image CPU lane. |
 | `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` | CRSD focused-image Metal lane. |
 | `examples/SAR/config/sar_crsd_gotcha_local_validation.json` | Local-only GOTCHA-derived CRSD validation graph. |
+
+SAR GPU-path truth-in-labeling:
+
+- Current canonical SAR GPU-path candidate:
+  `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json`.
+- It remains experimental/incomplete until explicitly promoted by tests and
+  baseline updates.
+- Other SAR Metal configs are development, reference, or historical paths until
+  SAR config consolidation selects otherwise. They are not a second canonical
+  SAR GPU path.
 
 Example run of the SAR executable:
 
