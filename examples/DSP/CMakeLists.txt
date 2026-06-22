@@ -25,6 +25,31 @@ if(TARGET graphx_dynamic_nodes)
     add_dependencies(dsp_spectrum_demo graphx_dynamic_nodes)
 endif()
 
+add_executable(dsp_fhss_demo
+    src/fhss_demo.cpp
+)
+set_target_properties(dsp_fhss_demo PROPERTIES
+    OUTPUT_NAME "graphx-dsp-fhss-demo"
+)
+
+target_compile_features(dsp_fhss_demo PRIVATE cxx_std_26)
+# The FHSS fixture graph is CPU-only, but the graph runtime resolves its
+# accelerator token bootstrap symbols from libgpu.
+target_link_libraries(dsp_fhss_demo PRIVATE graph gpu dsp log4cxx)
+target_compile_definitions(dsp_fhss_demo PRIVATE
+    GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+    DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
+    DSP_FHSS_REFERENCE_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_fixture_500msps.json"
+)
+if(TARGET graphx_dynamic_nodes)
+    add_dependencies(dsp_fhss_demo graphx_dynamic_nodes)
+endif()
+
 install(TARGETS dsp_spectrum_demo
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS dsp_fhss_demo
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

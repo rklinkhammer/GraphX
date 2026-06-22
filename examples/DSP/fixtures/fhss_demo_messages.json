@@ -1,0 +1,41 @@
+{
+  "description": "Example FHSS message schedule for graphx-dsp-fhss-demo.",
+  "active_frequency_indices": [24, 28, 32, 36],
+  "iq_center_frequency_hz": 1240000000.0,
+  "messages": [
+    {
+      "message_id": 42,
+      "transmit_start_sample": 0,
+      "pulses": [
+        {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+        {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+        {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+        {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+        {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+        {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+        {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+        {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+        {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+        {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+        {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+        {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+        {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+        {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+        {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+        {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+        {"frequency_index": 36, "value": 3735928559, "role": "body"},
+        {"frequency_index": 32, "value": 3405691582, "role": "body"},
+        {"frequency_index": 28, "value": 305419896, "role": "body"},
+        {"frequency_index": 24, "value": 195948557, "role": "body"}
+      ]
+    }
+  ],
+  "idle_mode": "zero",
+  "idle_duration_samples": 0,
+  "occupied_bandwidth_hz": 5000000.0,
+  "max_abs_cfo_hz": 1000.0,
+  "enable_noise": false,
+  "enable_doppler": false,
+  "enable_multipath": false,
+  "allow_overlap": false
+}

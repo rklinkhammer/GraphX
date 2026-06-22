@@ -5,13 +5,17 @@ find_package(nlohmann_json REQUIRED)
 
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
+    test_dsp_fhss_demo.cpp
 )
 
 target_compile_features(test_dsp_example_unit PRIVATE cxx_std_26)
 target_compile_definitions(test_dsp_example_unit PRIVATE
     DSP_SPECTRUM_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_spectrum_demo>"
+    DSP_FHSS_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_fhss_demo>"
     DSP_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_fft_spectrum_256.json"
     DSP_METAL_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_metal_dft_spectrum_256.json"
+    DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
+    DSP_FHSS_DEMO_MESSAGE_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/fixtures/fhss_demo_messages.json"
     DSP_CPU_VS_METAL_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/tools/dsp_cpu_vs_metal_performance_report.schema.json"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
@@ -24,6 +28,7 @@ target_link_libraries(test_dsp_example_unit PRIVATE
 )
 add_dependencies(test_dsp_example_unit
     dsp_spectrum_demo
+    dsp_fhss_demo
 )
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_dsp_example_unit graphx_dynamic_nodes)

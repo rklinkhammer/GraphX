@@ -11,11 +11,11 @@ config, and executor flow.
 
 CPU reference graph shape:
 
-`SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>`
+`SineSignalNode<256> -> CpuSpectrumDftNode<float, 256> -> SpectrumSinkNode<float, 256>`
 
-The CPU lane is the correctness reference. The current `FFTNode<256>` path uses
-the existing CPU direct DFT implementation and Hann-windowed deterministic
-spectrum output.
+The CPU lane is the correctness reference. The current
+`CpuSpectrumDftNode<float, 256>` path uses the existing CPU direct DFT
+implementation and Hann-windowed deterministic spectrum output.
 
 GPU Metal direct DFT graph shape:
 
@@ -117,8 +117,8 @@ claims.
 ## Truth In Labeling
 
 - The runnable `graphx-dsp-spectrum-demo` command above is CPU-only by default.
-- The CPU reference lane uses `FFTNode<256>` but currently computes a direct DFT
-  path through the existing CPU implementation.
+- The CPU reference lane uses `CpuSpectrumDftNode<float, 256>` and currently
+  computes a direct DFT path through the existing CPU implementation.
 - The GPU Metal lane is `MetalSpectrumDftNode<256>`, a real Metal direct DFT.
 - `MetalSpectrumDftNode<256>` is not a GPU FFT.
 - A future true Metal FFT lane must use FFT naming only after implementing a

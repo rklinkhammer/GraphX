@@ -18,7 +18,8 @@ For the DSP spectrum demo lane, GPU Metal direct DFT lane, and truth-in-labeling
 see `docs/dsp/spectrum_demo.md`.
 
 For the deterministic CPU-only FHSS CPSM fixture lane, GraphX FHSS node model,
-and RF truth-in-labeling boundaries, see `docs/dsp/fhss_decoder.md`.
+RF truth-in-labeling boundaries, and FHSS demo commands, see
+`docs/dsp/fhss_decoder.md`.
 
 ## Canonical SAR Lanes
 
@@ -204,7 +205,7 @@ cmake --build build-ninja/ninja-debug --target test-summary
 
 The runnable DSP demo command is a **CPU-only direct DFT** reference lane and uses:
 
-`SineSignalNode<256> -> FFTNode<float, 256> -> SpectrumSinkNode<float, 256>`
+`SineSignalNode<256> -> CpuSpectrumDftNode<float, 256> -> SpectrumSinkNode<float, 256>`
 
 The separate GPU graph lane is a **Metal direct DFT**, not a GPU FFT:
 
@@ -271,6 +272,50 @@ GRAPHX_DSP_MIN_METAL_SPEEDUP_RATIO=1.10 \
 
 The strict gate uses `run_elapsed_time_ms` from `GraphExecutor::Execute()` and
 is not part of default CI.
+
+## DSP FHSS Demo
+
+The runnable FHSS demo uses the canonical CPU-only channelized fixture graph:
+
+`FHSSSyntheticIqSourceNode -> FHSSDownconverterNode -> ChannelizerNode -> PerChannelPulseDetectorNode[64] -> FHSSPulseMergeNode -> FHSSPulseCandidateNode -> CPSMBranchMetricNode -> CPSMViterbiDecoderNode -> FHSSPulseWordDecoderNode -> FHSSPreambleDetectorNode -> FHSSMessageAssemblerNode -> FHSSMessageSinkNode`
+
+Build and run with the bundled canonical graph:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target dsp_fhss_demo
+
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --graph-config libdsp/config/fhss_cpsm_channelized_fixture_500msps.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --executor-timeout-s 12
+```
+
+Run with an external message schedule and write investigation artifacts:
+
+```bash
+tmpdir="$(mktemp -d)"
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --message-json examples/DSP/fixtures/fhss_demo_messages.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --summary-json "$tmpdir/fhss_summary.json" \
+  --effective-config-json "$tmpdir/fhss_effective_graph.json" \
+  --decoded-pulse-limit 8 \
+  --executor-timeout-s 12
+```
+
+Focused FHSS demo tests:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_unit
+
+./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit \
+  --gtest_filter='DspFhssDemoExecutableTest.*'
+```
+
+The demo prints graph metrics, pulse count, preamble lock, truth mismatch count,
+active frequencies, and a decoded pulse preview. The summary JSON includes the
+same FHSS diagnostics for investigation. See `docs/dsp/fhss_decoder.md` for the
+message JSON schema and FHSS truth-in-labeling boundaries.
 
 ## SAR/GOTCHA Testing
 

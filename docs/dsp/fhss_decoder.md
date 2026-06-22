@@ -285,9 +285,109 @@ Those features should be added only with explicit graph contracts and tests.
 They should not relabel the current CPU fixture as production RF, GPU
 accelerated, overlap-aware, Doppler/noise-capable, or PDW-driven.
 
+## FHSS Demo Program
+
+The user-runnable FHSS demonstration program is:
+
+```text
+examples/DSP/graphx-dsp-fhss-demo
+```
+
+It runs the FHSS graph through the repository `GraphExecutorBuilder`, loads
+FHSS nodes through the plugin/provider path, resolves `FHSSMessageSinkNode`, and
+prints investigation metrics and decoder diagnostics. It does not bypass the
+GraphX graph with direct helper calls.
+
+Build the demo and plugin dependencies:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target dsp_fhss_demo
+```
+
+Run the canonical channelized graph with its built-in configured message:
+
+```bash
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --graph-config libdsp/config/fhss_cpsm_channelized_fixture_500msps.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --executor-timeout-s 12
+```
+
+Run with an external message schedule JSON:
+
+```bash
+tmpdir="$(mktemp -d)"
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --graph-config libdsp/config/fhss_cpsm_channelized_fixture_500msps.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --message-json examples/DSP/fixtures/fhss_demo_messages.json \
+  --summary-json "$tmpdir/fhss_summary.json" \
+  --effective-config-json "$tmpdir/fhss_effective_graph.json" \
+  --decoded-pulse-limit 8 \
+  --executor-timeout-s 12
+```
+
+The demo accepts a message JSON file that is either a full
+`FHSSSyntheticIqSourceNode` `node_config` object or an object with a
+`node_config` field. The sample file is:
+
+```text
+examples/DSP/fixtures/fhss_demo_messages.json
+```
+
+The external message JSON must provide `messages[]`. Each message has a stable
+`message_id`, `transmit_start_sample`, and ordered `pulses[]`. Each pulse must
+provide:
+
+```json
+{
+  "frequency_index": 24,
+  "value": 2863311530,
+  "role": "preamble"
+}
+```
+
+If `active_frequency_indices` is omitted from the message JSON, the demo derives
+it from the first 16 preamble pulses. The first 16 pulses must still be valid
+FHSS preamble pulses, and reserved transmit indices `0` and `63` remain invalid.
+
+The console output reports:
+
+- graph role and canonical/reference status;
+- execution success and elapsed time;
+- node and edge count;
+- aggregate graph queue metrics;
+- decoded pulse count;
+- rejected count;
+- preamble lock;
+- truth mismatch count;
+- active frequencies;
+- a decoded pulse preview.
+
+The optional summary JSON uses schema:
+
+```text
+graphx.dsp.fhss_demo_summary.v1
+```
+
+It includes the effective graph path, execution result fields, graph metrics,
+and the `FHSSMessageSinkNode` diagnostics, including decoded pulse metadata.
+The optional effective graph JSON is useful for inspecting exactly what graph
+configuration was executed after the message schedule was applied.
+
+To run the retained correlator-bank reference graph instead of the canonical
+channelized graph:
+
+```bash
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --reference-correlator-graph \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --executor-timeout-s 12
+```
+
 ## Validation
 
-The current CI-safe regression gates are:
+The FHSS library/unit regression gates are:
 
 ```bash
 cmake --build build-ninja/ninja-debug-metal-native --target test_libgraph_unit
@@ -298,3 +398,21 @@ cmake --build build-ninja/ninja-debug-metal-native --target test_libgraph_unit
 ./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit \
   --gtest_filter='*FHSS*:*CPSM*'
 ```
+
+The FHSS demo executable tests are part of the DSP example test target:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_unit
+
+./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit \
+  --gtest_filter='DspFhssDemoExecutableTest.*'
+```
+
+The focused FHSS demo test filter covers:
+
+- `--help` output;
+- default canonical channelized graph execution;
+- external message JSON input;
+- summary JSON creation;
+- effective graph JSON creation;
+- decoded truth match and preamble lock diagnostics.
