@@ -125,7 +125,7 @@ void BindDefaultCapabilities(sar::CrsdFocusedImageTransformMetalNode& node) {
 
 TEST(MetalTruthInLabelingGuardrailTest, InventoryDocumentClassifiesAllActiveMetalNodesAndBlocksPr6) {
     const auto path = std::filesystem::path{GRAPHX_SOURCE_ROOT} /
-                      "docs/sar/metal_node_truth_in_labeling.md";
+                      "README.md";
     ASSERT_TRUE(std::filesystem::exists(path));
 
     const std::string text = ReadFile(path);

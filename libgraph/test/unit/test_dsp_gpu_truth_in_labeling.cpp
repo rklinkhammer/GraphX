@@ -57,26 +57,19 @@ std::string ActiveMetalSpectrumDftText() {
 
 std::string ActiveDspPerformanceDocsText() {
     const auto root = SourceRoot();
-    return LoadText(root / "docs/dsp/spectrum_demo.md") + "\n" +
-           LoadText(root / "README.md");
+    return LoadText(root / "README.md");
 }
 
 }  // namespace
 
 TEST(DspGpuTruthInLabelingTest, GpuDocsStateDirectDftNotFft) {
-    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
     const auto readme = LoadText(SourceRoot() / "README.md");
 
-    ExpectContains(docs, "CPU reference graph shape");
-    ExpectContains(docs, "GPU Metal direct DFT graph shape");
-    ExpectContains(docs, "future true Metal FFT lane");
-    ExpectContains(docs, "`MetalSpectrumDftNode<256>` is not a GPU FFT");
-    ExpectContains(docs, "No true Metal FFT lane yet");
-
     ExpectContains(readme, "DSP Spectrum Demo And GPU DFT Lane");
+    ExpectContains(readme, "CpuSpectrumDftNode<float, 256>");
     ExpectContains(readme, "Metal direct DFT");
     ExpectContains(readme, "not a GPU FFT");
-    ExpectContains(readme, "Future true Metal FFT work");
+    ExpectContains(readme, "future true Metal FFT");
 }
 
 TEST(DspGpuTruthInLabelingTest, GpuNodeNamesDoNotClaimFftForDftImplementation) {
@@ -153,12 +146,9 @@ TEST(DspGpuTruthInLabelingTest, CpuConfigRemainsCpuOnly) {
 }
 
 TEST(DspGpuTruthInLabelingTest, PerformanceDocsRequireMeasuredOnHostQualifier) {
-    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
     const auto readme = LoadText(SourceRoot() / "README.md");
 
-    ExpectContains(docs, "speedup ratio");
-    ExpectContains(docs, "measured on the current host/config");
-    ExpectContains(docs, "measurements for the recorded host/config");
+    ExpectContains(readme, "execute-timing comparisons");
     ExpectContains(readme, "measured on the current host/config");
 }
 
@@ -190,13 +180,11 @@ TEST(DspGpuTruthInLabelingTest, MetalDftIsNeverDocumentedAsGpuFft) {
 TEST(DspGpuTruthInLabelingTest, DefaultCiDoesNotRequireSpeedup) {
     const auto dsp_test_cmake = LoadText(SourceRoot() / "examples/DSP/test/CMakeLists.txt");
     const auto libgraph_test_cmake = LoadText(SourceRoot() / "libgraph/test/CMakeLists.txt");
-    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
     const auto readme = LoadText(SourceRoot() / "README.md");
     const auto example_test = LoadText(SourceRoot() / "examples/DSP/test/test_dsp_spectrum_demo.cpp");
 
     ExpectNotContains(dsp_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
     ExpectNotContains(libgraph_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
-    ExpectContains(docs, "not part of default CI");
     ExpectContains(readme, "not part of default CI");
     ExpectContains(example_test, "DefaultComparisonModeDoesNotFailForUnavailableOrSlowerMetal");
     ExpectContains(example_test, "StrictGateRequiresExplicitEnvironmentOptIn");
@@ -206,7 +194,6 @@ TEST(DspGpuTruthInLabelingTest, PerformanceReportsUseExecuteResultTiming) {
     const auto schema = LoadJson(
         SourceRoot() / "examples/DSP/tools/dsp_cpu_vs_metal_performance_report.schema.json");
     const auto runner = LoadText(SourceRoot() / "examples/DSP/src/main.cpp");
-    const auto docs = LoadText(SourceRoot() / "docs/dsp/spectrum_demo.md");
     const auto readme = LoadText(SourceRoot() / "README.md");
 
     EXPECT_EQ(schema.at("properties").at("timing_source").at("const").get<std::string>(),
@@ -216,6 +203,6 @@ TEST(DspGpuTruthInLabelingTest, PerformanceReportsUseExecuteResultTiming) {
               "run_elapsed_time_ms");
     ExpectContains(runner, "&graph::ExecutionResult::run_elapsed_time_ms");
     ExpectContains(runner, "Timing source: GraphExecutor::Execute() ExecutionResult");
-    ExpectContains(docs, "`GraphExecutor::Execute()`");
+    ExpectContains(readme, "`GraphExecutor::Execute()`");
     ExpectContains(readme, "`GraphExecutor::Execute()`");
 }

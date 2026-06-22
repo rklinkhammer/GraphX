@@ -239,28 +239,21 @@ TEST(DspSpectrumDemoGuardrailTest, ConfigDeclaresCpuOnlyDspNodeTypes) {
 TEST(DspSpectrumDemoGuardrailTest, RunnerAndDocsStateCpuOnlyDirectDftTruthInLabeling) {
     const auto demo_source = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
                              "examples/DSP/src/main.cpp";
-    const auto doc_source = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
-                            "docs/dsp/spectrum_demo.md";
     const auto readme_source = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
                                "README.md";
 
     const auto demo_text = LoadText(demo_source);
-    const auto doc_text = LoadText(doc_source);
     const auto readme_text = LoadText(readme_source);
 
     ExpectContains(demo_text, "Execution mode: CPU-only direct DFT");
 
-    ExpectContains(doc_text, "SineSignalNode<256> -> CpuSpectrumDftNode<float, 256> -> SpectrumSinkNode<float, 256>");
-    ExpectContains(doc_text, "CPU-only");
-    ExpectContains(doc_text, "direct DFT");
-    ExpectContains(doc_text, "GPU Metal direct DFT");
-    ExpectContains(doc_text, "MetalSpectrumDftNode<256>` is not a GPU FFT");
-    ExpectContains(doc_text, "future true Metal FFT lane");
-
-    // README is example-indexed in this repository, so keep a narrow DSP truth-in-labeling entry.
+    // README is the consolidated user documentation baseline.
     ExpectContains(readme_text, "DSP Spectrum Demo And GPU DFT Lane");
     ExpectContains(readme_text, "CPU-only direct DFT");
+    ExpectContains(readme_text, "CpuSpectrumDftNode<float, 256>");
     ExpectContains(readme_text, "Metal direct DFT");
+    ExpectContains(readme_text, "not a GPU FFT");
+    ExpectContains(readme_text, "future true Metal FFT");
 }
 
 TEST(DspCpuVsMetalExecuteTimingTest, WritesInformationalComparisonReport) {

@@ -1,102 +1,77 @@
-# GraphX Build and CMake Reference
+# GraphX
 
-GraphX is a C++26 project built with CMake and organized into multiple libraries:
-- libgraph
-- libsensor
-- libdsp
-- libgpu
+GraphX is a C++26 graph runtime and example workspace for typed graph nodes,
+JSON graph configuration, plugin-loaded nodes, accelerator-ready token
+contracts, DSP fixtures, FHSS decoding experiments, and SAR image-formation
+pipelines.
 
-This README is the top-level build guide and CMake option reference.
+This README is now the consolidated user guide for building, running, and
+testing the repository. Historical docs were archived during the 2026-06
+baseline consolidation:
 
-For a consolidated operational guide across build, install, test, GOTCHA, SarPy,
-and CRSD conversion/testing, see `docs/CONSOLIDATED_OPERATIONS.md`.
+- active planning baseline: `plan/BASELINE.md`
+- archived plan material: `plan/archive/2026-06-baseline/`
+- archived user docs: `docs/archive/2026-06-baseline/`
 
-For the CRSD-to-focused-image flow definition, guardrails, and evidence matrix,
-see `docs/sar/crsd_to_focused_image.md`.
+## Repository Layout
 
-For the DSP spectrum demo lane, GPU Metal direct DFT lane, and truth-in-labeling guardrails,
-see `docs/dsp/spectrum_demo.md`.
-
-For the deterministic CPU-only FHSS CPSM fixture lane, GraphX FHSS node model,
-RF truth-in-labeling boundaries, and FHSS demo commands, see
-`docs/dsp/fhss_decoder.md`.
-
-## Canonical SAR Lanes
-
-Active SAR operations are organized into three lanes:
-
-1. GOTCHA -> CRSD conversion
-2. CRSD quick-look validation (local-only reference tooling)
-3. CRSD -> focused GraphX image
-
-Use `docs/CONSOLIDATED_OPERATIONS.md` as the authoritative command reference for these lanes.
+| Path | Purpose |
+|---|---|
+| `libgraph/` | Graph runtime, executor, nodes, edges, plugins, config loading, policies. |
+| `libgpu/` | GPU/accelerator token contracts and backend nodes for CUDA/SYCL/Metal where enabled. |
+| `libdsp/` | DSP nodes, spectrum demo nodes, FHSS protocol/generator/decoder nodes and configs. |
+| `libsensor/` | Sensor-side support library. |
+| `examples/DSP/` | User-runnable DSP spectrum and FHSS demos plus tests. |
+| `examples/SAR/` | SAR example nodes, configs, tools, fixtures, and tests. |
+| `scripts/` | Repo helper scripts, including GOTCHA-to-CRSD conversion workflow. |
+| `tools/sarpy/` | Local-only SarPy/reference helper tooling. |
+| `plan/BASELINE.md` | Active SAR/FHSS architecture, next steps, issues, and future work. |
 
 ## Requirements
 
-- CMake 3.23 or newer
-- A C++ compiler with C++26 support
-- Ninja (required by default)
-- Platform/toolchain dependencies vary by enabled GPU backends:
-  - CUDA: CUDAToolkit discoverable by CMake
-  - SYCL: compiler support for -fsycl (Clang or IntelLLVM)
-  - Metal: Apple platform, Metal/Foundation/QuartzCore frameworks, and metal-cpp headers
+- CMake 3.23 or newer.
+- Ninja. The project requires Ninja by default.
+- A C++ compiler with C++26 support.
+- Optional GPU/backend prerequisites:
+  - CUDA: CUDAToolkit discoverable by CMake.
+  - SYCL: compiler support for `-fsycl`.
+  - Metal: Apple platform for Metal graph nodes.
+  - Native Metal runtime: Apple frameworks plus `metal-cpp` headers.
 
-## Quick Start (Presets)
+MATLAB is not a GraphX build-time, runtime, or test-time dependency.
 
-Configure + build debug:
+## Quick Start
+
+Configure and build the default debug tree:
 
 ```bash
 cmake --preset ninja-debug
 cmake --build --preset build-debug
 ```
 
-Run libgraph unit tests:
+Configure and build the native-Metal-requested tree used by most current DSP
+and FHSS examples:
 
 ```bash
-ctest --preset test-libgraph-unit
+cmake --preset ninja-debug-metal-native
+cmake --build --preset build-debug-metal-native
 ```
 
-Run Metal runtime tests:
+Run the main libgraph test lane:
+
+```bash
+ctest --preset test-libgraph-unit --output-on-failure
+```
+
+Run Metal runtime tests where native Metal is available:
 
 ```bash
 ctest --preset test-libgpu-metal-runtime --output-on-failure
 ```
 
-Strict native-Metal validation lane:
+## Manual Build
 
-```bash
-cmake --preset ninja-debug-metal-native-strict
-cmake --build --preset build-debug-metal-native-strict
-ctest --preset test-libgpu-metal-runtime-strict --output-on-failure
-```
-
-## Presets
-
-### Configure presets
-
-- ninja-debug: Default development preset (Ninja, Debug)
-- ninja-release: Release build (Ninja)
-- ninja-debug-modules: Debug with module pilot enabled
-- ninja-debug-metal-native: Debug with native Metal runtime requested
-- ninja-debug-metal-native-strict: Same as above, but fails if native Metal runtime prerequisites are missing
-
-### Build presets
-
-- build-debug
-- build-release
-- build-libgraph-unit
-- build-debug-metal-native
-- build-debug-metal-native-strict
-
-### Test presets
-
-- test-libgraph-unit: Runs CTest tests matching libgraph_unit
-- test-libgpu-metal-runtime: Runs CTest tests matching libgpu_metal_runtime
-- test-libgpu-metal-runtime-strict: Same runtime test lane under strict native-Metal requirement
-
-## Manual CMake Configure/Build
-
-If you are not using presets:
+Without presets:
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -104,115 +79,90 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-If you intentionally need a non-Ninja generator, disable the Ninja requirement:
+If you intentionally need a non-Ninja generator:
 
 ```bash
 cmake -S . -B build -G "Unix Makefiles" -DGRAPHX_REQUIRE_NINJA=OFF
 ```
 
-## CMake Options (Complete)
+## CMake Options
 
-The following options are defined by this repository.
-
-### Top-level options (CMakeLists.txt)
+Top-level options:
 
 | Option | Default | Description |
 |---|---|---|
-| GRAPHX_ENABLE_MODULE_PILOT | OFF | Enables experimental C++ module pilot mode. |
-| GRAPHX_REQUIRE_NINJA | ON | Fails configure if generator is not Ninja. |
-| BUILD_TESTS | ON | Builds test targets and enables CTest integration. |
-| BUILD_DOCS | OFF | Enables docs build lane (for Doxygen/doc targets where available). |
-| ENABLE_TSAN | OFF | Adds ThreadSanitizer compile/link flags (non-MSVC only). |
-| ENABLE_CUDA_GRAPH_NODES | OFF | Requests CUDA graph node support in libgpu. |
-| ENABLE_SYCL_GRAPH_NODES | ON | Requests SYCL graph node support in libgpu. |
-| ENABLE_METAL_GRAPH_NODES | ON | Requests Metal graph node support in libgpu. |
-| ENABLE_METAL_NATIVE_RUNTIME | ON | Requests native Metal runtime on Apple when prerequisites exist. |
-| GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME | OFF | Hard-fails configure/startup if native Metal runtime cannot be enabled. |
-| MULTI_GPU_TESTS | OFF | Enables multi-GPU test lanes when supported by enabled backends. |
+| `GRAPHX_ENABLE_MODULE_PILOT` | `OFF` | Enable experimental C++ module pilot mode. |
+| `GRAPHX_REQUIRE_NINJA` | `ON` | Fail configure if the generator is not Ninja. |
+| `BUILD_TESTS` | `ON` | Build test targets and enable CTest integration. |
+| `BUILD_DOCS` | `OFF` | Enable docs build targets where available. |
+| `GRAPHX_BUILD_EXAMPLES_SAR` | `ON` | Build SAR examples. |
+| `GRAPHX_BUILD_EXAMPLES_DSP` | `ON` | Build DSP examples. |
+| `ENABLE_TSAN` | `OFF` | Add ThreadSanitizer flags on supported compilers. |
+| `ENABLE_CUDA_GRAPH_NODES` | `OFF` | Request CUDA graph node support. |
+| `ENABLE_SYCL_GRAPH_NODES` | `ON` | Request SYCL graph node support. |
+| `ENABLE_METAL_GRAPH_NODES` | `ON` | Request Metal graph node support. |
+| `ENABLE_METAL_NATIVE_RUNTIME` | `ON` | Request native Metal runtime on Apple. |
+| `GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME` | `OFF` | Fail if native Metal runtime cannot be enabled. |
+| `MULTI_GPU_TESTS` | `OFF` | Enable multi-GPU test lanes when supported. |
 
-### Top-level cache variables (non-option settings)
+Useful cache variables:
 
-| Variable | Default | Description |
-|---|---|---|
-| GRAPHX_METAL_CPP_INCLUDE_DIR | empty | Optional path to metal-cpp include root containing Metal/Metal.hpp. |
-| CMAKE_CXX_STANDARD | 26 | Required C++ standard (project hard-requires C++26). |
-| CMAKE_EXPORT_COMPILE_COMMANDS | ON | Emits compile_commands.json. |
+| Variable | Description |
+|---|---|
+| `GRAPHX_METAL_CPP_INCLUDE_DIR` | Optional path to the `metal-cpp` include root. |
+| `CMAKE_CXX_STANDARD` | Must remain `26`. |
+| `CMAKE_EXPORT_COMPILE_COMMANDS` | Enabled by default. |
 
-### Subdirectory options
-
-Defined in module/test CMake files and available at configure time:
-
-| Option | Location | Default | Description |
-|---|---|---|---|
-| GRAPHX_BUILD_GPU_STUB_PLUGINS | libgpu/plugins/CMakeLists.txt | ON | Builds CPU-safe stub GPU plugins used by topology/lifecycle tests. |
-| ENABLE_THREADPOOL_EXTENDED_TESTS | libgraph/test/CMakeLists.txt | OFF | Builds/runs extended ThreadPool benchmark/chaos/scaling tests. |
-
-## GPU Backend Behavior and Gating
-
-GraphX uses request options plus capability detection. Requesting a backend does not always guarantee activation.
-
-- CUDA activation requires CUDAToolkit discovery.
-- SYCL activation requires compiler support for -fsycl.
-- Metal activation requires Apple platform.
-- Native Metal runtime activation additionally requires Apple frameworks and metal-cpp headers.
-
-When prerequisites are missing, GraphX emits warnings and disables the backend/runtime lane unless strict mode is requested.
-
-## Strict Native Metal Mode
-
-Enable strict mode to fail fast when native Metal runtime cannot be provided:
+## Core Test Commands
 
 ```bash
-cmake --preset ninja-debug-metal-native-strict
-```
+# All tests known to a build directory.
+ctest --test-dir build-ninja/ninja-debug --output-on-failure
 
-Equivalent manual flags:
+# Main graph runtime unit lane.
+ctest --preset test-libgraph-unit --output-on-failure
 
-```bash
-cmake -S . -B build-metal-strict -G Ninja \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DENABLE_METAL_GRAPH_NODES=ON \
-  -DENABLE_METAL_NATIVE_RUNTIME=ON \
-  -DGRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON \
-  -DGRAPHX_METAL_CPP_INCLUDE_DIR=/opt/homebrew/include
-```
-
-## Test Execution
-
-With BUILD_TESTS=ON, top-level configure enables CTest and adds library test trees.
-
-Examples:
-
-```bash
-# all tests known in a build directory
-ctest --test-dir build --output-on-failure
-
-# all tests in preset-configured tree
-ctest --preset test-libgraph-unit
+# GPU/Metal runtime lane.
 ctest --preset test-libgpu-metal-runtime --output-on-failure
 
-# run specific regex/lane manually
-ctest --test-dir build-ninja/ninja-debug -R libgraph_unit --output-on-failure
-```
-
-A summary target is also available in test-enabled builds:
-
-```bash
+# Build a summary target in test-enabled builds.
 cmake --build build-ninja/ninja-debug --target test-summary
 ```
 
+Focused binaries:
+
+```bash
+./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit
+./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
+```
+
+## GraphX Runtime And Plugin Notes
+
+JSON graph examples should use repository-native runtime paths:
+
+- `graph::GraphExecutorBuilder`
+- `WithJsonConfig(...)`
+- `WithPluginDirectory(...)`
+- `WithExecutorTimeout(...)`
+- real GraphX node classes
+- `graph::gpu::accel::ControlToken<...>` where the node contract is
+  accelerator-ready
+
+Avoid inventing local graph adaptors or bypassing the GraphX executor in user
+examples. Historical helper/pseudo-node documentation is archived and is not the
+active architecture.
+
 ## DSP Spectrum Demo And GPU DFT Lane
 
-The runnable DSP demo command is a **CPU-only direct DFT** reference lane and uses:
+The runnable spectrum demo is a CPU-only direct DFT reference lane. CPU-only
+direct DFT is the intended truth-in-labeling description for this path:
 
-`SineSignalNode<256> -> CpuSpectrumDftNode<float, 256> -> SpectrumSinkNode<float, 256>`
-
-The separate GPU graph lane is a **Metal direct DFT**, not a GPU FFT:
-
-`SineSignalNode<256> -> DspIqH2DNode<256> -> MetalSpectrumDftNode<256> -> DspMagnitudeD2HNode<256> -> SpectrumSinkNode<float, 256>`
-
-Future true Metal FFT work should use FFT naming only after a real FFT algorithm
-is implemented.
+```text
+SineSignalNode<256>
+  -> CpuSpectrumDftNode<float, 256>
+  -> SpectrumSinkNode<float, 256>
+```
 
 Build and run:
 
@@ -224,17 +174,17 @@ cmake --build build-ninja/ninja-debug-metal-native --target dsp_spectrum_demo
   build-ninja/ninja-debug-metal-native/plugins
 ```
 
-Optional summary artifact:
+Write a deterministic summary:
 
 ```bash
 tmpdir="$(mktemp -d)"
 ./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
   libdsp/config/dsp_sine_fft_spectrum_256.json \
   build-ninja/ninja-debug-metal-native/plugins \
-  --summary-json "$tmpdir/summary.json"
+  --summary-json "$tmpdir/spectrum_summary.json"
 ```
 
-Optional informational CPU-vs-Metal execute-timing comparison:
+Run the informational CPU-vs-Metal direct DFT comparison:
 
 ```bash
 tmpdir="$(mktemp -d)"
@@ -249,37 +199,51 @@ tmpdir="$(mktemp -d)"
   --report-json "$tmpdir/dsp_cpu_vs_metal_report.json"
 ```
 
-The comparison report is informational by default and uses
-`GraphExecutor::Execute()` result fields. `elapsed_time_ms` is total execute
-wall-clock time; `run_elapsed_time_ms` is the executor run phase. The Metal lane
-is a direct DFT lane, not a GPU FFT, and reports should be interpreted as
-measured on the current host/config.
+Truth-in-labeling:
 
-An optional local-only strict gate is available when explicitly enabled:
+- The default spectrum demo is CPU-only.
+- `CpuSpectrumDftNode<float, 256>` is a direct DFT implementation.
+- `MetalSpectrumDftNode<256>` is a Metal direct DFT, not a GPU FFT.
+- CPU-vs-Metal reports are execute-timing comparisons measured on the current host/config.
+  They are not general performance claims.
+- Timing comes from the `GraphExecutor::Execute()` ExecutionResult fields used
+  by the demo runner.
+- The optional strict speedup gate is local-only and not part of default CI.
+- A future true Metal FFT lane must use FFT naming only after a real FFT
+  algorithm is implemented.
+
+Focused tests:
 
 ```bash
-GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1 \
-GRAPHX_DSP_MIN_METAL_SPEEDUP_RATIO=1.10 \
-./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
-  --compare-cpu-metal \
-  --cpu-config libdsp/config/dsp_sine_fft_spectrum_256.json \
-  --gpu-config libdsp/config/dsp_sine_metal_dft_spectrum_256.json \
-  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
-  --warmup-iterations 1 \
-  --measured-iterations 3 \
-  --executor-timeout-s 8
-```
+cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_unit
 
-The strict gate uses `run_elapsed_time_ms` from `GraphExecutor::Execute()` and
-is not part of default CI.
+./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit \
+  --gtest_filter='DspSpectrumDemoExecutableTest.*:DspSpectrumDemoGuardrailTest.*:DspCpuVsMetalExecuteTimingTest.*'
+```
 
 ## DSP FHSS Demo
 
-The runnable FHSS demo uses the canonical CPU-only channelized fixture graph:
+The FHSS lane is a deterministic CPU fixture and decoder. It is not a
+production RF receiver.
 
-`FHSSSyntheticIqSourceNode -> FHSSDownconverterNode -> ChannelizerNode -> PerChannelPulseDetectorNode[64] -> FHSSPulseMergeNode -> FHSSPulseCandidateNode -> CPSMBranchMetricNode -> CPSMViterbiDecoderNode -> FHSSPulseWordDecoderNode -> FHSSPreambleDetectorNode -> FHSSMessageAssemblerNode -> FHSSMessageSinkNode`
+Canonical channelized graph:
 
-Build and run with the bundled canonical graph:
+```text
+FHSSSyntheticIqSourceNode
+  -> FHSSDownconverterNode
+  -> ChannelizerNode
+  -> PerChannelPulseDetectorNode[64]
+  -> FHSSPulseMergeNode
+  -> FHSSPulseCandidateNode
+  -> CPSMBranchMetricNode
+  -> CPSMViterbiDecoderNode
+  -> FHSSPulseWordDecoderNode
+  -> FHSSPreambleDetectorNode
+  -> FHSSMessageAssemblerNode
+  -> FHSSMessageSinkNode
+```
+
+Build and run the bundled canonical graph:
 
 ```bash
 cmake --build build-ninja/ninja-debug-metal-native --target dsp_fhss_demo
@@ -303,7 +267,67 @@ tmpdir="$(mktemp -d)"
   --executor-timeout-s 12
 ```
 
-Focused FHSS demo tests:
+External message JSON may be a full `FHSSSyntheticIqSourceNode` `node_config`
+object or an object with a `node_config` field. It must provide `messages[]`.
+Each pulse must provide `frequency_index`, `value`, and `role`.
+
+Example pulse:
+
+```json
+{
+  "frequency_index": 24,
+  "value": 2863311530,
+  "role": "preamble"
+}
+```
+
+FHSS fixture limits:
+
+- sample rate: `500 Msps`;
+- bit rate: `5 Mbps`;
+- 64 RF metadata entries;
+- selectable transmit indices `[1, 62]`;
+- reserved receiver guard/metadata indices `0` and `63`;
+- 16 hop-only preamble pulses;
+- four active transmit frequencies;
+- maximum 256 pulses including preamble.
+
+FHSS truth-in-labeling:
+
+- 1 GHz RF frequencies are metadata; fixture IQ uses baseband/IF offsets.
+- The 500 Msps fixture cannot represent the full 64-entry 1 GHz RF table as
+  direct sampled RF, and it does not use or implement direct 1 GHz RF sampling.
+- Guardrail wording: cannot represent the full 64-entry 1 GHz RF table as direct sampled RF.
+- The full 64-entry RF table is not one simultaneous alias-free 500 Msps RF
+  capture.
+- Magnitude-only DFT/FFT output is not the canonical decoder input.
+- Guardrail wording: complex IQ evidence; CPSM branch metrics; Viterbi/MLSE.
+- The deterministic CPU fixture channelizer is not a production channelizer.
+  Do not claim production channelizer separation claims or production
+  channelizer performance.
+- Doppler, noise, multipath, overlap-aware separation, real RF capture, and
+  production channelizer performance are not implemented.
+- Overlap is unsupported.
+- Metal/GPU acceleration of the FHSS lane is future work.
+- PDW diagnostics as canonical decoder output are not part of the active
+  decoder contract.
+- Occupied-bandwidth and channel-filter requirements remain unresolved in PR16,
+  so the current docs must not claim production channelizer separation.
+- Receiver configuration preserves one logical GraphX channel output port per
+  configured frequency.
+- Guardrail wording: channel output port per configured frequency.
+- Guardrail wording: retuned sub-band windows.
+- Guardrail wording: explicit alias/downconvert modeling.
+- The RF table must not be described as one simultaneous alias-free 500 Msps
+  complex-baseband capture.
+- Canonical impairment status values include `configured_rejected` and
+  `unsupported_impairments_rejected`; PDW diagnostics remain optional and
+  non-canonical.
+- Guardrail wording: PDW diagnostics remain optional and non-canonical.
+- Guardrail wording: deleted pre-GraphX pseudo-node scaffolding is not the current node model.
+- Guardrail wording: retained correlator-bank graph is reference and not the canonical graph.
+
+Focused tests:
 
 ```bash
 cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_unit
@@ -312,24 +336,100 @@ cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_uni
   --gtest_filter='DspFhssDemoExecutableTest.*'
 ```
 
-The demo prints graph metrics, pulse count, preamble lock, truth mismatch count,
-active frequencies, and a decoded pulse preview. The summary JSON includes the
-same FHSS diagnostics for investigation. See `docs/dsp/fhss_decoder.md` for the
-message JSON schema and FHSS truth-in-labeling boundaries.
-
-## SAR/GOTCHA Testing
-
-The SAR example tests live under `examples/SAR` and are built into the
-`test_sar_example_unit` target.
+FHSS library/graph tests:
 
 ```bash
-cmake --build build-ninja/ninja-debug --target test_sar_example_unit
+cmake --build build-ninja/ninja-debug-metal-native --target test_libgraph_unit
+
+./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit \
+  --gtest_filter='*FHSS*:*CPSM*'
 ```
 
-The test executable is:
+## SAR Architecture
+
+Active SAR lanes:
+
+1. deterministic synthetic stripmap examples;
+2. GOTCHA `.mat` to CRSD conversion;
+3. ordered CRSD set ingest;
+4. CRSD aperture assembly into SAR phase-history packets;
+5. CPU focused-image transform;
+6. Metal focused-image transform where native Metal is available;
+7. focused-image sink artifact generation;
+8. optional local-only reference comparison.
+
+Important SAR boundaries:
+
+- CRSD is the supported conversion output for SAR ingest and comparison flows.
+- Real GOTCHA data validation is local-only and disabled by default.
+- SarPy and gotcha-back are optional local reference tools, not GraphX runtime
+  dependencies.
+- Quick-look CRSD signal inspection is not focused-image acceptance evidence.
+- Metal transfer/sync/memory nodes are valid Metal nodes, but they are not proof
+  of domain compute acceleration by themselves.
+
+### SAR Metal Truth-In-Labeling
+
+Transfer/memory/sync/control nodes are valid Metal nodes without kernels. They
+must not be described as proof of domain algorithm acceleration. Domain
+algorithm nodes and generic kernel nodes must report diagnostics that make their
+execution status explicit.
+
+Current inventory:
+
+| Node | Classification |
+|---|---|
+| `HostIngressPinnedSourceNodeMetal` | memory/control |
+| `H2DAsyncNodeMetal` | transfer |
+| `D2HAsyncNodeMetal` | transfer |
+| `PeerCopyNodeMetal` | transfer |
+| `DeviceShardNodeMetal` | memory/control |
+| `LeaseReleaseNodeMetal` | memory |
+| `QueueSyncNodeMetal` | sync/control |
+| `HostEgressSinkNodeMetal` | memory/control |
+| `DeviceKernelNodeMetal` | generic kernel |
+| `DeviceTransformNodeMetal` | generic kernel |
+| `DeviceReduceNodeMetal` | generic kernel |
+| `CollectiveReduceNodeMetal` | unsupported |
+| `CrsdFocusedImageTransformMetalNode` | domain algorithm |
+
+Guardrail labels: H2DAsyncNodeMetal | transfer; QueueSyncNodeMetal | sync/control; LeaseReleaseNodeMetal | memory.
+
+PR6 gate: blocked until unsupported/experimental Metal behavior is either
+implemented, removed from the active lane, or clearly reported as disabled.
+`CollectiveReduceNodeMetal | unsupported` remains a truth-in-labeling guardrail.
+`CrsdFocusedImageTransformMetalNode | domain algorithm` is allowed only with
+explicit diagnostics. Any experimental incomplete path must remain labeled
+`experimental incomplete`.
+
+## SAR Build And Test
+
+Build SAR examples and tests:
 
 ```bash
-build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit
+cmake --build build-ninja/ninja-debug-metal-native --target sar_example test_sar_example_unit graphx_gotcha_to_crsd
+```
+
+Run all SAR example tests:
+
+```bash
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
+```
+
+Useful focused filters:
+
+```bash
+# CI-safe correctness lane.
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='SarCiCorrectnessLaneTest.*:SarCiValidationLaneTest.*:SarCiTinyFixtureTest.*'
+
+# CRSD input and focused-image path.
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='CrsdInputSourceNodeTest.*:CrsdApertureAssemblyAdapterNodeTest.*:CrsdFocusedImageTransformNodeTest.*:CrsdFocusedImageSinkTest.*'
+
+# Metal SAR truth-in-labeling and focused-image transform.
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+  --gtest_filter='MetalTruthInLabelingGuardrailTest.*:CrsdFocusedImageMetalTest.*'
 ```
 
 Registered CTest lanes include:
@@ -343,39 +443,41 @@ Registered CTest lanes include:
 | `sar_example_sarpy_integration_lane` | Local-only/gated SarPy integration checks. |
 | `sar_real_gotcha_local_validation` | Disabled local-only real-data GOTCHA validation. |
 
-### CI-Safe GOTCHA Coverage
-
-Normal CI uses tiny synthetic fixtures and normalized replay fixtures. It does
-not require real GOTCHA `.mat` data, MATLAB, or CRSD validation. MATLAB is not a
-GraphX build-time, runtime, or test-time dependency and should not be added as
-one.
-
-CRSD is the supported conversion output for SAR ingest and SarPy comparison flows.
-
-Useful focused commands:
+Run through CTest:
 
 ```bash
-# Run all SAR unit tests.
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit
-
-# GOTCHA conversion CLI tests.
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=GraphxGotchaToCrsdCliTest.*'
-
-# GraphX image output comparison against Python reference outputs.
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=GraphxImageComparisonLaneTest.*'
+ctest --test-dir build-ninja/ninja-debug-metal-native -R sar_example_unit --output-on-failure
+ctest --test-dir build-ninja/ninja-debug-metal-native -R sar_example_ci_lane --output-on-failure
 ```
 
-### GOTCHA Conversion CLI
+## SAR Example Graphs
 
-The GOTCHA conversion utility is:
+Common SAR config files:
+
+| Config | Purpose |
+|---|---|
+| `examples/SAR/config/sar_stripmap_simulated.json` | Basic synthetic stripmap graph. |
+| `examples/SAR/config/sar_stripmap_definitive.json` | Definitive stripmap example graph. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` | CI-safe CRSD focused-image CPU lane. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` | CRSD focused-image Metal lane. |
+| `examples/SAR/config/sar_crsd_gotcha_local_validation.json` | Local-only GOTCHA-derived CRSD validation graph. |
+
+Example run of the SAR executable:
 
 ```bash
-build-ninja/ninja-debug/examples/SAR/graphx-gotcha-to-crsd --help
+./build-ninja/ninja-debug-metal-native/examples/SAR/sar_example \
+  examples/SAR/config/sar_stripmap_definitive.json
 ```
 
-Example CRSD conversion:
+## GOTCHA To CRSD Conversion
+
+Build the converter:
+
+```bash
+cmake --build build-ninja/ninja-debug-metal-native --target graphx_gotcha_to_crsd
+```
+
+Convert a local GOTCHA directory to CRSD products:
 
 ```bash
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
@@ -383,60 +485,63 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /tmp/gotcha_crsd_out
 ```
 
-Use `SORT_MODE=lexical` for the minimal path. Use `SORT_MODE=manifest` with
-`MANIFEST_PATH=<path>` only when input order must be pinned by a manifest.
+The helper script verifies input structure and builds the converter when
+needed. Classic MATLAB MAT v5 input may be preprocessed to HDF5-backed MAT
+files before conversion.
 
-CRSD conversion emits:
+Expected output shape:
 
-| Output | Description |
+| Output | Purpose |
 |---|---|
-| `*/product.crsd` | Standards-targeted CRSD product chunks for SAR ingest. |
-| `gotcha_crsd_index.json` | Optional root index when `ENABLE_EMIT_INDEX=1`. |
-| `conversion_report.json` | Optional conversion summary when `ENABLE_EMIT_INDEX=1`. |
-| `conversion_warnings.log` | Optional warning log when `ENABLE_EMIT_INDEX=1`. |
+| `gotcha_crsd_chunk_0000.crsd/product.crsd` | CRSD product container. |
+| `gotcha_crsd_chunk_0000.crsd/metadata.json` | Product metadata sidecar. |
+| `gotcha_crsd_chunk_0000.crsd/signal.bin` | Signal payload for fixture/product tests. |
+| `gotcha_crsd_chunk_0000.crsd/index.json` | Chunk index. |
+| `gotcha_crsd_index.json` | Optional root index when enabled. |
+| `conversion_report.json` | Optional conversion report. |
+| `conversion_warnings.log` | Optional warning log. |
 
-### CRSD Quick-Look Validation (Local-Only)
-
-Quick-look is for validation/inspection only and is not a focused-image lane.
+Manual converter invocation:
 
 ```bash
-python3 tools/sarpy/reference_image_from_crsd.py \
-  generate-reference \
-  --input-crsd /path/to/product.crsd \
-  --output-magnitude-png /tmp/crsd_reference_magnitude.png \
-  --output-metadata-json /tmp/crsd_reference_metadata.json
+./build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd \
+  --input /path/to/input.mat \
+  --output-dir /tmp/gotcha_crsd_out
 ```
 
-### CRSD -> Focused GraphX Image
+GOTCHA input manifests use schema `graphx.gotcha.input_manifest.v1`.
+Manifest order is authoritative. The ordering layer does not use MATLAB and
+does not parse MAT contents; it only resolves and validates the declared file
+order before downstream readers inspect payloads.
 
-Run focused-image validation from the SAR unit binary lanes:
+## Local-Only Reference And Comparison Tools
+
+The following tools are for local validation and investigation. They are not
+GraphX runtime dependencies and should not be required by default CI. SarPy is a
+local-only product/metadata validation only harness.
+Guardrail wording: not proof of GraphX phase-history image-formation correctness.
+
+| Tool | Purpose |
+|---|---|
+| `examples/SAR/tools/sar_local_runner.py` | Scaffold local SAR run layouts. |
+| `examples/SAR/tools/sar_scenario_to_run.py` | Convert scenario JSON to local run setup. |
+| `examples/SAR/tools/sar_image_comparator.py` | Compare focused-image artifacts. |
+| `examples/SAR/tools/gotcha_back_adapter.py` | Prepare local gotcha-back reference runs. |
+| `tools/sarpy/reference_image_from_gotcha.py` | Local SarPy/GOTCHA reference helper. |
+| `tools/sarpy/reference_image_from_crsd.py` | Local SarPy/CRSD reference helper. |
+| `tools/sarpy/compare_images.py` | Local image comparison helper. |
+
+Example local scaffold:
 
 ```bash
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=GraphxImageComparisonLaneTest.*'
+python3 examples/SAR/tools/sar_local_runner.py \
+  --scenario examples/SAR/scenarios/scenario_001.json \
+  --output-dir /tmp/graphx_sar_scenario_001
 ```
 
-### GOTCHA Environment Variables
+## Real GOTCHA Validation
 
-| Variable | Use |
-|---|---|
-| `GRAPHX_SAR_ALLOW_EXTERNAL_DATA` | Allows external fixture paths in local/manual replay-style tests. |
-| `GRAPHX_SAR_GOTCHA_DATASET` | Required for real local GOTCHA `.mat` validation. |
-| `GRAPHX_SAR_GOTCHA_TO_CRSD_BIN` | Optional override for the `graphx-gotcha-to-crsd` executable. |
-| `GRAPHX_SAR_GOTCHA_OUTPUT_DIR` | Optional output directory for local real-data validation. |
-| `GRAPHX_SAR_GOTCHA_COLLECTION_ID` | Optional collection id for local real-data validation. |
-| `GRAPHX_SAR_GOTCHA_MAX_OUTPUT_SIZE_MB` | Optional chunk size limit for local real-data validation. |
-| `GRAPHX_SARPY_CRSD_FILE` | Optional local-only CRSD file for SarPy smoke validation. |
-| `GOTCHA_DIR` | Local GOTCHA dataset path used by gotcha-back reference scripts. |
-| `GOTCHA_BACK_BIN` | Local gotcha-back `sarbp` executable used by reference scripts. |
-
-### Local-Only Real GOTCHA Validation
-
-Real GOTCHA `.mat` validation is explicitly local-only and disabled by default.
-It is never required by normal CI, performs no dataset download, and must not add
-or check in GOTCHA data.
-
-The local conversion workflow is:
+Real GOTCHA validation is opt-in/local-only.
 
 ```bash
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/gotcha_mat_directory
@@ -445,95 +550,26 @@ bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /tmp/gotcha_crsd_out
 ```
 
-For multi-file GOTCHA directories, the wrapper defaults to `PROCESS_PER_FILE=1`
-and converts each `.mat` file into a separate per-file CRSD output directory.
-This avoids building one very large in-memory full-aperture handoff. Set
-`PROCESS_PER_FILE=0` only for small/debug inputs where a single full-aperture
-process is intentional.
-
-Classic MAT preprocessing reuses existing converted HDF5 files by default. Set
-`PREPROCESS_OVERWRITE=1` to force regeneration.
-
-### Python/SarPy Reference Tools
-
-Python/SarPy tools are local/reference tooling only. They do not alter GraphX
-runtime contracts and are not required by normal CI.
-
-Relevant tools:
-
-| Tool | Purpose |
-|---|---|
-| `tools/sarpy/reference_image_from_gotcha.py` | Local GOTCHA field discovery and deterministic reference image generation. |
-| `tools/sarpy/compare_images.py` | Image comparison report and difference PNG generation. |
-| `tools/sarpy/validate_crsd.py` | Optional local-only SarPy CRSD validation harness. |
-| `tools/sarpy/reference_image_from_crsd.py` | Optional local-only CRSD reference magnitude extraction. |
-
-Probe examples:
+The disabled CTest lane can be enabled manually when local data exists:
 
 ```bash
-python3 tools/sarpy/reference_image_from_gotcha.py \
-  probe-environment --output-json /tmp/ref_probe.json
-
-python3 tools/sarpy/compare_images.py \
-  probe-environment --output-json /tmp/cmp_probe.json
-
-python3 tools/sarpy/validate_crsd.py \
-  probe-environment --output-json /tmp/crsd_validate_probe.json
-
-python3 tools/sarpy/reference_image_from_crsd.py \
-  probe-environment --output-json /tmp/crsd_ref_probe.json
+ctest --test-dir build-ninja/ninja-debug-metal-native \
+  -R sar_real_gotcha_local_validation \
+  --output-on-failure
 ```
 
-Optional CRSD smoke validation is gated by `GRAPHX_SARPY_CRSD_FILE`:
+## Documentation Baseline
 
-```bash
-export GRAPHX_SARPY_CRSD_FILE=/path/to/local/file.crsd
-./build-ninja/ninja-debug/examples/SAR/test/test_sar_example_unit \
-  '--gtest_filter=SarpyCrsdValidationHarnessTest.OptionalLocalSmokeRunsWhenSarpyAndCrsdPathAreAvailable'
-```
+Active documentation is intentionally small:
 
-### gotcha-back Reference Workflow
+- `README.md`: build, run, test, and user operations.
+- `plan/BASELINE.md`: active architecture, next steps, issues, and future work.
 
-`examples/SAR/tools/gotcha_back_adapter.py` prepares local gotcha-back
-reference invocations and normalizes gotcha-back output artifacts for comparison.
-This is comparator/reference tooling only and is not required by CI.
+Historical documentation remains available for traceability:
 
-Set local paths before using the generated reference script:
+- `docs/archive/2026-06-baseline/`
+- `plan/archive/2026-06-baseline/`
 
-```bash
-export GOTCHA_DIR=/path/to/unpacked/GOTCHA
-export GOTCHA_BACK_BIN=/path/to/gotcha-back/sarbp
-```
-
-## Install and Package Config
-
-Default install prefix (when not explicitly set) is:
-
-- <build-dir>/install
-
-Install:
-
-```bash
-cmake --build build --target install
-```
-
-Top-level package config files are generated/installed for downstream consumers:
-
-- GraphXConfig.cmake
-- GraphXConfigVersion.cmake
-
-Installed under:
-
-- lib/cmake/GraphX (or platform-equivalent CMAKE_INSTALL_LIBDIR path)
-
-## Troubleshooting
-
-- Configure fails about Ninja:
-  - Use Ninja generator, or set GRAPHX_REQUIRE_NINJA=OFF.
-- Metal native runtime requested but unavailable:
-  - Verify Apple platform.
-  - Verify Metal/Foundation/QuartzCore frameworks.
-  - Provide GRAPHX_METAL_CPP_INCLUDE_DIR if headers are not in default paths.
-  - Use strict preset to enforce fail-fast behavior.
-- CUDA or SYCL lane requested but not activated:
-  - Check toolkit/compiler prerequisites and configure output warnings.
+Do not add new user-facing docs under `docs/` unless the project intentionally
+splits the README again. Do not add new active plan roadmaps under `plan/`
+unless they become the new baseline or are explicitly archived after use.

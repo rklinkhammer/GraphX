@@ -263,9 +263,11 @@ TEST(FHSSGraphXGuardrailTest, FhssTestsDoNotCallDeletedPseudoNodeApis) {
 TEST(FHSSGraphXGuardrailTest,
      FhssDocsDescribeBasebandOffsetRfMetadataBoundary) {
   const auto root = RepositoryRoot();
-  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
-  ASSERT_TRUE(std::filesystem::exists(doc));
-  const auto text = Lowercase(ReadFile(doc));
+  const auto readme = root / "README.md";
+  const auto baseline = root / "plan" / "BASELINE.md";
+  ASSERT_TRUE(std::filesystem::exists(readme));
+  ASSERT_TRUE(std::filesystem::exists(baseline));
+  const auto text = Lowercase(ReadFile(readme) + "\n" + ReadFile(baseline));
 
   EXPECT_NE(text.find("1 ghz rf frequencies are metadata"),
             std::string::npos);
@@ -282,9 +284,11 @@ TEST(FHSSGraphXGuardrailTest,
 TEST(FHSSGraphXGuardrailTest,
      FhssDocsKeepCpuOnlyFixtureAndFutureBoundariesHonest) {
   const auto root = RepositoryRoot();
-  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
-  ASSERT_TRUE(std::filesystem::exists(doc));
-  const auto text = Lowercase(ReadFile(doc));
+  const auto readme = root / "README.md";
+  const auto baseline = root / "plan" / "BASELINE.md";
+  ASSERT_TRUE(std::filesystem::exists(readme));
+  ASSERT_TRUE(std::filesystem::exists(baseline));
+  const auto text = Lowercase(ReadFile(readme) + "\n" + ReadFile(baseline));
 
   EXPECT_NE(text.find("cpu-only"), std::string::npos);
   EXPECT_NE(text.find("production channelizer separation claims"),
@@ -311,9 +315,11 @@ TEST(FHSSGraphXGuardrailTest,
 TEST(FHSSGraphXGuardrailTest,
      FhssDocsCaptureRfFeasibilityAndImpairmentPlan) {
   const auto root = RepositoryRoot();
-  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
-  ASSERT_TRUE(std::filesystem::exists(doc));
-  const auto text = Lowercase(ReadFile(doc));
+  const auto readme = root / "README.md";
+  const auto baseline = root / "plan" / "BASELINE.md";
+  ASSERT_TRUE(std::filesystem::exists(readme));
+  ASSERT_TRUE(std::filesystem::exists(baseline));
+  const auto text = Lowercase(ReadFile(readme) + "\n" + ReadFile(baseline));
 
   EXPECT_NE(text.find("not claim production channelizer separation"),
             std::string::npos);
@@ -342,9 +348,11 @@ TEST(FHSSGraphXGuardrailTest,
 TEST(FHSSGraphXGuardrailTest,
      FhssDocsIdentifyGraphXNodesAsCanonicalModel) {
   const auto root = RepositoryRoot();
-  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
-  ASSERT_TRUE(std::filesystem::exists(doc));
-  const auto text = Lowercase(ReadFile(doc));
+  const auto readme = root / "README.md";
+  const auto baseline = root / "plan" / "BASELINE.md";
+  ASSERT_TRUE(std::filesystem::exists(readme));
+  ASSERT_TRUE(std::filesystem::exists(baseline));
+  const auto text = Lowercase(ReadFile(readme) + "\n" + ReadFile(baseline));
 
   EXPECT_NE(text.find("canonical fhss implementation uses real graphx nodes"),
             std::string::npos);
@@ -381,7 +389,8 @@ TEST(FHSSGraphXGuardrailTest,
      FhssDocsAndConfigsKeepCorrelatorBankReferenceOnly) {
   const auto root = RepositoryRoot();
   const std::vector<std::filesystem::path> paths{
-      root / "docs" / "dsp" / "fhss_decoder.md",
+      root / "README.md",
+      root / "plan" / "BASELINE.md",
       root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json",
       root / "libdsp" / "config" /
           "fhss_cpsm_channelized_fixture_500msps.json",
@@ -410,32 +419,34 @@ TEST(FHSSGraphXGuardrailTest,
   }
 
   const auto doc =
-      Lowercase(ReadFile(root / "docs" / "dsp" / "fhss_decoder.md"));
-  EXPECT_NE(doc.find("canonical fhss fixture graph"), std::string::npos);
-  EXPECT_NE(doc.find("channelized graph"), std::string::npos);
-  EXPECT_NE(doc.find("compatibility and"), std::string::npos);
-  EXPECT_NE(doc.find("reference topology"), std::string::npos);
-  EXPECT_NE(doc.find("must not be described as production-like channelization"),
+      Lowercase(ReadFile(root / "README.md") + "\n" +
+                ReadFile(root / "plan" / "BASELINE.md"));
+  EXPECT_NE(doc.find("canonical channelized graph"), std::string::npos);
+  EXPECT_NE(doc.find("retained correlator-bank graph is reference"),
+            std::string::npos);
+  EXPECT_NE(doc.find("not the canonical graph"), std::string::npos);
+  EXPECT_NE(doc.find("production channelizer performance are not implemented"),
             std::string::npos);
 }
 
 TEST(FHSSGraphXGuardrailTest,
      FhssRoadmapIdentifiesCanonicalGraphAndRfFeasibilityPlan) {
   const auto root = RepositoryRoot();
-  const auto roadmap =
-      root / "plan" / "roadmap" / "DSP_FHSS_DECODER_PR_ROADMAP.md";
-  ASSERT_TRUE(std::filesystem::exists(roadmap));
-  const auto text = Lowercase(ReadFile(roadmap));
+  const auto baseline = root / "plan" / "BASELINE.md";
+  ASSERT_TRUE(std::filesystem::exists(baseline));
+  const auto text = Lowercase(ReadFile(baseline));
 
-  EXPECT_NE(text.find("canonical channelized cpu fixture graph"),
+  EXPECT_NE(text.find("canonical fhss graph"),
             std::string::npos);
-  EXPECT_NE(text.find("pr8 correlator-bank reference graph"),
+  EXPECT_NE(text.find("retained correlator-bank graph is reference"),
             std::string::npos);
-  EXPECT_NE(text.find("must not be described as canonical"),
+  EXPECT_NE(text.find("not the canonical graph"),
             std::string::npos);
-  EXPECT_NE(text.find("production-like channelization"), std::string::npos);
+  EXPECT_NE(text.find("production channelizer performance are not implemented"),
+            std::string::npos);
   EXPECT_NE(text.find("retuned sub-band windows"), std::string::npos);
-  EXPECT_NE(text.find("full-table simultaneous alias-free capture requires"),
+  EXPECT_NE(text.find("higher sample rate"), std::string::npos);
+  EXPECT_NE(text.find("explicit alias/downconvert modeling"),
             std::string::npos);
   EXPECT_NE(text.find("higher sample rate"), std::string::npos);
   EXPECT_NE(text.find("configured_rejected"), std::string::npos);
@@ -450,7 +461,7 @@ TEST(FHSSGraphXGuardrailTest,
 TEST(FHSSGraphXGuardrailTest,
      FhssDocsRejectMagnitudeOnlyDftAsCanonicalDecoderInput) {
   const auto root = RepositoryRoot();
-  const auto doc = root / "docs" / "dsp" / "fhss_decoder.md";
+  const auto doc = root / "README.md";
   ASSERT_TRUE(std::filesystem::exists(doc));
   const auto text = Lowercase(ReadFile(doc));
 

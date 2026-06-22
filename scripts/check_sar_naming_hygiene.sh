@@ -11,14 +11,8 @@ is_allowed_historical_path() {
     local path="$1"
     case "$path" in
         scripts/check_sar_naming_hygiene.sh) return 0 ;;
-        plan/history/*) return 0 ;;
-        plan/old/*) return 0 ;;
-        plan/agents/*) return 0 ;;
-        plan/reviews/*) return 0 ;;
-        plan/prompt\ examples/*) return 0 ;;
-        plan/SAR_SIMPLIFIER_REPORT.md) return 0 ;;
-        plan/SAR_NAMING_CLEANUP_PLANNER_REPORT.md) return 0 ;;
-        plan/reviews/SAR_PLANNER_REPORT.md) return 0 ;;
+        plan/archive/*) return 0 ;;
+        docs/archive/*) return 0 ;;
         *) return 1 ;;
     esac
 }

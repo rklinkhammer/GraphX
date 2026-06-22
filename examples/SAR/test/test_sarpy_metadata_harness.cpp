@@ -29,11 +29,11 @@ namespace {
 #endif
 
 #ifndef SAR_BASELINE_PACKAGE_REGISTRY_PATH
-#define SAR_BASELINE_PACKAGE_REGISTRY_PATH "plan/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
+#define SAR_BASELINE_PACKAGE_REGISTRY_PATH "plan/archive/2026-06-baseline/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
 #endif
 
 #ifndef SAR_EXTERNAL_BASELINE_POLICY_PATH
-#define SAR_EXTERNAL_BASELINE_POLICY_PATH "plan/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
+#define SAR_EXTERNAL_BASELINE_POLICY_PATH "plan/archive/2026-06-baseline/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {

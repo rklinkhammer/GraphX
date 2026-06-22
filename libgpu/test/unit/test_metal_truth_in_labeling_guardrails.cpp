@@ -71,7 +71,7 @@ TEST(MetalTruthInLabelingGuardrailGpuTest, CollectiveReducePluginInfoDeclaresRun
 
 TEST(MetalTruthInLabelingGuardrailGpuTest, InventoryStatesNonKernelNodeClassesAreValidMetalNodes) {
     const auto doc = std::filesystem::path{GRAPHX_SOURCE_ROOT} /
-                     "docs/sar/metal_node_truth_in_labeling.md";
+                     "README.md";
     const std::string text = ReadText(doc);
 
     EXPECT_NE(text.find("H2DAsyncNodeMetal | transfer"), std::string::npos);
