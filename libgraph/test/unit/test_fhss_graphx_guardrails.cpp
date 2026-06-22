@@ -95,6 +95,7 @@ TEST(FHSSGraphXGuardrailTest, EachFhssGraphXNodeHasOwnHeaderAndSource) {
       {"ChannelizerNode", "ChannelizerNode.hpp"},
       {"PerChannelPulseDetectorNode", "PerChannelPulseDetectorNode.hpp"},
       {"FHSSPulseMergeNode", "FHSSPulseMergeNode.hpp"},
+      {"FHSSPulseMergeInteriorNode", "FHSSPulseMergeInteriorNode.hpp"},
       {"FHSSPulseCandidateNode", "FHSSPulseCandidateNode.hpp"},
       {"CPSMBranchMetricNode", "CPSMBranchMetricNode.hpp"},
       {"CPSMViterbiDecoderNode", "CPSMViterbiDecoderNode.hpp"},
@@ -129,6 +130,7 @@ TEST(FHSSGraphXGuardrailTest,
       "ChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
+      "FHSSPulseMergeInteriorNode.hpp",
       "FHSSPulseCandidateNode.hpp",
       "CPSMBranchMetricNode.hpp",
       "CPSMViterbiDecoderNode.hpp",
@@ -164,6 +166,7 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
       "ChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
+      "FHSSPulseMergeInteriorNode.hpp",
       "FHSSPulseCandidateNode.hpp",
       "CPSMBranchMetricNode.hpp",
       "CPSMViterbiDecoderNode.hpp",
@@ -194,6 +197,12 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
           << name << " must consume GraphX input ports";
       EXPECT_NE(text.find("public graph::SourceNode"), std::string::npos)
           << name << " must expose GraphX output ports";
+      continue;
+    }
+    if (name == "FHSSPulseMergeInteriorNode") {
+      EXPECT_NE(text.find("public graph::NamedFixedFanInOutNode"),
+                std::string::npos)
+          << name << " must consume and produce GraphX ports";
       continue;
     }
     const std::regex real_graphx_node_regex(
