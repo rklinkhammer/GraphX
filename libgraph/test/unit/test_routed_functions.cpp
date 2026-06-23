@@ -50,6 +50,22 @@ public:
   double scale = 0.5;
 };
 
+class RoutedTransferNoOutputTestNode
+    : public graph::RoutedTransferFn<graph::Port<int, 0>,
+                                     graph::Port<int, 1>,
+                                     RoutedTransferNoOutputTestNode> {
+public:
+  template <std::size_t InputPort, std::size_t OutputPort>
+  std::optional<int> TransferInputToOutput(const int &value) {
+    static_assert(InputPort == 0);
+    static_assert(OutputPort == 1);
+    observed_value = value;
+    return std::nullopt;
+  }
+
+  int observed_value = 0;
+};
+
 TEST(RoutedFunctionsTest, RoutedInputForwardsToTemplatedConsumeInput) {
   RoutedInputTestNode node;
 
@@ -83,6 +99,17 @@ TEST(RoutedFunctionsTest, RoutedTransferForwardsToTemplatedTransfer) {
 
   ASSERT_TRUE(output.has_value());
   EXPECT_DOUBLE_EQ(*output, 10.0);
+}
+
+TEST(RoutedFunctionsTest, RoutedTransferMayReturnNoOutput) {
+  RoutedTransferNoOutputTestNode node;
+
+  const auto output =
+      node.Transfer(99, std::integral_constant<std::size_t, 0>{},
+                    std::integral_constant<std::size_t, 1>{});
+
+  EXPECT_FALSE(output.has_value());
+  EXPECT_EQ(node.observed_value, 99);
 }
 
 } // namespace

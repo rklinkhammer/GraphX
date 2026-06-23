@@ -175,6 +175,23 @@ public:
     return output;
   }
 
+  template <std::size_t InputPort, std::size_t OutputPort>
+  std::optional<OutputTokenType>
+  TransferInputToOutput(
+      const typename Base::template InputType<InputPort> &input) {
+    if constexpr (InputPort == 0 && OutputPort == 0) {
+      return Transfer(input, std::integral_constant<std::size_t, 0>{},
+                      std::integral_constant<std::size_t, 0>{});
+    } else if constexpr (InputPort >= 1 &&
+                         InputPort <= kPerChannelInputCount &&
+                         OutputPort == 1) {
+      return Transfer(input, std::integral_constant<std::size_t, InputPort>{},
+                      std::integral_constant<std::size_t, 1>{});
+    } else {
+      return std::nullopt;
+    }
+  }
+
 private:
   std::optional<OutputTokenType>
   AccumulatePerChannel(const PerChannelInputTokenType &input) {

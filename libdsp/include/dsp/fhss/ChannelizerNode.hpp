@@ -6,6 +6,7 @@
 #include "core/ActiveQueue.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "graph/FixedFanInOutNode.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -35,13 +36,6 @@ using FHSSChannelizerOutputList =
         FHSSChannelizedIqToken,
         std::make_index_sequence<
             FHSSProtocolConstants::kFrequencyCount>>::type;
-
-template <typename TypeList> struct FHSSChannelizerSourceBase;
-
-template <typename... Outputs>
-struct FHSSChannelizerSourceBase<graph::TypeList<Outputs...>> {
-  using type = graph::SourceNode<Outputs...>;
-};
 
 struct FHSSChannelizerConfig {
   FHSSFrequencyConfig frequency{};
@@ -165,25 +159,25 @@ FHSSChannelizerConfigFromJson(const graph::JsonView &cfg) {
 }
 
 class ChannelizerNode
-    : public graph::SinkNode<FHSSDownconvertedIqToken>,
-      public FHSSChannelizerSourceBase<FHSSChannelizerOutputList>::type,
-      public graph::NamedType<ChannelizerNode>,
+    : public graph::NamedFixedFanInOutNode<ChannelizerNode,
+                                           graph::TypeList<FHSSDownconvertedIqToken>,
+                                           FHSSChannelizerOutputList>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
-  using SourceBase =
-      typename FHSSChannelizerSourceBase<FHSSChannelizerOutputList>::type;
+  using Base = graph::NamedFixedFanInOutNode<ChannelizerNode,
+                                             graph::TypeList<FHSSDownconvertedIqToken>,
+                                             FHSSChannelizerOutputList>;
   using InputTokenType = FHSSDownconvertedIqToken;
   using OutputTokenType = FHSSChannelizedIqToken;
   static constexpr std::size_t kOutputPortCount =
       FHSSProtocolConstants::kFrequencyCount;
-  static constexpr std::size_t NInputs = 1;
-  static constexpr std::size_t NOutputs =
-      FHSSProtocolConstants::kFrequencyCount;
+  static constexpr std::size_t NInputs = Base::NInputs;
+  static constexpr std::size_t NOutputs = Base::NOutputs;
 
-  template <std::size_t PortID> using InputType = FHSSDownconvertedIqToken;
+  template <std::size_t PortID> using InputType = typename Base::template InputType<PortID>;
   template <std::size_t PortID>
-  using OutputType = typename SourceBase::template OutputType<PortID>;
+  using OutputType = typename Base::template OutputType<PortID>;
 
   ChannelizerNode() {
     config_.receiver_frequency_indices = FHSSAllFrequencyIndices();
@@ -242,8 +236,9 @@ public:
             "filter_group_delay_input_samples"};
   }
 
-  bool Consume(const InputTokenType &input,
-               std::integral_constant<std::size_t, 0>) override {
+  template <std::size_t Port>
+  bool ConsumeInput(const typename Base::template InputType<Port> &input) {
+    static_assert(Port == 0);
     if (auto validation = ValidateFHSSChannelizerConfig(config_);
         !validation) {
       return false;
@@ -259,46 +254,24 @@ public:
 
     const auto receiver_indices = ReceiverIndices();
     const auto channel_ids = ChannelIds(receiver_indices);
-    bool success = true;
-    for (std::size_t port = 0; port < kOutputPortCount; ++port) {
-      if (receiver_indices[port] != port || channel_ids[port] != port) {
-        return false;
-      }
-      OutputTokenType output{};
-      output.token_id = input.token_id;
-      output.sidecar =
-          BuildChannelPacket(input.sidecar, (*map_result)[port], port);
-      success &= output_queues_[port].Enqueue(output);
-    }
-    return success;
+    return EnqueueAllOutputs<0>(input, *map_result, receiver_indices,
+                                channel_ids);
   }
 
-  bool Init() override { return graph::SinkNode<InputTokenType>::Init() &&
-                                SourceBase::Init(); }
+  bool Init() override { return Base::Init(); }
 
-  bool Start() override { return graph::SinkNode<InputTokenType>::Start() &&
-                                  SourceBase::Start(); }
+  bool Start() override { return Base::Start(); }
 
-  void Stop() override {
-    graph::SinkNode<InputTokenType>::Stop();
-    SourceBase::Stop();
-    for (auto &queue : output_queues_) {
-      queue.Disable();
-    }
-  }
+  void Stop() override { Base::Stop(); }
 
-  void Join() override {
-    graph::SinkNode<InputTokenType>::Join();
-    SourceBase::Join();
-  }
+  void Join() override { Base::Join(); }
 
   bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) override {
-    return graph::SinkNode<InputTokenType>::JoinWithTimeout(timeout_ms) &&
-           SourceBase::JoinWithTimeout(timeout_ms);
+    return Base::JoinWithTimeout(timeout_ms);
   }
 
   graph::LifecycleState GetLifecycleState() const override {
-    return graph::SinkNode<InputTokenType>::GetLifecycleState();
+    return Base::GetLifecycleState();
   }
 
   int GetInputPortCount() const { return 1; }
@@ -331,89 +304,36 @@ public:
   }
 
   template <std::size_t OutputPort>
-  std::optional<OutputTokenType> ProduceChannel() {
+  std::optional<OutputTokenType> ProduceOutput() {
     static_assert(OutputPort < FHSSProtocolConstants::kFrequencyCount);
-    OutputTokenType output{};
-    if (output_queues_[OutputPort].Dequeue(output)) {
-      return output;
-    }
-    return std::nullopt;
+    return Base::template DequeueOutput<OutputPort>();
   }
-
-#define FHSS_CHANNELIZER_TRANSFER(PORT)                                        \
-  std::optional<OutputTokenType> Produce(                                      \
-      std::integral_constant<std::size_t, PORT>) override {                    \
-    return ProduceChannel<PORT>();                                             \
-  }
-
-  FHSS_CHANNELIZER_TRANSFER(0)
-  FHSS_CHANNELIZER_TRANSFER(1)
-  FHSS_CHANNELIZER_TRANSFER(2)
-  FHSS_CHANNELIZER_TRANSFER(3)
-  FHSS_CHANNELIZER_TRANSFER(4)
-  FHSS_CHANNELIZER_TRANSFER(5)
-  FHSS_CHANNELIZER_TRANSFER(6)
-  FHSS_CHANNELIZER_TRANSFER(7)
-  FHSS_CHANNELIZER_TRANSFER(8)
-  FHSS_CHANNELIZER_TRANSFER(9)
-  FHSS_CHANNELIZER_TRANSFER(10)
-  FHSS_CHANNELIZER_TRANSFER(11)
-  FHSS_CHANNELIZER_TRANSFER(12)
-  FHSS_CHANNELIZER_TRANSFER(13)
-  FHSS_CHANNELIZER_TRANSFER(14)
-  FHSS_CHANNELIZER_TRANSFER(15)
-  FHSS_CHANNELIZER_TRANSFER(16)
-  FHSS_CHANNELIZER_TRANSFER(17)
-  FHSS_CHANNELIZER_TRANSFER(18)
-  FHSS_CHANNELIZER_TRANSFER(19)
-  FHSS_CHANNELIZER_TRANSFER(20)
-  FHSS_CHANNELIZER_TRANSFER(21)
-  FHSS_CHANNELIZER_TRANSFER(22)
-  FHSS_CHANNELIZER_TRANSFER(23)
-  FHSS_CHANNELIZER_TRANSFER(24)
-  FHSS_CHANNELIZER_TRANSFER(25)
-  FHSS_CHANNELIZER_TRANSFER(26)
-  FHSS_CHANNELIZER_TRANSFER(27)
-  FHSS_CHANNELIZER_TRANSFER(28)
-  FHSS_CHANNELIZER_TRANSFER(29)
-  FHSS_CHANNELIZER_TRANSFER(30)
-  FHSS_CHANNELIZER_TRANSFER(31)
-  FHSS_CHANNELIZER_TRANSFER(32)
-  FHSS_CHANNELIZER_TRANSFER(33)
-  FHSS_CHANNELIZER_TRANSFER(34)
-  FHSS_CHANNELIZER_TRANSFER(35)
-  FHSS_CHANNELIZER_TRANSFER(36)
-  FHSS_CHANNELIZER_TRANSFER(37)
-  FHSS_CHANNELIZER_TRANSFER(38)
-  FHSS_CHANNELIZER_TRANSFER(39)
-  FHSS_CHANNELIZER_TRANSFER(40)
-  FHSS_CHANNELIZER_TRANSFER(41)
-  FHSS_CHANNELIZER_TRANSFER(42)
-  FHSS_CHANNELIZER_TRANSFER(43)
-  FHSS_CHANNELIZER_TRANSFER(44)
-  FHSS_CHANNELIZER_TRANSFER(45)
-  FHSS_CHANNELIZER_TRANSFER(46)
-  FHSS_CHANNELIZER_TRANSFER(47)
-  FHSS_CHANNELIZER_TRANSFER(48)
-  FHSS_CHANNELIZER_TRANSFER(49)
-  FHSS_CHANNELIZER_TRANSFER(50)
-  FHSS_CHANNELIZER_TRANSFER(51)
-  FHSS_CHANNELIZER_TRANSFER(52)
-  FHSS_CHANNELIZER_TRANSFER(53)
-  FHSS_CHANNELIZER_TRANSFER(54)
-  FHSS_CHANNELIZER_TRANSFER(55)
-  FHSS_CHANNELIZER_TRANSFER(56)
-  FHSS_CHANNELIZER_TRANSFER(57)
-  FHSS_CHANNELIZER_TRANSFER(58)
-  FHSS_CHANNELIZER_TRANSFER(59)
-  FHSS_CHANNELIZER_TRANSFER(60)
-  FHSS_CHANNELIZER_TRANSFER(61)
-  FHSS_CHANNELIZER_TRANSFER(62)
-  FHSS_CHANNELIZER_TRANSFER(63)
-
-#undef FHSS_CHANNELIZER_TRANSFER
 
 private:
+  template <std::size_t Port>
+  bool EnqueueAllOutputs(const InputTokenType &input,
+                         const std::array<FHSSFrequencyMapEntry,
+                                          FHSSProtocolConstants::kFrequencyCount>
+                             &freq_map,
+                         const std::vector<std::uint32_t> &receiver_indices,
+                         const std::vector<std::uint32_t> &channel_ids) {
+    if constexpr (Port < kOutputPortCount) {
+      if (receiver_indices[Port] != Port || channel_ids[Port] != Port) {
+        return false;
+      }
+      OutputTokenType output;
+      output.token_id = input.token_id;
+      output.sidecar = BuildChannelPacket(input.sidecar, freq_map[Port], Port);
+
+      if (!Base::template EnqueueOutput<Port>(output)) {
+        return false;
+      }
+
+      return EnqueueAllOutputs<Port + 1>(input, freq_map, receiver_indices,
+                                         channel_ids);
+    }
+    return true;
+  }
   [[nodiscard]] std::vector<std::uint32_t> ReceiverIndices() const {
     return config_.receiver_frequency_indices.empty()
                ? FHSSAllFrequencyIndices()
@@ -499,7 +419,6 @@ private:
   }
 
   FHSSChannelizerConfig config_{};
-  core::ActiveQueue<OutputTokenType> output_queues_[kOutputPortCount];
 };
 
 } // namespace dsp::fhss

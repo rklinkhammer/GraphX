@@ -126,6 +126,15 @@ public:
     return DequeueOutput<PortID>();
   }
 
+  template <std::size_t InputPortID, std::size_t OutputPortID>
+  std::optional<OutputType<OutputPortID>>
+  Transfer(const InputType<InputPortID> &input,
+           std::integral_constant<std::size_t, InputPortID>,
+           std::integral_constant<std::size_t, OutputPortID>) {
+    return static_cast<Derived *>(this)
+        ->template TransferInputToOutput<InputPortID, OutputPortID>(input);
+  }
+
   const core::QueueMetrics *GetInputQueueMetrics(std::size_t port_id) const {
     const core::QueueMetrics *result = nullptr;
     GetInputQueueMetricsImpl<0>(port_id, result);
@@ -308,6 +317,7 @@ public:
   using Base::Base;
   using Base::Consume;
   using Base::Produce;
+  using Base::Transfer;
 
 protected:
   ~NamedFixedFanInOutNode() override = default;
