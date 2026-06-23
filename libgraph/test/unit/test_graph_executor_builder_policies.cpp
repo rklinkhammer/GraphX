@@ -326,6 +326,29 @@ TEST(GraphExecutorBuilderPoliciesTest,
 }
 
 TEST(GraphExecutorBuilderPoliciesTest,
+     PauseAndResumeCommandsReportUnsupportedStatus) {
+    auto graph = BuildTopology(test::TopologyType::MinimalGraph);
+    auto executor = BuildExecutor(graph, true);
+    ASSERT_NE(executor, nullptr);
+
+    AssertInitializationSuccess(executor->Init());
+
+    auto processor =
+        executor->GetCapability<capabilities::CommandProcessorCapability>();
+    ASSERT_NE(processor, nullptr);
+
+    auto pause_result = processor->ProcessCommand("pause");
+    EXPECT_FALSE(pause_result.success);
+    EXPECT_NE(pause_result.message.find("Unsupported command: pause"),
+              std::string::npos);
+
+    auto resume_result = processor->ProcessCommand("resume");
+    EXPECT_FALSE(resume_result.success);
+    EXPECT_NE(resume_result.message.find("Unsupported command: resume"),
+              std::string::npos);
+}
+
+TEST(GraphExecutorBuilderPoliciesTest,
      FakeDashboardDrivesCliCommandQueueAndLogsResults) {
     auto graph = BuildTopology(test::TopologyType::SourceOnly);
     auto executor = BuildExecutor(graph, true);

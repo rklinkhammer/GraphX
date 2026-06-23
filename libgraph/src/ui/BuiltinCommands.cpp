@@ -79,10 +79,13 @@ void RegisterBuiltinCommands(
         "pause",
         "Pause graph execution",
         "pause",
-        [](const std::vector<std::string>& /*args*/) -> CommandResult {
-            // Note: Graph pause implementation would be done via GraphCapability
-            // This is a placeholder that demonstrates the pattern
-            return CommandResult(true, "Graph execution paused");
+        [graph_capability](const std::vector<std::string>& /*args*/) -> CommandResult {
+            if (!graph_capability) {
+                return CommandResult(false, "Graph capability unavailable");
+            }
+            return CommandResult(
+                false,
+                "Unsupported command: pause is not implemented by the runtime");
         });
 
     // =========================================================================
@@ -92,10 +95,13 @@ void RegisterBuiltinCommands(
         "resume",
         "Resume graph execution",
         "resume",
-        [](const std::vector<std::string>& /*args*/) -> CommandResult {
-            // Note: Graph resume implementation would be done via GraphCapability
-            // This is a placeholder that demonstrates the pattern
-            return CommandResult(true, "Graph execution resumed");
+        [graph_capability](const std::vector<std::string>& /*args*/) -> CommandResult {
+            if (!graph_capability) {
+                return CommandResult(false, "Graph capability unavailable");
+            }
+            return CommandResult(
+                false,
+                "Unsupported command: resume is not implemented by the runtime");
         });
 
     // =========================================================================
