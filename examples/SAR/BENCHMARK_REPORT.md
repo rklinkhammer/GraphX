@@ -1,0 +1,125 @@
+# SAR Benchmark Report
+
+## Scope
+
+This report compares the deterministic GraphX SAR JSON pipeline against a deterministic non-graph baseline path that executes the same stage sequence:
+
+1. SyntheticApertureIqSourceNode
+2. RangeWindowNode or RangeCompressionNode (selectable stage)
+3. AzimuthTileSplitNode
+4. H2DAsyncAccelNode
+5. SarBackprojectionTransformAccelNode
+6. D2HAsyncAccelNode
+7. ImageTileMergeNode
+8. SarDiagnosticsSinkNode
+
+The benchmark is implemented in examples/SAR/src/sar_benchmark.cpp and emits:
+
+- warm-up + repeated run timing summaries
+- median/min/max/stddev
+- graph-vs-baseline timing comparison
+- overhead attribution categories required by Phase 8
+
+## Profiles
+
+CI-safe small profile:
+
+- pulses: 32
+- samples_per_pulse: 256
+- tile_count: 4
+- warm-up runs: 1
+- measured runs: 5
+
+Larger local profile:
+
+- pulses: 128
+- samples_per_pulse: 1024
+- tile_count: 8
+- warm-up runs: 2
+- measured runs: 10
+
+## How To Run
+
+Build:
+
+```bash
+cmake --build --preset build-debug --target sar_benchmark
+```
+
+Run CI-safe profile:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci
+```
+
+Run larger local profile:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=local
+```
+
+Optional JSON trace export:
+
+```bash
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --trace-out=/tmp/sar_trace.json
+
+# Feature-gated DeviceReduce prototype evaluation
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --evaluate-device-reduce --trace-out=/tmp/sar_trace_phase_e.json
+
+# Native + FFT-backed range compression profile
+./build-ninja/ninja-debug/examples/SAR/sar_benchmark --profile=ci --range-stage=compression --native-backend --trace-out=/tmp/sar_native_range_compression_trace.json
+```
+
+The trace uses schema `graphx.sar.benchmark.trace.v1` and records profile metadata, graph build/run/lifecycle timing summaries, baseline timing, last lifecycle phase timings, diagnostics counters, queue counters, and overhead proxies.
+
+Native-backend traces also include selected `range_stage` and `native_backend` flags in the profile payload and expose measured transfer/kernel timing counters.
+
+When `--evaluate-device-reduce` is enabled, trace output also includes `device_reduce_evaluation` with diagnostics parity, prototype runtime stats, and keep/defer decision rationale.
+
+## Correctness Guard
+
+Each measured run verifies deterministic diagnostics parity between graph and baseline:
+
+- pulses_processed
+- tiles_processed
+- bytes_h2d
+- bytes_d2h
+- kernel_dispatches
+- duplicate_tile_count
+- missing_tile_count
+
+If parity fails, the benchmark exits non-zero.
+
+The direct baseline includes the same deterministic range-window stage as the graph topology,
+so reported overhead remains graph-specific rather than DSP-algorithm drift.
+
+## Overhead Attribution Categories
+
+The benchmark reports the following categories using deterministic, measurable proxies:
+
+1. graph scheduling/run loop: median(graph_run_ms) - median(baseline_execute_ms)
+2. message allocation/copy: bytes_h2d/bytes_d2h totals
+3. queue wait/backpressure: fanin_wait_ms, backpressure_events, peak_queue_depth
+4. provider/plugin lookup: graph build-time summary
+5. diagnostics collection: sink contract emission path
+6. backend synchronization: e2e_latency_ms proxy
+7. lifecycle teardown: init/start/stop/join/total timing reported separately from graph run time
+8. native timing telemetry: transfer_h2d_time_us, kernel_exec_time_us, transfer_d2h_time_us
+
+## Phase E Decision Evidence
+
+`--evaluate-device-reduce` runs a feature-gated DeviceReduce-prototype accumulation baseline and compares it against the existing merge-based baseline.
+
+Current CI-profile evidence:
+
+1. Diagnostics parity: true
+2. Prototype median speedup: below keep threshold
+3. Decision: defer-generic-reduce
+
+Rationale: keep deterministic diagnostics parity while deferring generic runtime DeviceReduce wiring until a broader runtime integration pass.
+
+## CI Gate Guidance
+
+- CI should gate on correctness and metrics presence.
+- Performance thresholds should remain conservative and non-brittle.
+- The CI profile above is designed to be stable and fast.

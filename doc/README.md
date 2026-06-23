@@ -1,53 +1,37 @@
 # GraphX Documentation
 
-Comprehensive documentation for the GraphX C++26 Graph Framework.
+**Status: Archived**
 
-## Directory Structure
+This documentation directory contains archived exploratory analysis and planning documents from the GraphX development baseline. These documents were consolidated and archived during PR8 (Documentation Surface Reduction) to consolidate the active documentation set.
 
-### 📐 [architecture/](./architecture/)
-**Design patterns, architectural analysis, and system design documents**
+## Archived Content
 
-Core design and architecture documentation for understanding the GraphX framework:
-- **ABSTRACTION_QUICK_REFERENCE.md** - Quick reference for abstraction patterns
-- **ADVANCED_TEST_NODES_SPECIFICATION.md** - Advanced node types specification
-- **ANALYSIS_EXECUTIVE_SUMMARY.md** - Executive summary of system analysis
-- **CAPABILITY_ABSTRACTION_ANALYSIS.md** - Capability system architecture
-- **CAPABILITYBUS_ANALYSIS.md** - CapabilityBus design and analysis
-- **CLASS_INVENTORY.md** - Complete class/type inventory
-- **DATA_PRODUCER_ANALYSIS.md** - Producer node architecture analysis
-- **JSONVIEW_CPP26_ENHANCEMENTS.md** - C++26 reflection enhancements
-- **METRICS_POLICY_GAPS_IMPLEMENTATION_PLAN.md** - Metrics policy design
-- **MULTI_PLUGIN_DIRECTORY_ANALYSIS.md** - Multi-directory plugin support
-- **NODEFACTORY_COMPREHENSIVE_ANALYSIS.md** - NodeFactory architecture
-- **NODEFACTORY_CPP26_TEST_PLAN.md** - NodeFactory C++26 features
-- **NODEFACTORY_QUICK_REFERENCE.md** - NodeFactory quick reference
-- **PHASE_1_COMMANDREGISTRY_DESIGN.md** - CommandRegistry design
-- **PLUGIN_SYSTEM_TEST_ANALYSIS.md** - Plugin system architecture
-- **PRODUCER_GRAPH_TOPOLOGIES_IMPLEMENTATION.md** - Producer topology implementation
-- **PRODUCER_MESSAGE_ENCAPSULATION_ANALYSIS.md** - Message encapsulation patterns
-- **PRODUCER_TOPOLOGY_PARAMETERIZATION_ANALYSIS.md** - Topology parameterization
-- **SINKNODE_METRICS_INVESTIGATION.md** - SinkNode metrics analysis
-- **STATICNODEADAPTER_USAGE_GUIDE.md** - StaticNodeAdapter usage patterns
-- **TESTGRAPHTOPOLOGIES_DATA_FLOW_STRATEGY.md** - Test topology data flow
-- **TESTGRAPHTOPOLOGIES_IMPLEMENTATION_GUIDE.md** - Test topology implementation
-- **TESTGRAPHTOPOLOGIES_SUMMARY.md** - Test topology summary
+The following subdirectories were moved to `docs/archive/2026-06-baseline/doc/` during PR8:
 
-### ✅ [tests/](./tests/)
-**Test analysis, test coverage, and test results documentation**
+- **architecture/** - Architectural analysis and design patterns (archived)
+- **guides/** - Implementation guides and quick references (archived)
+- **phase-reports/** - Phase completion and progress reports (archived)
+- **tests/** - Test analysis and coverage reports (archived)
 
-Comprehensive test documentation including analysis and coverage reports:
-- **ACTIVEQUEUE_TEST_ANALYSIS.md** - ActiveQueue test analysis
-- **ACTIVEQUEUE_TESTING_COMPLETE_REPORT.md** - Complete ActiveQueue test report
-- **CAPABILITYBUS_TESTING_COMPLETE.md** - CapabilityBus testing completion
-- **CLASS_TEST_COVERAGE_REPORT.md** - Full test coverage report
-- **CSVPARSER_TEST_ANALYSIS.md** - CSV parser test analysis
-- **DEBUGGING_INFRASTRUCTURE_TEST_RESULTS.md** - Debugging infrastructure tests
-- **EDGEREGISTRY_TEST_ANALYSIS.md** - EdgeRegistry test analysis
-- **JSONUTILITIES_TEST_ANALYSIS.md** - JSON utilities test analysis
-- **JSONVIEW_TEST_ANALYSIS.md** - JSONView test analysis
-- **JSONVIEW_TEST_SUITE_REPORT.md** - JSONView test suite report
-- **MESSAGE_TEST_ANALYSIS.md** - Message system test analysis
-- **MESSAGE_TEST_SUITE_FINAL.md** - Message test suite final report
+## Active Documentation
+
+The active GraphX documentation is now consolidated in:
+
+- **Top-level README.md** - User guide for building, running, and testing
+- **plan/BASELINE.md** - Current architecture and next steps
+- **plan/roadmap/GRAPHX_PR_ROADMAP.md** - Active cleanup roadmap
+- **plan/agents/GRAPHX_PR_AGENTS.md** - Active PR prompts and templates
+- **plan/agents/GRAPHX_AGENT_ROLES.md** - Active agent role definitions
+
+## Archive Location
+
+Historical documentation is preserved at:
+
+```text
+docs/archive/2026-06-baseline/doc/
+```
+
+This includes all exploratory analysis, design decisions, phase reports, and test documentation from the baseline phase.
 - **THREADPOOL_TEST_SUITE_ANALYSIS.md** - ThreadPool test suite analysis
 - **THREADPOOL_UNIT_TEST_ANALYSIS.md** - ThreadPool unit test analysis
 
