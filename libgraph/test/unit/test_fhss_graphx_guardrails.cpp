@@ -177,11 +177,15 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
     ASSERT_EQ(node_classes.size(), 1u) << header;
     const auto &name = node_classes.front();
     if (name == "ChannelizerNode") {
-      EXPECT_NE(text.find("public graph::SinkNode"), std::string::npos)
-          << name << " must consume a GraphX input port";
-      EXPECT_NE(text.find("public FHSSChannelizerSourceBase"),
+      // PR5: ChannelizerNode refactored to use NamedFixedFanInOutNode for both
+      // input and output ports (1 input, 64 outputs). No more SinkNode+SourceBase.
+      EXPECT_NE(text.find("public graph::NamedFixedFanInOutNode"),
                 std::string::npos)
-          << name << " must expose GraphX output ports";
+          << name << " must consume and produce GraphX ports via NamedFixedFanInOutNode";
+      // PR6: Verify no aggregate channelizer output contract present.
+      EXPECT_EQ(text.find("std::vector<FHSSChannelizedIqPacket>"),
+                std::string::npos)
+          << name << " must not expose aggregate output stream (PR6 invariant)";
       continue;
     }
     if (name == "FHSSPulseMergeNode") {

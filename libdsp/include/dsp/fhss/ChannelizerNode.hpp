@@ -9,6 +9,7 @@
 #include "graph/FixedFanInOutNode.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
+#include "graph/PortTypes.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -23,19 +24,25 @@
 
 namespace dsp::fhss {
 
-template <typename TokenT, typename Sequence> struct FHSSRepeatedTokenTypeList;
-
-template <typename TokenT, std::size_t... Indices>
-struct FHSSRepeatedTokenTypeList<TokenT, std::index_sequence<Indices...>> {
-  template <std::size_t> using TokenForIndex = TokenT;
-  using type = graph::TypeList<TokenForIndex<Indices>...>;
-};
-
+// PR6: Explicit channelizer port structure.
+// Each output port corresponds to exactly one frequency channel (1:1 mapping).
+// No aggregate stream packets (single edge carrying all channels) are allowed.
+// The ChannelizerNode always exposes one GraphX output port per configured
+// frequency. There is no "all channels at once" token type or container.
+//
+// The FHSSChannelizerOutputList is a TypeList with 64 repetitions of
+// FHSSChannelizedIqToken, one per frequency. This structure inherently
+// prevents definition of aggregate stream types and enforces the
+// 1-per-frequency invariant at compile-time.
 using FHSSChannelizerOutputList =
-    typename FHSSRepeatedTokenTypeList<
-        FHSSChannelizedIqToken,
-        std::make_index_sequence<
-            FHSSProtocolConstants::kFrequencyCount>>::type;
+    graph::RepeatType_t<FHSSChannelizedIqToken,
+                        FHSSProtocolConstants::kFrequencyCount>;
+
+// PR6 Compile-Time Guard: Verify exactly 64 output ports.
+// This guard prevents accidental changes to port count or emergence of
+// aggregate stream packet types that violate the 1-per-frequency invariant.
+static_assert(FHSSProtocolConstants::kFrequencyCount == 64,
+              "FHSS channelizer must expose exactly 64 ports (one per frequency).");
 
 struct FHSSChannelizerConfig {
   FHSSFrequencyConfig frequency{};

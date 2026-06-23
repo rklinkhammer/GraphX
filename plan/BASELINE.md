@@ -162,6 +162,13 @@ FHSS truth-in-labeling:
 - Guardrail wording: channel output port per configured frequency.
 - Guardrail wording: retuned sub-band windows.
 - Guardrail wording: explicit alias/downconvert modeling.
+- **PR6 Guardrail: No canonical channelizer output type carries a vector/list
+  of all channels.** Each ChannelizerNode output port is a distinct GraphX edge.
+  There is no single token type or packet that bundles all 64 frequencies.
+  The channelizer exposes exactly 64 separate output ports, each carrying one
+  FHSSChannelizedIqToken. Aggregate stream containers are not allowed.
+- Guardrail wording: no aggregate channelizer output stream.
+- Guardrail wording: one port per frequency; no vector of all frequencies.
 - The canonical FHSS implementation uses real GraphX nodes and
   `graph::gpu::accel::ControlToken<...>` contracts. Deleted pre-GraphX
   pseudo-node scaffolding is not the current node model.

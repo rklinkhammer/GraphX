@@ -151,6 +151,33 @@ TEST(DspFhssBaselineGuardrailTest,
 }
 
 TEST(DspFhssBaselineGuardrailTest,
+     PR6_ChannelizerHasExactly64DistinctOutputPorts) {
+  // PR6: Verify the ChannelizerNode exposes exactly 64 ports, one per frequency.
+  // No aggregate "all channels at once" output is allowed. Each output port
+  // is a distinct GraphX edge carrying one FHSSChannelizedIqToken.
+  const auto graph =
+      LoadJson(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
+  const auto &channelizer = FindNode(graph, "channelizer");
+  EXPECT_EQ(channelizer.at("type").get<std::string>(), "ChannelizerNode");
+
+  // Verify: Channelizer exposes exactly 64 output edges.
+  const auto output_edge_count = CountEdgesFromNode(graph, "channelizer");
+  EXPECT_EQ(output_edge_count, 64u)
+      << "Channelizer must expose exactly 64 output ports (one per frequency).";
+
+  // Verify: No documentation claims an aggregate channel output.
+  const auto docs =
+      ReadFile(std::filesystem::path(GRAPHX_SOURCE_ROOT) / "plan" /
+               "BASELINE.md");
+  EXPECT_NE(docs.find("one GraphX output port per configured frequency"),
+            std::string::npos)
+      << "BASELINE.md must document the 1-per-frequency output invariant.";
+  EXPECT_NE(docs.find("No canonical channelizer output type carries a vector"),
+            std::string::npos)
+      << "BASELINE.md must document that aggregate stream outputs are not allowed.";
+}
+
+TEST(DspFhssBaselineGuardrailTest,
      DemoDoesNotExposeDeletedReferenceCorrelatorSurface) {
   const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
   const auto demo_source = ReadFile(root / "examples" / "DSP" / "src" /
