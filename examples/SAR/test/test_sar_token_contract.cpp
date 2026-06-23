@@ -7,6 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include "dsp/DspIqH2DNode.hpp"
+#include "dsp/fhss/CPSMBranchMetricNode.hpp"
+#include "gpu/cuda/nodes/H2DAsyncNode.hpp"
+#include "graph/AccelTokenContracts.hpp"
 #include "sar/D2HAsyncAccelNode.hpp"
 #include "sar/H2DAsyncAccelNode.hpp"
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
@@ -73,8 +77,46 @@ TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
 }
 
 TEST(SarTokenContractTest, SarAccelTokenUsesSarSidecar) {
-    EXPECT_TRUE((std::is_same_v<sar::SarAccelControlToken,
-                                graph::gpu::accel::ControlToken<sar::SarSidecar>>));
+    EXPECT_TRUE((graph::AccelControlTokenFor<sar::SarAccelControlToken,
+                                             sar::SarSidecar>));
+}
+
+TEST(SarTokenContractTest, CompileTimePortContractsAreTokenHardenedAcrossDomains) {
+    static_assert(graph::InputPortUsesAccelControlTokenFor<
+                  dsp::DspIqH2DNode<256>,
+                  0,
+                  graph::message::Message>);
+    static_assert(graph::OutputPortUsesAccelControlTokenFor<
+                  dsp::DspIqH2DNode<256>,
+                  0,
+                  graph::message::Message>);
+
+    static_assert(graph::InputPortUsesAccelControlToken<
+                  dsp::fhss::CPSMBranchMetricNode,
+                  0>);
+    static_assert(graph::OutputPortUsesAccelControlToken<
+                  dsp::fhss::CPSMBranchMetricNode,
+                  0>);
+
+    static_assert(graph::InputPortUsesAccelControlTokenFor<
+                  sar::H2DAsyncAccelNode,
+                  0,
+                  sar::SarSidecar>);
+    static_assert(graph::OutputPortUsesAccelControlTokenFor<
+                  sar::H2DAsyncAccelNode,
+                  0,
+                  sar::SarSidecar>);
+
+    static_assert(graph::InputPortTypeIs<
+                  graph::gpu::cuda::nodes::H2DAsyncNode,
+                  0,
+                  graph::gpu::accel::HostPinnedBufferView>);
+    static_assert(graph::OutputPortTypeIs<
+                  graph::gpu::cuda::nodes::H2DAsyncNode,
+                  0,
+                  graph::gpu::accel::DeviceBufferView>);
+
+    SUCCEED();
 }
 
 TEST(SarTokenContractTest, CanonicalSarGpuStagesUseExplicitAccelTypeNames) {

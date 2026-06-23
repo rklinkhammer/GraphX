@@ -12,7 +12,9 @@
 
 #include <array>
 #include <cstddef>
+#include <concepts>
 #include <cstdint>
+#include <type_traits>
 
 namespace graph::gpu::accel {
 
@@ -298,6 +300,8 @@ struct CollectiveTicket {
  */
 template <typename SidecarT>
 struct ControlToken {
+    using sidecar_type = SidecarT;
+
     std::uint64_t token_id{};
     SidecarT sidecar{};
     BufferLease lease{};
@@ -311,5 +315,24 @@ struct ControlToken {
     bool has_transfer_ticket{false};
     bool has_kernel_ticket{false};
 };
+
+template <typename T>
+struct IsControlToken : std::false_type {};
+
+template <typename SidecarT>
+struct IsControlToken<ControlToken<SidecarT>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsControlTokenV =
+    IsControlToken<std::remove_cvref_t<T>>::value;
+
+template <typename T>
+concept ControlTokenType = IsControlTokenV<T>;
+
+template <typename T, typename SidecarT>
+concept ControlTokenFor =
+    ControlTokenType<T> &&
+    std::same_as<typename std::remove_cvref_t<T>::sidecar_type,
+                 std::remove_cvref_t<SidecarT>>;
 
 } // namespace graph::gpu::accel
