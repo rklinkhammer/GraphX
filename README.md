@@ -551,6 +551,7 @@ Guardrail wording: not proof of GraphX phase-history image-formation correctness
 | Tool | Purpose |
 |---|---|
 | `examples/SAR/tools/sar_local_runner.py` | Scaffold local SAR run layouts. |
+| `examples/SAR/tools/sar_local_baseline_runner.py` | Local-only external baseline smoke runner with explicit opt-in gating. |
 | `examples/SAR/tools/sar_scenario_to_run.py` | Convert scenario JSON to local run setup. |
 | `examples/SAR/tools/sar_image_comparator.py` | Compare focused-image artifacts. |
 | `examples/SAR/tools/gotcha_back_adapter.py` | Prepare local gotcha-back reference runs. |
@@ -565,6 +566,22 @@ python3 examples/SAR/tools/sar_local_runner.py \
   --scenario examples/SAR/scenarios/scenario_001.json \
   --output-dir /tmp/graphx_sar_scenario_001
 ```
+
+PR14 local-only baseline runner (SarPy selected baseline):
+
+```bash
+python3 examples/SAR/tools/sar_local_baseline_runner.py \
+  probe-environment \
+  --output-json /tmp/graphx_sar_local_baseline_probe.json
+
+GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1 \
+GRAPHX_SARPY_CRSD_FILE=/path/to/local/product.crsd \
+python3 examples/SAR/tools/sar_local_baseline_runner.py \
+  run-local-smoke \
+  --output-json /tmp/graphx_sar_local_baseline_smoke.json
+```
+
+Truth-in-labeling: this runner is local-only, opt-in, and not a GraphX runtime dependency.
 
 ## Real GOTCHA Validation
 

@@ -120,6 +120,20 @@ PR13 external SAR baseline survey status:
   - Any external baseline execution remains local-only and opt-in.
   - Default CI remains external-dependency-free.
 
+PR14 local-only baseline runner status:
+
+- Selected baseline package for local runner: SarPy.
+- Runner entry point: `examples/SAR/tools/sar_local_baseline_runner.py`.
+- Explicit gating:
+  - `GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1` is required to attempt local smoke.
+  - `GRAPHX_SARPY_CRSD_FILE` must point to a local CRSD product for smoke execution.
+- CI-safe behavior:
+  - Without opt-in, missing package, or missing dataset path, the runner emits
+    deterministic skip diagnostics.
+  - Default CI remains external-dependency-free.
+- Truth-in-labeling:
+  - This runner is local-only and not a GraphX runtime dependency.
+
 ### FHSS
 
 The active FHSS implementation is a deterministic CPU fixture and decoder lane.
