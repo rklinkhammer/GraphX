@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -220,6 +221,23 @@ TEST(FHSSGraphXExecutorTest,
   auto sink = ResolveFHSSMessageSink(graph_manager);
   ASSERT_NE(sink, nullptr);
   const auto diagnostics = sink->GetDiagnostics().Raw();
+
+  EXPECT_EQ(diagnostics.at("schema").get<std::string>(),
+            "graphx.fhss.message_sink.diagnostics.v1");
+  const std::array<const char*, 9> required_keys{{
+      "schema",
+      "pulse_count",
+      "rejected_count",
+      "preamble_lock",
+      "truth_mismatch_count",
+      "unsupported_overlap_rejected",
+      "unsupported_impairments_rejected",
+      "active_frequency_indices",
+      "decoded_pulses",
+  }};
+  for (const char* key : required_keys) {
+    EXPECT_TRUE(diagnostics.contains(key)) << key;
+  }
 
   EXPECT_EQ(diagnostics.at("pulse_count").get<std::size_t>(),
             expected_fixture->truth_pulses.size());

@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -18,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "dsp/CpuSpectrumDftNode.hpp"
 #include "dsp/SpectrumSinkNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
@@ -88,6 +90,27 @@ std::shared_ptr<dsp::SpectrumSinkNode<float, kFftSize>> ResolveSpectrumSink(
     return nullptr;
 }
 
+std::shared_ptr<dsp::CpuSpectrumDftNode<float, kFftSize>> ResolveCpuSpectrum(
+    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    for (const auto& node : graph_manager->GetNodes()) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+
+        auto spectrum = wrapper->GetNode<dsp::CpuSpectrumDftNode<float, kFftSize>>();
+        if (spectrum) {
+            return spectrum;
+        }
+    }
+
+    return nullptr;
+}
+
 }  // namespace
 
 TEST(DspSpectrumGraphRuntimeTest, ConfigUsesCpuOnlyDspNodes) {
@@ -150,7 +173,9 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
     auto sink = ResolveSpectrumSink(graph_manager);
+    auto spectrum = ResolveCpuSpectrum(graph_manager);
     ASSERT_NE(sink, nullptr);
+    ASSERT_NE(spectrum, nullptr);
     EXPECT_GE(sink->GetFrameCount(), 1u);
 
     const auto latest = sink->GetLatestSpectrum();
@@ -163,4 +188,28 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     EXPECT_GT(latest->peak_magnitude, 0.0f);
     EXPECT_DOUBLE_EQ(latest->sample_rate_hz, kSampleRateHz);
     EXPECT_EQ(latest->magnitudes.size(), kFftSize / 2);
+
+    const auto spectrum_diag = spectrum->GetDiagnostics().Raw();
+    EXPECT_EQ(spectrum_diag.at("schema").get<std::string>(),
+              "graphx.dsp.cpu_spectrum_dft.diagnostics.v1");
+    EXPECT_TRUE(spectrum_diag.contains("accumulation_count"));
+    EXPECT_TRUE(spectrum_diag.contains("window_type"));
+    EXPECT_TRUE(spectrum_diag.contains("sample_rate_hz"));
+    EXPECT_TRUE(spectrum_diag.contains("pending_packets"));
+    EXPECT_TRUE(spectrum_diag.contains("ffts_computed"));
+    EXPECT_TRUE(spectrum_diag.contains("packets_processed"));
+    EXPECT_GE(spectrum_diag.at("ffts_computed").get<std::uint64_t>(), 1u);
+    EXPECT_GE(spectrum_diag.at("packets_processed").get<std::uint64_t>(), 1u);
+
+    const auto sink_diag = sink->GetDiagnostics().Raw();
+    EXPECT_EQ(sink_diag.at("schema").get<std::string>(),
+              "graphx.dsp.spectrum_sink.diagnostics.v1");
+    EXPECT_TRUE(sink_diag.contains("frame_count"));
+    EXPECT_TRUE(sink_diag.contains("history_capacity"));
+    EXPECT_TRUE(sink_diag.contains("completion_signaled"));
+    EXPECT_TRUE(sink_diag.contains("latest_peak_frequency_hz"));
+    EXPECT_TRUE(sink_diag.contains("latest_peak_magnitude"));
+    EXPECT_TRUE(sink_diag.contains("sample_rate_hz"));
+    EXPECT_TRUE(sink_diag.at("completion_signaled").get<bool>());
+    EXPECT_GE(sink_diag.at("frame_count").get<std::size_t>(), 1u);
 }

@@ -30,6 +30,7 @@ namespace sar {
 class SarDiagnosticsSinkNode
     : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarAccelControlToken>,
     public graph::CompletionCallbackProvider,
+    public graph::IDiagnosable,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
@@ -54,6 +55,7 @@ public:
     graph::JsonView GetParameters() const override;
     graph::JsonView GetParameterDescription(const std::string& param_name) const override;
     std::vector<std::string> GetParameterNames() const override;
+    graph::JsonView GetDiagnostics() const override;
 
     static constexpr std::array<graph::JsonField, 1> Fields() {
         return {{
@@ -82,6 +84,7 @@ private:
     bool completion_signal_enabled_{true};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};
     mutable nlohmann::json parameter_description_cache_{nlohmann::json::object()};
+    mutable nlohmann::json diagnostics_cache_{nlohmann::json::object()};
 };
 
 } // namespace sar

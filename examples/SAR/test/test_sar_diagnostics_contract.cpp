@@ -9,6 +9,7 @@
 
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -104,6 +105,53 @@ TEST(SarDiagnosticsContractTest, SignalsCompletionOnCompleteEndOfStream) {
         std::integral_constant<std::size_t, 0>{}));
 
     EXPECT_TRUE(completed);
+}
+
+TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsJsonBaselineFields) {
+    sar::SarDiagnosticsSinkNode sink;
+
+    graph::GraphMetrics graph_metrics{};
+    graph_metrics.backpressure_events.store(5u, std::memory_order_relaxed);
+    graph_metrics.peak_queue_depth.store(4u, std::memory_order_relaxed);
+    sink.UpdateFromGraphMetrics(graph_metrics);
+
+    ASSERT_TRUE(sink.Consume(
+        MakeStatus(32, sar::SarFrameMarker::EndOfStream, true, 4, 28, 0, 32768, 32768, 32, 32),
+        std::integral_constant<std::size_t, 0>{}));
+
+    const auto json = sink.GetDiagnostics().Raw();
+    EXPECT_EQ(json.at("schema").get<std::string>(),
+              "graphx.sar.diagnostics_sink.metrics.v1");
+
+    const std::array<const char*, 15> required_keys{{
+        "schema",
+        "pulses_processed",
+        "tiles_processed",
+        "bytes_h2d",
+        "bytes_d2h",
+        "kernel_dispatches",
+        "range_compression_time_us",
+        "split_time_us",
+        "h2d_stage_time_us",
+        "backprojection_stage_time_us",
+        "d2h_stage_time_us",
+        "merge_stage_time_us",
+        "fanin_wait_ms",
+        "queue_backpressure_events",
+        "peak_queue_depth",
+    }};
+    for (const char* key : required_keys) {
+        EXPECT_TRUE(json.contains(key)) << key;
+    }
+
+    EXPECT_EQ(json.at("pulses_processed").get<std::uint64_t>(), 32u);
+    EXPECT_EQ(json.at("tiles_processed").get<std::uint64_t>(), 4u);
+    EXPECT_EQ(json.at("bytes_h2d").get<std::uint64_t>(), 32768u);
+    EXPECT_EQ(json.at("bytes_d2h").get<std::uint64_t>(), 32768u);
+    EXPECT_EQ(json.at("kernel_dispatches").get<std::uint64_t>(), 32u);
+    EXPECT_EQ(json.at("fanin_wait_ms").get<std::uint64_t>(), 32u);
+    EXPECT_EQ(json.at("queue_backpressure_events").get<std::uint64_t>(), 5u);
+    EXPECT_EQ(json.at("peak_queue_depth").get<std::uint64_t>(), 4u);
 }
 
 TEST(SarDiagnosticsContractTest, DiagnosticsBoundaryConsumesTokenContract) {

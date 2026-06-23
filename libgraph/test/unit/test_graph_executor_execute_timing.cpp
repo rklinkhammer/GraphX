@@ -110,3 +110,25 @@ TEST(GraphExecutorExecuteTimingTest, StandaloneLifecycleResultsRemainStandalone)
     EXPECT_EQ(join_result.stop_elapsed_time_ms, 0u);
     EXPECT_EQ(join_result.join_elapsed_time_ms, 0u);
 }
+
+TEST(GraphExecutorExecuteTimingTest, ExecuteTimingBaselineFieldsRemainDeterministic) {
+    ASSERT_TRUE(std::filesystem::exists(DspSpectrumConfigPath()));
+    ASSERT_TRUE(std::filesystem::exists(PluginDirectory()));
+
+    auto executor = BuildCpuDspExecutor();
+    ASSERT_NE(executor, nullptr);
+
+    const auto result = executor->Execute();
+    ASSERT_TRUE(result.success) << result.message << " " << result.error_details;
+
+    EXPECT_EQ(result.current_state, graph::ExecutionState::STOPPED);
+    EXPECT_GE(result.elapsed_time_ms, 0u);
+    EXPECT_GE(result.init_elapsed_time_ms, 0u);
+    EXPECT_GE(result.start_elapsed_time_ms, 0u);
+    EXPECT_GE(result.run_elapsed_time_ms, 0u);
+    EXPECT_GE(result.stop_elapsed_time_ms, 0u);
+    EXPECT_GE(result.join_elapsed_time_ms, 0u);
+    EXPECT_GT(result.run_elapsed_time_ms, 0u);
+
+    ExpectPhaseNotGreaterThanTotal(result);
+}

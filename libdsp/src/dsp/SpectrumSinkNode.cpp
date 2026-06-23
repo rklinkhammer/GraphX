@@ -271,8 +271,30 @@ void SpectrumSinkNode<SampleT, N>::Configure(const graph::JsonView& cfg) {
 
 template<typename SampleT, size_t N>
 graph::JsonView SpectrumSinkNode<SampleT, N>::GetDiagnostics() const {
-    static thread_local nlohmann::json empty_json = nlohmann::json::object();
-    return graph::JsonView(empty_json);
+    std::lock_guard<std::mutex> lock(spectrum_mutex_);
+    diagnostics_cache_ = {
+        {"schema", "graphx.dsp.spectrum_sink.diagnostics.v1"},
+        {"frame_count", spectrum_history_.size()},
+        {"history_capacity", history_capacity_},
+        {"completion_signaled", completion_signaled_},
+        {"max_peak_frequency_hz", peak_tracker_.max_frequency},
+        {"max_peak_magnitude", peak_tracker_.max_magnitude},
+    };
+
+    if (!spectrum_history_.empty()) {
+        const auto& latest = spectrum_history_.back();
+        diagnostics_cache_["latest_peak_frequency_hz"] = latest.peak_frequency_hz;
+        diagnostics_cache_["latest_peak_magnitude"] = latest.peak_magnitude;
+        diagnostics_cache_["sample_rate_hz"] = latest.sample_rate_hz;
+        diagnostics_cache_["fft_size"] = latest.magnitudes.size() * 2;
+    } else {
+        diagnostics_cache_["latest_peak_frequency_hz"] = 0;
+        diagnostics_cache_["latest_peak_magnitude"] = 0;
+        diagnostics_cache_["sample_rate_hz"] = 0;
+        diagnostics_cache_["fft_size"] = 0;
+    }
+
+    return graph::JsonView(diagnostics_cache_);
 }
 
 // ============================================================================

@@ -239,8 +239,21 @@ std::expected<void, FFTConfigError> CpuSpectrumDftNode<SampleT, N>::ConfigureExp
 
 template<typename SampleT, size_t N>
 graph::JsonView CpuSpectrumDftNode<SampleT, N>::GetDiagnostics() const {
-    static thread_local nlohmann::json empty_json = nlohmann::json::object();
-    return graph::JsonView(empty_json);
+    diagnostics_cache_ = {
+        {"schema", "graphx.dsp.cpu_spectrum_dft.diagnostics.v1"},
+        {"accumulation_count", GetAccumulationCount()},
+        {"window_type", WindowFunctions::ToString(GetWindowType())},
+        {"sample_rate_hz", GetSampleRate()},
+        {"pending_packets", GetPendingPackets()},
+        {"ffts_computed", GetFFTsComputed()},
+        {"packets_processed", GetPacketsProcessed()},
+        {"peak_history_size", peak_frequency_history_.size()},
+    };
+    if (!peak_frequency_history_.empty()) {
+        diagnostics_cache_["latest_peak_frequency_hz"] =
+            peak_frequency_history_.back();
+    }
+    return graph::JsonView(diagnostics_cache_);
 }
 
 // ============================================================================

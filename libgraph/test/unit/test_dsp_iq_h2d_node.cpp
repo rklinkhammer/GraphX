@@ -279,6 +279,37 @@ TEST(DspIqH2DNodeTest, FailsWhenTransferRejectsCopy) {
     EXPECT_EQ(transfer->h2d_count, 0u);
 }
 
+TEST(DspIqH2DNodeTest, DiagnosticsExposeDeterministicGpuTransferFields) {
+    auto memory_pool = std::make_shared<FakeMetalMemoryPool>();
+    auto transfer = std::make_shared<FakeMetalTransfer>();
+    graph::CapabilityBus bus;
+    RegisterFakeCapabilities(bus, memory_pool, transfer);
+
+    NodeType node;
+    node.Configure(graph::JsonView(nlohmann::json{{"queue_id", 5}, {"device_id", 2}}));
+    ASSERT_TRUE(node.BindGpuCapabilities(bus));
+
+    const auto input = MakeIqToken();
+    ASSERT_TRUE(node.Transfer(input,
+                              std::integral_constant<std::size_t, 0>{},
+                              std::integral_constant<std::size_t, 0>{}));
+
+    const auto diagnostics = node.GetDiagnostics().Raw();
+    EXPECT_TRUE(diagnostics.contains("has_host_view"));
+    EXPECT_TRUE(diagnostics.contains("has_device_view"));
+    EXPECT_TRUE(diagnostics.contains("has_lease"));
+    EXPECT_TRUE(diagnostics.contains("has_transfer_ticket"));
+    EXPECT_TRUE(diagnostics.contains("queue_id"));
+    EXPECT_TRUE(diagnostics.contains("device_id"));
+    EXPECT_TRUE(diagnostics.contains("iq_bytes"));
+    EXPECT_TRUE(diagnostics.contains("backend"));
+    EXPECT_TRUE(diagnostics.at("has_host_view").get<bool>());
+    EXPECT_TRUE(diagnostics.at("has_device_view").get<bool>());
+    EXPECT_TRUE(diagnostics.at("has_lease").get<bool>());
+    EXPECT_TRUE(diagnostics.at("has_transfer_ticket").get<bool>());
+    EXPECT_EQ(diagnostics.at("backend").get<std::string>(), "Metal");
+}
+
 TEST(DspIqH2DNodeTest, PluginRegistrationExposesDspIqH2DNode256) {
     auto provider = test::PluginInfrastructure::GetProvider();
     ASSERT_NE(provider, nullptr);

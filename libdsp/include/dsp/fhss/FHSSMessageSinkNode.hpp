@@ -32,6 +32,7 @@ public:
 
   [[nodiscard]] graph::JsonView GetDiagnostics() const override {
     diagnostics_cache_ = {
+        {"schema", "graphx.fhss.message_sink.diagnostics.v1"},
         {"pulse_count", last_diagnostics_.pulse_count},
         {"rejected_count", last_diagnostics_.rejected_count},
         {"preamble_lock", last_diagnostics_.preamble_lock},

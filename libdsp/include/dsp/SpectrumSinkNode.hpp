@@ -38,6 +38,7 @@
 #include <vector>
 
 #include <log4cxx/logger.h>
+#include <nlohmann/json.hpp>
 
 #include "graph/NamedNodes.hpp"
 #include "graph/IConfigurable.hpp"
@@ -445,6 +446,9 @@ private:
 
     // Metrics callback handler (may be nullptr)
     graph::IMetricsCallback* metrics_callback_{nullptr};
+
+      // Cached diagnostics JSON backing JsonView lifetime.
+      mutable nlohmann::json diagnostics_cache_{nlohmann::json::object()};
 
     // Logger
     static log4cxx::LoggerPtr log_;

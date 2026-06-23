@@ -58,6 +58,36 @@ std::vector<std::string> SarDiagnosticsSinkNode::GetParameterNames() const {
     return {"completion_signal_enabled"};
 }
 
+graph::JsonView SarDiagnosticsSinkNode::GetDiagnostics() const {
+    diagnostics_cache_ = {
+        {"schema", "graphx.sar.diagnostics_sink.metrics.v1"},
+        {"pulses_processed", diagnostics_.pulses_processed},
+        {"tiles_processed", diagnostics_.tiles_processed},
+        {"bytes_h2d", diagnostics_.bytes_h2d},
+        {"bytes_d2h", diagnostics_.bytes_d2h},
+        {"kernel_dispatches", diagnostics_.kernel_dispatches},
+        {"transfer_h2d_time_us", diagnostics_.transfer_h2d_time_us},
+        {"kernel_exec_time_us", diagnostics_.kernel_exec_time_us},
+        {"transfer_d2h_time_us", diagnostics_.transfer_d2h_time_us},
+        {"range_window_time_us", diagnostics_.stage_timings.range_window_time_us},
+        {"range_compression_time_us", diagnostics_.stage_timings.range_compression_time_us},
+        {"split_time_us", diagnostics_.stage_timings.split_time_us},
+        {"h2d_stage_time_us", diagnostics_.stage_timings.h2d_stage_time_us},
+        {"backprojection_stage_time_us", diagnostics_.stage_timings.backprojection_stage_time_us},
+        {"d2h_stage_time_us", diagnostics_.stage_timings.d2h_stage_time_us},
+        {"merge_stage_time_us", diagnostics_.stage_timings.merge_stage_time_us},
+        {"diagnostics_sink_time_us", diagnostics_.stage_timings.diagnostics_sink_time_us},
+        {"fanin_wait_ms", diagnostics_.fanin_wait_ms},
+        {"duplicate_tile_count", diagnostics_.duplicate_tile_count},
+        {"missing_tile_count", diagnostics_.missing_tile_count},
+        {"out_of_order_completion_count", diagnostics_.out_of_order_completion_count},
+        {"queue_backpressure_events", diagnostics_.queue_backpressure_events},
+        {"peak_queue_depth", diagnostics_.peak_queue_depth},
+        {"completion_signal_enabled", completion_signal_enabled_},
+    };
+    return graph::JsonView(diagnostics_cache_);
+}
+
 bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
                                      std::integral_constant<std::size_t, 0>) {
     const auto stage_start = runtime::SteadyClock::now();
