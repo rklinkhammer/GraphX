@@ -552,6 +552,7 @@ Guardrail wording: not proof of GraphX phase-history image-formation correctness
 |---|---|
 | `examples/SAR/tools/sar_local_runner.py` | Scaffold local SAR run layouts. |
 | `examples/SAR/tools/sar_local_baseline_runner.py` | Local-only external baseline smoke runner with explicit opt-in gating. |
+| `examples/SAR/tools/sar_graphx_vs_baseline_harness.py` | GraphX-vs-baseline comparison harness for CI-safe tiny fixture and local-only baseline comparisons. |
 | `examples/SAR/tools/sar_scenario_to_run.py` | Convert scenario JSON to local run setup. |
 | `examples/SAR/tools/sar_image_comparator.py` | Compare focused-image artifacts. |
 | `examples/SAR/tools/gotcha_back_adapter.py` | Prepare local gotcha-back reference runs. |
@@ -582,6 +583,26 @@ python3 examples/SAR/tools/sar_local_baseline_runner.py \
 ```
 
 Truth-in-labeling: this runner is local-only, opt-in, and not a GraphX runtime dependency.
+
+PR15 GraphX-vs-baseline SAR comparison harness:
+
+```bash
+python3 examples/SAR/tools/sar_graphx_vs_baseline_harness.py \
+  run-ci-tiny-fixture \
+  --output-dir /tmp/graphx_vs_baseline_tiny \
+  --output-json /tmp/graphx_vs_baseline_tiny_result.json \
+  --strict
+
+GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1 \
+python3 examples/SAR/tools/sar_graphx_vs_baseline_harness.py \
+  run-local-comparison \
+  --graphx-contract /path/to/graphx_contract.json \
+  --reference-contract /path/to/reference_contract.json \
+  --output-json /tmp/graphx_vs_baseline_local_result.json \
+  --strict
+```
+
+Comparison metrics are validation aids and are not production SAR claims.
 
 ## Real GOTCHA Validation
 

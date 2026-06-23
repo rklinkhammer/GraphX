@@ -66,6 +66,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_metadata_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_local_baseline_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_vs_baseline_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
@@ -127,6 +128,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_FOCUSED_IMAGE_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_focused_image_artifact_schema.json"
     SARPY_METADATA_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sarpy_metadata_harness.py"
     SAR_LOCAL_BASELINE_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_local_baseline_runner.py"
+    SAR_GRAPHX_VS_BASELINE_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_graphx_vs_baseline_harness.py"
     SARPY_METADATA_HARNESS_GUIDE_PATH="${CMAKE_SOURCE_DIR}/README.md"
     SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
     SARPY_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"

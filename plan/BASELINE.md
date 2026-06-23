@@ -134,6 +134,18 @@ PR14 local-only baseline runner status:
 - Truth-in-labeling:
   - This runner is local-only and not a GraphX runtime dependency.
 
+PR15 GraphX-vs-baseline comparison harness status:
+
+- Harness entry point: `examples/SAR/tools/sar_graphx_vs_baseline_harness.py`.
+- CI-safe path: `run-ci-tiny-fixture` compares deterministic tiny fixture
+  contracts without restricted datasets.
+- Local-only path: `run-local-comparison` is gated by
+  `GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1`.
+- Output semantics:
+  - Deterministic comparison metrics are emitted for image/metadata contract
+    validation.
+  - Metrics are validation aids only and are not production SAR claims.
+
 ### FHSS
 
 The active FHSS implementation is a deterministic CPU fixture and decoder lane.
