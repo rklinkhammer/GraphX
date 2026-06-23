@@ -48,6 +48,118 @@ def scenario_id_from_path(path: Path) -> str:
     return path.stem
 
 
+def build_local_replay_graph_template() -> dict[str, Any]:
+    return {
+        "name": "sar_local_replay_scaffold",
+        "execution_backend": "metal",
+        "backend_fallback_policy": "allow_fallback",
+        "resolver_diagnostics": True,
+        "edge_contract": "accel-token",
+        "resolver_mappings": [
+            {
+                "intent_type": "SarBackprojectionTransformAccelNode",
+                "input_token_type": "SarAccelControlToken",
+                "output_token_type": "SarAccelControlToken",
+                "variants": [
+                    {
+                        "backend": backend,
+                        "concrete_type": "SarBackprojectionTransformAccelNode",
+                    }
+                    for backend in ("metal", "stub", "cuda", "sycl")
+                ],
+            }
+        ],
+        "num_threads": 4,
+        "nodes": [
+            {
+                "id": "src",
+                "type": "GotchaReplaySourceNode",
+                "node_config": {
+                    "fixture_path": "REPLACE_WITH_LOCAL_EXTERNAL_FIXTURE_PATH",
+                    "emit_watermark": False,
+                    "allow_external_fixture": True,
+                },
+            },
+            {
+                "id": "compression",
+                "type": "RangeCompressionNode",
+                "node_config": {
+                    "enabled": True,
+                    "gain": 1.0,
+                    "sample_rate_hz": 48_000.0,
+                },
+            },
+            {
+                "id": "split",
+                "type": "AzimuthTileSplitNode",
+                "node_config": {
+                    "tile_count": 4,
+                    "tile_id_offset": 0,
+                    "backend_id": 0,
+                },
+            },
+            {
+                "id": "h2d",
+                "type": "H2DAsyncAccelNode",
+                "node_config": {
+                    "override_backend": False,
+                    "backend_id": 0,
+                },
+            },
+            {
+                "id": "bp",
+                "type": "SarBackprojectionTransformAccelNode",
+                "node_config": {
+                    "image_width": 16,
+                    "backend_id": 0,
+                    "queue_id": 0,
+                    "kernel_id": 3301,
+                },
+            },
+            {
+                "id": "d2h",
+                "type": "D2HAsyncAccelNode",
+                "node_config": {
+                    "override_backend": False,
+                    "backend_id": 0,
+                },
+            },
+            {
+                "id": "merge",
+                "type": "ImageTileMergeNode",
+                "node_config": {
+                    "expected_tiles": 4,
+                    "require_watermark_before_complete": False,
+                    "backend_id": 0,
+                    "backend": 1,
+                },
+            },
+            {
+                "id": "sink",
+                "type": "SarDiagnosticsSinkNode",
+                "node_config": {"completion_signal_enabled": True},
+            },
+        ],
+        "edges": [
+            {
+                "source_node_id": source,
+                "source_port": 0,
+                "target_node_id": target,
+                "target_port": 0,
+            }
+            for source, target in (
+                ("src", "compression"),
+                ("compression", "split"),
+                ("split", "h2d"),
+                ("h2d", "bp"),
+                ("bp", "d2h"),
+                ("d2h", "merge"),
+                ("merge", "sink"),
+            )
+        ],
+    }
+
+
 def build_graphx_config(scenario: dict[str, Any], manual_template: dict[str, Any]) -> dict[str, Any]:
     config = json.loads(json.dumps(manual_template))
     config["name"] = f"sar_scenario_{scenario['dataset']['subset']}"

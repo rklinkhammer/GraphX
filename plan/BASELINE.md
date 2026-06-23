@@ -18,11 +18,11 @@ next steps, known issues, and future work for SAR and FHSS.
 - Preserve truth-in-labeling: fixture, test, reference, local-only, GPU, and
   production-like claims must be named exactly.
 
-Current active cleanup roadmap:
+Completed cleanup roadmap:
 
 - `plan/roadmap/GRAPHX_PR_ROADMAP.md`
 
-Current active cleanup implementer/verifier prompts:
+Cleanup implementer/verifier prompts:
 
 - `plan/agents/GRAPHX_PR_AGENTS.md`
 
@@ -146,6 +146,19 @@ PR15 GraphX-vs-baseline comparison harness status:
     validation.
   - Metrics are validation aids only and are not production SAR claims.
 
+PR16 local-only baseline substitution status:
+
+- Experiment entry point:
+  `examples/SAR/tools/sar_baseline_substitution_experiment.py`.
+- The selected baseline remains SarPy.
+- The controlled substitution boundary is the image-formation artifact
+  contract: GraphX `CrsdFocusedImageTransformNode` output replaces the selected
+  baseline stage output for comparison.
+- Explicit gating:
+  `GRAPHX_SAR_BASELINE_SUBSTITUTION_ENABLE=1`.
+- The experiment is local-only, does not modify SarPy, does not create a second
+  canonical SAR GPU path, and is not a production SAR claim.
+
 ### FHSS
 
 The active FHSS implementation is a deterministic CPU fixture and decoder lane.
@@ -221,8 +234,8 @@ FHSS truth-in-labeling:
 - Metal/GPU acceleration of the FHSS lane is future work.
 - PDW diagnostics as canonical decoder output are not part of the active
   decoder contract.
-- Occupied-bandwidth and channel-filter requirements remain unresolved in PR16,
-  so the current plan must not claim production channelizer separation.
+- Occupied-bandwidth and channel-filter requirements remain unresolved, so the
+  current plan must not claim production channelizer separation.
 - Receiver configuration preserves one logical GraphX channel output port per
   configured frequency.
 - Guardrail wording: channel output port per configured frequency.
@@ -250,12 +263,10 @@ FHSS truth-in-labeling:
 
 1. Keep the documentation baseline stable: README for user instructions and
    this file for active planning.
-2. Add guardrails that prevent active docs from drifting back into many
-   PR-specific plan files.
-3. Continue converting any large repeated-port GraphX nodes to shared routed
+2. Continue converting any large repeated-port GraphX nodes to shared routed
    helpers where doing so reduces boilerplate and preserves existing GraphX
    semantics.
-4. Keep CI-safe tests focused on deterministic fixtures; keep real-data and
+3. Keep CI-safe tests focused on deterministic fixtures; keep real-data and
    external-reference runs opt-in/local-only.
 
 ### SAR Next Steps
@@ -359,3 +370,4 @@ FHSS truth-in-labeling:
 - Historical user documentation: `docs/archive/2026-06-baseline/`
 - Active user guide: `README.md`
 - Active planning baseline: `plan/BASELINE.md`
+- Completed cleanup roadmap: `plan/roadmap/GRAPHX_PR_ROADMAP.md`

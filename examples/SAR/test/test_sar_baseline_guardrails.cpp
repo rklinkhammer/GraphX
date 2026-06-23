@@ -147,3 +147,22 @@ TEST(SarBaselineGuardrailTest, PR13_ExternalBaselineSurveyRemainsPlanningOnly) {
   EXPECT_NE(baseline.find("Default CI remains external-dependency-free"),
             std::string::npos);
 }
+
+TEST(SarBaselineGuardrailTest,
+     PR16_SubstitutionRemainsLocalOnlyAndGpuPathStaysSingular) {
+  const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
+  const auto active_docs =
+      ReadFile(root / "README.md") + "\n" +
+      ReadFile(root / "plan" / "BASELINE.md");
+
+  EXPECT_NE(active_docs.find("sar_baseline_substitution_experiment.py"),
+            std::string::npos);
+  EXPECT_NE(active_docs.find("GRAPHX_SAR_BASELINE_SUBSTITUTION_ENABLE"),
+            std::string::npos);
+  EXPECT_NE(active_docs.find("not a production SAR claim"),
+            std::string::npos);
+  EXPECT_NE(active_docs.find("does not create a second"),
+            std::string::npos);
+  EXPECT_NE(active_docs.find("canonical SAR GPU path"),
+            std::string::npos);
+}

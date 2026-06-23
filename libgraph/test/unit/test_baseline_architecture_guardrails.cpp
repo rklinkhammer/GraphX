@@ -35,7 +35,7 @@ void ExpectNotContains(const std::string &text, const std::string &needle) {
 
 } // namespace
 
-TEST(BaselineArchitectureGuardrailTest, ActiveDocsNameCurrentBaselineAndRoadmap) {
+TEST(BaselineArchitectureGuardrailTest, ActiveDocsNameBaselineAndCompletedRoadmap) {
   const auto root = RepositoryRoot();
   const auto readme = root / "README.md";
   const auto baseline = root / "plan" / "BASELINE.md";
@@ -55,10 +55,27 @@ TEST(BaselineArchitectureGuardrailTest, ActiveDocsNameCurrentBaselineAndRoadmap)
   ExpectContains(active_docs, "docs/archive/2026-06-baseline/");
   ExpectContains(active_docs, "archived");
   ExpectContains(active_docs, "historical");
+  ExpectContains(active_docs, "completed cleanup roadmap");
 
   ExpectNotContains(active_docs, "Use archived PR plans as active scope");
   ExpectNotContains(active_docs, "Archived PR plans are active scope");
   ExpectNotContains(active_docs, "Historical roadmaps are active scope");
+}
+
+TEST(BaselineArchitectureGuardrailTest,
+     CompletedRoadmapNamesEveryImplementedAndVerifiedPr) {
+  const auto root = RepositoryRoot();
+  const auto roadmap =
+      ReadFile(root / "plan" / "roadmap" / "GRAPHX_PR_ROADMAP.md");
+  ExpectContains(roadmap, "Status: Complete");
+
+  for (int pr = 1; pr <= 17; ++pr) {
+    const auto suffix = std::to_string(pr) + ".md";
+    EXPECT_TRUE(std::filesystem::exists(
+        root / "plan" / "reviews" / ("GRAPHX_IMPL_PR" + suffix)));
+    EXPECT_TRUE(std::filesystem::exists(
+        root / "plan" / "reviews" / ("GRAPHX_VERIFY_PR" + suffix)));
+  }
 }
 
 TEST(BaselineArchitectureGuardrailTest, ActiveDocsPreserveCoreGraphXInvariants) {

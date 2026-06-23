@@ -192,6 +192,18 @@ TEST_F(DocumentationGuardrailTest, ActiveDocumentationSetIsConsistent) {
       << "Should have multiple review/implementation reports in plan/reviews";
 }
 
+TEST_F(DocumentationGuardrailTest,
+       ConsolidatedUserGuideHasNoStaleSarDomainReadme) {
+  auto root = GetSourceRoot();
+  EXPECT_FALSE(FileExists(root / "examples/SAR/README.md"));
+
+  const auto readme = ReadFile(root / "README.md");
+  EXPECT_EQ(readme.find("sar_gotcha_external_manual.json"), std::string::npos);
+  EXPECT_EQ(readme.find("sar_stripmap_metal_window.json"), std::string::npos);
+  EXPECT_NE(readme.find("sar_baseline_substitution_experiment.py"),
+            std::string::npos);
+}
+
 // Guardrail: No stray references to old architecture docs in active code
 TEST_F(DocumentationGuardrailTest, ActiveSourceDoesNotReferenceOldDocs) {
   auto root = GetSourceRoot();

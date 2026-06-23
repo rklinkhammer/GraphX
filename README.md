@@ -10,8 +10,8 @@ testing the repository. Historical docs were archived during the 2026-06
 baseline consolidation:
 
 - active planning baseline: `plan/BASELINE.md`
-- active cleanup roadmap: `plan/roadmap/GRAPHX_PR_ROADMAP.md`
-- active cleanup PR prompts: `plan/agents/GRAPHX_PR_AGENTS.md`
+- completed cleanup roadmap: `plan/roadmap/GRAPHX_PR_ROADMAP.md`
+- cleanup implementer/verifier prompts: `plan/agents/GRAPHX_PR_AGENTS.md`
 - archived plan material: `plan/archive/2026-06-baseline/`
 - archived user docs: `docs/archive/2026-06-baseline/`
 
@@ -313,8 +313,8 @@ FHSS truth-in-labeling:
 - Metal/GPU acceleration of the FHSS lane is future work.
 - PDW diagnostics as canonical decoder output are not part of the active
   decoder contract.
-- Occupied-bandwidth and channel-filter requirements remain unresolved in PR16,
-  so the current docs must not claim production channelizer separation.
+- Occupied-bandwidth and channel-filter requirements remain unresolved, so the
+  current docs must not claim production channelizer separation.
 - Receiver configuration preserves one logical GraphX channel output port per
   configured frequency.
 - Guardrail wording: channel output port per configured frequency.
@@ -553,6 +553,7 @@ Guardrail wording: not proof of GraphX phase-history image-formation correctness
 | `examples/SAR/tools/sar_local_runner.py` | Scaffold local SAR run layouts. |
 | `examples/SAR/tools/sar_local_baseline_runner.py` | Local-only external baseline smoke runner with explicit opt-in gating. |
 | `examples/SAR/tools/sar_graphx_vs_baseline_harness.py` | GraphX-vs-baseline comparison harness for CI-safe tiny fixture and local-only baseline comparisons. |
+| `examples/SAR/tools/sar_baseline_substitution_experiment.py` | Local-only experiment replacing the selected baseline image-formation stage with GraphX output at an artifact-contract boundary. |
 | `examples/SAR/tools/sar_scenario_to_run.py` | Convert scenario JSON to local run setup. |
 | `examples/SAR/tools/sar_image_comparator.py` | Compare focused-image artifacts. |
 | `examples/SAR/tools/gotcha_back_adapter.py` | Prepare local gotcha-back reference runs. |
@@ -604,6 +605,22 @@ python3 examples/SAR/tools/sar_graphx_vs_baseline_harness.py \
 
 Comparison metrics are validation aids and are not production SAR claims.
 
+PR16 local-only stage substitution experiment:
+
+```bash
+GRAPHX_SAR_BASELINE_SUBSTITUTION_ENABLE=1 \
+python3 examples/SAR/tools/sar_baseline_substitution_experiment.py \
+  run-local-substitution \
+  --graphx-stage-contract /path/to/graphx_contract.json \
+  --baseline-reference-contract /path/to/sarpy_contract.json \
+  --output-json /tmp/graphx_sar_substitution_result.json \
+  --strict
+```
+
+The experiment replaces the selected baseline image-formation stage only at
+the artifact-contract boundary. It does not modify SarPy, does not create a
+second canonical SAR GPU path, and is not a production SAR claim.
+
 ## Real GOTCHA Validation
 
 Real GOTCHA validation is opt-in/local-only.
@@ -638,3 +655,7 @@ Historical documentation remains available for traceability:
 Do not add new user-facing docs under `docs/` unless the project intentionally
 splits the README again. Do not add new active plan roadmaps under `plan/`
 unless they become the new baseline or are explicitly archived after use.
+
+The cleanup roadmap in `plan/roadmap/GRAPHX_PR_ROADMAP.md` is complete. New
+work should begin from `plan/BASELINE.md` rather than extending the closed
+cleanup sequence.

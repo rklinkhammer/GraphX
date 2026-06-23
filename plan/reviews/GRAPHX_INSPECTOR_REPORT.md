@@ -1,6 +1,6 @@
 # GraphX Inspector Report
 
-Date: 2026-06-22
+Date: 2026-06-23
 
 Role source: `plan/agents/GRAPHX_AGENT_ROLES.md`
 
@@ -11,472 +11,385 @@ was performed.
 
 ### Observed
 
-- GraphX is configured as a C++26 project. The top-level `CMakeLists.txt`
-  requires `CMAKE_CXX_STANDARD 26` and fails configure if another standard is
-  selected.
-- The active baseline is `plan/BASELINE.md`; the active user guide is
-  `README.md`.
-- The core runtime is organized under `libgraph/` with:
-  - typed graph nodes and port abstractions;
-  - `GraphExecutor` and `GraphExecutorBuilder`;
-  - JSON config parsing/loading;
-  - dynamic plugin/provider loading;
-  - node facade/interoperability layers;
-  - policies for metrics, completion, data injection, commands, and dashboard
-    integration;
-  - repeated-port helpers such as `RoutedInputFn`, `RoutedOutputFn`,
-    `RoutedTransferFn`, and `NamedFixedFanInOutNode`.
-- GPU/accelerator support is organized under `libgpu/` with backend-neutral
-  accelerator types, CUDA/SYCL/Metal capability stubs, native Metal capability
-  implementation, and plugin-loadable backend nodes.
-- DSP support is organized under `libdsp/` with spectrum nodes, DSP GPU token
-  bridge nodes, FHSS protocol/generator/decoder nodes, FHSS graph packet
-  contracts, and DSP/FHSS plugins.
-- SAR is implemented as an example domain under `examples/SAR/` with GraphX
-  nodes, plugins, JSON configs, CRSD/GOTCHA tooling, local reference helpers,
-  and a large focused test suite.
-- User-runnable examples exist for:
-  - DSP spectrum: `examples/DSP/graphx-dsp-spectrum-demo`;
-  - DSP FHSS: `examples/DSP/graphx-dsp-fhss-demo`;
-  - SAR example graph execution: `examples/SAR/sar_example`;
-  - SAR benchmarking: `examples/SAR/sar_benchmark`;
-  - GOTCHA-to-CRSD conversion: `examples/SAR/graphx-gotcha-to-crsd`.
+- GraphX is a C++26 workspace with four main implementation areas:
+  - `libgraph/`: typed graph runtime, lifecycle, ports, queues, executor,
+    policies, JSON graph construction, node facade/ABI, plugins, and resolver;
+  - `libgpu/`: backend-neutral accelerator contracts plus CUDA/SYCL/Metal node
+    and capability implementations;
+  - `libdsp/`: DSP spectrum and deterministic FHSS nodes/contracts;
+  - `examples/SAR/`: SAR nodes, CRSD/GOTCHA I/O, focused-image lanes, tools,
+    plugins, fixtures, and tests.
+- `CMakeLists.txt` requires C++26, Ninja by default, position-independent code,
+  and optional CUDA, SYCL, Metal, and native Metal support.
+- `GraphExecutorBuilder` is the normal user-facing graph construction path. It
+  validates JSON/plugin inputs, bootstraps providers, builds through
+  `GraphBuilder`, installs execution policies, and returns `GraphExecutor`.
+- The active user guide is `README.md`; the active architecture baseline is
+  `plan/BASELINE.md`.
+- The worktree was clean before this report was written.
 
 ### Inferred
 
-- The current project center of gravity is now broader than SAR: GraphX core,
-  DSP spectrum, FHSS/SDR-like IQ processing, GPU acceleration contracts, and
-  SAR all have active code and tests.
-- The repository is in a documentation-baseline transition state: active docs
-  are consolidated, while older `doc/` and archived plan/docs trees remain
-  present for reference.
+- The repository is a multi-domain graph-runtime workspace rather than a
+  SAR-only project.
+- Dynamic JSON/plugin execution is the principal integration architecture;
+  direct node tests remain important for algorithm and contract coverage.
 
 ### Unknown
 
-- I did not run the full test suite during this inspection, so current
-  whole-repository pass/fail status is unknown.
+- The complete repository test suite was not run during this inspection.
 
 ## 2. Current Type And Packet Model
 
 ### Observed
 
-- Backend-neutral accelerator types are defined in
-  `libgpu/include/gpu/accel/types/AccelTypes.hpp`.
-- The accelerator model includes:
-  - `BackendKind`;
-  - `DataType`;
-  - `TensorLayout`;
-  - `DeviceBufferView`;
-  - `HostPinnedBufferView`;
-  - `BufferLease`;
-  - `TransferTicket`;
-  - `KernelTicket`;
-  - `ControlToken<SidecarT>`.
-- DSP spectrum packet types include `IqPacket` and `MagnitudePacket`.
-- DSP spectrum GraphX edges use accelerator tokens in the current node
-  contracts. Examples include:
-  - `ControlToken<graph::message::Message>` for IQ-bearing message sidecars;
-  - `ControlToken<MagnitudePacket<SampleT, N>>` for magnitude spectra.
-- FHSS packet contracts are defined in
-  `libdsp/include/dsp/fhss/FHSSGraphXPackets.hpp`.
-- FHSS token aliases are centralized in
-  `libdsp/include/dsp/fhss/FHSSGraphXNodeUtils.hpp` as
-  `graph::gpu::accel::ControlToken<PacketT>` wrappers.
-- FHSS packet contracts include:
-  - `FHSSSyntheticIqOutputPacket`;
-  - `FHSSDownconvertedIqPacket`;
-  - `FHSSChannelizedIqPacket`;
-  - `FHSSPerChannelPulseEvidencePacket`;
-  - `FHSSDetectedPulseEvidencePacket`;
-  - `FHSSPulseCandidateEvidencePacket`;
-  - `FHSSCpsmBranchMetricPacket`;
-  - `FHSSCpsmSymbolDecisionPacket`;
-  - `FHSSDecodedPulseWordsPacket`;
-  - `FHSSAssembledMessagePacket`;
-  - `FHSSDiagnosticsPacket`.
-- FHSS complex evidence is represented by shared immutable host sample vectors
-  plus sample-time metadata, residency, sample format, and decoder-use flags.
-- SAR domain token identity is represented by `SarSidecar` and
-  `SarAccelControlToken = graph::gpu::accel::ControlToken<SarSidecar>` in
-  `examples/SAR/include/sar/SarMessages.hpp`.
-- SAR sidecar metadata includes sequence, batch, aperture, pulse range, stream,
-  tile, backend, frame marker, payload byte count, queue ids, transfer/kernel
-  timings, merge diagnostics, and tile accounting.
+- `graph::gpu::accel::ControlToken<SidecarT>` is the common accelerator-ready
+  envelope. It contains:
+  - domain sidecar;
+  - token id;
+  - buffer lease and host/device views;
+  - transfer and kernel tickets;
+  - explicit presence flags.
+- `ControlTokenType` and `ControlTokenFor` concepts exist in `libgpu`, with
+  node-port concepts in `libgraph/include/graph/AccelTokenContracts.hpp`.
+- FHSS edge contracts are centralized in `FHSSGraphXPackets.hpp` and token
+  aliases in `FHSSGraphXNodeUtils.hpp`.
+- FHSS contracts preserve:
+  - complex IQ evidence;
+  - global/channel sample timing and sample-rate mapping;
+  - RF metadata and IQ offset frequency;
+  - channel/decimation/group-delay metadata;
+  - pulse confidence, CFO placeholders, branch metrics, symbol decisions,
+    decoded words, assembled messages, and diagnostics.
+- FHSS complex CPU evidence uses shared immutable
+  `std::vector<std::complex<double>>` storage plus offset/count ranges.
+- SAR uses `ControlToken<SarSidecar>`. `SarSidecar` carries SAR identity,
+  routing, tile, aperture, backend, transfer, kernel, and timing fields.
+- SAR tests explicitly treat `host_ptr` and `ready_event` as transport-only,
+  not domain identity.
+- DSP spectrum edges use token-wrapped message or magnitude sidecars.
 
 ### Inferred
 
-- The accelerator-token sidecar model is established across DSP, FHSS, and SAR,
-  but payload semantics differ by domain.
-- SAR and FHSS both explicitly separate domain identity from GPU transport
-  details.
+- The token model is structurally shared across GPU, DSP, FHSS, and SAR, while
+  each domain retains its own semantic sidecar.
+- FHSS packet contracts are accelerator-ready by type but currently carry host
+  complex samples for the CPU fixture lane.
 
 ### Unknown
 
-- I did not inspect every packet transformation for full sidecar preservation;
-  only representative headers and source matches were sampled.
+- Full sidecar preservation across every node and every error path was not
+  exhaustively audited.
 
 ## 3. Current Node And Port Model
 
 ### Observed
 
-- Core GraphX provides `SourceNode`, `SinkNode`, `NamedInteriorNode`,
-  `NamedSourceNode`, `NamedSinkNode`, `NodeFacade`, runtime ports, and dynamic
-  edge support.
-- `RoutedInputFn`, `RoutedOutputFn`, and `RoutedTransferFn` are present and
-  route CRTP port calls to templated node methods.
-- `NamedFixedFanInOutNode` is present in `FixedFanInOutNode.hpp` and builds on
-  routed input/output helpers for fixed fan-in/fan-out nodes.
-- FHSS nodes are split into per-node headers/sources under
-  `libdsp/include/dsp/fhss/` and `libdsp/src/dsp/`.
-- FHSS public node classes observed include:
-  - `FHSSSyntheticIqSourceNode`;
-  - `FHSSCorrelatorBankDetectorNode`;
-  - `FHSSDownconverterNode`;
-  - `ChannelizerNode`;
-  - `PerChannelPulseDetectorNode`;
-  - `FHSSPulseMergeNode`;
-  - `FHSSPulseCandidateNode`;
-  - `CPSMBranchMetricNode`;
-  - `CPSMViterbiDecoderNode`;
-  - `FHSSPulseWordDecoderNode`;
-  - `FHSSPreambleDetectorNode`;
-  - `FHSSMessageAssemblerNode`;
-  - `FHSSMessageSinkNode`.
-- `ChannelizerNode` declares one input token type and 64 output ports by
-  deriving from `SourceNode<...>` over a generated repeated type list.
-- `FHSSPulseMergeNode` derives from `NamedFixedFanInOutNode` and accepts:
-  - one `FHSSDetectedPulseToken` input;
-  - 64 `FHSSPerChannelPulseEvidenceToken` inputs;
-  - two `FHSSPulseCandidateToken` outputs.
-- SAR public example nodes use GraphX node bases and `SarAccelControlToken`.
-  Examples include `OrderedCrsdSetInputSourceNode`,
-  `CrsdApertureAssemblyAdapterNode`, `CrsdFocusedImageTransformNode`,
-  `CrsdFocusedImageTransformMetalNode`, `H2DAsyncAccelNode`,
-  `D2HAsyncAccelNode`, `ImageTileMergeNode`, and
-  `SarDiagnosticsSinkNode`.
-- GPU backend nodes exist for CUDA/SYCL stubs and Metal, including transfer,
-  memory, sync/control, device transform, reduce, kernel, shard, peer copy, and
-  collective reduce nodes.
+- GraphX exposes named source, interior, sink, split, merge, and fixed
+  fan-in/fan-out node bases.
+- `RoutedInputFn`, `RoutedOutputFn`, and `RoutedTransferFn` route typed virtual
+  port calls into CRTP template hooks.
+- `NamedFixedFanInOutNode` provides:
+  - compile-time input/output type lists;
+  - generated port tables;
+  - routed consume/produce functions;
+  - per-output queues;
+  - lifecycle and metrics forwarding;
+  - direct typed transfer routing through `TransferInputToOutput`.
+- A transfer returning `std::nullopt` is valid and produces no queued output.
+- `ChannelizerNode` now derives from `NamedFixedFanInOutNode` with one input and
+  exactly 64 token-wrapped outputs.
+- `FHSSPulseMergeNode` now derives from the same base with 65 inputs
+  (one detected-pulse input plus 64 per-channel inputs) and two outputs.
+- The duplicate `FHSSPulseMergeInteriorNode` and correlator-bank detector
+  surface are absent from current public code/plugins/config.
+- FHSS public nodes are split into individual headers/sources and registered
+  as plugins.
+- SAR public `...Node` classes are real GraphX nodes, with domain algorithm
+  records and kernels using non-node names.
 
 ### Inferred
 
-- FHSS repeated-port work is partially generalized through GraphX base helpers,
-  with `FHSSPulseMergeNode` using the newer fixed fan-in/out base.
-- `ChannelizerNode` still uses a custom generated `TypeList`/`SourceNode`
-  approach rather than the fixed fan-in/out base because it is a source-style
-  64-output node with one consumed input.
+- Repeated-port boilerplate is substantially lower for the channelizer and
+  pulse merge than in the earlier custom implementations.
+- `FixedFanInOutNodeBase::Transfer` is a direct typed helper. Runtime input and
+  output scheduling for fixed fan-in/out nodes still occurs through routed
+  consume/produce threads and node-owned output queues.
 
 ### Unknown
 
-- I did not perform a line-by-line audit of every node's lifecycle or port
-  metadata behavior.
+- Fairness and latency under simultaneous activity on all 64 FHSS detector
+  inputs were not measured.
 
-## 4. Current Token/Data Flow
+## 4. Current Token And Data Flow
 
 ### Observed
 
-- DSP CPU spectrum config:
-  `SineSignalNode<256> -> CpuSpectrumDftNode<256> -> SpectrumSinkNode<256>`.
-- DSP Metal DFT config:
-  `SineSignalNode<256> -> DspIqH2DNode<256> -> MetalSpectrumDftNode<256> -> DspMagnitudeD2HNode<256> -> SpectrumSinkNode<256>`.
-- FHSS canonical channelized config is
-  `libdsp/config/fhss_cpsm_channelized_fixture_500msps.json`.
-- FHSS canonical graph role fields are present:
-  - `"fhss_graph_role": "canonical_channelized_fixture"`;
-  - `"canonical_fhss_graph": true`;
-  - `"reference_only": false`.
-- FHSS reference correlator-bank config is
-  `libdsp/config/fhss_cpsm_fixture_500msps.json` with
-  `"reference_only": true`.
-- FHSS canonical node chain in the config includes source, downconverter,
-  channelizer, per-channel detectors, merge, candidate, branch metric, Viterbi,
-  word decoder, preamble detector, assembler, and sink.
-- SAR configs generally declare `"edge_contract": "accel-token"` and
-  `"resolver_diagnostics": true`.
-- SAR token transport fields `host_ptr` and `ready_event` still exist as
-  accelerator transport fields. SAR code comments and tests state these are
-  opaque transport metadata and not SAR identity.
+- CPU DSP spectrum:
+  `SineSignalNode -> CpuSpectrumDftNode -> SpectrumSinkNode`.
+- Metal DSP direct DFT:
+  `SineSignalNode -> DspIqH2DNode -> MetalSpectrumDftNode ->
+  DspMagnitudeD2HNode -> SpectrumSinkNode`.
+- The Metal spectrum implementation is explicitly a direct DFT, not an FFT.
+- Canonical FHSS:
+  `FHSSSyntheticIqSourceNode -> FHSSDownconverterNode -> ChannelizerNode ->
+  PerChannelPulseDetectorNode[64] -> FHSSPulseMergeNode ->
+  FHSSPulseCandidateNode -> CPSMBranchMetricNode ->
+  CPSMViterbiDecoderNode -> FHSSPulseWordDecoderNode ->
+  FHSSPreambleDetectorNode -> FHSSMessageAssemblerNode ->
+  FHSSMessageSinkNode`.
+- The canonical FHSS JSON contains 64 distinct channelizer edges and 64
+  detector instances.
+- FHSS source output is one token containing the configured deterministic
+  message schedule, IQ, and validation-only truth.
+- The channelizer mixes each output to its configured offset and optionally
+  decimates. It does not implement a channel filter.
+- Per-channel detection scans known pulse-period slots and emits complex pulse
+  evidence. It does not search across frequencies.
+- CPSM decoding uses a four-state, `h = 1/2`, rectangular full-response CPU
+  Viterbi/MLSE fixture model.
+- SAR CPU focused-image flow uses ordered CRSD input, aperture assembly, CPU
+  focused-image transform, and optional sink/artifact paths.
+- The named canonical SAR GPU config uses an experimental/incomplete Metal
+  focused-image transform.
 
 ### Inferred
 
-- DSP and FHSS are moving toward a consistent token sidecar model, while SAR
-  already has a domain-specific `SarAccelControlToken` sidecar contract.
-- The FHSS canonical path preserves complex IQ evidence through downstream
-  decoding packets by contract.
+- The FHSS lane is deterministic known-slot acquisition, not a streaming
+  receiver acquisition implementation.
+- The current channelizer provides frequency-parallel fixture evidence but not
+  production channel separation because no analysis filter bank is present.
 
 ### Unknown
 
-- I did not run the FHSS graph executor in this inspection turn; runtime
-  behavior is based on source/config/test inspection.
+- Runtime scaling and memory pressure for long FHSS schedules or sustained
+  streaming IQ were not measured.
 
-## 5. Current Plugin/Provider And Resolver Flow
+## 5. Current Plugin, Provider, And Resolver Flow
 
 ### Observed
 
-- `GraphExecutorBuilder` is used by DSP examples, FHSS demo, SAR examples,
-  SAR benchmark, libgraph tests, and SAR tests.
-- Plugin targets are defined in:
-  - `libdsp/plugins/CMakeLists.txt`;
-  - `libgpu/plugins/CMakeLists.txt`;
-  - `examples/SAR/plugins/CMakeLists.txt`;
-  - `libgraph/test/plugins/CMakeLists.txt`.
-- Built plugins currently present in the metal-native build tree include DSP,
-  FHSS, GPU, and test plugins.
-- FHSS plugin dylibs are present for every observed FHSS graph node, including
-  channelizer, per-channel detector, pulse merge, CPSM, word decode, message
-  assembly, and sink nodes.
-- Graph config parser support for resolver diagnostics and `edge_contract` is
-  present in `GraphConfigParser.cpp`.
-- Resolver diagnostics are stored in graph build results and tested in SAR and
-  DSP graph runtime tests.
-- `NodeProviderBootstrap`, `RegisteredNodeProvider`, `ResolvingNodeProvider`,
-  `PluginLoader`, and `PluginRegistry` exist in the runtime.
+- `NodeProviderBootstrap` discovers and loads plugin directories.
+- `RegisteredNodeProvider` creates concrete plugin nodes.
+- `ResolvingNodeProvider` maps intent types to available backend-specific
+  concrete types using:
+  - requested backend;
+  - fallback policy;
+  - default or JSON-provided resolution contracts;
+  - availability checks.
+- Resolver diagnostics record intent, concrete type, backend, fallback reason,
+  and declared token type names.
+- `GraphConfigParser` recognizes `resolver_diagnostics` and the
+  `accel-token` edge contract.
+- DSP, FHSS, GPU, SAR, and test nodes have plugin targets.
+- Examples and integration tests use `GraphExecutorBuilder` with JSON and
+  plugin directories rather than local executor substitutes.
 
 ### Inferred
 
-- Dynamic loading is a first-class path for examples and tests, not only a
-  legacy plugin feature.
-- The resolver is used for backend intent mapping and diagnostics in SAR
-  accelerator configs.
+- Backend selection is intentionally policy/config driven.
+- Domain-specific resolution can remain outside `libgraph` through JSON
+  resolver mappings, as demonstrated by SAR.
 
 ### Unknown
 
-- I did not inspect every plugin descriptor for all advertised metadata fields.
+- ABI compatibility across independently built plugin toolchains was not
+  tested in this inspection.
 
-## 6. SDR/DSP/FHSS/SAR Capability Status
+## 6. SDR, DSP, FHSS, And SAR Capability Status
 
 ### DSP
 
-Observed:
+#### Observed
 
-- CPU direct DFT spectrum lane exists and is documented as CPU-only.
-- Metal direct DFT lane exists and is explicitly labeled not a GPU FFT.
-- CPU-vs-Metal demo reporting exists and uses
-  `GraphExecutor::Execute()` result timing.
-- DSP tests include spectrum executable tests, CPU-vs-Metal report schema
-  checks, GPU buffer layout tests, and DFT truth-in-labeling guardrails.
+- CPU direct DFT, Metal direct DFT, H2D/D2H, spectrum sink, deterministic
+  diagnostics, and CPU-vs-Metal informational reporting exist.
+- Magnitude spectrum is a DSP output contract, not the FHSS decoder input.
 
-Inferred:
+#### Unknown
 
-- DSP spectrum functionality is fixture/demo-grade and well covered by
-  guardrails around naming and performance claims.
+- No optimized FFT implementation was observed in the canonical spectrum lane.
 
 ### SDR/FHSS
 
-Observed:
+#### Observed
 
-- FHSS protocol, frequency map, synthetic IQ generation, explicit message
-  scheduling, downconversion, 64-output channelization, per-channel detection,
-  pulse merge, CPSM metrics/Viterbi, word decode, preamble lock, message
-  assembly, diagnostics, and executor tests are represented in code/tests.
-- FHSS fixture constants in the active baseline and code include 500 Msps,
-  5 Mbps, 100 samples/symbol, 3200 pulse samples, 3300 gap samples, 6500 period
-  samples, 64 RF metadata frequencies, selectable transmit indices [1, 62],
-  and reserved receiver indices 0 and 63.
-- FHSS docs/tests preserve truth-in-labeling boundaries:
-  - 1 GHz RF values are metadata;
-  - fixture IQ uses baseband/IF offsets;
-  - magnitude-only DFT/FFT is not canonical decoder input;
-  - overlap-aware separation, Doppler/noise/CFO/multipath support, production
-    channelizer claims, and FHSS GPU execution are not implemented.
-- FHSS demo exists at `examples/DSP/src/fhss_demo.cpp` and accepts external
-  message JSON.
+- Fixture constants remain 500 Msps, 5 Mbps, 100 samples/symbol, 32 symbols
+  per pulse, 3200 pulse samples, 3300 gap samples, and 6500 samples/period.
+- The RF metadata table has 64 entries; transmit indices 0 and 63 are reserved.
+- Source messages explicitly specify transmit time, pulse frequency index,
+  value, and preamble/body role.
+- Downconversion supports validated passthrough or declared frequency
+  translation.
+- One logical channel/output port exists per frequency.
+- Hop-only preamble, four-frequency active set, CPSM decode, word decode, and
+  message assembly are implemented for deterministic fixtures.
+- Overlap, Doppler, noise, multipath, production channelization, real RF
+  capture, and FHSS GPU execution remain unsupported.
+- The current 500 Msps fixture does not represent all 64 RF centers as one
+  alias-free direct-RF capture.
 
-Inferred:
+#### Inferred
 
-- FHSS is the most complete SDR-like lane in the repo, but it remains a
-  deterministic CPU fixture rather than a production RF receiver.
+- CFO fields and impairment diagnostics are mostly contract/status surfaces,
+  not impairment-correcting receiver behavior.
 
 ### SAR
 
-Observed:
+#### Observed
 
-- SAR has synthetic stripmap configs, CRSD input configs, GOTCHA-to-CRSD
-  conversion tooling, CRSD focused-image CPU and Metal nodes, sinks, reference
-  comparison helpers, and local-only GOTCHA validation tests.
-- SarPy and gotcha-back are represented as local-only comparison/reference
-  boundaries in tests and docs.
-- Metal focused-image transform is explicitly labeled experimental/incomplete
-  in code/plugins/docs/tests.
+- Synthetic stripmap, ordered CRSD-set ingest, GOTCHA conversion/replay tools,
+  CPU focused-image formation, experimental Metal focused-image execution,
+  diagnostics, artifact comparison, and local-only baseline tools exist.
+- Exactly 13 SAR JSON configs are present after config consolidation.
+- SarPy is selected for the opt-in local baseline runner; default CI does not
+  require it.
+- The GraphX-vs-baseline harness has a deterministic CI-safe tiny-fixture mode.
+- Native Metal focused-image status is explicitly
+  `experimental_incomplete_cpu_seed_plus_placeholder_kernel`.
+- Metal collective reduce is explicitly runtime unsupported.
 
-Inferred:
+#### Unknown
 
-- SAR has broad test coverage and multiple graph configurations, but there is
-  still config sprawl and truth-in-labeling sensitivity around Metal and
-  reference tools.
+- Production-quality SAR motion compensation, autofocus, radiometric
+  calibration, and real-data acceptance were not demonstrated.
 
-## 7. GPU/Accelerator Readiness Status
+## 7. GPU And Accelerator Readiness Status
 
 ### Observed
 
-- Backend-neutral accelerator contracts exist in `libgpu`.
-- CUDA and SYCL capability implementations are present as stubs/simulated
-  capability layers.
-- Native Metal capability implementation exists and has runtime tests.
-- Metal node inventory includes transfer, memory, sync/control, generic kernel,
-  reduce, shard, peer copy, queue sync, and collective reduce nodes.
-- `CollectiveReduceNodeMetal` is documented/tested as runtime unsupported.
-- DSP Metal DFT and SAR Metal focused image both have truth-in-labeling
-  guardrails.
-- GPU runtime tests include Metal smoke, stress, graph pipeline, and failure
-  injection tests.
+- Backend-neutral validation exists for layouts, views, leases, transfer
+  tickets, kernel tickets, collectives, and shards.
+- CUDA and SYCL graph-node surfaces exist; Metal has both fallback capabilities
+  and a native implementation.
+- GPU capability bootstrap and GraphX policy binding are tested.
+- Representative DSP, FHSS, SAR, and GPU port contracts have compile-time
+  `ControlToken` tests.
+- Stub/backend-neutral GPU tests passed: 35 of 35.
+- Native Metal runtime tests ran in this environment with 2 passing
+  validation tests and 12 tests skipped because no active Metal GPU device was
+  available.
 
 ### Inferred
 
-- The GPU architecture is token/sidecar-first and has stronger truth-in-labeling
-  than production-performance claims.
-- FHSS is accelerator-ready at the token-contract level but not GPU-executed.
+- Accelerator contract readiness is stronger than native-backend execution
+  coverage in the current environment.
+- Token-ready FHSS edges do not imply a GPU FHSS implementation.
 
 ### Unknown
 
-- I did not execute native Metal tests in this inspection.
-- Actual performance characteristics are unknown from this report.
+- Native Metal transfer/kernel correctness and performance could not be
+  exercised on this host.
+- CUDA and real SYCL device execution were not exercised.
 
 ## 8. C++26 Usage Observations
 
 ### Observed
 
-- The project requires C++26 at CMake configure time.
-- `std::expected` is used in CSV parsing, JSON/runtime helpers, node creation,
-  and config parsing paths.
-- `std::span`, `std::optional`, `std::variant`, `std::filesystem`,
-  `constexpr`, `consteval`, and compile-time type checks are used across the
-  repo.
-- `FixedFanInOutNode` uses template metaprogramming, `TypeList`, consteval port
-  tables, and CRTP routed functions.
-- FHSS uses generated type lists for 64 repeated channelizer outputs and
-  compile-time static assertions for token aliases.
-- Tests include compile-time/static-assert checks for token contracts and node
-  port types.
+- C++26 is enforced globally.
+- The code uses `std::expected`, concepts, `std::remove_cvref_t`, `consteval`,
+  compile-time type lists, `std::span`, ranges, and extensive type traits.
+- Compile-time tests enforce token and port contracts.
+- Strong enums and structured status/error types are common in newer code.
+- Some public headers retain duplicated or generic generated Doxygen blocks,
+  including descriptions that incorrectly call registry/provider types graph
+  nodes.
+- Several large legacy headers remain template-heavy and monolithic.
 
 ### Inferred
 
-- C++26 is not just a build setting; it is actively used for typed contracts,
-  expected/error handling, port metadata, and compile-time assertions.
+- Modern language facilities are used most effectively in newer token,
+  repeated-port, config, and validation code.
+- Compile-time abstraction depth contributes to longer diagnostics and broad
+  rebuilds when central headers change.
 
 ### Unknown
 
-- I did not audit template diagnostic quality or compile-time cost.
+- No compile-time or template-instantiation performance profile was collected.
 
 ## 9. Complexity Hotspots And Obsolete Abstractions
 
-### Observed
+### Architecture Findings
 
-- The repo contains both active consolidated docs and a large historical `doc/`
-  tree plus `docs/archive/` and `plan/archive/`. This is visible documentation
-  complexity, though active docs point to `README.md` and `plan/BASELINE.md`.
-- `plan/agents/GRAPHX_AGENT_ROLES.md` exists as active agent guidance, while
-  the archived old path for the same file appears deleted in the current git
-  status.
-- `GraphConfigParser.cpp`, `NodeFacade.cpp`, and plugin interop paths are large
-  central runtime surfaces.
-- FHSS has both `FHSSPulseMergeNode` and `FHSSPulseMergeInteriorNode`. The
-  active baseline indicates conversion to shared repeated-port helpers; both
-  headers/sources are still present.
-- FHSS keeps a reference correlator-bank graph alongside the canonical
-  channelized graph.
-- SAR has many JSON configs representing synthetic, CRSD, GOTCHA, CPU, Metal,
-  local-validation, and benchmark lanes.
-- `host_ptr` and `ready_event` remain widely present in accelerator transport
-  code and tests. SAR comments/tests say they are opaque transport metadata,
-  not identity fields.
-- `EdgeRegistration.cpp` contains an observed placeholder comment saying
-  `RegisterAllEdges()` is to be populated.
-- `PluginInspector.cpp`, `StaticNodeAdapter.cpp`, `BuiltinCommands.cpp`, and
-  `NodePluginTemplate.hpp` contain placeholder/future-use comments.
-- A `.swp` file exists under `libgpu/include/metal-cpp/Metal/`, indicating an
-  editor artifact inside a third-party header tree.
+#### Observed
 
-### Inferred
+- `Nodes.hpp` is 2364 lines, `GraphManager.hpp` 1803,
+  `NodePluginTemplate.hpp` 1764, `ThreadPool.hpp` 1665, and
+  `NodeFacade.hpp` 1154. These remain high-coupling core surfaces.
+- `NativeMetalCapabilities.cpp` is 2199 lines.
+- `sar_benchmark.cpp` is 1510 lines.
+- The SAR unit target is one large executable containing most SAR sources and
+  tests. A change to shared headers triggers a broad rebuild.
+- FHSS tests live primarily in `libgraph/test`, not a `libdsp/test` directory,
+  which blurs test ownership.
+- The canonical FHSS JSON repeats all 64 channel ids, frequency indices,
+  detectors, and edges explicitly.
+- Build output reports duplicate static libraries while linking many SAR
+  plugins and executables.
+- The current build reports unused-variable/parameter warnings in focused-image
+  source and tests.
 
-- The largest current architectural complexity areas are:
-  - dynamic plugin/facade/provider code;
-  - repeated-port GraphX abstractions;
-  - FHSS canonical versus reference graph coexistence;
-  - SAR config surface area;
-  - GPU token transport fields that are legitimate but easy to misuse.
-- Some old documentation was intentionally archived, but the `doc/` tree
-  remains outside the newer `docs/archive/2026-06-baseline/` scheme.
+#### Inferred
+
+- The largest maintenance risk is concentrated in core facade/plugin/runtime
+  headers and the SAR monolithic test/build target.
+- Explicit 64-lane JSON is architecturally clear but mechanically large.
+
+### Implementation Defects
+
+#### Observed
+
+- `examples/SAR/tools/sar_local_runner.py` and `examples/SAR/README.md` still
+  reference deleted `examples/SAR/config/sar_gotcha_external_manual.json`.
+- `ImageComparatorContractTest.RealScenarioArtifactsProduceDeterministicFailReportWithReasons`
+  fails with `FileNotFoundError` for that deleted config.
+- `examples/SAR/README.md` also lists deleted Metal stripmap configs as active,
+  conflicting with the consolidated top-level documentation.
+- `examples/SAR/test/CMakeLists.txt` defines
+  `SAR_PROJECTILE_JSON_CONFIG_PATH` twice.
+- `FHSSGraphXPackets.hpp` still describes its contracts as PR7A contracts for
+  “future runtime nodes,” although those runtime nodes now exist.
+
+#### Inferred
+
+- Documentation consolidation is incomplete because an older domain README
+  remains operationally discoverable and stale.
+- The broken SAR local-runner path can cause broader SAR test lanes to fail
+  even though the newer local baseline runner and comparison harness pass.
 
 ### Unknown
 
-- I did not classify each placeholder as harmful, intentional, or obsolete.
+- Other stale paths may remain in less frequently exercised local-only tools.
 
 ## 10. Test And Documentation Coverage Gaps
 
 ### Observed
 
-- Test targets exist for:
-  - `test_libgraph_unit`;
-  - `test_libgraph_integration`;
-  - `test_libgpu_stub_unit`;
-  - `test_libgpu_metal_runtime`;
-  - `test_libgpu_backend_unit`;
-  - `test_libgpu_integration`;
-  - `test_libgpu_perf`;
-  - `test_dsp_example_unit`;
-  - `test_sar_example_unit`;
-  - SAR local-only lanes.
-- Built binaries observed in `build-ninja/ninja-debug-metal-native` include
-  `test_libgraph_unit`, `test_libgpu_stub_unit`,
-  `test_libgpu_metal_runtime`, DSP demos, and SAR converter.
-- FHSS tests cover protocol, synthetic IQ, graph packets, graph nodes, pulse
-  merge, CPSM decoder, word decoder, message assembly, graph executor, and
-  guardrails.
-- DSP tests cover spectrum graph runtime, GPU spectrum parity, GPU buffer
-  layout, truth-in-labeling, and example demo behavior.
-- SAR tests cover CRSD input/output, focused image CPU/Metal, local reference
-  tools, image comparison, GOTCHA conversion, CI lanes, token contracts,
-  transport opacity, and Metal truth-in-labeling.
-- Documentation coverage has been consolidated into `README.md` and
-  `plan/BASELINE.md`, with tests checking exact truth-in-labeling phrases.
+- Current focused verification results:
+  - GraphX/FHSS/repeated-port/executor timing: 38 of 38 passed.
+  - GPU stub/backend-neutral tests: 35 of 35 passed.
+  - SAR token, transport, baseline, local baseline, and comparison selection:
+    21 passed and 1 failed due to the deleted manual config.
+  - Native Metal runtime: 2 passed, 12 skipped because no device was available.
+- FHSS tests cover graph shape, plugin loading, truth matching, repeated-port
+  contracts, complex evidence, pulse merge, and decoder behavior.
+- SAR tests cover deterministic fixtures, CRSD I/O, token identity, config
+  guardrails, local-only gates, and comparison contracts.
+- Default local-only real GOTCHA CTest is disabled and explicitly labeled.
 
 ### Inferred
 
-- The repo has broad unit and guardrail coverage, especially around
-  truth-in-labeling and deterministic fixture behavior.
-- Some tests are string-guardrail heavy. These are useful for documentation
-  drift, but they are brittle by construction.
+- Current CI confidence is strong for deterministic fixture behavior and type
+  contracts, but weaker for native accelerator execution, sustained streaming,
+  RF impairments, overlap, and real-data SAR acceptance.
+- String/path guardrail tests detect many architecture regressions but can lag
+  behind code changes or preserve stale wording.
 
 ### Unknown
 
-- Full test-suite status is unknown because no tests were run in this
-  inspection.
-- Coverage quality for all plugin metadata and all runtime error paths was not
-  exhaustively inspected.
-
-## 11. Current Git/Workspace State
-
-### Observed
-
-- `git status --short` showed:
-  - deleted archived `plan/archive/2026-06-baseline/agents/GRAPHX_AGENT_ROLES.md`;
-  - untracked active `plan/agents/`;
-  - existing prior documentation/archive changes from the baseline
-    consolidation.
-- This report creates `plan/reviews/GRAPHX_INSPECTOR_REPORT.md`.
-
-### Inferred
-
-- The active agent roles were moved from archive into `plan/agents/`, matching
-  the user's requested path, but that move is not yet represented as a staged
-  git rename.
-
-## 12. Summary Findings
-
-| Area | Classification | Finding |
-|---|---|---|
-| Active baseline | Observed | `plan/BASELINE.md` and `README.md` are active sources of truth. |
-| Agent roles | Observed | `plan/agents/GRAPHX_AGENT_ROLES.md` exists and is active. |
-| Core runtime | Observed | Typed GraphX nodes, ports, executor, JSON loader, plugin/provider system, and repeated-port helpers exist. |
-| Token model | Observed | Accelerator-ready edges use `graph::gpu::accel::ControlToken<...>` in DSP/FHSS/SAR contracts. |
-| FHSS graph | Observed | Canonical channelized FHSS fixture exists with 64-port channelizer and per-channel detectors. |
-| FHSS limitations | Observed | Production RF, Doppler/noise, overlap-aware separation, and FHSS GPU execution remain unsupported. |
-| DSP spectrum | Observed | CPU direct DFT and Metal direct DFT lanes exist with truth-in-labeling guardrails. |
-| SAR | Observed | CRSD/GOTCHA/focused-image lanes exist with CPU, Metal, and local-only reference tooling. |
-| GPU | Observed | Native Metal and backend-neutral accelerator contracts exist; unsupported/experimental paths are labeled. |
-| C++26 | Observed | Project requires C++26 and uses modern type/error facilities. |
-| Complexity | Inferred | Main complexity hotspots are plugin/facade runtime, repeated ports, SAR config sprawl, FHSS dual topology, and GPU transport metadata discipline. |
-| Test status | Unknown | Full test-suite status was not checked during this inspection. |
-
-End of current-state inspection.
+- Whole-repository CTest status is unknown because the complete suite was not
+  run.
+- Native GPU performance, multi-GPU behavior, and long-duration scheduler
+  behavior are unknown.
+- FHSS behavior under asynchronous multi-message arrival, real acquisition,
+  interference, and channel-filter leakage is unknown.

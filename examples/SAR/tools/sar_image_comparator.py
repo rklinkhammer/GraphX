@@ -275,6 +275,7 @@ def compare_contracts(
         "deterministic-reference",
         "graphx-deterministic-reference",
         "gotcha-back",
+        "sarpy",
     }:
         raise ValueError(
             "reference_contract.source_tool must identify a valid reference artifact tool, "

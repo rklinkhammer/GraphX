@@ -348,7 +348,7 @@ TEST(FHSSGraphXGuardrailTest,
             std::string::npos);
   EXPECT_NE(text.find("occupied-bandwidth and channel-filter requirements"),
             std::string::npos);
-  EXPECT_NE(text.find("remain unresolved in pr16"), std::string::npos);
+  EXPECT_NE(text.find("remain unresolved"), std::string::npos);
   EXPECT_NE(text.find("retuned"), std::string::npos);
   EXPECT_NE(text.find("sub-band windows"), std::string::npos);
   EXPECT_NE(text.find("one logical graphx"), std::string::npos);

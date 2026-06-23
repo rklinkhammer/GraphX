@@ -9,6 +9,7 @@ from pathlib import Path
 
 from sar_scenario_to_run import (
     build_graphx_config,
+    build_local_replay_graph_template,
     ensure_layout,
     load_json,
     repo_root_from_script,
@@ -48,8 +49,7 @@ def main() -> int:
             print(f"error: {error}", file=sys.stderr)
         return 3
 
-    manual_template_path = repo_root / "examples" / "SAR" / "config" / "sar_gotcha_external_manual.json"
-    manual_template = load_json(manual_template_path)
+    manual_template = build_local_replay_graph_template()
     graphx_config = build_graphx_config(scenario, manual_template)
 
     layout = ensure_layout(output_dir)

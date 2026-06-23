@@ -2,6 +2,11 @@
 
 Date: 2026-06-22
 
+Status: Complete as of 2026-06-23.
+
+PR1 through PR17 have been implemented and verified. This roadmap is retained
+as the completed cleanup record. New work starts from `plan/BASELINE.md`.
+
 Inputs:
 
 - `plan/reviews/GRAPHX_INSPECTOR_REPORT.md`

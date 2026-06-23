@@ -67,6 +67,7 @@ add_executable(test_sar_example_unit
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_local_baseline_runner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_reference_compare_tools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_vs_baseline_harness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_substitution_experiment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sarpy_crsd_validation_harness.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_image_comparison_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_local_gotcha_validation_lane.cpp
@@ -103,7 +104,6 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SAR_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_fanout.json"
     SAR_MATCHED_FILTER_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_matched_filter.json"
     SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_materialized_image.json"
-    SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach.json"
     SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
@@ -129,6 +129,7 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SARPY_METADATA_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sarpy_metadata_harness.py"
     SAR_LOCAL_BASELINE_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_local_baseline_runner.py"
     SAR_GRAPHX_VS_BASELINE_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_graphx_vs_baseline_harness.py"
+    SAR_BASELINE_SUBSTITUTION_EXPERIMENT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_baseline_substitution_experiment.py"
     SARPY_METADATA_HARNESS_GUIDE_PATH="${CMAKE_SOURCE_DIR}/README.md"
     SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
     SARPY_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"

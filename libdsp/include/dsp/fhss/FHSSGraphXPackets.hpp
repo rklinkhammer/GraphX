@@ -2,10 +2,11 @@
  * @file FHSSGraphXPackets.hpp
  * @brief Canonical GraphX FHSS edge packet contracts.
  *
- * @details PR7A data-only contracts for the FHSS decoder lane. These packet
- * types define the public GraphX edge payloads used by future runtime nodes.
- * They deliberately do not add graph JSON, plugin wiring, GPU execution,
- * channelization, Doppler/noise behavior, or overlap-aware separation.
+ * @details Canonical data contracts for the current GraphX FHSS decoder lane.
+ * These packet types define public GraphX edge payloads while keeping future
+ * accelerator storage separate from FHSS semantic metadata. Token readiness
+ * does not claim GPU execution, production channelization, impairment support,
+ * or overlap-aware separation.
  */
 // MIT License
 //
