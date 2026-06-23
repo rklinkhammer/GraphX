@@ -48,13 +48,12 @@ TEST(SarBaselineGuardrailTest, DocsNameExactlyOneCanonicalGpuPathCandidate) {
   EXPECT_NE(active_docs.find("Current canonical SAR GPU-path candidate"),
             std::string::npos);
   EXPECT_NE(active_docs.find(candidate), std::string::npos);
-  EXPECT_NE(active_docs.find("experimental/incomplete"), std::string::npos);
-  EXPECT_NE(active_docs.find("They are not a second canonical"),
-            std::string::npos);
-
+  EXPECT_NE(active_docs.find("experimental"), std::string::npos);
+  
+  // PR7: After consolidation, verify no second canonical GPU path is mentioned
   EXPECT_EQ(active_docs.find("second canonical SAR GPU path is supported"),
             std::string::npos);
-  EXPECT_EQ(active_docs.find("multiple canonical SAR GPU paths"),
+  EXPECT_EQ(active_docs.find("Other SAR Metal configs are development"),
             std::string::npos);
 }
 
@@ -75,4 +74,60 @@ TEST(SarBaselineGuardrailTest, CanonicalGpuPathCandidateUsesAccelTokenContract) 
     EXPECT_EQ(mapping.at("output_token_type").get<std::string>(),
               "SarAccelControlToken");
   }
+}
+
+TEST(SarBaselineGuardrailTest, PR7_ConfigSetConsolidation) {
+  // PR7: Verify SAR config set consolidation.
+  // This test ensures that:
+  // 1. Only active, named canonical configs remain in examples/SAR/config/
+  // 2. Stale, duplicate, or experimental configs have been deleted
+  // 3. The remaining configs are documented in README.md and BASELINE.md
+  
+  const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
+  const auto config_dir = root / "examples" / "SAR" / "config";
+  
+  // Count actual configs on disk
+  int config_count = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(config_dir)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".json") {
+      config_count++;
+    }
+  }
+  
+  // PR7: After consolidation, expect exactly 13 canonical/active configs
+  // (down from 21 in the pre-PR7 state)
+  EXPECT_EQ(config_count, 13) 
+      << "SAR config consolidation should keep exactly 13 active configs; "
+      << "deleted configs: sar_gotcha_external_manual, "
+      << "sar_crsd_focused_image_tiny_fixture, sar_crsd_tiny_fixture_with_sink, "
+      << "sar_crsd_real_directory_input_smoke, sar_crsd_real_paths_input_smoke, "
+      << "sar_stripmap_metal_window, sar_stripmap_metal_compression, "
+      << "sar_stripmap_metal_fanout";
+  
+  // Verify the canonical configs still exist
+  const std::vector<std::string> canonical_configs{
+      "sar_stripmap_simulated.json",
+      "sar_crsd_tiny_fixture_focused_image_cpu.json",
+      "sar_crsd_tiny_fixture_focused_image_metal.json",
+      "sar_crsd_gotcha_local_validation.json",
+  };
+  
+  for (const auto& config : canonical_configs) {
+    const auto config_path = config_dir / config;
+    EXPECT_TRUE(std::filesystem::exists(config_path))
+        << "Canonical config must be present: " << config;
+  }
+  
+  // Verify documentation references the consolidated set
+  const auto readme = ReadFile(root / "README.md");
+  const auto baseline = ReadFile(root / "plan" / "BASELINE.md");
+  const auto docs = readme + "\n" + baseline;
+  
+  EXPECT_NE(docs.find("sar_stripmap_simulated.json"), std::string::npos);
+  EXPECT_NE(docs.find("sar_crsd_tiny_fixture_focused_image_cpu.json"), 
+            std::string::npos);
+  EXPECT_NE(docs.find("sar_crsd_tiny_fixture_focused_image_metal.json"), 
+            std::string::npos);
+  EXPECT_NE(docs.find("sar_crsd_gotcha_local_validation.json"), 
+            std::string::npos);
 }

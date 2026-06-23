@@ -71,14 +71,39 @@ SAR truth-in-labeling:
 - Metal SAR nodes must state whether they are transfer, memory, sync/control,
   generic kernel, or domain algorithm nodes.
 - Experimental or incomplete Metal behavior must remain labeled as such.
-- Current canonical SAR GPU-path candidate:
-  `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json`.
-  It is the only active SAR GPU-path candidate for cleanup planning, and it
-  remains experimental/incomplete until explicitly promoted by tests and
-  baseline updates.
-- Other SAR Metal configs are development, reference, or historical paths until
-  SAR config consolidation selects otherwise. They must not be described as a
-  second canonical SAR GPU path.
+
+PR7: Consolidated SAR config set (13 active configs):
+
+**Canonical CPU configs (CI-safe):**
+- `examples/SAR/config/sar_stripmap_simulated.json` - Basic synthetic stripmap graph
+- `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` - CRSD focused-image CPU lane
+
+**Experimental GPU candidate (1 only):**
+- `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` - CRSD focused-image Metal lane (experimental/incomplete)
+
+**Local-only validation config:**
+- `examples/SAR/config/sar_crsd_gotcha_local_validation.json` - Local-only GOTCHA-derived CRSD validation
+
+**Specialized variants for dedicated test scenarios (kept):**
+- `sar_stripmap_definitive.json` - Definitive stripmap config
+- `sar_stripmap_fanout.json` - Fanout variant
+- `sar_stripmap_matched_filter.json` - Matched filter variant
+- `sar_stripmap_materialized_image.json` - Materialized image variant
+- `sar_projectile_approach.json` - Projectile scenario
+- `sar_crsd_tiny_fixture_full_pipeline.json` - Full pipeline variant
+- `sar_crsd_tiny_fixture_set_input.json` - Path-based input mode
+- `sar_crsd_tiny_fixture_set_input_directory.json` - Directory-based input mode
+- `sar_crsd_tiny_fixture_set_input_manifest.json` - Manifest-based input mode
+
+**Deleted (PR7 cleanup):**
+- Orphaned: `sar_gotcha_external_manual.json`
+- Unused CMakeLists vars: `sar_crsd_focused_image_tiny_fixture.json`, `sar_crsd_tiny_fixture_with_sink.json`,
+  `sar_crsd_real_directory_input_smoke.json`, `sar_crsd_real_paths_input_smoke.json`
+- Unused Metal variants: `sar_stripmap_metal_window.json`, `sar_stripmap_metal_compression.json`,
+  `sar_stripmap_metal_fanout.json`
+
+Current canonical SAR GPU-path candidate is `sar_crsd_tiny_fixture_focused_image_metal.json` (experimental).
+It is the only active SAR GPU-path candidate and remains experimental/incomplete until explicitly promoted.
 
 ### FHSS
 

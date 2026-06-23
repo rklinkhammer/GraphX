@@ -214,6 +214,9 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
 }
 
 TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExplicit) {
+    // PR7: Test maintained canonical and specialized stripmap configs.
+    // Stripmap family includes the basic simulated config, definitive config,
+    // and specialized variants (fanout, matched_filter, materialized_image).
     struct PresetExpectation {
         const char* path;
         const char* backend;
@@ -222,9 +225,6 @@ TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExpli
     const std::vector<PresetExpectation> presets{
         {SAR_JSON_CONFIG_PATH, "auto"},
         {SAR_FANOUT_JSON_CONFIG_PATH, "auto"},
-        {SAR_METAL_WINDOW_JSON_CONFIG_PATH, "metal"},
-        {SAR_METAL_COMPRESSION_JSON_CONFIG_PATH, "metal"},
-        {SAR_METAL_FANOUT_JSON_CONFIG_PATH, "metal"},
         {SAR_MATCHED_FILTER_JSON_CONFIG_PATH, "metal"},
         {SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH, "auto"},
         {SAR_PROJECTILE_JSON_CONFIG_PATH, "auto"},

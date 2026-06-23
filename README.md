@@ -457,15 +457,28 @@ ctest --test-dir build-ninja/ninja-debug-metal-native -R sar_example_ci_lane --o
 
 ## SAR Example Graphs
 
-Common SAR config files:
+PR7 canonical SAR configs (active set of 13 configs):
 
 | Config | Purpose |
 |---|---|
-| `examples/SAR/config/sar_stripmap_simulated.json` | Basic synthetic stripmap graph. |
-| `examples/SAR/config/sar_stripmap_definitive.json` | Definitive stripmap example graph. |
-| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` | CI-safe CRSD focused-image CPU lane. |
-| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` | CRSD focused-image Metal lane. |
+| `examples/SAR/config/sar_stripmap_simulated.json` | Canonical CPU stripmap graph. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` | Canonical CPU CRSD focused-image lane. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` | Canonical GPU CRSD focused-image Metal lane (experimental). |
 | `examples/SAR/config/sar_crsd_gotcha_local_validation.json` | Local-only GOTCHA-derived CRSD validation graph. |
+
+Specialized variants for dedicated test scenarios:
+
+| Config | Purpose |
+|---|---|
+| `examples/SAR/config/sar_stripmap_definitive.json` | Definitive stripmap example graph. |
+| `examples/SAR/config/sar_stripmap_fanout.json` | Stripmap fanout variant. |
+| `examples/SAR/config/sar_stripmap_matched_filter.json` | Matched filter variant. |
+| `examples/SAR/config/sar_stripmap_materialized_image.json` | Materialized image variant. |
+| `examples/SAR/config/sar_projectile_approach.json` | Projectile scenario. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_full_pipeline.json` | Full pipeline variant. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_set_input.json` | Path-based input mode. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_set_input_directory.json` | Directory-based input mode. |
+| `examples/SAR/config/sar_crsd_tiny_fixture_set_input_manifest.json` | Manifest-based input mode. |
 
 SAR GPU-path truth-in-labeling:
 
@@ -473,9 +486,8 @@ SAR GPU-path truth-in-labeling:
   `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json`.
 - It remains experimental/incomplete until explicitly promoted by tests and
   baseline updates.
-- Other SAR Metal configs are development, reference, or historical paths until
-  SAR config consolidation selects otherwise. They are not a second canonical
-  SAR GPU path.
+- PR7 deleted orphaned and unused Metal configs. No second canonical SAR GPU
+  path is supported.
 
 Example run of the SAR executable:
 

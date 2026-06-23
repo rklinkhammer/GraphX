@@ -94,14 +94,14 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     GPU_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    # PR7: Canonical SAR configs (CPU stripmap family)
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_simulated.json"
+    SAR_DEFINITIVE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_definitive.json"
+    # PR7: Specialized stripmap variants (kept for dedicated test scenarios)
     SAR_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_fanout.json"
-    SAR_METAL_WINDOW_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_metal_window.json"
-    SAR_METAL_COMPRESSION_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_metal_compression.json"
-    SAR_METAL_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_metal_fanout.json"
     SAR_MATCHED_FILTER_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_matched_filter.json"
     SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_materialized_image.json"
-    SAR_DEFINITIVE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_definitive.json"
+    SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach.json"
     SAR_GOTCHA_REPLAY_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gotcha_replay_fixture.json"
     SAR_PROJECTILE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_projectile_approach.json"
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
@@ -132,17 +132,17 @@ target_compile_definitions(test_sar_example_unit PRIVATE
     SARPY_VALIDATE_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/validate_crsd.py"
     SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_crsd.py"
     SAR_CRSD_TINY_FIXTURE_BASE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/crsd_binary_tiny_multisegment"
+    # PR7: CRSD input mode variants (kept for dedicated input source tests)
     SAR_CRSD_TINY_CONFIG_PATHS_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input.json"
     SAR_CRSD_TINY_CONFIG_DIRECTORY_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_directory.json"
     SAR_CRSD_TINY_CONFIG_MANIFEST_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_manifest.json"
-    SAR_CRSD_REAL_DIRECTORY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_directory_input_smoke.json"
-    SAR_CRSD_REAL_PATHS_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_real_paths_input_smoke.json"
-    SAR_CRSD_GOTCHA_LOCAL_VALIDATION_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_gotcha_local_validation.json"
-    SAR_CRSD_FOCUSED_IMAGE_TINY_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_focused_image_tiny_fixture.json"
-    SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_full_pipeline.json"
+    # PR7: CRSD CPU canonical and full pipeline variant
     SAR_CRSD_TINY_FOCUSED_IMAGE_CPU_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_cpu.json"
+    SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_full_pipeline.json"
+    # PR7: CRSD GPU experimental candidate (marked as such in BASELINE.md)
     SAR_CRSD_TINY_FOCUSED_IMAGE_METAL_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_metal.json"
-    SAR_CRSD_TINY_FIXTURE_WITH_SINK_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_with_sink.json"
+    # PR7: Local-only GOTCHA validation config
+    SAR_CRSD_GOTCHA_LOCAL_VALIDATION_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_gotcha_local_validation.json"
 )
 target_link_libraries(test_sar_example_unit PRIVATE
     graph
