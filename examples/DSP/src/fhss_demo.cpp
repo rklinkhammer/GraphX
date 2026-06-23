@@ -29,11 +29,6 @@
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 #endif
 
-#ifndef DSP_FHSS_REFERENCE_CONFIG_PATH
-#define DSP_FHSS_REFERENCE_CONFIG_PATH                                               \
-  "libdsp/config/fhss_cpsm_fixture_500msps.json"
-#endif
-
 namespace {
 
 struct CliOptions {
@@ -44,7 +39,6 @@ struct CliOptions {
   std::filesystem::path effective_config_path;
   int executor_timeout_s = 12;
   std::size_t decoded_pulse_limit = 8;
-  bool use_reference_graph = false;
   bool print_effective_config = false;
 };
 
@@ -76,8 +70,7 @@ void PrintUsage() {
          "                             [--plugin-dir path] [--summary-json path]\n"
          "                             [--effective-config-json path]\n"
          "                             [--executor-timeout-s n]\n"
-         "                             [--decoded-pulse-limit n]\n"
-         "                             [--reference-correlator-graph]\n\n"
+         "                             [--decoded-pulse-limit n]\n\n"
          "Message JSON may be either a full FHSS source node_config object or an\n"
          "object with a node_config field. It must include messages[]. The demo\n"
          "patches source/decoder graph node configs and then runs the real GraphX\n"
@@ -127,9 +120,6 @@ CliOptions ParseArgs(int argc, char **argv) {
       }
       options.decoded_pulse_limit =
           static_cast<std::size_t>(ParseUint64Option(arg, argv[++i]));
-    } else if (arg == "--reference-correlator-graph") {
-      options.use_reference_graph = true;
-      options.config_path = DSP_FHSS_REFERENCE_CONFIG_PATH;
     } else if (arg == "--print-effective-config") {
       options.print_effective_config = true;
     } else {

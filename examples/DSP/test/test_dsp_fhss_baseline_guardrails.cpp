@@ -149,3 +149,20 @@ TEST(DspFhssBaselineGuardrailTest,
   EXPECT_NE(docs.find("canonical FHSS implementation uses real GraphX nodes"),
             std::string::npos);
 }
+
+TEST(DspFhssBaselineGuardrailTest,
+     DemoDoesNotExposeDeletedReferenceCorrelatorSurface) {
+  const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
+  const auto demo_source = ReadFile(root / "examples" / "DSP" / "src" /
+                                    "fhss_demo.cpp");
+  const auto demo_cmake = ReadFile(root / "examples" / "DSP" /
+                                   "CMakeLists.txt");
+  const auto combined = demo_source + "\n" + demo_cmake;
+
+  EXPECT_EQ(combined.find("--reference-correlator-graph"),
+            std::string::npos);
+  EXPECT_EQ(combined.find("DSP_FHSS_REFERENCE_CONFIG_PATH"),
+            std::string::npos);
+  EXPECT_EQ(combined.find("fhss_cpsm_fixture_500msps.json"),
+            std::string::npos);
+}

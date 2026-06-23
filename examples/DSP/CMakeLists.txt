@@ -40,7 +40,6 @@ target_compile_definitions(dsp_fhss_demo PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
-    DSP_FHSS_REFERENCE_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_fixture_500msps.json"
 )
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(dsp_fhss_demo graphx_dynamic_nodes)

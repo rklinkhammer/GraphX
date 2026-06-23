@@ -78,6 +78,10 @@ void ExpectContains(const std::string &text, const std::string &needle) {
   EXPECT_NE(text.find(needle), std::string::npos) << text;
 }
 
+void ExpectNotContains(const std::string &text, const std::string &needle) {
+  EXPECT_EQ(text.find(needle), std::string::npos) << text;
+}
+
 std::filesystem::path TempOutputDir(const std::string &name) {
   const auto path = std::filesystem::temp_directory_path() / name;
   std::error_code error;
@@ -97,6 +101,7 @@ TEST(DspFhssDemoExecutableTest, PrintsHelp) {
   ExpectContains(result.output, "graphx-dsp-fhss-demo");
   ExpectContains(result.output, "--message-json");
   ExpectContains(result.output, "GraphExecutorBuilder");
+  ExpectNotContains(result.output, "--reference-correlator-graph");
 }
 
 TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
