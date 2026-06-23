@@ -306,6 +306,13 @@ TEST(GotchaDatasetAdapterTest, PluginLoadedGotchaReplayPipelineRunsEndToEnd) {
 
     const auto& diagnostics = sink->last_diagnostics();
     EXPECT_EQ(diagnostics.sidecar.marker, sar::SarFrameMarker::EndOfStream);
+    EXPECT_EQ(diagnostics.sidecar.sequence_id, 4u);
+    EXPECT_EQ(diagnostics.sidecar.batch_id, 17u);
+    EXPECT_EQ(diagnostics.sidecar.aperture_id, 4u);
+    EXPECT_EQ(diagnostics.sidecar.stream_id, 5u);
+    EXPECT_LE(diagnostics.sidecar.backend_id, 2u);
+    EXPECT_EQ(diagnostics.sidecar.synthetic, false);
+    EXPECT_EQ(diagnostics.sidecar.payload_byte_count, 0u);
     EXPECT_EQ(diagnostics.pulses_processed, 4u);
     EXPECT_EQ(diagnostics.tiles_processed, 4u);
     EXPECT_EQ(diagnostics.bytes_h2d, 128u);

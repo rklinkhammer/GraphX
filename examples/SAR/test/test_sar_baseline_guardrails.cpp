@@ -37,17 +37,17 @@ nlohmann::json LoadJson(const std::filesystem::path &path) {
 
 } // namespace
 
-TEST(SarBaselineGuardrailTest, DocsNameExactlyOneCanonicalGpuPathCandidate) {
+TEST(SarBaselineGuardrailTest, DocsNameExactlyOneCanonicalGpuPath) {
   const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
   const auto active_docs =
       ReadFile(root / "README.md") + "\n" +
       ReadFile(root / "plan" / "BASELINE.md");
 
-  const std::string candidate =
+  const std::string canonical_path =
       "examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json";
-  EXPECT_NE(active_docs.find("Current canonical SAR GPU-path candidate"),
+  EXPECT_NE(active_docs.find("Current canonical SAR GPU path"),
             std::string::npos);
-  EXPECT_NE(active_docs.find(candidate), std::string::npos);
+  EXPECT_NE(active_docs.find(canonical_path), std::string::npos);
   EXPECT_NE(active_docs.find("experimental"), std::string::npos);
   
   // PR7: After consolidation, verify no second canonical GPU path is mentioned
@@ -57,7 +57,7 @@ TEST(SarBaselineGuardrailTest, DocsNameExactlyOneCanonicalGpuPathCandidate) {
             std::string::npos);
 }
 
-TEST(SarBaselineGuardrailTest, CanonicalGpuPathCandidateUsesAccelTokenContract) {
+TEST(SarBaselineGuardrailTest, CanonicalGpuPathUsesAccelTokenContract) {
   const auto config =
       LoadJson(std::filesystem::path(SAR_CRSD_TINY_FOCUSED_IMAGE_METAL_CONFIG_JSON));
 
@@ -129,5 +129,21 @@ TEST(SarBaselineGuardrailTest, PR7_ConfigSetConsolidation) {
   EXPECT_NE(docs.find("sar_crsd_tiny_fixture_focused_image_metal.json"), 
             std::string::npos);
   EXPECT_NE(docs.find("sar_crsd_gotcha_local_validation.json"), 
+            std::string::npos);
+}
+
+TEST(SarBaselineGuardrailTest, PR13_ExternalBaselineSurveyRemainsPlanningOnly) {
+  const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
+  const auto baseline = ReadFile(root / "plan" / "BASELINE.md");
+
+  EXPECT_NE(baseline.find("PR13 external SAR baseline survey status"),
+            std::string::npos);
+  EXPECT_NE(baseline.find("no external baseline package is integrated"),
+            std::string::npos);
+  EXPECT_NE(baseline.find("Recommendation status: clear deferral"),
+            std::string::npos);
+  EXPECT_NE(baseline.find("Any external baseline execution remains local-only"),
+            std::string::npos);
+  EXPECT_NE(baseline.find("Default CI remains external-dependency-free"),
             std::string::npos);
 }

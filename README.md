@@ -482,7 +482,7 @@ Specialized variants for dedicated test scenarios:
 
 SAR GPU-path truth-in-labeling:
 
-- Current canonical SAR GPU-path candidate:
+- Current canonical SAR GPU path:
   `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json`.
 - It remains experimental/incomplete until explicitly promoted by tests and
   baseline updates.

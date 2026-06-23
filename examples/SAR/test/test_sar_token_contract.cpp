@@ -11,9 +11,12 @@
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
 #include "gpu/cuda/nodes/H2DAsyncNode.hpp"
 #include "graph/AccelTokenContracts.hpp"
+#include "sar/GotchaReplaySourceNode.hpp"
 #include "sar/D2HAsyncAccelNode.hpp"
 #include "sar/H2DAsyncAccelNode.hpp"
+#include "sar/OrderedCrsdSetInputSourceNode.hpp"
 #include "sar/SarBackprojectionTransformAccelNode.hpp"
+#include "sar/SarDiagnosticsSinkNode.hpp"
 #include "sar/SarMessages.hpp"
 
 #include <type_traits>
@@ -104,6 +107,19 @@ TEST(SarTokenContractTest, CompileTimePortContractsAreTokenHardenedAcrossDomains
                   sar::SarSidecar>);
     static_assert(graph::OutputPortUsesAccelControlTokenFor<
                   sar::H2DAsyncAccelNode,
+                  0,
+                  sar::SarSidecar>);
+
+    static_assert(graph::OutputPortUsesAccelControlTokenFor<
+                  sar::OrderedCrsdSetInputSourceNode,
+                  0,
+                  sar::SarSidecar>);
+    static_assert(graph::OutputPortUsesAccelControlTokenFor<
+                  sar::GotchaReplaySourceNode,
+                  0,
+                  sar::SarSidecar>);
+    static_assert(graph::InputPortUsesAccelControlTokenFor<
+                  sar::SarDiagnosticsSinkNode,
                   0,
                   sar::SarSidecar>);
 

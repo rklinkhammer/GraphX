@@ -78,7 +78,7 @@ PR7: Consolidated SAR config set (13 active configs):
 - `examples/SAR/config/sar_stripmap_simulated.json` - Basic synthetic stripmap graph
 - `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_cpu.json` - CRSD focused-image CPU lane
 
-**Experimental GPU candidate (1 only):**
+**Experimental canonical GPU path (1 only):**
 - `examples/SAR/config/sar_crsd_tiny_fixture_focused_image_metal.json` - CRSD focused-image Metal lane (experimental/incomplete)
 
 **Local-only validation config:**
@@ -102,8 +102,23 @@ PR7: Consolidated SAR config set (13 active configs):
 - Unused Metal variants: `sar_stripmap_metal_window.json`, `sar_stripmap_metal_compression.json`,
   `sar_stripmap_metal_fanout.json`
 
-Current canonical SAR GPU-path candidate is `sar_crsd_tiny_fixture_focused_image_metal.json` (experimental).
-It is the only active SAR GPU-path candidate and remains experimental/incomplete until explicitly promoted.
+Current canonical SAR GPU path is `sar_crsd_tiny_fixture_focused_image_metal.json` (experimental/incomplete).
+It is the only active canonical SAR GPU path and remains experimental/incomplete until explicitly promoted.
+
+PR13 external SAR baseline survey status:
+
+- Planning-only survey completed; no external baseline package is integrated,
+  required, or supported by GraphX in this PR.
+- Candidate comparison dimensions are tracked as: license, install complexity,
+  data support, output format compatibility, determinism, and CI/local
+  feasibility.
+- Recommendation status: clear deferral.
+  - No package is selected for integration in PR13.
+  - PR14 may select one candidate only after license and reproducibility checks
+    are revalidated at implementation time.
+- CI/local implications are explicit:
+  - Any external baseline execution remains local-only and opt-in.
+  - Default CI remains external-dependency-free.
 
 ### FHSS
 

@@ -312,16 +312,26 @@ TEST(OrderedCrsdSetInputSourceNodeTest, EmitsOneOrderedApertureSetStreamThenEos)
         const auto& token = tokens[i];
         EXPECT_EQ(token.sidecar.marker, sar::SarFrameMarker::Data);
         EXPECT_EQ(token.sidecar.sequence_id, i);
+        EXPECT_EQ(token.sidecar.batch_id, 7u);
+        EXPECT_EQ(token.sidecar.aperture_id, i);
+        EXPECT_EQ(token.sidecar.pulse_range_start, i * 2u);
         EXPECT_EQ(token.sidecar.stream_id, 7u);
+        EXPECT_EQ(token.sidecar.tile_id, i);
         EXPECT_EQ(token.sidecar.tile_count, 3u);
+        EXPECT_EQ(token.sidecar.backend_id, 0u);
+        EXPECT_EQ(token.sidecar.backend, sar::SarBackendKind::Host);
         EXPECT_EQ(token.sidecar.pulse_range_count, 2u);
         EXPECT_GT(token.sidecar.payload_byte_count, 0u);
         EXPECT_FALSE(token.sidecar.synthetic);
+        EXPECT_TRUE(token.has_host_view);
+        EXPECT_NE(token.host_view.host_ptr, nullptr);
     }
 
     const auto& eos = tokens.back();
     EXPECT_EQ(eos.sidecar.marker, sar::SarFrameMarker::EndOfStream);
     EXPECT_EQ(eos.sidecar.sequence_id, 3u);
+    EXPECT_EQ(eos.sidecar.batch_id, 7u);
+    EXPECT_EQ(eos.sidecar.aperture_id, 3u);
     EXPECT_EQ(eos.sidecar.pulse_range_start, 6u);
     EXPECT_EQ(eos.sidecar.pulse_range_count, 0u);
 }
@@ -393,9 +403,16 @@ TEST(OrderedCrsdSetInputSourceNodeTest, JsonTopologySmokeRunsForBinaryPathsDirec
         auto sink = sar::runtime::ResolveDiagnosticsSink(executor->GetGraphManager());
         ASSERT_NE(sink, nullptr) << "mode=" << mode;
         EXPECT_GE(sink->consume_count(), 4u) << "mode=" << mode;
-        EXPECT_EQ(sink->last_diagnostics().sidecar.marker, sar::SarFrameMarker::EndOfStream)
+        const auto& sidecar = sink->last_diagnostics().sidecar;
+        EXPECT_EQ(sidecar.marker, sar::SarFrameMarker::EndOfStream)
             << "mode=" << mode;
         EXPECT_EQ(sink->last_diagnostics().pulses_processed, 3u) << "mode=" << mode;
+        EXPECT_EQ(sidecar.batch_id, 21u) << "mode=" << mode;
+        EXPECT_EQ(sidecar.stream_id, 21u) << "mode=" << mode;
+        EXPECT_EQ(sidecar.backend_id, 0u) << "mode=" << mode;
+        EXPECT_EQ(sidecar.synthetic, false) << "mode=" << mode;
+        EXPECT_EQ(sidecar.pulse_range_start, 6u) << "mode=" << mode;
+        EXPECT_EQ(sidecar.pulse_range_count, 0u) << "mode=" << mode;
     }
 
     ASSERT_TRUE(std::filesystem::exists(std::filesystem::path{SAR_CRSD_TINY_CONFIG_PATHS_JSON}));
