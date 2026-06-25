@@ -434,11 +434,29 @@ nlohmann::json GraphMetricsJson(const graph::GraphMetrics &metrics) {
       {"peak_active_threads", metrics.peak_active_threads.load()}};
 }
 
+nlohmann::json FindDiagnosticsForNodeType(const nlohmann::json &diagnostics_snapshot,
+                                         const std::string &node_type) {
+  const auto nodes_it = diagnostics_snapshot.find("nodes");
+  if (nodes_it == diagnostics_snapshot.end() || !nodes_it->is_array()) {
+    return nlohmann::json::object();
+  }
+
+  for (const auto &node : *nodes_it) {
+    if (node.value("type", std::string{}) == node_type &&
+        node.contains("diagnostics")) {
+      return node.at("diagnostics");
+    }
+  }
+  return nlohmann::json::object();
+}
+
 nlohmann::json BuildSummary(const CliOptions &options,
                             const std::filesystem::path &effective_config_path,
                             const nlohmann::json &effective_config,
                             const graph::ExecutionResult &result,
                             const graph::GraphManager &manager,
+                            const nlohmann::json &metrics_snapshot,
+                            const nlohmann::json &diagnostics_snapshot,
                             const nlohmann::json &diagnostics) {
   nlohmann::json summary{
       {"schema", "graphx.dsp.fhss_demo_summary.v1"},
@@ -453,7 +471,11 @@ nlohmann::json BuildSummary(const CliOptions &options,
       {"execution_result", ExecutionResultJson(result)},
       {"graph", {{"node_count", manager.GetNodes().size()},
                  {"edge_count", manager.GetEdges().size()}}},
-      {"graph_metrics", GraphMetricsJson(manager.GetMetrics())},
+      {"graph_metrics", metrics_snapshot.value("graph", GraphMetricsJson(manager.GetMetrics()))},
+      {"topology_activity",
+       {{"nodes", metrics_snapshot.value("nodes", nlohmann::json::array())},
+        {"edges", metrics_snapshot.value("edges", nlohmann::json::array())}}},
+      {"diagnostics_snapshot", diagnostics_snapshot.value("nodes", nlohmann::json::array())},
       {"fhss_diagnostics", diagnostics}};
   if (!options.channel_iq_directory.empty()) {
     std::vector<std::string> artifact_paths;
@@ -627,9 +649,38 @@ int main(int argc, char **argv) {
     if (!sink) {
       throw std::runtime_error("failed to resolve FHSSMessageSinkNode");
     }
+
+#ifdef GRAPHX_BUILD_WEB_DASHBOARD
+    auto runtime_session =
+        std::make_shared<graph::dashboard::GraphRuntimeSession>();
+    runtime_session->SetActiveGraphManager(manager);
+    runtime_session->SetLifecycleState(
+        result.success ? graph::dashboard::GraphRuntimeSession::State::completed
+                       : graph::dashboard::GraphRuntimeSession::State::failed);
+    auto snapshot_collector =
+        std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+    snapshot_collector->BindRuntimeSession(runtime_session);
+
+    const auto metrics_snapshot = snapshot_collector->GetMetricsSnapshot();
+    const auto diagnostics_snapshot = snapshot_collector->GetDiagnosticsSnapshot();
+    auto diagnostics =
+        FindDiagnosticsForNodeType(diagnostics_snapshot, "FHSSMessageSinkNode");
+    if (diagnostics.empty()) {
+      diagnostics = sink->GetDiagnostics().Raw();
+    }
+  #else
+    const auto metrics_snapshot =
+      nlohmann::json{{"graph", GraphMetricsJson(manager->GetMetrics())},
+               {"nodes", nlohmann::json::array()},
+               {"edges", nlohmann::json::array()}};
+    const auto diagnostics_snapshot =
+      nlohmann::json{{"nodes", nlohmann::json::array()}};
     const auto diagnostics = sink->GetDiagnostics().Raw();
+  #endif
+
     auto summary = BuildSummary(options, effective_config_path, graph_config,
-                                result, *manager, diagnostics);
+                                result, *manager, metrics_snapshot,
+                                diagnostics_snapshot, diagnostics);
     summary["completion_signaled"] = executor->IsCompletionSignaled();
     summary["decoded_pulse_limit"] = options.decoded_pulse_limit;
 

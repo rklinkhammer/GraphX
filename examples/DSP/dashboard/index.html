@@ -31,9 +31,13 @@
     }
     .layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.2fr 0.8fr;
       gap: 16px;
       padding: 16px;
+    }
+    .stack {
+      display: grid;
+      gap: 16px;
     }
     .card {
       background: var(--card);
@@ -65,6 +69,59 @@
       color: var(--muted);
       margin-bottom: 0;
     }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
+    .metric-label {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .metric-value {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .activity-list {
+      display: grid;
+      gap: 8px;
+    }
+    .activity-item {
+      border: 1px solid var(--border);
+      border-left-width: 6px;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9fafb;
+    }
+    .activity-title {
+      font-weight: 700;
+    }
+    .activity-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: white;
+    }
     @media (max-width: 900px) {
       .layout {
         grid-template-columns: 1fr;
@@ -78,14 +135,30 @@
     <div id="meta"></div>
   </header>
   <div class="layout">
-    <section class="card">
-      <h2>Nodes</h2>
-      <div id="nodes"></div>
-    </section>
-    <section class="card">
-      <h2>Edges</h2>
-      <pre id="edges"></pre>
-    </section>
+    <div class="stack">
+      <section class="card">
+        <h2>Runtime Metrics</h2>
+        <div id="metrics" class="metrics-grid"></div>
+      </section>
+      <section class="card">
+        <h2>Nodes</h2>
+        <div id="nodes"></div>
+      </section>
+      <section class="card">
+        <h2>Topology Activity</h2>
+        <div id="activity" class="activity-list"></div>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card">
+        <h2>Diagnostics</h2>
+        <div id="diagnostics"></div>
+      </section>
+      <section class="card">
+        <h2>Edges</h2>
+        <pre id="edges"></pre>
+      </section>
+    </div>
   </div>
   <script>
     function nodeTitle(node, index) {
@@ -94,17 +167,125 @@
       return `${id} (${type})`;
     }
 
+    function formatValue(value) {
+      if (typeof value === 'number') {
+        return value.toLocaleString();
+      }
+      return String(value);
+    }
+
+    function renderMetrics(metrics) {
+      const host = document.getElementById('metrics');
+      host.textContent = '';
+      const entries = [
+        ['Processed', metrics.total_items_processed || 0],
+        ['Rejected', metrics.total_items_rejected || 0],
+        ['Messages', metrics.total_messages_processed || 0],
+        ['Enqueued', metrics.graph_total_enqueued || 0],
+        ['Dequeued', metrics.graph_total_dequeued || 0],
+        ['Backpressure', metrics.backpressure_events || 0],
+        ['Peak Queue', metrics.peak_queue_depth || 0],
+        ['Peak Threads', metrics.peak_active_threads || 0]
+      ];
+      entries.forEach(([label, value]) => {
+        const card = document.createElement('div');
+        card.className = 'metric';
+        const metricLabel = document.createElement('span');
+        metricLabel.className = 'metric-label';
+        metricLabel.textContent = label;
+        const metricValue = document.createElement('span');
+        metricValue.className = 'metric-value';
+        metricValue.textContent = formatValue(value);
+        card.appendChild(metricLabel);
+        card.appendChild(metricValue);
+        host.appendChild(card);
+      });
+    }
+
+    function renderActivity(nodes, edges) {
+      const host = document.getElementById('activity');
+      host.textContent = '';
+      if (!nodes.length) {
+        host.textContent = 'Runtime graph is not active yet.';
+        return;
+      }
+      nodes.forEach((node) => {
+        const card = document.createElement('div');
+        card.className = 'activity-item';
+        card.style.borderLeftColor = node.activity_color || '#9ca3af';
+
+        const title = document.createElement('div');
+        title.className = 'activity-title';
+        title.textContent = `${node.name} (${node.type})`;
+
+        const meta = document.createElement('div');
+        meta.className = 'activity-meta';
+        meta.textContent = `in=${formatValue(node.inbound_messages || 0)} out=${formatValue(node.outbound_messages || 0)} rejected=${formatValue(node.rejected_messages || 0)} edges=${formatValue(node.connected_edges || 0)}`;
+
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.style.background = node.activity_color || '#9ca3af';
+        badge.textContent = node.activity_state || 'idle';
+
+        card.appendChild(title);
+        card.appendChild(meta);
+        card.appendChild(badge);
+        host.appendChild(card);
+      });
+
+      if (edges.length) {
+        const edgeSummary = document.createElement('pre');
+        edgeSummary.textContent = JSON.stringify(edges, null, 2);
+        host.appendChild(edgeSummary);
+      }
+    }
+
+    function renderDiagnostics(nodes) {
+      const host = document.getElementById('diagnostics');
+      host.textContent = '';
+      if (!nodes.length) {
+        host.textContent = 'No diagnostics are available for the current graph state.';
+        return;
+      }
+      nodes.forEach((node) => {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = `${node.name} (${node.type})`;
+        details.appendChild(summary);
+
+        const body = document.createElement('pre');
+        body.textContent = JSON.stringify(node.diagnostics, null, 2);
+        details.appendChild(body);
+        host.appendChild(details);
+      });
+    }
+
     async function bootstrap() {
-      const graphResponse = await fetch('/api/v1/graph');
+      const [graphResponse, metricsResponse, diagnosticsResponse] = await Promise.all([
+        fetch('/api/v1/graph'),
+        fetch('/api/v1/metrics'),
+        fetch('/api/v1/diagnostics')
+      ]);
+
       const graphData = await graphResponse.json();
+      const metricsData = await metricsResponse.json();
+      const diagnosticsData = await diagnosticsResponse.json();
       const graph = graphData.graph || {};
       const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
       const edges = Array.isArray(graph.edges) ? graph.edges : [];
+      const nodeMetrics = Array.isArray(metricsData.nodes) ? metricsData.nodes : [];
+      const edgeMetrics = Array.isArray(metricsData.edges) ? metricsData.edges : [];
+      const nodeDiagnostics = Array.isArray(diagnosticsData.nodes) ? diagnosticsData.nodes : [];
 
       document.getElementById('meta').textContent =
-        `schema=${graphData.schema} revision=${graphData.config_revision}`;
+        `graph=${graphData.schema} metrics=${metricsData.schema} diagnostics=${diagnosticsData.schema} revision=${graphData.config_revision}`;
+
+      renderMetrics(metricsData.graph || {});
+      renderActivity(nodeMetrics, edgeMetrics);
+      renderDiagnostics(nodeDiagnostics);
 
       const nodesHost = document.getElementById('nodes');
+      nodesHost.textContent = '';
       for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[i];
         const details = document.createElement('details');

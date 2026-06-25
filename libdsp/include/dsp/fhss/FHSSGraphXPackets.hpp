@@ -15,6 +15,7 @@
 #pragma once
 
 #include "dsp/fhss/FHSSProtocol.hpp"
+#include "graph/dashboard/FHSSStepping.hpp"
 
 #include <array>
 #include <complex>
@@ -229,6 +230,7 @@ struct FHSSCpsmPulseSymbolDecision {
 };
 
 struct FHSSSyntheticIqOutputPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXComplexEvidence iq{};
   std::vector<FHSSTruthPulse> truth_pulses;
   FHSSTimingModel timing{};
@@ -236,12 +238,14 @@ struct FHSSSyntheticIqOutputPacket {
 };
 
 struct FHSSDownconvertedIqPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXComplexEvidence iq{};
   FHSSGraphXDownconverterMetadata downconverter{};
   bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSChannelizedIqPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXChannelMetadata channel{};
   FHSSGraphXComplexEvidence iq{};
   bool receiver_guard_or_metadata_channel = false;
@@ -249,6 +253,7 @@ struct FHSSChannelizedIqPacket {
 };
 
 struct FHSSPerChannelPulseEvidencePacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXChannelMetadata channel{};
   std::vector<FHSSGraphXPulseMetadata> detected_pulses;
   std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
@@ -257,6 +262,7 @@ struct FHSSPerChannelPulseEvidencePacket {
 };
 
 struct FHSSDetectedPulseEvidencePacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   std::vector<FHSSGraphXPulseMetadata> detected_pulses;
   std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
   FHSSGraphXComplexEvidence source_iq{};
@@ -264,6 +270,7 @@ struct FHSSDetectedPulseEvidencePacket {
 };
 
 struct FHSSPulseCandidateEvidencePacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   std::vector<FHSSGraphXPulseCandidate> ordered_candidates;
   bool globally_ordered = false;
   bool unsupported_overlap_rejected = true;
@@ -271,6 +278,7 @@ struct FHSSPulseCandidateEvidencePacket {
 };
 
 struct FHSSCpsmBranchMetricPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXPulseCandidate candidate{};
   std::vector<double> branch_costs;
   std::vector<FHSSCpsmPulseBranchMetric> pulse_metrics;
@@ -281,6 +289,7 @@ struct FHSSCpsmBranchMetricPacket {
 };
 
 struct FHSSCpsmSymbolDecisionPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXPulseMetadata pulse{};
   std::vector<double> symbols;
   std::vector<std::uint32_t> phase_states;
@@ -293,6 +302,7 @@ struct FHSSCpsmSymbolDecisionPacket {
 };
 
 struct FHSSDecodedPulseWordPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXPulseMetadata pulse{};
   std::uint32_t decoded_value = 0;
   double confidence = 0.0;
@@ -303,6 +313,7 @@ struct FHSSDecodedPulseWordPacket {
 };
 
 struct FHSSDecodedPulseWordsPacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   std::vector<FHSSDecodedPulseWordPacket> decoded_pulses;
   bool globally_ordered = false;
   bool truth_metadata_required_for_decision = false;
@@ -326,6 +337,7 @@ struct FHSSDiagnosticsPacket {
 };
 
 struct FHSSAssembledMessagePacket {
+  graph::dashboard::FHSSMessageCorrelation correlation{};
   std::vector<FHSSDecodedPulseWordPacket> ordered_pulses;
   std::vector<std::uint32_t> active_frequency_indices;
   bool preamble_lock = false;

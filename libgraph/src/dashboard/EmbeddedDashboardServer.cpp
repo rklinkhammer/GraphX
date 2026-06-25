@@ -108,11 +108,17 @@ std::optional<std::size_t> ParseContentLength(const std::string &request_text) {
 EmbeddedDashboardServer::EmbeddedDashboardServer(
     Options options, std::shared_ptr<GraphConfigurationService> configuration_service,
     std::shared_ptr<GraphRuntimeSession> runtime_session,
-    std::shared_ptr<GraphSnapshotCollector> snapshot_collector)
+    std::shared_ptr<GraphSnapshotCollector> snapshot_collector,
+    std::shared_ptr<FHSSScenarioController> fhss_controller)
     : options_(std::move(options)),
       configuration_service_(std::move(configuration_service)),
+      fhss_controller_(std::move(fhss_controller)),
       runtime_session_(std::move(runtime_session)),
-      snapshot_collector_(std::move(snapshot_collector)) {}
+      snapshot_collector_(std::move(snapshot_collector)) {
+  if (snapshot_collector_ && runtime_session_) {
+    snapshot_collector_->BindRuntimeSession(runtime_session_);
+  }
+}
 
 EmbeddedDashboardServer::~EmbeddedDashboardServer() { Stop(); }
 
@@ -528,6 +534,12 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                     .body = JsonResponse(snapshot_collector_->GetEdgeMetricsSnapshot())};
   }
 
+  if (request.path == "/api/v1/diagnostics") {
+    return Response{.status_code = 200,
+                    .content_type = "application/json",
+                    .body = JsonResponse(snapshot_collector_->GetDiagnosticsSnapshot())};
+  }
+
   if (request.path == "/api/v1/config/validate" && request.method == "POST") {
     const auto body = request.body.empty() ? nlohmann::json::object() : nlohmann::json::parse(request.body, nullptr, false);
     if (body.is_discarded()) {
@@ -621,6 +633,32 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                                                         {"message", result.message}})};
   }
 
+  if ((request.path == "/api/v1/commands/step-message" ||
+       request.path == "/api/v1/commands/continue" ||
+       request.path == "/api/v1/commands/reset") &&
+      request.method == "POST") {
+    if (!fhss_controller_) {
+      return Response{.status_code = 501,
+                      .content_type = "application/json",
+                      .body = ErrorBody(501, "not_implemented",
+                                        "FHSS Step-5 controller is not configured")};
+    }
+    const auto body = request.body.empty() ? nlohmann::json::object() : nlohmann::json::parse(request.body, nullptr, false);
+    if (body.is_discarded()) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "invalid_json", "request body must be JSON")};
+    }
+    const auto result = request.path == "/api/v1/commands/step-message"
+                            ? fhss_controller_->StepOneMessage(body)
+                            : request.path == "/api/v1/commands/continue"
+                                  ? fhss_controller_->Continue(body)
+                                  : fhss_controller_->Reset(body);
+    return Response{.status_code = result.status_code,
+                    .content_type = "application/json",
+                    .body = JsonResponse(result.body)};
+  }
+
   if (request.path == "/api/v1/config/discard" && request.method == "POST") {
     return Response{.status_code = 200,
                     .content_type = "application/json",
@@ -656,6 +694,16 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
         operation_suffix.size() > cancel_suffix.size() &&
         operation_suffix.rfind(cancel_suffix) == operation_suffix.size() - cancel_suffix.size()) {
       const auto operation_id = operation_suffix.substr(0, operation_suffix.size() - cancel_suffix.size());
+      if (fhss_controller_) {
+        if (const auto result = fhss_controller_->CancelOperationIfKnown(operation_id); result) {
+          const auto status = result->value("schema", std::string{}) == "graphx.dashboard.error.v1"
+                                  ? result->value("status", 409)
+                                  : 200;
+          return Response{.status_code = status,
+                          .content_type = "application/json",
+                          .body = JsonResponse(*result)};
+        }
+      }
       const auto result = configuration_service_->CancelOperation(operation_id);
       const auto status = result.value("schema", std::string{}) == "graphx.dashboard.error.v1"
                               ? result.value("status", 409)
@@ -665,6 +713,13 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                       .body = JsonResponse(result)};
     }
     if (request.method == "GET") {
+      if (fhss_controller_) {
+        if (const auto result = fhss_controller_->GetOperationResponseIfKnown(operation_suffix); result) {
+          return Response{.status_code = 200,
+                          .content_type = "application/json",
+                          .body = JsonResponse(*result)};
+        }
+      }
       const auto result = configuration_service_->GetOperationResponse(operation_suffix);
       const auto status = result.value("schema", std::string{}) == "graphx.dashboard.error.v1"
                               ? result.value("status", 404)
@@ -674,6 +729,20 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                       .body = JsonResponse(result)};
     }
     if (request.method == "DELETE") {
+      if (fhss_controller_) {
+        std::string error_code;
+        if (const auto deleted = fhss_controller_->DeleteOperationIfKnown(operation_suffix, &error_code);
+            deleted.has_value()) {
+          if (!*deleted) {
+            return Response{.status_code = 409,
+                            .content_type = "application/json",
+                            .body = ErrorBody(409,
+                                              error_code.empty() ? "operation_not_terminal" : error_code,
+                                              "operation is not terminal")};
+          }
+          return Response{.status_code = 204, .content_type = "application/json", .body = {}};
+        }
+      }
       std::string error_code;
       if (!configuration_service_->DeleteOperation(operation_suffix, &error_code)) {
         const auto status = error_code == "operation_not_terminal" ? 409 : 404;

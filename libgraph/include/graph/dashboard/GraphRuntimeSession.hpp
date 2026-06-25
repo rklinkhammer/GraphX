@@ -3,8 +3,13 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string>
+
+namespace graph {
+class GraphManager;
+}
 
 namespace graph::dashboard {
 
@@ -48,11 +53,14 @@ public:
   [[nodiscard]] std::string StateString() const;
   [[nodiscard]] std::string LifecycleStateString() const;
   [[nodiscard]] StatusSnapshot SnapshotStatus() const;
+  [[nodiscard]] std::shared_ptr<graph::GraphManager> GetActiveGraphManager() const;
   [[nodiscard]] static std::string StateToString(State state);
 
   void MarkReady();
   void MarkShuttingDown();
   void MarkDead();
+  void SetLifecycleState(State state);
+  void SetActiveGraphManager(std::shared_ptr<graph::GraphManager> graph_manager);
 
   [[nodiscard]] CommandResult Rebuild();
   [[nodiscard]] CommandResult Start();
@@ -78,6 +86,7 @@ private:
   std::uint64_t successful_rebuilds_ = 0;
   std::string last_error_code_;
   std::string last_error_message_;
+  std::shared_ptr<graph::GraphManager> active_graph_manager_;
 
   bool fail_next_executor_construction_ = false;
   bool fail_next_queue_disable_ = false;

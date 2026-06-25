@@ -2,6 +2,8 @@
 
 #include "graph/dashboard/GraphRuntimeSession.hpp"
 
+#include "graph/GraphManager.hpp"
+
 namespace graph::dashboard {
 
 GraphRuntimeSession::GraphRuntimeSession() : state_(State::initializing) {}
@@ -54,6 +56,11 @@ GraphRuntimeSession::StatusSnapshot GraphRuntimeSession::SnapshotStatus() const 
                         .last_error_message = last_error_message_};
 }
 
+std::shared_ptr<graph::GraphManager> GraphRuntimeSession::GetActiveGraphManager() const {
+  const std::lock_guard<std::mutex> lock(mutex_);
+  return active_graph_manager_;
+}
+
 void GraphRuntimeSession::MarkReady() {
   const std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::initializing) {
@@ -69,6 +76,20 @@ void GraphRuntimeSession::MarkShuttingDown() {
 void GraphRuntimeSession::MarkDead() {
   const std::lock_guard<std::mutex> lock(mutex_);
   state_ = State::dead;
+}
+
+void GraphRuntimeSession::SetLifecycleState(State state) {
+  const std::lock_guard<std::mutex> lock(mutex_);
+  state_ = state;
+  if (state != State::cleanup_failed) {
+    rebuild_blocked_ = false;
+  }
+}
+
+void GraphRuntimeSession::SetActiveGraphManager(
+    std::shared_ptr<graph::GraphManager> graph_manager) {
+  const std::lock_guard<std::mutex> lock(mutex_);
+  active_graph_manager_ = std::move(graph_manager);
 }
 
 GraphRuntimeSession::CommandResult GraphRuntimeSession::Rebuild() {
@@ -209,11 +230,7 @@ void GraphRuntimeSession::InjectShutdownDuringNextRebuildForTesting() {
 }
 
 void GraphRuntimeSession::SetStateForTesting(State state) {
-  const std::lock_guard<std::mutex> lock(mutex_);
-  state_ = state;
-  if (state != State::cleanup_failed) {
-    rebuild_blocked_ = false;
-  }
+  SetLifecycleState(state);
 }
 
 bool GraphRuntimeSession::IsRebuildAllowedInCurrentState() const {
