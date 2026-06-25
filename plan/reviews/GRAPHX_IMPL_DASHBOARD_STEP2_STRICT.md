@@ -2,18 +2,15 @@
 2. Scope checked
 - Implemented exactly Step 2 of GRAPHX_FHSS_WEB_DASHBOARD_PLAN.md.
 - Added authoritative /fhss/scenario flow, deterministic derivation, generated-path protection, staged mutation/validate/export, structured validation errors, and async export operation lifecycle handling.
+- Added a browser-labeled concurrency smoke test that exercises two concurrent config sessions and stale-revision replay behavior against the running dashboard.
 - Did not add Step 3 runtime rebuild activation or any later-step stepping / websocket behaviors beyond the required failure-injection coverage hooks.
 3. Files changed/inspected
 - Changed:
-  - libgraph/include/graph/dashboard/GraphConfigurationService.hpp
-  - libgraph/src/dashboard/GraphConfigurationService.cpp
-  - libgraph/include/graph/dashboard/EmbeddedDashboardServer.hpp
-  - libgraph/src/dashboard/EmbeddedDashboardServer.cpp
   - examples/DSP/test/CMakeLists.txt
+  - examples/DSP/test/test_dsp_fhss_dashboard_step2_browser.cpp
   - examples/DSP/test/test_dsp_fhss_dashboard_step2.cpp
 - Inspected:
   - GRAPHX_FHSS_WEB_DASHBOARD_PLAN.md
-  - examples/DSP/src/fhss_demo.cpp
   - examples/DSP/test/test_dsp_fhss_dashboard_step1.cpp
   - libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
 4. Build commands run + outcome
@@ -22,6 +19,7 @@
 - `ctest --test-dir build --output-on-failure -V -R dsp_example_unit`
   - Outcome: pass.
 5. Required tests run + outcome
+- `DashboardBrowserConcurrencyTest.TwoBrowserSessionsSeeDeterministicOptimisticConcurrency`: pass.
 - `DashboardServerStep2Test.PatchRejectsGeneratedFieldsAndStaleRevisions`: pass.
 - `DashboardServerStep2Test.ValidationErrorsHaveStableLevelsAndShape`: pass.
 - `DashboardServerStep2Test.PatchExportAndOperationLifecycleAreContracted`: pass.

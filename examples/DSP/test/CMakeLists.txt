@@ -9,6 +9,7 @@ add_executable(test_dsp_example_unit
     test_dsp_fhss_demo.cpp
     test_dsp_fhss_baseline_guardrails.cpp
     test_dsp_fhss_dashboard_step1.cpp
+    test_dsp_fhss_dashboard_step2_browser.cpp
     test_dsp_fhss_dashboard_step2.cpp
 )
 
