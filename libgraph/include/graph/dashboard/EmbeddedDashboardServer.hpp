@@ -8,11 +8,19 @@
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace graph::dashboard {
 
@@ -42,6 +50,13 @@ public:
   [[nodiscard]] std::uint16_t BoundPort() const;
   [[nodiscard]] const std::string &LastError() const;
 
+  void PublishEventForTesting(std::string event_type,
+                              nlohmann::json payload,
+                              std::optional<std::uint64_t> revision = std::nullopt);
+  void ExpireRetainedEventsForTesting();
+  void SetEventQueueDepthForTesting(std::size_t depth);
+  void SetEventRetentionForTesting(std::chrono::milliseconds retention);
+
 private:
   struct Request {
     std::string method;
@@ -70,6 +85,30 @@ private:
   Response HandleApiRequest(const Request &request) const;
   Response HandleStaticAsset(const Request &request) const;
 
+  struct EventEnvelope {
+    std::uint64_t sequence = 0;
+    std::string event_type;
+    std::string timestamp;
+    std::optional<std::uint64_t> revision;
+    nlohmann::json payload = nlohmann::json::object();
+  };
+
+  struct ClientState {
+    std::deque<EventEnvelope> queue;
+    bool resync_required = false;
+    std::uint64_t dropped_events = 0;
+  };
+
+  [[nodiscard]] nlohmann::json PollEvents(const std::string &client_id,
+                                          std::optional<std::uint64_t> last_sequence,
+                                          bool clear_client) const;
+  void PublishEvent(std::string event_type,
+                    nlohmann::json payload,
+                    std::optional<std::uint64_t> revision = std::nullopt) const;
+  void TrimRetainedEventsLocked(std::chrono::system_clock::time_point now) const;
+  [[nodiscard]] std::string NowIso8601() const;
+  [[nodiscard]] nlohmann::json EventEnvelopeJson(const EventEnvelope &event) const;
+
   static std::string BuildHttpResponse(const Response &response);
 
   Options options_;
@@ -83,6 +122,16 @@ private:
   std::thread server_thread_;
   std::uint16_t bound_port_ = 0;
   std::string last_error_;
+
+  mutable std::mutex event_mutex_;
+  mutable std::deque<std::pair<EventEnvelope, std::chrono::system_clock::time_point>> retained_events_;
+  mutable std::unordered_map<std::string, ClientState> clients_;
+  mutable std::uint64_t next_event_sequence_ = 1;
+  mutable std::uint64_t dropped_events_total_ = 0;
+  mutable std::uint64_t coalesced_events_total_ = 0;
+  mutable std::uint64_t reconnects_total_ = 0;
+  mutable std::size_t per_client_queue_depth_ = 128;
+  mutable std::chrono::milliseconds event_retention_window_{std::chrono::seconds(120)};
 };
 
 } // namespace graph::dashboard

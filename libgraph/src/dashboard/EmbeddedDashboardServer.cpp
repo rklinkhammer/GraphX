@@ -8,14 +8,21 @@
 #include <unistd.h>
 
 #include <array>
+#include <algorithm>
+#include <chrono>
 #include <cerrno>
 #include <charconv>
 #include <cctype>
 #include <cstring>
+#include <ctime>
+#include <deque>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <mutex>
 #include <optional>
 #include <sstream>
+#include <unordered_map>
 #include <utility>
 
 namespace graph::dashboard {
@@ -101,6 +108,22 @@ std::optional<std::size_t> ParseContentLength(const std::string &request_text) {
     }
   }
   return std::nullopt;
+}
+
+std::optional<std::uint64_t> ParseUint64(const std::string &value) {
+  if (value.empty()) {
+    return std::nullopt;
+  }
+  std::uint64_t parsed = 0;
+  const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+  if (ec != std::errc{} || ptr != value.data() + value.size()) {
+    return std::nullopt;
+  }
+  return parsed;
+}
+
+bool ParseBool(const std::string &value) {
+  return value == "1" || value == "true" || value == "yes";
 }
 
 } // namespace
@@ -193,6 +216,12 @@ void EmbeddedDashboardServer::Stop() {
   if (runtime_session_) {
     runtime_session_->MarkDead();
   }
+
+  {
+    std::scoped_lock lock(event_mutex_);
+    clients_.clear();
+    retained_events_.clear();
+  }
 }
 
 bool EmbeddedDashboardServer::IsRunning() const { return running_.load(); }
@@ -200,6 +229,28 @@ bool EmbeddedDashboardServer::IsRunning() const { return running_.load(); }
 std::uint16_t EmbeddedDashboardServer::BoundPort() const { return bound_port_; }
 
 const std::string &EmbeddedDashboardServer::LastError() const { return last_error_; }
+
+void EmbeddedDashboardServer::PublishEventForTesting(
+    std::string event_type, nlohmann::json payload,
+    std::optional<std::uint64_t> revision) {
+  PublishEvent(std::move(event_type), std::move(payload), revision);
+}
+
+void EmbeddedDashboardServer::ExpireRetainedEventsForTesting() {
+  std::scoped_lock lock(event_mutex_);
+  retained_events_.clear();
+}
+
+void EmbeddedDashboardServer::SetEventQueueDepthForTesting(std::size_t depth) {
+  std::scoped_lock lock(event_mutex_);
+  per_client_queue_depth_ = std::max<std::size_t>(1, depth);
+}
+
+void EmbeddedDashboardServer::SetEventRetentionForTesting(
+    std::chrono::milliseconds retention) {
+  std::scoped_lock lock(event_mutex_);
+  event_retention_window_ = retention;
+}
 
 bool EmbeddedDashboardServer::ValidateStartup() {
   if (!configuration_service_) {
@@ -435,6 +486,29 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                                                         {"api_version", "v1"}})};
   }
 
+  if (request.path == "/api/v1/events" && request.method == "GET") {
+    const auto client_id = GetQueryValue(request.query, "client_id");
+    const auto last_sequence_raw = GetQueryValue(request.query, "last_sequence");
+    const auto disconnect = ParseBool(GetQueryValue(request.query, "disconnect"));
+
+    std::optional<std::uint64_t> last_sequence;
+    if (!last_sequence_raw.empty()) {
+      last_sequence = ParseUint64(last_sequence_raw);
+      if (!last_sequence) {
+        return Response{.status_code = 400,
+                        .content_type = "application/json",
+                        .body = ErrorBody(400, "invalid_last_sequence",
+                                          "last_sequence must be an unsigned integer")};
+      }
+    }
+
+    const auto events = PollEvents(client_id.empty() ? "default" : client_id,
+                                   last_sequence, disconnect);
+    return Response{.status_code = 200,
+                    .content_type = "application/json",
+                    .body = JsonResponse(events)};
+  }
+
   if (request.path == "/api/v1/graph") {
     return Response{.status_code = 200,
                     .content_type = "application/json",
@@ -523,6 +597,7 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/metrics") {
+    PublishEvent("metrics", snapshot_collector_->GetMetricsSnapshot());
     return Response{.status_code = 200,
                     .content_type = "application/json",
                     .body = JsonResponse(snapshot_collector_->GetMetricsSnapshot())};
@@ -535,6 +610,7 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/diagnostics") {
+    PublishEvent("diagnostics", snapshot_collector_->GetDiagnosticsSnapshot());
     return Response{.status_code = 200,
                     .content_type = "application/json",
                     .body = JsonResponse(snapshot_collector_->GetDiagnosticsSnapshot())};
@@ -598,13 +674,20 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/status" && request.method == "GET") {
+    const auto status = RuntimeStatusJson(runtime_session_->SnapshotStatus());
+    PublishEvent("status", status);
     return Response{.status_code = 200,
                     .content_type = "application/json",
-                    .body = JsonResponse(RuntimeStatusJson(runtime_session_->SnapshotStatus()))};
+                    .body = JsonResponse(status)};
   }
 
   if (request.path == "/api/v1/commands/start" && request.method == "POST") {
     const auto result = runtime_session_->Start();
+    PublishEvent("command",
+                 nlohmann::json{{"command", "start"},
+                                {"status", result.status_code == 202 ? "accepted" : "rejected"},
+                                {"code", result.code},
+                                {"message", result.message}});
     if (result.status_code != 202) {
       return Response{.status_code = result.status_code,
                       .content_type = "application/json",
@@ -620,6 +703,11 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
 
   if (request.path == "/api/v1/commands/stop" && request.method == "POST") {
     const auto result = runtime_session_->Stop();
+    PublishEvent("command",
+                 nlohmann::json{{"command", "stop"},
+                                {"status", result.status_code == 202 ? "accepted" : "rejected"},
+                                {"code", result.code},
+                                {"message", result.message}});
     if (result.status_code != 202) {
       return Response{.status_code = result.status_code,
                       .content_type = "application/json",
@@ -654,6 +742,10 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                             : request.path == "/api/v1/commands/continue"
                                   ? fhss_controller_->Continue(body)
                                   : fhss_controller_->Reset(body);
+    PublishEvent("fhss_progress",
+           nlohmann::json{{"path", request.path},
+                  {"status_code", result.status_code},
+                  {"response", result.body}});
     return Response{.status_code = result.status_code,
                     .content_type = "application/json",
                     .body = JsonResponse(result.body)};
@@ -808,6 +900,173 @@ std::string EmbeddedDashboardServer::BuildHttpResponse(const Response &response)
   wire << "Connection: close\r\n\r\n";
   wire << response.body;
   return wire.str();
+}
+
+std::string EmbeddedDashboardServer::NowIso8601() const {
+  const auto now = std::chrono::system_clock::now();
+  const auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+  const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - seconds);
+  std::time_t tt = std::chrono::system_clock::to_time_t(now);
+  std::tm tm{};
+#if defined(_WIN32)
+  gmtime_s(&tm, &tt);
+#else
+  gmtime_r(&tt, &tm);
+#endif
+  std::ostringstream stream;
+  stream << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S") << '.' << std::setw(3)
+         << std::setfill('0') << ms.count() << 'Z';
+  return stream.str();
+}
+
+nlohmann::json EmbeddedDashboardServer::EventEnvelopeJson(
+    const EventEnvelope &event) const {
+  nlohmann::json json{{"schema", "graphx.dashboard.event.v1"},
+                      {"event_type", event.event_type},
+                      {"sequence", event.sequence},
+                      {"timestamp", event.timestamp},
+                      {"payload", event.payload}};
+  if (event.revision.has_value()) {
+    json["revision"] = *event.revision;
+  }
+  return json;
+}
+
+void EmbeddedDashboardServer::TrimRetainedEventsLocked(
+    std::chrono::system_clock::time_point now) const {
+  while (!retained_events_.empty()) {
+    const auto expired = retained_events_.front().second + event_retention_window_ < now;
+    if (!expired) {
+      break;
+    }
+    retained_events_.pop_front();
+  }
+
+  constexpr std::size_t kMaxRetainedEvents = 4096;
+  while (retained_events_.size() > kMaxRetainedEvents) {
+    retained_events_.pop_front();
+  }
+}
+
+void EmbeddedDashboardServer::PublishEvent(
+    std::string event_type, nlohmann::json payload,
+    std::optional<std::uint64_t> revision) const {
+  const auto now = std::chrono::system_clock::now();
+  std::scoped_lock lock(event_mutex_);
+  TrimRetainedEventsLocked(now);
+
+  EventEnvelope envelope;
+  envelope.sequence = next_event_sequence_++;
+  envelope.event_type = std::move(event_type);
+  envelope.timestamp = NowIso8601();
+  envelope.revision = revision;
+  envelope.payload = std::move(payload);
+
+  retained_events_.emplace_back(envelope, now);
+
+  for (auto &[client_id, client] : clients_) {
+    if (client.resync_required) {
+      (void)client_id;
+      continue;
+    }
+    if (client.queue.size() >= per_client_queue_depth_) {
+      dropped_events_total_ += client.queue.size();
+      client.dropped_events += client.queue.size();
+      client.queue.clear();
+      client.resync_required = true;
+      ++coalesced_events_total_;
+      continue;
+    }
+    client.queue.push_back(envelope);
+  }
+}
+
+nlohmann::json EmbeddedDashboardServer::PollEvents(
+    const std::string &client_id, std::optional<std::uint64_t> last_sequence,
+    bool clear_client) const {
+  std::vector<EventEnvelope> outbound;
+  bool resync_required = false;
+  std::uint64_t latest_sequence = 0;
+  std::uint64_t dropped_events = 0;
+  std::uint64_t delivered_through = last_sequence.value_or(0);
+
+  {
+    std::scoped_lock lock(event_mutex_);
+    const auto now = std::chrono::system_clock::now();
+    TrimRetainedEventsLocked(now);
+
+    if (clear_client) {
+      clients_.erase(client_id);
+      ++reconnects_total_;
+    }
+
+    auto &client = clients_[client_id];
+    if (client.queue.empty() && !clear_client) {
+      ++reconnects_total_;
+    }
+
+    dropped_events = client.dropped_events;
+    client.dropped_events = 0;
+
+    if (!retained_events_.empty()) {
+      latest_sequence = retained_events_.back().first.sequence;
+      if (last_sequence.has_value()) {
+        const auto expected_first = *last_sequence + 1;
+        const auto first_available = retained_events_.front().first.sequence;
+        if (expected_first < first_available || *last_sequence > latest_sequence) {
+          client.resync_required = true;
+          resync_required = true;
+        } else if (expected_first <= latest_sequence) {
+          std::uint64_t expected = expected_first;
+          for (const auto &[event, _time_point] : retained_events_) {
+            if (event.sequence <= *last_sequence) {
+              continue;
+            }
+            if (event.sequence != expected) {
+              client.resync_required = true;
+              resync_required = true;
+              break;
+            }
+            outbound.push_back(event);
+            delivered_through = event.sequence;
+            ++expected;
+          }
+        }
+      }
+    }
+
+    if (client.resync_required) {
+      resync_required = true;
+      outbound.clear();
+      client.queue.clear();
+    } else {
+      while (!client.queue.empty()) {
+        if (client.queue.front().sequence > delivered_through) {
+          outbound.push_back(client.queue.front());
+        }
+        client.queue.pop_front();
+      }
+      if (!outbound.empty()) {
+        latest_sequence = std::max(latest_sequence, outbound.back().sequence);
+      }
+    }
+  }
+
+  nlohmann::json events = nlohmann::json::array();
+  for (const auto &event : outbound) {
+    events.push_back(EventEnvelopeJson(event));
+  }
+
+  return nlohmann::json{{"schema", "graphx.dashboard.events_batch.v1"},
+                        {"stream", "/api/v1/events"},
+                        {"client_id", client_id},
+                        {"resync_required", resync_required},
+                        {"latest_sequence", latest_sequence},
+                        {"events", std::move(events)},
+                        {"counters", nlohmann::json{{"dropped_events", dropped_events},
+                                                      {"dropped_events_total", dropped_events_total_},
+                                                      {"coalesced_events_total", coalesced_events_total_},
+                                                      {"reconnects_total", reconnects_total_}}}};
 }
 
 } // namespace graph::dashboard
