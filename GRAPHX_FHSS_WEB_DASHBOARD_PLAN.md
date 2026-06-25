@@ -37,10 +37,9 @@ loaded and validated but before execution begins.
 The recommended development sequence is:
 
 ```text
-Server shell
-  -> effective JSON graph viewer
-  -> parameter inspection and staged JSON Pointer updates
-  -> validated graph rebuild/run
+Step 1: server shell + ConfigurationService + GraphRuntimeSession (stub) + Snapshot interfaces + graph viewer
+  -> Step 2: parameter inspection + staged configuration + validation
+  -> Step 3: runtime enablement + rebuild + execution lifecycle
   -> generic status and metrics
   -> FHSS message-at-a-time stepping
   -> WebSocket live updates
@@ -221,7 +220,8 @@ Configuration edits can invalidate the graph or require plugin reconstruction.
 
 Reuse these existing GraphX surfaces:
 
-- `fhss_demo.cpp` for source/effective configuration and executor creation;
+- `fhss_demo.cpp` as a thin client/host that delegates configuration ownership
+  and derivation to `GraphConfigurationService`;
 - `GraphManager::GetNodes()`, `GetEdges()`, edge metadata, and metrics;
 - `NodeFacadeAdapterWrapper::GetName()`, `GetType()`, and adapter access;
 - `IParameterized` for parameter values and descriptions;
@@ -287,6 +287,11 @@ Generic responsibilities:
 - serialize commands;
 - collect immutable snapshots;
 - export generic artifacts.
+
+Phasing note: introduce stable interfaces for `GraphRuntimeSession`,
+`GraphConfigurationService` (ConfigurationService), and
+`GraphSnapshotCollector`/SnapshotService in Step 1 as lightweight stubs so
+later phases add behavior without breaking API/service boundaries.
 
 ### 3.2 FHSS-specific components
 
@@ -373,10 +378,11 @@ ActiveGraph revision N+1
 
 ### 4.2 Authoritative and derived FHSS configuration
 
-There is one authoritative FHSS scenario document. For compatibility with the
-current canonical graph, it is sourced from the
-`FHSSSyntheticIqSourceNode.node_config`, but it is exposed by the configuration
-service as a first-class logical resource:
+There is one authoritative FHSS scenario document. `GraphConfigurationService`
+is the canonical owner from Step 1 onward. For compatibility with the current
+canonical graph, the service maps the authoritative scenario to/from
+`FHSSSyntheticIqSourceNode.node_config` and exposes it as a first-class logical
+resource:
 
 ```text
 /fhss/scenario
@@ -385,8 +391,8 @@ service as a first-class logical resource:
 The service maps this logical resource to the source node by stable node id,
 never by `nodes[]` array position. `FHSSConfigurationDeriver` replaces the
 ad-hoc patching currently performed by `PatchNodeConfigs()` in
-`fhss_demo.cpp`. CLI, HTTP, tests, and graph construction all call the same
-deriver.
+`fhss_demo.cpp`. CLI, HTTP, tests, `fhss_demo.cpp`, and graph construction all
+call the same service-owned deriver.
 
 #### Authoritative user-owned fields
 
@@ -867,7 +873,13 @@ GET  /api/v1/graph
 GET  /api/v1/config
 GET  /api/v1/nodes/{nodeId}
 GET  /api/v1/nodes/{nodeId}/parameters
+GET  /api/v1/metrics
+GET  /api/v1/metrics/edges
 ```
+
+Step 1 metrics contract: these endpoints return schema-stable
+empty/default snapshots (for example, zeroed counters and empty edge lists).
+Step 4 populates these same schemas with real runtime values.
 
 Added in Step 2 (staged mutation and validation):
 
@@ -887,8 +899,6 @@ Later additions (Step 3+):
 ```text
 POST /api/v1/config/rebuild
 GET  /api/v1/status
-GET  /api/v1/metrics
-GET  /api/v1/metrics/edges
 GET  /api/v1/diagnostics
 GET  /api/v1/fhss/scenario
 GET  /api/v1/fhss/messages
@@ -952,39 +962,33 @@ Long-running execution must never block HTTP worker threads.
 `/readyz` is derived from one explicit dashboard lifecycle state machine and
 must use this contract everywhere in the plan and implementation.
 
-States and HTTP mapping:
+Unified lifecycle model (single source of truth):
 
-- `starting`: process alive but required dashboard services not initialized.
+```text
+Starting -> Ready (NoRun) -> Ready (Running) -> Rebuilding (503) -> Ready -> Stopping -> Dead
+```
+
+State semantics and `/readyz` mapping:
+
+- `Starting`: process alive but required dashboard services not initialized.
   `/readyz` = `503`.
-- `ready_no_run`: `--dashboard-no-run` mode with config + command services
-  initialized and API command handling safe. `/readyz` = `200`.
-- `ready_idle`: runtime-capable mode with no active command/rebuild transition.
+- `Ready (NoRun)`: `--dashboard-no-run` mode with config/command services ready.
   `/readyz` = `200`.
-- `ready_running`: runtime-capable mode executing workload where command
-  handling remains safe. `/readyz` = `200`.
-- `transition_rebuild`: rebuild/swap in progress or runtime service transition
-  where command handling is intentionally blocked. `/readyz` = `503`.
-- `draining_shutdown`: shutdown initiated (`SIGINT`, `SIGTERM`, or explicit
-  stop); reject new work and drain existing operations. `/readyz` = `503`.
-- `terminated`: process exits; endpoint unavailable.
-
-Required transitions:
-
-- startup -> `starting`
-- `starting` -> `ready_no_run` (when `--dashboard-no-run` services initialize)
-- `starting` -> `ready_idle` (runtime-capable initialization complete)
-- `ready_idle` <-> `ready_running` (start/stop/complete execution)
-- `ready_idle`/`ready_running` -> `transition_rebuild` (accepted rebuild)
-- `transition_rebuild` -> `ready_idle` (successful swap or restore previous
-  valid session)
-- any non-terminated state -> `draining_shutdown` (signal/explicit shutdown)
-- `draining_shutdown` -> `terminated`
+- `Ready (Running)`: runtime-capable execution state where command handling
+  remains safe. `/readyz` = `200`.
+- `Rebuilding (503)`: rebuild/swap transition where command handling is blocked.
+  `/readyz` = `503`.
+- `Ready`: runtime-capable idle/ready state after initialization, run
+  completion, or successful rebuild restore/swap. `/readyz` = `200`.
+- `Stopping`: shutdown initiated (`SIGINT`, `SIGTERM`, or explicit stop), no
+  new work accepted. `/readyz` = `503`.
+- `Dead`: process exited; endpoint unavailable.
 
 Operational invariants:
 
 - `/healthz` remains `200` while the process/event loop is alive, independent
   of `/readyz`.
-- `--dashboard-no-run` never transitions to `ready_running`.
+- `--dashboard-no-run` may enter `Ready (NoRun)` but never `Ready (Running)`.
 - Rebuild requests not valid for current runtime state are rejected with
   `409 invalid_state` and do not change readiness state.
 
@@ -1400,9 +1404,16 @@ Deliver:
 
 - optional server dependency/build target;
 - embedded minimal HTML/CSS/JS;
+- introduce Step-1 stubs with stable interfaces for:
+  - `GraphConfigurationService` (canonical configuration owner; mutation and
+    rebuild capabilities are phased in later steps);
+  - `GraphRuntimeSession` (no build/run logic yet);
+  - `GraphSnapshotCollector`/SnapshotService (read-focused baseline);
 - health/readiness/version endpoints;
 - load and retain the FHSS effective graph without executing it;
 - `/api/v1/graph` and `/api/v1/config`;
+- schema-stable `/api/v1/metrics` and `/api/v1/metrics/edges` endpoints with
+  empty/default payloads;
 - graph node/edge display;
 - per-node dropdown with declarative data only in Step 1: configured
   `node_config`, ids/types, and declared ports/edges;
@@ -1420,6 +1431,8 @@ Acceptance:
 - browser displays the canonical JSON graph;
 - selecting every node is safe, including nodes without parameters;
 - curl can retrieve the same graph JSON;
+- metrics endpoints exist in Step 1 and return schema-valid empty/default
+  snapshots;
 - server is runnable and useful before executor integration.
 
 ### Step 2 — Parameter metadata and staged configuration editing
@@ -1481,7 +1494,8 @@ Acceptance:
 
 Deliver:
 
-- `GraphRuntimeSession`;
+- enable full runtime lifecycle behavior in the existing Step-1
+  `GraphRuntimeSession` stub;
 - validate/build/rebuild commands;
 - rebuild lifecycle policy with explicit allowed states and `409 invalid_state`
   rejection during execution;
@@ -1510,8 +1524,9 @@ Acceptance:
 
 Deliver:
 
-- aggregate GraphMetrics snapshot;
-- per-edge metrics using edge metadata;
+- populate existing `/api/v1/metrics` aggregate snapshot endpoint with real
+  runtime values;
+- populate existing `/api/v1/metrics/edges` endpoint using edge metadata;
 - node diagnostics enumeration;
 - topology edge coloring;
 - CLI commands backed by the same snapshot services.
@@ -1519,6 +1534,8 @@ Deliver:
 Acceptance:
 
 - browser and CLI report the same snapshot values;
+- Step 1 metrics endpoint schemas remain unchanged while transitioning from
+  empty/default to populated runtime values;
 - no dashboard-only metrics implementation;
 - server remains runnable with graph stopped or completed.
 
@@ -1696,7 +1713,17 @@ Acceptance:
 - controller and HTTP stepping behavior are covered without adding a CLI step
   command.
 
-### Browser tests
+### API contract tests (automation/golden)
+
+- golden comparisons are API-based only; DOM/rendered UI output is not used as
+  a golden source;
+- schema/version compatibility checks for `/api/v1/*` responses;
+- deterministic canonical JSON comparison for graph/config/metrics/status
+  snapshots;
+- reconnect/gap test: force sequence gap and verify required HTTP resync before
+  stream resume.
+
+### UI smoke tests (browser automation)
 
 Use a small browser automation smoke suite:
 
@@ -1708,8 +1735,45 @@ Use a small browser automation smoke suite:
 - validate;
 - export/rebuild;
 - later step one message and inspect completion.
-- reconnect/gap test: force sequence gap and verify required HTTP resync before
-  stream resume.
+
+### Browser concurrency tests
+
+- two browser sessions edit configuration concurrently and produce deterministic
+  optimistic-concurrency outcomes;
+- stale revision writes from one browser are rejected while the other browser
+  has advanced the revision, with clear conflict feedback;
+- rebuild requests during active multi-browser sessions preserve state
+  consistency while one browser reconnects;
+- browser refresh during rebuild transitions from not-ready to ready state
+  without showing mixed revision data;
+- WebSocket timeout and reconnect in one browser while another continues
+  editing forces correct gap detection and required HTTP resynchronization.
+
+### Failure injection tests
+
+- executor construction failure: inject deterministic construction errors and
+  verify previous valid session/config retention, stable error codes, and no
+  partial activation;
+- plugin loading failure: simulate missing/incompatible plugin binaries and
+  verify startup/build paths fail safely with actionable diagnostics;
+- dashboard startup failure: inject bind/asset/config startup failures and
+  verify clean not-ready behavior plus deterministic process exit or recovery
+  path;
+- disk full during artifact export: inject write failures (`ENOSPC`) and verify
+  operation failure is terminal, partial files are handled deterministically,
+  and active runtime/config state remains unchanged;
+- WebSocket disconnect: inject abrupt client/server disconnects during active
+  updates and verify reconnect/resync correctness without runtime-thread
+  blockage;
+- thread interruption: inject interruption/cancellation into snapshot,
+  command-queue, and runtime-owner threads and verify graceful degradation and
+  shutdown invariants;
+- queue disable during rebuild: inject source-queue disable while rebuild is in
+  progress and verify first-terminal-wins/cancellation rules plus no mixed
+  session state;
+- process shutdown during rebuild: inject `SIGINT`/`SIGTERM` during
+  `Rebuilding (503)` and verify ordered teardown, readiness transition, and no
+  orphaned operations.
 
 ## 15. Security and Operational Standards
 
@@ -1879,9 +1943,9 @@ The following decisions are now explicit defaults for implementation:
 - Decision 17: Readiness semantics practical default (automation-friendly):
   - `/readyz` follows the canonical lifecycle state machine in Section 6.2.
   - `/healthz`: returns 200 whenever the process/event loop is alive.
-  - `--dashboard-no-run` readiness is represented by state `ready_no_run`.
+  - `--dashboard-no-run` readiness is represented by state `Ready (NoRun)`.
   - Rebuild/swap readiness behavior is represented by state
-    `transition_rebuild`.
+    `Rebuilding (503)`.
 
 - Decision 18: Deterministic dashboard test baseline practical default
   (automation-friendly):
