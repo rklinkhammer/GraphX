@@ -4,6 +4,7 @@
 
 #include "config/ConfigError.hpp"
 #include "core/ActiveQueue.hpp"
+#include "dsp/fhss/FHSSChannelIqCapture.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
 #include "graph/FixedFanInOutNode.hpp"
@@ -18,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -53,6 +55,7 @@ struct FHSSChannelizerConfig {
   double channel_sample_rate_hz = FHSSProtocolConstants::kSampleRateHz;
   std::uint32_t decimation_factor = 1;
   std::int64_t filter_group_delay_input_samples = 0;
+  FHSSChannelIqCaptureConfig iq_capture{};
 };
 
 [[nodiscard]] inline std::vector<std::uint32_t>
@@ -76,6 +79,22 @@ ValidateFHSSChannelizerConfig(const FHSSChannelizerConfig &config) {
     return std::unexpected(MakeError(
         FHSSValidationCode::InvalidTiming,
         "channelizer decimation and channel sample rate must be positive"));
+  }
+  if (config.iq_capture.enabled && config.iq_capture.output_directory.empty()) {
+    return std::unexpected(MakeError(
+        FHSSValidationCode::InvalidFrequencyTable,
+        "enabled channel IQ capture requires an output directory"));
+  }
+  std::set<std::uint32_t> capture_indices;
+  for (const auto index : config.iq_capture.frequency_indices) {
+    if (auto validation = ValidateFrequencyIndex(index); !validation) {
+      return validation;
+    }
+    if (!capture_indices.insert(index).second) {
+      return std::unexpected(MakeError(
+          FHSSValidationCode::InvalidFrequencyTable,
+          "channel IQ capture frequency indices must be distinct"));
+    }
   }
   const auto receiver_indices = config.receiver_frequency_indices.empty()
                                     ? FHSSAllFrequencyIndices()
@@ -159,6 +178,20 @@ FHSSChannelizerConfigFromJson(const graph::JsonView &cfg) {
   config.filter_group_delay_input_samples =
       static_cast<std::int64_t>(FHSSJsonUint64(
           json, "filter_group_delay_input_samples", 0));
+  if (json.contains("iq_capture")) {
+    const auto &capture = json.at("iq_capture");
+    if (!capture.is_object()) {
+      throw graph::ConfigError("channelizer iq_capture must be an object");
+    }
+    config.iq_capture.enabled = capture.value("enabled", false);
+    config.iq_capture.output_directory =
+        capture.value("output_directory", std::string{});
+    config.iq_capture.overwrite = capture.value("overwrite", true);
+    if (capture.contains("frequency_indices")) {
+      config.iq_capture.frequency_indices =
+          FHSSJsonUint32Array(capture, "frequency_indices");
+    }
+  }
   if (auto validation = ValidateFHSSChannelizerConfig(config); !validation) {
     throw graph::ConfigError(validation.error().message);
   }
@@ -219,6 +252,11 @@ public:
     params["decimation_factor"] = config_.decimation_factor;
     params["filter_group_delay_input_samples"] =
         config_.filter_group_delay_input_samples;
+    params["iq_capture"] = {
+        {"enabled", config_.iq_capture.enabled},
+        {"output_directory", config_.iq_capture.output_directory.string()},
+        {"frequency_indices", config_.iq_capture.frequency_indices},
+        {"overwrite", config_.iq_capture.overwrite}};
     return FHSSStableParameterJsonView(std::move(params));
   }
 
@@ -240,7 +278,8 @@ public:
             "transmitted_pulse_frequency_indices",
             "channel_sample_rate_hz",
             "decimation_factor",
-            "filter_group_delay_input_samples"};
+            "filter_group_delay_input_samples",
+            "iq_capture"};
   }
 
   template <std::size_t Port>
@@ -331,6 +370,12 @@ private:
       OutputTokenType output;
       output.token_id = input.token_id;
       output.sidecar = BuildChannelPacket(input.sidecar, freq_map[Port], Port);
+      std::string capture_error;
+      if (!WriteFHSSChannelIqSigMf(output.sidecar, config_.iq_capture,
+                                   &capture_error)) {
+        throw std::runtime_error("ChannelizerNode IQ capture failed: " +
+                                 capture_error);
+      }
 
       if (!Base::template EnqueueOutput<Port>(output)) {
         return false;

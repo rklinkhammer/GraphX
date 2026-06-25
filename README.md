@@ -269,6 +269,69 @@ tmpdir="$(mktemp -d)"
   --executor-timeout-s 12
 ```
 
+Create a validated message schedule instead of editing JSON by hand:
+
+```bash
+python3 examples/DSP/tools/fhss_message_tool.py create \
+  /tmp/fhss_messages.json \
+  --message-id 100 \
+  --transmit-start-sample 0 \
+  --active-frequencies 24,28,32,36 \
+  --preamble-words 0xaaaaaaaa,0x77777777,0x12121212,0x62626262 \
+  --body 36:0xdeadbeef \
+  --body 24:0x12345678
+
+python3 examples/DSP/tools/fhss_message_tool.py validate \
+  /tmp/fhss_messages.json
+```
+
+Append another non-overlapping message with `add-message`. The active
+frequencies and preamble words are explicit, and each `--body` argument is
+`FREQUENCY_INDEX:UINT32_VALUE`. Values accept decimal or `0x` notation.
+
+Capture selected `ChannelizerNode` outputs for spectrum analysis:
+
+```bash
+tmpdir="$(mktemp -d)"
+./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
+  --message-json /tmp/fhss_messages.json \
+  --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
+  --channel-iq-dir "$tmpdir/channel-iq" \
+  --channel-iq-indices active \
+  --summary-json "$tmpdir/fhss_summary.json" \
+  --executor-timeout-s 12
+```
+
+`--channel-iq-indices` accepts `active`, `all`, or a comma-separated list such
+as `24,36`. Capture is opt-in because a full 64-channel run can produce large
+artifacts. Each selected channel produces:
+
+- `channel_NN_frequency_NN.sigmf-data`: interleaved little-endian float32 IQ
+  (`cf32_le`);
+- `channel_NN_frequency_NN.sigmf-meta`: SigMF metadata containing sample rate,
+  RF metadata frequency, IQ offset, channel id, frequency index, decimation,
+  group delay, and global sample origin.
+
+The captured samples are the actual complex IQ emitted by the corresponding
+`ChannelizerNode` output port. They can be opened by SigMF-aware tools or
+imported as interleaved float32 IQ in a spectrum analyzer. The channelizer
+remains a deterministic CPU fixture, not a production filter-bank claim.
+
+The same behavior can be configured directly through `ChannelizerNode`:
+
+```json
+{
+  "iq_capture": {
+    "enabled": true,
+    "output_directory": "/tmp/fhss-channel-iq",
+    "frequency_indices": [24, 28, 32, 36],
+    "overwrite": true
+  }
+}
+```
+
+An empty `frequency_indices` array means all 64 channelizer outputs.
+
 External message JSON may be a full `FHSSSyntheticIqSourceNode` `node_config`
 object or an object with a `node_config` field. It must provide `messages[]`.
 Each pulse must provide `frequency_index`, `value`, and `role`.

@@ -4,6 +4,7 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -37,6 +38,8 @@ struct CliOptions {
   std::filesystem::path message_json_path;
   std::filesystem::path summary_json_path;
   std::filesystem::path effective_config_path;
+  std::filesystem::path channel_iq_directory;
+  std::string channel_iq_indices = "active";
   int executor_timeout_s = 12;
   std::size_t decoded_pulse_limit = 8;
   bool print_effective_config = false;
@@ -69,12 +72,15 @@ void PrintUsage() {
       << "Usage: graphx-dsp-fhss-demo [--graph-config path] [--message-json path]\n"
          "                             [--plugin-dir path] [--summary-json path]\n"
          "                             [--effective-config-json path]\n"
+         "                             [--channel-iq-dir path]\n"
+         "                             [--channel-iq-indices active|all|csv]\n"
          "                             [--executor-timeout-s n]\n"
          "                             [--decoded-pulse-limit n]\n\n"
          "Message JSON may be either a full FHSS source node_config object or an\n"
          "object with a node_config field. It must include messages[]. The demo\n"
          "patches source/decoder graph node configs and then runs the real GraphX\n"
-         "FHSS graph through GraphExecutorBuilder.\n";
+         "FHSS graph through GraphExecutorBuilder. Channel IQ capture writes\n"
+         "SigMF cf32_le data and metadata at the ChannelizerNode output.\n";
 }
 
 CliOptions ParseArgs(int argc, char **argv) {
@@ -109,6 +115,16 @@ CliOptions ParseArgs(int argc, char **argv) {
         throw std::invalid_argument("--effective-config-json requires a path");
       }
       options.effective_config_path = argv[++i];
+    } else if (arg == "--channel-iq-dir") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument("--channel-iq-dir requires a path");
+      }
+      options.channel_iq_directory = argv[++i];
+    } else if (arg == "--channel-iq-indices") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument("--channel-iq-indices requires a value");
+      }
+      options.channel_iq_indices = argv[++i];
     } else if (arg == "--executor-timeout-s") {
       if (i + 1 >= argc) {
         throw std::invalid_argument("--executor-timeout-s requires a value");
@@ -252,6 +268,73 @@ void PatchNodeConfigs(nlohmann::json &graph_config,
   }
 }
 
+std::vector<std::uint32_t>
+ParseChannelIqIndices(const std::string &selection,
+                      const nlohmann::json &source_config) {
+  if (selection == "all") {
+    return {};
+  }
+  if (selection == "active") {
+    return source_config.at("active_frequency_indices")
+        .get<std::vector<std::uint32_t>>();
+  }
+
+  std::vector<std::uint32_t> indices;
+  std::size_t begin = 0;
+  while (begin < selection.size()) {
+    const auto end = selection.find(',', begin);
+    const auto token = selection.substr(begin, end - begin);
+    const auto value = ParseUint64Option("--channel-iq-indices", token.c_str());
+    if (value >= 64) {
+      throw std::invalid_argument(
+          "--channel-iq-indices values must be in [0,63]");
+    }
+    indices.push_back(static_cast<std::uint32_t>(value));
+    if (end == std::string::npos) {
+      break;
+    }
+    begin = end + 1;
+  }
+  if (indices.empty()) {
+    throw std::invalid_argument(
+        "--channel-iq-indices requires active, all, or a CSV list");
+  }
+  return indices;
+}
+
+void PatchChannelIqCapture(nlohmann::json &graph_config,
+                           const CliOptions &options) {
+  if (options.channel_iq_directory.empty()) {
+    return;
+  }
+
+  const auto source_it =
+      std::ranges::find_if(graph_config.at("nodes"), [](const auto &node) {
+        return node.at("type") == "FHSSSyntheticIqSourceNode";
+      });
+  if (source_it == graph_config.at("nodes").end()) {
+    throw std::invalid_argument("FHSS graph has no synthetic IQ source");
+  }
+  const auto indices = ParseChannelIqIndices(
+      options.channel_iq_indices, source_it->at("node_config"));
+
+  bool patched = false;
+  for (auto &node : graph_config.at("nodes")) {
+    if (node.at("type") != "ChannelizerNode") {
+      continue;
+    }
+    node["node_config"]["iq_capture"] = {
+        {"enabled", true},
+        {"output_directory", options.channel_iq_directory.string()},
+        {"frequency_indices", indices},
+        {"overwrite", true}};
+    patched = true;
+  }
+  if (!patched) {
+    throw std::invalid_argument("FHSS graph has no ChannelizerNode");
+  }
+}
+
 std::filesystem::path DefaultEffectiveConfigPath() {
   return std::filesystem::temp_directory_path() /
          "graphx_fhss_demo_effective_config.json";
@@ -309,7 +392,7 @@ nlohmann::json BuildSummary(const CliOptions &options,
                             const graph::ExecutionResult &result,
                             const graph::GraphManager &manager,
                             const nlohmann::json &diagnostics) {
-  return nlohmann::json{
+  nlohmann::json summary{
       {"schema", "graphx.dsp.fhss_demo_summary.v1"},
       {"graph_config_path", options.config_path.string()},
       {"effective_config_path", effective_config_path.string()},
@@ -324,6 +407,27 @@ nlohmann::json BuildSummary(const CliOptions &options,
                  {"edge_count", manager.GetEdges().size()}}},
       {"graph_metrics", GraphMetricsJson(manager.GetMetrics())},
       {"fhss_diagnostics", diagnostics}};
+  if (!options.channel_iq_directory.empty()) {
+    std::vector<std::string> artifact_paths;
+    if (std::filesystem::exists(options.channel_iq_directory)) {
+      for (const auto &entry :
+           std::filesystem::directory_iterator(options.channel_iq_directory)) {
+        if (entry.path().extension() == ".sigmf-meta") {
+          artifact_paths.push_back(entry.path().string());
+        }
+      }
+    }
+    std::ranges::sort(artifact_paths);
+    summary["channel_iq_capture"] = {
+        {"enabled", true},
+        {"output_directory", options.channel_iq_directory.string()},
+        {"selection", options.channel_iq_indices},
+        {"format", "SigMF cf32_le"},
+        {"metadata_files", std::move(artifact_paths)}};
+  } else {
+    summary["channel_iq_capture"] = {{"enabled", false}};
+  }
+  return summary;
 }
 
 void PrintPulseTable(const nlohmann::json &diagnostics, std::size_t limit) {
@@ -395,6 +499,7 @@ int main(int argc, char **argv) {
     if (!options.message_json_path.empty()) {
       PatchNodeConfigs(graph_config, LoadJson(options.message_json_path));
     }
+    PatchChannelIqCapture(graph_config, options);
 
     auto effective_config_path = options.effective_config_path.empty()
                                      ? DefaultEffectiveConfigPath()

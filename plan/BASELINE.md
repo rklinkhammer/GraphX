@@ -212,6 +212,17 @@ FHSS node/edge requirements:
   active support; do not describe them as retained, canonical, or
   production-like.
 
+FHSS development environment:
+
+- `examples/DSP/tools/fhss_message_tool.py` creates, extends, and validates
+  explicit FHSS message schedules.
+- The demo can opt into per-channel SigMF `cf32_le` capture at the
+  `ChannelizerNode` output boundary.
+- Capture selection may be the four active channels, all 64 channels, or an
+  explicit list. It does not alter the 64-output-port graph invariant.
+- Channel IQ capture is a debug artifact path. It does not change the decoder
+  contract or imply production channelizer performance.
+
 FHSS truth-in-labeling:
 
 - 1 GHz RF values are metadata. Fixture IQ uses baseband/IF offsets.

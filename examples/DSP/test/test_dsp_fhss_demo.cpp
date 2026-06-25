@@ -24,6 +24,14 @@
 #define DSP_FHSS_DEMO_MESSAGE_PATH "examples/DSP/fixtures/fhss_demo_messages.json"
 #endif
 
+#ifndef DSP_FHSS_MESSAGE_TOOL_PATH
+#define DSP_FHSS_MESSAGE_TOOL_PATH "examples/DSP/tools/fhss_message_tool.py"
+#endif
+
+#ifndef DSP_PYTHON_EXECUTABLE
+#define DSP_PYTHON_EXECUTABLE "python3"
+#endif
+
 #ifndef DSP_PLUGIN_OUTPUT_DIRECTORY
 #define DSP_PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
@@ -100,8 +108,110 @@ TEST(DspFhssDemoExecutableTest, PrintsHelp) {
   EXPECT_EQ(result.exit_code, 0) << result.output;
   ExpectContains(result.output, "graphx-dsp-fhss-demo");
   ExpectContains(result.output, "--message-json");
+  ExpectContains(result.output, "--channel-iq-dir");
+  ExpectContains(result.output, "SigMF");
   ExpectContains(result.output, "GraphExecutorBuilder");
   ExpectNotContains(result.output, "--reference-correlator-graph");
+}
+
+TEST(DspFhssDevelopmentEnvironmentTest,
+     MessageToolCreatesAndValidatesRunnableSchedule) {
+  const auto output_dir = TempOutputDir("graphx_dsp_fhss_message_tool_test");
+  const auto message_path = output_dir / "messages.json";
+  const auto python = std::filesystem::path(DSP_PYTHON_EXECUTABLE);
+  const auto tool = std::filesystem::path(DSP_FHSS_MESSAGE_TOOL_PATH);
+
+  const std::string create_command =
+      ShellQuote(python) + " " + ShellQuote(tool) + " create " +
+      ShellQuote(message_path) +
+      " --message-id 77 --transmit-start-sample 0"
+      " --active-frequencies 24,28,32,36"
+      " --preamble-words 0xaaaaaaaa,0x77777777,0x12121212,0x62626262"
+      " --body 36:0xdeadbeef --body 24:0x12345678 2>&1";
+  const auto create_result = RunCommand(create_command);
+  EXPECT_EQ(create_result.exit_code, 0) << create_result.output;
+  ASSERT_TRUE(std::filesystem::exists(message_path));
+
+  const std::string add_command =
+      ShellQuote(python) + " " + ShellQuote(tool) + " add-message " +
+      ShellQuote(message_path) +
+      " --message-id 78 --transmit-start-sample 130000"
+      " --active-frequencies 24,28,32,36"
+      " --preamble-words 0xaaaaaaaa,0x77777777,0x12121212,0x62626262"
+      " --body 28:0xcafebabe 2>&1";
+  const auto add_result = RunCommand(add_command);
+  EXPECT_EQ(add_result.exit_code, 0) << add_result.output;
+
+  const auto validate_result =
+      RunCommand(ShellQuote(python) + " " + ShellQuote(tool) + " validate " +
+                 ShellQuote(message_path) + " 2>&1");
+  EXPECT_EQ(validate_result.exit_code, 0) << validate_result.output;
+  ExpectContains(validate_result.output, "Valid FHSS schedule");
+
+  const auto schedule = LoadJson(message_path);
+  EXPECT_EQ(schedule.at("messages").size(), 2u);
+  EXPECT_EQ(schedule.at("messages").at(0).at("pulses").size(), 18u);
+  EXPECT_EQ(schedule.at("messages")
+                .at(0)
+                .at("pulses")
+                .at(16)
+                .at("value")
+                .get<std::uint32_t>(),
+            0xdeadbeefu);
+  EXPECT_EQ(schedule.at("messages")
+                .at(1)
+                .at("pulses")
+                .at(16)
+                .at("value")
+                .get<std::uint32_t>(),
+            0xcafebabeu);
+}
+
+TEST(DspFhssDevelopmentEnvironmentTest,
+     DemoCapturesSelectedChannelizerOutputAsSigMf) {
+  const std::filesystem::path executable{DSP_FHSS_DEMO_EXECUTABLE_PATH};
+  const auto output_dir = TempOutputDir("graphx_dsp_fhss_sigmf_test");
+  const auto capture_dir = output_dir / "channel_iq";
+  const auto summary_path = output_dir / "summary.json";
+
+  const std::string command =
+      ShellQuote(executable) + " --graph-config " +
+      ShellQuote(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH)) +
+      " --plugin-dir " +
+      ShellQuote(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY)) +
+      " --message-json " +
+      ShellQuote(std::filesystem::path(DSP_FHSS_DEMO_MESSAGE_PATH)) +
+      " --channel-iq-dir " + ShellQuote(capture_dir) +
+      " --channel-iq-indices 24 --summary-json " +
+      ShellQuote(summary_path) + " --executor-timeout-s 12 2>&1";
+
+  const auto result = RunCommand(command);
+  EXPECT_EQ(result.exit_code, 0) << result.output;
+
+  const auto data_path =
+      capture_dir / "channel_24_frequency_24.sigmf-data";
+  const auto metadata_path =
+      capture_dir / "channel_24_frequency_24.sigmf-meta";
+  ASSERT_TRUE(std::filesystem::exists(data_path)) << result.output;
+  ASSERT_TRUE(std::filesystem::exists(metadata_path)) << result.output;
+  EXPECT_GT(std::filesystem::file_size(data_path), 0u);
+
+  const auto metadata = LoadJson(metadata_path);
+  EXPECT_EQ(metadata.at("global").at("core:datatype").get<std::string>(),
+            "cf32_le");
+  EXPECT_DOUBLE_EQ(
+      metadata.at("global").at("core:sample_rate").get<double>(),
+      500'000'000.0);
+  EXPECT_EQ(
+      metadata.at("global").at("graphx:frequency_index").get<std::uint32_t>(),
+      24u);
+
+  const auto summary = LoadJson(summary_path);
+  EXPECT_TRUE(summary.at("channel_iq_capture").at("enabled").get<bool>());
+  EXPECT_EQ(summary.at("channel_iq_capture")
+                .at("metadata_files")
+                .size(),
+            1u);
 }
 
 TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
