@@ -4,6 +4,13 @@
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 
+#ifdef GRAPHX_BUILD_WEB_DASHBOARD
+#include "graph/dashboard/EmbeddedDashboardServer.hpp"
+#include "graph/dashboard/GraphConfigurationService.hpp"
+#include "graph/dashboard/GraphRuntimeSession.hpp"
+#include "graph/dashboard/GraphSnapshotCollector.hpp"
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -14,9 +21,11 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <csignal>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -30,6 +39,10 @@
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 #endif
 
+#ifndef DSP_FHSS_DASHBOARD_ASSET_DIRECTORY
+#define DSP_FHSS_DASHBOARD_ASSET_DIRECTORY "examples/DSP/dashboard"
+#endif
+
 namespace {
 
 struct CliOptions {
@@ -39,10 +52,14 @@ struct CliOptions {
   std::filesystem::path summary_json_path;
   std::filesystem::path effective_config_path;
   std::filesystem::path channel_iq_directory;
+  std::filesystem::path dashboard_assets{DSP_FHSS_DASHBOARD_ASSET_DIRECTORY};
   std::string channel_iq_indices = "active";
   int executor_timeout_s = 12;
+  std::uint16_t dashboard_port = 0;
   std::size_t decoded_pulse_limit = 8;
   bool print_effective_config = false;
+  bool dashboard = false;
+  bool dashboard_no_run = false;
 };
 
 std::uint64_t ParseUint64Option(const std::string &name, const char *raw) {
@@ -67,6 +84,19 @@ int ParsePositiveIntOption(const std::string &name, const char *raw) {
   }
 }
 
+std::uint16_t ParsePortOption(const std::string &name, const char *raw) {
+  try {
+    const auto value = std::stoul(raw);
+    if (value > 65535U) {
+      throw std::invalid_argument("value must be in [0,65535]");
+    }
+    return static_cast<std::uint16_t>(value);
+  } catch (const std::exception &ex) {
+    throw std::invalid_argument(name + " requires a TCP port in [0,65535]: " +
+                                ex.what());
+  }
+}
+
 void PrintUsage() {
   std::cout
       << "Usage: graphx-dsp-fhss-demo [--graph-config path] [--message-json path]\n"
@@ -75,12 +105,16 @@ void PrintUsage() {
          "                             [--channel-iq-dir path]\n"
          "                             [--channel-iq-indices active|all|csv]\n"
          "                             [--executor-timeout-s n]\n"
-         "                             [--decoded-pulse-limit n]\n\n"
+         "                             [--decoded-pulse-limit n]\n"
+         "                             [--dashboard --dashboard-port n]\n"
+         "                             [--dashboard-assets path]\n"
+         "                             [--dashboard-no-run]\n\n"
          "Message JSON may be either a full FHSS source node_config object or an\n"
          "object with a node_config field. It must include messages[]. The demo\n"
          "patches source/decoder graph node configs and then runs the real GraphX\n"
          "FHSS graph through GraphExecutorBuilder. Channel IQ capture writes\n"
-         "SigMF cf32_le data and metadata at the ChannelizerNode output.\n";
+         "SigMF cf32_le data and metadata at the ChannelizerNode output.\n"
+         "Dashboard mode serves static assets and read-only Step-1 APIs.\n";
 }
 
 CliOptions ParseArgs(int argc, char **argv) {
@@ -136,6 +170,20 @@ CliOptions ParseArgs(int argc, char **argv) {
       }
       options.decoded_pulse_limit =
           static_cast<std::size_t>(ParseUint64Option(arg, argv[++i]));
+    } else if (arg == "--dashboard") {
+      options.dashboard = true;
+    } else if (arg == "--dashboard-no-run") {
+      options.dashboard_no_run = true;
+    } else if (arg == "--dashboard-port") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument("--dashboard-port requires a value");
+      }
+      options.dashboard_port = ParsePortOption(arg, argv[++i]);
+    } else if (arg == "--dashboard-assets") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument("--dashboard-assets requires a path");
+      }
+      options.dashboard_assets = argv[++i];
     } else if (arg == "--print-effective-config") {
       options.print_effective_config = true;
     } else {
@@ -490,6 +538,45 @@ void PrintConsoleSummary(const nlohmann::json &summary) {
                   summary.value("decoded_pulse_limit", std::size_t{8}));
 }
 
+#ifdef GRAPHX_BUILD_WEB_DASHBOARD
+std::atomic<bool> g_dashboard_stop_requested{false};
+
+void HandleDashboardSignal(int) { g_dashboard_stop_requested.store(true); }
+
+int RunDashboardNoRunMode(const CliOptions &options,
+                          const nlohmann::json &effective_config) {
+  auto configuration_service =
+      std::make_shared<graph::dashboard::GraphConfigurationService>(
+          effective_config);
+  auto runtime_session =
+      std::make_shared<graph::dashboard::GraphRuntimeSession>();
+  auto snapshot_collector =
+      std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+
+  graph::dashboard::EmbeddedDashboardServer::Options server_options;
+  server_options.port = options.dashboard_port;
+  server_options.asset_directory = options.dashboard_assets;
+
+  graph::dashboard::EmbeddedDashboardServer server(
+      server_options, configuration_service, runtime_session, snapshot_collector);
+  if (!server.Start()) {
+    throw std::runtime_error("failed to start dashboard: " + server.LastError());
+  }
+
+  std::cout << "Dashboard URL: http://127.0.0.1:" << server.BoundPort() << "\n";
+  std::cout << "Dashboard no-run mode active. Press Ctrl+C to stop.\n";
+
+  std::signal(SIGINT, HandleDashboardSignal);
+  std::signal(SIGTERM, HandleDashboardSignal);
+  while (!g_dashboard_stop_requested.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  server.Stop();
+  return 0;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -507,6 +594,16 @@ int main(int argc, char **argv) {
     WriteJson(effective_config_path, graph_config);
     if (options.print_effective_config) {
       std::cout << std::setw(2) << graph_config << '\n';
+    }
+
+    if (options.dashboard || options.dashboard_no_run) {
+#ifdef GRAPHX_BUILD_WEB_DASHBOARD
+      return RunDashboardNoRunMode(options, graph_config);
+#else
+      throw std::runtime_error(
+          "dashboard support is not built. Reconfigure with "
+          "-DGRAPHX_BUILD_WEB_DASHBOARD=ON");
+#endif
     }
 
     auto executor = graph::GraphExecutorBuilder()

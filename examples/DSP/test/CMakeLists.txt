@@ -8,6 +8,8 @@ add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
     test_dsp_fhss_baseline_guardrails.cpp
+    test_dsp_fhss_dashboard_step1.cpp
+    test_dsp_fhss_dashboard_step2.cpp
 )
 
 target_compile_features(test_dsp_example_unit PRIVATE cxx_std_26)
@@ -27,6 +29,7 @@ target_compile_definitions(test_dsp_example_unit PRIVATE
 target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
     Threads::Threads
+    graph
     log4cxx
     nlohmann_json::nlohmann_json
 )

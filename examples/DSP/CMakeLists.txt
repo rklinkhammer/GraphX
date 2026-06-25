@@ -41,6 +41,12 @@ target_compile_definitions(dsp_fhss_demo PRIVATE
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 )
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    target_compile_definitions(dsp_fhss_demo PRIVATE
+        GRAPHX_BUILD_WEB_DASHBOARD=1
+        DSP_FHSS_DASHBOARD_ASSET_DIRECTORY="${CMAKE_SOURCE_DIR}/examples/DSP/dashboard"
+    )
+endif()
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(dsp_fhss_demo graphx_dynamic_nodes)
 endif()

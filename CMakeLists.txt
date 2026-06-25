@@ -31,6 +31,7 @@ endif()
 # Build options
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
+option(GRAPHX_BUILD_WEB_DASHBOARD "Build FHSS embedded web dashboard support" OFF)
 option(GRAPHX_BUILD_EXAMPLES_SAR "Build the SAR example package under examples/SAR" ON)
 option(GRAPHX_BUILD_EXAMPLES_DSP "Build the DSP example package under examples/DSP" ON)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GraphX FHSS Dashboard</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --fg: #111827;
+      --muted: #4b5563;
+      --card: #ffffff;
+      --border: #d1d5db;
+      --accent: #0f766e;
+    }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      background: radial-gradient(circle at top right, #dcfce7, var(--bg));
+      color: var(--fg);
+    }
+    header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(3px);
+    }
+    h1 {
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 280px;
+      box-shadow: 0 6px 20px rgba(17, 24, 39, 0.06);
+    }
+    h2 {
+      margin-top: 0;
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+    details {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      padding: 8px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+    pre {
+      overflow: auto;
+      white-space: pre-wrap;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GraphX FHSS Dashboard</h1>
+    <div id="meta"></div>
+  </header>
+  <div class="layout">
+    <section class="card">
+      <h2>Nodes</h2>
+      <div id="nodes"></div>
+    </section>
+    <section class="card">
+      <h2>Edges</h2>
+      <pre id="edges"></pre>
+    </section>
+  </div>
+  <script>
+    function nodeTitle(node, index) {
+      const id = typeof node.id === 'string' ? node.id : `node_${index}`;
+      const type = typeof node.type === 'string' ? node.type : 'unknown';
+      return `${id} (${type})`;
+    }
+
+    async function bootstrap() {
+      const graphResponse = await fetch('/api/v1/graph');
+      const graphData = await graphResponse.json();
+      const graph = graphData.graph || {};
+      const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+      const edges = Array.isArray(graph.edges) ? graph.edges : [];
+
+      document.getElementById('meta').textContent =
+        `schema=${graphData.schema} revision=${graphData.config_revision}`;
+
+      const nodesHost = document.getElementById('nodes');
+      for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[i];
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = nodeTitle(node, i);
+        details.appendChild(summary);
+
+        const body = document.createElement('pre');
+        body.textContent = JSON.stringify(node, null, 2);
+        details.appendChild(body);
+        nodesHost.appendChild(details);
+      }
+
+      document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
+    }
+
+    bootstrap().catch((err) => {
+      document.getElementById('meta').textContent = `failed: ${err}`;
+    });
+  </script>
+</body>
+</html>
