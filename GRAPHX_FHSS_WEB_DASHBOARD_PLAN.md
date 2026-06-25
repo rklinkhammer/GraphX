@@ -14,22 +14,21 @@ The implementation must grow as a sequence of runnable vertical slices. The
 first displayable slice is not metrics or FHSS stepping: it is the effective
 JSON graph itself.
 
-The first browser experience must:
+The first browser experience (Step 1) must:
 
 1. Start from `graphx-dsp-fhss-demo`.
 2. Serve a local page from the embedded server.
 3. Display the loaded effective graph as nodes and edges.
 4. Let the user expand each node and inspect:
    - graph node id, name, and type;
-   - lifecycle and capability metadata when available;
    - configured `node_config`;
-   - runtime-reported `IParameterized` values when available (introduced in
-     Step 2 via an unstarted inspection graph);
-   - parameter descriptions/schema when available;
    - input/output ports and edge token types.
-5. Expose the same graph and parameter information through versioned JSON APIs.
-6. Support staging configuration changes by RFC 6901 JSON Pointer path.
-7. Export the changed effective configuration.
+5. Expose the same declarative graph/configuration information through
+  versioned JSON APIs.
+
+Step 2 adds runtime parameter inspection (`IParameterized` via an unstarted
+inspection graph/session), staged RFC 6901/RFC 6902 configuration mutation, and
+configuration export workflows.
 
 The first implementation must not require a running graph. This is important:
 configuration inspection and editing should work after the graph JSON has been
@@ -693,6 +692,14 @@ POST  /api/v1/config/rebuild
 POST  /api/v1/config/export
 ```
 
+Phasing contract for rebuild endpoint:
+
+- Until Step 3 introduces `GraphRuntimeSession`, `POST /api/v1/config/rebuild`
+  must return `501 Not Implemented` with stable error code
+  `rebuild_not_available_pre_step3`.
+- Pre-Step-3 rebuild calls must have no side effects: no revision advance, no
+  session mutation, and no queued runtime operation.
+
 Single update:
 
 ```json
@@ -809,7 +816,9 @@ Example error record:
 
 - `staged`: update the staged document only.
 - `validate`: stage and run graph/config validation.
-- `rebuild`: validate and construct a replacement runtime session.
+- `rebuild`: validate and construct a replacement runtime session (available
+  starting Step 3 only; before Step 3, return `501 Not Implemented` with
+  `rebuild_not_available_pre_step3`).
 - `runtime`: unavailable unless a future explicit runtime-mutable capability
   declares the path safe for the current lifecycle state.
 
@@ -868,14 +877,15 @@ POST  /api/v1/config/validate
 POST  /api/v1/config/undo
 POST  /api/v1/config/discard
 POST  /api/v1/config/export
+GET   /api/v1/operations/{operationId}
+DELETE /api/v1/operations/{operationId}
+POST  /api/v1/operations/{operationId}/cancel
 ```
 
 Later additions (Step 3+):
 
 ```text
 POST /api/v1/config/rebuild
-GET  /api/v1/operations/{operationId}
-POST /api/v1/operations/{operationId}/cancel
 GET  /api/v1/status
 GET  /api/v1/metrics
 GET  /api/v1/metrics/edges
@@ -896,10 +906,25 @@ POST /api/v1/commands/export
 WS   /api/v1/events
 ```
 
-### 6.1 Command execution contract (automation default)
+### 6.1 Operation execution contract (sync vs async)
 
-For command-style endpoints (`/api/v1/commands/*`, rebuild, export, capture),
-use one consistent asynchronous contract:
+Synchronous endpoints (direct response, no Operations resource):
+
+- all `GET` read endpoints in Step 1/2/3+;
+- `PATCH /api/v1/config`;
+- `POST /api/v1/config/validate`;
+- `POST /api/v1/config/undo`;
+- `POST /api/v1/config/discard`.
+
+Asynchronous endpoints (must create/use Operations resources):
+
+- `POST /api/v1/config/export` (Step 2+);
+- `POST /api/v1/config/rebuild` (Step 3+; before Step 3 returns
+  `501 Not Implemented`);
+- `POST /api/v1/commands/start|stop|step-message|continue|reset|capture|export`
+  (when introduced in later phases).
+
+Asynchronous contract:
 
 - server returns `202 Accepted` with `operation_id`, `command_id`, `status`,
   and `submitted_revision`;
@@ -910,8 +935,58 @@ use one consistent asynchronous contract:
 - idempotency key behavior is preserved through `command_id` for safe retries;
 - short synchronous completion is allowed, but the response schema remains the
   same and includes a terminal status.
+- terminal operation resources are retained per policy and then expire; expired
+  operation lookups return `404 operation_not_found_or_expired`.
+- `DELETE /api/v1/operations/{operation_id}` performs explicit deletion of a
+  terminal operation resource and returns `204` on success.
+- deletion is forbidden for non-terminal operations and returns
+  `409 operation_not_terminal`.
 
-Commands must never block HTTP worker threads for long-running execution.
+Synchronous endpoints must return final results inline and must not emit
+`operation_id`.
+
+Long-running execution must never block HTTP worker threads.
+
+### 6.2 `/readyz` lifecycle state machine (canonical contract)
+
+`/readyz` is derived from one explicit dashboard lifecycle state machine and
+must use this contract everywhere in the plan and implementation.
+
+States and HTTP mapping:
+
+- `starting`: process alive but required dashboard services not initialized.
+  `/readyz` = `503`.
+- `ready_no_run`: `--dashboard-no-run` mode with config + command services
+  initialized and API command handling safe. `/readyz` = `200`.
+- `ready_idle`: runtime-capable mode with no active command/rebuild transition.
+  `/readyz` = `200`.
+- `ready_running`: runtime-capable mode executing workload where command
+  handling remains safe. `/readyz` = `200`.
+- `transition_rebuild`: rebuild/swap in progress or runtime service transition
+  where command handling is intentionally blocked. `/readyz` = `503`.
+- `draining_shutdown`: shutdown initiated (`SIGINT`, `SIGTERM`, or explicit
+  stop); reject new work and drain existing operations. `/readyz` = `503`.
+- `terminated`: process exits; endpoint unavailable.
+
+Required transitions:
+
+- startup -> `starting`
+- `starting` -> `ready_no_run` (when `--dashboard-no-run` services initialize)
+- `starting` -> `ready_idle` (runtime-capable initialization complete)
+- `ready_idle` <-> `ready_running` (start/stop/complete execution)
+- `ready_idle`/`ready_running` -> `transition_rebuild` (accepted rebuild)
+- `transition_rebuild` -> `ready_idle` (successful swap or restore previous
+  valid session)
+- any non-terminated state -> `draining_shutdown` (signal/explicit shutdown)
+- `draining_shutdown` -> `terminated`
+
+Operational invariants:
+
+- `/healthz` remains `200` while the process/event loop is alive, independent
+  of `/readyz`.
+- `--dashboard-no-run` never transitions to `ready_running`.
+- Rebuild requests not valid for current runtime state are rejected with
+  `409 invalid_state` and do not change readiness state.
 
 ## 7. FHSS Message Injection and Stepping Model
 
@@ -1499,6 +1574,10 @@ Deliver:
   optional `revision`, and event `payload`.
 - reconnect cursor via last-seen `sequence` with explicit resync-required
   signaling when retention is exceeded.
+- replay guarantee is contiguous-retained-only: replay/resume is guaranteed
+  only while every event after last-seen `sequence` is still retained.
+- if any event in that contiguous range is missing/expired, server must require
+  HTTP snapshot resynchronization before stream resume.
 
 Acceptance:
 
@@ -1740,10 +1819,12 @@ The following decisions are now explicit defaults for implementation:
       an explicit resync-required signal.
   - Gap and reconnect behavior:
     - Reconnect may provide last-seen `sequence`; server resumes only if data is
-      still available in retention window.
+      still available in retention window and the retained event range is
+      contiguous from `last_seen_sequence + 1`.
     - Default event retention window: 120 seconds.
-    - Otherwise, server returns/announces resync-required and client reloads
-      canonical HTTP snapshots before resubscribing.
+    - If any event in the required contiguous range is missing/expired,
+      server returns/announces resync-required and client reloads canonical
+      HTTP snapshots before resubscribing.
   - Operational guardrails:
     - Server exposes counters for dropped/coalesced events and reconnects.
     - CI and soak tests must verify that slow subscribers cannot degrade command
@@ -1796,15 +1877,11 @@ The following decisions are now explicit defaults for implementation:
     localhost-only allowlist and a prominent startup warning.
 
 - Decision 17: Readiness semantics practical default (automation-friendly):
+  - `/readyz` follows the canonical lifecycle state machine in Section 6.2.
   - `/healthz`: returns 200 whenever the process/event loop is alive.
-  - `/readyz`: returns 200 when the dashboard can accept API commands for the
-    current mode; returns 503 during transient rebuild/swap windows and startup
-    phases where command handling is not yet safe.
-  - `--dashboard-no-run`: `/readyz` returns 200 after effective config and
-    command services are initialized (execution not required).
-  - Rebuild/swap: `/readyz` flips to 503 at rebuild start and back to 200 only
-    after the new session/config is active (or the previous valid session is
-    restored).
+  - `--dashboard-no-run` readiness is represented by state `ready_no_run`.
+  - Rebuild/swap readiness behavior is represented by state
+    `transition_rebuild`.
 
 - Decision 18: Deterministic dashboard test baseline practical default
   (automation-friendly):
@@ -1967,6 +2044,14 @@ The following decisions are now explicit defaults for implementation:
 
 - Decision 33: Retention policies by data class (v1):
   - Operation results retention: 24 hours or 1000 results (whichever first).
+  - Operation expiration policy: when retention is exceeded, oldest terminal
+    operations are purged first.
+  - Expired/purged operation lookups return
+    `404 operation_not_found_or_expired`.
+  - Explicit deletion endpoint is supported:
+    `DELETE /api/v1/operations/{operationId}`.
+  - Deletion is allowed only for terminal operations; deleting queued/running
+    operations returns `409 operation_not_terminal`.
   - In-memory command history retention: 100 entries (as in Decision 14).
   - Idempotency-key retention: 24 hours.
 
