@@ -33,6 +33,22 @@ std::string ReadFileToString(const std::filesystem::path &path) {
 
 std::string JsonResponse(const nlohmann::json &json) { return json.dump(); }
 
+nlohmann::json RuntimeStatusJson(const GraphRuntimeSession::StatusSnapshot &snapshot) {
+  return nlohmann::json{{"schema", "graphx.dashboard.runtime_status.v1"},
+                        {"lifecycle_state", GraphRuntimeSession::StateToString(snapshot.state)},
+                        {"ready", snapshot.ready},
+                        {"rebuild_allowed", snapshot.rebuild_allowed},
+                        {"rebuild_blocked", snapshot.rebuild_blocked},
+                        {"active_generation", snapshot.active_generation},
+                        {"rebuild_attempts", snapshot.rebuild_attempts},
+                        {"successful_rebuilds", snapshot.successful_rebuilds},
+                        {"last_error",
+                         snapshot.last_error_code.empty()
+                             ? nlohmann::json(nullptr)
+                             : nlohmann::json{{"code", snapshot.last_error_code},
+                                              {"message", snapshot.last_error_message}}}};
+}
+
 std::string ErrorBody(int status_code, std::string code, std::string message,
                       std::string pointer = {}) {
   nlohmann::json error{{"schema", "graphx.dashboard.error.v1"},
@@ -166,6 +182,10 @@ void EmbeddedDashboardServer::Stop() {
 
   if (server_thread_.joinable()) {
     server_thread_.join();
+  }
+
+  if (runtime_session_) {
+    runtime_session_->MarkDead();
   }
 }
 
@@ -522,10 +542,83 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/config/rebuild" && request.method == "POST") {
-    return Response{.status_code = 501,
+    const auto body = request.body.empty() ? nlohmann::json::object() : nlohmann::json::parse(request.body, nullptr, false);
+    if (body.is_discarded()) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "invalid_json", "request body must be JSON")};
+    }
+
+    const auto expected_revision = body.value("expected_revision", configuration_service_->ConfigRevision());
+    if (expected_revision != configuration_service_->ConfigRevision()) {
+      nlohmann::json error{{"schema", "graphx.dashboard.error.v1"},
+                           {"status", 409},
+                           {"code", "stale_revision_conflict"},
+                           {"message", "expected revision does not match current revision"},
+                           {"details", nlohmann::json{{"current_revision", configuration_service_->ConfigRevision()}}},
+                           {"request_id", "dashboard"},
+                           {"retriable", false}};
+      return Response{.status_code = 409,
+                      .content_type = "application/json",
+                      .body = JsonResponse(error)};
+    }
+
+    const auto rebuild = runtime_session_->Rebuild();
+    if (rebuild.status_code == 409 || rebuild.status_code == 500 || rebuild.status_code == 503) {
+      return Response{.status_code = rebuild.status_code,
+                      .content_type = "application/json",
+                      .body = ErrorBody(rebuild.status_code, rebuild.code, rebuild.message)};
+    }
+
+    const auto status = runtime_session_->SnapshotStatus();
+    return Response{.status_code = 202,
                     .content_type = "application/json",
-                    .body = ErrorBody(501, "rebuild_not_available_pre_step3",
-                                      "rebuild is not available before Step 3")};
+                    .body = JsonResponse(nlohmann::json{{"schema", "graphx.dashboard.rebuild_result.v1"},
+                                                        {"command_id", body.value("command_id", std::string{})},
+                                                        {"status", rebuild.code == "cleanup_failed" ? "succeeded_with_cleanup_failed"
+                                                                                                        : "succeeded"},
+                                                        {"submitted_revision", configuration_service_->ConfigRevision()},
+                                                        {"lifecycle_state", GraphRuntimeSession::StateToString(status.state)},
+                                                        {"active_generation", status.active_generation},
+                                                        {"warning", rebuild.code == "cleanup_failed" ? nlohmann::json{{"code", rebuild.code},
+                                                                                                                          {"message", rebuild.message}}
+                                                                                                          : nlohmann::json(nullptr)}})};
+  }
+
+  if (request.path == "/api/v1/status" && request.method == "GET") {
+    return Response{.status_code = 200,
+                    .content_type = "application/json",
+                    .body = JsonResponse(RuntimeStatusJson(runtime_session_->SnapshotStatus()))};
+  }
+
+  if (request.path == "/api/v1/commands/start" && request.method == "POST") {
+    const auto result = runtime_session_->Start();
+    if (result.status_code != 202) {
+      return Response{.status_code = result.status_code,
+                      .content_type = "application/json",
+                      .body = ErrorBody(result.status_code, result.code, result.message)};
+    }
+    return Response{.status_code = 202,
+                    .content_type = "application/json",
+                    .body = JsonResponse(nlohmann::json{{"schema", "graphx.dashboard.command_result.v1"},
+                                                        {"status", "accepted"},
+                                                        {"code", result.code},
+                                                        {"message", result.message}})};
+  }
+
+  if (request.path == "/api/v1/commands/stop" && request.method == "POST") {
+    const auto result = runtime_session_->Stop();
+    if (result.status_code != 202) {
+      return Response{.status_code = result.status_code,
+                      .content_type = "application/json",
+                      .body = ErrorBody(result.status_code, result.code, result.message)};
+    }
+    return Response{.status_code = 202,
+                    .content_type = "application/json",
+                    .body = JsonResponse(nlohmann::json{{"schema", "graphx.dashboard.command_result.v1"},
+                                                        {"status", "accepted"},
+                                                        {"code", result.code},
+                                                        {"message", result.message}})};
   }
 
   if (request.path == "/api/v1/config/discard" && request.method == "POST") {
