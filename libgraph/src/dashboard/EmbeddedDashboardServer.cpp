@@ -126,6 +126,185 @@ bool ParseBool(const std::string &value) {
   return value == "1" || value == "true" || value == "yes";
 }
 
+constexpr std::size_t kDefaultSchedulePageSize = 16;
+constexpr std::size_t kMaxSchedulePageSize = 64;
+constexpr std::size_t kDefaultTimelineWindow = 128;
+constexpr std::size_t kMaxTimelineWindow = 512;
+constexpr std::uint64_t kDefaultRefreshMs = 250;
+constexpr std::uint64_t kMinRefreshMs = 100;
+constexpr std::uint64_t kMaxRefreshMs = 2000;
+
+std::optional<std::size_t> ParseSize(const std::string &value) {
+  const auto parsed = ParseUint64(value);
+  if (!parsed) {
+    return std::nullopt;
+  }
+  return static_cast<std::size_t>(*parsed);
+}
+
+std::size_t ClampPageSize(std::optional<std::size_t> value,
+                          std::size_t fallback,
+                          std::size_t max_value) {
+  if (!value.has_value() || *value == 0u) {
+    return fallback;
+  }
+  return std::min(*value, max_value);
+}
+
+std::size_t ClampOffset(std::optional<std::size_t> value,
+                        std::size_t total) {
+  if (!value.has_value()) {
+    return 0u;
+  }
+  return std::min(*value, total);
+}
+
+std::uint64_t ClampRefreshMs(std::optional<std::uint64_t> requested) {
+  if (!requested.has_value()) {
+    return kDefaultRefreshMs;
+  }
+  if (*requested < kMinRefreshMs) {
+    return kMinRefreshMs;
+  }
+  if (*requested > kMaxRefreshMs) {
+    return kMaxRefreshMs;
+  }
+  return *requested;
+}
+
+nlohmann::json BuildFhssVisualizationSnapshot(const nlohmann::json &scenario,
+                                              std::size_t message_offset,
+                                              std::size_t message_limit,
+                                              std::size_t pulse_offset,
+                                              std::size_t pulse_limit,
+                                              std::uint64_t refresh_ms) {
+  const auto messages =
+      scenario.contains("messages") && scenario.at("messages").is_array()
+          ? scenario.at("messages")
+          : nlohmann::json::array();
+  const auto message_total = messages.size();
+  const auto message_begin = std::min(message_offset, message_total);
+  const auto message_end = std::min(message_begin + message_limit, message_total);
+
+  nlohmann::json schedule_messages = nlohmann::json::array();
+  std::array<std::uint64_t, 64> expected_channel_counts{};
+  std::uint64_t out_of_range_pulses = 0;
+
+  std::size_t total_pulse_count = 0;
+  for (std::size_t message_index = 0; message_index < message_total; ++message_index) {
+    const auto &message = messages.at(message_index);
+    const auto pulses =
+        message.contains("pulses") && message.at("pulses").is_array()
+            ? message.at("pulses")
+            : nlohmann::json::array();
+
+    std::uint64_t preamble_count = 0;
+    std::uint64_t body_count = 0;
+    for (const auto &pulse : pulses) {
+      const auto role = pulse.value("role", std::string{});
+      if (role == "preamble") {
+        ++preamble_count;
+      } else {
+        ++body_count;
+      }
+      const auto frequency_index = pulse.value("frequency_index", std::uint64_t{0});
+      if (frequency_index < expected_channel_counts.size()) {
+        ++expected_channel_counts[static_cast<std::size_t>(frequency_index)];
+      } else {
+        ++out_of_range_pulses;
+      }
+    }
+
+    total_pulse_count += pulses.size();
+
+    if (message_index >= message_begin && message_index < message_end) {
+      schedule_messages.push_back(
+          {{"message_index", message_index},
+           {"message_id", message.value("message_id", static_cast<std::uint64_t>(message_index + 1))},
+           {"transmit_start_sample", message.value("transmit_start_sample", std::uint64_t{0})},
+           {"pulse_count", pulses.size()},
+           {"preamble_pulse_count", preamble_count},
+           {"body_pulse_count", body_count}});
+    }
+  }
+
+  const auto pulse_begin = std::min(pulse_offset, total_pulse_count);
+  const auto pulse_end = std::min(pulse_begin + pulse_limit, total_pulse_count);
+
+  nlohmann::json timeline_pulses = nlohmann::json::array();
+  std::size_t absolute_pulse_index = 0;
+  for (std::size_t message_index = 0; message_index < message_total; ++message_index) {
+    const auto &message = messages.at(message_index);
+    const auto pulses =
+        message.contains("pulses") && message.at("pulses").is_array()
+            ? message.at("pulses")
+            : nlohmann::json::array();
+    const auto message_id =
+        message.value("message_id", static_cast<std::uint64_t>(message_index + 1));
+    const auto start_sample = message.value("transmit_start_sample", std::uint64_t{0});
+
+    for (std::size_t pulse_index = 0; pulse_index < pulses.size(); ++pulse_index, ++absolute_pulse_index) {
+      if (absolute_pulse_index < pulse_begin || absolute_pulse_index >= pulse_end) {
+        continue;
+      }
+      const auto &pulse = pulses.at(pulse_index);
+      const auto frequency_index = pulse.value("frequency_index", std::uint64_t{0});
+      const auto role = pulse.value("role", std::string{"body"});
+      const bool rejected = frequency_index >= 64;
+      const double confidence = rejected ? 0.0 : (role == "preamble" ? 0.95 : 0.85);
+
+      timeline_pulses.push_back(
+          {{"absolute_pulse_index", absolute_pulse_index},
+           {"message_index", message_index},
+           {"message_id", message_id},
+           {"pulse_index", pulse_index},
+           {"role", role},
+           {"frequency_index", frequency_index},
+           {"expected_sample_start", start_sample + pulse_index},
+           {"detected_sample_start", nullptr},
+           {"confidence", confidence},
+           {"rejected", rejected}});
+    }
+  }
+
+  nlohmann::json channels = nlohmann::json::array();
+  for (std::size_t channel = 0; channel < expected_channel_counts.size(); ++channel) {
+    const auto expected = expected_channel_counts[channel];
+    channels.push_back({{"channel_index", channel},
+                        {"expected_pulse_count", expected},
+                        {"detected_pulse_count", 0},
+                        {"rejected_pulse_count", 0},
+                        {"confidence", expected > 0 ? 1.0 : 0.0},
+                        {"active", expected > 0}});
+  }
+
+  nlohmann::json snapshot{{"schema", "graphx.dashboard.fhss_visualization.v1"},
+                          {"fixture_label",
+                           "Deterministic GraphX CPU FHSS fixture. Not a production RF receiver or production channelizer."},
+                          {"schedule",
+                           {{"message_count_total", message_total},
+                            {"message_offset", message_begin},
+                            {"message_limit", message_limit},
+                            {"messages", std::move(schedule_messages)}}},
+                          {"heatmap",
+                           {{"channel_count", channels.size()},
+                            {"channels", std::move(channels)},
+                            {"out_of_range_pulse_count", out_of_range_pulses}}},
+                          {"timeline",
+                           {{"total_pulse_count", total_pulse_count},
+                            {"pulse_offset", pulse_begin},
+                            {"pulse_limit", pulse_limit},
+                            {"pulses", std::move(timeline_pulses)}}},
+                          {"bounds",
+                           {{"max_message_limit", kMaxSchedulePageSize},
+                            {"max_pulse_limit", kMaxTimelineWindow},
+                            {"min_refresh_interval_ms", kMinRefreshMs},
+                            {"max_refresh_interval_ms", kMaxRefreshMs},
+                            {"refresh_interval_ms", refresh_ms}}}};
+  snapshot["bounds"]["snapshot_bytes_estimate"] = snapshot.dump().size();
+  return snapshot;
+}
+
 } // namespace
 
 EmbeddedDashboardServer::EmbeddedDashboardServer(
@@ -854,6 +1033,62 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                     .content_type = "application/json",
                     .body = JsonResponse(configuration_service_->GetScenarioResponse())};
   }
+
+    if (request.path == "/api/v1/fhss/visualization" && request.method == "GET") {
+    const auto message_offset_raw = GetQueryValue(request.query, "message_offset");
+    const auto message_limit_raw = GetQueryValue(request.query, "message_limit");
+    const auto pulse_offset_raw = GetQueryValue(request.query, "pulse_offset");
+    const auto pulse_limit_raw = GetQueryValue(request.query, "pulse_limit");
+    const auto refresh_raw = GetQueryValue(request.query, "refresh_ms");
+
+    const auto message_offset = message_offset_raw.empty()
+                    ? std::optional<std::size_t>{}
+                    : ParseSize(message_offset_raw);
+    const auto message_limit = message_limit_raw.empty()
+                     ? std::optional<std::size_t>{}
+                     : ParseSize(message_limit_raw);
+    const auto pulse_offset = pulse_offset_raw.empty()
+                    ? std::optional<std::size_t>{}
+                    : ParseSize(pulse_offset_raw);
+    const auto pulse_limit = pulse_limit_raw.empty()
+                   ? std::optional<std::size_t>{}
+                   : ParseSize(pulse_limit_raw);
+    const auto refresh_ms = refresh_raw.empty() ? std::optional<std::uint64_t>{}
+                          : ParseUint64(refresh_raw);
+
+    if ((!message_offset_raw.empty() && !message_offset.has_value()) ||
+      (!message_limit_raw.empty() && !message_limit.has_value()) ||
+      (!pulse_offset_raw.empty() && !pulse_offset.has_value()) ||
+      (!pulse_limit_raw.empty() && !pulse_limit.has_value()) ||
+      (!refresh_raw.empty() && !refresh_ms.has_value())) {
+      return Response{.status_code = 400,
+              .content_type = "application/json",
+              .body = ErrorBody(400, "invalid_query_parameter",
+                      "query parameters must be unsigned integers")};
+    }
+
+    const auto scenario_response = configuration_service_->GetScenarioResponse();
+    const auto &scenario = scenario_response.value("scenario", nlohmann::json::object());
+    const auto message_count =
+      scenario.contains("messages") && scenario.at("messages").is_array()
+        ? scenario.at("messages").size()
+        : 0u;
+
+    const auto bounded_message_limit =
+      ClampPageSize(message_limit, kDefaultSchedulePageSize, kMaxSchedulePageSize);
+    const auto bounded_pulse_limit =
+      ClampPageSize(pulse_limit, kDefaultTimelineWindow, kMaxTimelineWindow);
+    const auto bounded_message_offset = ClampOffset(message_offset, message_count);
+    const auto bounded_refresh = ClampRefreshMs(refresh_ms);
+
+    auto snapshot = BuildFhssVisualizationSnapshot(
+      scenario, bounded_message_offset, bounded_message_limit,
+      pulse_offset.value_or(0u), bounded_pulse_limit, bounded_refresh);
+    snapshot["config_revision"] = configuration_service_->ConfigRevision();
+    return Response{.status_code = 200,
+            .content_type = "application/json",
+            .body = JsonResponse(snapshot)};
+    }
 
   return Response{.status_code = 404,
                   .content_type = "application/json",

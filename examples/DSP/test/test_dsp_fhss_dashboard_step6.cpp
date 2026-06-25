@@ -1,5 +1,3 @@
-
-
 // SPDX-License-Identifier: MIT
 
 #include <gtest/gtest.h>
@@ -19,7 +17,6 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <thread>

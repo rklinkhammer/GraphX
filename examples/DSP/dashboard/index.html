@@ -122,6 +122,68 @@
       font-weight: 700;
       color: white;
     }
+    .schedule-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .schedule-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9fafb;
+    }
+    .schedule-title {
+      font-weight: 700;
+    }
+    .schedule-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(44px, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .heat-cell {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #1f2937;
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+    }
+    .timeline-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      margin-top: 8px;
+    }
+    .timeline-table th,
+    .timeline-table td {
+      border: 1px solid var(--border);
+      padding: 4px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .timeline-table th {
+      background: #f3f4f6;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.68rem;
+    }
+    .subtle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
     @media (max-width: 900px) {
       .layout {
         grid-template-columns: 1fr;
@@ -148,11 +210,26 @@
         <h2>Topology Activity</h2>
         <div id="activity" class="activity-list"></div>
       </section>
+      <section class="card">
+        <h2>FHSS Schedule</h2>
+        <div id="schedule-meta" class="subtle"></div>
+        <div id="schedule" class="schedule-list"></div>
+      </section>
     </div>
     <div class="stack">
       <section class="card">
         <h2>Diagnostics</h2>
         <div id="diagnostics"></div>
+      </section>
+      <section class="card">
+        <h2>64-Channel Heatmap</h2>
+        <div id="heatmap-meta" class="subtle"></div>
+        <div id="heatmap" class="heatmap-grid"></div>
+      </section>
+      <section class="card">
+        <h2>Expected / Detected Pulse Timeline</h2>
+        <div id="timeline-meta" class="subtle"></div>
+        <div id="timeline"></div>
       </section>
       <section class="card">
         <h2>Edges</h2>
@@ -260,16 +337,109 @@
       });
     }
 
-    async function bootstrap() {
-      const [graphResponse, metricsResponse, diagnosticsResponse] = await Promise.all([
-        fetch('/api/v1/graph'),
-        fetch('/api/v1/metrics'),
-        fetch('/api/v1/diagnostics')
+    function renderSchedule(schedule) {
+      const host = document.getElementById('schedule');
+      host.textContent = '';
+      const meta = document.getElementById('schedule-meta');
+      const messages = Array.isArray(schedule.messages) ? schedule.messages : [];
+      const total = schedule.message_count_total || 0;
+      const offset = schedule.message_offset || 0;
+      const limit = schedule.message_limit || 0;
+      meta.textContent = `messages ${offset + 1}-${Math.min(offset + messages.length, total)} of ${total} (page limit ${limit})`;
+
+      if (!messages.length) {
+        host.textContent = 'No schedule messages available.';
+        return;
+      }
+
+      messages.forEach((message) => {
+        const item = document.createElement('div');
+        item.className = 'schedule-item';
+        const title = document.createElement('div');
+        title.className = 'schedule-title';
+        title.textContent = `message ${message.message_id}`;
+        const detail = document.createElement('div');
+        detail.className = 'schedule-meta';
+        detail.textContent = `start=${formatValue(message.transmit_start_sample)} pulses=${formatValue(message.pulse_count)} preamble=${formatValue(message.preamble_pulse_count)} body=${formatValue(message.body_pulse_count)}`;
+        item.appendChild(title);
+        item.appendChild(detail);
+        host.appendChild(item);
+      });
+    }
+
+    function colorForChannelLoad(expectedCount) {
+      if (expectedCount <= 0) {
+        return '#e5e7eb';
+      }
+      if (expectedCount < 8) {
+        return '#bae6fd';
+      }
+      if (expectedCount < 32) {
+        return '#7dd3fc';
+      }
+      return '#0284c7';
+    }
+
+    function renderHeatmap(heatmap) {
+      const host = document.getElementById('heatmap');
+      host.textContent = '';
+      const meta = document.getElementById('heatmap-meta');
+      const channels = Array.isArray(heatmap.channels) ? heatmap.channels : [];
+      meta.textContent = `${channels.length} channels; out-of-range pulses=${formatValue(heatmap.out_of_range_pulse_count || 0)}`;
+
+      channels.forEach((channel) => {
+        const cell = document.createElement('div');
+        cell.className = 'heat-cell';
+        const expected = channel.expected_pulse_count || 0;
+        cell.style.background = colorForChannelLoad(expected);
+        cell.textContent = `${channel.channel_index}: ${expected}`;
+        host.appendChild(cell);
+      });
+    }
+
+    function renderTimeline(timeline) {
+      const host = document.getElementById('timeline');
+      host.textContent = '';
+      const meta = document.getElementById('timeline-meta');
+      const pulses = Array.isArray(timeline.pulses) ? timeline.pulses : [];
+      meta.textContent = `pulses ${formatValue((timeline.pulse_offset || 0) + 1)}-${formatValue((timeline.pulse_offset || 0) + pulses.length)} of ${formatValue(timeline.total_pulse_count || 0)} (window ${formatValue(timeline.pulse_limit || 0)})`;
+
+      if (!pulses.length) {
+        host.textContent = 'No pulses in current timeline window.';
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.className = 'timeline-table';
+      const header = document.createElement('thead');
+      header.innerHTML = '<tr><th>abs</th><th>msg</th><th>pulse</th><th>role</th><th>freq</th><th>expected</th><th>detected</th><th>conf</th><th>rejected</th></tr>';
+      table.appendChild(header);
+      const body = document.createElement('tbody');
+
+      pulses.forEach((pulse) => {
+        const row = document.createElement('tr');
+        const detected = pulse.detected_sample_start === null ? '-' : String(pulse.detected_sample_start);
+        row.innerHTML = `<td>${pulse.absolute_pulse_index}</td><td>${pulse.message_id}</td><td>${pulse.pulse_index}</td><td>${pulse.role}</td><td>${pulse.frequency_index}</td><td>${pulse.expected_sample_start}</td><td>${detected}</td><td>${Number(pulse.confidence || 0).toFixed(2)}</td><td>${pulse.rejected ? 'yes' : 'no'}</td>`;
+        body.appendChild(row);
+      });
+
+      table.appendChild(body);
+      host.appendChild(table);
+    }
+
+    async function fetchJson(path) {
+      const response = await fetch(path);
+      return response.json();
+    }
+
+    async function refreshDashboard() {
+      const [graphData, metricsData, diagnosticsData, visualizationData] = await Promise.all([
+        fetchJson('/api/v1/graph'),
+        fetchJson('/api/v1/metrics'),
+        fetchJson('/api/v1/diagnostics'),
+        fetchJson('/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250')
       ]);
 
-      const graphData = await graphResponse.json();
-      const metricsData = await metricsResponse.json();
-      const diagnosticsData = await diagnosticsResponse.json();
       const graph = graphData.graph || {};
       const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
       const edges = Array.isArray(graph.edges) ? graph.edges : [];
@@ -278,11 +448,14 @@
       const nodeDiagnostics = Array.isArray(diagnosticsData.nodes) ? diagnosticsData.nodes : [];
 
       document.getElementById('meta').textContent =
-        `graph=${graphData.schema} metrics=${metricsData.schema} diagnostics=${diagnosticsData.schema} revision=${graphData.config_revision}`;
+        `graph=${graphData.schema} metrics=${metricsData.schema} diagnostics=${diagnosticsData.schema} fhss=${visualizationData.schema} revision=${graphData.config_revision}`;
 
       renderMetrics(metricsData.graph || {});
       renderActivity(nodeMetrics, edgeMetrics);
       renderDiagnostics(nodeDiagnostics);
+      renderSchedule(visualizationData.schedule || {});
+      renderHeatmap(visualizationData.heatmap || {});
+      renderTimeline(visualizationData.timeline || {});
 
       const nodesHost = document.getElementById('nodes');
       nodesHost.textContent = '';
@@ -300,9 +473,17 @@
       }
 
       document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
+
+      const bounds = visualizationData.bounds || {};
+      const refreshMs = Math.max(100, Number(bounds.refresh_interval_ms || 250));
+      window.setTimeout(() => {
+        refreshDashboard().catch((err) => {
+          document.getElementById('meta').textContent = `failed: ${err}`;
+        });
+      }, refreshMs);
     }
 
-    bootstrap().catch((err) => {
+    refreshDashboard().catch((err) => {
       document.getElementById('meta').textContent = `failed: ${err}`;
     });
   </script>
