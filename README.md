@@ -97,6 +97,7 @@ Top-level options:
 | `GRAPHX_REQUIRE_NINJA` | `ON` | Fail configure if the generator is not Ninja. |
 | `BUILD_TESTS` | `ON` | Build test targets and enable CTest integration. |
 | `BUILD_DOCS` | `OFF` | Enable docs build targets where available. |
+| `GRAPHX_BUILD_WEB_DASHBOARD` | `OFF` | Build embedded web dashboard support for the FHSS demo executable. |
 | `GRAPHX_BUILD_EXAMPLES_SAR` | `ON` | Build SAR examples. |
 | `GRAPHX_BUILD_EXAMPLES_DSP` | `ON` | Build DSP examples. |
 | `ENABLE_TSAN` | `OFF` | Add ThreadSanitizer flags on supported compilers. |
@@ -255,6 +256,33 @@ cmake --build build-ninja/ninja-debug-metal-native --target dsp_fhss_demo
   --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
   --executor-timeout-s 12
 ```
+
+Run the FHSS Dashboard (no graph execution; dashboard inspection/edit mode):
+
+```bash
+cmake -S . -B build-dashboard -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
+  -DGRAPHX_BUILD_EXAMPLES_DSP=ON
+
+cmake --build build-dashboard --target dsp_fhss_demo
+
+./build-dashboard/examples/DSP/graphx-dsp-fhss-demo \
+  --graph-config libdsp/config/fhss_cpsm_channelized_fixture_500msps.json \
+  --plugin-dir build-dashboard/plugins \
+  --dashboard \
+  --dashboard-port 8080 \
+  --dashboard-no-run
+```
+
+Then open http://127.0.0.1:8080/ in your browser.
+
+Notes:
+
+- `--dashboard-no-run` keeps runtime stopped so you can inspect/edit first.
+- Omit `--dashboard-no-run` to run the FHSS graph while serving dashboard APIs.
+- `--dashboard-port 0` requests an ephemeral test port.
+- `--dashboard-assets PATH` overrides the default `examples/DSP/dashboard` asset directory.
 
 Run with an external message schedule and write investigation artifacts:
 

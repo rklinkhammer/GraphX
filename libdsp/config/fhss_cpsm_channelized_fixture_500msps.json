@@ -111,7 +111,295 @@
               },
               {
                 "frequency_index": 28,
-                "value": 2779077210,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 2,
+            "transmit_start_sample": 120000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 3,
+            "transmit_start_sample": 240000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 4,
+            "transmit_start_sample": 360000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
                 "role": "body"
               }
             ]
@@ -1332,7 +1620,295 @@
               },
               {
                 "frequency_index": 28,
-                "value": 2779077210,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 2,
+            "transmit_start_sample": 120000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 3,
+            "transmit_start_sample": 240000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
+                "role": "body"
+              }
+            ]
+          },
+          {
+            "message_id": 4,
+            "transmit_start_sample": 360000,
+            "pulses": [
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 2863311530,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2004318071,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 32,
+                "value": 303174162,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 36,
+                "value": 1650614882,
+                "role": "preamble"
+              },
+              {
+                "frequency_index": 24,
+                "value": 16909060,
+                "role": "body"
+              },
+              {
+                "frequency_index": 28,
+                "value": 2779096538,
                 "role": "body"
               }
             ]
@@ -1412,7 +1988,7 @@
             "word_value": 1650614882
           }
         ],
-        "truth_from_fixture": true
+        "truth_from_fixture": false
       }
     },
     {

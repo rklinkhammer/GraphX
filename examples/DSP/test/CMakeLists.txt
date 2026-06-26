@@ -16,6 +16,7 @@ add_executable(test_dsp_example_unit
     test_dsp_fhss_dashboard_step5.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
+    test_dsp_fhss_dashboard_step8.cpp
 )
 
 target_compile_features(test_dsp_example_unit PRIVATE cxx_std_26)

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cerrno>
 #include <charconv>
+#include <cmath>
 #include <cctype>
 #include <cstring>
 #include <ctime>
@@ -133,6 +134,7 @@ constexpr std::size_t kMaxTimelineWindow = 512;
 constexpr std::uint64_t kDefaultRefreshMs = 250;
 constexpr std::uint64_t kMinRefreshMs = 100;
 constexpr std::uint64_t kMaxRefreshMs = 2000;
+constexpr std::size_t kPreviewBinCount = 32;
 
 std::optional<std::size_t> ParseSize(const std::string &value) {
   const auto parsed = ParseUint64(value);
@@ -177,7 +179,8 @@ nlohmann::json BuildFhssVisualizationSnapshot(const nlohmann::json &scenario,
                                               std::size_t message_limit,
                                               std::size_t pulse_offset,
                                               std::size_t pulse_limit,
-                                              std::uint64_t refresh_ms) {
+                                              std::uint64_t refresh_ms,
+                                              std::size_t selected_channel_index) {
   const auto messages =
       scenario.contains("messages") && scenario.at("messages").is_array()
           ? scenario.at("messages")
@@ -278,6 +281,72 @@ nlohmann::json BuildFhssVisualizationSnapshot(const nlohmann::json &scenario,
                         {"active", expected > 0}});
   }
 
+  nlohmann::json decoder_messages = nlohmann::json::array();
+  for (std::size_t message_index = message_begin; message_index < message_end; ++message_index) {
+    const auto &message = messages.at(message_index);
+    const auto pulses =
+        message.contains("pulses") && message.at("pulses").is_array()
+            ? message.at("pulses")
+            : nlohmann::json::array();
+
+    double branch_metric_sum = 0.0;
+    std::uint64_t preamble_symbol_count = 0;
+    std::uint64_t body_symbol_count = 0;
+    nlohmann::json best_path = nlohmann::json::array();
+
+    for (std::size_t pulse_index = 0; pulse_index < pulses.size(); ++pulse_index) {
+      const auto &pulse = pulses.at(pulse_index);
+      const auto frequency_index = pulse.value("frequency_index", std::uint64_t{0});
+      const auto role = pulse.value("role", std::string{"body"});
+      if (role == "preamble") {
+        ++preamble_symbol_count;
+      } else {
+        ++body_symbol_count;
+      }
+
+      // Deterministic pseudo branch metric for fixture diagnostics.
+      const auto weighted = static_cast<double>((frequency_index % 17u) + 1u) *
+                            static_cast<double>((pulse_index % 5u) + 1u);
+      branch_metric_sum += weighted / 10.0;
+
+      if (best_path.size() < 16u) {
+        best_path.push_back(frequency_index);
+      }
+    }
+
+    const auto total_symbols = preamble_symbol_count + body_symbol_count;
+    const auto path_margin_db = total_symbols == 0
+                                    ? 0.0
+                                    : branch_metric_sum /
+                                          static_cast<double>(total_symbols);
+
+    decoder_messages.push_back(
+        {{"message_index", message_index},
+         {"message_id", message.value("message_id", static_cast<std::uint64_t>(message_index + 1))},
+         {"preamble_symbol_count", preamble_symbol_count},
+         {"body_symbol_count", body_symbol_count},
+         {"branch_metric_sum", branch_metric_sum},
+         {"viterbi", {{"best_path", std::move(best_path)},
+                       {"path_margin_db", path_margin_db},
+                       {"decoded_word_count", total_symbols}}}});
+  }
+
+  nlohmann::json preview_bins = nlohmann::json::array();
+  const auto selected_channel_count =
+      selected_channel_index < expected_channel_counts.size()
+          ? expected_channel_counts[selected_channel_index]
+          : 0u;
+  for (std::size_t bin = 0; bin < kPreviewBinCount; ++bin) {
+    const auto harmonic = std::sin(static_cast<double>(bin) * 0.35);
+    const auto magnitude = static_cast<double>(selected_channel_count) * 0.05 +
+                           std::abs(harmonic) * 0.75;
+    preview_bins.push_back({{"bin", bin}, {"magnitude", magnitude}});
+  }
+
+  const auto capture_id =
+      std::to_string(selected_channel_index) + "-" + std::to_string(message_begin) + "-" +
+      std::to_string(message_end);
+
   nlohmann::json snapshot{{"schema", "graphx.dashboard.fhss_visualization.v1"},
                           {"fixture_label",
                            "Deterministic GraphX CPU FHSS fixture. Not a production RF receiver or production channelizer."},
@@ -295,6 +364,20 @@ nlohmann::json BuildFhssVisualizationSnapshot(const nlohmann::json &scenario,
                             {"pulse_offset", pulse_begin},
                             {"pulse_limit", pulse_limit},
                             {"pulses", std::move(timeline_pulses)}}},
+                          {"decoder",
+                           {{"schema", "graphx.dashboard.fhss_decoder.v1"},
+                            {"messages", std::move(decoder_messages)}}},
+                          {"selected_channel_preview",
+                           {{"schema", "graphx.dashboard.fhss_channel_preview.v1"},
+                            {"channel_index", selected_channel_index},
+                            {"pulse_count", selected_channel_count},
+                            {"spectrum_bins", std::move(preview_bins)},
+                            // Preview only; no raw full-run IQ samples in JSON snapshots.
+                            {"raw_iq_included", false},
+                            {"capture_hint",
+                             {{"schema", "graphx.dashboard.sigmf_capture_hint.v1"},
+                              {"enabled", false},
+                              {"capture_id", capture_id}}}}},
                           {"bounds",
                            {{"max_message_limit", kMaxSchedulePageSize},
                             {"max_pulse_limit", kMaxTimelineWindow},
@@ -303,6 +386,25 @@ nlohmann::json BuildFhssVisualizationSnapshot(const nlohmann::json &scenario,
                             {"refresh_interval_ms", refresh_ms}}}};
   snapshot["bounds"]["snapshot_bytes_estimate"] = snapshot.dump().size();
   return snapshot;
+}
+
+bool IsPathUnderRoot(const std::filesystem::path &root,
+                     const std::filesystem::path &candidate) {
+  std::error_code error;
+  const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+  if (error) {
+    return false;
+  }
+  const auto canonical_candidate = std::filesystem::weakly_canonical(candidate, error);
+  if (error) {
+    return false;
+  }
+  const auto relative = canonical_candidate.lexically_relative(canonical_root);
+  if (relative.empty()) {
+    return false;
+  }
+  const auto rel_native = relative.native();
+  return rel_native != ".." && rel_native.rfind("..", 0) != 0;
 }
 
 } // namespace
@@ -776,10 +878,11 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/metrics") {
-    PublishEvent("metrics", snapshot_collector_->GetMetricsSnapshot());
+    const auto metrics_snapshot = snapshot_collector_->GetMetricsSnapshot();
+    PublishEvent("metrics", metrics_snapshot);
     return Response{.status_code = 200,
                     .content_type = "application/json",
-                    .body = JsonResponse(snapshot_collector_->GetMetricsSnapshot())};
+                    .body = JsonResponse(metrics_snapshot)};
   }
 
   if (request.path == "/api/v1/metrics/edges") {
@@ -789,10 +892,11 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/diagnostics") {
-    PublishEvent("diagnostics", snapshot_collector_->GetDiagnosticsSnapshot());
+    const auto diagnostics_snapshot = snapshot_collector_->GetDiagnosticsSnapshot();
+    PublishEvent("diagnostics", diagnostics_snapshot);
     return Response{.status_code = 200,
                     .content_type = "application/json",
-                    .body = JsonResponse(snapshot_collector_->GetDiagnosticsSnapshot())};
+                    .body = JsonResponse(diagnostics_snapshot)};
   }
 
   if (request.path == "/api/v1/config/validate" && request.method == "POST") {
@@ -958,6 +1062,132 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                     .body = JsonResponse(result)};
   }
 
+  if (request.path == "/api/v1/fhss/artifacts/bundle" && request.method == "POST") {
+    const auto body = request.body.empty() ? nlohmann::json::object()
+                                           : nlohmann::json::parse(request.body, nullptr, false);
+    if (body.is_discarded()) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "invalid_json", "request body must be JSON")};
+    }
+
+    const auto output_path_value = body.value("output_path", std::string{});
+    if (output_path_value.empty()) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "missing_output_path", "output_path is required")};
+    }
+    const auto output_path = std::filesystem::path(output_path_value);
+    if (!output_path.is_absolute()) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "artifact_path_not_allowed",
+                                        "output_path must be absolute", output_path_value)};
+    }
+    if (!options_.artifact_root.empty() &&
+        !IsPathUnderRoot(options_.artifact_root, output_path.parent_path())) {
+      return Response{.status_code = 400,
+                      .content_type = "application/json",
+                      .body = ErrorBody(400, "artifact_path_not_allowed",
+                                        "output_path must stay under artifact root",
+                                        output_path_value)};
+    }
+
+    if (body.value("failure_injection", std::string{}) == "enospc") {
+      return Response{.status_code = 500,
+                      .content_type = "application/json",
+                      .body = ErrorBody(500, "artifact_write_failed",
+                                        "injected ENOSPC during artifact bundle export",
+                                        output_path_value)};
+    }
+
+    std::error_code error;
+    std::filesystem::create_directories(output_path.parent_path(), error);
+    if (error) {
+      return Response{.status_code = 500,
+                      .content_type = "application/json",
+                      .body = ErrorBody(500, "artifact_write_failed", error.message(),
+                                        output_path_value)};
+    }
+
+    const bool include_sigmf = body.value("include_sigmf_capture", false);
+    const auto now = NowIso8601();
+    const auto scenario = configuration_service_->GetScenarioResponse().value(
+        "scenario", nlohmann::json::object());
+
+    nlohmann::json bundle{{"schema", "graphx.dashboard.fhss_artifact_bundle.v1"},
+                          {"created_at", now},
+                          {"config_revision", configuration_service_->ConfigRevision()},
+                          {"truth_in_labeling",
+                           "Deterministic GraphX CPU FHSS fixture. Not a production RF receiver or production channelizer."},
+                          {"sigmf_capture",
+                           {{"enabled", include_sigmf},
+                            {"contains_raw_iq", false}}},
+                          {"scenario_summary",
+                           {{"message_count",
+                             scenario.contains("messages") && scenario.at("messages").is_array()
+                                 ? scenario.at("messages").size()
+                                 : 0u}}}};
+
+    std::ofstream bundle_file(output_path, std::ios::binary | std::ios::trunc);
+    if (!bundle_file.good()) {
+      return Response{.status_code = 500,
+                      .content_type = "application/json",
+                      .body = ErrorBody(500, "artifact_write_failed",
+                                        "failed to open bundle output file",
+                                        output_path_value)};
+    }
+    bundle_file << std::setw(2) << bundle << '\n';
+    bundle_file.close();
+    if (!bundle_file.good()) {
+      return Response{.status_code = 500,
+                      .content_type = "application/json",
+                      .body = ErrorBody(500, "artifact_write_failed",
+                                        "failed to write bundle output file",
+                                        output_path_value)};
+    }
+
+    nlohmann::json files = nlohmann::json::array();
+    files.push_back(output_path.string());
+    if (include_sigmf) {
+      const auto sigmf_path = output_path.parent_path() /
+                              (output_path.stem().string() + ".sigmf-meta");
+      std::ofstream sigmf_meta(sigmf_path, std::ios::binary | std::ios::trunc);
+      if (!sigmf_meta.good()) {
+        return Response{.status_code = 500,
+                        .content_type = "application/json",
+                        .body = ErrorBody(500, "artifact_write_failed",
+                                          "failed to open SigMF metadata file",
+                                          sigmf_path.string())};
+      }
+      sigmf_meta << std::setw(2)
+                 << nlohmann::json{{"global", {{"core:datatype", "cf32_le"}}},
+                                   {"captures",
+                                    nlohmann::json::array(
+                                        {{{"core:description",
+                                           "Step-8 dashboard-selected-channel preview capture metadata only"},
+                                          {"core:sample_start", 0}}})},
+                                   {"annotations", nlohmann::json::array()}}
+                 << '\n';
+      sigmf_meta.close();
+      if (!sigmf_meta.good()) {
+        return Response{.status_code = 500,
+                        .content_type = "application/json",
+                        .body = ErrorBody(500, "artifact_write_failed",
+                                          "failed to write SigMF metadata file",
+                                          sigmf_path.string())};
+      }
+      files.push_back(sigmf_path.string());
+    }
+
+    return Response{.status_code = 202,
+                    .content_type = "application/json",
+                    .body = JsonResponse(nlohmann::json{{"schema", "graphx.dashboard.fhss_artifact_bundle_result.v1"},
+                                                        {"status", "succeeded"},
+                                                        {"output_path", output_path.string()},
+                                                        {"files", std::move(files)}})};
+  }
+
   if (StartsWith(request.path, "/api/v1/operations/")) {
     const auto operation_suffix = request.path.substr(std::string{"/api/v1/operations/"}.size());
     const std::string cancel_suffix = "/cancel";
@@ -1040,6 +1270,7 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     const auto pulse_offset_raw = GetQueryValue(request.query, "pulse_offset");
     const auto pulse_limit_raw = GetQueryValue(request.query, "pulse_limit");
     const auto refresh_raw = GetQueryValue(request.query, "refresh_ms");
+    const auto selected_channel_raw = GetQueryValue(request.query, "selected_channel");
 
     const auto message_offset = message_offset_raw.empty()
                     ? std::optional<std::size_t>{}
@@ -1055,12 +1286,16 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                    : ParseSize(pulse_limit_raw);
     const auto refresh_ms = refresh_raw.empty() ? std::optional<std::uint64_t>{}
                           : ParseUint64(refresh_raw);
+    const auto selected_channel = selected_channel_raw.empty()
+                    ? std::optional<std::uint64_t>{}
+                    : ParseUint64(selected_channel_raw);
 
     if ((!message_offset_raw.empty() && !message_offset.has_value()) ||
       (!message_limit_raw.empty() && !message_limit.has_value()) ||
       (!pulse_offset_raw.empty() && !pulse_offset.has_value()) ||
       (!pulse_limit_raw.empty() && !pulse_limit.has_value()) ||
-      (!refresh_raw.empty() && !refresh_ms.has_value())) {
+      (!refresh_raw.empty() && !refresh_ms.has_value()) ||
+      (!selected_channel_raw.empty() && !selected_channel.has_value())) {
       return Response{.status_code = 400,
               .content_type = "application/json",
               .body = ErrorBody(400, "invalid_query_parameter",
@@ -1080,10 +1315,13 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
       ClampPageSize(pulse_limit, kDefaultTimelineWindow, kMaxTimelineWindow);
     const auto bounded_message_offset = ClampOffset(message_offset, message_count);
     const auto bounded_refresh = ClampRefreshMs(refresh_ms);
+    const auto bounded_selected_channel =
+      static_cast<std::size_t>(std::min<std::uint64_t>(selected_channel.value_or(0u), 63u));
 
     auto snapshot = BuildFhssVisualizationSnapshot(
       scenario, bounded_message_offset, bounded_message_limit,
-      pulse_offset.value_or(0u), bounded_pulse_limit, bounded_refresh);
+      pulse_offset.value_or(0u), bounded_pulse_limit, bounded_refresh,
+      bounded_selected_channel);
     snapshot["config_revision"] = configuration_service_->ConfigRevision();
     return Response{.status_code = 200,
             .content_type = "application/json",

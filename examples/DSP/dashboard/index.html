@@ -35,6 +35,32 @@
       gap: 16px;
       padding: 16px;
     }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px 0;
+    }
+    .tab-btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .tab-btn[aria-selected="true"] {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
     .stack {
       display: grid;
       gap: 16px;
@@ -179,10 +205,90 @@
       letter-spacing: 0.03em;
       font-size: 0.68rem;
     }
+    .decoder-list {
+      display: grid;
+      gap: 8px;
+    }
+    .decoder-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(30px, 1fr));
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .preview-cell {
+      border-radius: 6px;
+      min-height: 26px;
+      display: grid;
+      place-items: center;
+      font-size: 0.68rem;
+      color: #0f172a;
+      border: 1px solid var(--border);
+      background: #e2e8f0;
+    }
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .controls-row input,
+    .controls-row button {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      background: white;
+      color: #0f172a;
+    }
+    .controls-row button {
+      background: #0f766e;
+      color: white;
+      border-color: #0f766e;
+      cursor: pointer;
+    }
     .subtle {
       font-size: 0.8rem;
       color: var(--muted);
       margin-top: 4px;
+    }
+    .command-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .command-btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #ffffff;
+      color: #0f172a;
+      cursor: pointer;
+    }
+    .command-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+    .command-result {
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      background: #f8fafc;
+      font-size: 0.78rem;
+      color: #334155;
+      white-space: pre-wrap;
+      max-height: 180px;
+      overflow: auto;
     }
     @media (max-width: 900px) {
       .layout {
@@ -196,48 +302,130 @@
     <h1>GraphX FHSS Dashboard</h1>
     <div id="meta"></div>
   </header>
-  <div class="layout">
-    <div class="stack">
-      <section class="card">
-        <h2>Runtime Metrics</h2>
-        <div id="metrics" class="metrics-grid"></div>
-      </section>
-      <section class="card">
-        <h2>Nodes</h2>
-        <div id="nodes"></div>
-      </section>
-      <section class="card">
-        <h2>Topology Activity</h2>
-        <div id="activity" class="activity-list"></div>
-      </section>
-      <section class="card">
-        <h2>FHSS Schedule</h2>
-        <div id="schedule-meta" class="subtle"></div>
-        <div id="schedule" class="schedule-list"></div>
-      </section>
+  <nav class="tabs" aria-label="Dashboard tabs">
+    <button class="tab-btn" id="tab-main" type="button" role="tab" aria-controls="panel-main" aria-selected="true">Overview</button>
+    <button class="tab-btn" id="tab-graph" type="button" role="tab" aria-controls="panel-graph" aria-selected="false">Graph Details</button>
+  </nav>
+  <section class="tab-panel active" id="panel-main" role="tabpanel" aria-labelledby="tab-main">
+    <div class="layout">
+      <div class="stack">
+        <section class="card">
+          <h2>Commands</h2>
+          <div class="subtle">Issue runtime and FHSS control commands directly from the dashboard.</div>
+          <div class="command-bar">
+            <button class="command-btn primary" id="cmd-start" type="button">Start</button>
+            <button class="command-btn" id="cmd-stop" type="button">Stop</button>
+            <button class="command-btn" id="cmd-rebuild" type="button">Rebuild</button>
+            <button class="command-btn" id="cmd-step" type="button">Step</button>
+            <button class="command-btn" id="cmd-continue" type="button">Continue</button>
+            <button class="command-btn" id="cmd-reset" type="button">Reset</button>
+          </div>
+          <div id="command-status" class="command-result">Ready.</div>
+        </section>
+        <section class="card">
+          <h2>Runtime Metrics</h2>
+          <div id="metrics" class="metrics-grid"></div>
+        </section>
+        <section class="card">
+          <h2>Topology Activity</h2>
+          <div id="activity" class="activity-list"></div>
+        </section>
+        <section class="card">
+          <h2>FHSS Schedule</h2>
+          <div id="schedule-meta" class="subtle"></div>
+          <div id="schedule" class="schedule-list"></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="card">
+          <h2>Diagnostics</h2>
+          <div id="diagnostics"></div>
+        </section>
+        <section class="card">
+          <h2>64-Channel Heatmap</h2>
+          <div id="heatmap-meta" class="subtle"></div>
+          <div id="heatmap" class="heatmap-grid"></div>
+        </section>
+        <section class="card">
+          <h2>Expected / Detected Pulse Timeline</h2>
+          <div id="timeline-meta" class="subtle"></div>
+          <div id="timeline"></div>
+        </section>
+        <section class="card">
+          <h2>Decoder Diagnostics</h2>
+          <div id="decoder-meta" class="subtle"></div>
+          <div id="decoder" class="decoder-list"></div>
+        </section>
+        <section class="card">
+          <h2>Selected-Channel Preview</h2>
+          <div id="preview-meta" class="subtle"></div>
+          <div id="preview" class="preview-grid"></div>
+          <div class="controls-row">
+            <input id="preview-channel" type="number" min="0" max="63" value="0" />
+            <button id="capture-btn" type="button">Export Artifact Bundle + SigMF Meta</button>
+          </div>
+          <div id="capture-meta" class="subtle"></div>
+        </section>
+      </div>
     </div>
-    <div class="stack">
-      <section class="card">
-        <h2>Diagnostics</h2>
-        <div id="diagnostics"></div>
-      </section>
-      <section class="card">
-        <h2>64-Channel Heatmap</h2>
-        <div id="heatmap-meta" class="subtle"></div>
-        <div id="heatmap" class="heatmap-grid"></div>
-      </section>
-      <section class="card">
-        <h2>Expected / Detected Pulse Timeline</h2>
-        <div id="timeline-meta" class="subtle"></div>
-        <div id="timeline"></div>
-      </section>
-      <section class="card">
-        <h2>Edges</h2>
-        <pre id="edges"></pre>
-      </section>
+  </section>
+  <section class="tab-panel" id="panel-graph" role="tabpanel" aria-labelledby="tab-graph">
+    <div class="layout">
+      <div class="stack">
+        <section class="card">
+          <h2>Nodes</h2>
+          <div id="nodes"></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="card">
+          <h2>Edges</h2>
+          <pre id="edges"></pre>
+        </section>
+      </div>
     </div>
-  </div>
+  </section>
   <script>
+    const openDetailsState = {
+      nodes: new Set(),
+      diagnostics: new Set()
+    };
+    const dashboardState = {
+      configRevision: null,
+      commandInFlight: false
+    };
+
+    function detailsKey(prefix, name, type, index) {
+      const safeName = typeof name === 'string' && name.length ? name : `item_${index}`;
+      const safeType = typeof type === 'string' ? type : 'unknown';
+      return `${prefix}:${safeName}:${safeType}`;
+    }
+
+    function bindDetailsState(details, stateSet, key) {
+      details.open = stateSet.has(key);
+      details.addEventListener('toggle', () => {
+        if (details.open) {
+          stateSet.add(key);
+        } else {
+          stateSet.delete(key);
+        }
+      });
+    }
+
+    function activateTab(targetPanelId) {
+      const tabMain = document.getElementById('tab-main');
+      const tabGraph = document.getElementById('tab-graph');
+      const panelMain = document.getElementById('panel-main');
+      const panelGraph = document.getElementById('panel-graph');
+      const isMain = targetPanelId === 'panel-main';
+
+      tabMain.setAttribute('aria-selected', isMain ? 'true' : 'false');
+      tabGraph.setAttribute('aria-selected', isMain ? 'false' : 'true');
+
+      panelMain.classList.toggle('active', isMain);
+      panelGraph.classList.toggle('active', !isMain);
+    }
+
     function nodeTitle(node, index) {
       const id = typeof node.id === 'string' ? node.id : `node_${index}`;
       const type = typeof node.type === 'string' ? node.type : 'unknown';
@@ -324,8 +512,10 @@
         host.textContent = 'No diagnostics are available for the current graph state.';
         return;
       }
-      nodes.forEach((node) => {
+      nodes.forEach((node, index) => {
         const details = document.createElement('details');
+        const key = detailsKey('diagnostics', node.name, node.type, index);
+        bindDetailsState(details, openDetailsState.diagnostics, key);
         const summary = document.createElement('summary');
         summary.textContent = `${node.name} (${node.type})`;
         details.appendChild(summary);
@@ -427,9 +617,112 @@
       host.appendChild(table);
     }
 
+    function renderDecoder(decoder) {
+      const host = document.getElementById('decoder');
+      host.textContent = '';
+      const meta = document.getElementById('decoder-meta');
+      const messages = Array.isArray(decoder.messages) ? decoder.messages : [];
+      meta.textContent = `${messages.length} decoded messages (schema ${decoder.schema || 'n/a'})`;
+
+      if (!messages.length) {
+        host.textContent = 'No decoder diagnostics in current schedule window.';
+        return;
+      }
+
+      messages.forEach((message) => {
+        const item = document.createElement('div');
+        item.className = 'decoder-item';
+        const margin = Number(message.viterbi?.path_margin_db || 0).toFixed(2);
+        const body = message.body_symbol_count || 0;
+        const preamble = message.preamble_symbol_count || 0;
+        item.textContent = `msg=${message.message_id} preamble=${preamble} body=${body} margin_db=${margin}`;
+        host.appendChild(item);
+      });
+    }
+
+    function renderSelectedChannelPreview(preview) {
+      const host = document.getElementById('preview');
+      host.textContent = '';
+      const meta = document.getElementById('preview-meta');
+      const bins = Array.isArray(preview.spectrum_bins) ? preview.spectrum_bins : [];
+      meta.textContent = `channel=${preview.channel_index ?? 0} bins=${bins.length} pulse_count=${preview.pulse_count || 0} raw_iq_included=${preview.raw_iq_included ? 'yes' : 'no'}`;
+
+      bins.forEach((bin) => {
+        const cell = document.createElement('div');
+        cell.className = 'preview-cell';
+        const magnitude = Number(bin.magnitude || 0);
+        const alpha = Math.min(0.95, 0.1 + magnitude / 8.0);
+        cell.style.background = `rgba(15, 118, 110, ${alpha})`;
+        cell.textContent = magnitude.toFixed(2);
+        host.appendChild(cell);
+      });
+    }
+
+    async function exportArtifactBundle(basePath) {
+      const body = {
+        output_path: `${basePath}/step8_bundle.json`,
+        include_sigmf_capture: true
+      };
+      const response = await fetch('/api/v1/fhss/artifacts/bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return response.json();
+    }
+
     async function fetchJson(path) {
       const response = await fetch(path);
       return response.json();
+    }
+
+    function commandId(prefix) {
+      const now = Date.now();
+      const random = Math.floor(Math.random() * 1e6);
+      return `${prefix}-${now}-${random}`;
+    }
+
+    function setCommandButtonsDisabled(disabled) {
+      const ids = ['cmd-start', 'cmd-stop', 'cmd-rebuild', 'cmd-step', 'cmd-continue', 'cmd-reset'];
+      ids.forEach((id) => {
+        const button = document.getElementById(id);
+        if (button) {
+          button.disabled = disabled;
+        }
+      });
+    }
+
+    async function postCommand(path, payload) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {})
+      });
+      const body = await response.json();
+      return { status: response.status, body };
+    }
+
+    async function runDashboardCommand(label, path, payloadBuilder) {
+      const statusHost = document.getElementById('command-status');
+      if (dashboardState.commandInFlight) {
+        statusHost.textContent = 'A command is already running. Please wait.';
+        return;
+      }
+
+      dashboardState.commandInFlight = true;
+      setCommandButtonsDisabled(true);
+      statusHost.textContent = `${label}: sending...`;
+
+      try {
+        const payload = payloadBuilder ? payloadBuilder() : {};
+        const result = await postCommand(path, payload);
+        statusHost.textContent = `${label}: HTTP ${result.status}\n${JSON.stringify(result.body, null, 2)}`;
+      } catch (error) {
+        statusHost.textContent = `${label}: failed\n${error}`;
+      } finally {
+        dashboardState.commandInFlight = false;
+        setCommandButtonsDisabled(false);
+      }
     }
 
     async function refreshDashboard() {
@@ -437,7 +730,7 @@
         fetchJson('/api/v1/graph'),
         fetchJson('/api/v1/metrics'),
         fetchJson('/api/v1/diagnostics'),
-        fetchJson('/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250')
+        fetchJson(`/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250&selected_channel=${Math.max(0, Math.min(63, Number(document.getElementById('preview-channel')?.value || 0)))}`)
       ]);
 
       const graph = graphData.graph || {};
@@ -449,6 +742,7 @@
 
       document.getElementById('meta').textContent =
         `graph=${graphData.schema} metrics=${metricsData.schema} diagnostics=${diagnosticsData.schema} fhss=${visualizationData.schema} revision=${graphData.config_revision}`;
+      dashboardState.configRevision = Number(graphData.config_revision ?? 0);
 
       renderMetrics(metricsData.graph || {});
       renderActivity(nodeMetrics, edgeMetrics);
@@ -456,12 +750,16 @@
       renderSchedule(visualizationData.schedule || {});
       renderHeatmap(visualizationData.heatmap || {});
       renderTimeline(visualizationData.timeline || {});
+      renderDecoder(visualizationData.decoder || {});
+      renderSelectedChannelPreview(visualizationData.selected_channel_preview || {});
 
       const nodesHost = document.getElementById('nodes');
       nodesHost.textContent = '';
       for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[i];
         const details = document.createElement('details');
+        const key = detailsKey('nodes', node.id, node.type, i);
+        bindDetailsState(details, openDetailsState.nodes, key);
         const summary = document.createElement('summary');
         summary.textContent = nodeTitle(node, i);
         details.appendChild(summary);
@@ -485,6 +783,63 @@
 
     refreshDashboard().catch((err) => {
       document.getElementById('meta').textContent = `failed: ${err}`;
+    });
+
+    document.getElementById('capture-btn').addEventListener('click', () => {
+      const host = document.getElementById('capture-meta');
+      host.textContent = 'exporting...';
+      exportArtifactBundle('/tmp/graphx_dashboard_artifacts')
+        .then((result) => {
+          host.textContent = `export status=${result.status || 'unknown'} output=${result.output_path || 'n/a'}`;
+        })
+        .catch((error) => {
+          host.textContent = `export failed: ${error}`;
+        });
+    });
+
+    document.getElementById('cmd-start').addEventListener('click', () => {
+      runDashboardCommand('Start', '/api/v1/commands/start', () => ({
+        command_id: commandId('start')
+      }));
+    });
+
+    document.getElementById('cmd-stop').addEventListener('click', () => {
+      runDashboardCommand('Stop', '/api/v1/commands/stop', () => ({
+        command_id: commandId('stop')
+      }));
+    });
+
+    document.getElementById('cmd-rebuild').addEventListener('click', () => {
+      runDashboardCommand('Rebuild', '/api/v1/config/rebuild', () => ({
+        command_id: commandId('rebuild'),
+        expected_revision: Number(dashboardState.configRevision ?? 0)
+      }));
+    });
+
+    document.getElementById('cmd-step').addEventListener('click', () => {
+      runDashboardCommand('Step', '/api/v1/commands/step-message', () => ({
+        command_id: commandId('step')
+      }));
+    });
+
+    document.getElementById('cmd-continue').addEventListener('click', () => {
+      runDashboardCommand('Continue', '/api/v1/commands/continue', () => ({
+        command_id: commandId('continue')
+      }));
+    });
+
+    document.getElementById('cmd-reset').addEventListener('click', () => {
+      runDashboardCommand('Reset', '/api/v1/commands/reset', () => ({
+        command_id: commandId('reset')
+      }));
+    });
+
+    document.getElementById('tab-main').addEventListener('click', () => {
+      activateTab('panel-main');
+    });
+
+    document.getElementById('tab-graph').addEventListener('click', () => {
+      activateTab('panel-graph');
     });
   </script>
 </body>
