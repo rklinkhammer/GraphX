@@ -80,10 +80,10 @@ Inputs:
 
 
 Task:
-Implement PR2 only.
+Implement PR7 only.
 
 Scope:
-Apply required fixes for PR2 only:
+Apply required fixes for PR6 only:
 Add explicit tests that enforce the rule.
 
 Rules:
@@ -92,8 +92,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR1 requires it.
-- Add or update tests for PR1.
+- Delete obsolete code if PR7 requires it.
+- Add or update tests for PR7.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
@@ -133,8 +133,7 @@ Output:
 - Blocking issues.
 - Non-blocking issues.
 - Suggested fixes.
-=============
-save verifier output as plan//reviews/GRAPHX_VERIFIER_PR1_1_REPORT.md
+save verifier output as plan//reviews/GRAPHX_VERIFIER_PR1_REPORT.md
 ====
 Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 

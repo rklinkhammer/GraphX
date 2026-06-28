@@ -177,6 +177,19 @@ TEST(DspFhssBaselineGuardrailTest,
       << "BASELINE.md must document that aggregate stream outputs are not allowed.";
 }
 
+  TEST(DspFhssBaselineGuardrailTest,
+     PR6_CanonicalConfigHasNoAggregateOrAdapterContract) {
+    const auto config_path = std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH);
+    const auto config_text = ReadFile(config_path);
+
+    EXPECT_EQ(config_text.find("FHSSChannelizedIqStreamPacket"), std::string::npos)
+      << "Canonical config must not reference an aggregate channel stream packet.";
+    EXPECT_EQ(config_text.find("FHSSChannelizedIqStreamToken"), std::string::npos)
+      << "Canonical config must not reference an aggregate channel stream token.";
+    EXPECT_EQ(config_text.find("StaticNodeAdapter"), std::string::npos)
+      << "Canonical config must remain on normal expanded GraphX JSON, not adapter contracts.";
+  }
+
 TEST(DspFhssBaselineGuardrailTest,
      DemoDoesNotExposeDeletedReferenceCorrelatorSurface) {
   const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);

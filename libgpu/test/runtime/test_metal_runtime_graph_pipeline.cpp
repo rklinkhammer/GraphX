@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cmath>
 #include <filesystem>
+#include <future>
 
 #include "capabilities/GraphCapability.hpp"
 #include "graph/GraphBuilder.hpp"
@@ -431,7 +432,19 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
     const auto start_result = executor->Start();
     ASSERT_TRUE(start_result.success) << start_result.message << " " << start_result.error_details;
 
-    const auto run_result = executor->Run();
+    auto run_future = std::async(std::launch::async, [&executor]() {
+        return executor->Run();
+    });
+    constexpr auto kRunTimeout = std::chrono::seconds(8);
+    if (run_future.wait_for(kRunTimeout) != std::future_status::ready) {
+        const auto timed_stop_result = executor->Stop();
+        const auto timed_join_result = executor->Join();
+        const auto timed_run_result = run_future.get();
+        FAIL() << "GraphExecutor::Run() timed out in Metal runtime test. stop="
+               << timed_stop_result.success << " join=" << timed_join_result.success
+               << " run=" << timed_run_result.success;
+    }
+    const auto run_result = run_future.get();
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 
     const auto stop_result = executor->Stop();

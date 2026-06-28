@@ -45,6 +45,28 @@ class FHSSFixtureTopologyGeneratorTest(unittest.TestCase):
         self.assertIn("FHSSFixtureFrequencyChannelizerNode", types)
         self.assertNotIn("ChannelizerNode", types)
 
+    def test_generated_graph_has_no_aggregate_or_adapter_contract(self) -> None:
+        rendered = generator.render_topology()
+        graph = json.loads(rendered)
+
+        for forbidden in (
+            "FHSSChannelizedIqStreamPacket",
+            "FHSSChannelizedIqStreamToken",
+            "StaticNodeAdapter",
+            "graph adaptor",
+        ):
+            self.assertNotIn(forbidden, rendered)
+
+        fanout = [edge for edge in graph["edges"] if edge["source_node_id"] == "channelizer"]
+        self.assertEqual(len(fanout), 64)
+
+        incoming_by_detector: dict[str, list[dict[str, int | str]]] = {}
+        for edge in fanout:
+            incoming_by_detector.setdefault(edge["target_node_id"], []).append(edge)
+
+        self.assertEqual(set(incoming_by_detector.keys()), {f"detector_{i}" for i in range(64)})
+        self.assertTrue(all(len(edges) == 1 for edges in incoming_by_detector.values()))
+
 
 if __name__ == "__main__":
     unittest.main()
