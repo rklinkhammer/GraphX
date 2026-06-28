@@ -22,6 +22,7 @@
 #include <memory>
 #include <optional>
 #include <csignal>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -566,7 +567,10 @@ std::atomic<bool> g_dashboard_stop_requested{false};
 void HandleDashboardSignal(int) { g_dashboard_stop_requested.store(true); }
 
 int RunDashboardNoRunMode(const CliOptions &options,
-                          const nlohmann::json &effective_config) {
+                          const nlohmann::json &effective_config,
+                          const std::filesystem::path &effective_config_path) {
+  g_dashboard_stop_requested.store(false);
+
   auto configuration_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
           effective_config);
@@ -574,6 +578,135 @@ int RunDashboardNoRunMode(const CliOptions &options,
       std::make_shared<graph::dashboard::GraphRuntimeSession>();
   auto snapshot_collector =
       std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+  runtime_session->MarkReady();
+
+  struct RuntimeExecutionState {
+    std::mutex mutex;
+    std::shared_ptr<graph::GraphExecutor> executor;
+    std::thread worker;
+    bool worker_running = false;
+  };
+  auto execution = std::make_shared<RuntimeExecutionState>();
+
+  runtime_session->SetStartHandler([runtime_session, snapshot_collector, execution,
+                                    options,
+                                    effective_config_path]()
+                                       -> graph::dashboard::GraphRuntimeSession::CommandResult {
+    std::thread stale_worker;
+    {
+      std::lock_guard<std::mutex> lock(execution->mutex);
+      if (!execution->worker_running && execution->worker.joinable()) {
+        stale_worker = std::move(execution->worker);
+      }
+    }
+    if (stale_worker.joinable()) {
+      stale_worker.join();
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(execution->mutex);
+      if (execution->worker_running) {
+        return {.status_code = 409,
+                .code = "invalid_state",
+                .message = "runtime already running"};
+      }
+    }
+
+    const auto state = runtime_session->GetState();
+    if (state == graph::dashboard::GraphRuntimeSession::State::rebuilding ||
+        state == graph::dashboard::GraphRuntimeSession::State::shutting_down ||
+        state == graph::dashboard::GraphRuntimeSession::State::dead ||
+        state == graph::dashboard::GraphRuntimeSession::State::initializing ||
+        state == graph::dashboard::GraphRuntimeSession::State::running) {
+      return {.status_code = 409,
+              .code = "invalid_state",
+              .message = "runtime cannot start in current state"};
+    }
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(effective_config_path.string())
+                        .WithPluginDirectory(options.plugin_directory.string())
+                        .WithExecutorTimeout(
+                            std::chrono::seconds(options.executor_timeout_s))
+                        .Build();
+    if (!executor) {
+      runtime_session->SetLifecycleState(
+          graph::dashboard::GraphRuntimeSession::State::failed);
+      return {.status_code = 500,
+              .code = "executor_construction_failed",
+              .message = "failed to build FHSS graph executor"};
+    }
+
+    auto manager = executor->GetGraphManager();
+    if (!manager) {
+      runtime_session->SetLifecycleState(
+          graph::dashboard::GraphRuntimeSession::State::failed);
+      return {.status_code = 500,
+              .code = "graph_manager_missing",
+              .message = "executor did not expose a GraphManager"};
+    }
+    manager->EnableMetrics(true);
+
+    runtime_session->SetActiveGraphManager(manager);
+    snapshot_collector->BindRuntimeSession(runtime_session);
+    runtime_session->SetLifecycleState(
+        graph::dashboard::GraphRuntimeSession::State::running);
+
+    {
+      std::lock_guard<std::mutex> lock(execution->mutex);
+      execution->executor = executor;
+      execution->worker_running = true;
+      execution->worker = std::thread([runtime_session, execution]() {
+        std::shared_ptr<graph::GraphExecutor> executor_to_run;
+        {
+          std::lock_guard<std::mutex> lock(execution->mutex);
+          executor_to_run = execution->executor;
+        }
+
+        graph::ExecutionResult result{};
+        if (executor_to_run) {
+          result = executor_to_run->Execute();
+        }
+
+        runtime_session->SetLifecycleState(
+            result.success ? graph::dashboard::GraphRuntimeSession::State::completed
+                           : graph::dashboard::GraphRuntimeSession::State::failed);
+
+        std::lock_guard<std::mutex> lock(execution->mutex);
+        if (execution->executor == executor_to_run) {
+          execution->executor.reset();
+        }
+        execution->worker_running = false;
+      });
+    }
+
+    return {.status_code = 202,
+            .code = "start_accepted",
+            .message = "runtime start accepted"};
+  });
+
+  runtime_session->SetStopHandler([runtime_session, execution]()
+                                      -> graph::dashboard::GraphRuntimeSession::CommandResult {
+    std::shared_ptr<graph::GraphExecutor> executor;
+    bool worker_running = false;
+    {
+      std::lock_guard<std::mutex> lock(execution->mutex);
+      executor = execution->executor;
+      worker_running = execution->worker_running;
+    }
+
+    if (!executor || !worker_running) {
+      return {.status_code = 409,
+              .code = "invalid_state",
+              .message = "runtime is not running"};
+    }
+
+    (void)executor->Stop();
+    runtime_session->SetLifecycleState(graph::dashboard::GraphRuntimeSession::State::stopped);
+    return {.status_code = 202,
+            .code = "stop_accepted",
+            .message = "runtime stop accepted"};
+  });
 
   graph::dashboard::EmbeddedDashboardServer::Options server_options;
   server_options.port = options.dashboard_port;
@@ -593,6 +726,20 @@ int RunDashboardNoRunMode(const CliOptions &options,
   while (!g_dashboard_stop_requested.load()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+
+  std::thread worker_to_join;
+  runtime_session->MarkShuttingDown();
+  (void)runtime_session->Stop();
+  {
+    std::lock_guard<std::mutex> lock(execution->mutex);
+    if (execution->worker.joinable()) {
+      worker_to_join = std::move(execution->worker);
+    }
+  }
+  if (worker_to_join.joinable()) {
+    worker_to_join.join();
+  }
+  runtime_session->MarkDead();
 
   server.Stop();
   return 0;
@@ -620,7 +767,7 @@ int main(int argc, char **argv) {
 
     if (options.dashboard || options.dashboard_no_run) {
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
-      return RunDashboardNoRunMode(options, graph_config);
+      return RunDashboardNoRunMode(options, graph_config, effective_config_path);
 #else
       throw std::runtime_error(
           "dashboard support is not built. Reconfigure with "

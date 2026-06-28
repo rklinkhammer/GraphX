@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -34,6 +35,8 @@ public:
     std::string message;
   };
 
+  using CommandHandler = std::function<CommandResult()>;
+
   struct StatusSnapshot {
     State state = State::initializing;
     bool ready = false;
@@ -61,6 +64,8 @@ public:
   void MarkDead();
   void SetLifecycleState(State state);
   void SetActiveGraphManager(std::shared_ptr<graph::GraphManager> graph_manager);
+  void SetStartHandler(CommandHandler handler);
+  void SetStopHandler(CommandHandler handler);
 
   [[nodiscard]] CommandResult Rebuild();
   [[nodiscard]] CommandResult Start();
@@ -93,6 +98,9 @@ private:
   bool fail_next_cleanup_ = false;
   bool interrupt_next_thread_flow_ = false;
   bool shutdown_during_next_rebuild_ = false;
+
+  CommandHandler start_handler_;
+  CommandHandler stop_handler_;
 };
 
 } // namespace graph::dashboard

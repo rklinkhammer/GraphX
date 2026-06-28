@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "graph/GraphExecutorBuilder.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -26,6 +27,10 @@
 #ifndef DSP_FHSS_CHANNELIZED_CONFIG_PATH
 #define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                           \
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
+#endif
+
+#ifndef DSP_PLUGIN_OUTPUT_DIRECTORY
+#define DSP_PLUGIN_OUTPUT_DIRECTORY "./plugins"
 #endif
 
 namespace {
@@ -242,6 +247,78 @@ TEST_F(DashboardServerStep3Test, ActivationOccursOnlyAfterSuccessfulConstruction
   const auto stopped_json = nlohmann::json::parse(stopped_status.body);
   EXPECT_EQ(stopped_json.at("lifecycle_state").get<std::string>(), "stopped");
 }
+
+  TEST_F(DashboardServerStep3Test,
+       StartCommandPopulatesRuntimeMetricsWithoutRebuildPrecondition) {
+    runtime_session_->SetStateForTesting(graph::dashboard::GraphRuntimeSession::State::not_built);
+
+    const auto default_metrics =
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/metrics");
+    ASSERT_EQ(default_metrics.status_code, 200) << default_metrics.body;
+    const auto default_metrics_json = nlohmann::json::parse(default_metrics.body);
+    EXPECT_EQ(default_metrics_json.at("schema").get<std::string>(),
+        "graphx.dashboard.metrics.v1");
+    EXPECT_EQ(default_metrics_json.at("graph").at("graph_total_enqueued")
+          .get<std::uint64_t>(),
+        0u);
+    EXPECT_TRUE(default_metrics_json.at("nodes").empty());
+    EXPECT_TRUE(default_metrics_json.at("edges").empty());
+
+    runtime_session_->SetStartHandler([runtime_session = runtime_session_,
+                     snapshot_collector = snapshot_collector_]() {
+    auto executor = graph::GraphExecutorBuilder()
+              .WithJsonConfig(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH).string())
+              .WithPluginDirectory(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY).string())
+              .WithExecutorTimeout(std::chrono::seconds(12))
+              .Build();
+    if (!executor) {
+      runtime_session->SetLifecycleState(
+        graph::dashboard::GraphRuntimeSession::State::failed);
+      return graph::dashboard::GraphRuntimeSession::CommandResult{
+        .status_code = 500,
+        .code = "executor_construction_failed",
+        .message = "failed to build executor"};
+    }
+
+    auto manager = executor->GetGraphManager();
+    if (!manager) {
+      runtime_session->SetLifecycleState(
+        graph::dashboard::GraphRuntimeSession::State::failed);
+      return graph::dashboard::GraphRuntimeSession::CommandResult{
+        .status_code = 500,
+        .code = "graph_manager_missing",
+        .message = "executor did not expose a GraphManager"};
+    }
+
+    manager->EnableMetrics(true);
+    const auto result = executor->Execute();
+    runtime_session->SetActiveGraphManager(manager);
+    snapshot_collector->BindRuntimeSession(runtime_session);
+    runtime_session->SetLifecycleState(
+      result.success ? graph::dashboard::GraphRuntimeSession::State::completed
+               : graph::dashboard::GraphRuntimeSession::State::failed);
+    return graph::dashboard::GraphRuntimeSession::CommandResult{
+      .status_code = result.success ? 202 : 500,
+      .code = result.success ? "start_accepted" : "start_failed",
+      .message = result.success ? "runtime start accepted"
+                    : "runtime execution failed"};
+    });
+
+    const auto start = HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/start", "{}");
+    ASSERT_EQ(start.status_code, 202) << start.body;
+
+    const auto populated_metrics =
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/metrics");
+    ASSERT_EQ(populated_metrics.status_code, 200) << populated_metrics.body;
+    const auto populated_metrics_json = nlohmann::json::parse(populated_metrics.body);
+    EXPECT_EQ(populated_metrics_json.at("schema").get<std::string>(),
+        "graphx.dashboard.metrics.v1");
+    EXPECT_GT(populated_metrics_json.at("graph").at("graph_total_enqueued")
+          .get<std::uint64_t>(),
+        0u);
+    EXPECT_FALSE(populated_metrics_json.at("nodes").empty());
+    EXPECT_FALSE(populated_metrics_json.at("edges").empty());
+  }
 
 TEST_F(DashboardServerStep3Test, CleanupFailedStateBlocksFurtherRebuilds) {
   runtime_session_->SetStateForTesting(graph::dashboard::GraphRuntimeSession::State::stopped);
