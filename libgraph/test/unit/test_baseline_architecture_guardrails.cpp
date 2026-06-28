@@ -94,3 +94,22 @@ TEST(BaselineArchitectureGuardrailTest, ActiveDocsPreserveCoreGraphXInvariants) 
   ExpectContains(active_docs, "fixture");
   ExpectContains(active_docs, "production-like");
 }
+
+TEST(BaselineArchitectureGuardrailTest,
+     TypedFixedFanNodeIsTheOnlyRepeatedPortMechanism) {
+  const auto root = RepositoryRoot();
+  const auto graph_include = root / "libgraph" / "include" / "graph";
+  const auto canonical = graph_include / "TypedFixedFanNode.hpp";
+
+  ASSERT_TRUE(std::filesystem::exists(canonical));
+  EXPECT_FALSE(
+      std::filesystem::exists(graph_include / "FixedFanInOutNode.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(graph_include / "RoutedFunctions.hpp"));
+
+  const auto text = ReadFile(canonical);
+  EXPECT_NE(text.find("class TypedFixedFanNode"), std::string::npos);
+  EXPECT_EQ(text.find("NamedFixedFanInOutNode"), std::string::npos);
+  EXPECT_EQ(text.find("RoutedInputFn"), std::string::npos);
+  EXPECT_EQ(text.find("RoutedOutputFn"), std::string::npos);
+  EXPECT_EQ(text.find("RoutedTransferFn"), std::string::npos);
+}

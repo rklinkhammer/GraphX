@@ -9,7 +9,7 @@
 #include "dsp/fhss/FHSSFixtureUtils.hpp"
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
-#include "graph/FixedFanInOutNode.hpp"
+#include "graph/TypedFixedFanNode.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 #include "graph/PortTypes.hpp"
@@ -201,13 +201,13 @@ FHSSChannelizerConfigFromJson(const graph::JsonView &cfg) {
 }
 
 class ChannelizerNode
-    : public graph::NamedFixedFanInOutNode<ChannelizerNode,
+    : public graph::TypedFixedFanNode<ChannelizerNode,
                                            graph::TypeList<FHSSDownconvertedIqToken>,
                                            FHSSChannelizerOutputList>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
-  using Base = graph::NamedFixedFanInOutNode<ChannelizerNode,
+  using Base = graph::TypedFixedFanNode<ChannelizerNode,
                                              graph::TypeList<FHSSDownconvertedIqToken>,
                                              FHSSChannelizerOutputList>;
   using InputTokenType = FHSSDownconvertedIqToken;

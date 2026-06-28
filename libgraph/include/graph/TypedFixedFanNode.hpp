@@ -1,6 +1,6 @@
 /**
- * @file FixedFanInOutNode.hpp
- * @brief GraphX base for fixed fan-in/fan-out nodes with routed ports.
+ * @file TypedFixedFanNode.hpp
+ * @brief Canonical GraphX base for typed fixed fan-in/fan-out nodes.
  */
 // SPDX-License-Identifier: MIT
 
@@ -8,10 +8,11 @@
 
 #include "core/ActiveQueue.hpp"
 #include "graph/EdgeControl.hpp"
+#include "graph/InputFunction.hpp"
 #include "graph/Lifecycle.hpp"
 #include "graph/NamedType.hpp"
+#include "graph/OutputFunction.hpp"
 #include "graph/PortTypes.hpp"
-#include "graph/RoutedFunctions.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -44,22 +45,46 @@ using TypeListElement_t = typename TypeListElement<Index, TypeList>::type;
 
 namespace detail {
 
+template <typename PortT, typename Derived>
+class TypedFixedFanInputPort : public InputFn<PortT> {
+public:
+  using InputType = typename PortT::type;
+  static constexpr std::size_t port_id = PortT::id;
+
+  bool Consume(const InputType &input,
+               std::integral_constant<std::size_t, port_id>) final {
+    return static_cast<Derived *>(this)->template ConsumeInput<port_id>(input);
+  }
+};
+
+template <typename PortT, typename Derived>
+class TypedFixedFanOutputPort : public OutputFn<PortT> {
+public:
+  using OutputType = typename PortT::type;
+  static constexpr std::size_t port_id = PortT::id;
+
+  std::optional<OutputType>
+  Produce(std::integral_constant<std::size_t, port_id>) final {
+    return static_cast<Derived *>(this)->template ProduceOutput<port_id>();
+  }
+};
+
 template <typename Derived, typename InputPorts, typename OutputPorts>
-class FixedFanInOutNodeBase;
+class TypedFixedFanStorage;
 
 template <typename Derived, typename... InputPortTs, typename... OutputPortTs>
-class FixedFanInOutNodeBase<Derived, TypeList<InputPortTs...>,
+class TypedFixedFanStorage<Derived, TypeList<InputPortTs...>,
                             TypeList<OutputPortTs...>>
-    : public NodeLifecycleMixin<FixedFanInOutNodeBase<
-          Derived, TypeList<InputPortTs...>, TypeList<OutputPortTs...>>>,
-      public RoutedInputFn<InputPortTs, Derived>...,
-      public RoutedOutputFn<OutputPortTs, Derived>... {
+    : public NodeLifecycleMixin<TypedFixedFanStorage<
+      Derived, TypeList<InputPortTs...>, TypeList<OutputPortTs...>>>,
+      public TypedFixedFanInputPort<InputPortTs, Derived>...,
+      public TypedFixedFanOutputPort<OutputPortTs, Derived>... {
 public:
-  using LifecycleBase = NodeLifecycleMixin<FixedFanInOutNodeBase<
+  using LifecycleBase = NodeLifecycleMixin<TypedFixedFanStorage<
       Derived, TypeList<InputPortTs...>, TypeList<OutputPortTs...>>>;
 
-  using RoutedInputFn<InputPortTs, Derived>::Consume...;
-  using RoutedOutputFn<OutputPortTs, Derived>::Produce...;
+  using TypedFixedFanInputPort<InputPortTs, Derived>::Consume...;
+  using TypedFixedFanOutputPort<OutputPortTs, Derived>::Produce...;
 
   using InputPortList = TypeList<InputPortTs...>;
   using OutputPortList = TypeList<OutputPortTs...>;
@@ -183,11 +208,14 @@ public:
   }
 
   void EnableInputMetrics(bool enabled = true) {
-    (RoutedInputFn<InputPortTs, Derived>::EnableMetrics(enabled), ...);
+    (TypedFixedFanInputPort<InputPortTs, Derived>::EnableMetrics(enabled), ...);
   }
 
   void EnableOutputMetrics(bool enabled = true) {
-    (RoutedOutputFn<OutputPortTs, Derived>::EnableMetrics(enabled), ...);
+    (TypedFixedFanOutputPort<OutputPortTs, Derived>::EnableMetrics(enabled), ...);
+    std::apply(
+        [enabled](auto &...queues) { (queues.EnableMetrics(enabled), ...); },
+        output_queues_);
   }
 
   void EnableMetrics(bool enabled = true) {
@@ -198,37 +226,39 @@ public:
   void DisableMetrics() { EnableMetrics(false); }
 
   void ResetMetrics() {
-    (RoutedInputFn<InputPortTs, Derived>::ResetMetrics(), ...);
-    (RoutedOutputFn<OutputPortTs, Derived>::ResetMetrics(), ...);
+    (TypedFixedFanInputPort<InputPortTs, Derived>::ResetMetrics(), ...);
+    (TypedFixedFanOutputPort<OutputPortTs, Derived>::ResetMetrics(), ...);
+    std::apply([](auto &...queues) { (queues.ResetMetrics(), ...); },
+               output_queues_);
   }
 
 protected:
-  ~FixedFanInOutNodeBase() override = default;
+  ~TypedFixedFanStorage() override = default;
 
 public:
   bool InitPortsImpl() {
     bool ok = true;
-    ((ok = RoutedInputFn<InputPortTs, Derived>::Init() && ok), ...);
-    ((ok = RoutedOutputFn<OutputPortTs, Derived>::Init() && ok), ...);
+    ((ok = TypedFixedFanInputPort<InputPortTs, Derived>::Init() && ok), ...);
+    ((ok = TypedFixedFanOutputPort<OutputPortTs, Derived>::Init() && ok), ...);
     return ok;
   }
 
   bool StartPortsImpl() {
     bool ok = true;
-    ((ok = RoutedInputFn<InputPortTs, Derived>::Start() && ok), ...);
-    ((ok = RoutedOutputFn<OutputPortTs, Derived>::Start() && ok), ...);
+    ((ok = TypedFixedFanInputPort<InputPortTs, Derived>::Start() && ok), ...);
+    ((ok = TypedFixedFanOutputPort<OutputPortTs, Derived>::Start() && ok), ...);
     return ok;
   }
 
   void StopPortsImpl() {
-    (RoutedInputFn<InputPortTs, Derived>::Stop(), ...);
-    (RoutedOutputFn<OutputPortTs, Derived>::Stop(), ...);
+    (TypedFixedFanInputPort<InputPortTs, Derived>::Stop(), ...);
+    (TypedFixedFanOutputPort<OutputPortTs, Derived>::Stop(), ...);
     DisableOutputQueues();
   }
 
   void JoinPortsImpl() {
-    (RoutedInputFn<InputPortTs, Derived>::Join(), ...);
-    (RoutedOutputFn<OutputPortTs, Derived>::Join(), ...);
+    (TypedFixedFanInputPort<InputPortTs, Derived>::Join(), ...);
+    (TypedFixedFanOutputPort<OutputPortTs, Derived>::Join(), ...);
   }
 
   bool JoinWithTimeoutPortsImpl(std::chrono::milliseconds timeout_ms) {
@@ -236,11 +266,11 @@ public:
     const auto per_port_timeout =
         timeout_ms / std::max<std::size_t>(1, port_count);
     bool ok = true;
-    ((ok = RoutedInputFn<InputPortTs, Derived>::JoinWithTimeout(
+    ((ok = TypedFixedFanInputPort<InputPortTs, Derived>::JoinWithTimeout(
                per_port_timeout) &&
            ok),
      ...);
-    ((ok = RoutedOutputFn<OutputPortTs, Derived>::JoinWithTimeout(
+    ((ok = TypedFixedFanOutputPort<OutputPortTs, Derived>::JoinWithTimeout(
                per_port_timeout) &&
            ok),
      ...);
@@ -262,9 +292,9 @@ public:
                                 const core::QueueMetrics *&result) const {
     if constexpr (Port < NInputs) {
       if (port_id == Port) {
-        auto *mutable_this = const_cast<FixedFanInOutNodeBase *>(this);
+        auto *mutable_this = const_cast<TypedFixedFanStorage *>(this);
         auto *fn =
-            static_cast<RoutedInputFn<InputPortType<Port>, Derived> *>(
+            static_cast<TypedFixedFanInputPort<InputPortType<Port>, Derived> *>(
                 mutable_this);
         result = &fn->GetQueue().GetMetrics();
       } else {
@@ -290,9 +320,9 @@ public:
                                      const ThreadMetrics *&result) const {
     if constexpr (Port < NInputs) {
       if (port_id == Port) {
-        auto *mutable_this = const_cast<FixedFanInOutNodeBase *>(this);
+        auto *mutable_this = const_cast<TypedFixedFanStorage *>(this);
         auto *fn =
-            static_cast<RoutedInputFn<InputPortType<Port>, Derived> *>(
+            static_cast<TypedFixedFanInputPort<InputPortType<Port>, Derived> *>(
                 mutable_this);
         result = &fn->GetThreadMetrics();
       } else {
@@ -306,9 +336,9 @@ public:
                                       const ThreadMetrics *&result) const {
     if constexpr (Port < NOutputs) {
       if (port_id == Port) {
-        auto *mutable_this = const_cast<FixedFanInOutNodeBase *>(this);
+        auto *mutable_this = const_cast<TypedFixedFanStorage *>(this);
         auto *fn =
-            static_cast<RoutedOutputFn<OutputPortType<Port>, Derived> *>(
+            static_cast<TypedFixedFanOutputPort<OutputPortType<Port>, Derived> *>(
                 mutable_this);
         result = &fn->GetThreadMetrics();
       } else {
@@ -324,17 +354,16 @@ public:
 } // namespace detail
 
 template <typename Derived, typename InputList, typename OutputList>
-class NamedFixedFanInOutNode;
+class TypedFixedFanNode;
 
 template <typename Derived, typename... Inputs, typename... Outputs>
-class NamedFixedFanInOutNode<Derived, TypeList<Inputs...>,
-                             TypeList<Outputs...>>
-    : public detail::FixedFanInOutNodeBase<
+class TypedFixedFanNode<Derived, TypeList<Inputs...>, TypeList<Outputs...>>
+    : public detail::TypedFixedFanStorage<
           Derived, typename MakePorts<TypeList<Inputs...>>::type,
           typename MakePorts<TypeList<Outputs...>>::type>,
       public NamedType<Derived> {
 public:
-  using Base = detail::FixedFanInOutNodeBase<
+  using Base = detail::TypedFixedFanStorage<
       Derived, typename MakePorts<TypeList<Inputs...>>::type,
       typename MakePorts<TypeList<Outputs...>>::type>;
 
@@ -344,7 +373,7 @@ public:
   using Base::Transfer;
 
 protected:
-  ~NamedFixedFanInOutNode() override = default;
+  ~TypedFixedFanNode() override = default;
 };
 
 } // namespace graph

@@ -4,7 +4,7 @@
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
-#include "graph/FixedFanInOutNode.hpp"
+#include "graph/TypedFixedFanNode.hpp"
 
 #include <cstdint>
 #include <mutex>
@@ -25,11 +25,11 @@ using FHSSPulseMergeOutputList =
     graph::TypeList<FHSSPulseCandidateToken, FHSSPulseCandidateToken>;
 
 class FHSSPulseMergeNode
-    : public graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
+    : public graph::TypedFixedFanNode<FHSSPulseMergeNode,
                                            FHSSPulseMergeInputList,
                                            FHSSPulseMergeOutputList> {
 public:
-  using Base = graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
+  using Base = graph::TypedFixedFanNode<FHSSPulseMergeNode,
                                              FHSSPulseMergeInputList,
                                              FHSSPulseMergeOutputList>;
   using InputTokenType = FHSSDetectedPulseToken;
