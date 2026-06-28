@@ -114,7 +114,7 @@ void PrintUsage() {
          "object with a node_config field. It must include messages[]. The demo\n"
          "patches source/decoder graph node configs and then runs the real GraphX\n"
          "FHSS graph through GraphExecutorBuilder. Channel IQ capture writes\n"
-         "SigMF cf32_le data and metadata at the ChannelizerNode output.\n"
+         "SigMF cf32_le data and metadata at the FHSSFixtureFrequencyChannelizerNode output.\n"
          "Dashboard mode serves static assets and read-only Step-1 APIs.\n";
 }
 
@@ -369,7 +369,7 @@ void PatchChannelIqCapture(nlohmann::json &graph_config,
 
   bool patched = false;
   for (auto &node : graph_config.at("nodes")) {
-    if (node.at("type") != "ChannelizerNode") {
+    if (node.at("type") != "FHSSFixtureFrequencyChannelizerNode") {
       continue;
     }
     node["node_config"]["iq_capture"] = {
@@ -380,7 +380,7 @@ void PatchChannelIqCapture(nlohmann::json &graph_config,
     patched = true;
   }
   if (!patched) {
-    throw std::invalid_argument("FHSS graph has no ChannelizerNode");
+    throw std::invalid_argument("FHSS graph has no FHSSFixtureFrequencyChannelizerNode");
   }
 }
 

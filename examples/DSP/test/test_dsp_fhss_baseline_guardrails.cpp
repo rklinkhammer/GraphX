@@ -92,7 +92,7 @@ TEST(DspFhssBaselineGuardrailTest,
   ASSERT_FALSE(graph.at("reference_only").get<bool>());
 
   const auto &channelizer = FindNode(graph, "channelizer");
-  ASSERT_EQ(channelizer.at("type").get<std::string>(), "ChannelizerNode");
+  ASSERT_EQ(channelizer.at("type").get<std::string>(), "FHSSFixtureFrequencyChannelizerNode");
   const auto &config = channelizer.at("node_config");
   const auto receiver_indices =
       JsonUint32Vector(config.at("receiver_frequency_indices"));
@@ -123,7 +123,7 @@ TEST(DspFhssBaselineGuardrailTest,
   const std::vector<std::string> required_node_types{
       "FHSSSyntheticIqSourceNode",
       "FHSSDownconverterNode",
-      "ChannelizerNode",
+      "FHSSFixtureFrequencyChannelizerNode",
       "PerChannelPulseDetectorNode",
       "FHSSPulseMergeNode",
       "FHSSPulseCandidateNode",
@@ -152,13 +152,13 @@ TEST(DspFhssBaselineGuardrailTest,
 
 TEST(DspFhssBaselineGuardrailTest,
      PR6_ChannelizerHasExactly64DistinctOutputPorts) {
-  // PR6: Verify the ChannelizerNode exposes exactly 64 ports, one per frequency.
+  // PR6: Verify the FHSSFixtureFrequencyChannelizerNode exposes exactly 64 ports, one per frequency.
   // No aggregate "all channels at once" output is allowed. Each output port
   // is a distinct GraphX edge carrying one FHSSChannelizedIqToken.
   const auto graph =
       LoadJson(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
   const auto &channelizer = FindNode(graph, "channelizer");
-  EXPECT_EQ(channelizer.at("type").get<std::string>(), "ChannelizerNode");
+  EXPECT_EQ(channelizer.at("type").get<std::string>(), "FHSSFixtureFrequencyChannelizerNode");
 
   // Verify: Channelizer exposes exactly 64 output edges.
   const auto output_edge_count = CountEdgesFromNode(graph, "channelizer");

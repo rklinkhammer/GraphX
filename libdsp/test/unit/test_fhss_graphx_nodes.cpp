@@ -17,7 +17,7 @@
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
 #include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
-#include "dsp/fhss/ChannelizerNode.hpp"
+#include "dsp/fhss/FHSSFixtureFrequencyChannelizerNode.hpp"
 #include "dsp/fhss/FHSSDownconverterNode.hpp"
 #include "dsp/fhss/FHSSMessageAssemblerNode.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
@@ -361,7 +361,7 @@ const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
   static const std::vector<FHSSPluginExpectation> expectations{
       {"FHSSSyntheticIqSourceNode", "fhss_synthetic_iq_source_node"},
       {"FHSSDownconverterNode", "fhss_downconverter_node"},
-      {"ChannelizerNode", "channelizer_node"},
+      {"FHSSFixtureFrequencyChannelizerNode", "fhss_fixture_frequency_channelizer_node"},
       {"PerChannelPulseDetectorNode", "per_channel_pulse_detector_node"},
       {"FHSSPulseMergeNode", "fhss_pulse_merge_node"},
       {"FHSSPulseCandidateNode", "fhss_pulse_candidate_node"},
@@ -380,12 +380,12 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
       IsControlTokenV<FHSSSyntheticIqSourceNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::OutputType<0>>);
-  static_assert(IsControlTokenV<ChannelizerNode::InputType<0>>);
-  static_assert(IsControlTokenV<ChannelizerNode::OutputType<0>>);
-  static_assert(IsControlTokenV<ChannelizerNode::OutputType<1>>);
-  static_assert(IsControlTokenV<ChannelizerNode::OutputType<62>>);
-  static_assert(IsControlTokenV<ChannelizerNode::OutputType<63>>);
-  static_assert(ChannelizerNode::NOutputs ==
+  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::InputType<0>>);
+  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<1>>);
+  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<62>>);
+  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<63>>);
+  static_assert(FHSSFixtureFrequencyChannelizerNode::NOutputs ==
                 FHSSProtocolConstants::kFrequencyCount);
   static_assert(IsControlTokenV<PerChannelPulseDetectorNode::InputType<0>>);
   static_assert(IsControlTokenV<PerChannelPulseDetectorNode::OutputType<0>>);
@@ -416,16 +416,16 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                     FHSSDownconverterNode::OutputType<0>>::type,
                 FHSSDownconvertedIqPacket>);
   static_assert(std::is_same_v<
-                typename TokenSidecar<ChannelizerNode::OutputType<0>>::type,
+                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<0>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
-                typename TokenSidecar<ChannelizerNode::OutputType<1>>::type,
+                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<1>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
-                typename TokenSidecar<ChannelizerNode::OutputType<62>>::type,
+                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<62>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
-                typename TokenSidecar<ChannelizerNode::OutputType<63>>::type,
+                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<63>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<
@@ -478,7 +478,7 @@ TEST(FHSSGraphXNodeTest,
       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(downconverted.has_value());
 
-  ChannelizerNode channelizer(FullRateChannelizerConfig());
+  FHSSFixtureFrequencyChannelizerNode channelizer(FullRateChannelizerConfig());
   ASSERT_TRUE(
       channelizer.Consume(*downconverted,
                           std::integral_constant<std::size_t, 0>{}));
@@ -566,7 +566,7 @@ TEST(FHSSGraphXNodeTest,
   ASSERT_TRUE(downconverted.has_value());
   EXPECT_EQ(downconverted->edge_control, synthetic->edge_control);
 
-  ChannelizerNode channelizer(ChannelizerConfig());
+  FHSSFixtureFrequencyChannelizerNode channelizer(ChannelizerConfig());
   ASSERT_TRUE(
       channelizer.Consume(*downconverted,
                           std::integral_constant<std::size_t, 0>{}));
@@ -665,7 +665,7 @@ TEST(FHSSGraphXNodeTest,
       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(downconverted.has_value());
 
-  ChannelizerNode channelizer(ChannelizerConfig());
+  FHSSFixtureFrequencyChannelizerNode channelizer(ChannelizerConfig());
   EXPECT_EQ(channelizer.GetOutputPortCount(),
             static_cast<int>(FHSSProtocolConstants::kFrequencyCount));
 
@@ -757,7 +757,7 @@ TEST(FHSSGraphXNodeTest, PerChannelPulseDetectorUsesSingleChannelMetadata) {
       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(downconverted.has_value());
 
-  ChannelizerNode channelizer(ChannelizerConfig());
+  FHSSFixtureFrequencyChannelizerNode channelizer(ChannelizerConfig());
   ASSERT_TRUE(
       channelizer.Consume(*downconverted,
                           std::integral_constant<std::size_t, 0>{}));

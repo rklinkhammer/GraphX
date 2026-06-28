@@ -238,7 +238,7 @@ Canonical channelized graph:
 ```text
 FHSSSyntheticIqSourceNode
   -> FHSSDownconverterNode
-  -> ChannelizerNode
+  -> FHSSFixtureFrequencyChannelizerNode
   -> PerChannelPulseDetectorNode[64]
   -> FHSSPulseMergeNode
   -> FHSSPulseCandidateNode
@@ -249,6 +249,18 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageAssemblerNode
   -> FHSSMessageSinkNode
 ```
+
+`FHSSFixtureFrequencyChannelizerNode` is a deterministic fixture mixer and
+decimator. It does not implement or claim production filter-bank channel
+separation. The checked-in graph is generated as ordinary expanded GraphX JSON:
+
+```bash
+python3 examples/DSP/tools/generate_fhss_fixture_topology.py \
+  libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
+```
+
+Runtime loading and dynamic plugin resolution consume that JSON normally; the
+generator is not a runtime graph adaptor.
 
 Build and run the bundled canonical graph:
 
@@ -321,7 +333,7 @@ Append another non-overlapping message with `add-message`. The active
 frequencies and preamble words are explicit, and each `--body` argument is
 `FREQUENCY_INDEX:UINT32_VALUE`. Values accept decimal or `0x` notation.
 
-Capture selected `ChannelizerNode` outputs for spectrum analysis:
+Capture selected `FHSSFixtureFrequencyChannelizerNode` outputs for spectrum analysis:
 
 ```bash
 tmpdir="$(mktemp -d)"
@@ -345,11 +357,12 @@ artifacts. Each selected channel produces:
   group delay, and global sample origin.
 
 The captured samples are the actual complex IQ emitted by the corresponding
-`ChannelizerNode` output port. They can be opened by SigMF-aware tools or
-imported as interleaved float32 IQ in a spectrum analyzer. The channelizer
-remains a deterministic CPU fixture, not a production filter-bank claim.
+`FHSSFixtureFrequencyChannelizerNode` output port. They can be opened by
+SigMF-aware tools or imported as interleaved float32 IQ in a spectrum analyzer.
+The node remains a deterministic CPU fixture mixer/decimator, not a production
+filter-bank claim.
 
-The same behavior can be configured directly through `ChannelizerNode`:
+The same behavior can be configured directly through `FHSSFixtureFrequencyChannelizerNode`:
 
 ```json
 {

@@ -83,6 +83,18 @@ TEST(FHSSGraphXGuardrailTest,
                                        "FHSSGraphXNodes.cpp"));
 }
 
+TEST(FHSSGraphXGuardrailTest,
+     ObsoleteGenericChannelizerFilesAndPluginNameWereDeleted) {
+  const auto root = RepositoryRoot();
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "include" / "dsp" / "fhss" /
+      "ChannelizerNode.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "src" / "dsp" / "ChannelizerNode.cpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libdsp" / "plugins" / "channelizer_node_plugin.cpp"));
+}
+
 TEST(FHSSGraphXGuardrailTest, EachFhssGraphXNodeHasOwnHeaderAndSource) {
   const auto root = RepositoryRoot();
   const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
@@ -90,7 +102,8 @@ TEST(FHSSGraphXGuardrailTest, EachFhssGraphXNodeHasOwnHeaderAndSource) {
   const std::unordered_map<std::string, std::string> expected_headers{
       {"FHSSSyntheticIqSourceNode", "FHSSSyntheticIqSourceNode.hpp"},
       {"FHSSDownconverterNode", "FHSSDownconverterNode.hpp"},
-      {"ChannelizerNode", "ChannelizerNode.hpp"},
+      {"FHSSFixtureFrequencyChannelizerNode",
+       "FHSSFixtureFrequencyChannelizerNode.hpp"},
       {"PerChannelPulseDetectorNode", "PerChannelPulseDetectorNode.hpp"},
       {"FHSSPulseMergeNode", "FHSSPulseMergeNode.hpp"},
       {"FHSSPulseCandidateNode", "FHSSPulseCandidateNode.hpp"},
@@ -123,7 +136,7 @@ TEST(FHSSGraphXGuardrailTest,
   const std::unordered_set<std::string> allowed_node_headers{
       "FHSSSyntheticIqSourceNode.hpp",
       "FHSSDownconverterNode.hpp",
-      "ChannelizerNode.hpp",
+      "FHSSFixtureFrequencyChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
       "FHSSPulseCandidateNode.hpp",
@@ -157,7 +170,7 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
   const std::unordered_set<std::string> node_headers{
       "FHSSSyntheticIqSourceNode.hpp",
       "FHSSDownconverterNode.hpp",
-      "ChannelizerNode.hpp",
+      "FHSSFixtureFrequencyChannelizerNode.hpp",
       "PerChannelPulseDetectorNode.hpp",
       "FHSSPulseMergeNode.hpp",
       "FHSSPulseCandidateNode.hpp",
@@ -176,9 +189,9 @@ TEST(FHSSGraphXGuardrailTest, FhssNodeClassesInheritGraphXNodeBases) {
     const auto node_classes = ClassNamesMatching(text, node_class_regex);
     ASSERT_EQ(node_classes.size(), 1u) << header;
     const auto &name = node_classes.front();
-    if (name == "ChannelizerNode") {
-      // PR5: ChannelizerNode refactored to use TypedFixedFanNode for both
-      // input and output ports (1 input, 64 outputs). No more SinkNode+SourceBase.
+    if (name == "FHSSFixtureFrequencyChannelizerNode") {
+      // The fixture channelizer uses TypedFixedFanNode for both input and
+      // output ports (1 input, 64 outputs).
       EXPECT_NE(text.find("public graph::TypedFixedFanNode"),
                 std::string::npos)
           << name << " must consume and produce GraphX ports via TypedFixedFanNode";
@@ -241,7 +254,7 @@ TEST(FHSSGraphXGuardrailTest,
   const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
   const auto packets = ReadFile(fhss_include / "FHSSPackets.hpp");
   const auto ports = ReadFile(fhss_include / "FHSSPorts.hpp");
-  const auto channelizer = ReadFile(fhss_include / "ChannelizerNode.hpp");
+  const auto channelizer = ReadFile(fhss_include / "FHSSFixtureFrequencyChannelizerNode.hpp");
 
   EXPECT_EQ(packets.find("FHSSChannelizedIqStreamPacket"), std::string::npos);
   EXPECT_EQ(ports.find("FHSSChannelizedIqStreamToken"), std::string::npos);

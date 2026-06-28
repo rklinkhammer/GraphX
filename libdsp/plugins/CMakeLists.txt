@@ -106,9 +106,9 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
-    TARGET_NAME channelizer_node
-    SOURCE_FILE channelizer_node_plugin.cpp
-    DESCRIPTION "FHSS frequency-parallel CPU channelizer GraphX node"
+    TARGET_NAME fhss_fixture_frequency_channelizer_node
+    SOURCE_FILE fhss_fixture_frequency_channelizer_node_plugin.cpp
+    DESCRIPTION "FHSS fixture-only frequency mixer/decimator GraphX node"
     DEPENDENCIES dsp
 )
 

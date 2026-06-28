@@ -439,8 +439,8 @@ are read-only:
 | `FHSSPreambleDetectorNode.preamble_pulses` | First message’s first 16 pulses mapped from `value` to `word_value`. |
 | Preamble detector RF/impairment fields | Copy `iq_center_frequency_hz`, `occupied_bandwidth_hz`, `max_abs_cfo_hz`, and `allow_overlap` from the authoritative scenario. |
 | `FHSSMessageAssemblerNode.node_config` | Generated scenario projection including messages, generated active frequencies, generated preamble pulses, and fixed `truth_from_fixture=true`. |
-| `ChannelizerNode.transmitted_active_frequency_indices` | Copy of generated active frequencies. |
-| `ChannelizerNode.transmitted_pulse_frequency_indices` | Ordered frequency indices from every scheduled pulse, preserving message and pulse order. |
+| `FHSSFixtureFrequencyChannelizerNode.transmitted_active_frequency_indices` | Copy of generated active frequencies. |
+| `FHSSFixtureFrequencyChannelizerNode.transmitted_pulse_frequency_indices` | Ordered frequency indices from every scheduled pulse, preserving message and pulse order. |
 | Channelizer transmitter-description fields | Copy authoritative `iq_center_frequency_hz`, `occupied_bandwidth_hz`, and `max_abs_cfo_hz`. |
 
 The following channelizer receiver fields remain independently user-owned graph
@@ -591,8 +591,8 @@ Each topology node returns:
 ```json
 {
   "id": "channelizer",
-  "name": "ChannelizerNode",
-  "type": "ChannelizerNode",
+  "name": "FHSSFixtureFrequencyChannelizerNode",
+  "type": "FHSSFixtureFrequencyChannelizerNode",
   "lifecycle_state": "not_built",
   "capabilities": {
     "configurable": true,

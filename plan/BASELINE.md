@@ -169,7 +169,7 @@ Canonical FHSS graph:
 ```text
 FHSSSyntheticIqSourceNode
   -> FHSSDownconverterNode
-  -> ChannelizerNode
+  -> FHSSFixtureFrequencyChannelizerNode
   -> PerChannelPulseDetectorNode[64]
   -> FHSSPulseMergeNode
   -> FHSSPulseCandidateNode
@@ -200,8 +200,10 @@ FHSS fixture constants:
 FHSS node/edge requirements:
 
 - FHSS graph edges use `graph::gpu::accel::ControlToken<...>` packet sidecars.
-- `ChannelizerNode` exposes one GraphX output port per configured frequency;
+- `FHSSFixtureFrequencyChannelizerNode` exposes one GraphX output port per configured frequency;
   for the current table this means exactly 64 output ports.
+- `FHSSFixtureFrequencyChannelizerNode` is fixture-only frequency mixing and
+  decimation; it does not implement production filter-bank channel separation.
 - Output port `N` maps to frequency index `N` and channel id `N`.
 - `PerChannelPulseDetectorNode` consumes one channel and does not scan across
   frequencies.
@@ -216,8 +218,11 @@ FHSS development environment:
 
 - `examples/DSP/tools/fhss_message_tool.py` creates, extends, and validates
   explicit FHSS message schedules.
+- `examples/DSP/tools/generate_fhss_fixture_topology.py` deterministically
+  authors the checked-in, ordinary expanded GraphX JSON with 64 detector nodes
+  and explicit edges. It is not part of runtime loading or resolution.
 - The demo can opt into per-channel SigMF `cf32_le` capture at the
-  `ChannelizerNode` output boundary.
+  `FHSSFixtureFrequencyChannelizerNode` output boundary.
 - Capture selection may be the four active channels, all 64 channels, or an
   explicit list. It does not alter the 64-output-port graph invariant.
 - Channel IQ capture is a debug artifact path. It does not change the decoder
@@ -253,7 +258,7 @@ FHSS truth-in-labeling:
 - Guardrail wording: retuned sub-band windows.
 - Guardrail wording: explicit alias/downconvert modeling.
 - **PR6 Guardrail: No canonical channelizer output type carries a vector/list
-  of all channels.** Each ChannelizerNode output port is a distinct GraphX edge.
+  of all channels.** Each FHSSFixtureFrequencyChannelizerNode output port is a distinct GraphX edge.
   There is no single token type or packet that bundles all 64 frequencies.
   The channelizer exposes exactly 64 separate output ports, each carrying one
   FHSSChannelizedIqToken. Aggregate stream containers are not allowed.

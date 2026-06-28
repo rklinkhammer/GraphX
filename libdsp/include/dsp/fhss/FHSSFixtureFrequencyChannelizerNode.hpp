@@ -28,11 +28,13 @@
 
 namespace dsp::fhss {
 
-// PR6: Explicit channelizer port structure.
+// Fixture-only frequency mixing and decimation. This is not a production
+// channel-separation filter bank.
 // Each output port corresponds to exactly one frequency channel (1:1 mapping).
 // No aggregate stream packets (single edge carrying all channels) are allowed.
-// The ChannelizerNode always exposes one GraphX output port per configured
-// frequency. There is no "all channels at once" token type or container.
+// The FHSSFixtureFrequencyChannelizerNode always exposes one GraphX output
+// port per configured frequency. There is no "all channels at once" token
+// type or container.
 //
 // The FHSSChannelizerOutputList is a TypeList with 64 repetitions of
 // FHSSChannelizedIqToken, one per frequency. This structure inherently
@@ -200,14 +202,14 @@ FHSSChannelizerConfigFromJson(const graph::JsonView &cfg) {
   return config;
 }
 
-class ChannelizerNode
-    : public graph::TypedFixedFanNode<ChannelizerNode,
+class FHSSFixtureFrequencyChannelizerNode
+    : public graph::TypedFixedFanNode<FHSSFixtureFrequencyChannelizerNode,
                                            graph::TypeList<FHSSDownconvertedIqToken>,
                                            FHSSChannelizerOutputList>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
-  using Base = graph::TypedFixedFanNode<ChannelizerNode,
+  using Base = graph::TypedFixedFanNode<FHSSFixtureFrequencyChannelizerNode,
                                              graph::TypeList<FHSSDownconvertedIqToken>,
                                              FHSSChannelizerOutputList>;
   using InputTokenType = FHSSDownconvertedIqToken;
@@ -221,11 +223,11 @@ public:
   template <std::size_t PortID>
   using OutputType = typename Base::template OutputType<PortID>;
 
-  ChannelizerNode() {
+  FHSSFixtureFrequencyChannelizerNode() {
     config_.receiver_frequency_indices = FHSSAllFrequencyIndices();
     config_.channel_ids = config_.receiver_frequency_indices;
   }
-  explicit ChannelizerNode(FHSSChannelizerConfig config)
+  explicit FHSSFixtureFrequencyChannelizerNode(FHSSChannelizerConfig config)
       : config_(std::move(config)) {}
 
   void SetConfig(FHSSChannelizerConfig config) {
@@ -327,7 +329,7 @@ public:
     return static_cast<int>(kOutputPortCount);
   }
 
-  std::string GetNodeTypeName() const { return "ChannelizerNode"; }
+  std::string GetNodeTypeName() const { return "FHSSFixtureFrequencyChannelizerNode"; }
 
   std::vector<graph::PortMetadata> GetInputPortMetadata() const override {
     return {graph::PortMetadata{
@@ -376,7 +378,7 @@ private:
       std::string capture_error;
       if (!WriteFHSSChannelIqSigMf(output.sidecar, config_.iq_capture,
                                    &capture_error)) {
-        throw std::runtime_error("ChannelizerNode IQ capture failed: " +
+        throw std::runtime_error("FHSSFixtureFrequencyChannelizerNode IQ capture failed: " +
                                  capture_error);
       }
 

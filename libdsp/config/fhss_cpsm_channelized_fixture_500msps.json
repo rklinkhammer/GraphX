@@ -3,7 +3,7 @@
   "fhss_graph_role": "canonical_channelized_fixture",
   "canonical_fhss_graph": true,
   "reference_only": false,
-  "description": "Canonical deterministic FHSS fixture graph using downconverter, 64-port channelizer, and one per-channel detector per frequency.",
+  "description": "Canonical deterministic FHSS fixture graph using downconverter, 64-port fixture frequency channelizer, and one per-channel detector per frequency.",
   "execution_backend": "auto",
   "backend_fallback_policy": "strict",
   "resolver_diagnostics": true,
@@ -430,7 +430,7 @@
     },
     {
       "id": "channelizer",
-      "type": "ChannelizerNode",
+      "type": "FHSSFixtureFrequencyChannelizerNode",
       "node_config": {
         "iq_center_frequency_hz": 1240000000.0,
         "receiver_frequency_indices": [

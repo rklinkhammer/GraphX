@@ -51,3 +51,11 @@ if(TARGET graphx_dynamic_nodes)
 endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
+
+add_test(
+    NAME fhss_fixture_topology_generator
+    COMMAND ${CMAKE_COMMAND} -E env
+            GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}
+            ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_fixture_topology_generator.py
+)

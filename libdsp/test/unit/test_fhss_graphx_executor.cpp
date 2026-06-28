@@ -75,7 +75,7 @@ std::vector<std::string> ExpectedChannelizedFHSSNodeTypes() {
   return {
       "FHSSSyntheticIqSourceNode",
       "FHSSDownconverterNode",
-      "ChannelizerNode",
+      "FHSSFixtureFrequencyChannelizerNode",
       "PerChannelPulseDetectorNode",
       "FHSSPulseMergeNode",
       "FHSSPulseCandidateNode",
@@ -151,7 +151,7 @@ TEST(FHSSGraphXExecutorTest,
 
   EXPECT_EQ(CountNodeType(config, "FHSSSyntheticIqSourceNode"), 1u);
   EXPECT_EQ(CountNodeType(config, "FHSSDownconverterNode"), 1u);
-  EXPECT_EQ(CountNodeType(config, "ChannelizerNode"), 1u);
+  EXPECT_EQ(CountNodeType(config, "FHSSFixtureFrequencyChannelizerNode"), 1u);
   EXPECT_EQ(CountNodeType(config, "PerChannelPulseDetectorNode"), 64u);
   EXPECT_EQ(CountNodeType(config, "FHSSCorrelatorBankDetectorNode"), 0u);
   EXPECT_EQ(config.at("nodes").size(), 75u);
@@ -197,7 +197,7 @@ TEST(FHSSGraphXExecutorTest,
 }
 
 TEST(FHSSGraphXExecutorTest,
-     ChannelizedJsonTopologyRunsThroughGraphExecutorBuilderAndMatchesTruth) {
+     GeneratedFixtureRunsThroughNormalGraphExecutorBuilderAndMatchesTruth) {
   using namespace dsp::fhss;
 
   const auto config_path = FHSSChannelizedConfigPath();
