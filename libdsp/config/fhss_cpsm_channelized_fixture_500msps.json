@@ -118,7 +118,7 @@
           },
           {
             "message_id": 2,
-            "transmit_start_sample": 120000,
+            "transmit_start_sample": 117000,
             "pulses": [
               {
                 "frequency_index": 24,
@@ -214,7 +214,7 @@
           },
           {
             "message_id": 3,
-            "transmit_start_sample": 240000,
+            "transmit_start_sample": 234000,
             "pulses": [
               {
                 "frequency_index": 24,
@@ -310,7 +310,7 @@
           },
           {
             "message_id": 4,
-            "transmit_start_sample": 360000,
+            "transmit_start_sample": 351000,
             "pulses": [
               {
                 "frequency_index": 24,
@@ -1627,7 +1627,7 @@
           },
           {
             "message_id": 2,
-            "transmit_start_sample": 120000,
+            "transmit_start_sample": 117000,
             "pulses": [
               {
                 "frequency_index": 24,
@@ -1723,7 +1723,7 @@
           },
           {
             "message_id": 3,
-            "transmit_start_sample": 240000,
+            "transmit_start_sample": 234000,
             "pulses": [
               {
                 "frequency_index": 24,
@@ -1819,7 +1819,7 @@
           },
           {
             "message_id": 4,
-            "transmit_start_sample": 360000,
+            "transmit_start_sample": 351000,
             "pulses": [
               {
                 "frequency_index": 24,

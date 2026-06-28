@@ -75,27 +75,16 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 Inputs:
 - plan/reviews/GRAPHX_INSPECTOR_REPORT.md
 - plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
+- plan/reviews/GRAPHX_PR_ROADMAP.md
 
 
 
 Task:
-Implement PR1 only.
--- apply PR1 verifier fixes <=======>
+Implement PR2 only.
 
-PR1 title:
-Introduce Canonical Token and Sidecar Types
-PR1 scope:
-Apply required fixes for PR1 only:
-Remove host_ptr identity encoding entirely.
-Eliminate identity packing in AzimuthTileSplitNode.cpp:19.
-Stop deriving host_ptr from token/sequence identity in:
-AzimuthTileSplitNode.cpp:60
-D2HAsyncAccelNode.cpp:49
+Scope:
+Apply required fixes for PR2 only:
 Add explicit tests that enforce the rule.
-Assert SAR identity and merge diagnostics are unchanged when host_ptr changes but sidecar is constant.
-Assert no runtime node reconstructs SAR identity from host_ptr.
-Optional hardening for ready_event rule.
-Add tests proving SAR identity is invariant to ready_event variation.
 
 Rules:
 - Do not redesign.

@@ -2,13 +2,15 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <set>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -28,6 +30,8 @@
 #endif
 
 namespace {
+
+constexpr std::size_t kCanonicalFixturePulseCount = 72u;
 
 std::filesystem::path FHSSChannelizedConfigPath() {
   return std::filesystem::path(GRAPHX_SOURCE_ROOT) /
@@ -106,6 +110,31 @@ std::vector<std::uint32_t> ActiveFrequenciesFromSource(
   }
   return {};
 }
+
+class ScopedJsonFile {
+public:
+  ScopedJsonFile(const std::string &name, const nlohmann::json &json)
+      : path_(std::filesystem::temp_directory_path() / name) {
+    std::ofstream output(path_);
+    if (!output.good()) {
+      throw std::runtime_error("failed to create JSON file: " + path_.string());
+    }
+    output << json.dump(2);
+  }
+
+  ~ScopedJsonFile() {
+    std::error_code ignored;
+    std::filesystem::remove(path_, ignored);
+  }
+
+  ScopedJsonFile(const ScopedJsonFile &) = delete;
+  ScopedJsonFile &operator=(const ScopedJsonFile &) = delete;
+
+  [[nodiscard]] const std::filesystem::path &path() const { return path_; }
+
+private:
+  std::filesystem::path path_;
+};
 
 } // namespace
 
@@ -200,6 +229,8 @@ TEST(FHSSGraphXExecutorTest,
   const auto expected_fixture = GenerateSyntheticIqFixture(
       FHSSSyntheticIqGeneratorConfigFromJson(graph::JsonView(source_config)));
   ASSERT_TRUE(expected_fixture) << expected_fixture.error().message;
+  ASSERT_EQ(expected_fixture->truth_pulses.size(), kCanonicalFixturePulseCount)
+      << "canonical source stage must emit all 72 fixture pulses";
 
   auto executor = graph::GraphExecutorBuilder()
                       .WithJsonConfig(config_path.string())
@@ -240,7 +271,8 @@ TEST(FHSSGraphXExecutorTest,
   }
 
   EXPECT_EQ(diagnostics.at("pulse_count").get<std::size_t>(),
-            expected_fixture->truth_pulses.size());
+            kCanonicalFixturePulseCount)
+      << "canonical assembled-message stage must retain all 72 fixture pulses";
   EXPECT_EQ(diagnostics.at("rejected_count").get<std::size_t>(), 0u);
   EXPECT_TRUE(diagnostics.at("preamble_lock").get<bool>());
   EXPECT_EQ(diagnostics.at("truth_mismatch_count").get<std::size_t>(), 0u);
@@ -255,7 +287,8 @@ TEST(FHSSGraphXExecutorTest,
 
   ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array());
   ASSERT_EQ(diagnostics.at("decoded_pulses").size(),
-            expected_fixture->truth_pulses.size());
+            kCanonicalFixturePulseCount)
+      << "canonical decoder stage must retain all 72 fixture pulses";
   std::set<std::uint32_t> channel_ids;
   for (std::size_t i = 0; i < expected_fixture->truth_pulses.size(); ++i) {
     const auto &truth = expected_fixture->truth_pulses[i];
@@ -284,4 +317,72 @@ TEST(FHSSGraphXExecutorTest,
     EXPECT_EQ(mapping.at("group_delay_input_samples").get<std::int64_t>(), 0);
   }
   EXPECT_EQ(channel_ids, std::set<std::uint32_t>({24, 28, 32, 36}));
+}
+
+TEST(FHSSGraphXExecutorTest,
+     CanonicalJsonExecutorRetainsAll72PulsesAcrossSchedulingOrders) {
+  using namespace dsp::fhss;
+
+  const auto config_path = FHSSChannelizedConfigPath();
+  ASSERT_TRUE(std::filesystem::exists(config_path));
+  const auto plugin_dir = PluginDirectory();
+  ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+  const auto config_json = LoadJson(config_path);
+  const auto &source_config = config_json.at("nodes").at(0).at("node_config");
+  const auto expected_fixture = GenerateSyntheticIqFixture(
+      FHSSSyntheticIqGeneratorConfigFromJson(graph::JsonView(source_config)));
+  ASSERT_TRUE(expected_fixture) << expected_fixture.error().message;
+  ASSERT_EQ(expected_fixture->truth_pulses.size(), kCanonicalFixturePulseCount);
+
+  auto reversed_config = config_json;
+  std::ranges::reverse(reversed_config.at("nodes"));
+  std::ranges::reverse(reversed_config.at("edges"));
+  const ScopedJsonFile reversed_config_file(
+      "graphx_pr1_fhss_reversed_insertion_order.json", reversed_config);
+  const std::array<std::filesystem::path, 3> run_configs{
+      config_path, reversed_config_file.path(), config_path};
+
+  nlohmann::json first_decoded_pulses;
+  for (std::size_t run = 0; run < run_configs.size(); ++run) {
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(run_configs[run].string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(12))
+                        .Build();
+
+    ASSERT_NE(executor, nullptr) << "canonical run " << run;
+    auto graph_manager = executor->GetGraphManager();
+    ASSERT_NE(graph_manager, nullptr) << "canonical run " << run;
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success)
+        << "canonical run " << run << ": " << run_result.message << " "
+        << run_result.error_details;
+    ASSERT_TRUE(executor->IsCompletionSignaled()) << "canonical run " << run;
+
+    auto sink = ResolveFHSSMessageSink(graph_manager);
+    ASSERT_NE(sink, nullptr) << "canonical run " << run;
+    const auto diagnostics = sink->GetDiagnostics().Raw();
+
+    EXPECT_EQ(diagnostics.at("pulse_count").get<std::size_t>(),
+              kCanonicalFixturePulseCount)
+        << "assembled-message stage truncated canonical run " << run;
+    ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array())
+        << "canonical run " << run;
+    ASSERT_EQ(diagnostics.at("decoded_pulses").size(),
+              kCanonicalFixturePulseCount)
+        << "decoder stage truncated canonical run " << run;
+    EXPECT_EQ(diagnostics.at("rejected_count").get<std::size_t>(), 0u)
+        << "canonical run " << run;
+    EXPECT_EQ(diagnostics.at("truth_mismatch_count").get<std::size_t>(), 0u)
+        << "canonical run " << run;
+
+    if (run == 0u) {
+      first_decoded_pulses = diagnostics.at("decoded_pulses");
+    } else {
+      EXPECT_EQ(diagnostics.at("decoded_pulses"), first_decoded_pulses)
+          << "decoded pulse order changed in canonical run " << run;
+    }
+  }
 }
