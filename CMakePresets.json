@@ -116,6 +116,30 @@
       ]
     },
     {
+      "name": "build-libdsp-unit",
+      "displayName": "Build test_libdsp_unit",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "test_libdsp_unit"
+      ]
+    },
+    {
+      "name": "build-libdsp-unit-metal-native",
+      "displayName": "Build test_libdsp_unit (Metal Native)",
+      "configurePreset": "ninja-debug-metal-native",
+      "targets": [
+        "test_libdsp_unit"
+      ]
+    },
+    {
+      "name": "build-libdsp-unit-metal-native-strict",
+      "displayName": "Build test_libdsp_unit (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
+      "targets": [
+        "test_libdsp_unit"
+      ]
+    },
+    {
       "name": "build-debug-metal-native",
       "displayName": "Build Debug (Metal Native)",
       "configurePreset": "ninja-debug-metal-native"
@@ -126,27 +150,36 @@
       "configurePreset": "ninja-debug-metal-native-strict"
     },
     {
-      "name": "build-sar-example-unit",
-      "displayName": "Build SAR Example Unit",
+      "name": "build-sar-tests",
+      "displayName": "Build SAR Test Lanes",
       "configurePreset": "ninja-debug",
       "targets": [
-        "test_sar_example_unit"
+        "test_sar_crsd_io",
+        "test_sar_nodes",
+        "test_sar_runtime_integration",
+        "test_sar_local_only"
       ]
     },
     {
-      "name": "build-sar-example-unit-metal-native",
-      "displayName": "Build SAR Example Unit (Metal Native)",
+      "name": "build-sar-tests-metal-native",
+      "displayName": "Build SAR Test Lanes (Metal Native)",
       "configurePreset": "ninja-debug-metal-native",
       "targets": [
-        "test_sar_example_unit"
+        "test_sar_crsd_io",
+        "test_sar_nodes",
+        "test_sar_runtime_integration",
+        "test_sar_local_only"
       ]
     },
     {
-      "name": "build-sar-example-unit-metal-native-strict",
-      "displayName": "Build SAR Example Unit (Metal Native, Strict)",
+      "name": "build-sar-tests-metal-native-strict",
+      "displayName": "Build SAR Test Lanes (Metal Native, Strict)",
       "configurePreset": "ninja-debug-metal-native-strict",
       "targets": [
-        "test_sar_example_unit"
+        "test_sar_crsd_io",
+        "test_sar_nodes",
+        "test_sar_runtime_integration",
+        "test_sar_local_only"
       ]
     },
     {
@@ -196,6 +229,45 @@
       }
     },
     {
+      "name": "test-libdsp-unit",
+      "displayName": "Run libdsp unit tests",
+      "configurePreset": "ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libdsp_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libdsp-unit-metal-native",
+      "displayName": "Run libdsp unit tests (Metal Native Debug)",
+      "configurePreset": "ninja-debug-metal-native",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libdsp_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libdsp-unit-metal-native-strict",
+      "displayName": "Run libdsp unit tests (Metal Native, Strict)",
+      "configurePreset": "ninja-debug-metal-native-strict",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libdsp_unit"
+        }
+      }
+    },
+    {
       "name": "test-libgpu-metal-runtime",
       "displayName": "Run native Metal runtime tests",
       "configurePreset": "ninja-debug-metal-native",
@@ -222,41 +294,41 @@
       }
     },
     {
-      "name": "test-sar-example-unit",
-      "displayName": "Run SAR example unit tests",
+      "name": "test-sar-ci",
+      "displayName": "Run CI-safe SAR test lanes",
       "configurePreset": "ninja-debug",
       "output": {
         "outputOnFailure": true
       },
       "filter": {
         "include": {
-          "name": "sar_example_unit"
+          "name": "^sar_(crsd_io|nodes|runtime_integration)$"
         }
       }
     },
     {
-      "name": "test-sar-example-unit-metal-native",
-      "displayName": "Run SAR example unit tests (Metal Native)",
+      "name": "test-sar-ci-metal-native",
+      "displayName": "Run CI-safe SAR test lanes (Metal Native)",
       "configurePreset": "ninja-debug-metal-native",
       "output": {
         "outputOnFailure": true
       },
       "filter": {
         "include": {
-          "name": "sar_example_unit"
+          "name": "^sar_(crsd_io|nodes|runtime_integration)$"
         }
       }
     },
     {
-      "name": "test-sar-example-unit-metal-native-strict",
-      "displayName": "Run SAR example unit tests (Metal Native, Strict)",
+      "name": "test-sar-ci-metal-native-strict",
+      "displayName": "Run CI-safe SAR test lanes (Metal Native, Strict)",
       "configurePreset": "ninja-debug-metal-native-strict",
       "output": {
         "outputOnFailure": true
       },
       "filter": {
         "include": {
-          "name": "sar_example_unit"
+          "name": "^sar_(crsd_io|nodes|runtime_integration)$"
         }
       }
     },

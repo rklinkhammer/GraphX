@@ -19,7 +19,7 @@ namespace {
 
 std::filesystem::path RepositoryRoot() {
   auto path = std::filesystem::path(__FILE__).lexically_normal();
-  while (!path.empty() && path.filename() != "libgraph") {
+  while (!path.empty() && path.filename() != "libdsp") {
     path = path.parent_path();
   }
   return path.parent_path();
@@ -231,7 +231,7 @@ TEST(FHSSGraphXGuardrailTest, CorrelatorBankCanonicalSurfaceWasDeleted) {
   EXPECT_FALSE(std::filesystem::exists(
       root / "libdsp" / "config" / "fhss_cpsm_fixture_500msps.json"));
   EXPECT_FALSE(std::filesystem::exists(
-      root / "libgraph" / "test" / "unit" /
+      root / "libdsp" / "test" / "unit" /
       "test_fhss_correlator_bank_detector.cpp"));
 }
 
@@ -266,7 +266,7 @@ TEST(FHSSGraphXGuardrailTest, SharedFhssGraphXUtilityDefinesNoNodeClasses) {
 
 TEST(FHSSGraphXGuardrailTest, FhssTestsDoNotCallDeletedPseudoNodeApis) {
   const auto root = RepositoryRoot();
-  const auto unit_tests = root / "libgraph" / "test" / "unit";
+  const auto unit_tests = root / "libdsp" / "test" / "unit";
   const std::regex fhss_test_regex(R"(test_fhss_.*\.cpp)");
   const std::regex deleted_pseudo_node_api_regex(
       R"(\b(?:FHSS|CPSM)[A-Za-z0-9_]*Node::(?:Detect|Merge|Decode|Assemble|Diagnostics|ScoreBranch|Compute)\b)");

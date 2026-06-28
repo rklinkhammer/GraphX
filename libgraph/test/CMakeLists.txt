@@ -11,6 +11,15 @@ set(THREADPOOL_EXTENDED_TEST_SOURCES
 list(REMOVE_ITEM UNIT_TEST_SOURCES ${THREADPOOL_EXTENDED_TEST_SOURCES})
 list(REMOVE_DUPLICATES UNIT_TEST_SOURCES)
 
+foreach(_source IN LISTS UNIT_TEST_SOURCES)
+    get_filename_component(_name "${_source}" NAME)
+    if(_name MATCHES "^test_(dsp_|fhss_)" OR
+       _name MATCHES "^test_(metal_spectrum_dft_node|sdr_graph|sine_signal_node_standalone)\\.cpp$")
+        message(FATAL_ERROR
+            "DSP/FHSS test source ${_name} must be owned by libdsp/test")
+    endif()
+endforeach()
+
 option(ENABLE_THREADPOOL_EXTENDED_TESTS "Build and run ThreadPool benchmark/chaos/scaling tests" OFF)
 
 add_subdirectory(plugins)
@@ -27,12 +36,20 @@ target_compile_definitions(test_libgraph_unit PRIVATE
 )
 # Resolve static archive cycles on GNU ld by keeping gpu after graph and
 # repeating graph as a final fallback resolver.
-target_link_libraries(test_libgraph_unit PRIVATE dsp graph gpu graph GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE graph gpu graph GTest::gtest_main Threads::Threads log4cxx)
 target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_libgraph_unit graphx_dynamic_nodes)
 endif()
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
+set_tests_properties(libgraph_unit PROPERTIES LABELS "core;unit;ci-safe")
+add_test(NAME libgraph_unit_discovery
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:test_libgraph_unit>
+        -DEXPECTED_SUITE=ActiveQueueTest
+        -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
+set_tests_properties(libgraph_unit_discovery PROPERTIES
+    LABELS "core;unit;ownership;discovery;ci-safe")
 
 if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     add_executable(test_threadpool_extended ${THREADPOOL_EXTENDED_TEST_SOURCES})

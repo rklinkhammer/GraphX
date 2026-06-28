@@ -22,7 +22,7 @@ python3 examples/SAR/tools/sar_local_runner.py \
 #    (handled by the C++ executor in the test suite below)
 
 # 4. Write graphx_output_contract.json and deterministic_reference_contract.json
-#    (handled by the test suite: test_sar_example_unit --gtest_filter=*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
+#    (handled by the local-only test suite: test_sar_local_only --gtest_filter=*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator)
 
 # 5. Run the comparator directly against the produced contracts:
 python3 examples/SAR/tools/sar_image_comparator.py \
@@ -41,7 +41,7 @@ The comparison report at `reports/ci_safe_comparison_report.json` contains:
 The full CI-safe integration test (`*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator`) exercises this entire chain automatically from the test suite:
 
 ```bash
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_local_only \
   --gtest_filter='*FrozenScenarioReplayTest.CiSafeLocalReplayChainProducesArtifactsAndPassesComparator' -v
 ```
 

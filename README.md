@@ -136,8 +136,12 @@ Focused binaries:
 
 ```bash
 ./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit
+./build-ninja/ninja-debug-metal-native/libdsp/test/test_libdsp_unit
 ./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_crsd_io
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_runtime_integration
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_local_only
 ```
 
 ## GraphX Runtime And Plugin Notes
@@ -435,9 +439,9 @@ cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_uni
 FHSS library/graph tests:
 
 ```bash
-cmake --build build-ninja/ninja-debug-metal-native --target test_libgraph_unit
+cmake --build build-ninja/ninja-debug-metal-native --target test_libdsp_unit
 
-./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit \
+./build-ninja/ninja-debug-metal-native/libdsp/test/test_libdsp_unit \
   --gtest_filter='*FHSS*:*CPSM*'
 ```
 
@@ -503,28 +507,31 @@ explicit diagnostics. Any experimental incomplete path must remain labeled
 Build SAR examples and tests:
 
 ```bash
-cmake --build build-ninja/ninja-debug-metal-native --target sar_example test_sar_example_unit graphx_gotcha_to_crsd
+cmake --build build-ninja/ninja-debug-metal-native --target \
+  sar_example test_sar_crsd_io test_sar_nodes \
+  test_sar_runtime_integration test_sar_local_only graphx_gotcha_to_crsd
 ```
 
-Run all SAR example tests:
+Run the CI-safe SAR ownership lanes:
 
 ```bash
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit
+ctest --test-dir build-ninja/ninja-debug-metal-native \
+  -R '^sar_(crsd_io|nodes|runtime_integration)$' --output-on-failure
 ```
 
 Useful focused filters:
 
 ```bash
 # CI-safe correctness lane.
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_runtime_integration \
   --gtest_filter='SarCiCorrectnessLaneTest.*:SarCiValidationLaneTest.*:SarCiTinyFixtureTest.*'
 
 # CRSD input and focused-image path.
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes \
   --gtest_filter='CrsdInputSourceNodeTest.*:CrsdApertureAssemblyAdapterNodeTest.*:CrsdFocusedImageTransformNodeTest.*:CrsdFocusedImageSinkTest.*'
 
 # Metal SAR truth-in-labeling and focused-image transform.
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_example_unit \
+./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes \
   --gtest_filter='MetalTruthInLabelingGuardrailTest.*:CrsdFocusedImageMetalTest.*'
 ```
 
@@ -532,7 +539,10 @@ Registered CTest lanes include:
 
 | CTest lane | Purpose |
 |---|---|
-| `sar_example_unit` | Full SAR example unit test binary. |
+| `sar_crsd_io` | CRSD/GOTCHA conversion and SAR product I/O tests. |
+| `sar_nodes` | SAR node, token, CPU reference, and Metal contract tests. |
+| `sar_runtime_integration` | JSON, executor, scenario, and CI fixture integration tests. |
+| `sar_local_only` | Local-only/gated external baseline and dataset tooling tests. |
 | `sar_example_ci_lane` | CI-safe SAR validation lane. |
 | `sar_example_main_executable` | `examples/SAR/main.cpp` executable coverage. |
 | `sar_example_sarpy_probe_lane` | Local-only/gated SarPy probe checks. |
@@ -542,7 +552,7 @@ Registered CTest lanes include:
 Run through CTest:
 
 ```bash
-ctest --test-dir build-ninja/ninja-debug-metal-native -R sar_example_unit --output-on-failure
+ctest --test-dir build-ninja/ninja-debug-metal-native -R '^sar_(crsd_io|nodes|runtime_integration)$' --output-on-failure
 ctest --test-dir build-ninja/ninja-debug-metal-native -R sar_example_ci_lane --output-on-failure
 ```
 

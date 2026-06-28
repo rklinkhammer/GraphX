@@ -99,7 +99,7 @@ TEST(DspGpuTruthInLabelingTest, GpuNodeNamesDoNotClaimFftForDftImplementation) {
 TEST(DspGpuTruthInLabelingTest, GpuLabeledNodesRequireKernelTicketDiagnostics) {
     const auto source = LoadText(SourceRoot() / "libdsp/src/dsp/MetalSpectrumDftNode.cpp");
     const auto runtime_test =
-        LoadText(SourceRoot() / "libgraph/test/unit/test_dsp_gpu_spectrum_graph_runtime.cpp");
+        LoadText(SourceRoot() / "libdsp/test/unit/test_dsp_gpu_spectrum_graph_runtime.cpp");
 
     ExpectContains(source, "\"has_kernel_ticket\"");
     ExpectContains(source, "IsValidKernelTicket(last_kernel_ticket_)");
@@ -179,12 +179,12 @@ TEST(DspGpuTruthInLabelingTest, MetalDftIsNeverDocumentedAsGpuFft) {
 
 TEST(DspGpuTruthInLabelingTest, DefaultCiDoesNotRequireSpeedup) {
     const auto dsp_test_cmake = LoadText(SourceRoot() / "examples/DSP/test/CMakeLists.txt");
-    const auto libgraph_test_cmake = LoadText(SourceRoot() / "libgraph/test/CMakeLists.txt");
+    const auto libdsp_test_cmake = LoadText(SourceRoot() / "libdsp/test/CMakeLists.txt");
     const auto readme = LoadText(SourceRoot() / "README.md");
     const auto example_test = LoadText(SourceRoot() / "examples/DSP/test/test_dsp_spectrum_demo.cpp");
 
     ExpectNotContains(dsp_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
-    ExpectNotContains(libgraph_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
+    ExpectNotContains(libdsp_test_cmake, "GRAPHX_DSP_REQUIRE_METAL_SPEEDUP=1");
     ExpectContains(readme, "not part of default CI");
     ExpectContains(example_test, "DefaultComparisonModeDoesNotFailForUnavailableOrSlowerMetal");
     ExpectContains(example_test, "StrictGateRequiresExplicitEnvironmentOptIn");
