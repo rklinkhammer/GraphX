@@ -75,15 +75,15 @@ Act as IMPLEMENTER using plan/agents/GRAPHX_AGENT_ROLES.md.
 Inputs:
 - plan/reviews/GRAPHX_INSPECTOR_REPORT.md
 - plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md
-- plan/reviews/GRAPHX_PR_ROADMAP.md
+- plan/roadmap/GRAPHX_PR_ROADMAP.md
 
 
 
 Task:
-Implement PR7 only.
+Implement PR9 only.
 
 Scope:
-Apply required fixes for PR6 only:
+Apply required fixes for PR9 only:
 Add explicit tests that enforce the rule.
 
 Rules:
@@ -92,8 +92,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR7 requires it.
-- Add or update tests for PR7.
+- Delete obsolete code if PR9 requires it.
+- Add or update tests for PR9.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.

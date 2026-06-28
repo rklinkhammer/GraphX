@@ -460,6 +460,71 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     std::filesystem::remove(temp_path, remove_error);
 }
 
+TEST(SarJsonRuntimeTest, PR8_DefinitiveResolverDiagnosticsRequireNoFallbackForCanonicalGpuStages) {
+    const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const std::filesystem::path sar_plugin_dir{PLUGIN_OUTPUT_DIRECTORY};
+    const std::filesystem::path gpu_plugin_dir{GPU_PLUGIN_OUTPUT_DIRECTORY};
+    ASSERT_TRUE(std::filesystem::exists(sar_plugin_dir));
+    ASSERT_TRUE(std::filesystem::exists(gpu_plugin_dir));
+
+    auto metal_config = LoadJsonFile(config_path);
+    metal_config["execution_backend"] = "metal";
+    metal_config["backend_fallback_policy"] = "strict";
+
+    const auto temp_path = std::filesystem::temp_directory_path() /
+                           "sar_stripmap_definitive_pr8_no_fallback_assertions.json";
+    {
+        std::ofstream out(temp_path, std::ios::trunc);
+        ASSERT_TRUE(out.good());
+        out << metal_config.dump(2) << '\n';
+    }
+
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(
+        std::vector<std::string>{gpu_plugin_dir.string(), sar_plugin_dir.string()});
+    ASSERT_TRUE(bootstrap);
+    ASSERT_NE(bootstrap->provider, nullptr);
+
+    auto graph_cap = std::make_shared<capabilities::GraphCapability>();
+    graph_cap->SetNodeProvider(bootstrap->provider);
+    graph_cap->SetJsonConfigPath(temp_path.string());
+
+    app::GraphBuilder graph_builder(graph_cap);
+    const auto build_result = graph_builder.Build();
+    ASSERT_TRUE(build_result.success) << build_result.error_message;
+
+    const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncAccelNode");
+    const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncAccelNode");
+    const auto* bp = FindResolverDiagnostic(
+        build_result.resolver_diagnostics, "SarBackprojectionTransformAccelNode");
+    ASSERT_NE(h2d, nullptr);
+    ASSERT_NE(d2h, nullptr);
+    ASSERT_NE(bp, nullptr);
+
+    EXPECT_EQ(h2d->selected_backend, "metal");
+    EXPECT_EQ(d2h->selected_backend, "metal");
+    EXPECT_EQ(bp->selected_backend, "metal");
+
+    EXPECT_FALSE(h2d->fallback_used);
+    EXPECT_FALSE(d2h->fallback_used);
+    EXPECT_FALSE(bp->fallback_used);
+
+    const auto no_fallback_reason = [](const std::string& reason) {
+        return reason.empty() || reason == "none";
+    };
+    EXPECT_TRUE(no_fallback_reason(h2d->fallback_reason));
+    EXPECT_TRUE(no_fallback_reason(d2h->fallback_reason));
+    EXPECT_TRUE(no_fallback_reason(bp->fallback_reason));
+
+    EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode"), nullptr);
+    EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode"), nullptr);
+    EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "SarBackprojectionTransformNode"), nullptr);
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+}
+
 TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
     const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
