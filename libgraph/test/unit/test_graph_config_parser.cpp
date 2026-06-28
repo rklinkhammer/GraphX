@@ -232,6 +232,39 @@ TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownFallbackPolicy) {
     EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
 }
 
+  TEST(GraphConfigParserExpectedTest,
+     ParseSafeRejectsInvalidResolverControlValuesWithStructuredValidationError) {
+    struct InvalidResolverCase {
+      const char* execution_backend;
+      const char* backend_fallback_policy;
+    };
+
+    const std::array<InvalidResolverCase, 4> invalid_cases{{
+      {"vulkan", "strict"},
+      {"metal", "maybe"},
+      {"", "allow_fallbackish"},
+      {"rocm", "fallback"},
+    }};
+
+    for (const auto& invalid_case : invalid_cases) {
+      SCOPED_TRACE(std::string("backend=") + invalid_case.execution_backend +
+             ", policy=" + invalid_case.backend_fallback_policy);
+      nlohmann::json config = {
+        {"name", "invalid_resolver_controls"},
+        {"execution_backend", invalid_case.execution_backend},
+        {"backend_fallback_policy", invalid_case.backend_fallback_policy},
+        {"nodes", nlohmann::json::array({
+                nlohmann::json{{"id", "source_1"}, {"type", "SourceTestNode"}},
+              })},
+        {"edges", nlohmann::json::array()},
+      };
+
+      const auto result = graph::config::GraphConfigParser::ParseSafe(config.dump());
+      ASSERT_FALSE(result);
+      EXPECT_EQ(result.error(), app::error::ConfigError::ValidationFailed);
+    }
+  }
+
 TEST(GraphConfigParserExpectedTest, ParseSafeRejectsUnknownEdgeContract) {
     const auto result = graph::config::GraphConfigParser::ParseSafe(R"({
       "name": "bad_edge_contract_graph",

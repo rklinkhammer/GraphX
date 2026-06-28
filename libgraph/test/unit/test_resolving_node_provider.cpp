@@ -148,6 +148,20 @@ TEST(ResolvingNodeProviderTest, StrictRequestedBackendRejectsFallbackOnlyIntent)
     EXPECT_FALSE(provider.IsNodeTypeAvailable("H2DAsyncNode"));
 }
 
+TEST(ResolvingNodeProviderTest,
+     StrictRequestedBackendUnavailableCreateNodeReturnsTypeNotFoundWithoutFallbackDiagnostic) {
+    auto inner = std::make_shared<FakeNodeProvider>(
+        std::set<std::string>{"H2DAsyncNode"});
+    graph::ResolvingNodeProvider provider(inner, ResolverConfig("metal", "strict"));
+
+    const auto created = provider.CreateNodeExpected("H2DAsyncNode");
+    ASSERT_FALSE(created.has_value());
+    EXPECT_EQ(created.error(), graph::NodeCreationError::TypeNotFound);
+
+    // Strict mode must fail resolution rather than recording a fallback path.
+    EXPECT_TRUE(provider.diagnostics().empty());
+}
+
 TEST(ResolvingNodeProviderTest, PassesThroughNonIntentTypesDirectly) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"SyntheticApertureIqSourceNode"});
