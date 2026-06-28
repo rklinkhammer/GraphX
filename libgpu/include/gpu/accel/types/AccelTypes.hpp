@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "graph/EdgeControl.hpp"
+
 #include <array>
 #include <cstddef>
 #include <concepts>
@@ -303,6 +305,7 @@ struct ControlToken {
     using sidecar_type = SidecarT;
 
     std::uint64_t token_id{};
+    graph::EdgeControl edge_control{};
     SidecarT sidecar{};
     BufferLease lease{};
     DeviceBufferView device_view{};

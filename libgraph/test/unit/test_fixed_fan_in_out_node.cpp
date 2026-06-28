@@ -8,6 +8,8 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <variant>
+#include <vector>
 
 namespace {
 
@@ -109,6 +111,83 @@ TEST(FixedFanInOutNodeTest, TransferNulloptDoesNotQueueOutput) {
       node.Transfer(10, std::integral_constant<std::size_t, 0>{},
                     std::integral_constant<std::size_t, 1>{});
   EXPECT_FALSE(no_output.has_value());
+}
+
+TEST(FixedFanInOutNodeTest, OutOfOrderEndOfStreamCompletesOnlyAfterAllInputs) {
+  FixedFanInOutSmokeNode node;
+
+  ASSERT_TRUE(node.ObserveInputControl<1>(graph::EdgeEndOfStream{}));
+  auto status = node.InputCompletionStatus();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Open);
+  EXPECT_EQ(status.terminal_inputs, 1u);
+  EXPECT_EQ(status.missing_inputs, std::vector<std::size_t>({0u}));
+
+  ASSERT_TRUE(node.ObserveInputControl<0>(graph::EdgeEndOfStream{}));
+  status = node.InputCompletionStatus();
+  EXPECT_TRUE(status.IsComplete());
+  EXPECT_EQ(status.terminal_inputs, 2u);
+}
+
+TEST(FixedFanInOutNodeTest, WatermarksAreMonotonicAndOnlyFinalIsTerminal) {
+  FixedFanInOutSmokeNode node;
+
+  EXPECT_TRUE(node.ObserveInputControl<0>(graph::EdgeWatermark{10u, false}));
+  EXPECT_FALSE(node.ObserveInputControl<0>(graph::EdgeWatermark{9u, false}));
+  EXPECT_TRUE(node.ObserveInputControl<0>(graph::EdgeWatermark{20u, true}));
+  EXPECT_EQ(node.InputCompletionStatus().outcome,
+            graph::RequiredInputOutcome::Open);
+
+  EXPECT_TRUE(node.ObserveInputControl<1>(graph::EdgeWatermark{15u, true}));
+  EXPECT_TRUE(node.InputCompletionStatus().IsComplete());
+}
+
+TEST(FixedFanInOutNodeTest, FinalizeReportsExactMissingRequiredInput) {
+  FixedFanInOutSmokeNode node;
+
+  ASSERT_TRUE(node.ObserveInputControl<0>(graph::EdgeEndOfStream{}));
+  const auto status = node.FinalizeInputCompletion();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Incomplete);
+  EXPECT_EQ(status.required_inputs, 2u);
+  EXPECT_EQ(status.terminal_inputs, 1u);
+  EXPECT_EQ(status.missing_inputs, std::vector<std::size_t>({1u}));
+  EXPECT_EQ(status.detail,
+            "required input did not reach a terminal state");
+}
+
+TEST(FixedFanInOutNodeTest, CancellationIsTypedAndNeverSuccessful) {
+  FixedFanInOutSmokeNode node;
+
+  ASSERT_TRUE(node.ObserveInputControl<1>(
+      graph::EdgeCancellation{"operator requested stop"}));
+  const auto status = node.InputCompletionStatus();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Cancelled);
+  EXPECT_EQ(status.problem_input, 1u);
+  EXPECT_EQ(status.detail, "operator requested stop");
+  EXPECT_FALSE(status.IsComplete());
+}
+
+TEST(FixedFanInOutNodeTest, FailurePreservesDetailAndNeverSucceeds) {
+  FixedFanInOutSmokeNode node;
+
+  ASSERT_TRUE(
+      node.ObserveInputControl<0>(graph::EdgeFailure{"detector failed"}));
+  const auto status = node.InputCompletionStatus();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Failed);
+  EXPECT_EQ(status.problem_input, 0u);
+  EXPECT_EQ(status.detail, "detector failed");
+  EXPECT_FALSE(status.IsComplete());
+}
+
+TEST(FixedFanInOutNodeTest,
+     DuplicateTerminalIsIdempotentAndDataAfterTerminalIsRejected) {
+  FixedFanInOutSmokeNode node;
+
+  const graph::EdgeControl eos = graph::EdgeEndOfStream{};
+  EXPECT_TRUE(node.ObserveInputControl<0>(eos));
+  EXPECT_TRUE(node.ObserveInputControl<0>(eos));
+  EXPECT_FALSE(node.ObserveInputControl<0>(graph::EdgeControl{}));
+  EXPECT_FALSE(node.ObserveInputControl<0>(
+      graph::EdgeFailure{"conflicting terminal"}));
 }
 
 } // namespace

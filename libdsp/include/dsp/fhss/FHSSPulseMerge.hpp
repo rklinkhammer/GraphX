@@ -85,7 +85,6 @@ struct FHSSPulseMergeRejection {
 struct FHSSPulseMergeConfig {
   FHSSTimingModel timing{};
   std::optional<std::uint64_t> message_epoch_sample{};
-  std::uint32_t expected_per_channel_packet_count = 1;
 };
 
 struct FHSSPulseMergeResult {

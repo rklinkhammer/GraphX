@@ -1,11 +1,10 @@
 #pragma once
 
-#include "config/ConfigError.hpp"
-#include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
 #include "graph/FixedFanInOutNode.hpp"
-#include "graph/IConfigurable.hpp"
 
 #include <cstdint>
 #include <mutex>
@@ -28,9 +27,7 @@ using FHSSPulseMergeOutputList =
 class FHSSPulseMergeNode
     : public graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
                                            FHSSPulseMergeInputList,
-                                           FHSSPulseMergeOutputList>,
-      public graph::IConfigurable,
-      public graph::IParameterized {
+                                           FHSSPulseMergeOutputList> {
 public:
   using Base = graph::NamedFixedFanInOutNode<FHSSPulseMergeNode,
                                              FHSSPulseMergeInputList,
@@ -53,39 +50,13 @@ public:
   template <std::size_t PortID>
   using OutputPortType = typename Base::template OutputPortType<PortID>;
 
-  FHSSPulseMergeNode() = default;
+  FHSSPulseMergeNode() { SetInputRequired(0, false); }
   explicit FHSSPulseMergeNode(FHSSPulseMergeConfig config)
-      : config_(std::move(config)) {}
+      : config_(std::move(config)) {
+    SetInputRequired(0, false);
+  }
 
   void SetConfig(FHSSPulseMergeConfig config) { config_ = std::move(config); }
-
-  void Configure(const graph::JsonView &cfg) override {
-    const auto &json = cfg.Raw();
-    config_.expected_per_channel_packet_count = static_cast<std::uint32_t>(
-        FHSSJsonUint64(json, "expected_per_channel_packet_count",
-                       config_.expected_per_channel_packet_count));
-    if (config_.expected_per_channel_packet_count == 0 ||
-        config_.expected_per_channel_packet_count > kPerChannelInputCount) {
-      throw graph::ConfigError(
-          "expected_per_channel_packet_count must be in [1, 64]");
-    }
-  }
-
-  [[nodiscard]] graph::JsonView GetParameters() const override {
-    nlohmann::json params;
-    params["expected_per_channel_packet_count"] =
-        config_.expected_per_channel_packet_count;
-    return FHSSStableParameterJsonView(std::move(params));
-  }
-
-  [[nodiscard]] graph::JsonView
-  GetParameterDescription(const std::string &) const override {
-    return FHSSStableParameterDescriptionJsonView(nlohmann::json::object());
-  }
-
-  [[nodiscard]] std::vector<std::string> GetParameterNames() const override {
-    return {"expected_per_channel_packet_count"};
-  }
 
   [[nodiscard]] std::string GetNodeTypeName() const {
     return "FHSSPulseMergeNode";
@@ -136,10 +107,58 @@ public:
       return EnqueueOutput<0>(*output);
     } else {
       static_assert(Port <= kPerChannelInputCount);
-      auto output = AccumulatePerChannel(input);
-      if (!output) {
+      std::lock_guard<std::mutex> lock(per_channel_mutex_);
+      const bool has_payload = !input.sidecar.detected_pulses.empty() ||
+                               !input.sidecar.pulse_evidence.empty();
+      if (per_channel_output_emitted_) {
+        return !has_payload && ObserveInputControl<Port>(input.edge_control);
+      }
+      if (input.sidecar.detected_pulses.size() !=
+          input.sidecar.pulse_evidence.size()) {
+        return false;
+      }
+      if (batch_token_id_ && *batch_token_id_ != input.token_id) {
+        ObserveInputControl<Port>(graph::EdgeFailure{
+            "FHSS merge inputs must share one deterministic token_id"});
+        pending_per_channel_detections_.clear();
+        return false;
+      }
+      if (!batch_token_id_) {
+        batch_token_id_ = input.token_id;
+      }
+      for (std::size_t i = 0; i < input.sidecar.detected_pulses.size(); ++i) {
+        pending_per_channel_detections_.push_back(
+            FHSSLocalPulseDetectionFromGraphX(
+                input.sidecar.detected_pulses[i],
+                input.sidecar.pulse_evidence[i]));
+      }
+      if (!ObserveInputControl<Port>(input.edge_control)) {
+        pending_per_channel_detections_.clear();
+        return false;
+      }
+
+      const auto status = InputCompletionStatus();
+      if (status.outcome == graph::RequiredInputOutcome::Failed ||
+          status.outcome == graph::RequiredInputOutcome::Cancelled) {
+        OutputTokenType terminal{};
+        terminal.token_id = *batch_token_id_;
+        terminal.edge_control = input.edge_control;
+        pending_per_channel_detections_.clear();
+        per_channel_output_emitted_ = true;
+        return EnqueueOutput<1>(terminal);
+      }
+      if (!status.IsComplete()) {
         return true;
       }
+
+      auto output = BuildOutput(*batch_token_id_,
+                                pending_per_channel_detections_);
+      if (!output) {
+        return false;
+      }
+      output->edge_control = graph::EdgeEndOfStream{};
+      pending_per_channel_detections_.clear();
+      per_channel_output_emitted_ = true;
       return EnqueueOutput<1>(*output);
     }
   }
@@ -162,19 +181,6 @@ public:
     return BuildOutput(input.token_id, local_detections);
   }
 
-  template <std::size_t Port>
-  std::optional<OutputTokenType>
-  Transfer(const PerChannelInputTokenType &input,
-           std::integral_constant<std::size_t, Port>,
-           std::integral_constant<std::size_t, 1>) {
-    static_assert(Port >= 1 && Port <= kPerChannelInputCount);
-    const auto saved_count = config_.expected_per_channel_packet_count;
-    config_.expected_per_channel_packet_count = 1;
-    auto output = AccumulatePerChannel(input);
-    config_.expected_per_channel_packet_count = saved_count;
-    return output;
-  }
-
   template <std::size_t InputPort, std::size_t OutputPort>
   std::optional<OutputTokenType>
   TransferInputToOutput(
@@ -182,44 +188,12 @@ public:
     if constexpr (InputPort == 0 && OutputPort == 0) {
       return Transfer(input, std::integral_constant<std::size_t, 0>{},
                       std::integral_constant<std::size_t, 0>{});
-    } else if constexpr (InputPort >= 1 &&
-                         InputPort <= kPerChannelInputCount &&
-                         OutputPort == 1) {
-      return Transfer(input, std::integral_constant<std::size_t, InputPort>{},
-                      std::integral_constant<std::size_t, 1>{});
     } else {
       return std::nullopt;
     }
   }
 
 private:
-  std::optional<OutputTokenType>
-  AccumulatePerChannel(const PerChannelInputTokenType &input) {
-    std::lock_guard<std::mutex> lock(per_channel_mutex_);
-    if (input.sidecar.detected_pulses.size() !=
-        input.sidecar.pulse_evidence.size()) {
-      return std::nullopt;
-    }
-
-    pending_per_channel_detections_.reserve(
-        pending_per_channel_detections_.size() +
-        input.sidecar.detected_pulses.size());
-    for (std::size_t i = 0; i < input.sidecar.detected_pulses.size(); ++i) {
-      pending_per_channel_detections_.push_back(FHSSLocalPulseDetectionFromGraphX(
-          input.sidecar.detected_pulses[i], input.sidecar.pulse_evidence[i]));
-    }
-    ++pending_per_channel_packet_count_;
-    if (pending_per_channel_packet_count_ <
-        config_.expected_per_channel_packet_count) {
-      return std::nullopt;
-    }
-
-    auto output = BuildOutput(input.token_id, pending_per_channel_detections_);
-    pending_per_channel_detections_.clear();
-    pending_per_channel_packet_count_ = 0;
-    return output;
-  }
-
   std::optional<OutputTokenType>
   BuildOutput(std::uint64_t token_id,
               const std::vector<FHSSLocalPulseDetection> &detections) const {
@@ -233,14 +207,14 @@ private:
     }
     output.sidecar.globally_ordered = true;
     output.sidecar.unsupported_overlap_rejected = true;
-    output.sidecar.truth_metadata_required_for_decision = false;
     return output;
   }
 
   FHSSPulseMergeConfig config_{};
   std::mutex per_channel_mutex_;
   std::vector<FHSSLocalPulseDetection> pending_per_channel_detections_;
-  std::uint32_t pending_per_channel_packet_count_ = 0;
+  std::optional<std::uint64_t> batch_token_id_;
+  bool per_channel_output_emitted_ = false;
 };
 
 } // namespace dsp::fhss

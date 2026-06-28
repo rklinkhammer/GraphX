@@ -2,7 +2,9 @@
 
 #include "config/ConfigError.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -129,9 +131,9 @@ public:
 
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
     output.sidecar.channel = input.sidecar.channel;
     output.sidecar.channel_iq = input.sidecar.iq;
-    output.sidecar.truth_metadata_required_for_decision = false;
 
     const auto pulse_channel_samples = ChannelSamplesForOnePulse(input.sidecar);
     const auto period_channel_samples =
@@ -166,7 +168,6 @@ public:
       evidence.sample_offset = offset;
       evidence.sample_count = pulse_channel_samples;
       evidence.sample_time_map = input.sidecar.channel.sample_time_map;
-      evidence.truth_metadata_required_for_decision = false;
 
       output.sidecar.detected_pulses.push_back(*metadata);
       output.sidecar.pulse_evidence.push_back(std::move(evidence));

@@ -1155,7 +1155,7 @@ Message completion and graph completion are distinct:
 - Graph completion is signaled only after final-message completion and source
   end-of-stream, or after explicit stop/failure/timeout.
 
-Required packet-contract changes in `FHSSGraphXPackets.hpp`:
+Required packet-contract changes in `FHSSPackets.hpp`:
 
 ```cpp
 struct FHSSMessageCorrelation {

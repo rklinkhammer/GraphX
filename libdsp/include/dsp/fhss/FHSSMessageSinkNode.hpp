@@ -1,6 +1,8 @@
 #pragma once
 
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
@@ -36,8 +38,6 @@ public:
         {"pulse_count", last_diagnostics_.pulse_count},
         {"rejected_count", last_diagnostics_.rejected_count},
         {"preamble_lock", last_diagnostics_.preamble_lock},
-        {"truth_mismatch_count", last_diagnostics_.truth_mismatch_count},
-        {"truth_is_validation_only", last_diagnostics_.truth_is_validation_only},
         {"unsupported_overlap_rejected",
          last_diagnostics_.unsupported_overlap_rejected},
         {"unsupported_impairments_rejected",

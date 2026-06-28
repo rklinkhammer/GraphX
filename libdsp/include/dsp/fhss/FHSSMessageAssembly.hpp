@@ -33,24 +33,10 @@ enum class FHSSMessageAssemblyStatus {
   UnsupportedOverlap
 };
 
-enum class FHSSTruthMismatchKind {
-  StartSample,
-  Duration,
-  Frequency,
-  Value
-};
-
-struct FHSSTruthMismatch {
-  std::size_t pulse_index = 0;
-  FHSSTruthMismatchKind kind = FHSSTruthMismatchKind::StartSample;
-  std::string message;
-};
-
 struct FHSSMessageDiagnostics {
   std::size_t pulse_count = 0;
   std::size_t rejected_count = 0;
   bool preamble_lock = false;
-  std::size_t truth_mismatch_count = 0;
 };
 
 struct FHSSPreambleDetectionResult {
@@ -65,7 +51,6 @@ struct FHSSAssembledMessage {
   std::vector<FHSSDecodedPulseWord> preamble_pulses;
   std::vector<FHSSDecodedPulseWord> payload_pulses;
   std::vector<std::uint32_t> active_frequency_indices;
-  std::vector<FHSSTruthMismatch> truth_mismatches;
   FHSSMessageDiagnostics diagnostics{};
   FHSSMessageAssemblyStatus status = FHSSMessageAssemblyStatus::Ok;
   std::string status_message;
@@ -73,7 +58,6 @@ struct FHSSAssembledMessage {
 
 struct FHSSMessageAssemblerConfig {
   std::vector<FHSSPreamblePulseSpec> preamble_pulses;
-  std::vector<FHSSTruthPulse> truth_pulses;
 };
 
 [[nodiscard]] inline const char *
@@ -192,45 +176,6 @@ public:
   }
 };
 
-[[nodiscard]] inline std::vector<FHSSTruthMismatch>
-CompareDecodedPulsesToTruth(
-    const std::vector<FHSSDecodedPulseWord> &ordered_pulses,
-    const std::vector<FHSSTruthPulse> &truth_pulses) {
-  std::vector<FHSSTruthMismatch> mismatches;
-  const auto count = std::min(ordered_pulses.size(), truth_pulses.size());
-  for (std::size_t i = 0; i < count; ++i) {
-    const auto &actual = ordered_pulses[i];
-    const auto &truth = truth_pulses[i];
-    const auto &detected = actual.candidate.detected_pulse;
-
-    if (detected.global_start_sample != truth.global_start_sample) {
-      mismatches.push_back(FHSSTruthMismatch{
-          .pulse_index = i,
-          .kind = FHSSTruthMismatchKind::StartSample,
-          .message = "decoded pulse start sample does not match truth"});
-    }
-    if (detected.duration_samples != truth.duration_samples) {
-      mismatches.push_back(FHSSTruthMismatch{
-          .pulse_index = i,
-          .kind = FHSSTruthMismatchKind::Duration,
-          .message = "decoded pulse duration does not match truth"});
-    }
-    if (detected.frequency_index != truth.frequency_index) {
-      mismatches.push_back(FHSSTruthMismatch{
-          .pulse_index = i,
-          .kind = FHSSTruthMismatchKind::Frequency,
-          .message = "decoded pulse frequency does not match truth"});
-    }
-    if (actual.decoded_value != truth.value) {
-      mismatches.push_back(FHSSTruthMismatch{
-          .pulse_index = i,
-          .kind = FHSSTruthMismatchKind::Value,
-          .message = "decoded pulse value does not match truth"});
-    }
-  }
-  return mismatches;
-}
-
 class FHSSMessageAssemblerKernel {
 public:
   [[nodiscard]] static FHSSAssembledMessage Assemble(
@@ -246,8 +191,6 @@ public:
       message.status_message = std::move(status_message);
       message.diagnostics.rejected_count = message.ordered_pulses.size();
       message.diagnostics.preamble_lock = false;
-      message.diagnostics.truth_mismatch_count =
-          message.truth_mismatches.size();
       return message;
     };
 
@@ -288,11 +231,6 @@ public:
       }
     }
 
-    message.truth_mismatches =
-        CompareDecodedPulsesToTruth(message.ordered_pulses,
-                                    config.truth_pulses);
-    message.diagnostics.truth_mismatch_count =
-        message.truth_mismatches.size();
     message.status = FHSSMessageAssemblyStatus::Ok;
     message.status_message = FHSSMessageAssemblyStatusName(message.status);
     return message;

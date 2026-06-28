@@ -6,7 +6,9 @@
 #include "core/ActiveQueue.hpp"
 #include "dsp/fhss/FHSSChannelIqCapture.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "graph/FixedFanInOutNode.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
@@ -369,6 +371,7 @@ private:
       }
       OutputTokenType output;
       output.token_id = input.token_id;
+      output.edge_control = input.edge_control;
       output.sidecar = BuildChannelPacket(input.sidecar, freq_map[Port], Port);
       std::string capture_error;
       if (!WriteFHSSChannelIqSigMf(output.sidecar, config_.iq_capture,
@@ -432,7 +435,6 @@ private:
         config_.channel_sample_rate_hz;
     packet.receiver_guard_or_metadata_channel =
         IsReservedFrequencyIndex(entry.index);
-    packet.truth_metadata_required_for_decision = false;
     packet.iq = MixAndDecimate(input.iq, entry.iq_offset_frequency_hz,
                                packet.channel.sample_time_map);
     return packet;

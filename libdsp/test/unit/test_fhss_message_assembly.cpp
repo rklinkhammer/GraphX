@@ -19,8 +19,6 @@ using dsp::fhss::FHSSMessageSinkKernel;
 using dsp::fhss::FHSSPreambleDetectorKernel;
 using dsp::fhss::FHSSPreamblePulseSpec;
 using dsp::fhss::FHSSProtocolConstants;
-using dsp::fhss::FHSSTruthMismatchKind;
-using dsp::fhss::FHSSTruthPulse;
 
 std::vector<FHSSPreamblePulseSpec> Preamble() {
   return {
@@ -71,32 +69,9 @@ MessagePulses(std::size_t payload_count = 2) {
   return pulses;
 }
 
-std::vector<FHSSTruthPulse>
-TruthFromDecoded(const std::vector<FHSSDecodedPulseWord> &pulses) {
-  std::vector<FHSSTruthPulse> truth;
-  truth.reserve(pulses.size());
-  for (std::size_t i = 0; i < pulses.size(); ++i) {
-    const auto &decoded = pulses[i];
-    const auto &detected = decoded.candidate.detected_pulse;
-    truth.push_back(FHSSTruthPulse{
-        .global_start_sample = detected.global_start_sample,
-        .duration_samples = detected.duration_samples,
-        .frequency_index = detected.frequency_index,
-        .rf_frequency_hz = detected.rf_frequency_hz,
-        .iq_offset_frequency_hz = detected.iq_offset_frequency_hz,
-        .value = decoded.decoded_value,
-        .is_preamble = i < FHSSProtocolConstants::kPreamblePulseCount});
-  }
-  return truth;
-}
-
-FHSSMessageAssemblerConfig Config(
-    const std::vector<FHSSDecodedPulseWord> &truth_source = {}) {
+FHSSMessageAssemblerConfig Config() {
   FHSSMessageAssemblerConfig config{};
   config.preamble_pulses = Preamble();
-  if (!truth_source.empty()) {
-    config.truth_pulses = TruthFromDecoded(truth_source);
-  }
   return config;
 }
 
@@ -117,12 +92,12 @@ TEST(FHSSMessageAssemblyTest, WordMismatchesDoNotPreventHopOnlyLock) {
     pulses[i].decoded_value ^= 0xFFFF'FFFFu;
   }
 
-  const auto assembled =
-      FHSSMessageAssemblerKernel::Assemble(pulses, Config(MessagePulses()));
+  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
 
   EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::Ok);
   EXPECT_TRUE(assembled.diagnostics.preamble_lock);
-  EXPECT_GT(assembled.diagnostics.truth_mismatch_count, 0u);
+  EXPECT_EQ(assembled.ordered_pulses.front().decoded_value,
+            pulses.front().decoded_value);
 }
 
 TEST(FHSSMessageAssemblyTest,
@@ -202,36 +177,6 @@ TEST(FHSSMessageAssemblyTest, OperatesOnGloballyOrderedDecodedPulses) {
   EXPECT_TRUE(assembled.diagnostics.preamble_lock);
 }
 
-TEST(FHSSMessageAssemblyTest,
-     TruthComparatorReportsStartDurationFrequencyAndValueMismatches) {
-  auto pulses = MessagePulses();
-  auto truth = TruthFromDecoded(pulses);
-  truth[0].global_start_sample += 1;
-  truth[0].duration_samples += 1;
-  truth[0].frequency_index = 7;
-  truth[0].value ^= 0x1u;
-
-  FHSSMessageAssemblerConfig config{};
-  config.preamble_pulses = Preamble();
-  config.truth_pulses = truth;
-  const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, config);
-
-  EXPECT_EQ(assembled.status, FHSSMessageAssemblyStatus::Ok);
-  EXPECT_EQ(assembled.diagnostics.truth_mismatch_count, 4u);
-  std::vector<FHSSTruthMismatchKind> kinds;
-  for (const auto &mismatch : assembled.truth_mismatches) {
-    kinds.push_back(mismatch.kind);
-  }
-  EXPECT_TRUE(std::ranges::find(kinds, FHSSTruthMismatchKind::StartSample) !=
-              kinds.end());
-  EXPECT_TRUE(std::ranges::find(kinds, FHSSTruthMismatchKind::Duration) !=
-              kinds.end());
-  EXPECT_TRUE(std::ranges::find(kinds, FHSSTruthMismatchKind::Frequency) !=
-              kinds.end());
-  EXPECT_TRUE(std::ranges::find(kinds, FHSSTruthMismatchKind::Value) !=
-              kinds.end());
-}
-
 TEST(FHSSMessageAssemblyTest, SinkReportsMinimumDiagnostics) {
   auto pulses = MessagePulses();
   const auto assembled = FHSSMessageAssemblerKernel::Assemble(pulses, Config());
@@ -241,7 +186,6 @@ TEST(FHSSMessageAssemblyTest, SinkReportsMinimumDiagnostics) {
   EXPECT_EQ(diagnostics.pulse_count, pulses.size());
   EXPECT_EQ(diagnostics.rejected_count, 0u);
   EXPECT_TRUE(diagnostics.preamble_lock);
-  EXPECT_EQ(diagnostics.truth_mismatch_count, 0u);
 }
 
 TEST(FHSSMessageAssemblyTest, RejectsPr1OverlappedMessagesDeterministically) {

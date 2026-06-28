@@ -1,7 +1,9 @@
 #pragma once
 
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
 #include "graph/dashboard/FHSSStepping.hpp"
 #include "graph/IConfigurable.hpp"
@@ -131,12 +133,13 @@ private:
     sample_time_map.input_packet_global_start_sample = 0;
     OutputTokenType token{};
     token.token_id = next_token_id_++;
+    if (request.end_of_stream_after_produce) {
+      token.edge_control = graph::EdgeEndOfStream{};
+    }
     token.sidecar.correlation = request.correlation;
     token.sidecar.iq = FHSSGraphXComplexEvidenceFromHostSamples(
         samples, samples->size(), sample_time_map);
-    token.sidecar.truth_pulses = std::move(fixture->truth_pulses);
     token.sidecar.timing = fixture->timing;
-    token.sidecar.truth_is_validation_only = true;
     if (request.end_of_stream_after_produce) {
       DisableMessageInjectionQueue();
     }

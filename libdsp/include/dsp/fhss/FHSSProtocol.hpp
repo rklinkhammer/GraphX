@@ -120,17 +120,6 @@ struct FHSSPreamblePulseSpec {
   std::uint32_t word_value = 0;
 };
 
-struct FHSSTruthPulse {
-  std::uint64_t global_start_sample = 0;
-  std::uint64_t duration_samples = FHSSProtocolConstants::kPulseWidthSamples;
-  std::uint32_t frequency_index = 0;
-  double rf_frequency_hz = 0.0;
-  double iq_offset_frequency_hz = 0.0;
-  std::uint32_t value = 0;
-  bool is_preamble = false;
-  std::uint64_t message_id = 0;
-};
-
 enum class FHSSMessagePulseRole { Preamble, Body };
 
 struct FHSSMessagePulseSpec {
@@ -173,17 +162,6 @@ struct FHSSPulseCandidate {
   FHSSDetectedPulse detected_pulse{};
   std::optional<std::uint64_t> provisional_slot_index{};
   std::optional<std::uint64_t> final_slot_index{};
-};
-
-struct FHSSDecodedPulse {
-  FHSSTruthPulse pulse_metadata{};
-  std::uint32_t decoded_value = 0;
-  double confidence = 0.0;
-};
-
-struct FHSSMessage {
-  std::vector<FHSSDecodedPulse> pulses;
-  bool preamble_lock = false;
 };
 
 struct FHSSDecodeConfig {

@@ -2,14 +2,17 @@
 
 #include <gtest/gtest.h>
 
-#include <filesystem>
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
@@ -257,6 +260,42 @@ FHSSGraphXPulseMetadata MergeTestPulse(std::uint32_t frequency_index,
   return pulse;
 }
 
+std::array<FHSSPerChannelPulseEvidenceToken,
+           FHSSProtocolConstants::kFrequencyCount>
+MergeTokensFor72Pulses() {
+  std::array<FHSSPerChannelPulseEvidenceToken,
+             FHSSProtocolConstants::kFrequencyCount>
+      tokens{};
+  for (auto &token : tokens) {
+    token.token_id = 900;
+    token.edge_control = graph::EdgeEndOfStream{};
+  }
+
+  const std::array<std::uint32_t, 4> active{{24u, 28u, 32u, 36u}};
+  for (std::size_t pulse_index = 0; pulse_index < 72u; ++pulse_index) {
+    const auto frequency_index = active[pulse_index % active.size()];
+    const auto global_start =
+        pulse_index * FHSSProtocolConstants::kPulsePeriodSamples;
+    auto &token = tokens[frequency_index];
+    token.sidecar.detected_pulses.push_back(
+        MergeTestPulse(frequency_index, global_start));
+    token.sidecar.pulse_evidence.push_back(MergeTestEvidence(global_start));
+  }
+  return tokens;
+}
+
+template <std::size_t... Indices>
+bool ConsumeReversePortsExceptFirst(
+    FHSSPulseMergeNode &merge,
+    const std::array<FHSSPerChannelPulseEvidenceToken,
+                     FHSSProtocolConstants::kFrequencyCount> &tokens,
+    std::index_sequence<Indices...>) {
+  return (merge.template ConsumeInput<
+              FHSSProtocolConstants::kFrequencyCount - Indices>(
+              tokens[FHSSProtocolConstants::kFrequencyCount - 1u - Indices]) &&
+          ...);
+}
+
 FHSSSyntheticIqToken SyntheticTokenFromSamples(
     std::shared_ptr<const std::vector<std::complex<double>>> samples,
     std::uint64_t global_start_sample = 0) {
@@ -269,11 +308,9 @@ FHSSSyntheticIqToken SyntheticTokenFromSamples(
   return token;
 }
 
-FHSSMessageAssemblerConfig AssemblerConfig(
-    const std::vector<FHSSTruthPulse> &truth_pulses = {}) {
+FHSSMessageAssemblerConfig AssemblerConfig() {
   FHSSMessageAssemblerConfig config{};
   config.preamble_pulses = Preamble();
-  config.truth_pulses = truth_pulses;
   return config;
 }
 
@@ -294,21 +331,19 @@ FHSSGraphXPulseMetadata MetadataFromTruth(const FHSSTruthPulse &truth) {
 }
 
 FHSSDecodedPulseWordsToken DecodedWordsFromTruth(
-    const FHSSSyntheticIqOutputPacket &fixture) {
+    const std::vector<FHSSTruthPulse> &truth_pulses) {
   FHSSDecodedPulseWordsToken token{};
   token.token_id = 99;
   token.sidecar.globally_ordered = true;
-  token.sidecar.truth_metadata_required_for_decision = false;
-  token.sidecar.decoded_pulses.reserve(fixture.truth_pulses.size());
-  for (const auto &truth : fixture.truth_pulses) {
+  token.sidecar.decoded_pulses.reserve(truth_pulses.size());
+  for (const auto &truth : truth_pulses) {
     token.sidecar.decoded_pulses.push_back(FHSSDecodedPulseWordPacket{
         .pulse = MetadataFromTruth(truth),
         .decoded_value = truth.value,
         .confidence = 1.0,
         .viterbi_path_metric = 0.0,
         .status = FHSSGraphXDecodeStatus::Ok,
-        .status_message = "Ok",
-        .truth_metadata_required_for_decision = false});
+        .status_message = "Ok"});
   }
   return token;
 }
@@ -424,13 +459,18 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                                 FHSSPerChannelPulseEvidencePacket>);
 }
 
-TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
-  FHSSSyntheticIqSourceNode source(ChannelizedGeneratorConfig());
+TEST(FHSSGraphXNodeTest,
+     CpuLaneDecodesFromComplexEvidenceWithoutRuntimeTruth) {
+  const auto generator_config = ChannelizedGeneratorConfig();
+  const auto fixture = GenerateSyntheticIqFixture(generator_config);
+  ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
+  ASSERT_EQ(fixture->truth_pulses.size(), 17u);
+
+  FHSSSyntheticIqSourceNode source(generator_config);
   auto synthetic =
       source.Produce(std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(synthetic.has_value());
   ASSERT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(synthetic->sidecar.iq));
-  ASSERT_EQ(synthetic->sidecar.truth_pulses.size(), 17u);
 
   FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
   auto downconverted = downconverter.Transfer(
@@ -455,10 +495,16 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
   ASSERT_EQ(per_channel->sidecar.pulse_evidence.size(),
             per_channel->sidecar.detected_pulses.size());
 
+  FHSSDetectedPulseToken detected{};
+  detected.token_id = per_channel->token_id;
+  detected.edge_control = per_channel->edge_control;
+  detected.sidecar.detected_pulses = per_channel->sidecar.detected_pulses;
+  detected.sidecar.pulse_evidence = per_channel->sidecar.pulse_evidence;
+  detected.sidecar.source_iq = per_channel->sidecar.channel_iq;
   FHSSPulseMergeNode merge;
-  auto candidates =
-      merge.Transfer(*per_channel, std::integral_constant<std::size_t, 1>{},
-                     std::integral_constant<std::size_t, 1>{});
+  auto candidates = merge.Transfer(
+      detected, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(candidates.has_value());
   ASSERT_FALSE(candidates->sidecar.ordered_candidates.empty());
   EXPECT_TRUE(candidates->sidecar.globally_ordered);
@@ -488,7 +534,6 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
             FHSSProtocolConstants::kBitsPerPulse);
   EXPECT_EQ(symbols->sidecar.pulse_decisions.size(),
             candidate_stream->sidecar.ordered_candidates.size());
-  EXPECT_FALSE(symbols->sidecar.truth_metadata_required_for_decision);
 
   FHSSPulseWordDecoderNode word_decoder;
   auto decoded = word_decoder.Transfer(
@@ -499,25 +544,27 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFirstPulseThroughGraphXNodeApi) {
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front().status,
             FHSSGraphXDecodeStatus::Ok);
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front().decoded_value,
-            synthetic->sidecar.truth_pulses.front().value);
+            fixture->truth_pulses.front().value);
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front()
                 .pulse.frequency.frequency_index,
-            synthetic->sidecar.truth_pulses.front().frequency_index);
-  EXPECT_FALSE(decoded->sidecar.truth_metadata_required_for_decision);
+            fixture->truth_pulses.front().frequency_index);
 }
 
 TEST(FHSSGraphXNodeTest,
-     PulseMergeNodeConsumeQueuesPerChannelPulseOutput) {
+     CanonicalSourceToDetectorPathPreservesEndOfStreamControl) {
   FHSSSyntheticIqSourceNode source(ChannelizedGeneratorConfig());
   auto synthetic =
       source.Produce(std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(synthetic.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      synthetic->edge_control));
 
   FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
   auto downconverted = downconverter.Transfer(
       *synthetic, std::integral_constant<std::size_t, 0>{},
       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(downconverted.has_value());
+  EXPECT_EQ(downconverted->edge_control, synthetic->edge_control);
 
   ChannelizerNode channelizer(ChannelizerConfig());
   ASSERT_TRUE(
@@ -526,25 +573,14 @@ TEST(FHSSGraphXNodeTest,
   auto channel24 =
       channelizer.Produce(std::integral_constant<std::size_t, 24>{});
   ASSERT_TRUE(channel24.has_value());
+  EXPECT_EQ(channel24->edge_control, synthetic->edge_control);
 
   PerChannelPulseDetectorNode detector(PerChannelDetectorConfig());
   auto per_channel = detector.Transfer(
       *channel24, std::integral_constant<std::size_t, 0>{},
       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(per_channel.has_value());
-
-  FHSSPulseMergeNode merge;
-  EXPECT_EQ(merge.GetInputPortCount(),
-            static_cast<int>(FHSSPulseMergeNode::NInputs));
-  EXPECT_EQ(merge.GetOutputPortCount(),
-            static_cast<int>(FHSSPulseMergeNode::NOutputs));
-  ASSERT_TRUE(merge.Consume(
-      *per_channel, std::integral_constant<std::size_t, 1>{}));
-  auto candidates =
-      merge.Produce(std::integral_constant<std::size_t, 1>{});
-  ASSERT_TRUE(candidates.has_value());
-  ASSERT_FALSE(candidates->sidecar.ordered_candidates.empty());
-  EXPECT_TRUE(candidates->sidecar.globally_ordered);
+  EXPECT_EQ(per_channel->edge_control, synthetic->edge_control);
 }
 
 TEST(FHSSGraphXNodeTest,
@@ -676,7 +712,6 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_EQ(channel.channel.input_global_start_sample, 10'000u);
   EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(channel.iq));
   EXPECT_EQ(channel.iq.host_complex64_samples->size(), 8u);
-  EXPECT_FALSE(channel.truth_metadata_required_for_decision);
 }
 
 TEST(FHSSGraphXNodeTest,
@@ -698,8 +733,7 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_FALSE(ValidateFHSSChannelizerConfig(config).has_value());
 }
 
-TEST(FHSSGraphXNodeTest,
-     PerChannelPulseDetectorUsesSingleChannelMetadataAndMerges) {
+TEST(FHSSGraphXNodeTest, PerChannelPulseDetectorUsesSingleChannelMetadata) {
   auto fixture_samples = std::make_shared<std::vector<std::complex<double>>>();
   fixture_samples->reserve(FHSSProtocolConstants::kPulseWidthSamples);
   constexpr double kTwoPi = 6.283185307179586476925286766559;
@@ -742,7 +776,6 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_EQ(per_channel->sidecar.channel.channel_id, 24u);
   EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(
       per_channel->sidecar.channel_iq));
-  EXPECT_FALSE(per_channel->sidecar.truth_metadata_required_for_decision);
 
   const auto &pulse = per_channel->sidecar.detected_pulses.front();
   EXPECT_EQ(pulse.frequency.frequency_index, 24u);
@@ -763,61 +796,79 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_GT(pulse.snr_db, 0.0);
   EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(
       per_channel->sidecar.pulse_evidence.front()));
-
-  FHSSPulseMergeNode merge;
-  auto candidates = merge.Transfer(
-      *per_channel, std::integral_constant<std::size_t, 1>{},
-      std::integral_constant<std::size_t, 1>{});
-  ASSERT_TRUE(candidates.has_value());
-  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 1u);
-  const auto &candidate = candidates->sidecar.ordered_candidates.front();
-  EXPECT_EQ(candidate.pulse.frequency.frequency_index, 24u);
-  EXPECT_EQ(candidate.pulse.timing.global_start_sample, 20'000u);
-  EXPECT_EQ(candidate.provisional_slot_index,
-            20'000u / FHSSProtocolConstants::kPulsePeriodSamples);
-  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(candidate.complex_evidence));
 }
 
 TEST(FHSSGraphXNodeTest,
-     PulseMergeNodeConsumeAccumulatesConfiguredPerChannelBatch) {
-  FHSSPerChannelPulseEvidenceToken first{};
-  first.token_id = 100;
-  first.sidecar.detected_pulses.push_back(MergeTestPulse(24, 20'000));
-  first.sidecar.pulse_evidence.push_back(MergeTestEvidence(20'000));
+     PulseMergeWaitsForAll64TerminalInputsAndOrdersAll72Pulses) {
+  auto tokens = MergeTokensFor72Pulses();
+  FHSSPulseMergeNode merge;
+  merge.EnableMetrics();
 
-  FHSSPerChannelPulseEvidenceToken second{};
-  second.token_id = 101;
-  second.sidecar.detected_pulses.push_back(MergeTestPulse(25, 26'500));
-  second.sidecar.pulse_evidence.push_back(MergeTestEvidence(26'500));
+  ASSERT_TRUE(ConsumeReversePortsExceptFirst(
+      merge, tokens,
+      std::make_index_sequence<FHSSProtocolConstants::kFrequencyCount - 1>{}));
+  ASSERT_NE(merge.GetOutputQueueMetrics(1), nullptr);
+  EXPECT_EQ(merge.GetOutputQueueMetrics(1)->current_size.load(), 0u);
+  const auto incomplete = merge.FinalizeInputCompletion();
+  EXPECT_EQ(incomplete.outcome, graph::RequiredInputOutcome::Incomplete);
+  EXPECT_EQ(incomplete.missing_inputs, std::vector<std::size_t>({1u}));
 
-  FHSSPulseMergeConfig config{};
-  config.expected_per_channel_packet_count = 2;
-  FHSSPulseMergeNode merge(config);
-
-  ASSERT_TRUE(merge.Consume(
-      first, std::integral_constant<std::size_t, 1>{}));
-
-  ASSERT_TRUE(merge.Consume(
-      second, std::integral_constant<std::size_t, 2>{}));
-  auto candidates =
-      merge.Produce(std::integral_constant<std::size_t, 1>{});
+  ASSERT_TRUE(merge.ConsumeInput<1>(tokens[0]));
+  auto candidates = merge.ProduceOutput<1>();
   ASSERT_TRUE(candidates.has_value());
-  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 2u);
-  EXPECT_EQ(candidates->sidecar.ordered_candidates[0]
-                .pulse.timing.global_start_sample,
-            20'000u);
-  EXPECT_EQ(candidates->sidecar.ordered_candidates[1]
-                .pulse.timing.global_start_sample,
-            26'500u);
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      candidates->edge_control));
+  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 72u);
+  for (std::size_t pulse_index = 0; pulse_index < 72u; ++pulse_index) {
+    EXPECT_EQ(candidates->sidecar.ordered_candidates[pulse_index]
+                  .pulse.timing.global_start_sample,
+              pulse_index * FHSSProtocolConstants::kPulsePeriodSamples);
+  }
+  EXPECT_EQ(merge.GetOutputQueueMetrics(1)->current_size.load(), 0u);
+}
+
+TEST(FHSSGraphXNodeTest,
+     PulseMergePropagatesFailureWithoutSuccessfulCandidateBatch) {
+  FHSSPulseMergeNode merge;
+  FHSSPerChannelPulseEvidenceToken failure{};
+  failure.token_id = 901;
+  failure.edge_control = graph::EdgeFailure{"detector 0 failed"};
+
+  ASSERT_TRUE(merge.ConsumeInput<1>(failure));
+  const auto status = merge.InputCompletionStatus();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Failed);
+  EXPECT_EQ(status.problem_input, 1u);
+  EXPECT_EQ(status.detail, "detector 0 failed");
+
+  auto output = merge.ProduceOutput<1>();
+  ASSERT_TRUE(output.has_value());
+  EXPECT_TRUE(output->sidecar.ordered_candidates.empty());
+  EXPECT_EQ(output->edge_control, failure.edge_control);
+}
+
+TEST(FHSSGraphXNodeTest,
+     PulseMergePropagatesCancellationWithoutSuccessfulCandidateBatch) {
+  FHSSPulseMergeNode merge;
+  FHSSPerChannelPulseEvidenceToken cancellation{};
+  cancellation.token_id = 902;
+  cancellation.edge_control = graph::EdgeCancellation{"graph cancelled"};
+
+  ASSERT_TRUE(merge.ConsumeInput<1>(cancellation));
+  const auto status = merge.InputCompletionStatus();
+  EXPECT_EQ(status.outcome, graph::RequiredInputOutcome::Cancelled);
+  EXPECT_EQ(status.detail, "graph cancelled");
+
+  auto output = merge.ProduceOutput<1>();
+  ASSERT_TRUE(output.has_value());
+  EXPECT_TRUE(output->sidecar.ordered_candidates.empty());
+  EXPECT_EQ(output->edge_control, cancellation.edge_control);
 }
 
 TEST(FHSSGraphXNodeTest,
      PreambleAssemblerAndSinkOperateOnTokenWrappedDecodedWords) {
-  FHSSSyntheticIqSourceNode source(GeneratorConfig());
-  auto synthetic =
-      source.Produce(std::integral_constant<std::size_t, 0>{});
-  ASSERT_TRUE(synthetic.has_value());
-  auto decoded_words = DecodedWordsFromTruth(synthetic->sidecar);
+  const auto fixture = GenerateSyntheticIqFixture(GeneratorConfig());
+  ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
+  auto decoded_words = DecodedWordsFromTruth(fixture->truth_pulses);
 
   FHSSPreambleDetectorNode preamble_detector(Preamble());
   auto preamble = preamble_detector.Transfer(
@@ -828,8 +879,7 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_EQ(preamble->sidecar.active_frequency_indices,
             (std::vector<std::uint32_t>{1, 7, 12, 62}));
 
-  FHSSMessageAssemblerNode assembler(
-      AssemblerConfig(synthetic->sidecar.truth_pulses));
+  FHSSMessageAssemblerNode assembler(AssemblerConfig());
   auto message = assembler.Transfer(*preamble,
                                     std::integral_constant<std::size_t, 0>{},
                                     std::integral_constant<std::size_t, 0>{});
@@ -838,7 +888,6 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_TRUE(message->sidecar.preamble_lock);
   EXPECT_EQ(message->sidecar.diagnostics.pulse_count,
             decoded_words.sidecar.decoded_pulses.size());
-  EXPECT_EQ(message->sidecar.diagnostics.truth_mismatch_count, 0u);
 
   FHSSMessageSinkNode sink;
   EXPECT_TRUE(sink.Consume(*message, std::integral_constant<std::size_t, 0>{}));

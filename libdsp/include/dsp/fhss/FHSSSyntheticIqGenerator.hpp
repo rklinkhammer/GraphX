@@ -24,6 +24,17 @@
 
 namespace dsp::fhss {
 
+struct FHSSTruthPulse {
+  std::uint64_t global_start_sample = 0;
+  std::uint64_t duration_samples = FHSSProtocolConstants::kPulseWidthSamples;
+  std::uint32_t frequency_index = 0;
+  double rf_frequency_hz = 0.0;
+  double iq_offset_frequency_hz = 0.0;
+  std::uint32_t value = 0;
+  bool is_preamble = false;
+  std::uint64_t message_id = 0;
+};
+
 struct FHSSSyntheticIqGeneratorConfig {
   FHSSDecodeConfig decode_config{};
   std::vector<FHSSScheduledMessageSpec> messages;

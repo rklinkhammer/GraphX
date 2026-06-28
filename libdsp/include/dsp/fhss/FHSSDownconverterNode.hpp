@@ -2,7 +2,9 @@
 
 #include "config/ConfigError.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -171,8 +173,8 @@ public:
 
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
     output.sidecar.downconverter = Metadata(input.sidecar.iq);
-    output.sidecar.truth_metadata_required_for_decision = false;
 
     if (config_.passthrough) {
       output.sidecar.iq = input.sidecar.iq;

@@ -239,12 +239,12 @@ TEST(FHSSGraphXGuardrailTest,
      ChannelizerDoesNotExposeAggregateChannelOutputContract) {
   const auto root = RepositoryRoot();
   const auto fhss_include = root / "libdsp" / "include" / "dsp" / "fhss";
-  const auto packets = ReadFile(fhss_include / "FHSSGraphXPackets.hpp");
-  const auto utils = ReadFile(fhss_include / "FHSSGraphXNodeUtils.hpp");
+  const auto packets = ReadFile(fhss_include / "FHSSPackets.hpp");
+  const auto ports = ReadFile(fhss_include / "FHSSPorts.hpp");
   const auto channelizer = ReadFile(fhss_include / "ChannelizerNode.hpp");
 
   EXPECT_EQ(packets.find("FHSSChannelizedIqStreamPacket"), std::string::npos);
-  EXPECT_EQ(utils.find("FHSSChannelizedIqStreamToken"), std::string::npos);
+  EXPECT_EQ(ports.find("FHSSChannelizedIqStreamToken"), std::string::npos);
   EXPECT_EQ(channelizer.find("FHSSChannelizedIqStream"), std::string::npos);
   EXPECT_EQ(channelizer.find("std::vector<FHSSChannelizedIqPacket>"),
             std::string::npos);
@@ -252,16 +252,35 @@ TEST(FHSSGraphXGuardrailTest,
             std::string::npos);
 }
 
-TEST(FHSSGraphXGuardrailTest, SharedFhssGraphXUtilityDefinesNoNodeClasses) {
+TEST(FHSSGraphXGuardrailTest, ObsoleteCatchAllHeadersWereDeleted) {
   const auto root = RepositoryRoot();
-  const auto util =
-      root / "libdsp" / "include" / "dsp" / "fhss" /
-      "FHSSGraphXNodeUtils.hpp";
-  ASSERT_TRUE(std::filesystem::exists(util));
-  const auto text = ReadFile(util);
+  const auto fhss_include =
+      root / "libdsp" / "include" / "dsp" / "fhss";
+  EXPECT_FALSE(std::filesystem::exists(fhss_include /
+                                       "FHSSGraphXPackets.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(fhss_include /
+                                       "FHSSGraphXNodeUtils.hpp"));
+  EXPECT_TRUE(std::filesystem::exists(fhss_include / "FHSSPackets.hpp"));
+  EXPECT_TRUE(std::filesystem::exists(fhss_include / "FHSSPorts.hpp"));
+  EXPECT_TRUE(std::filesystem::exists(fhss_include /
+                                      "FHSSPacketConversions.hpp"));
+  EXPECT_TRUE(std::filesystem::exists(fhss_include /
+                                      "FHSSFixtureUtils.hpp"));
+}
+
+TEST(FHSSGraphXGuardrailTest, SplitFhssUtilitiesDefineNoNodeClasses) {
+  const auto root = RepositoryRoot();
+  const auto fhss_include =
+      root / "libdsp" / "include" / "dsp" / "fhss";
   const std::regex node_class_regex(
       R"(\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*Node)\b)");
-  EXPECT_TRUE(ClassNamesMatching(text, node_class_regex).empty());
+  for (const auto &name : {"FHSSPackets.hpp", "FHSSPorts.hpp",
+                           "FHSSPacketConversions.hpp",
+                           "FHSSFixtureUtils.hpp"}) {
+    EXPECT_TRUE(ClassNamesMatching(ReadFile(fhss_include / name),
+                                   node_class_regex).empty())
+        << name;
+  }
 }
 
 TEST(FHSSGraphXGuardrailTest, FhssTestsDoNotCallDeletedPseudoNodeApis) {

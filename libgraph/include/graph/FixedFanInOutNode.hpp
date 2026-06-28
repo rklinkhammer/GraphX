@@ -7,6 +7,7 @@
 #pragma once
 
 #include "core/ActiveQueue.hpp"
+#include "graph/EdgeControl.hpp"
 #include "graph/Lifecycle.hpp"
 #include "graph/NamedType.hpp"
 #include "graph/PortTypes.hpp"
@@ -124,6 +125,28 @@ public:
   template <std::size_t PortID>
   std::optional<OutputType<PortID>> ProduceOutput() {
     return DequeueOutput<PortID>();
+  }
+
+  bool SetInputRequired(std::size_t port_id, bool required) {
+    return input_completion_.SetRequired(port_id, required);
+  }
+
+  template <std::size_t PortID>
+  bool ObserveInputControl(const EdgeControl &control) {
+    static_assert(PortID < NInputs);
+    return input_completion_.Observe(PortID, control);
+  }
+
+  [[nodiscard]] EdgeControl InputControl(std::size_t port_id) const {
+    return input_completion_.Control(port_id);
+  }
+
+  [[nodiscard]] RequiredInputStatus InputCompletionStatus() const {
+    return input_completion_.Status();
+  }
+
+  [[nodiscard]] RequiredInputStatus FinalizeInputCompletion() const {
+    return input_completion_.Finalize();
   }
 
   template <std::size_t InputPortID, std::size_t OutputPortID>
@@ -295,6 +318,7 @@ public:
   }
 
   std::tuple<core::ActiveQueue<typename OutputPortTs::type>...> output_queues_;
+  RequiredInputCompletion<NInputs> input_completion_;
 };
 
 } // namespace detail

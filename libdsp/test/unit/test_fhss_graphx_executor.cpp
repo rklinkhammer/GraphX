@@ -255,12 +255,11 @@ TEST(FHSSGraphXExecutorTest,
 
   EXPECT_EQ(diagnostics.at("schema").get<std::string>(),
             "graphx.fhss.message_sink.diagnostics.v1");
-  const std::array<const char*, 9> required_keys{{
+  const std::array<const char*, 8> required_keys{{
       "schema",
       "pulse_count",
       "rejected_count",
       "preamble_lock",
-      "truth_mismatch_count",
       "unsupported_overlap_rejected",
       "unsupported_impairments_rejected",
       "active_frequency_indices",
@@ -275,7 +274,6 @@ TEST(FHSSGraphXExecutorTest,
       << "canonical assembled-message stage must retain all 72 fixture pulses";
   EXPECT_EQ(diagnostics.at("rejected_count").get<std::size_t>(), 0u);
   EXPECT_TRUE(diagnostics.at("preamble_lock").get<bool>());
-  EXPECT_EQ(diagnostics.at("truth_mismatch_count").get<std::size_t>(), 0u);
   EXPECT_TRUE(diagnostics.at("unsupported_overlap_rejected").get<bool>());
   EXPECT_TRUE(diagnostics.at("unsupported_impairments_rejected").get<bool>());
   EXPECT_EQ(diagnostics.at("synchronization_assumption").get<std::string>(),
@@ -374,8 +372,6 @@ TEST(FHSSGraphXExecutorTest,
               kCanonicalFixturePulseCount)
         << "decoder stage truncated canonical run " << run;
     EXPECT_EQ(diagnostics.at("rejected_count").get<std::size_t>(), 0u)
-        << "canonical run " << run;
-    EXPECT_EQ(diagnostics.at("truth_mismatch_count").get<std::size_t>(), 0u)
         << "canonical run " << run;
 
     if (run == 0u) {

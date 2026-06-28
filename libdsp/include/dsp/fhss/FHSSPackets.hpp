@@ -1,6 +1,6 @@
 /**
- * @file FHSSGraphXPackets.hpp
- * @brief Canonical GraphX FHSS edge packet contracts.
+ * @file FHSSPackets.hpp
+ * @brief Canonical FHSS edge packet contracts.
  *
  * @details Canonical data contracts for the current GraphX FHSS decoder lane.
  * These packet types define public GraphX edge payloads while keeping future
@@ -94,13 +94,6 @@ enum class FHSSGraphXDecodeStatus {
   Unsupported
 };
 
-enum class FHSSGraphXTruthMismatchKind {
-  StartSample,
-  Duration,
-  Frequency,
-  Value
-};
-
 struct FHSSGraphXSampleTimeMap {
   bool has_input_global_start_sample = true;
   std::uint64_t input_packet_global_start_sample = 0;
@@ -122,10 +115,9 @@ struct FHSSGraphXComplexEvidence {
       FHSSGraphXPayloadResidency::HostSharedImmutable;
   FHSSGraphXSampleTimeMap sample_time_map{};
 
-  // CPU PRs require complex IQ evidence. Future accelerator tokens may carry
+  // CPU decoders require complex IQ evidence. Future accelerator tokens may carry
   // the samples out of band, but the FHSS semantic metadata remains here.
   bool decoder_usable_complex_iq = true;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSGraphXFrequencyMetadata {
@@ -205,12 +197,6 @@ struct FHSSGraphXPulseCandidate {
   FHSSGraphXComplexEvidence complex_evidence{};
 };
 
-struct FHSSGraphXTruthMismatch {
-  std::size_t pulse_index = 0;
-  FHSSGraphXTruthMismatchKind kind = FHSSGraphXTruthMismatchKind::StartSample;
-  std::string message;
-};
-
 struct FHSSCpsmPulseBranchMetric {
   FHSSGraphXPulseCandidate candidate{};
   std::vector<double> branch_costs;
@@ -232,16 +218,13 @@ struct FHSSCpsmPulseSymbolDecision {
 struct FHSSSyntheticIqOutputPacket {
   graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXComplexEvidence iq{};
-  std::vector<FHSSTruthPulse> truth_pulses;
   FHSSTimingModel timing{};
-  bool truth_is_validation_only = true;
 };
 
 struct FHSSDownconvertedIqPacket {
   graph::dashboard::FHSSMessageCorrelation correlation{};
   FHSSGraphXComplexEvidence iq{};
   FHSSGraphXDownconverterMetadata downconverter{};
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSChannelizedIqPacket {
@@ -249,7 +232,6 @@ struct FHSSChannelizedIqPacket {
   FHSSGraphXChannelMetadata channel{};
   FHSSGraphXComplexEvidence iq{};
   bool receiver_guard_or_metadata_channel = false;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSPerChannelPulseEvidencePacket {
@@ -258,7 +240,6 @@ struct FHSSPerChannelPulseEvidencePacket {
   std::vector<FHSSGraphXPulseMetadata> detected_pulses;
   std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
   FHSSGraphXComplexEvidence channel_iq{};
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDetectedPulseEvidencePacket {
@@ -266,7 +247,6 @@ struct FHSSDetectedPulseEvidencePacket {
   std::vector<FHSSGraphXPulseMetadata> detected_pulses;
   std::vector<FHSSGraphXComplexEvidence> pulse_evidence;
   FHSSGraphXComplexEvidence source_iq{};
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSPulseCandidateEvidencePacket {
@@ -274,7 +254,6 @@ struct FHSSPulseCandidateEvidencePacket {
   std::vector<FHSSGraphXPulseCandidate> ordered_candidates;
   bool globally_ordered = false;
   bool unsupported_overlap_rejected = true;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSCpsmBranchMetricPacket {
@@ -285,7 +264,6 @@ struct FHSSCpsmBranchMetricPacket {
   std::uint32_t trellis_state_count = 0;
   double best_path_metric = 0.0;
   double second_best_path_metric = 0.0;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSCpsmSymbolDecisionPacket {
@@ -298,7 +276,6 @@ struct FHSSCpsmSymbolDecisionPacket {
   double confidence = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDecodedPulseWordPacket {
@@ -309,28 +286,23 @@ struct FHSSDecodedPulseWordPacket {
   double viterbi_path_metric = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDecodedPulseWordsPacket {
   graph::dashboard::FHSSMessageCorrelation correlation{};
   std::vector<FHSSDecodedPulseWordPacket> decoded_pulses;
   bool globally_ordered = false;
-  bool truth_metadata_required_for_decision = false;
 };
 
 struct FHSSDiagnosticsPacket {
   std::size_t pulse_count = 0;
   std::size_t rejected_count = 0;
   bool preamble_lock = false;
-  std::size_t truth_mismatch_count = 0;
   std::optional<std::uint64_t> global_start_sample{};
   std::optional<std::uint32_t> frequency_index{};
   std::optional<double> confidence{};
   std::optional<double> viterbi_path_metric{};
   std::optional<std::uint32_t> decoded_value{};
-  std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
-  bool truth_is_validation_only = true;
   bool unsupported_overlap_rejected = true;
   bool unsupported_impairments_rejected = true;
   std::string synchronization_assumption = "known message_start_sample = 0";
@@ -344,8 +316,6 @@ struct FHSSAssembledMessagePacket {
   FHSSDiagnosticsPacket diagnostics{};
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
-  std::vector<FHSSGraphXTruthMismatch> truth_mismatches;
-  bool truth_is_validation_only = true;
 };
 
 struct FHSSFutureAccelSidecarContract {
@@ -353,7 +323,6 @@ struct FHSSFutureAccelSidecarContract {
       FHSSGraphXPayloadResidency::FutureAccelTokenSidecar;
   bool carries_same_semantic_metadata = true;
   bool cpu_execution_required_by_contract = false;
-  bool gpu_execution_added_by_pr7a = false;
   const char *boundary =
       "Future accelerator tokens may carry sample storage out of band, while "
       "GraphX FHSS packets retain timing, frequency, confidence, and decode "
@@ -386,7 +355,6 @@ FHSSGraphXEvidenceIsFutureAccelSidecarCompatible(
     const FHSSGraphXComplexEvidence &evidence) {
   return evidence.residency ==
              FHSSGraphXPayloadResidency::FutureAccelTokenSidecar &&
-         !evidence.truth_metadata_required_for_decision &&
          evidence.sample_time_map.has_input_global_start_sample;
 }
 
@@ -469,16 +437,6 @@ FHSSGraphXPulseMetadataFromDetectedPulse(
   metadata.detector_id = pulse.detector_id;
   metadata.packet_sequence = pulse.packet_sequence;
   return metadata;
-}
-
-[[nodiscard]] inline bool
-FHSSGraphXDecisionContractsRequireTruthMetadata(
-    const FHSSCpsmBranchMetricPacket &branch_metrics,
-    const FHSSCpsmSymbolDecisionPacket &symbol_decisions,
-    const FHSSDecodedPulseWordPacket &decoded_word) {
-  return branch_metrics.truth_metadata_required_for_decision ||
-         symbol_decisions.truth_metadata_required_for_decision ||
-         decoded_word.truth_metadata_required_for_decision;
 }
 
 } // namespace dsp::fhss

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dsp/fhss/FHSSGraphXPackets.hpp"
+#include "dsp/fhss/FHSSPackets.hpp"
 
 #include <cstdint>
 #include <filesystem>

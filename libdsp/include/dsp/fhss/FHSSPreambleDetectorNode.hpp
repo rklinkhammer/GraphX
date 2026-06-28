@@ -1,7 +1,9 @@
 #pragma once
 
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"

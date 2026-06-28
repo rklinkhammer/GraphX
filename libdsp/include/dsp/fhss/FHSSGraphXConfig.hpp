@@ -265,19 +265,8 @@ FHSSPreamblePulseSpecsFromJson(const graph::JsonView &cfg) {
 
 inline FHSSMessageAssemblerConfig
 FHSSMessageAssemblerConfigFromJson(const graph::JsonView &cfg) {
-  const auto &json = cfg.Raw();
   FHSSMessageAssemblerConfig config{};
   config.preamble_pulses = FHSSDecodeConfigFromJson(cfg).preamble_pulses;
-  if (json.contains("truth_from_fixture") &&
-      FHSSJsonBool(json, "truth_from_fixture", false)) {
-    auto generator_config = FHSSSyntheticIqGeneratorConfigFromJson(cfg);
-    auto fixture = GenerateSyntheticIqFixture(generator_config);
-    if (!fixture) {
-      throw graph::ConfigError("FHSS truth_from_fixture generation failed: " +
-                               fixture.error().message);
-    }
-    config.truth_pulses = std::move(fixture->truth_pulses);
-  }
   return config;
 }
 
@@ -300,7 +289,6 @@ inline const std::vector<std::string> &FHSSFixtureParameterNames() {
       "message_start_sample",
       "detector_id",
       "packet_sequence",
-      "truth_from_fixture",
   };
   return names;
 }
@@ -325,7 +313,6 @@ inline graph::JsonView FHSSFixtureParametersJson() {
       {"message_start_sample", 0},
       {"detector_id", 0},
       {"packet_sequence", 0},
-      {"truth_from_fixture", false},
   });
   return graph::JsonView(params);
 }
@@ -340,8 +327,7 @@ FHSSFixtureParameterDescription(const std::string &param_name) {
   const bool is_bool = param_name == "enable_noise" ||
                        param_name == "enable_doppler" ||
                        param_name == "enable_multipath" ||
-                       param_name == "allow_overlap" ||
-                       param_name == "truth_from_fixture";
+                       param_name == "allow_overlap";
   const bool is_number = param_name == "occupied_bandwidth_hz" ||
                          param_name == "max_abs_cfo_hz" ||
                          param_name == "iq_center_frequency_hz";

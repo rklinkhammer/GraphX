@@ -1418,10 +1418,7 @@
     },
     {
       "id": "merge",
-      "type": "FHSSPulseMergeNode",
-      "node_config": {
-        "expected_per_channel_packet_count": 64
-      }
+      "type": "FHSSPulseMergeNode"
     },
     {
       "id": "candidate",
@@ -1987,8 +1984,7 @@
             "frequency_index": 36,
             "word_value": 1650614882
           }
-        ],
-        "truth_from_fixture": false
+        ]
       }
     },
     {

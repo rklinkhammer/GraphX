@@ -1,6 +1,6 @@
 /**
- * @file FHSSGraphXNodeUtils.hpp
- * @brief Shared FHSS GraphX token and metadata conversion helpers.
+ * @file FHSSPacketConversions.hpp
+ * @brief FHSS packet and kernel conversion helpers.
  */
 // MIT License
 //
@@ -9,64 +9,17 @@
 #pragma once
 
 #include "dsp/fhss/FHSSCpsmDecoder.hpp"
-#include "dsp/fhss/FHSSGraphXPackets.hpp"
+#include "dsp/fhss/FHSSPackets.hpp"
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoder.hpp"
-#include "config/JsonView.hpp"
-#include "gpu/accel/types/AccelTypes.hpp"
-
 #include <complex>
 #include <cstdint>
 #include <memory>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <nlohmann/json.hpp>
-
 namespace dsp::fhss {
-
-template <typename PacketT>
-using FHSSGraphXToken = graph::gpu::accel::ControlToken<PacketT>;
-
-using FHSSSyntheticIqToken = FHSSGraphXToken<FHSSSyntheticIqOutputPacket>;
-using FHSSDownconvertedIqToken =
-    FHSSGraphXToken<FHSSDownconvertedIqPacket>;
-using FHSSChannelizedIqToken = FHSSGraphXToken<FHSSChannelizedIqPacket>;
-using FHSSPerChannelPulseEvidenceToken =
-    FHSSGraphXToken<FHSSPerChannelPulseEvidencePacket>;
-using FHSSDetectedPulseToken =
-    FHSSGraphXToken<FHSSDetectedPulseEvidencePacket>;
-using FHSSPulseCandidateToken =
-    FHSSGraphXToken<FHSSPulseCandidateEvidencePacket>;
-using FHSSCpsmBranchMetricToken =
-    FHSSGraphXToken<FHSSCpsmBranchMetricPacket>;
-using FHSSCpsmSymbolDecisionToken =
-    FHSSGraphXToken<FHSSCpsmSymbolDecisionPacket>;
-using FHSSDecodedPulseWordToken =
-    FHSSGraphXToken<FHSSDecodedPulseWordPacket>;
-using FHSSDecodedPulseWordsToken =
-    FHSSGraphXToken<FHSSDecodedPulseWordsPacket>;
-using FHSSAssembledMessageToken =
-    FHSSGraphXToken<FHSSAssembledMessagePacket>;
-using FHSSDiagnosticsToken = FHSSGraphXToken<FHSSDiagnosticsPacket>;
-
-static_assert(std::is_same_v<FHSSSyntheticIqToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSSyntheticIqOutputPacket>>);
-static_assert(std::is_same_v<FHSSDownconvertedIqToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSDownconvertedIqPacket>>);
-static_assert(std::is_same_v<FHSSChannelizedIqToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSChannelizedIqPacket>>);
-static_assert(std::is_same_v<FHSSPerChannelPulseEvidenceToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSPerChannelPulseEvidencePacket>>);
-static_assert(std::is_same_v<FHSSDecodedPulseWordsToken,
-                             graph::gpu::accel::ControlToken<
-                                 FHSSDecodedPulseWordsPacket>>);
 
 [[nodiscard]] inline FHSSGraphXComplexEvidence
 FHSSGraphXComplexEvidenceFromHostSamples(
@@ -80,8 +33,7 @@ FHSSGraphXComplexEvidenceFromHostSamples(
       .sample_format = FHSSGraphXSampleFormat::ComplexFloat64,
       .residency = FHSSGraphXPayloadResidency::HostSharedImmutable,
       .sample_time_map = sample_time_map,
-      .decoder_usable_complex_iq = true,
-      .truth_metadata_required_for_decision = false};
+      .decoder_usable_complex_iq = true};
 }
 
 [[nodiscard]] inline FHSSSampleTimeMap
@@ -143,20 +95,6 @@ FHSSGraphXComplexEvidenceSamples(const FHSSGraphXComplexEvidence &evidence) {
                                                    evidence.sample_count));
 }
 
-[[nodiscard]] inline graph::JsonView
-FHSSStableParameterJsonView(nlohmann::json value) {
-  static thread_local nlohmann::json storage;
-  storage = std::move(value);
-  return graph::JsonView(storage);
-}
-
-[[nodiscard]] inline graph::JsonView
-FHSSStableParameterDescriptionJsonView(nlohmann::json value) {
-  static thread_local nlohmann::json storage;
-  storage = std::move(value);
-  return graph::JsonView(storage);
-}
-
 [[nodiscard]] inline FHSSGraphXComplexEvidence
 FHSSGraphXComplexEvidenceFromMergeEvidence(
     const FHSSComplexEvidence &evidence,
@@ -169,8 +107,7 @@ FHSSGraphXComplexEvidenceFromMergeEvidence(
       .residency = evidence.samples ? FHSSGraphXPayloadResidency::HostSharedImmutable
                                     : FHSSGraphXPayloadResidency::Empty,
       .sample_time_map = sample_time_map,
-      .decoder_usable_complex_iq = evidence.samples != nullptr,
-      .truth_metadata_required_for_decision = false};
+      .decoder_usable_complex_iq = evidence.samples != nullptr};
 }
 
 [[nodiscard]] inline FHSSDetectedPulse
@@ -283,39 +220,14 @@ FHSSGraphXDecodedPulseWordFromKernel(const FHSSDecodedPulseWord &decoded) {
       .status = decoded.status == FHSSPulseWordDecodeStatus::Ok
                     ? FHSSGraphXDecodeStatus::Ok
                     : FHSSGraphXDecodeStatus::InvalidEvidence,
-      .status_message = decoded.status_message,
-      .truth_metadata_required_for_decision = false};
-}
-
-[[nodiscard]] inline FHSSGraphXTruthMismatch
-FHSSGraphXTruthMismatchFromKernel(const FHSSTruthMismatch &mismatch) {
-  FHSSGraphXTruthMismatchKind kind = FHSSGraphXTruthMismatchKind::StartSample;
-  switch (mismatch.kind) {
-  case FHSSTruthMismatchKind::StartSample:
-    kind = FHSSGraphXTruthMismatchKind::StartSample;
-    break;
-  case FHSSTruthMismatchKind::Duration:
-    kind = FHSSGraphXTruthMismatchKind::Duration;
-    break;
-  case FHSSTruthMismatchKind::Frequency:
-    kind = FHSSGraphXTruthMismatchKind::Frequency;
-    break;
-  case FHSSTruthMismatchKind::Value:
-    kind = FHSSGraphXTruthMismatchKind::Value;
-    break;
-  }
-  return FHSSGraphXTruthMismatch{.pulse_index = mismatch.pulse_index,
-                                 .kind = kind,
-                                 .message = mismatch.message};
+      .status_message = decoded.status_message};
 }
 
 [[nodiscard]] inline FHSSDiagnosticsPacket
 FHSSGraphXDiagnosticsFromKernel(const FHSSMessageDiagnostics &diagnostics) {
   return FHSSDiagnosticsPacket{.pulse_count = diagnostics.pulse_count,
                                .rejected_count = diagnostics.rejected_count,
-                               .preamble_lock = diagnostics.preamble_lock,
-                               .truth_mismatch_count =
-                                   diagnostics.truth_mismatch_count};
+                               .preamble_lock = diagnostics.preamble_lock};
 }
 
 [[nodiscard]] inline FHSSAssembledMessagePacket
@@ -328,7 +240,6 @@ FHSSGraphXAssembledMessageFromKernel(const FHSSAssembledMessage &message) {
                       ? FHSSGraphXDecodeStatus::Ok
                       : FHSSGraphXDecodeStatus::InvalidEvidence;
   packet.status_message = message.status_message;
-  packet.truth_is_validation_only = true;
   packet.ordered_pulses.reserve(message.ordered_pulses.size());
   for (const auto &decoded : message.ordered_pulses) {
     packet.ordered_pulses.push_back(FHSSGraphXDecodedPulseWordFromKernel(decoded));
@@ -343,16 +254,10 @@ FHSSGraphXAssembledMessageFromKernel(const FHSSAssembledMessage &message) {
     packet.diagnostics.viterbi_path_metric = first.viterbi_path_metric;
     packet.diagnostics.decoded_value = first.decoded_value;
   }
-  packet.diagnostics.truth_is_validation_only = true;
   packet.diagnostics.unsupported_overlap_rejected = true;
   packet.diagnostics.unsupported_impairments_rejected = true;
   packet.diagnostics.synchronization_assumption =
       "known message_start_sample = 0";
-  packet.truth_mismatches.reserve(message.truth_mismatches.size());
-  for (const auto &mismatch : message.truth_mismatches) {
-    packet.truth_mismatches.push_back(FHSSGraphXTruthMismatchFromKernel(mismatch));
-  }
-  packet.diagnostics.truth_mismatches = packet.truth_mismatches;
   return packet;
 }
 

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "dsp/fhss/FHSSCpsmDecoder.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoder.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -66,7 +68,6 @@ public:
       output.sidecar.decoded_pulses.push_back(std::move(packet));
     }
     output.sidecar.globally_ordered = true;
-    output.sidecar.truth_metadata_required_for_decision = false;
     return output;
   }
 

@@ -1,5 +1,8 @@
-#include "dsp/fhss/FHSSGraphXPackets.hpp"
-#include "dsp/fhss/FHSSGraphXNodeUtils.hpp"
+#include "dsp/fhss/FHSSPackets.hpp"
+#include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSPacketConversions.hpp"
+#include "dsp/fhss/FHSSPorts.hpp"
+#include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
 
 #include <gtest/gtest.h>
 
@@ -22,7 +25,18 @@ struct IsControlToken<graph::gpu::accel::ControlToken<SidecarT>>
 template <typename T>
 inline constexpr bool IsControlTokenV = IsControlToken<T>::value;
 
-TEST(FHSSGraphXPacketContractTest, DefinesEveryTargetEdgePacketContract) {
+template <typename T>
+concept HasTruthPulses = requires(T value) { value.truth_pulses; };
+
+template <typename T>
+concept HasTruthMismatches = requires(T value) { value.truth_mismatches; };
+
+template <typename T>
+concept HasTruthMismatchCount = requires(T value) {
+  value.truth_mismatch_count;
+};
+
+TEST(FHSSPacketContractTest, DefinesEveryTargetEdgePacketContract) {
   static_assert(std::is_default_constructible_v<FHSSSyntheticIqOutputPacket>);
   static_assert(std::is_default_constructible_v<FHSSDownconvertedIqPacket>);
   static_assert(std::is_default_constructible_v<FHSSChannelizedIqPacket>);
@@ -48,7 +62,7 @@ TEST(FHSSGraphXPacketContractTest, DefinesEveryTargetEdgePacketContract) {
   }
 }
 
-TEST(FHSSGraphXPacketContractTest, NewChannelizedEdgesAreAccelTokenSidecars) {
+TEST(FHSSPacketContractTest, NewChannelizedEdgesAreAccelTokenSidecars) {
   static_assert(IsControlTokenV<FHSSSyntheticIqToken>);
   static_assert(IsControlTokenV<FHSSDownconvertedIqToken>);
   static_assert(IsControlTokenV<FHSSChannelizedIqToken>);
@@ -66,9 +80,11 @@ TEST(FHSSGraphXPacketContractTest, NewChannelizedEdgesAreAccelTokenSidecars) {
   static_assert(std::is_same_v<FHSSPerChannelPulseEvidenceToken,
                                graph::gpu::accel::ControlToken<
                                    FHSSPerChannelPulseEvidencePacket>>);
+  static_assert(!IsControlTokenV<FHSSSyntheticIqOutputPacket>);
+  static_assert(!IsControlTokenV<FHSSSyntheticIqFixture>);
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      ComplexEvidenceUsesExplicitSharedOwnershipAndRange) {
   auto samples =
       std::make_shared<const std::vector<std::complex<double>>>(
@@ -91,7 +107,7 @@ TEST(FHSSGraphXPacketContractTest,
   EXPECT_FALSE(FHSSGraphXEvidenceRangeIsValid(evidence));
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      PreservesGlobalTimingFrequencyMetadataAndSampleMapping) {
   FHSSDetectedPulse detected{};
   detected.global_start_sample = 6500;
@@ -140,7 +156,7 @@ TEST(FHSSGraphXPacketContractTest,
   EXPECT_DOUBLE_EQ(round_trip.frequency.frequency_error_hz, 500.0);
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      DownconverterContractCarriesReferenceFrameMetadata) {
   FHSSDownconvertedIqPacket passthrough{};
   passthrough.downconverter.input_iq_center_frequency_hz = 1'240'000'000.0;
@@ -175,7 +191,7 @@ TEST(FHSSGraphXPacketContractTest,
       translated.downconverter));
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      ChannelizerContractMapsOneLogicalChannelPerFrequencyEntry) {
   FHSSFrequencyConfig config{};
   for (std::uint32_t i = 0; i < FHSSProtocolConstants::kFrequencyCount; ++i) {
@@ -232,7 +248,7 @@ TEST(FHSSGraphXPacketContractTest,
   }
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      ChannelizedContractsPreserveComplexEvidenceAndSampleTimeMapping) {
   auto samples = std::make_shared<const std::vector<std::complex<double>>>(
       std::vector<std::complex<double>>(128, {1.0, 0.0}));
@@ -283,16 +299,14 @@ TEST(FHSSGraphXPacketContractTest,
             10'011u);
   EXPECT_EQ(evidence.detected_pulses.front().timing.channel_id, 24u);
   EXPECT_EQ(evidence.pulse_evidence.front().host_complex64_samples, samples);
-  EXPECT_FALSE(evidence.truth_metadata_required_for_decision);
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      FutureAccelSidecarBoundaryIsDocumentedWithoutGpuExecution) {
   FHSSFutureAccelSidecarContract contract{};
   EXPECT_EQ(contract.residency, FHSSGraphXPayloadResidency::FutureAccelTokenSidecar);
   EXPECT_TRUE(contract.carries_same_semantic_metadata);
   EXPECT_FALSE(contract.cpu_execution_required_by_contract);
-  EXPECT_FALSE(contract.gpu_execution_added_by_pr7a);
   EXPECT_NE(std::string_view(contract.boundary).find("Future accelerator tokens"),
             std::string_view::npos);
 
@@ -305,38 +319,24 @@ TEST(FHSSGraphXPacketContractTest,
   EXPECT_FALSE(FHSSGraphXEvidenceHasHostComplexIq(evidence));
 }
 
-TEST(FHSSGraphXPacketContractTest,
-     DecoderDecisionContractsDoNotRequireTruthMetadata) {
-  FHSSCpsmBranchMetricPacket branch_metrics{};
-  FHSSCpsmSymbolDecisionPacket symbol_decisions{};
-  FHSSDecodedPulseWordPacket decoded_word{};
+TEST(FHSSPacketContractTest,
+     RuntimePacketsAndAssemblerConfigContainNoFixtureTruth) {
+  static_assert(HasTruthPulses<FHSSSyntheticIqFixture>);
+  static_assert(!HasTruthPulses<FHSSSyntheticIqOutputPacket>);
+  static_assert(!HasTruthPulses<FHSSMessageAssemblerConfig>);
+  static_assert(!HasTruthMismatches<FHSSAssembledMessagePacket>);
+  static_assert(!HasTruthMismatches<FHSSDiagnosticsPacket>);
+  static_assert(!HasTruthMismatchCount<FHSSDiagnosticsPacket>);
 
-  branch_metrics.candidate.pulse.timing.global_start_sample = 0;
-  symbol_decisions.symbols = std::vector<double>(32, 1.0);
-  decoded_word.decoded_value = 0;
-
-  EXPECT_FALSE(FHSSGraphXDecisionContractsRequireTruthMetadata(
-      branch_metrics, symbol_decisions, decoded_word));
-
-  FHSSSyntheticIqOutputPacket synthetic{};
-  synthetic.truth_pulses.push_back(FHSSTruthPulse{});
-  EXPECT_TRUE(synthetic.truth_is_validation_only);
-
-  FHSSAssembledMessagePacket message{};
-  message.truth_mismatches.push_back(FHSSGraphXTruthMismatch{
-      .pulse_index = 0,
-      .kind = FHSSGraphXTruthMismatchKind::Value,
-      .message = "fixture value mismatch"});
-  EXPECT_TRUE(message.truth_is_validation_only);
+  SUCCEED();
 }
 
-TEST(FHSSGraphXPacketContractTest,
+TEST(FHSSPacketContractTest,
      DiagnosticsCarryMinimumFieldsWithoutOwningDecoderTruth) {
   FHSSDiagnosticsPacket diagnostics{};
   diagnostics.pulse_count = 7;
   diagnostics.rejected_count = 1;
   diagnostics.preamble_lock = true;
-  diagnostics.truth_mismatch_count = 2;
   diagnostics.global_start_sample = 6500;
   diagnostics.frequency_index = 12;
   diagnostics.confidence = 0.99;
@@ -346,13 +346,11 @@ TEST(FHSSGraphXPacketContractTest,
   EXPECT_EQ(diagnostics.pulse_count, 7u);
   EXPECT_EQ(diagnostics.rejected_count, 1u);
   EXPECT_TRUE(diagnostics.preamble_lock);
-  EXPECT_EQ(diagnostics.truth_mismatch_count, 2u);
   EXPECT_EQ(*diagnostics.global_start_sample, 6500u);
   EXPECT_EQ(*diagnostics.frequency_index, 12u);
   EXPECT_DOUBLE_EQ(*diagnostics.confidence, 0.99);
   EXPECT_DOUBLE_EQ(*diagnostics.viterbi_path_metric, 0.25);
   EXPECT_EQ(*diagnostics.decoded_value, 0x12345678u);
-  EXPECT_TRUE(diagnostics.truth_is_validation_only);
 }
 
 } // namespace
