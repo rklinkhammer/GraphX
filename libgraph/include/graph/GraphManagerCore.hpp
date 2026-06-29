@@ -51,6 +51,7 @@
 #include "graph/DynamicEdge.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/PooledMessage.hpp"
+#include "graph/GraphManagerShutdown.hpp"
 #include "ThreadPool.hpp"
 #include "EdgeFacade.hpp"
 
@@ -113,94 +114,23 @@ public:
         try {
             // CRITICAL: Must both Stop() AND Join() before destruction
             // Otherwise threads will be accessing deleted objects
-            
-            // Step 1: Signal all components to stop
-            for (auto& edge : edges_) {
-                try {
-                    edge->Stop();
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            for (auto& node : nodes_) {
-                try {
-                    node->Stop();
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            if (thread_pool_) {
-                try {
-                    thread_pool_->Stop();
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            // Step 2: Join all components with timeout to wait for threads to exit
-            auto timeout = std::chrono::milliseconds(1000);  // 1 second timeout per component
-            
-            for (auto& edge : edges_) {
-                try {
-                    edge->JoinWithTimeout(timeout);
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            for (auto& node : nodes_) {
-                try {
-                    node->JoinWithTimeout(timeout);
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            if (thread_pool_) {
-                try {
-                    thread_pool_->Join();
-                } catch (...) {
-                    // Suppress exceptions
-                }
-            }
-            
-            // Step 3: Call Cleanup() on NodeFacadeAdapterWrappers BEFORE clearing nodes_
-            // This must happen while objects are still alive to avoid vptr corruption
-            // during ConcreteNode destructor chains
-            LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                          "GraphManager destructor: calling Cleanup() on " << nodes_.size() << " nodes");
-            for (auto& node : nodes_) {
-                try {
-                    auto* wrapper = dynamic_cast<NodeFacadeAdapterWrapper*>(node.get());
-                    if (wrapper) {
-                        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                                      "Found NodeFacadeAdapterWrapper, calling Cleanup()");
-                        wrapper->Cleanup();
-                    } else {
-                        LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
-                                      "Node is not NodeFacadeAdapterWrapper, skipping Cleanup()");
-                    }
-                } catch (...) {
-                    // Suppress exceptions
-                    LOG4CXX_WARN(log4cxx::Logger::getLogger("graph.graph"),
-                                 "Exception during node Cleanup()");
-                }
-            }
-            
-            // Step 4: Clear containers - this triggers destructors
-            try {
-                edges_.clear();
-            } catch (...) {
-                // Suppress exceptions
-            }
-            
-            try {
-                nodes_.clear();
-            } catch (...) {
-                // Suppress exceptions
-            }
+
+            // Step 1: Signal all components to stop.
+            detail::StopEdges(edges_);
+            detail::StopNodes(nodes_);
+            detail::StopThreadPool(thread_pool_);
+
+            // Step 2: Join all components with timeout to wait for threads to exit.
+            const auto timeout = std::chrono::milliseconds(1000);
+            detail::JoinEdgesWithTimeout(edges_, timeout);
+            detail::JoinNodesWithTimeout(nodes_, timeout);
+            detail::JoinThreadPool(thread_pool_);
+
+            // Step 3: Cleanup wrappers before object destruction cascades.
+            detail::CleanupFacadeWrappers(nodes_);
+
+            // Step 4: Clear containers - this triggers destructors.
+            detail::ClearGraphContainers(edges_, nodes_);
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
                           "GraphManager cleanup failed: " << e.what());
