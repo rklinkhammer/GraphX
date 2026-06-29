@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "program": "GraphX SAR external baselines",
+  "comparator_only": true,
+  "architecture_protection": {
+    "canonical_runtime_contract": "ControlToken<SarSidecar>",
+    "metal_first_backend": true,
+    "preserve_dynamic_loading": true,
+    "preserve_resolver_behavior": true,
+    "no_graphx_core_api_mimicry": true,
+    "no_graphx_core_contract_changes_for_external_packages": true
+  },
+  "reference_provenance": {
+    "graphx_output_required_class": "graphx_runtime",
+    "allowed_reference_classes": [
+      "deterministic_internal_reference",
+      "external_baseline"
+    ],
+    "require_contract_provenance_label": true,
+    "deterministic_reference_is_not_external_execution": true,
+    "forbid_external_baseline_dependency_in_core_runtime": true
+  },
+  "licensing_boundaries": {
+    "registry_mandatory_license_field": true,
+    "license_sensitive_integrations_outside_core": true,
+    "ci_safe_requires_deterministic_fixture": true,
+    "ci_safe_disallow_large_dataset_fetch": true
+  },
+  "packages": [
+    {
+      "name": "SarPy",
+      "repository": "ngageoint/sarpy",
+      "license": "MIT",
+      "role": "primary",
+      "comparator_only": true,
+      "lane": "local-only",
+      "status": "local-only-harness",
+      "focus": "SICD/CPHD/CRSD conformance and product metadata integrity"
+    },
+    {
+      "name": "ISCE3",
+      "repository": "isce-framework/isce3",
+      "license": "Apache-2.0",
+      "role": "secondary",
+      "comparator_only": true,
+      "lane": "local-only",
+      "focus": "product-level processing parity where overlap exists"
+    },
+    {
+      "name": "gotcha-back",
+      "repository": "tbensonatl/gotcha-back",
+      "license": "BSD-3-Clause",
+      "role": "secondary",
+      "comparator_only": true,
+      "lane": "local-only",
+      "focus": "GOTCHA image-formation parity experiments"
+    },
+    {
+      "name": "OpenSAR",
+      "repository": "opensar/opensar",
+      "license": "unknown",
+      "role": "survey-candidate",
+      "comparator_only": true,
+      "lane": "local-only",
+      "status": "survey-only",
+      "focus": "candidate survey entry for future artifact-level comparison"
+    },
+    {
+      "name": "OpenSARLab",
+      "repository": "opensarlab/opensarlab-notebooks",
+      "license": "unknown",
+      "role": "survey-candidate",
+      "comparator_only": true,
+      "lane": "local-only",
+      "status": "survey-only",
+      "focus": "candidate survey entry for future local-only evaluation"
+    }
+  ]
+}

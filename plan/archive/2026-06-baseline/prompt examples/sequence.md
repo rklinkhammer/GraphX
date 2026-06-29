@@ -80,10 +80,10 @@ Inputs:
 
 
 Task:
-Implement PR9 only.
+Implement PR10 only.
 
 Scope:
-Apply required fixes for PR9 only:
+Apply required fixes for PR10 only:
 Add explicit tests that enforce the rule.
 
 Rules:
@@ -92,8 +92,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR9 requires it.
-- Add or update tests for PR9.
+- Delete obsolete code if PR10 requires it.
+- Add or update tests for PR10.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.
