@@ -3,7 +3,6 @@
 #pragma once
 
 #include "graph/dashboard/GraphConfigurationService.hpp"
-#include "graph/dashboard/FHSSScenarioController.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
 
@@ -36,8 +35,7 @@ public:
   EmbeddedDashboardServer(Options options,
                           std::shared_ptr<GraphConfigurationService> configuration_service,
                           std::shared_ptr<GraphRuntimeSession> runtime_session,
-                          std::shared_ptr<GraphSnapshotCollector> snapshot_collector,
-                          std::shared_ptr<FHSSScenarioController> fhss_controller = nullptr);
+                          std::shared_ptr<GraphSnapshotCollector> snapshot_collector);
   ~EmbeddedDashboardServer();
 
   EmbeddedDashboardServer(const EmbeddedDashboardServer &) = delete;
@@ -113,7 +111,6 @@ private:
 
   Options options_;
   std::shared_ptr<GraphConfigurationService> configuration_service_;
-  std::shared_ptr<FHSSScenarioController> fhss_controller_;
   std::shared_ptr<GraphRuntimeSession> runtime_session_;
   std::shared_ptr<GraphSnapshotCollector> snapshot_collector_;
 

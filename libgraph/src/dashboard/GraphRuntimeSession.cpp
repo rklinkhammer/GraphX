@@ -92,16 +92,6 @@ void GraphRuntimeSession::SetActiveGraphManager(
   active_graph_manager_ = std::move(graph_manager);
 }
 
-void GraphRuntimeSession::SetStartHandler(CommandHandler handler) {
-  const std::lock_guard<std::mutex> lock(mutex_);
-  start_handler_ = std::move(handler);
-}
-
-void GraphRuntimeSession::SetStopHandler(CommandHandler handler) {
-  const std::lock_guard<std::mutex> lock(mutex_);
-  stop_handler_ = std::move(handler);
-}
-
 GraphRuntimeSession::CommandResult GraphRuntimeSession::Rebuild() {
   const std::lock_guard<std::mutex> lock(mutex_);
   if (rebuild_blocked_) {
@@ -183,15 +173,6 @@ GraphRuntimeSession::CommandResult GraphRuntimeSession::Rebuild() {
 }
 
 GraphRuntimeSession::CommandResult GraphRuntimeSession::Start() {
-  CommandHandler start_handler;
-  {
-    const std::lock_guard<std::mutex> lock(mutex_);
-    start_handler = start_handler_;
-  }
-  if (start_handler) {
-    return start_handler();
-  }
-
   const std::lock_guard<std::mutex> lock(mutex_);
   if (state_ == State::running) {
     return CommandResult{.status_code = 409,
@@ -211,15 +192,6 @@ GraphRuntimeSession::CommandResult GraphRuntimeSession::Start() {
 }
 
 GraphRuntimeSession::CommandResult GraphRuntimeSession::Stop() {
-  CommandHandler stop_handler;
-  {
-    const std::lock_guard<std::mutex> lock(mutex_);
-    stop_handler = stop_handler_;
-  }
-  if (stop_handler) {
-    return stop_handler();
-  }
-
   const std::lock_guard<std::mutex> lock(mutex_);
   if (state_ != State::running) {
     return CommandResult{.status_code = 409,

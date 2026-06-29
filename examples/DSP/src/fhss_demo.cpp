@@ -588,10 +588,10 @@ int RunDashboardNoRunMode(const CliOptions &options,
   };
   auto execution = std::make_shared<RuntimeExecutionState>();
 
-  runtime_session->SetStartHandler([runtime_session, snapshot_collector, execution,
-                                    options,
-                                    effective_config_path]()
-                                       -> graph::dashboard::GraphRuntimeSession::CommandResult {
+  const auto start_runtime = [runtime_session, snapshot_collector, execution,
+                              options,
+                              effective_config_path]()
+                                 -> graph::dashboard::GraphRuntimeSession::CommandResult {
     std::thread stale_worker;
     {
       std::lock_guard<std::mutex> lock(execution->mutex);
@@ -683,10 +683,10 @@ int RunDashboardNoRunMode(const CliOptions &options,
     return {.status_code = 202,
             .code = "start_accepted",
             .message = "runtime start accepted"};
-  });
+  };
 
-  runtime_session->SetStopHandler([runtime_session, execution]()
-                                      -> graph::dashboard::GraphRuntimeSession::CommandResult {
+  const auto stop_runtime = [runtime_session, execution]()
+                                -> graph::dashboard::GraphRuntimeSession::CommandResult {
     std::shared_ptr<graph::GraphExecutor> executor;
     bool worker_running = false;
     {
@@ -706,7 +706,7 @@ int RunDashboardNoRunMode(const CliOptions &options,
     return {.status_code = 202,
             .code = "stop_accepted",
             .message = "runtime stop accepted"};
-  });
+  };
 
   graph::dashboard::EmbeddedDashboardServer::Options server_options;
   server_options.port = options.dashboard_port;
@@ -729,7 +729,7 @@ int RunDashboardNoRunMode(const CliOptions &options,
 
   std::thread worker_to_join;
   runtime_session->MarkShuttingDown();
-  (void)runtime_session->Stop();
+  (void)stop_runtime();
   {
     std::lock_guard<std::mutex> lock(execution->mutex);
     if (execution->worker.joinable()) {

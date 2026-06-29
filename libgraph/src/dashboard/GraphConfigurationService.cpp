@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -261,8 +262,10 @@ nlohmann::json GraphConfigurationService::ExtractScenario(const nlohmann::json &
   }
   if (effective_graph.contains("nodes") && effective_graph["nodes"].is_array()) {
     for (const auto &node : effective_graph["nodes"]) {
-      if (node.value("type", std::string{}) == "FHSSSyntheticIqSourceNode" &&
-          HasObjectNodeConfig(node)) {
+      auto type_name = node.value("type", std::string{});
+      std::transform(type_name.begin(), type_name.end(), type_name.begin(),
+                     [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+      if (type_name == "fhsssyntheticiqsourcenode" && HasObjectNodeConfig(node)) {
         return node.at("node_config");
       }
     }
@@ -772,7 +775,7 @@ nlohmann::json GraphConfigurationService::DiscardEdits() {
 }
 
 nlohmann::json GraphConfigurationService::GetScenarioResponse() const {
-  return nlohmann::json{{"schema", "graphx.dashboard.fhss_scenario.v1"},
+  return nlohmann::json{{"schema", "graphx.dashboard.scenario.v1"},
                         {"owner", owner_},
                         {"config_revision", revision_},
                         {"scenario", scenario_},

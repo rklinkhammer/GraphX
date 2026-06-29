@@ -5,7 +5,7 @@
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
-#include "graph/dashboard/FHSSStepping.hpp"
+#include "graph/fhss/FHSSStepping.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 

@@ -15,7 +15,7 @@
 #pragma once
 
 #include "dsp/fhss/FHSSProtocol.hpp"
-#include "graph/dashboard/FHSSStepping.hpp"
+#include "graph/fhss/FHSSStepping.hpp"
 
 #include <array>
 #include <complex>
