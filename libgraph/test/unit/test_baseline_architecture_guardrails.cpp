@@ -113,3 +113,22 @@ TEST(BaselineArchitectureGuardrailTest,
   EXPECT_EQ(text.find("RoutedOutputFn"), std::string::npos);
   EXPECT_EQ(text.find("RoutedTransferFn"), std::string::npos);
 }
+
+TEST(BaselineArchitectureGuardrailTest,
+     StaticNodeAdapterIsDeletedAndProviderHasNoCompatibilityHook) {
+  const auto root = RepositoryRoot();
+  const auto graph_include = root / "libgraph" / "include" / "graph";
+  const auto graph_src = root / "libgraph" / "src" / "graph";
+
+  EXPECT_FALSE(std::filesystem::exists(graph_include / "StaticNodeAdapter.hpp"));
+  EXPECT_FALSE(std::filesystem::exists(graph_src / "StaticNodeAdapter.cpp"));
+
+  const auto provider_header =
+      ReadFile(graph_include / "RegisteredNodeProvider.hpp");
+  const auto provider_source =
+      ReadFile(graph_src / "RegisteredNodeProvider.cpp");
+
+  ExpectNotContains(provider_header, "RegisterStaticNodes");
+  ExpectNotContains(provider_source, "RegisterStaticNodes");
+  ExpectNotContains(provider_source, "StaticNodeAdapter");
+}

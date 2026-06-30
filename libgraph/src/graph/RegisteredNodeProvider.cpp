@@ -28,7 +28,6 @@
 
 #include "graph/RegisteredNodeProvider.hpp"
 #include "plugins/PluginRegistry.hpp"
-#include "graph/StaticNodeAdapter.hpp"
 #include <algorithm>
 #include <log4cxx/logger.h>
 
@@ -125,7 +124,6 @@ void RegisteredNodeProvider::Initialize() {
             LOG4CXX_TRACE(logger_, "No plugin registry configured, skipping plugin registration");
         }
         
-        RegisterStaticNodes();
         initialized_ = true;
         LOG4CXX_TRACE(logger_, "Unified provider initialized successfully");
     } catch (const std::exception& e) {
@@ -227,31 +225,6 @@ void RegisteredNodeProvider::RegisterPluginNodes() {
     
     LOG4CXX_TRACE(logger_, "Successfully registered " << plugin_types.size() 
         << " plugin node types");
-}
-
-/**
- * @brief Register static nodes.
- */
-void RegisteredNodeProvider::RegisterStaticNodes() {
-    LOG4CXX_TRACE(logger_, "Registering static node creators");
-
-    // Note: Static node registration is deferred.
-    // Today Layer 5 nodes are expected to be supplied through plugin
-    // registration and inserted into the creator map in RegisterPluginNodes().
-    // This is acceptable as long as the plugin system provides these nodes.
-    //
-    // If direct static node registration is needed (without plugin dependency),
-    // the pattern would be to create node creator lambdas like:
-    //
-    //   node_creators_["FlightFSMNode"] = []() {
-    //       auto node = std::make_shared<avionics::FlightFSMNode>();
-    //       return config::StaticNodeAdapter::Adapt(node, "FlightFSMNode");
-    //   };
-    //
-    // However, this requires careful lambda type handling due to
-    // NodeFacadeAdapter being a move-only type.
-
-    LOG4CXX_TRACE(logger_, "Finished registering static nodes");
 }
 
 }  // namespace graph

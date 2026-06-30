@@ -273,18 +273,6 @@ private:
  * @brief Register plugin nodes.
  */
     void RegisterPluginNodes();
-
-    /**
-     * Register all built-in static nodes in the creator map
-     *
-     * Called by Initialize() to register statically-compiled nodes.
-     * Each static node is wrapped via StaticNodeAdapter to provide
-     * the NodeFacadeAdapter interface.
-     */
-/**
- * @brief Register static nodes.
- */
-    void RegisterStaticNodes();
 };
 
 [[nodiscard]] std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error);
