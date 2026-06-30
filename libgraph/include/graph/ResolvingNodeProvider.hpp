@@ -37,8 +37,8 @@ namespace graph {
 struct NodeResolutionDiagnostic {
     std::string intent_type;
     std::string concrete_type;
-    std::string selected_backend;
-    std::string fallback_reason;
+    ResolverBackend selected_backend{ResolverBackend::Unknown};
+    ResolverFallbackReason fallback_reason{ResolverFallbackReason::None};
     std::string input_token_type;
     std::string output_token_type;
     bool fallback_used{false};

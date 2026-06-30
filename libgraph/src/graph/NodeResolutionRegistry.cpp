@@ -8,7 +8,103 @@
  */
 #include "graph/NodeResolutionRegistry.hpp"
 
+#include <algorithm>
+#include <cctype>
+
+namespace {
+
+std::string ToLowerCopy(const std::string& value) {
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return normalized;
+}
+
+} // namespace
+
 namespace graph {
+
+const char* ToString(ResolverBackend backend) noexcept {
+    switch (backend) {
+        case ResolverBackend::Auto:
+            return "auto";
+        case ResolverBackend::Metal:
+            return "metal";
+        case ResolverBackend::Cuda:
+            return "cuda";
+        case ResolverBackend::Sycl:
+            return "sycl";
+        case ResolverBackend::Stub:
+            return "stub";
+        case ResolverBackend::Direct:
+            return "direct";
+        case ResolverBackend::Unknown:
+            return "unknown";
+        default:
+            return "unknown";
+    }
+}
+
+const char* ToString(ResolverFallbackPolicy policy) noexcept {
+    switch (policy) {
+        case ResolverFallbackPolicy::Strict:
+            return "strict";
+        case ResolverFallbackPolicy::AllowFallback:
+            return "allow_fallback";
+        default:
+            return "strict";
+    }
+}
+
+const char* ToString(ResolverFallbackReason reason) noexcept {
+    switch (reason) {
+        case ResolverFallbackReason::None:
+            return "none";
+        case ResolverFallbackReason::RequestedBackendUnavailable:
+            return "requested-backend-unavailable";
+        default:
+            return "none";
+    }
+}
+
+std::optional<ResolverBackend> ParseResolverBackend(
+    const std::string& backend) noexcept {
+    const auto normalized = ToLowerCopy(backend);
+    if (normalized == "auto") {
+        return ResolverBackend::Auto;
+    }
+    if (normalized == "metal") {
+        return ResolverBackend::Metal;
+    }
+    if (normalized == "cuda") {
+        return ResolverBackend::Cuda;
+    }
+    if (normalized == "sycl") {
+        return ResolverBackend::Sycl;
+    }
+    if (normalized == "stub") {
+        return ResolverBackend::Stub;
+    }
+    if (normalized == "direct") {
+        return ResolverBackend::Direct;
+    }
+    if (normalized == "unknown") {
+        return ResolverBackend::Unknown;
+    }
+    return std::nullopt;
+}
+
+std::optional<ResolverFallbackPolicy> ParseResolverFallbackPolicy(
+    const std::string& policy) noexcept {
+    const auto normalized = ToLowerCopy(policy);
+    if (normalized == "strict") {
+        return ResolverFallbackPolicy::Strict;
+    }
+    if (normalized == "allow_fallback") {
+        return ResolverFallbackPolicy::AllowFallback;
+    }
+    return std::nullopt;
+}
 
 /**
  * @brief Create default.
@@ -21,10 +117,10 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "HostPinnedBufferView",
         .output_token_type = "DeviceBufferView",
         .variants = {
-            {"metal", "H2DAsyncNodeMetal"},
-            {"sycl", "H2DAsyncNodeSycl"},
-            {"stub", "H2DAsyncNode"},
-            {"cuda", "H2DAsyncNode"},
+            {ResolverBackend::Metal, "H2DAsyncNodeMetal"},
+            {ResolverBackend::Sycl, "H2DAsyncNodeSycl"},
+            {ResolverBackend::Stub, "H2DAsyncNode"},
+            {ResolverBackend::Cuda, "H2DAsyncNode"},
         },
     });
 
@@ -33,10 +129,10 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "DeviceBufferView",
         .output_token_type = "HostPinnedBufferView",
         .variants = {
-            {"metal", "D2HAsyncNodeMetal"},
-            {"sycl", "D2HAsyncNodeSycl"},
-            {"stub", "D2HAsyncNode"},
-            {"cuda", "D2HAsyncNode"},
+            {ResolverBackend::Metal, "D2HAsyncNodeMetal"},
+            {ResolverBackend::Sycl, "D2HAsyncNodeSycl"},
+            {ResolverBackend::Stub, "D2HAsyncNode"},
+            {ResolverBackend::Cuda, "D2HAsyncNode"},
         },
     });
 
@@ -45,8 +141,8 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "DeviceBufferView",
         .output_token_type = "DeviceBufferView",
         .variants = {
-            {"metal", "DeviceTransformNodeMetal"},
-            {"stub", "DeviceTransformNode"},
+            {ResolverBackend::Metal, "DeviceTransformNodeMetal"},
+            {ResolverBackend::Stub, "DeviceTransformNode"},
         },
     });
 
@@ -55,7 +151,7 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "DeviceBufferView",
         .output_token_type = "DeviceBufferView",
         .variants = {
-            {"metal", "DeviceKernelNodeMetal"},
+            {ResolverBackend::Metal, "DeviceKernelNodeMetal"},
         },
     });
 
@@ -64,8 +160,8 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "DeviceBufferView",
         .output_token_type = "DeviceBufferView",
         .variants = {
-            {"metal", "DeviceReduceNodeMetal"},
-            {"stub", "DeviceReduceNode"},
+            {ResolverBackend::Metal, "DeviceReduceNodeMetal"},
+            {ResolverBackend::Stub, "DeviceReduceNode"},
         },
     });
 
@@ -74,8 +170,8 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .input_token_type = "DeviceBufferView",
         .output_token_type = "DeviceBufferView",
         .variants = {
-            {"metal", "QueueSyncNodeMetal"},
-            {"stub", "QueueSyncNode"},
+            {ResolverBackend::Metal, "QueueSyncNodeMetal"},
+            {ResolverBackend::Stub, "QueueSyncNode"},
         },
     });
 

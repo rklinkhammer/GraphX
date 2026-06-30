@@ -464,9 +464,9 @@ TEST(CrsdFocusedImageMetalTest, ResolverDiagnosticsSelectMetalH2DKernelD2HIntent
     ASSERT_NE(bp, nullptr);
     ASSERT_NE(d2h, nullptr);
 
-    EXPECT_EQ(h2d->selected_backend, "metal");
-    EXPECT_EQ(bp->selected_backend, "metal");
-    EXPECT_EQ(d2h->selected_backend, "metal");
+    EXPECT_EQ(h2d->selected_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(bp->selected_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(d2h->selected_backend, graph::ResolverBackend::Metal);
     EXPECT_FALSE(h2d->fallback_used);
     EXPECT_FALSE(bp->fallback_used);
     EXPECT_FALSE(d2h->fallback_used);

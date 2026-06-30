@@ -435,21 +435,26 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
             if (!json_data["execution_backend"].is_string()) {
                 return std::unexpected(app::error::ConfigError::TypeMismatch);
             }
-            config.resolver.execution_backend = json_data["execution_backend"].get<std::string>();
-            if (!IsOneOf(config.resolver.execution_backend, {"auto", "metal", "cuda", "sycl", "stub"})) {
+            const auto parsed_backend = ParseResolverBackend(
+                json_data["execution_backend"].get<std::string>());
+            if (!parsed_backend ||
+                *parsed_backend == ResolverBackend::Direct ||
+                *parsed_backend == ResolverBackend::Unknown) {
                 return std::unexpected(app::error::ConfigError::ValidationFailed);
             }
+            config.resolver.execution_backend = *parsed_backend;
         }
 
         if (json_data.contains("backend_fallback_policy")) {
             if (!json_data["backend_fallback_policy"].is_string()) {
                 return std::unexpected(app::error::ConfigError::TypeMismatch);
             }
-            config.resolver.backend_fallback_policy =
-                json_data["backend_fallback_policy"].get<std::string>();
-            if (!IsOneOf(config.resolver.backend_fallback_policy, {"strict", "allow_fallback"})) {
+            const auto parsed_policy = ParseResolverFallbackPolicy(
+                json_data["backend_fallback_policy"].get<std::string>());
+            if (!parsed_policy) {
                 return std::unexpected(app::error::ConfigError::ValidationFailed);
             }
+            config.resolver.backend_fallback_policy = *parsed_policy;
         }
 
         if (json_data.contains("resolver_diagnostics")) {
@@ -525,10 +530,17 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
                     }
 
                     GraphConfig::ResolverBackendVariant variant;
-                    variant.backend = variant_json["backend"].get<std::string>();
+                    const auto parsed_backend = ParseResolverBackend(
+                        variant_json["backend"].get<std::string>());
+                    if (!parsed_backend ||
+                        *parsed_backend == ResolverBackend::Auto ||
+                        *parsed_backend == ResolverBackend::Direct ||
+                        *parsed_backend == ResolverBackend::Unknown) {
+                        return std::unexpected(app::error::ConfigError::ValidationFailed);
+                    }
+                    variant.backend = *parsed_backend;
                     variant.concrete_type = variant_json["concrete_type"].get<std::string>();
-                    if (!IsOneOf(variant.backend, {"metal", "cuda", "sycl", "stub"}) ||
-                        variant.concrete_type.empty()) {
+                    if (variant.concrete_type.empty()) {
                         return std::unexpected(app::error::ConfigError::ValidationFailed);
                     }
                     mapping.variants.push_back(std::move(variant));

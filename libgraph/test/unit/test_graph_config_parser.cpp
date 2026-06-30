@@ -92,8 +92,8 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverControls) {
     })");
 
     ASSERT_TRUE(result);
-    EXPECT_EQ(result->resolver.execution_backend, "metal");
-    EXPECT_EQ(result->resolver.backend_fallback_policy, "allow_fallback");
+    EXPECT_EQ(result->resolver.execution_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(result->resolver.backend_fallback_policy, graph::ResolverFallbackPolicy::AllowFallback);
     EXPECT_TRUE(result->resolver.resolver_diagnostics);
     EXPECT_EQ(result->resolver.edge_contract, "accel-token");
 }
@@ -130,9 +130,9 @@ TEST(GraphConfigParserExpectedTest, ParseSafeParsesResolverMappings) {
     EXPECT_EQ(mapping.input_token_type, "HostPinnedBufferView");
     EXPECT_EQ(mapping.output_token_type, "DeviceBufferView");
     ASSERT_EQ(mapping.variants.size(), 2u);
-    EXPECT_EQ(mapping.variants[0].backend, "metal");
+    EXPECT_EQ(mapping.variants[0].backend, graph::ResolverBackend::Metal);
     EXPECT_EQ(mapping.variants[0].concrete_type, "SarRangeCompressionNodeMetal");
-    EXPECT_EQ(mapping.variants[1].backend, "stub");
+    EXPECT_EQ(mapping.variants[1].backend, graph::ResolverBackend::Stub);
     EXPECT_EQ(mapping.variants[1].concrete_type, "RangeCompressionNode");
 }
 
@@ -198,8 +198,8 @@ TEST(GraphConfigParserExpectedTest, ParseSafeAppliesResolverDefaults) {
     })");
 
     ASSERT_TRUE(result);
-    EXPECT_EQ(result->resolver.execution_backend, "auto");
-    EXPECT_EQ(result->resolver.backend_fallback_policy, "strict");
+    EXPECT_EQ(result->resolver.execution_backend, graph::ResolverBackend::Auto);
+    EXPECT_EQ(result->resolver.backend_fallback_policy, graph::ResolverFallbackPolicy::Strict);
     EXPECT_TRUE(result->resolver.resolver_diagnostics);
     EXPECT_TRUE(result->resolver.edge_contract.empty());
 }

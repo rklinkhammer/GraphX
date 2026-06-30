@@ -16,15 +16,20 @@ namespace graph {
 
 namespace {
 
-std::vector<std::string> BackendPreference(const std::string& requested_backend,
-                                           const std::string& fallback_policy) {
-    const std::array<std::string, 4> auto_order{"metal", "sycl", "stub", "cuda"};
-    if (requested_backend == "auto") {
+std::vector<ResolverBackend> BackendPreference(ResolverBackend requested_backend,
+                                               ResolverFallbackPolicy fallback_policy) {
+    const std::array<ResolverBackend, 4> auto_order{
+        ResolverBackend::Metal,
+        ResolverBackend::Sycl,
+        ResolverBackend::Stub,
+        ResolverBackend::Cuda,
+    };
+    if (requested_backend == ResolverBackend::Auto) {
         return {auto_order.begin(), auto_order.end()};
     }
 
-    std::vector<std::string> order{requested_backend};
-    if (fallback_policy != "allow_fallback") {
+    std::vector<ResolverBackend> order{requested_backend};
+    if (fallback_policy != ResolverFallbackPolicy::AllowFallback) {
         return order;
     }
 
@@ -37,7 +42,7 @@ std::vector<std::string> BackendPreference(const std::string& requested_backend,
 }
 
 std::optional<std::string> ConcreteForBackend(const NodeResolutionContract& contract,
-                                              const std::string& backend) {
+                                              ResolverBackend backend) {
     for (const auto& variant : contract.variants) {
         if (variant.backend == backend) {
             return variant.concrete_type;
@@ -138,20 +143,16 @@ ResolvingNodeProvider::ResolveWithAvailability(
         return NodeResolutionDiagnostic{
             .intent_type = node_type_name,
             .concrete_type = node_type_name,
-            .selected_backend = "direct",
-            .fallback_reason = "",
+            .selected_backend = ResolverBackend::Direct,
+            .fallback_reason = ResolverFallbackReason::None,
             .input_token_type = "",
             .output_token_type = "",
             .fallback_used = false,
         };
     }
 
-    const auto requested_backend = resolver_config_.execution_backend.empty()
-        ? std::string{"auto"}
-        : resolver_config_.execution_backend;
-    const auto fallback_policy = resolver_config_.backend_fallback_policy.empty()
-        ? std::string{"strict"}
-        : resolver_config_.backend_fallback_policy;
+    const auto requested_backend = resolver_config_.execution_backend;
+    const auto fallback_policy = resolver_config_.backend_fallback_policy;
 
     for (const auto& backend : BackendPreference(requested_backend, fallback_policy)) {
         auto concrete = ConcreteForBackend(*contract, backend);
@@ -160,12 +161,14 @@ ResolvingNodeProvider::ResolveWithAvailability(
         }
 
         const bool fallback_used =
-            requested_backend != "auto" && backend != requested_backend;
+            requested_backend != ResolverBackend::Auto && backend != requested_backend;
         return NodeResolutionDiagnostic{
             .intent_type = node_type_name,
             .concrete_type = *concrete,
             .selected_backend = backend,
-            .fallback_reason = fallback_used ? "requested-backend-unavailable" : "",
+            .fallback_reason = fallback_used
+                ? ResolverFallbackReason::RequestedBackendUnavailable
+                : ResolverFallbackReason::None,
             .input_token_type = contract->input_token_type,
             .output_token_type = contract->output_token_type,
             .fallback_used = fallback_used,

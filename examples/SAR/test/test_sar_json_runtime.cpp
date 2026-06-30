@@ -247,8 +247,8 @@ TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExpli
 
         const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(config_path.string());
         ASSERT_TRUE(parsed) << "failed parsing preset " << config_path;
-        EXPECT_EQ(parsed->resolver.execution_backend, preset.backend);
-        EXPECT_EQ(parsed->resolver.backend_fallback_policy, "allow_fallback");
+        EXPECT_STREQ(graph::ToString(parsed->resolver.execution_backend), preset.backend);
+        EXPECT_EQ(parsed->resolver.backend_fallback_policy, graph::ResolverFallbackPolicy::AllowFallback);
         EXPECT_TRUE(parsed->resolver.resolver_diagnostics);
         EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
@@ -273,8 +273,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetKeepsStrictResolverContractAndPortableI
 
     const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(config_path.string());
     ASSERT_TRUE(parsed);
-    EXPECT_EQ(parsed->resolver.execution_backend, "auto");
-    EXPECT_EQ(parsed->resolver.backend_fallback_policy, "strict");
+    EXPECT_EQ(parsed->resolver.execution_backend, graph::ResolverBackend::Auto);
+    EXPECT_EQ(parsed->resolver.backend_fallback_policy, graph::ResolverFallbackPolicy::Strict);
     EXPECT_TRUE(parsed->resolver.resolver_diagnostics);
     EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
@@ -343,8 +343,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionUsesSarAccelTokenMa
 
     const auto parsed = graph::config::GraphConfigParser::ParseFileSafe(temp_path.string());
     ASSERT_TRUE(parsed);
-    EXPECT_EQ(parsed->resolver.execution_backend, "metal");
-    EXPECT_EQ(parsed->resolver.backend_fallback_policy, "strict");
+    EXPECT_EQ(parsed->resolver.execution_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(parsed->resolver.backend_fallback_policy, graph::ResolverFallbackPolicy::Strict);
     EXPECT_EQ(parsed->resolver.edge_contract, "accel-token");
 
     auto executor = graph::GraphExecutorBuilder()
@@ -434,7 +434,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     const auto* h2d = FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncAccelNode");
     ASSERT_NE(h2d, nullptr);
     EXPECT_EQ(h2d->concrete_type, "H2DAsyncAccelNode");
-    EXPECT_EQ(h2d->selected_backend, "metal");
+    EXPECT_EQ(h2d->selected_backend, graph::ResolverBackend::Metal);
     EXPECT_EQ(h2d->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(h2d->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(h2d->fallback_used);
@@ -442,7 +442,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncAccelNode");
     ASSERT_NE(d2h, nullptr);
     EXPECT_EQ(d2h->concrete_type, "D2HAsyncAccelNode");
-    EXPECT_EQ(d2h->selected_backend, "metal");
+    EXPECT_EQ(d2h->selected_backend, graph::ResolverBackend::Metal);
     EXPECT_EQ(d2h->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(d2h->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(d2h->fallback_used);
@@ -451,7 +451,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
         build_result.resolver_diagnostics, "SarBackprojectionTransformAccelNode");
     ASSERT_NE(bp, nullptr);
     EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformAccelNode");
-    EXPECT_EQ(bp->selected_backend, "metal");
+    EXPECT_EQ(bp->selected_backend, graph::ResolverBackend::Metal);
     EXPECT_EQ(bp->input_token_type, "SarAccelControlToken");
     EXPECT_EQ(bp->output_token_type, "SarAccelControlToken");
     EXPECT_FALSE(bp->fallback_used);
@@ -502,20 +502,17 @@ TEST(SarJsonRuntimeTest, PR8_DefinitiveResolverDiagnosticsRequireNoFallbackForCa
     ASSERT_NE(d2h, nullptr);
     ASSERT_NE(bp, nullptr);
 
-    EXPECT_EQ(h2d->selected_backend, "metal");
-    EXPECT_EQ(d2h->selected_backend, "metal");
-    EXPECT_EQ(bp->selected_backend, "metal");
+    EXPECT_EQ(h2d->selected_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(d2h->selected_backend, graph::ResolverBackend::Metal);
+    EXPECT_EQ(bp->selected_backend, graph::ResolverBackend::Metal);
 
     EXPECT_FALSE(h2d->fallback_used);
     EXPECT_FALSE(d2h->fallback_used);
     EXPECT_FALSE(bp->fallback_used);
 
-    const auto no_fallback_reason = [](const std::string& reason) {
-        return reason.empty() || reason == "none";
-    };
-    EXPECT_TRUE(no_fallback_reason(h2d->fallback_reason));
-    EXPECT_TRUE(no_fallback_reason(d2h->fallback_reason));
-    EXPECT_TRUE(no_fallback_reason(bp->fallback_reason));
+    EXPECT_EQ(h2d->fallback_reason, graph::ResolverFallbackReason::None);
+    EXPECT_EQ(d2h->fallback_reason, graph::ResolverFallbackReason::None);
+    EXPECT_EQ(bp->fallback_reason, graph::ResolverFallbackReason::None);
 
     EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode"), nullptr);
     EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode"), nullptr);

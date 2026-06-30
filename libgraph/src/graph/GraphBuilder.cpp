@@ -303,11 +303,11 @@ BuildResult GraphBuilder::Build() {
         for (const auto& diagnostic : result.resolver_diagnostics) {
             LOG4CXX_TRACE(logger_, "Resolver: intent=" << diagnostic.intent_type
                          << ", concrete=" << diagnostic.concrete_type
-                         << ", backend=" << diagnostic.selected_backend
+                         << ", backend=" << ToString(diagnostic.selected_backend)
                          << ", fallback=" << (diagnostic.fallback_used ? "true" : "false")
                          << ", input=" << diagnostic.input_token_type
                          << ", output=" << diagnostic.output_token_type
-                         << ", reason=" << diagnostic.fallback_reason);
+                         << ", reason=" << ToString(diagnostic.fallback_reason));
         }
         
         return result;

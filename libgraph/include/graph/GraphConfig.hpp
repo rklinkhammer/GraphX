@@ -32,9 +32,39 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 namespace graph {
+
+enum class ResolverBackend {
+    Auto,
+    Metal,
+    Cuda,
+    Sycl,
+    Stub,
+    Direct,
+    Unknown,
+};
+
+enum class ResolverFallbackPolicy {
+    Strict,
+    AllowFallback,
+};
+
+enum class ResolverFallbackReason {
+    None,
+    RequestedBackendUnavailable,
+};
+
+[[nodiscard]] const char* ToString(ResolverBackend backend) noexcept;
+[[nodiscard]] const char* ToString(ResolverFallbackPolicy policy) noexcept;
+[[nodiscard]] const char* ToString(ResolverFallbackReason reason) noexcept;
+
+[[nodiscard]] std::optional<ResolverBackend> ParseResolverBackend(
+    const std::string& backend) noexcept;
+[[nodiscard]] std::optional<ResolverFallbackPolicy> ParseResolverFallbackPolicy(
+    const std::string& policy) noexcept;
 
 /**
  * @struct NodeConfig
@@ -183,15 +213,15 @@ struct GraphConfig {
 
     /// Backend intent resolver controls for portable graph topologies.
     struct ResolverConfig {
-        std::string execution_backend{"auto"};
-        std::string backend_fallback_policy{"strict"};
+        ResolverBackend execution_backend{ResolverBackend::Auto};
+        ResolverFallbackPolicy backend_fallback_policy{ResolverFallbackPolicy::Strict};
         bool resolver_diagnostics{true};
         std::string edge_contract{};
     } resolver;
 
     /// Concrete backend variant for a portable node intent.
     struct ResolverBackendVariant {
-        std::string backend;
+        ResolverBackend backend{ResolverBackend::Unknown};
         std::string concrete_type;
     };
 
