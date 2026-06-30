@@ -209,9 +209,6 @@ target_compile_definitions(${target} PRIVATE
 )
 target_link_libraries(${target} PRIVATE
     graphx_sar_test_support
-    graph
-    gpu
-    dsp
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

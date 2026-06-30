@@ -12,7 +12,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-option(GRAPHX_ENABLE_MODULE_PILOT "Enable the experimental C++ module pilot" OFF)
 option(GRAPHX_REQUIRE_NINJA "Require Ninja generator for all GraphX configurations" ON)
 
 if(GRAPHX_REQUIRE_NINJA)

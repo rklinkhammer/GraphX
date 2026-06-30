@@ -4,14 +4,6 @@ project(libdsp VERSION 1.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-if(NOT CMAKE_CXX_STANDARD EQUAL 26)
-    message(FATAL_ERROR "libdsp requires C++26 as the only supported standard")
-endif()
-
 # Find dependencies
 find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)

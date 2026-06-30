@@ -14,7 +14,7 @@ set_target_properties(dsp_spectrum_demo PROPERTIES
 target_compile_features(dsp_spectrum_demo PRIVATE cxx_std_26)
 # The graph runtime currently resolves its GPU capability bootstrap symbol from libgpu;
 # the DSP demo topology itself remains CPU-only.
-target_link_libraries(dsp_spectrum_demo PRIVATE graph gpu dsp log4cxx)
+target_link_libraries(dsp_spectrum_demo PRIVATE dsp log4cxx)
 target_compile_definitions(dsp_spectrum_demo PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
@@ -35,7 +35,7 @@ set_target_properties(dsp_fhss_demo PROPERTIES
 target_compile_features(dsp_fhss_demo PRIVATE cxx_std_26)
 # The FHSS fixture graph is CPU-only, but the graph runtime resolves its
 # accelerator token bootstrap symbols from libgpu.
-target_link_libraries(dsp_fhss_demo PRIVATE graph gpu dsp log4cxx)
+target_link_libraries(dsp_fhss_demo PRIVATE dsp log4cxx)
 target_compile_definitions(dsp_fhss_demo PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"

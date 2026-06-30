@@ -26,8 +26,8 @@ public:
     std::string pointer;
     std::string code;
     std::string message;
-    std::string generated_target_pointer;
-    std::string authoritative_pointer;
+    std::string generated_target_pointer = {};
+    std::string authoritative_pointer = {};
     nlohmann::json details = nullptr;
     bool retriable = false;
   };

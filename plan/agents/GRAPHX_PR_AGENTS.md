@@ -5,7 +5,7 @@ Use these prompts with:
 - `plan/agents/GRAPHX_AGENT_ROLES.md`
 - `plan/roadmap/GRAPHX_PR_ROADMAP.md`
 - `plan/reviews/GRAPHX_INSPECTOR_REPORT.md`
-- `plan/reviews/GRAPHX_SIMPLIFIER_REPORT.m`
+- `plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md`
 
 The active cleanup roadmap is:
 

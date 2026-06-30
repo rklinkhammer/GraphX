@@ -93,7 +93,6 @@ Top-level options:
 
 | Option | Default | Description |
 |---|---|---|
-| `GRAPHX_ENABLE_MODULE_PILOT` | `OFF` | Enable experimental C++ module pilot mode. |
 | `GRAPHX_REQUIRE_NINJA` | `ON` | Fail configure if the generator is not Ninja. |
 | `BUILD_TESTS` | `ON` | Build test targets and enable CTest integration. |
 | `BUILD_DOCS` | `OFF` | Enable docs build targets where available. |

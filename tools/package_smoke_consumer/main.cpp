@@ -5,13 +5,13 @@
  * @brief GraphX source file.
  */
 
-#include <graph/NodeFactory.hpp>
-#include <core/VariantRouter.hpp>
-#include <config/DataTypes.hpp>
+#include <graph/Message.hpp>
 #include <dsp/CpuSpectrumDftNode.hpp>
 
 int main() {
-    graph::VariantRouter<sensors::SensorPayload> router;
-    (void)router;
+    using MessageType = graph::message::Message;
+    using SpectrumNodeType = dsp::CpuSpectrumDftNode<float, 256>;
+    static_assert(sizeof(MessageType) > 0);
+    static_assert(sizeof(SpectrumNodeType) > 0);
     return 0;
 }

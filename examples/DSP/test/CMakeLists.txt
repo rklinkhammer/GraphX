@@ -36,8 +36,6 @@ target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
     Threads::Threads
     dsp
-    graph
-    gpu
     log4cxx
     nlohmann_json::nlohmann_json
 )

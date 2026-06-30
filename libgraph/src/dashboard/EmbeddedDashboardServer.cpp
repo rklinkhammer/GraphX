@@ -126,14 +126,6 @@ bool ParseBool(const std::string &value) {
   return value == "1" || value == "true" || value == "yes";
 }
 
-std::optional<std::size_t> ParseSize(const std::string &value) {
-  const auto parsed = ParseUint64(value);
-  if (!parsed) {
-    return std::nullopt;
-  }
-  return static_cast<std::size_t>(*parsed);
-}
-
 } // namespace
 
 EmbeddedDashboardServer::EmbeddedDashboardServer(

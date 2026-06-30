@@ -19,7 +19,6 @@ namespace {
 
 constexpr double kSpeedOfLight = 299792458.0;
 constexpr double kDefaultWavelengthM = 0.03;
-constexpr double kPi = 3.141592653589793238462643383279502884;
 
 // FNV-1a 64-bit hash for image pixels (quantised to nearest integer at scale 1e6).
 std::uint64_t HashImagePixels(const std::vector<float>& pixels) {

@@ -312,7 +312,6 @@ void PatchNodeConfigs(nlohmann::json &graph_config,
       auto &node_config = node["node_config"];
       node_config = source_config;
       node_config["preamble_pulses"] = preamble;
-      node_config["truth_from_fixture"] = true;
     }
   }
 }
@@ -451,6 +450,34 @@ nlohmann::json FindDiagnosticsForNodeType(const nlohmann::json &diagnostics_snap
   return nlohmann::json::object();
 }
 
+std::size_t TruthMismatchCountFromDiagnostics(const nlohmann::json &diagnostics) {
+  if (diagnostics.contains("truth_mismatch_count")) {
+    return diagnostics.at("truth_mismatch_count").get<std::size_t>();
+  }
+  if (diagnostics.contains("truth_mismatches")) {
+    const auto &mismatches = diagnostics.at("truth_mismatches");
+    if (mismatches.is_array()) {
+      return mismatches.size();
+    }
+    if (mismatches.is_number_unsigned()) {
+      return mismatches.get<std::size_t>();
+    }
+    if (mismatches.is_number_integer()) {
+      const auto count = mismatches.get<std::int64_t>();
+      return count > 0 ? static_cast<std::size_t>(count) : 0u;
+    }
+  }
+  return 0u;
+}
+
+nlohmann::json NormalizeFhssDiagnostics(nlohmann::json diagnostics) {
+  if (!diagnostics.is_object()) {
+    return nlohmann::json{{"truth_mismatch_count", 0u}};
+  }
+  diagnostics["truth_mismatch_count"] = TruthMismatchCountFromDiagnostics(diagnostics);
+  return diagnostics;
+}
+
 nlohmann::json BuildSummary(const CliOptions &options,
                             const std::filesystem::path &effective_config_path,
                             const nlohmann::json &effective_config,
@@ -459,6 +486,7 @@ nlohmann::json BuildSummary(const CliOptions &options,
                             const nlohmann::json &metrics_snapshot,
                             const nlohmann::json &diagnostics_snapshot,
                             const nlohmann::json &diagnostics) {
+  const auto normalized_diagnostics = NormalizeFhssDiagnostics(diagnostics);
   nlohmann::json summary{
       {"schema", "graphx.dsp.fhss_demo_summary.v1"},
       {"graph_config_path", options.config_path.string()},
@@ -477,7 +505,7 @@ nlohmann::json BuildSummary(const CliOptions &options,
        {{"nodes", metrics_snapshot.value("nodes", nlohmann::json::array())},
         {"edges", metrics_snapshot.value("edges", nlohmann::json::array())}}},
       {"diagnostics_snapshot", diagnostics_snapshot.value("nodes", nlohmann::json::array())},
-      {"fhss_diagnostics", diagnostics}};
+      {"fhss_diagnostics", normalized_diagnostics}};
   if (!options.channel_iq_directory.empty()) {
     std::vector<std::string> artifact_paths;
     if (std::filesystem::exists(options.channel_iq_directory)) {
@@ -488,7 +516,7 @@ nlohmann::json BuildSummary(const CliOptions &options,
         }
       }
     }
-    std::ranges::sort(artifact_paths);
+    std::sort(artifact_paths.begin(), artifact_paths.end());
     summary["channel_iq_capture"] = {
         {"enabled", true},
         {"output_directory", options.channel_iq_directory.string()},

@@ -50,8 +50,6 @@ constexpr const char* kSharedLibraryExtension = ".so";
 constexpr double kSpeedOfLight = 299792458.0;
 constexpr double kDefaultCarrierHz = 9.6e9;
 constexpr double kDefaultSampleRateHz = 1.0e9;
-constexpr double kDefaultWavelengthM = kSpeedOfLight / kDefaultCarrierHz;
-constexpr double kDefaultRangeSpacingM = kSpeedOfLight / (2.0 * kDefaultSampleRateHz);
 
 std::vector<std::string> TinyFixturePaths() {
     const std::filesystem::path base{SAR_CRSD_TINY_FIXTURE_BASE_DIR};
@@ -95,8 +93,10 @@ graphx::sar::CrsdReadResult MakeCoherentPointTargetResult(
     constexpr double kPi = 3.141592653589793238462643383279502884;
     const double wavelength_m = kSpeedOfLight / carrier_hz;
     const double range_spacing_m = kSpeedOfLight / (2.0 * sample_rate_hz);
-    // Platform Y places target at samples_per_vector/4 range bins into the window.
-    const double target_range_m = range_spacing_m * static_cast<double>(samples_per_vector / 4u);
+    const auto clamped_range_bin = std::min(
+        point_target_range_bin,
+        samples_per_vector > 0u ? (samples_per_vector - 1u) : 0u);
+    const double target_range_m = range_spacing_m * static_cast<double>(clamped_range_bin);
     const double platform_y_m = -target_range_m;
     const double total_vectors = static_cast<double>(segments * vectors_per_segment);
 

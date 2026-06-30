@@ -4,14 +4,6 @@ project(libgraph VERSION 1.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-if(NOT CMAKE_CXX_STANDARD EQUAL 26)
-    message(FATAL_ERROR "libgraph requires C++26 as the only supported standard")
-endif()
-
 # Find dependencies
 find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -28,21 +20,6 @@ target_compile_definitions(graph PUBLIC
     GRAPHX_MULTI_GPU_TESTS=$<BOOL:${MULTI_GPU_TESTS}>
     GRAPHX_GPU_STUB_BACKENDS=1
 )
-if(GRAPHX_ENABLE_MODULE_PILOT)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-        message(WARNING
-            "GRAPHX_ENABLE_MODULE_PILOT is ON, but AppleClang does not provide "
-            "the required module dependency scanning support for this target. "
-            "Skipping module pilot sources.")
-    else()
-        set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-        target_sources(graph
-            PUBLIC
-                FILE_SET CXX_MODULES FILES
-                    modules/graph.port_metadata.ixx
-        )
-    endif()
-endif()
 target_compile_definitions(graph PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_include_directories(graph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -81,7 +58,6 @@ endif()
 set(GRAPH_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/graph")
 
 install(TARGETS graph EXPORT graphTargets
-    FILE_SET CXX_MODULES DESTINATION ${CMAKE_INSTALL_LIBDIR}/modules/graph
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

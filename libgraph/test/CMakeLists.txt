@@ -34,9 +34,7 @@ target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
 )
-# Resolve static archive cycles on GNU ld by keeping gpu after graph and
-# repeating graph as a final fallback resolver.
-target_link_libraries(test_libgraph_unit PRIVATE graph gpu graph GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
 target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_libgraph_unit graphx_dynamic_nodes)
@@ -60,7 +58,7 @@ if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     target_compile_definitions(test_threadpool_extended PRIVATE
         PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     )
-    target_link_libraries(test_threadpool_extended PRIVATE graph gpu GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_threadpool_extended PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
     target_link_libraries(test_threadpool_extended PRIVATE graphx_project_options)
     add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
     set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")

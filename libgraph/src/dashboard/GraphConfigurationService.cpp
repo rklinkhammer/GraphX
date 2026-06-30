@@ -3,6 +3,7 @@
 #include "graph/dashboard/GraphConfigurationService.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cctype>
 #include <cstdint>
@@ -303,7 +304,6 @@ nlohmann::json GraphConfigurationService::DeriveEffectiveGraph(const nlohmann::j
     node_config = scenario;
     node_config["active_frequency_indices"] = active_frequencies;
     node_config["preamble_pulses"] = preamble;
-    node_config["truth_from_fixture"] = true;
   }
   if (auto *channelizer = FindNodeByIdMutable(graph, "channelizer")) {
     auto &node_config = (*channelizer)["node_config"];
@@ -666,7 +666,33 @@ nlohmann::json GraphConfigurationService::ApplyScenarioRequest(const nlohmann::j
       if (op == "remove") {
         try {
           const auto normalized = NormalizeScenarioPointer(path);
-          candidate.erase(nlohmann::json::json_pointer(normalized));
+          const nlohmann::json::json_pointer pointer(normalized);
+          if (pointer.empty()) {
+            return BuildErrorResponse(400, "invalid_pointer",
+                                      "cannot remove the scenario root", nullptr, command_id,
+                                      revision_, path);
+          }
+
+          nlohmann::json &parent = candidate.at(pointer.parent_pointer());
+          const std::string token = pointer.back();
+          if (parent.is_object()) {
+            parent.erase(token);
+          } else if (parent.is_array()) {
+            std::size_t index = 0;
+            const auto [ptr, ec] =
+                std::from_chars(token.data(), token.data() + token.size(), index);
+            if (ec != std::errc{} || ptr != token.data() + token.size() ||
+                index >= parent.size()) {
+              return BuildErrorResponse(400, "invalid_pointer",
+                                        "array index out of range", nullptr, command_id,
+                                        revision_, path);
+            }
+            parent.erase(parent.begin() + static_cast<nlohmann::json::difference_type>(index));
+          } else {
+            return BuildErrorResponse(400, "invalid_pointer",
+                                      "pointer parent is not an object or array", nullptr,
+                                      command_id, revision_, path);
+          }
         } catch (const std::exception &ex) {
           return BuildErrorResponse(400, "invalid_pointer", ex.what(), nullptr, command_id, revision_, path);
         }
