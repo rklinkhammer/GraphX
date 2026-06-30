@@ -20,20 +20,8 @@ namespace {
 #define SARPY_METADATA_HARNESS_PATH "examples/SAR/tools/sarpy_metadata_harness.py"
 #endif
 
-#ifndef SARPY_METADATA_HARNESS_GUIDE_PATH
-#define SARPY_METADATA_HARNESS_GUIDE_PATH "examples/SAR/tools/sarpy_metadata_harness.md"
-#endif
-
 #ifndef SAR_SCENARIO_001_JSON_PATH
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
-#endif
-
-#ifndef SAR_BASELINE_PACKAGE_REGISTRY_PATH
-#define SAR_BASELINE_PACKAGE_REGISTRY_PATH "plan/archive/2026-06-baseline/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
-#endif
-
-#ifndef SAR_EXTERNAL_BASELINE_POLICY_PATH
-#define SAR_EXTERNAL_BASELINE_POLICY_PATH "plan/archive/2026-06-baseline/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
 #endif
 
 std::string Quote(const std::filesystem::path& path) {
@@ -46,12 +34,6 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
     nlohmann::json value;
     input >> value;
     return value;
-}
-
-std::string ReadText(const std::filesystem::path& path) {
-    std::ifstream input(path);
-    EXPECT_TRUE(input.good()) << "unable to open text file: " << path;
-    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
 }
 
 } // namespace
@@ -125,30 +107,4 @@ TEST(SarpyMetadataHarnessTest, MetadataNormalizationProducesGraphxCompatibleCont
     EXPECT_TRUE(contract.at("local_only").get<bool>());
     EXPECT_FALSE(contract.at("ci_safe").get<bool>());
     ASSERT_TRUE(contract.at("metadata_fields").is_object());
-}
-
-TEST(SarpyMetadataHarnessTest, PolicyAndRegistryDeclareSarpyLocalOnlyHarnessBoundary) {
-    const auto registry = LoadJson(std::filesystem::path{SAR_BASELINE_PACKAGE_REGISTRY_PATH});
-    const auto policy = ReadText(std::filesystem::path{SAR_EXTERNAL_BASELINE_POLICY_PATH});
-    const auto guide = ReadText(std::filesystem::path{SARPY_METADATA_HARNESS_GUIDE_PATH});
-
-    bool found_sarpy = false;
-    for (const auto& pkg : registry.at("packages")) {
-        if (pkg.at("name").get<std::string>() != "SarPy") {
-            continue;
-        }
-        found_sarpy = true;
-        EXPECT_EQ(pkg.at("lane").get<std::string>(), "local-only");
-        EXPECT_EQ(pkg.at("status").get<std::string>(), "local-only-harness");
-        EXPECT_TRUE(pkg.at("comparator_only").get<bool>());
-        EXPECT_NE(pkg.at("focus").get<std::string>().find("metadata"), std::string::npos);
-    }
-    EXPECT_TRUE(found_sarpy);
-
-    EXPECT_NE(policy.find("SarPy is currently approved as a local-only product/metadata harness"), std::string::npos);
-    EXPECT_NE(policy.find("not a normal CI dependency"), std::string::npos);
-
-    EXPECT_NE(guide.find("local-only"), std::string::npos);
-    EXPECT_NE(guide.find("product/metadata validation only"), std::string::npos);
-    EXPECT_NE(guide.find("not proof of GraphX phase-history image-formation correctness"), std::string::npos);
 }

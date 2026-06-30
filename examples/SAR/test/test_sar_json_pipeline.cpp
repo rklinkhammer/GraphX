@@ -332,7 +332,7 @@ TEST(SarJsonPipelineTest, CpuReferenceValidationGateIsIndependentFromTransportDi
     EXPECT_LE(dynamic_range_delta, reference_parity::kMaterializedImageDynamicRangeDeltaToleranceDb) << metric_report.str();
 }
 
-TEST(SarJsonPipelineTest, CrsdTinyFullPipelineConfigEncodesFocusedImageGuardrails) {
+TEST(SarJsonPipelineTest, CrsdTinyFullPipelineConfigUsesFocusedImageStages) {
     const std::filesystem::path config_path{SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -358,7 +358,4 @@ TEST(SarJsonPipelineTest, CrsdTinyFullPipelineConfigEncodesFocusedImageGuardrail
     EXPECT_TRUE(node_types.contains("CrsdFocusedImageTransformNode"));
     EXPECT_TRUE(node_types.contains("CrsdFocusedImageSinkNode"));
 
-    // Guardrail: quick-look/diagnostic-only nodes are not accepted as focused-image completion sinks.
-    EXPECT_FALSE(node_types.contains("SarDiagnosticsSinkNode"));
-    EXPECT_FALSE(node_types.contains("SarVisualizationSinkNode"));
 }

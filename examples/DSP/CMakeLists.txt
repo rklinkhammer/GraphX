@@ -10,7 +10,7 @@ add_library(dsp_fhss_dashboard_api STATIC
 target_include_directories(dsp_fhss_dashboard_api PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/dashboard
 )
-target_link_libraries(dsp_fhss_dashboard_api PRIVATE dsp)
+target_link_libraries(dsp_fhss_dashboard_api PUBLIC dsp)
 
 add_executable(dsp_spectrum_demo
     src/main.cpp
@@ -41,7 +41,7 @@ set_target_properties(dsp_fhss_demo PROPERTIES
 
 # The FHSS fixture graph is CPU-only, but the graph runtime resolves its
 # accelerator token bootstrap symbols from libgpu.
-target_link_libraries(dsp_fhss_demo PRIVATE dsp dsp_fhss_dashboard_api log4cxx)
+target_link_libraries(dsp_fhss_demo PRIVATE dsp_fhss_dashboard_api log4cxx)
 target_compile_definitions(dsp_fhss_demo PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"

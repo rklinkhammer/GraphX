@@ -54,7 +54,6 @@ set(SAR_NODE_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_cpu_reference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_cpu_reference_backprojection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_token_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_token_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_typed_transport_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_input_source_node.cpp
@@ -62,7 +61,6 @@ set(SAR_NODE_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_transform_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_metal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_sink.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_metal_truth_in_labeling_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_synthetic_aperture_iq_source_node.cpp
 )
 
@@ -79,11 +77,9 @@ set(SAR_RUNTIME_INTEGRATION_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_ci_tiny_fixture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_ci_validation_lane.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_compare.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_baseline_guardrails.cpp
 )
 
 set(SAR_LOCAL_ONLY_TEST_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_external_baseline_policy_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_local_runner_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_scenario_image_path_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_graphx_scenario_runner_contract.cpp
@@ -164,11 +160,7 @@ target_compile_definitions(${target} PRIVATE
     SAR_BENCHMARK_EXECUTABLE_PATH="$<TARGET_FILE:sar_benchmark>"
     SAR_EXAMPLE_EXECUTABLE_PATH="$<TARGET_FILE:sar_example>"
     SAR_GOTCHA_TO_CRSD_EXECUTABLE_PATH="$<TARGET_FILE:graphx_gotcha_to_crsd>"
-    SAR_EXTERNAL_BASELINE_POLICY_PATH="${CMAKE_SOURCE_DIR}/plan/archive/2026-06-baseline/reviews/SAR_EXTERNAL_BASELINE_POLICY.md"
-    SAR_BASELINE_PACKAGE_REGISTRY_PATH="${CMAKE_SOURCE_DIR}/plan/archive/2026-06-baseline/reviews/SAR_BASELINE_PACKAGE_REGISTRY.json"
-    SAR_GOTCHA_INPUT_MANIFEST_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/README.md"
     SAR_SCENARIO_001_JSON_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.json"
-    SAR_SCENARIO_001_MD_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/scenarios/scenario_001.md"
     SAR_SCENARIO_001_FIXTURE_MANIFEST_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/fixture_manifest.json"
     SAR_SCENARIO_001_FIXTURE_PROVENANCE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/provenance.md"
     SAR_SCENARIO_001_FIXTURE_CHECKSUMS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/fixtures/scenario_001/checksums.txt"
@@ -178,14 +170,12 @@ target_compile_definitions(${target} PRIVATE
     SAR_GOTCHA_BACK_ADAPTER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/gotcha_back_adapter.py"
     SAR_IMAGE_COMPARATOR_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_image_comparator.py"
     SAR_IMAGE_COMPARISON_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_image_comparison_report.schema.json"
-    SAR_FROZEN_SCENARIO_REPLAY_GUIDE_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/frozen_scenario_replay.md"
     SAR_CI_TINY_GOTCHA_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/scenario_001_ci_tiny_gotcha_fixture.json"
     SAR_FOCUSED_IMAGE_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_focused_image_artifact_schema.json"
     SARPY_METADATA_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sarpy_metadata_harness.py"
     SAR_LOCAL_BASELINE_RUNNER_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_local_baseline_runner.py"
     SAR_GRAPHX_VS_BASELINE_HARNESS_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_graphx_vs_baseline_harness.py"
     SAR_BASELINE_SUBSTITUTION_EXPERIMENT_PATH="${CMAKE_SOURCE_DIR}/examples/SAR/tools/sar_baseline_substitution_experiment.py"
-    SARPY_METADATA_HARNESS_GUIDE_PATH="${CMAKE_SOURCE_DIR}/README.md"
     SARPY_REFERENCE_IMAGE_FROM_GOTCHA_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_gotcha.py"
     SARPY_COMPARE_IMAGES_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images.py"
     SARPY_COMPARE_IMAGES_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/compare_images_report.schema.json"

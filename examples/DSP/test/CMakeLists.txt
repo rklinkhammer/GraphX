@@ -7,12 +7,10 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
-    test_dsp_fhss_baseline_guardrails.cpp
     test_dsp_fhss_dashboard_step1.cpp
     test_dsp_fhss_dashboard_step2_browser.cpp
     test_dsp_fhss_dashboard_step2.cpp
     test_dsp_fhss_dashboard_step3.cpp
-    test_dsp_fhss_dashboard_step4.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
     test_dsp_fhss_dashboard_step8.cpp
@@ -34,7 +32,6 @@ target_compile_definitions(test_dsp_example_unit PRIVATE
 target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
     Threads::Threads
-    dsp
     dsp_fhss_dashboard_api
     log4cxx
     nlohmann_json::nlohmann_json

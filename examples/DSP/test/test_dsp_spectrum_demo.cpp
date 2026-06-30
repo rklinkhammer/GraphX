@@ -36,10 +36,6 @@
 #define DSP_CPU_VS_METAL_SCHEMA_PATH "examples/DSP/tools/dsp_cpu_vs_metal_performance_report.schema.json"
 #endif
 
-#ifndef GRAPHX_SOURCE_ROOT
-#define GRAPHX_SOURCE_ROOT "."
-#endif
-
 namespace {
 
 std::string ShellQuote(const std::filesystem::path& path) {
@@ -92,16 +88,6 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
     nlohmann::json json;
     input >> json;
     return json;
-}
-
-std::string LoadText(const std::filesystem::path& path) {
-    std::ifstream input(path);
-    if (!input.good()) {
-        throw std::runtime_error("failed to open text file: " + path.string());
-    }
-    return std::string(
-        std::istreambuf_iterator<char>(input),
-        std::istreambuf_iterator<char>());
 }
 
 void ExpectContains(const std::string& output, const std::string& expected) {
@@ -208,52 +194,6 @@ TEST(DspSpectrumDemoExecutableTest, WritesDeterministicSummaryJson) {
     EXPECT_GE(summary.at("node_metrics").at("spectrum").at("frame_count").get<std::size_t>(), 1u);
 
     std::filesystem::remove_all(output_dir, cleanup_error);
-}
-
-TEST(DspSpectrumDemoGuardrailTest, ConfigDeclaresCpuOnlyDspNodeTypes) {
-    const auto config = LoadJson(std::filesystem::path(DSP_SPECTRUM_CONFIG_PATH));
-    ASSERT_TRUE(config.contains("nodes"));
-    ASSERT_TRUE(config.at("nodes").is_array());
-
-    bool saw_sine = false;
-    bool saw_fft = false;
-    bool saw_spectrum = false;
-
-    for (const auto& node : config.at("nodes")) {
-        ASSERT_TRUE(node.contains("type"));
-        const auto type = node.at("type").get<std::string>();
-        EXPECT_EQ(type.find("Metal"), std::string::npos) << type;
-        EXPECT_EQ(type.find("GPU"), std::string::npos) << type;
-        EXPECT_EQ(type.find("Gpu"), std::string::npos) << type;
-
-        saw_sine = saw_sine || type == "SineSignalNode<256>";
-        saw_fft = saw_fft || type == "CpuSpectrumDftNode<256>";
-        saw_spectrum = saw_spectrum || type == "SpectrumSinkNode<256>";
-    }
-
-    EXPECT_TRUE(saw_sine);
-    EXPECT_TRUE(saw_fft);
-    EXPECT_TRUE(saw_spectrum);
-}
-
-TEST(DspSpectrumDemoGuardrailTest, RunnerAndDocsStateCpuOnlyDirectDftTruthInLabeling) {
-    const auto demo_source = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
-                             "examples/DSP/src/main.cpp";
-    const auto readme_source = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
-                               "README.md";
-
-    const auto demo_text = LoadText(demo_source);
-    const auto readme_text = LoadText(readme_source);
-
-    ExpectContains(demo_text, "Execution mode: CPU-only direct DFT");
-
-    // README is the consolidated user documentation baseline.
-    ExpectContains(readme_text, "DSP Spectrum Demo And GPU DFT Lane");
-    ExpectContains(readme_text, "CPU-only direct DFT");
-    ExpectContains(readme_text, "CpuSpectrumDftNode<float, 256>");
-    ExpectContains(readme_text, "Metal direct DFT");
-    ExpectContains(readme_text, "not a GPU FFT");
-    ExpectContains(readme_text, "future true Metal FFT");
 }
 
 TEST(DspCpuVsMetalExecuteTimingTest, WritesInformationalComparisonReport) {

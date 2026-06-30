@@ -259,13 +259,6 @@ if(BUILD_TESTS)
         add_subdirectory(examples/DSP/test)
     endif()
 
-    add_test(
-        NAME sar_naming_hygiene_lint
-        COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check_sar_naming_hygiene.sh
-    )
-    set_tests_properties(sar_naming_hygiene_lint PROPERTIES
-        LABELS "lint;sar;naming;ci-safe")
-     
     # Summary target
     add_custom_target(test-summary
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure

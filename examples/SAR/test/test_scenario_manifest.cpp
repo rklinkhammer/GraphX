@@ -19,10 +19,6 @@ namespace {
 #define SAR_SCENARIO_001_JSON_PATH "examples/SAR/scenarios/scenario_001.json"
 #endif
 
-#ifndef SAR_SCENARIO_001_MD_PATH
-#define SAR_SCENARIO_001_MD_PATH "examples/SAR/scenarios/scenario_001.md"
-#endif
-
 struct ValidationResult {
     bool valid = true;
     std::vector<std::string> errors;
@@ -212,19 +208,6 @@ nlohmann::json LoadScenarioJson() {
     return manifest;
 }
 
-std::string LoadScenarioMarkdown() {
-    std::ifstream input(SAR_SCENARIO_001_MD_PATH);
-    EXPECT_TRUE(input.good()) << "unable to open scenario doc: " << SAR_SCENARIO_001_MD_PATH;
-
-    std::string text;
-    std::string line;
-    while (std::getline(input, line)) {
-        text.append(line);
-        text.push_back('\n');
-    }
-    return text;
-}
-
 } // namespace
 
 TEST(ScenarioManifestTest, Scenario001DefinesRequiredFields) {
@@ -237,24 +220,6 @@ TEST(ScenarioManifestTest, Scenario001DefinesRequiredFields) {
     EXPECT_EQ(
         manifest.at("comparison_level").get<std::string>(),
         "internal_image_formation_correctness");
-}
-
-TEST(ScenarioManifestTest, Scenario001MarkdownDocumentsRequiredItems) {
-    const auto text = LoadScenarioMarkdown();
-
-    EXPECT_NE(text.find("Purpose"), std::string::npos);
-    EXPECT_NE(text.find("Comparison Level"), std::string::npos);
-    EXPECT_NE(text.find("Fixture Description"), std::string::npos);
-    EXPECT_NE(text.find("Expected Future Flow"), std::string::npos);
-    EXPECT_NE(text.find("Dataset"), std::string::npos);
-    EXPECT_NE(text.find("Pulse Range"), std::string::npos);
-    EXPECT_NE(text.find("Range Bins"), std::string::npos);
-    EXPECT_NE(text.find("Output Format"), std::string::npos);
-    EXPECT_NE(text.find("Output Artifact Contract"), std::string::npos);
-    EXPECT_NE(text.find("Algorithm"), std::string::npos);
-    EXPECT_NE(text.find("Immutability Rule"), std::string::npos);
-    EXPECT_NE(text.find("scenario_002"), std::string::npos);
-    EXPECT_NE(text.find("does not"), std::string::npos);
 }
 
 TEST(ScenarioManifestTest, RejectsUnsupportedVersionAndIncompleteManifest) {

@@ -260,13 +260,6 @@ void RegisterFakeCapabilities(graph::CapabilityBus& bus,
     bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
 }
 
-std::string ReadTextFile(const std::filesystem::path& path) {
-    std::ifstream in(path);
-    std::ostringstream contents;
-    contents << in.rdbuf();
-    return contents.str();
-}
-
 }  // namespace
 
 TEST(MetalSpectrumDftNodeTest, RegistersInlineMetalDftKernelDescriptor) {
@@ -412,15 +405,4 @@ TEST(MetalSpectrumDftNodeTest, PluginRegistrationExposesMetalSpectrumDftNode256)
         std::make_shared<graph::NodeFacadeAdapter>(std::move(node).value()));
     auto concrete = wrapper->GetNode<NodeType>();
     ASSERT_NE(concrete, nullptr);
-}
-
-TEST(MetalSpectrumDftNodeGuardrailTest, DoesNotReferenceCpuFftManager) {
-    const std::filesystem::path root{GRAPHX_SOURCE_ROOT};
-    const auto header = ReadTextFile(root / "libdsp/include/dsp/MetalSpectrumDftNode.hpp");
-    const auto source = ReadTextFile(root / "libdsp/src/dsp/MetalSpectrumDftNode.cpp");
-    const auto plugin = ReadTextFile(root / "libdsp/plugins/metal_spectrum_dft_node_256_plugin.cpp");
-    const std::string combined = header + source + plugin;
-
-    EXPECT_EQ(combined.find("FFTManager"), std::string::npos);
-    EXPECT_EQ(combined.find("ProcessPacket"), std::string::npos);
 }

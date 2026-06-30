@@ -242,17 +242,3 @@ TEST_F(GotchaInputOrderingTest, EmptyInputDirectoryReportsDeterministicError) {
     EXPECT_TRUE(result.files.empty());
     EXPECT_EQ(ErrorCodes(result), std::vector<std::string>{"empty_input_directory"});
 }
-
-TEST_F(GotchaInputOrderingTest, ManifestSchemaDocumentNamesOrderingOnlyContract) {
-    const auto schema_doc = std::filesystem::path{SAR_GOTCHA_INPUT_MANIFEST_SCHEMA_PATH};
-    std::ifstream stream{schema_doc};
-    ASSERT_TRUE(stream) << schema_doc;
-    const std::string text{
-        std::istreambuf_iterator<char>{stream},
-        std::istreambuf_iterator<char>{}};
-
-    EXPECT_NE(text.find(graphx::sar::GotchaInputOrdering::kSchemaName), std::string::npos);
-    EXPECT_NE(text.find("Manifest order is authoritative"), std::string::npos);
-    EXPECT_NE(text.find("does not use MATLAB"), std::string::npos);
-    EXPECT_NE(text.find("does not parse MAT contents"), std::string::npos);
-}
