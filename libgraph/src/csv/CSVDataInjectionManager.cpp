@@ -31,7 +31,7 @@
 #include "capabilities/GraphCapability.hpp"
 #include "core/ActiveQueue.hpp"
 #include "config/DataTypes.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
 #include "graph/CapabilityDiscovery.hpp"

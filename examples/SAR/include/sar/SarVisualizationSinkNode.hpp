@@ -36,16 +36,16 @@ struct SarVisualizationSinkConfig {
  */
 class SarVisualizationSinkNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           SarVisualizationSinkNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     SarVisualizationSinkNode() = default;
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& value,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& value,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -118,7 +118,7 @@ public:
     }
 
 private:
-    bool WriteArtifact(const SarAccelControlToken& value);
+    bool WriteArtifact(const SarControlToken& value);
     bool WritePgm(std::size_t element_count, const std::string& path);
     bool WriteCsv(std::size_t element_count, const std::string& path);
 

@@ -23,7 +23,7 @@ namespace {
 
 constexpr std::array<char, 8> kBinaryMagic{{'G', 'X', 'F', 'I', 'M', 'G', '0', '1'}};
 
-std::string ExecutionLaneFromToken(const SarAccelControlToken& control) {
+std::string ExecutionLaneFromToken(const SarControlToken& control) {
     switch (control.sidecar.backend) {
         case SarBackendKind::NativeDevice:
             return "metal";

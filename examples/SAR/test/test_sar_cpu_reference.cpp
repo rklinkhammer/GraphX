@@ -230,7 +230,7 @@ TEST(SarCpuReferenceTest, BackprojectionAdapterReferenceMatchesNativeMetalWhenAv
     ASSERT_TRUE(bp.BindGpuCapabilities(bus));
     ASSERT_TRUE(bp.native_kernel_bound());
 
-    sar::SarAccelControlToken bp_input{};
+    sar::SarControlToken bp_input{};
     bp_input.token_id = 1u;
     bp_input.sidecar.sequence_id = 1u;
     bp_input.sidecar.tile_id = 0u;

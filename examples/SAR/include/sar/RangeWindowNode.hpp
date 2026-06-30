@@ -33,8 +33,8 @@ struct RangeWindowConfig {
  */
 class RangeWindowNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           RangeWindowNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
@@ -42,8 +42,8 @@ public:
     RangeWindowNode() = default;
     explicit RangeWindowNode(RangeWindowConfig config);
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& input,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

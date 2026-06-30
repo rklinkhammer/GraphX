@@ -56,7 +56,7 @@ set(SAR_NODE_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gotcha_dataset_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_accel_token_guardrails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_token_contract.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_transport_opaque_contract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sar_typed_transport_contract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_input_source_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_aperture_assembly_adapter_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_crsd_focused_image_transform_node.cpp
@@ -123,7 +123,6 @@ if(NOT "${_sar_all_sorted}" STREQUAL "${_sar_owned_sorted}" OR
 endif()
 
 add_library(graphx_sar_test_support STATIC ${SAR_TEST_SUPPORT_SOURCES})
-target_compile_features(graphx_sar_test_support PRIVATE cxx_std_26)
 target_include_directories(graphx_sar_test_support PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 target_link_libraries(graphx_sar_test_support PUBLIC
@@ -146,7 +145,6 @@ add_executable(test_sar_runtime_integration
 add_executable(test_sar_local_only ${SAR_LOCAL_ONLY_TEST_SOURCES})
 
 function(configure_sar_test_target target)
-target_compile_features(${target} PRIVATE cxx_std_26)
 target_include_directories(${target} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )

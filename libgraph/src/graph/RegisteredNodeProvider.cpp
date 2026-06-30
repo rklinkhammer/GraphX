@@ -51,6 +51,10 @@ std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error) {
             return "Node creation failed";
         case Error::InvalidArgument:
             return "Invalid node provider argument";
+        case Error::Unsupported:
+            return "Node operation is unsupported";
+        case Error::BackendUnavailable:
+            return "Node backend is unavailable";
         case Error::Unknown:
             return "Unknown node creation error";
         default:
@@ -65,10 +69,6 @@ std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error) {
 bool RegisteredNodeProvider::IsNodeTypeAvailable(const std::string& node_type_name) const {
     LOG4CXX_TRACE(logger_, "Checking availability of node type: " << node_type_name);
 
-    if (node_creators_.contains(node_type_name)) {
-        return true;
-    }
-
     return plugin_registry_ && plugin_registry_->HasNodeType(node_type_name);
 }
 
@@ -80,13 +80,7 @@ std::vector<std::string> RegisteredNodeProvider::GetAvailableNodeTypes() const {
     
     std::vector<std::string> available_types;
 
-    available_types.reserve(node_creators_.size());
-    for (const auto& [type_name, creator] : node_creators_) {
-        (void)creator;
-        available_types.push_back(type_name);
-    }
-
-    if (!initialized_ && plugin_registry_) {
+    if (plugin_registry_) {
         auto plugin_types = plugin_registry_->GetRegisteredNodeTypes();
         available_types.insert(
             available_types.end(),
@@ -115,11 +109,8 @@ void RegisteredNodeProvider::Initialize() {
     }
     
     try {
-        node_creators_.clear();
-
         if (plugin_registry_) {
-            LOG4CXX_TRACE(logger_, "Registering plugin nodes from registry");
-            RegisterPluginNodes();
+            LOG4CXX_TRACE(logger_, "Using authoritative plugin registry");
         } else {
             LOG4CXX_TRACE(logger_, "No plugin registry configured, skipping plugin registration");
         }
@@ -152,79 +143,20 @@ RegisteredNodeProvider::CreateNodeExpected(const std::string& node_type_name) no
         }
     }
 
-    // Primary creation path after successful initialization.
-    if (initialized_) {
-        auto creator = node_creators_.find(node_type_name);
-        if (creator == node_creators_.end()) {
-            LOG4CXX_ERROR(logger_, "Node type not registered: " << node_type_name);
-            return std::unexpected(NodeCreationError::TypeNotFound);
+    if (initialized_ && plugin_registry_) {
+        auto created = plugin_registry_->CreateNodeExpected(node_type_name);
+        if (!created) {
+            return std::unexpected(
+                created.error() == PluginRegistry::PluginRegistryError::TypeNotRegistered
+                    ? NodeCreationError::TypeNotFound
+                    : NodeCreationError::CreationFailed);
         }
-
-        LOG4CXX_TRACE(logger_, "Creating node: " << node_type_name);
-        try {
-            return creator->second();
-        } catch (const std::exception& e) {
-            LOG4CXX_ERROR(logger_, "Provider failed to create node " << node_type_name << ": " << e.what());
-            return std::unexpected(NodeCreationError::CreationFailed);
-        } catch (...) {
-            LOG4CXX_ERROR(logger_, "Provider failed to create node " << node_type_name << ": unknown error");
-            return std::unexpected(NodeCreationError::Unknown);
-        }
+        auto [handle, facade] = *created;
+        return NodeFacadeAdapter(handle, facade);
     }
 
     LOG4CXX_ERROR(logger_, "Unified provider is not initialized");
     return std::unexpected(NodeCreationError::NotInitialized);
-}
-
-/**
- * @brief Register plugin nodes.
- */
-void RegisteredNodeProvider::RegisterPluginNodes() {
-    LOG4CXX_TRACE(logger_, "Registering plugin nodes in unified provider");
-    
-    if (!plugin_registry_) {
-        LOG4CXX_WARN(logger_, "PluginRegistry not set - skipping plugin node registration");
-        return;
-    }
-    
-    // Get list of all plugin node types from the registry
-    // The registry contains all types from all loaders
-    auto plugin_types = plugin_registry_->GetRegisteredNodeTypes();
-    LOG4CXX_TRACE(logger_, "Registering " << plugin_types.size() 
-                 << " plugin node types");
-    
-    // For each plugin type, register a node creator
-    for (const auto& type_name : plugin_types) {
-        try {
-            if (type_name.empty()) {
-                throw std::runtime_error("Plugin registry returned an empty type name");
-            }
-
-            const bool replacing_existing = node_creators_.contains(type_name);
-            node_creators_[type_name] = [registry = plugin_registry_, type_name]() {
-                auto created = registry->CreateNodeExpected(type_name);
-                if (!created) {
-                    throw std::runtime_error("PluginRegistry creation failed for type: " + type_name);
-                }
-
-                auto [handle, facade] = *created;
-                return NodeFacadeAdapter(handle, facade);
-            };
-
-            if (replacing_existing) {
-                LOG4CXX_WARN(logger_, "Replacing existing node creator for type: " << type_name);
-            } else {
-                LOG4CXX_TRACE(logger_, "Registered plugin node type: " << type_name);
-            }
-        } catch (const std::exception& e) {
-            LOG4CXX_ERROR(logger_, "Failed to register plugin node type '" 
-                << type_name << "': " << e.what());
-            throw;
-        }
-    }
-    
-    LOG4CXX_TRACE(logger_, "Successfully registered " << plugin_types.size() 
-        << " plugin node types");
 }
 
 }  // namespace graph

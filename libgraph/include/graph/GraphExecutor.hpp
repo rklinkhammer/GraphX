@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/DefaultCapabilityBus.hpp"
 #include "graph/CapabilityBus.hpp"
 #include "graph/ExecutionResult.hpp"

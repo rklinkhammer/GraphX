@@ -104,8 +104,8 @@ SarBackprojectionTransformAccelNode::SarBackprojectionTransformAccelNode(
     SarBackprojectionTransformAccelConfig config)
     : config_(config) {}
 
-std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfer(
-    const SarAccelControlToken& input,
+std::optional<SarControlToken> SarBackprojectionTransformAccelNode::Transfer(
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     const auto stage_start = runtime::SteadyClock::now();
@@ -150,7 +150,6 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;
-    output.device_ptr = runtime::SyntheticDevicePointer(in_view, kernel_sequence_);
     output.bytes = in_view.bytes;
     output.dtype = in_view.dtype;
     output.layout = in_view.layout;
@@ -158,6 +157,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     output.execution_queue_id =
         (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
                                  : config_.queue_id;
+    output = runtime::MakeSyntheticDeviceView(output, kernel_sequence_);
 
     last_kernel_ticket_ = {};
     last_kernel_ticket_.backend = accel_backend;
@@ -170,9 +170,7 @@ std::optional<SarAccelControlToken> SarBackprojectionTransformAccelNode::Transfe
     last_kernel_ticket_.launch.block_z = 1;
     last_kernel_ticket_.arg_count = 2;
     last_kernel_ticket_.execution_queue_id = output.execution_queue_id;
-    last_kernel_ticket_.completion_event = runtime::NextOpaqueEventId();
-    // ready_event is opaque transport metadata only. SAR identity derives from sidecar.
-    output.ready_event = runtime::OpaqueReadyEventNotSignaled();
+    last_kernel_ticket_ = runtime::MakeSyntheticKernelTicket(last_kernel_ticket_);
 
     if (!graph::gpu::accel::IsValidView(output) ||
         !graph::gpu::accel::IsValidKernelTicket(last_kernel_ticket_)) {

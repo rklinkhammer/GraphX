@@ -384,128 +384,6 @@ private:
     Plugin& plugin_;  ///< Reference to wrapped plugin instance
 };
 
-// ============================================================================
-// Runtime Plugin Registry (Phase 3: Discovery)
-// ============================================================================
-
-/**
- * @class PluginRegistry
- * @brief Registry for dynamically discovering plugins and their metadata
- *
- * Maintains a collection of plugins with reflection-based metadata.
- * Enables discovery of capabilities without manual configuration.
- *
- * **Phase 3 Discovery Pattern**:
- * @code
- *   PluginRegistry registry;
- *   
- *   // Register plugins (can happen dynamically)
- *   MyPlugin plugin;
- *   registry.Register<MyPlugin>(plugin);
- *   
- *   // Discover capabilities
- *   auto configurable_plugins = registry.FindPluginsByCapability("IConfigurable");
- *   for (const auto& metadata : configurable_plugins) {
- *       // Process plugins with this capability
- *   }
- * @endcode
- */
-/**
- * @class PluginRegistry
- * @brief Plugin Registry manager.
- *
- * @details Owns registration, lookup, or orchestration state for a GraphX subsystem. The class centralizes mutation so callers interact through stable query and update methods.
- */
-class PluginRegistry {
-public:
-    /**
-     * @brief Register a plugin with reflection metadata
-     *
-     * @tparam Plugin The plugin type to register
-     * @param plugin Reference to plugin instance
-     */
-    template<typename Plugin>
-    /**
-     * @brief Updates or queries runtime registration through Register.
-     *
-     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
-     * @param plugin Input or configuration value consumed by the method.
-     * @return Method-specific result, status, or produced value when the signature provides one.
-     */
-    void Register(Plugin& plugin) {
-        const auto metadata = GetPluginMetadata<Plugin>();
-        const auto it = std::find_if(entries_.begin(), entries_.end(),
-            [&metadata](const RegisteredPlugin& entry) {
-                return entry.metadata.name == metadata.name;
-            });
-
-        if (it != entries_.end()) {
-            it->metadata = metadata;
-            it->instance = static_cast<void*>(std::addressof(plugin));
-            return;
-        }
-
-        entries_.push_back(RegisteredPlugin{
-            .metadata = metadata,
-            .instance = static_cast<void*>(std::addressof(plugin))
-        });
-    }
-
-    /**
-     * @brief Find all plugins supporting a capability
-     *
-     * @param capability_name Name of the capability to search for
-     * @return Vector of plugin metadata for plugins with this capability
-     */
-    std::vector<PluginMetadata> FindPluginsByCapability(std::string_view capability_name) const {
-        std::vector<PluginMetadata> matching;
-
-        for (const auto& entry : entries_) {
-            const auto& capabilities = entry.metadata.capabilities;
-            const bool has_capability = std::any_of(capabilities.begin(), capabilities.end(),
-                [capability_name](const CapabilityMetadata& capability) {
-                    return capability.name == capability_name;
-                });
-
-            if (has_capability) {
-                matching.push_back(entry.metadata);
-            }
-        }
-
-        return matching;
-    }
-
-    /**
-     * @brief Get all registered plugins
-     *
-     * @return Vector of metadata for all registered plugins
-     */
-    std::vector<PluginMetadata> GetAllPlugins() const {
-        std::vector<PluginMetadata> all;
-        all.reserve(entries_.size());
-
-        for (const auto& entry : entries_) {
-            all.push_back(entry.metadata);
-        }
-
-        return all;
-    }
-
-private:
-    /**
-     * @struct RegisteredPlugin
-     * @brief Registered Plugin data record.
-     *
-     * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
-     */
-    struct RegisteredPlugin {
-        PluginMetadata metadata;
-        void* instance = nullptr;
-    };
-
-    std::vector<RegisteredPlugin> entries_;
-};
-
 }  // namespace app::reflection
 
 // ============================================================================
@@ -533,12 +411,8 @@ private:
 // }
 // ```
 //
-// **Pattern 4: Plugin Discovery (Phase 3 Future)**
-// ```cpp
-// PluginRegistry registry;
-// auto configurable = registry.FindPluginsByCapability("IConfigurable");
-// // Process all plugins with this capability
-// ```
+// Runtime registration and discovery are owned exclusively by
+// graph::PluginRegistry. Reflection remains compile-time metadata only.
 //
 // **Benefits**:
 // - Zero runtime cost for compile-time metadata (consteval)

@@ -109,6 +109,10 @@ public:
             "max_pulse_input_samples"};
   }
 
+  [[nodiscard]] std::size_t LastDetectedPulseCount() const noexcept {
+    return last_detected_pulse_count_;
+  }
+
   std::optional<OutputTokenType>
   Transfer(const InputTokenType &input, std::integral_constant<std::size_t, 0>,
            std::integral_constant<std::size_t, 0>) override {
@@ -172,10 +176,12 @@ public:
       output.sidecar.detected_pulses.push_back(*metadata);
       output.sidecar.pulse_evidence.push_back(std::move(evidence));
     }
+    last_detected_pulse_count_ = output.sidecar.detected_pulses.size();
     return output;
   }
 
 private:
+  std::size_t last_detected_pulse_count_{0};
   [[nodiscard]] std::uint64_t ChannelSamplesForInputSamples(
       const FHSSChannelizedIqPacket &packet,
       std::uint64_t input_samples) const {

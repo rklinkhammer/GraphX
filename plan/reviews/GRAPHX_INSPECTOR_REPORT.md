@@ -83,7 +83,7 @@ work was performed.
   symbol decisions, decoded words, messages, and diagnostics.
 - FHSS host evidence uses shared immutable complex-sample storage plus ranges;
   magnitude-only output is not the canonical decoder evidence.
-- SAR uses `ControlToken<SarSidecar>`. SAR identity, routing, aperture, tile,
+- SAR uses `ControlToken<SarPacket>`. SAR identity, routing, aperture, tile,
   backend, transfer, kernel, and timing information live in the sidecar;
   `host_ptr` and `ready_event` are tested as transport-only fields.
 

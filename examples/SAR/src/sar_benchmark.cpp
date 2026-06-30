@@ -85,7 +85,7 @@ struct GraphRunResult {
     double stop_ms{0.0};
     double join_ms{0.0};
     sar::SarDiagnosticsSnapshot diagnostics{};
-    sar::SarAccelControlToken last_token{};
+    sar::SarControlToken last_token{};
     std::string resolved_execution_backend{"unknown"};
     std::string backprojection_concrete_type{"unknown"};
     bool backprojection_native_kernel_bound{false};
@@ -463,7 +463,7 @@ ReferenceFidelityMetrics MeasureReferenceFidelityMetrics() {
     out.dynamic_range_db = metrics.dynamic_range_db;
     out.image_hash = metrics.image_hash;
 
-    sar::SarAccelControlToken runtime_input{};
+    sar::SarControlToken runtime_input{};
     runtime_input.token_id = 1u;
     runtime_input.sidecar.sequence_id = 0u;
     runtime_input.sidecar.marker = sar::SarFrameMarker::Data;
@@ -677,7 +677,7 @@ BaselineRunResult RunBaselineOnce(const BenchmarkOptions& options) {
             break;
         }
 
-        std::optional<sar::SarAccelControlToken> windowed_pulse;
+        std::optional<sar::SarControlToken> windowed_pulse;
         if (options.range_stage == RangeStageKind::Compression) {
             windowed_pulse = compression.Transfer(
                 *pulse,
@@ -800,7 +800,7 @@ BaselineRunResult RunDeviceReducePrototypeBaselineOnce(const BenchmarkOptions& o
             break;
         }
 
-        std::optional<sar::SarAccelControlToken> windowed_pulse;
+        std::optional<sar::SarControlToken> windowed_pulse;
         if (options.range_stage == RangeStageKind::Compression) {
             windowed_pulse = compression.Transfer(
                 *pulse,
@@ -1093,7 +1093,7 @@ std::uint64_t PointerToken(const void* ptr) {
     return static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr));
 }
 
-nlohmann::json TokenLifecycleToJson(const sar::SarAccelControlToken& token) {
+nlohmann::json TokenLifecycleToJson(const sar::SarControlToken& token) {
     return {
         {"has_lease", token.has_lease},
         {"has_host_view", token.has_host_view},

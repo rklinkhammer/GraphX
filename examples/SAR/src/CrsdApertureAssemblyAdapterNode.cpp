@@ -49,7 +49,7 @@ CrsdApertureAssemblyAdapterNode::CrsdApertureAssemblyAdapterNode(
 }
 
 std::optional<SarPhaseHistoryControlMessage> CrsdApertureAssemblyAdapterNode::Transfer(
-    const SarAccelControlToken& input,
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!read_result_.success || completion_emitted_) {
@@ -314,7 +314,7 @@ void CrsdApertureAssemblyAdapterNode::ValidateAssemblyConsistency() const {
 }
 
 std::optional<std::string> CrsdApertureAssemblyAdapterNode::ValidateDataToken(
-    const SarAccelControlToken& input) {
+    const SarControlToken& input) {
     const auto segment_index = input.sidecar.sequence_id;
 
     if (!segments_by_index_.contains(segment_index)) {
@@ -345,7 +345,7 @@ std::optional<std::string> CrsdApertureAssemblyAdapterNode::ValidateDataToken(
 }
 
 std::optional<SarPhaseHistoryControlMessage> CrsdApertureAssemblyAdapterNode::BuildApertureMessage(
-    const SarAccelControlToken& eos_token) {
+    const SarControlToken& eos_token) {
     SarPhaseHistoryApertureFrame frame{};
     frame.total_vector_count = read_result_.value.total_vector_count;
     frame.ordered_set_payload_hash = read_result_.value.ordered_set_payload_hash;

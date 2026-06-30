@@ -30,7 +30,7 @@
 #pragma once
 
 #include "EdgeRegistry.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include <memory>
 #include <typeinfo>
 

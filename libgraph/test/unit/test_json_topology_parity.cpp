@@ -18,7 +18,7 @@
 #include "capabilities/GraphCapability.hpp"
 #include "graph/GraphBuilder.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "test/PluginInfrastructure.hpp"
 #include "test/TestGraphTopologies.hpp"
 

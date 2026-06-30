@@ -159,7 +159,7 @@ TEST(ResolvingNodeProviderTest, StrictRequestedBackendRejectsFallbackOnlyIntent)
 }
 
 TEST(ResolvingNodeProviderTest,
-     StrictRequestedBackendUnavailableCreateNodeReturnsTypeNotFoundWithoutFallbackDiagnostic) {
+     StrictRequestedBackendUnavailableReturnsStructuredFailure) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"H2DAsyncNode"});
     graph::ResolvingNodeProvider provider(
@@ -168,10 +168,44 @@ TEST(ResolvingNodeProviderTest,
 
     const auto created = provider.CreateNodeExpected("H2DAsyncNode");
     ASSERT_FALSE(created.has_value());
-    EXPECT_EQ(created.error(), graph::NodeCreationError::TypeNotFound);
+    EXPECT_EQ(created.error(), graph::NodeCreationError::BackendUnavailable);
 
-    // Strict mode must fail resolution rather than recording a fallback path.
+    // Strict mode records the failed resolution without inventing a fallback.
     EXPECT_TRUE(provider.diagnostics().empty());
+    ASSERT_EQ(provider.resolution_failures().size(), 1u);
+    EXPECT_EQ(provider.resolution_failures().front().state,
+              graph::ResolverResolutionState::Unavailable);
+}
+
+TEST(ResolvingNodeProviderTest, UnsupportedBackendIsDistinctFromUnavailable) {
+    auto inner = std::make_shared<FakeNodeProvider>(std::set<std::string>{});
+    graph::NodeResolutionRegistry registry;
+    registry.AddContract(graph::NodeResolutionContract{
+        .intent_type = "MetalOnlyIntent",
+        .input_token_type = "DeviceBufferView",
+        .output_token_type = "DeviceBufferView",
+        .variants = {{graph::ResolverBackend::Metal, "MetalOnlyNode"}},
+    });
+    graph::ResolvingNodeProvider provider(
+        inner, ResolverConfig(graph::ResolverBackend::Cuda), std::move(registry));
+
+    const auto resolved = provider.ResolveNodeType("MetalOnlyIntent");
+    ASSERT_FALSE(resolved.has_value());
+    EXPECT_EQ(resolved.error().state,
+              graph::ResolverResolutionState::Unsupported);
+    EXPECT_EQ(resolved.error().requested_backend, graph::ResolverBackend::Cuda);
+
+    const auto created = provider.CreateNodeExpected("MetalOnlyIntent");
+    ASSERT_FALSE(created.has_value());
+    EXPECT_EQ(created.error(), graph::NodeCreationError::Unsupported);
+
+    EXPECT_EQ(graph::NodeResolutionFailureToJson(resolved.error()),
+              nlohmann::json({
+                  {"intent_type", "MetalOnlyIntent"},
+                  {"requested_backend", "cuda"},
+                  {"state", "unsupported"},
+                  {"detail", "requested backend does not support this node intent"},
+              }));
 }
 
 TEST(ResolvingNodeProviderTest, PassesThroughNonIntentTypesDirectly) {

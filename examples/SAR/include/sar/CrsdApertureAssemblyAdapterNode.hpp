@@ -43,7 +43,7 @@ struct CrsdApertureAssemblyAdapterConfig {
  */
 class CrsdApertureAssemblyAdapterNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
           graph::TypeList<SarPhaseHistoryControlMessage>,
           CrsdApertureAssemblyAdapterNode>,
       public graph::IConfigurable,
@@ -55,7 +55,7 @@ public:
         graphx::sar::CrsdReaderPtr reader = std::make_shared<graphx::sar::CrsdReader>());
 
     std::optional<SarPhaseHistoryControlMessage> Transfer(
-        const SarAccelControlToken& input,
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -82,8 +82,8 @@ public:
 private:
     void BuildExpectedSegmentIndexMap();
     void ValidateAssemblyConsistency() const;
-    std::optional<std::string> ValidateDataToken(const SarAccelControlToken& input);
-    std::optional<SarPhaseHistoryControlMessage> BuildApertureMessage(const SarAccelControlToken& eos_token);
+    std::optional<std::string> ValidateDataToken(const SarControlToken& input);
+    std::optional<SarPhaseHistoryControlMessage> BuildApertureMessage(const SarControlToken& eos_token);
 
     CrsdApertureAssemblyAdapterConfig config_{};
     graphx::sar::CrsdReaderPtr reader_{};

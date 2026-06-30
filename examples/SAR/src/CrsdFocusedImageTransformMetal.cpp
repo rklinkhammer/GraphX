@@ -261,7 +261,7 @@ std::optional<FocusedImageResult> CrsdFocusedImageTransformMetalNode::RunNativeM
     kernel_ticket.launch.block_x = 1;
     kernel_ticket.launch.block_y = 1;
     kernel_ticket.launch.block_z = 1;
-    kernel_ticket.completion_event = runtime::NextOpaqueEventId();
+    kernel_ticket = runtime::MakeSyntheticKernelTicket(kernel_ticket);
 
     auto in_arg = device_input.device_view;
     auto out_arg = device_output.device_view;

@@ -20,7 +20,7 @@ namespace sar {
  * @class SarPulseFanoutNode
  * @brief SarPulseFanoutNode class.
  */
-class SarPulseFanoutNode : public graph::SplitNode4<SarAccelControlToken> {
+class SarPulseFanoutNode : public graph::SplitNode4<SarControlToken> {
 public:
     static constexpr char kInput[] = "In";
     static constexpr char kOutput0[] = "Tile0";
@@ -29,11 +29,11 @@ public:
     static constexpr char kOutput3[] = "Tile3";
 
     using Ports = std::tuple<
-        graph::PortSpec<0, SarAccelControlToken, graph::PortDirection::Input, kInput>,
-        graph::PortSpec<0, SarAccelControlToken, graph::PortDirection::Output, kOutput0>,
-        graph::PortSpec<1, SarAccelControlToken, graph::PortDirection::Output, kOutput1>,
-        graph::PortSpec<2, SarAccelControlToken, graph::PortDirection::Output, kOutput2>,
-        graph::PortSpec<3, SarAccelControlToken, graph::PortDirection::Output, kOutput3>
+        graph::PortSpec<0, SarControlToken, graph::PortDirection::Input, kInput>,
+        graph::PortSpec<0, SarControlToken, graph::PortDirection::Output, kOutput0>,
+        graph::PortSpec<1, SarControlToken, graph::PortDirection::Output, kOutput1>,
+        graph::PortSpec<2, SarControlToken, graph::PortDirection::Output, kOutput2>,
+        graph::PortSpec<3, SarControlToken, graph::PortDirection::Output, kOutput3>
     >;
 
     SarPulseFanoutNode() = default;

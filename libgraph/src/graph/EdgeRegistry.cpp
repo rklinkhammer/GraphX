@@ -27,7 +27,7 @@
 // SOFTWARE.
 
 #include "graph/EdgeRegistry.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 
 #include <sstream>
 

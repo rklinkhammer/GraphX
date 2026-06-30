@@ -5,7 +5,7 @@
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
-#include "graph/fhss/FHSSStepping.hpp"
+#include "dsp/fhss/FHSSStepping.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -26,7 +26,7 @@ class FHSSSyntheticIqSourceNode
                                     FHSSSyntheticIqToken>,
       public graph::IConfigurable,
   public graph::IParameterized,
-  public graph::dashboard::IFHSSMessageInjectionSource {
+  public dsp::fhss::IFHSSMessageInjectionSource {
 public:
   using OutputTokenType = FHSSSyntheticIqToken;
 
@@ -63,8 +63,8 @@ public:
   std::optional<OutputTokenType>
   Produce(std::integral_constant<std::size_t, 0>) override {
     if (compatibility_default_request_pending_ && message_queue_.Size() == 0) {
-      graph::dashboard::FHSSMessageInjectionRequest request;
-      request.kind = graph::dashboard::FHSSMessageInjectionKind::WholeSchedule;
+      dsp::fhss::FHSSMessageInjectionRequest request;
+      request.kind = dsp::fhss::FHSSMessageInjectionKind::WholeSchedule;
       request.end_of_stream_after_produce = true;
       if (!message_queue_.Enqueue(request)) {
         return std::nullopt;
@@ -78,7 +78,7 @@ public:
     return token;
   }
 
-  [[nodiscard]] core::ActiveQueue<graph::dashboard::FHSSMessageInjectionRequest> &
+  [[nodiscard]] core::ActiveQueue<dsp::fhss::FHSSMessageInjectionRequest> &
   GetMessageInjectionQueue() override {
     compatibility_default_request_pending_ = false;
     return message_queue_;
@@ -103,7 +103,7 @@ public:
     emitted_ = false;
   }
 
-  [[nodiscard]] std::optional<graph::dashboard::FHSSMessageCorrelation>
+  [[nodiscard]] std::optional<dsp::fhss::FHSSMessageCorrelation>
   ProduceInjectedMessage() override {
     auto token = ProduceFromQueue();
     if (!token) {
@@ -113,9 +113,13 @@ public:
     return token->sidecar.correlation;
   }
 
+  [[nodiscard]] std::size_t LastEmittedPulseCount() const noexcept {
+    return last_emitted_pulse_count_;
+  }
+
 private:
   [[nodiscard]] std::optional<OutputTokenType> ProduceFromQueue() {
-    graph::dashboard::FHSSMessageInjectionRequest request;
+    dsp::fhss::FHSSMessageInjectionRequest request;
     if (!message_queue_.Dequeue(request)) {
       message_queue_enabled_ = false;
       return std::nullopt;
@@ -125,6 +129,7 @@ private:
     if (!fixture) {
       return std::nullopt;
     }
+    last_emitted_pulse_count_ = fixture->truth_pulses.size();
 
     auto samples =
         std::make_shared<const std::vector<std::complex<double>>>(
@@ -148,8 +153,8 @@ private:
 
   [[nodiscard]] std::optional<FHSSSyntheticIqFixture>
   GenerateFixtureForRequest(
-      const graph::dashboard::FHSSMessageInjectionRequest &request) const {
-    if (request.kind == graph::dashboard::FHSSMessageInjectionKind::WholeSchedule) {
+      const dsp::fhss::FHSSMessageInjectionRequest &request) const {
+    if (request.kind == dsp::fhss::FHSSMessageInjectionKind::WholeSchedule) {
       auto fixture = GenerateSyntheticIqFixture(config_);
       if (!fixture) {
         return std::nullopt;
@@ -171,7 +176,8 @@ private:
   bool compatibility_default_request_pending_{true};
   std::uint64_t next_token_id_{1};
   bool message_queue_enabled_{true};
-  core::ActiveQueue<graph::dashboard::FHSSMessageInjectionRequest> message_queue_{1, false};
+  core::ActiveQueue<dsp::fhss::FHSSMessageInjectionRequest> message_queue_{1, false};
+  std::size_t last_emitted_pulse_count_{0};
 };
 
 } // namespace dsp::fhss

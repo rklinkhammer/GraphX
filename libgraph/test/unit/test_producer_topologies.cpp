@@ -13,7 +13,7 @@
 #include <vector>
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "test/TestGraphTopologies.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "test/ProducerTestNodes.hpp"

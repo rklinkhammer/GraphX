@@ -31,8 +31,8 @@ SarBackendKind ParseBackendKind(int raw_backend) {
 ImageTileMergeNode::ImageTileMergeNode(ImageTileMergeConfig config)
     : config_(config) {}
 
-std::optional<SarAccelControlToken> ImageTileMergeNode::Transfer(
-    const SarAccelControlToken& input,
+std::optional<SarControlToken> ImageTileMergeNode::Transfer(
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     const auto stage_start = runtime::SteadyClock::now();
@@ -67,7 +67,7 @@ std::optional<SarAccelControlToken> ImageTileMergeNode::Transfer(
             output_marker,
             complete);
         output.sidecar.stage_timings = stage_timing_totals_;
-        return std::optional<SarAccelControlToken>(std::move(output));
+        return std::optional<SarControlToken>(std::move(output));
     };
 
     if (marker == SarFrameMarker::Watermark) {
@@ -258,15 +258,15 @@ const ImageTileMergeConfig& ImageTileMergeNode::GetConfig() const noexcept {
     return config_;
 }
 
-SarAccelControlToken ImageTileMergeNode::BuildOutputToken(
-    const SarAccelControlToken& input,
+SarControlToken ImageTileMergeNode::BuildOutputToken(
+    const SarControlToken& input,
     std::uint64_t sequence_id,
     std::uint32_t,
     std::uint32_t stream_id,
     std::size_t byte_count,
     SarFrameMarker marker,
     bool complete) const {
-    SarAccelControlToken out = input;
+    SarControlToken out = input;
     FinalizeOutputSidecar(out, input, sequence_id, stream_id, byte_count, marker, complete);
     FinalizeOutputTickets(out, input);
 
@@ -274,8 +274,8 @@ SarAccelControlToken ImageTileMergeNode::BuildOutputToken(
 }
 
 void ImageTileMergeNode::FinalizeOutputSidecar(
-    SarAccelControlToken& out,
-    const SarAccelControlToken& input,
+    SarControlToken& out,
+    const SarControlToken& input,
     const std::uint64_t sequence_id,
     const std::uint32_t stream_id,
     const std::size_t byte_count,
@@ -333,8 +333,8 @@ void ImageTileMergeNode::FinalizeOutputSidecar(
 }
 
 void ImageTileMergeNode::FinalizeOutputTickets(
-    SarAccelControlToken& out,
-    const SarAccelControlToken& input) const {
+    SarControlToken& out,
+    const SarControlToken& input) const {
     out.host_view = input.host_view;
     out.has_host_view = true;
 
@@ -346,8 +346,8 @@ void ImageTileMergeNode::FinalizeOutputTickets(
             : ((input.sidecar.h2d_queue_id > 0u)
                    ? input.sidecar.h2d_queue_id
                    : (static_cast<std::uint64_t>(config_.backend_id) + 1u));
-    out.transfer_ticket.completion_event = runtime::NextOpaqueEventId();
     out.transfer_ticket.dst_host = input.host_view;
+    out.transfer_ticket = runtime::MakeSyntheticTransferTicket(out.transfer_ticket);
     out.has_transfer_ticket = true;
 
     out.kernel_ticket.backend = ToAccelBackendKind(out.sidecar.backend);
@@ -356,8 +356,8 @@ void ImageTileMergeNode::FinalizeOutputTickets(
         (input.sidecar.kernel_queue_id > 0u)
             ? input.sidecar.kernel_queue_id
             : (static_cast<std::uint64_t>(out.sidecar.backend_id) + 1u);
-    out.kernel_ticket.completion_event = runtime::NextOpaqueEventId();
     out.kernel_ticket.arg_count = 1;
+    out.kernel_ticket = runtime::MakeSyntheticKernelTicket(out.kernel_ticket);
     out.has_kernel_ticket =
         out.kernel_ticket.backend != graph::gpu::accel::BackendKind::Unknown;
 }

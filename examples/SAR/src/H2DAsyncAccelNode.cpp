@@ -36,8 +36,8 @@ SarBackendKind ToSarBackendKind(graph::gpu::accel::BackendKind backend) noexcept
 
 } // namespace
 
-std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
-    const SarAccelControlToken& input,
+std::optional<SarControlToken> H2DAsyncAccelNode::Transfer(
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     const auto stage_start = runtime::SteadyClock::now();
@@ -58,7 +58,6 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
 
     graph::gpu::accel::DeviceBufferView output{};
     output.backend = accel_backend;
-    output.device_ptr = runtime::SyntheticDevicePointer(host_view, transfer_sequence_);
     output.bytes = host_view.bytes;
     output.dtype = host_view.dtype;
     output.layout = host_view.layout;
@@ -66,8 +65,7 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
     output.execution_queue_id =
         (config_.queue_id == 0u) ? (static_cast<std::uint64_t>(config_.backend_id) + 1u)
                                  : config_.queue_id;
-    // ready_event is opaque transport metadata only. SAR identity derives from sidecar.
-    output.ready_event = runtime::OpaqueReadyEventNotSignaled();
+    output = runtime::MakeSyntheticDeviceView(output, transfer_sequence_);
 
     if (!graph::gpu::accel::IsValidView(output)) {
         return std::nullopt;
@@ -84,9 +82,9 @@ std::optional<SarAccelControlToken> H2DAsyncAccelNode::Transfer(
     last_transfer_ticket_.backend = accel_backend;
     last_transfer_ticket_.transfer_id = transfer_sequence_;
     last_transfer_ticket_.execution_queue_id = output.execution_queue_id;
-    last_transfer_ticket_.completion_event = runtime::NextOpaqueEventId();
     last_transfer_ticket_.src_host = host_view;
     last_transfer_ticket_.dst_device = output;
+    last_transfer_ticket_ = runtime::MakeSyntheticTransferTicket(last_transfer_ticket_);
 
     auto token = input;
     token.device_view = output;

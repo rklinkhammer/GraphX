@@ -14,7 +14,7 @@
 #include <thread>
 
 #include "graph/DynamicEdge.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/PortFunction.hpp"
 #include "test/AdvancedTestNodes.hpp"
 

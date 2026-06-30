@@ -92,7 +92,7 @@ TEST(CiTinyFixtureTest, GotchaReplaySourceAcceptsCiSafeTinyFixtureWithoutExterna
     EXPECT_NO_THROW(node.Configure(graph::JsonView(cfg_json)));
 
     auto consume_all = [](sar::GotchaReplaySourceNode& src) {
-        std::vector<sar::SarAccelControlToken> tokens;
+        std::vector<sar::SarControlToken> tokens;
         while (true) {
             auto token = src.Produce(std::integral_constant<std::size_t, 0>{});
             if (!token.has_value()) {

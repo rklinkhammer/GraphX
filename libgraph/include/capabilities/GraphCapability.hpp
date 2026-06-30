@@ -35,7 +35,7 @@
 #include <atomic>
 #include "graph/CapabilityBus.hpp"
 #include "graph/GraphConfig.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/NodeProvider.hpp"
 
 

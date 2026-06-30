@@ -91,10 +91,7 @@ struct NodeFacade;
 class RegisteredNodeProvider : public INodeProvider {
 private:
     static log4cxx::LoggerPtr logger_;
-    using NodeCreator = std::function<NodeFacadeAdapter()>;
-
     std::shared_ptr<PluginRegistry> plugin_registry_;
-    std::map<std::string, NodeCreator> node_creators_;
     bool initialized_;
 
 public:
@@ -261,18 +258,6 @@ public:
         return initialized_;
     }
 
-private:
-    /**
-     * Register all available plugin nodes in the creator map
-     *
-     * Called by Initialize() to register plugin-based nodes.
-     * For each node type in the plugin registry, creates a node creator
-     * that delegates to plugin-registry creation.
-     */
-/**
- * @brief Register plugin nodes.
- */
-    void RegisterPluginNodes();
 };
 
 [[nodiscard]] std::string ErrorMessage(RegisteredNodeProvider::NodeCreationError error);

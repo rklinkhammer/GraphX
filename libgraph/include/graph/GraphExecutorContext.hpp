@@ -32,7 +32,7 @@
 #include <chrono>
 #include <memory>
 #include "graph/CapabilityBus.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 
 namespace graph
 {

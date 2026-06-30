@@ -489,6 +489,14 @@ execution status explicit.
 
 Current inventory:
 
+Supported backend ownership:
+
+| Backend | Supported execution surface | Test owner |
+|---|---|---|
+| Metal | transfer, memory, synchronization, and registered kernels when native runtime is available | `libgpu_metal_runtime` |
+| CUDA | contract-safe stub capability only; native execution unsupported | `libgpu_stub_unit` |
+| SYCL | contract-safe stub capability only; native execution unsupported | `libgpu_backend_unit` |
+
 | Node | Classification |
 |---|---|
 | `HostIngressPinnedSourceNodeMetal` | memory/control |
@@ -502,14 +510,10 @@ Current inventory:
 | `DeviceKernelNodeMetal` | generic kernel |
 | `DeviceTransformNodeMetal` | generic kernel |
 | `DeviceReduceNodeMetal` | generic kernel |
-| `CollectiveReduceNodeMetal` | unsupported |
 | `CrsdFocusedImageTransformMetalNode` | domain algorithm |
 
 Guardrail labels: H2DAsyncNodeMetal | transfer; QueueSyncNodeMetal | sync/control; LeaseReleaseNodeMetal | memory.
 
-PR6 gate: blocked until unsupported/experimental Metal behavior is either
-implemented, removed from the active lane, or clearly reported as disabled.
-`CollectiveReduceNodeMetal | unsupported` remains a truth-in-labeling guardrail.
 `CrsdFocusedImageTransformMetalNode | domain algorithm` is allowed only with
 explicit diagnostics. Any experimental incomplete path must remain labeled
 `experimental incomplete`.

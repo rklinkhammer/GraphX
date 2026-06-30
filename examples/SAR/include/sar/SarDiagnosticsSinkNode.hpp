@@ -28,7 +28,7 @@ namespace sar {
  * @brief SarDiagnosticsSinkNode class.
  */
 class SarDiagnosticsSinkNode
-    : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarAccelControlToken>,
+    : public graph::NamedSinkNode<SarDiagnosticsSinkNode, SarControlToken>,
     public graph::CompletionCallbackProvider,
     public graph::IDiagnosable,
     public graph::IConfigurable,
@@ -36,14 +36,14 @@ class SarDiagnosticsSinkNode
 public:
     SarDiagnosticsSinkNode() = default;
 
-    bool Consume(const SarAccelControlToken& value,
+    bool Consume(const SarControlToken& value,
                  std::integral_constant<std::size_t, 0>) override;
 
     [[nodiscard]] std::size_t consume_count() const noexcept {
         return consume_count_;
     }
 
-    [[nodiscard]] const SarAccelControlToken& last_token() const noexcept {
+    [[nodiscard]] const SarControlToken& last_token() const noexcept {
         return last_token_;
     }
 
@@ -75,11 +75,11 @@ public:
     void UpdateFromGraphMetrics(const graph::GraphMetrics& metrics);
 
 private:
-    void UpdateDiagnostics(const SarAccelControlToken& value);
+    void UpdateDiagnostics(const SarControlToken& value);
     void SignalCompletion();
 
     std::size_t consume_count_{0};
-    SarAccelControlToken last_token_{};
+    SarControlToken last_token_{};
     SarDiagnosticsSnapshot diagnostics_{};
     bool completion_signal_enabled_{true};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};

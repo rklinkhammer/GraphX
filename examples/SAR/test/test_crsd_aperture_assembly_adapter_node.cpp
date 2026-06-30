@@ -55,8 +55,8 @@ std::vector<std::string> FixturePaths() {
     };
 }
 
-sar::SarAccelControlToken MakeDataToken(std::uint64_t segment_index) {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakeDataToken(std::uint64_t segment_index) {
+    sar::SarControlToken token{};
     token.sidecar.marker = sar::SarFrameMarker::Data;
     token.sidecar.sequence_id = segment_index;
     token.sidecar.pulse_range_start = segment_index * 2u;
@@ -66,8 +66,8 @@ sar::SarAccelControlToken MakeDataToken(std::uint64_t segment_index) {
     return token;
 }
 
-sar::SarAccelControlToken MakeEosToken() {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakeEosToken() {
+    sar::SarControlToken token{};
     token.sidecar.marker = sar::SarFrameMarker::EndOfStream;
     token.sidecar.sequence_id = 999u;
     return token;
@@ -452,9 +452,9 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, InconsistentChannelIdAcrossSegmentsRej
         graph::ConfigError);
 }
 
-// --- PR3b: SarAccelControlToken preservation ---
+// --- PR3b: SarControlToken preservation ---
 
-TEST(CrsdApertureAssemblyAdapterNodeTest, SarAccelControlTokenPreservedThroughAdapterBoundary) {
+TEST(CrsdApertureAssemblyAdapterNodeTest, SarControlTokenPreservedThroughAdapterBoundary) {
     auto result = MakeValidThreeSegmentResult();
     auto fake_reader = std::make_shared<FakeReader>(result);
     sar::CrsdApertureAssemblyAdapterNode adapter(sar::CrsdApertureAssemblyAdapterConfig{}, fake_reader);
@@ -467,7 +467,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, SarAccelControlTokenPreservedThroughAd
     }
 
     // Build EOS token with distinctive sidecar identity fields.
-    sar::SarAccelControlToken eos_token = MakeEosToken();
+    sar::SarControlToken eos_token = MakeEosToken();
     eos_token.sidecar.stream_id = 17u;
     eos_token.sidecar.backend_id = 3u;
     eos_token.sidecar.payload_byte_count = 123u;

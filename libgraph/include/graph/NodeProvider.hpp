@@ -35,6 +35,8 @@ enum class NodeCreationError {
     NotInitialized = 3,
     CreationFailed = 4,
     InvalidArgument = 5,
+    Unsupported = 6,
+    BackendUnavailable = 7,
     Unknown = 99,
 };
 

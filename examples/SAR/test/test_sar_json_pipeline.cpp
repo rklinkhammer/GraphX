@@ -58,7 +58,7 @@ std::shared_ptr<sar::SarMaterializedImageSinkNode> ResolveMaterializedSink(
     return nullptr;
 }
 
-void AssertEosSidecarIdentity(const sar::SarAccelControlToken& status,
+void AssertEosSidecarIdentity(const sar::SarControlToken& status,
                               std::uint64_t expected_sequence_id,
                               std::uint32_t expected_stream_id,
                               std::uint32_t expected_tile_count,

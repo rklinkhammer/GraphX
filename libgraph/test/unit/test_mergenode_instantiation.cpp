@@ -8,7 +8,7 @@
  */
 #include <gtest/gtest.h>
 #include <memory>
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "graph/Message.hpp"
 
 using namespace graph;

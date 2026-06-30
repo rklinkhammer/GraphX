@@ -34,10 +34,10 @@ std::string AzimuthTileSplitPluginFilename() {
     return std::string("libazimuth_tile_split_node") + kSharedLibraryExtension;
 }
 
-sar::SarAccelControlToken MakeToken(
+sar::SarControlToken MakeToken(
     std::uint64_t sequence_id,
     sar::SarFrameMarker marker = sar::SarFrameMarker::Data) {
-    sar::SarAccelControlToken token{};
+    sar::SarControlToken token{};
     token.token_id = sequence_id;
     token.sidecar.sequence_id = sequence_id;
     token.sidecar.batch_id = 5;
@@ -69,7 +69,7 @@ TEST(AzimuthTileSplitNodeTest, SplitsToDeterministicTileAndEmitsAccelToken) {
     cfg.backend = sar::SarBackendKind::SimulatedDevice;
 
     sar::AzimuthTileSplitNode node(cfg);
-    const sar::SarAccelControlToken input = MakeToken(7);
+    const sar::SarControlToken input = MakeToken(7);
 
     auto out = node.Transfer(
         input,
@@ -97,7 +97,7 @@ TEST(AzimuthTileSplitNodeTest, PropagatesEndOfStreamWithStableTileMetadata) {
     cfg.backend = sar::SarBackendKind::Host;
 
     sar::AzimuthTileSplitNode node(cfg);
-    const sar::SarAccelControlToken eos_input = MakeToken(10, sar::SarFrameMarker::EndOfStream);
+    const sar::SarControlToken eos_input = MakeToken(10, sar::SarFrameMarker::EndOfStream);
 
     auto out = node.Transfer(
         eos_input,

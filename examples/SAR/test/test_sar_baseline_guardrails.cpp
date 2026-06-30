@@ -70,9 +70,9 @@ TEST(SarBaselineGuardrailTest, CanonicalGpuPathUsesAccelTokenContract) {
 
   for (const auto &mapping : config.at("resolver_mappings")) {
     EXPECT_EQ(mapping.at("input_token_type").get<std::string>(),
-              "SarAccelControlToken");
+              "SarControlToken");
     EXPECT_EQ(mapping.at("output_token_type").get<std::string>(),
-              "SarAccelControlToken");
+              "SarControlToken");
   }
 }
 

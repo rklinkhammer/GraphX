@@ -15,13 +15,13 @@
 
 namespace {
 
-sar::SarAccelControlToken MakeTile(
+sar::SarControlToken MakeTile(
     std::uint64_t sequence_id,
     std::uint32_t tile_id,
     sar::SarFrameMarker marker,
     std::size_t byte_count = 16u,
     std::uint32_t stream_id = 1u) {
-    sar::SarAccelControlToken msg{};
+    sar::SarControlToken msg{};
     msg.token_id = (sequence_id << 16u) | static_cast<std::uint64_t>(tile_id);
     msg.sidecar.sequence_id = sequence_id;
     msg.sidecar.batch_id = stream_id;

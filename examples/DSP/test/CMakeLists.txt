@@ -18,7 +18,6 @@ add_executable(test_dsp_example_unit
     test_dsp_fhss_dashboard_step8.cpp
 )
 
-target_compile_features(test_dsp_example_unit PRIVATE cxx_std_26)
 target_compile_definitions(test_dsp_example_unit PRIVATE
     DSP_SPECTRUM_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_spectrum_demo>"
     DSP_FHSS_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_fhss_demo>"

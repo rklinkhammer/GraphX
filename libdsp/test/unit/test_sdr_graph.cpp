@@ -16,7 +16,7 @@
 #include "dsp/SineSignalNode.hpp"
 #include "dsp/SpectrumSinkNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/NodeProvider.hpp"
 #include "test/PluginInfrastructure.hpp"

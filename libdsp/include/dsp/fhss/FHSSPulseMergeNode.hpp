@@ -62,6 +62,10 @@ public:
     return "FHSSPulseMergeNode";
   }
 
+  [[nodiscard]] std::size_t LastMergedPulseCount() const noexcept {
+    return last_merged_pulse_count_;
+  }
+
   std::vector<graph::PortMetadata> GetInputPortMetadata() const override {
     std::vector<graph::PortMetadata> out;
     out.reserve(NInputs);
@@ -196,7 +200,7 @@ public:
 private:
   std::optional<OutputTokenType>
   BuildOutput(std::uint64_t token_id,
-              const std::vector<FHSSLocalPulseDetection> &detections) const {
+              const std::vector<FHSSLocalPulseDetection> &detections) {
     auto merged = FHSSPulseMergeKernel::Merge(detections, config_);
     OutputTokenType output{};
     output.token_id = token_id;
@@ -207,6 +211,7 @@ private:
     }
     output.sidecar.globally_ordered = true;
     output.sidecar.unsupported_overlap_rejected = true;
+    last_merged_pulse_count_ = output.sidecar.ordered_candidates.size();
     return output;
   }
 
@@ -215,6 +220,7 @@ private:
   std::vector<FHSSLocalPulseDetection> pending_per_channel_detections_;
   std::optional<std::uint64_t> batch_token_id_;
   bool per_channel_output_emitted_ = false;
+  std::size_t last_merged_pulse_count_{0};
 };
 
 } // namespace dsp::fhss

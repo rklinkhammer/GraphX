@@ -15,7 +15,6 @@
 
 #include "gpu/accel/types/AccelValidation.hpp"
 #include "gpu/metal/capabilities/DefaultMetalCapabilities.hpp"
-#include "gpu/metal/nodes/CollectiveReduceNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceKernelNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceReduceNodeMetal.hpp"
 #include "gpu/metal/nodes/DeviceShardNodeMetal.hpp"
@@ -102,34 +101,29 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     auto transfer = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTransferCapability>();
     auto kernel = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalKernelCapability>();
     auto telemetry = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalTelemetryCapability>();
-    auto collective_cap = std::make_shared<graph::gpu::metal::capabilities::DefaultMetalCollectiveCapability>();
 
     bus.Register<graph::gpu::metal::capabilities::IMetalContextCapability>(context);
     bus.Register<graph::gpu::metal::capabilities::IMetalMemoryPoolCapability>(memory_pool);
     bus.Register<graph::gpu::metal::capabilities::IMetalTransferCapability>(transfer);
     bus.Register<graph::gpu::metal::capabilities::IMetalKernelCapability>(kernel);
     bus.Register<graph::gpu::metal::capabilities::IMetalTelemetryCapability>(telemetry);
-    bus.Register<graph::gpu::metal::capabilities::IMetalCollectiveCapability>(collective_cap);
 
     graph::gpu::metal::nodes::DeviceTransformNodeMetal transform;
     graph::gpu::metal::nodes::DeviceReduceNodeMetal reduce;
     graph::gpu::metal::nodes::QueueSyncNodeMetal sync;
     graph::gpu::metal::nodes::DeviceShardNodeMetal shard;
     graph::gpu::metal::nodes::PeerCopyNodeMetal peer_copy;
-    graph::gpu::metal::nodes::CollectiveReduceNodeMetal collective;
 
     ASSERT_TRUE(transform.BindGpuCapabilities(bus));
     ASSERT_TRUE(reduce.BindGpuCapabilities(bus));
     ASSERT_TRUE(sync.BindGpuCapabilities(bus));
     ASSERT_TRUE(shard.BindGpuCapabilities(bus));
     ASSERT_TRUE(peer_copy.BindGpuCapabilities(bus));
-    ASSERT_TRUE(collective.BindGpuCapabilities(bus));
 
     transform.ConfigureKernel(7U, "metal_transform", 0U, 3U);
     reduce.ConfigureKernel(8U, "metal_reduce", 0U, 4U);
     sync.SetQueue(5U);
     shard.ConfigureShard(0U, 2U);
-    collective.ConfigureCollective(9U, 0U, 2U);
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
@@ -192,10 +186,6 @@ TEST(GpuMetalNodeBaseline, ComputeAndControlNodesAcceptMetalPayloads) {
     EXPECT_TRUE(graph::gpu::accel::IsValidView(*peer_copied));
     EXPECT_NE(peer_copied->device_ptr, sharded->device_ptr);
 
-    auto collectively_reduced = collective.Transfer(*peer_copied,
-                                                     std::integral_constant<std::size_t, 0>{},
-                                                     std::integral_constant<std::size_t, 0>{});
-    EXPECT_FALSE(collectively_reduced.has_value());
 }
 
 TEST(GpuMetalNodeBaseline, DeviceKernelNodeAllocatesConfiguredOutputAndLaunchesDescriptor) {

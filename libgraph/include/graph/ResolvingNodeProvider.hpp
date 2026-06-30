@@ -42,7 +42,23 @@ struct NodeResolutionDiagnostic {
     std::string input_token_type;
     std::string output_token_type;
     bool fallback_used{false};
+    ResolverResolutionState state{ResolverResolutionState::Selected};
 };
+
+struct NodeResolutionFailure {
+    std::string intent_type;
+    ResolverBackend requested_backend{ResolverBackend::Unknown};
+    ResolverResolutionState state{ResolverResolutionState::Unavailable};
+    std::string detail;
+};
+
+using NodeResolutionResult =
+    std::expected<NodeResolutionDiagnostic, NodeResolutionFailure>;
+
+[[nodiscard]] nlohmann::json
+NodeResolutionDiagnosticToJson(const NodeResolutionDiagnostic& diagnostic);
+[[nodiscard]] nlohmann::json
+NodeResolutionFailureToJson(const NodeResolutionFailure& failure);
 
 /**
  * @class ResolvingNodeProvider
@@ -88,7 +104,7 @@ public:
      */
     [[nodiscard]] std::vector<std::string> GetAvailableNodeTypes() const override;
 
-    [[nodiscard]] std::optional<NodeResolutionDiagnostic>
+    [[nodiscard]] NodeResolutionResult
     /**
      * @brief Updates or queries runtime registration through Resolve Node Type.
      *
@@ -108,8 +124,13 @@ public:
         return diagnostics_;
     }
 
+    [[nodiscard]] const std::vector<NodeResolutionFailure>&
+    resolution_failures() const noexcept {
+        return resolution_failures_;
+    }
+
 private:
-    [[nodiscard]] std::optional<NodeResolutionDiagnostic>
+    [[nodiscard]] NodeResolutionResult
     ResolveWithAvailability(const std::string& node_type_name,
                             const AvailabilityFn& available) const;
 
@@ -117,6 +138,7 @@ private:
     GraphConfig::ResolverConfig resolver_config_{};
     NodeResolutionRegistry resolution_registry_;
     std::vector<NodeResolutionDiagnostic> diagnostics_{};
+    std::vector<NodeResolutionFailure> resolution_failures_{};
 };
 
 } // namespace graph

@@ -2,7 +2,7 @@
 
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"

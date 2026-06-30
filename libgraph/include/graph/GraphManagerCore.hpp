@@ -47,7 +47,7 @@
 #include <cstdlib>
 #include "core/ReflectionHelper.hpp"
 #include "config/Errors.hpp"
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "graph/DynamicEdge.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/PooledMessage.hpp"

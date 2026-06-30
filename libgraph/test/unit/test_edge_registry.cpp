@@ -36,7 +36,7 @@
 #include <mutex>
 #include <span>
 #include "graph/EdgeRegistry.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/PortSpec.hpp"
 #include "test/AdvancedTestNodes.hpp"
 

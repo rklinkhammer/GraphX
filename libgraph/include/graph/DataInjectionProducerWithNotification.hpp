@@ -33,7 +33,7 @@
 #include <chrono>
 #include <memory>
 #include <optional>
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "graph/Message.hpp"
 #include "graph/CompletionSignal.hpp"
 #include "graph/DataInjectionGeneratorBase.hpp"

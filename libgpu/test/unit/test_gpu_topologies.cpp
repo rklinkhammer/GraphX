@@ -18,7 +18,7 @@
 #include "capabilities/GraphCapability.hpp"
 #include "graph/CapabilityBus.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "test/PluginInfrastructure.hpp"
 
 #include "gpu/cuda/capabilities/DefaultCudaCapabilities.hpp"

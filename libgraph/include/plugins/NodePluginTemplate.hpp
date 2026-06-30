@@ -55,7 +55,7 @@
 #include <ranges>
 #include <span>
 #include <iostream>
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "graph/NodeMetadataService.hpp"
 #include "graph/NodeFacade.hpp"
 #include "graph/NodePluginInstance.hpp"

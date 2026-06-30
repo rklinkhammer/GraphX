@@ -37,13 +37,13 @@ std::string ImageTileMergePluginFilename() {
     return std::string("libimage_tile_merge_node") + kSharedLibraryExtension;
 }
 
-sar::SarAccelControlToken MakeImageTile(
+sar::SarControlToken MakeImageTile(
     std::uint64_t sequence_id,
     std::uint32_t tile_id,
     sar::SarFrameMarker marker = sar::SarFrameMarker::Data,
     std::size_t byte_count = 16u,
     std::uint32_t stream_id = 3u) {
-    sar::SarAccelControlToken msg{};
+    sar::SarControlToken msg{};
     msg.token_id = (sequence_id << 16u) | static_cast<std::uint64_t>(tile_id);
     msg.sidecar.sequence_id = sequence_id;
     msg.sidecar.batch_id = stream_id;
@@ -246,10 +246,10 @@ TEST(ImageTileMergeNodeTest, DynamicPluginLoadAndBehaviorValidation) {
 TEST(ImageTileMergeNodeTest, MergeBoundaryConsumesAndEmitsTokenContract) {
     static_assert(std::is_same_v<
                   decltype(std::declval<sar::ImageTileMergeNode>().Transfer(
-                      std::declval<const sar::SarAccelControlToken&>(),
+                      std::declval<const sar::SarControlToken&>(),
                       std::integral_constant<std::size_t, 0>{},
                       std::integral_constant<std::size_t, 0>{})),
-                  std::optional<sar::SarAccelControlToken>>);
+                  std::optional<sar::SarControlToken>>);
     SUCCEED();
 }
 

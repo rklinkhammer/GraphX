@@ -38,8 +38,8 @@ struct AzimuthTileSplitConfig {
  */
 class AzimuthTileSplitNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           AzimuthTileSplitNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
@@ -47,8 +47,8 @@ public:
     AzimuthTileSplitNode() = default;
     explicit AzimuthTileSplitNode(AzimuthTileSplitConfig config);
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& input,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -116,9 +116,9 @@ public:
     const AzimuthTileSplitConfig& GetConfig() const noexcept;
 
 private:
-    std::uint32_t ResolveTileId(const SarAccelControlToken& input) const;
-    SarAccelControlToken BuildDataTile(const SarAccelControlToken& input) const;
-    SarAccelControlToken BuildEndOfStreamTile(const SarAccelControlToken& input) const;
+    std::uint32_t ResolveTileId(const SarControlToken& input) const;
+    SarControlToken BuildDataTile(const SarControlToken& input) const;
+    SarControlToken BuildEndOfStreamTile(const SarControlToken& input) const;
 
     AzimuthTileSplitConfig config_{};
     mutable nlohmann::json parameters_cache_{nlohmann::json::object()};

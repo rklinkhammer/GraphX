@@ -44,7 +44,7 @@ OrderedCrsdSetInputSourceNode::OrderedCrsdSetInputSourceNode(
     }
 }
 
-std::optional<SarAccelControlToken> OrderedCrsdSetInputSourceNode::Produce(
+std::optional<SarControlToken> OrderedCrsdSetInputSourceNode::Produce(
     std::integral_constant<std::size_t, 0>) {
     if (!read_result_.success) {
         return std::nullopt;
@@ -206,9 +206,9 @@ const graphx::sar::CrsdReadResult& OrderedCrsdSetInputSourceNode::GetLastReadRes
     return read_result_;
 }
 
-SarAccelControlToken OrderedCrsdSetInputSourceNode::MakeSegmentToken(
+SarControlToken OrderedCrsdSetInputSourceNode::MakeSegmentToken(
     const graphx::sar::CrsdSegmentRecord& segment) const {
-    SarAccelControlToken out{};
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = segment.segment_index;
     out.sidecar.batch_id = config_.stream_id;
@@ -230,7 +230,7 @@ SarAccelControlToken OrderedCrsdSetInputSourceNode::MakeSegmentToken(
     host_view.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(
@@ -240,8 +240,8 @@ SarAccelControlToken OrderedCrsdSetInputSourceNode::MakeSegmentToken(
     return out;
 }
 
-SarAccelControlToken OrderedCrsdSetInputSourceNode::MakeEndOfStreamToken() const {
-    SarAccelControlToken out{};
+SarControlToken OrderedCrsdSetInputSourceNode::MakeEndOfStreamToken() const {
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = static_cast<std::uint64_t>(read_result_.value.segments.size());
     out.sidecar.batch_id = config_.stream_id;
@@ -262,7 +262,7 @@ SarAccelControlToken OrderedCrsdSetInputSourceNode::MakeEndOfStreamToken() const
     host_view.backend =
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(1u);

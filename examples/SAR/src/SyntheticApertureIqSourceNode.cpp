@@ -36,7 +36,7 @@ SyntheticApertureIqSourceNode::SyntheticApertureIqSourceNode(
     SyntheticApertureIqSourceConfig config)
     : config_(config) {}
 
-std::optional<SarAccelControlToken> SyntheticApertureIqSourceNode::Produce(
+std::optional<SarControlToken> SyntheticApertureIqSourceNode::Produce(
     std::integral_constant<std::size_t, 0>) {
     if (eos_emitted_) {
         return std::nullopt;
@@ -47,7 +47,7 @@ std::optional<SarAccelControlToken> SyntheticApertureIqSourceNode::Produce(
         return MakeEndOfStreamToken();
     }
 
-    SarAccelControlToken out = MakeDataToken();
+    SarControlToken out = MakeDataToken();
     ++next_sequence_id_;
     return out;
 }
@@ -230,8 +230,8 @@ const SyntheticApertureIqSourceConfig& SyntheticApertureIqSourceNode::GetConfig(
     return config_;
 }
 
-SarAccelControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
-    SarAccelControlToken out{};
+SarControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = next_sequence_id_;
     out.sidecar.batch_id = config_.stream_id;
@@ -254,7 +254,7 @@ SarAccelControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout =
@@ -264,8 +264,8 @@ SarAccelControlToken SyntheticApertureIqSourceNode::MakeDataToken() const {
     return out;
 }
 
-SarAccelControlToken SyntheticApertureIqSourceNode::MakeEndOfStreamToken() const {
-    SarAccelControlToken out{};
+SarControlToken SyntheticApertureIqSourceNode::MakeEndOfStreamToken() const {
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = next_sequence_id_;
     out.sidecar.batch_id = config_.stream_id;
@@ -287,7 +287,7 @@ SarAccelControlToken SyntheticApertureIqSourceNode::MakeEndOfStreamToken() const
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(1u);

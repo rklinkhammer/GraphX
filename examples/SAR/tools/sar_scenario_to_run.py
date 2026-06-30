@@ -58,8 +58,8 @@ def build_local_replay_graph_template() -> dict[str, Any]:
         "resolver_mappings": [
             {
                 "intent_type": "SarBackprojectionTransformAccelNode",
-                "input_token_type": "SarAccelControlToken",
-                "output_token_type": "SarAccelControlToken",
+                "input_token_type": "SarControlToken",
+                "output_token_type": "SarControlToken",
                 "variants": [
                     {
                         "backend": backend,

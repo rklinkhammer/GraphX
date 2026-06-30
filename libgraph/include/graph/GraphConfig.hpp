@@ -57,14 +57,30 @@ enum class ResolverFallbackReason {
     RequestedBackendUnavailable,
 };
 
+enum class ResolverCapability {
+    Supported,
+    Unsupported,
+};
+
+enum class ResolverResolutionState {
+    Selected,
+    Fallback,
+    Unavailable,
+    Unsupported,
+};
+
 [[nodiscard]] const char* ToString(ResolverBackend backend) noexcept;
 [[nodiscard]] const char* ToString(ResolverFallbackPolicy policy) noexcept;
 [[nodiscard]] const char* ToString(ResolverFallbackReason reason) noexcept;
+[[nodiscard]] const char* ToString(ResolverCapability capability) noexcept;
+[[nodiscard]] const char* ToString(ResolverResolutionState state) noexcept;
 
 [[nodiscard]] std::optional<ResolverBackend> ParseResolverBackend(
     const std::string& backend) noexcept;
 [[nodiscard]] std::optional<ResolverFallbackPolicy> ParseResolverFallbackPolicy(
     const std::string& policy) noexcept;
+[[nodiscard]] std::optional<ResolverCapability> ParseResolverCapability(
+    const std::string& capability) noexcept;
 
 /**
  * @struct NodeConfig
@@ -223,6 +239,7 @@ struct GraphConfig {
     struct ResolverBackendVariant {
         ResolverBackend backend{ResolverBackend::Unknown};
         std::string concrete_type;
+        ResolverCapability capability{ResolverCapability::Supported};
     };
 
     /// Dynamic resolver mapping supplied by config or future plugin metadata.

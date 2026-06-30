@@ -7,12 +7,13 @@
 
 #pragma once
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "gpu/accel/types/AccelTypes.hpp"
 #include "sar/SarDiagnosticsSinkNode.hpp"
 
 #include <atomic>
+#include <cstddef>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -28,35 +29,46 @@ inline std::uint64_t ElapsedUs(const SteadyClock::time_point start) {
     return (count == 0u) ? 1u : count;
 }
 
-inline void* OpaqueHostPointer() noexcept {
-    return reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1u));
-}
+namespace detail {
 
-inline std::uint64_t OpaqueReadyEventNotSignaled() noexcept {
-    return 0u;
-}
-
-inline std::uint64_t NextOpaqueEventId() {
+inline std::uint64_t NextSyntheticCompletionEvent() {
     static std::atomic<std::uint64_t> next_event{1u};
     return next_event.fetch_add(1u, std::memory_order_relaxed);
 }
 
-inline void* SyntheticDevicePointer(std::uint64_t byte_count,
+inline void* SyntheticDeviceAddress(std::uint64_t byte_count,
                                     std::uint64_t sequence) noexcept {
     const auto token = ((byte_count + 1u) << 8u) | ((sequence + 1u) & 0xFFu);
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(token));
 }
 
-inline void* SyntheticDevicePointer(
-    const graph::gpu::accel::HostPinnedBufferView& input,
-    std::uint64_t sequence) noexcept {
-    return SyntheticDevicePointer(input.bytes, sequence);
+} // namespace detail
+
+inline graph::gpu::accel::HostPinnedBufferView MakeSyntheticHostView(
+    graph::gpu::accel::HostPinnedBufferView view) noexcept {
+    static std::byte storage{};
+    view.host_ptr = &storage;
+    return view;
 }
 
-inline void* SyntheticDevicePointer(
-    const graph::gpu::accel::DeviceBufferView& input,
+inline graph::gpu::accel::DeviceBufferView MakeSyntheticDeviceView(
+    graph::gpu::accel::DeviceBufferView view,
     std::uint64_t sequence) noexcept {
-    return SyntheticDevicePointer(input.bytes, sequence);
+    view.device_ptr = detail::SyntheticDeviceAddress(view.bytes, sequence);
+    view.ready_event = 0u;
+    return view;
+}
+
+inline graph::gpu::accel::TransferTicket MakeSyntheticTransferTicket(
+    graph::gpu::accel::TransferTicket ticket) {
+    ticket.completion_event = detail::NextSyntheticCompletionEvent();
+    return ticket;
+}
+
+inline graph::gpu::accel::KernelTicket MakeSyntheticKernelTicket(
+    graph::gpu::accel::KernelTicket ticket) {
+    ticket.completion_event = detail::NextSyntheticCompletionEvent();
+    return ticket;
 }
 
 inline std::shared_ptr<SarDiagnosticsSinkNode> ResolveDiagnosticsSink(

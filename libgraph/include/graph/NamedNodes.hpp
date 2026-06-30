@@ -51,7 +51,7 @@
 
 #pragma once
 
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "core/ActiveQueue.hpp"
 #include <iostream>
 #include <cassert>

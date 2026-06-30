@@ -21,11 +21,11 @@ namespace {
 RangeWindowNode::RangeWindowNode(RangeWindowConfig config)
     : config_(config) {}
 
-std::optional<SarAccelControlToken> RangeWindowNode::Transfer(
-    const SarAccelControlToken& input,
+std::optional<SarControlToken> RangeWindowNode::Transfer(
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    SarAccelControlToken out = input;
+    SarControlToken out = input;
     if (!config_.enabled || input.sidecar.marker == SarFrameMarker::EndOfStream) {
         return out;
     }

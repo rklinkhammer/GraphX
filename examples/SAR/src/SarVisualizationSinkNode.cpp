@@ -29,8 +29,8 @@ std::string Lowercase(std::string value) {
 
 } // namespace
 
-std::optional<SarAccelControlToken> SarVisualizationSinkNode::Transfer(
-    const SarAccelControlToken& value,
+std::optional<SarControlToken> SarVisualizationSinkNode::Transfer(
+    const SarControlToken& value,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled) {
@@ -149,7 +149,7 @@ std::vector<std::string> SarVisualizationSinkNode::GetParameterNames() const {
     };
 }
 
-bool SarVisualizationSinkNode::WriteArtifact(const SarAccelControlToken& value) {
+bool SarVisualizationSinkNode::WriteArtifact(const SarControlToken& value) {
     std::filesystem::create_directories(config_.output_dir);
 
     const auto sequence_id = value.sidecar.sequence_id;

@@ -40,7 +40,6 @@ set_target_properties(graphx_gotcha_to_crsd PROPERTIES
     OUTPUT_NAME "graphx-gotcha-to-crsd"
 )
 
-target_compile_features(sar_example PRIVATE cxx_std_26)
 target_link_libraries(sar_example PRIVATE dsp log4cxx)
 target_compile_definitions(sar_example PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
@@ -50,7 +49,6 @@ if(TARGET graphx_dynamic_nodes)
     add_dependencies(sar_example graphx_dynamic_nodes)
 endif()
 
-target_compile_features(sar_benchmark PRIVATE cxx_std_26)
 target_link_libraries(sar_benchmark PRIVATE dsp log4cxx)
 target_compile_definitions(sar_benchmark PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
@@ -60,7 +58,6 @@ if(TARGET graphx_dynamic_nodes)
     add_dependencies(sar_benchmark graphx_dynamic_nodes)
 endif()
 
-target_compile_features(graphx_gotcha_to_crsd PRIVATE cxx_std_26)
 target_link_libraries(graphx_gotcha_to_crsd PRIVATE dsp log4cxx)
 target_compile_definitions(graphx_gotcha_to_crsd PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"

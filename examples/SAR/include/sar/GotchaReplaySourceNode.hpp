@@ -78,14 +78,14 @@ public:
  * @brief GotchaReplaySourceNode class.
  */
 class GotchaReplaySourceNode
-    : public graph::NamedSourceNode<GotchaReplaySourceNode, SarAccelControlToken>,
+    : public graph::NamedSourceNode<GotchaReplaySourceNode, SarControlToken>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
     GotchaReplaySourceNode() = default;
     explicit GotchaReplaySourceNode(GotchaReplaySourceConfig config);
 
-    std::optional<SarAccelControlToken> Produce(
+    std::optional<SarControlToken> Produce(
         std::integral_constant<std::size_t, 0>) override;
 
     void Configure(const graph::JsonView& cfg) override;
@@ -133,8 +133,8 @@ public:
     const GotchaReplaySourceConfig& GetConfig() const noexcept;
 
 private:
-    SarAccelControlToken MakeMessage(const GotchaNormalizedPulseRecord& record) const;
-    SarAccelControlToken MakeControlMessage(SarFrameMarker marker) const;
+    SarControlToken MakeMessage(const GotchaNormalizedPulseRecord& record) const;
+    SarControlToken MakeControlMessage(SarFrameMarker marker) const;
 
     GotchaOfflineConverter converter_{};
     GotchaReplaySourceConfig config_{};

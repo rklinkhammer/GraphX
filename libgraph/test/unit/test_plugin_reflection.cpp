@@ -87,49 +87,19 @@ consteval PluginMetadata GetPluginMetadata<ReflectionPluginBeta>() {
 
 namespace {
 
-TEST(PluginReflectionRegistryTest, RegisterAndListPlugins) {
-    app::reflection::PluginRegistry registry;
-    app::reflection::ReflectionPluginAlpha alpha;
-    app::reflection::ReflectionPluginBeta beta;
+TEST(PluginReflectionMetadataTest, MetadataRemainsCompileTimeOnly) {
+    constexpr auto alpha =
+        app::reflection::GetPluginMetadata<app::reflection::ReflectionPluginAlpha>();
+    constexpr auto beta =
+        app::reflection::GetPluginMetadata<app::reflection::ReflectionPluginBeta>();
 
-    registry.Register(alpha);
-    registry.Register(beta);
+    static_assert(alpha.name == "ReflectionPluginAlpha");
+    static_assert(alpha.capabilities.size() == 2u);
+    static_assert(beta.name == "ReflectionPluginBeta");
+    static_assert(beta.capabilities.size() == 1u);
 
-    const auto all_plugins = registry.GetAllPlugins();
-    ASSERT_EQ(all_plugins.size(), 2u);
-
-    EXPECT_EQ(all_plugins[0].name, "ReflectionPluginAlpha");
-    EXPECT_EQ(all_plugins[1].name, "ReflectionPluginBeta");
-}
-
-TEST(PluginReflectionRegistryTest, FindPluginsByCapabilityReturnsMatchingPlugins) {
-    app::reflection::PluginRegistry registry;
-    app::reflection::ReflectionPluginAlpha alpha;
-    app::reflection::ReflectionPluginBeta beta;
-
-    registry.Register(alpha);
-    registry.Register(beta);
-
-    const auto configurable = registry.FindPluginsByCapability("IConfigurable");
-    ASSERT_EQ(configurable.size(), 1u);
-    EXPECT_EQ(configurable[0].name, "ReflectionPluginAlpha");
-
-    const auto diagnosable = registry.FindPluginsByCapability("IDiagnosable");
-    ASSERT_EQ(diagnosable.size(), 1u);
-    EXPECT_EQ(diagnosable[0].name, "ReflectionPluginBeta");
-}
-
-TEST(PluginReflectionRegistryTest, RegisterUpdatesExistingMetadataByPluginName) {
-    app::reflection::PluginRegistry registry;
-    app::reflection::ReflectionPluginAlpha alpha_first;
-    app::reflection::ReflectionPluginAlpha alpha_second;
-
-    registry.Register(alpha_first);
-    registry.Register(alpha_second);
-
-    const auto all_plugins = registry.GetAllPlugins();
-    ASSERT_EQ(all_plugins.size(), 1u);
-    EXPECT_EQ(all_plugins[0].name, "ReflectionPluginAlpha");
+    EXPECT_EQ(alpha.capabilities.front().name, "IConfigurable");
+    EXPECT_EQ(beta.capabilities.front().name, "IDiagnosable");
 }
 
 }  // namespace

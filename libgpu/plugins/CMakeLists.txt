@@ -250,17 +250,6 @@ target_include_directories(metal_peer_copy_node PRIVATE
 	${CMAKE_SOURCE_DIR}/libgraph/include
 )
 
-add_graphx_plugin(
-	TARGET_NAME metal_collective_reduce_node
-	SOURCE_FILE metal_collective_reduce_node_plugin.cpp
-	DESCRIPTION "Metal collective reduce node (runtime unsupported)"
-	DEPENDENCIES gpu
-)
-target_include_directories(metal_collective_reduce_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
 endif()
 
 # Real backend plugins remain backend-gated work. They should be introduced in

@@ -64,7 +64,7 @@ struct SarStageTimingMetrics {
     std::uint64_t diagnostics_sink_time_us{};
 };
 
-struct SarSidecar {
+struct SarPacket {
     std::uint64_t sequence_id{};
     std::uint64_t batch_id{};
     std::uint64_t aperture_id{};
@@ -98,7 +98,7 @@ struct SarSidecar {
     SarStageTimingMetrics stage_timings{};
 };
 
-// SarAccelControlToken carries both SAR identity semantics and opaque GPU transport metadata.
+// SarControlToken carries both SAR identity semantics and opaque GPU transport metadata.
 //
 // SAR IDENTITY SEMANTICS (from sidecar):
 // - SAR identity MUST be derived ONLY from the sidecar fields:
@@ -107,18 +107,18 @@ struct SarSidecar {
 //   kernel_queue_id, d2h_queue_id, expected_tiles, received_tiles, merge_complete, etc.
 // - All SAR algorithm decisions, data flow routing, and correctness checks must use sidecar.
 //
-// OPAQUE TRANSPORT METADATA (from device_view.ready_event and host_view.host_ptr):
+// TRANSPORT METADATA (from typed views and tickets):
 // - device_view.ready_event: Opaque GPU event ID for synchronization. Not used for identity.
-// - host_view.host_ptr: Opaque host pointer sentinel. Not used for identity.
+// - host_view.host_ptr: Host storage address. Not used for identity.
 // - These fields are set by transport infrastructure (H2D/D2H nodes) and may be synthetic.
 // - Transport semantics derive from GPU/accel infrastructure, NOT from SAR domain logic.
 // - Code must NOT use device_view.ready_event or host_view.host_ptr for SAR identity decisions.
 //
 // This contract ensures SAR algorithm logic is decoupled from GPU transport implementation.
-using SarAccelControlToken = graph::gpu::accel::ControlToken<SarSidecar>;
+using SarControlToken = graph::gpu::accel::ControlToken<SarPacket>;
 
 struct SarDiagnosticsSnapshot {
-    SarSidecar sidecar{};
+    SarPacket sidecar{};
     SarStageTimingMetrics stage_timings{};
     std::uint64_t pulses_processed{};
     std::uint64_t tiles_processed{};
@@ -137,8 +137,8 @@ struct SarDiagnosticsSnapshot {
     std::uint64_t peak_queue_depth{};
 };
 
-static_assert(std::is_standard_layout_v<SarSidecar>);
-static_assert(std::is_standard_layout_v<SarAccelControlToken>);
+static_assert(std::is_standard_layout_v<SarPacket>);
+static_assert(std::is_standard_layout_v<SarControlToken>);
 static_assert(std::is_standard_layout_v<SarDiagnosticsSnapshot>);
 
 using SarIqSample = std::complex<float>;

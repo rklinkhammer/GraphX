@@ -11,7 +11,6 @@ set_target_properties(dsp_spectrum_demo PROPERTIES
     OUTPUT_NAME "graphx-dsp-spectrum-demo"
 )
 
-target_compile_features(dsp_spectrum_demo PRIVATE cxx_std_26)
 # The graph runtime currently resolves its GPU capability bootstrap symbol from libgpu;
 # the DSP demo topology itself remains CPU-only.
 target_link_libraries(dsp_spectrum_demo PRIVATE dsp log4cxx)
@@ -32,7 +31,6 @@ set_target_properties(dsp_fhss_demo PROPERTIES
     OUTPUT_NAME "graphx-dsp-fhss-demo"
 )
 
-target_compile_features(dsp_fhss_demo PRIVATE cxx_std_26)
 # The FHSS fixture graph is CPU-only, but the graph runtime resolves its
 # accelerator token bootstrap symbols from libgpu.
 target_link_libraries(dsp_fhss_demo PRIVATE dsp log4cxx)

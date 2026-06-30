@@ -27,7 +27,7 @@
 // SOFTWARE.
 
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "capabilities/GraphCapability.hpp"
 #include "graph/CapabilityContext.hpp"
 #include "graph/ICompletionCallback.hpp"

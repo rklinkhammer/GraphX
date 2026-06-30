@@ -67,6 +67,24 @@ const char* ToString(ResolverFallbackReason reason) noexcept {
     }
 }
 
+const char* ToString(ResolverCapability capability) noexcept {
+    switch (capability) {
+        case ResolverCapability::Supported: return "supported";
+        case ResolverCapability::Unsupported: return "unsupported";
+    }
+    return "unsupported";
+}
+
+const char* ToString(ResolverResolutionState state) noexcept {
+    switch (state) {
+        case ResolverResolutionState::Selected: return "selected";
+        case ResolverResolutionState::Fallback: return "fallback";
+        case ResolverResolutionState::Unavailable: return "unavailable";
+        case ResolverResolutionState::Unsupported: return "unsupported";
+    }
+    return "unsupported";
+}
+
 std::optional<ResolverBackend> ParseResolverBackend(
     const std::string& backend) noexcept {
     const auto normalized = ToLowerCopy(backend);
@@ -103,6 +121,14 @@ std::optional<ResolverFallbackPolicy> ParseResolverFallbackPolicy(
     if (normalized == "allow_fallback") {
         return ResolverFallbackPolicy::AllowFallback;
     }
+    return std::nullopt;
+}
+
+std::optional<ResolverCapability> ParseResolverCapability(
+    const std::string& capability) noexcept {
+    const auto normalized = ToLowerCopy(capability);
+    if (normalized == "supported") return ResolverCapability::Supported;
+    if (normalized == "unsupported") return ResolverCapability::Unsupported;
     return std::nullopt;
 }
 
@@ -203,6 +229,7 @@ void NodeResolutionRegistry::AddMappings(
             contract.variants.push_back(NodeResolutionVariant{
                 .backend = variant.backend,
                 .concrete_type = variant.concrete_type,
+                .capability = variant.capability,
             });
         }
         AddContract(std::move(contract));

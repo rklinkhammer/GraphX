@@ -17,7 +17,7 @@
 
 namespace {
 
-sar::SarAccelControlToken MakeStatus(
+sar::SarControlToken MakeStatus(
     std::uint64_t sequence_id,
     sar::SarFrameMarker marker,
     bool complete,
@@ -28,7 +28,7 @@ sar::SarAccelControlToken MakeStatus(
     std::uint64_t bytes_d2h,
     std::uint64_t kernel_dispatches,
     std::uint64_t fanin_wait_ms) {
-    sar::SarAccelControlToken msg{};
+    sar::SarControlToken msg{};
     msg.sidecar.sequence_id = sequence_id;
     msg.sidecar.stream_id = 42;
     msg.sidecar.tile_id = 0;
@@ -157,7 +157,7 @@ TEST(SarDiagnosticsContractTest, EmitsDeterministicMetricsJsonBaselineFields) {
 TEST(SarDiagnosticsContractTest, DiagnosticsBoundaryConsumesTokenContract) {
     static_assert(std::is_same_v<
                   decltype(std::declval<sar::SarDiagnosticsSinkNode>().Consume(
-                      std::declval<const sar::SarAccelControlToken&>(),
+                      std::declval<const sar::SarControlToken&>(),
                       std::integral_constant<std::size_t, 0>{})),
                   bool>);
     SUCCEED();

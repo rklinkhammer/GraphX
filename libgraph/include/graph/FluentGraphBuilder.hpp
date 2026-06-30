@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/EdgeRegistry.hpp"
 #include "graph/INode.hpp"
 #include <memory>

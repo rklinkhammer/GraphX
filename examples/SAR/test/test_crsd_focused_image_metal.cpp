@@ -152,7 +152,7 @@ std::optional<sar::SarPhaseHistoryControlMessage> BuildAssembledFrame(
 
     const auto segment_count = fake_reader->ReadOrderedSet({}).value.segments.size();
     for (std::uint64_t i = 0u; i < segment_count; ++i) {
-        sar::SarAccelControlToken tok{};
+        sar::SarControlToken tok{};
         tok.sidecar.sequence_id = i;
         tok.sidecar.stream_id = 3u;
         tok.sidecar.tile_id = 0u;
@@ -163,7 +163,7 @@ std::optional<sar::SarPhaseHistoryControlMessage> BuildAssembledFrame(
             std::integral_constant<std::size_t, 0>{});
     }
 
-    sar::SarAccelControlToken eos{};
+    sar::SarControlToken eos{};
     eos.sidecar.sequence_id = segment_count;
     eos.sidecar.stream_id = 3u;
     eos.sidecar.tile_id = 0u;
@@ -343,7 +343,7 @@ TEST(CrsdFocusedImageMetalTest, GuardrailRejectsForwardOnlyMetalExecution) {
     EXPECT_FALSE(result.has_value());
 }
 
-TEST(CrsdFocusedImageMetalTest, PreservesSarAccelControlTokenIdentityWithGpuBackfillDiagnostics) {
+TEST(CrsdFocusedImageMetalTest, PreservesSarControlTokenIdentityWithGpuBackfillDiagnostics) {
     const auto assembled = BuildAssembledFrame(MakeCoherentPointTargetResult(3u, 3u, 32u));
     ASSERT_TRUE(assembled.has_value());
 

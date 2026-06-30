@@ -66,8 +66,8 @@ std::string ReadText(const std::filesystem::path& path) {
         std::istreambuf_iterator<char>{}};
 }
 
-sar::SarAccelControlToken MakeMaterializedImageToken() {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakeMaterializedImageToken() {
+    sar::SarControlToken token{};
     token.token_id = 1701u;
     token.sidecar.sequence_id = 17u;
     token.sidecar.tile_id = 4u;

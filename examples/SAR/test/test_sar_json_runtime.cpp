@@ -65,8 +65,8 @@ void AssertPortableIntents(const nlohmann::json& config) {
         }
         ASSERT_TRUE(mapping.contains("input_token_type"));
         ASSERT_TRUE(mapping.contains("output_token_type"));
-        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarAccelControlToken");
-        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarAccelControlToken");
+        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarControlToken");
+        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarControlToken");
         if (mapping.at("intent_type").get<std::string>() == "SarBackprojectionTransformAccelNode") {
             has_backprojection_mapping = true;
             ASSERT_TRUE(mapping.contains("variants"));
@@ -98,8 +98,8 @@ void AssertDefinitiveSarAccelResolverMappings(const nlohmann::json& config) {
         seen_intents.insert(intent);
         ASSERT_TRUE(mapping.contains("input_token_type"));
         ASSERT_TRUE(mapping.contains("output_token_type"));
-        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarAccelControlToken");
-        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarAccelControlToken");
+        EXPECT_EQ(mapping.at("input_token_type").get<std::string>(), "SarControlToken");
+        EXPECT_EQ(mapping.at("output_token_type").get<std::string>(), "SarControlToken");
     }
 
     EXPECT_EQ(seen_intents, expected_intents);
@@ -435,16 +435,16 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     ASSERT_NE(h2d, nullptr);
     EXPECT_EQ(h2d->concrete_type, "H2DAsyncAccelNode");
     EXPECT_EQ(h2d->selected_backend, graph::ResolverBackend::Metal);
-    EXPECT_EQ(h2d->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(h2d->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(h2d->input_token_type, "SarControlToken");
+    EXPECT_EQ(h2d->output_token_type, "SarControlToken");
     EXPECT_FALSE(h2d->fallback_used);
 
     const auto* d2h = FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncAccelNode");
     ASSERT_NE(d2h, nullptr);
     EXPECT_EQ(d2h->concrete_type, "D2HAsyncAccelNode");
     EXPECT_EQ(d2h->selected_backend, graph::ResolverBackend::Metal);
-    EXPECT_EQ(d2h->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(d2h->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(d2h->input_token_type, "SarControlToken");
+    EXPECT_EQ(d2h->output_token_type, "SarControlToken");
     EXPECT_FALSE(d2h->fallback_used);
 
     const auto* bp = FindResolverDiagnostic(
@@ -452,8 +452,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     ASSERT_NE(bp, nullptr);
     EXPECT_EQ(bp->concrete_type, "SarBackprojectionTransformAccelNode");
     EXPECT_EQ(bp->selected_backend, graph::ResolverBackend::Metal);
-    EXPECT_EQ(bp->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(bp->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(bp->input_token_type, "SarControlToken");
+    EXPECT_EQ(bp->output_token_type, "SarControlToken");
     EXPECT_FALSE(bp->fallback_used);
 
     std::error_code remove_error;
@@ -601,12 +601,12 @@ TEST(SarJsonRuntimeTest, ResolverSelectedDeviceStagesPreserveSidecarIdentityAndO
     EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "H2DAsyncNode"), nullptr);
     EXPECT_EQ(FindResolverDiagnostic(build_result.resolver_diagnostics, "D2HAsyncNode"), nullptr);
 
-    EXPECT_EQ(h2d_diagnostic->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(h2d_diagnostic->output_token_type, "SarAccelControlToken");
-    EXPECT_EQ(bp_diagnostic->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(bp_diagnostic->output_token_type, "SarAccelControlToken");
-    EXPECT_EQ(d2h_diagnostic->input_token_type, "SarAccelControlToken");
-    EXPECT_EQ(d2h_diagnostic->output_token_type, "SarAccelControlToken");
+    EXPECT_EQ(h2d_diagnostic->input_token_type, "SarControlToken");
+    EXPECT_EQ(h2d_diagnostic->output_token_type, "SarControlToken");
+    EXPECT_EQ(bp_diagnostic->input_token_type, "SarControlToken");
+    EXPECT_EQ(bp_diagnostic->output_token_type, "SarControlToken");
+    EXPECT_EQ(d2h_diagnostic->input_token_type, "SarControlToken");
+    EXPECT_EQ(d2h_diagnostic->output_token_type, "SarControlToken");
     EXPECT_FALSE(h2d_diagnostic->fallback_used);
     EXPECT_FALSE(bp_diagnostic->fallback_used);
     EXPECT_FALSE(d2h_diagnostic->fallback_used);
@@ -648,9 +648,6 @@ TEST(SarJsonRuntimeTest, ResolverSelectedDeviceStagesPreserveSidecarIdentityAndO
 
     EXPECT_NE(status.sidecar.sequence_id, status.transfer_ticket.completion_event);
     EXPECT_NE(status.sidecar.sequence_id, status.kernel_ticket.completion_event);
-    EXPECT_NE(
-        status.sidecar.sequence_id,
-        static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(status.host_view.host_ptr)));
 }
 
 TEST(SarJsonRuntimeTest, DefinitiveRangeWindowDeviceTransformSubstitutionIsBlockedByTokenContract) {

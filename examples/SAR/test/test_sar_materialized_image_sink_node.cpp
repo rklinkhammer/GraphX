@@ -15,13 +15,13 @@
 
 namespace {
 
-sar::SarAccelControlToken MakeHostToken(std::uint64_t token,
+sar::SarControlToken MakeHostToken(std::uint64_t token,
                                         std::uint64_t sequence_id,
                                         std::uint32_t tile_id,
                                         std::uint32_t marker,
                                         std::uint64_t bytes,
                                         bool with_kernel_ticket = false) {
-    sar::SarAccelControlToken msg{};
+    sar::SarControlToken msg{};
     msg.token_id = token;
     msg.sidecar.sequence_id = sequence_id;
     msg.sidecar.tile_id = tile_id;

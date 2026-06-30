@@ -295,7 +295,7 @@ TEST(OrderedCrsdSetInputSourceNodeTest, EmitsOneOrderedApertureSetStreamThenEos)
     ASSERT_TRUE(read_result.success);
     ASSERT_EQ(read_result.value.segments.size(), 3u);
 
-    std::vector<sar::SarAccelControlToken> tokens;
+    std::vector<sar::SarControlToken> tokens;
     while (true) {
         auto token = node.Produce(std::integral_constant<std::size_t, 0>{});
         if (!token.has_value()) {

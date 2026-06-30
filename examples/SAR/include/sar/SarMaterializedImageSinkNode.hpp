@@ -40,16 +40,16 @@ struct SarMaterializedCaptureMetadata {
  */
 class SarMaterializedImageSinkNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           SarMaterializedImageSinkNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
     SarMaterializedImageSinkNode() = default;
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& value,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& value,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

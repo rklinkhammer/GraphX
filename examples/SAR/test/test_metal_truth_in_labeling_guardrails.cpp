@@ -77,7 +77,7 @@ std::optional<sar::SarPhaseHistoryControlMessage> BuildAssembledFrame() {
     adapter.Configure(graph::JsonView(nlohmann::json{
         {"crsd_paths", nlohmann::json::array({"one/product.crsd"})}}));
 
-    sar::SarAccelControlToken tok{};
+    sar::SarControlToken tok{};
     tok.sidecar.sequence_id = 0;
     tok.sidecar.stream_id = 9;
     tok.sidecar.marker = sar::SarFrameMarker::Data;
@@ -86,7 +86,7 @@ std::optional<sar::SarPhaseHistoryControlMessage> BuildAssembledFrame() {
         std::integral_constant<std::size_t, 0>{},
         std::integral_constant<std::size_t, 0>{});
 
-    sar::SarAccelControlToken eos{};
+    sar::SarControlToken eos{};
     eos.sidecar.sequence_id = 1;
     eos.sidecar.stream_id = 9;
     eos.sidecar.marker = sar::SarFrameMarker::EndOfStream;
@@ -129,7 +129,7 @@ TEST(MetalTruthInLabelingGuardrailTest, InventoryDocumentClassifiesAllActiveMeta
     ASSERT_TRUE(std::filesystem::exists(path));
 
     const std::string text = ReadFile(path);
-    const std::array<const char*, 13> node_names = {
+    const std::array<const char*, 12> node_names = {
         "HostIngressPinnedSourceNodeMetal",
         "H2DAsyncNodeMetal",
         "D2HAsyncNodeMetal",
@@ -141,15 +141,13 @@ TEST(MetalTruthInLabelingGuardrailTest, InventoryDocumentClassifiesAllActiveMeta
         "DeviceKernelNodeMetal",
         "DeviceTransformNodeMetal",
         "DeviceReduceNodeMetal",
-        "CollectiveReduceNodeMetal",
         "CrsdFocusedImageTransformMetalNode",
     };
     for (const char* name : node_names) {
         EXPECT_NE(text.find(name), std::string::npos) << name;
     }
 
-    EXPECT_NE(text.find("PR6 gate: blocked"), std::string::npos);
-    EXPECT_NE(text.find("CollectiveReduceNodeMetal | unsupported"), std::string::npos);
+    EXPECT_EQ(text.find("CollectiveReduceNodeMetal"), std::string::npos);
     EXPECT_NE(text.find("CrsdFocusedImageTransformMetalNode | domain algorithm"), std::string::npos);
     EXPECT_NE(text.find("experimental incomplete"), std::string::npos);
 }

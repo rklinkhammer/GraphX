@@ -34,8 +34,8 @@ std::string RangeCompressionPluginFilename() {
     return std::string("librange_compression_node") + kSharedLibraryExtension;
 }
 
-sar::SarAccelControlToken MakeToken() {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakeToken() {
+    sar::SarControlToken token{};
     token.token_id = 44u;
     token.sidecar.sequence_id = 3u;
     token.sidecar.stream_id = 9u;

@@ -50,8 +50,8 @@ struct RangeCompressionConfig {
  */
 class RangeCompressionNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           RangeCompressionNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
@@ -59,8 +59,8 @@ public:
     RangeCompressionNode() = default;
     explicit RangeCompressionNode(RangeCompressionConfig config);
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& input,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

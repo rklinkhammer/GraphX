@@ -40,7 +40,7 @@ struct OrderedCrsdSetInputSourceConfig {
  * @brief OrderedCrsdSetInputSourceNode class.
  */
 class OrderedCrsdSetInputSourceNode
-    : public graph::NamedSourceNode<OrderedCrsdSetInputSourceNode, SarAccelControlToken>,
+    : public graph::NamedSourceNode<OrderedCrsdSetInputSourceNode, SarControlToken>,
     public graph::IConfigurable,
     public graph::IParameterized {
 public:
@@ -49,7 +49,7 @@ public:
         OrderedCrsdSetInputSourceConfig config,
         graphx::sar::CrsdReaderPtr reader = std::make_shared<graphx::sar::CrsdReader>());
 
-    std::optional<SarAccelControlToken> Produce(std::integral_constant<std::size_t, 0>) override;
+    std::optional<SarControlToken> Produce(std::integral_constant<std::size_t, 0>) override;
 
     void Configure(const graph::JsonView& cfg) override;
     graph::JsonView GetParameters() const override;
@@ -74,8 +74,8 @@ public:
     const graphx::sar::CrsdReadResult& GetLastReadResult() const noexcept;
 
 private:
-    SarAccelControlToken MakeSegmentToken(const graphx::sar::CrsdSegmentRecord& segment) const;
-    SarAccelControlToken MakeEndOfStreamToken() const;
+    SarControlToken MakeSegmentToken(const graphx::sar::CrsdSegmentRecord& segment) const;
+    SarControlToken MakeEndOfStreamToken() const;
 
     OrderedCrsdSetInputSourceConfig config_{};
     graphx::sar::CrsdReaderPtr reader_{};

@@ -27,7 +27,7 @@
 // SOFTWARE.
 
 
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/GraphExecutor.hpp"
 
 #include <chrono>

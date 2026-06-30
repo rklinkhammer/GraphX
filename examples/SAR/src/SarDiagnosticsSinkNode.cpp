@@ -88,7 +88,7 @@ graph::JsonView SarDiagnosticsSinkNode::GetDiagnostics() const {
     return graph::JsonView(diagnostics_cache_);
 }
 
-bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
+bool SarDiagnosticsSinkNode::Consume(const SarControlToken& value,
                                      std::integral_constant<std::size_t, 0>) {
     const auto stage_start = runtime::SteadyClock::now();
     last_token_ = value;
@@ -104,7 +104,7 @@ bool SarDiagnosticsSinkNode::Consume(const SarAccelControlToken& value,
     return true;
 }
 
-void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarAccelControlToken& value) {
+void SarDiagnosticsSinkNode::UpdateDiagnostics(const SarControlToken& value) {
     diagnostics_.sidecar = value.sidecar;
     diagnostics_.stage_timings = value.sidecar.stage_timings;
 

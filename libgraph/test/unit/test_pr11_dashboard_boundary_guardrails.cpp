@@ -49,6 +49,8 @@ TEST(PR11DashboardBoundaryGuardrailTest,
   EXPECT_FALSE(std::filesystem::exists(dashboard_include / "FHSSScenarioController.hpp"));
   EXPECT_FALSE(std::filesystem::exists(dashboard_include / "FHSSStepping.hpp"));
   EXPECT_FALSE(std::filesystem::exists(dashboard_src / "FHSSScenarioController.cpp"));
+  EXPECT_FALSE(std::filesystem::exists(
+      root / "libgraph" / "include" / "graph" / "fhss"));
 
   for (const auto &entry : std::filesystem::directory_iterator(dashboard_include)) {
     if (!entry.is_regular_file()) {

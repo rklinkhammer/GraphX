@@ -11,7 +11,7 @@
 #include <chrono>
 #include "test/TestGraphTopologies.hpp"
 #include "graph/CapabilityDiscovery.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/ICompletionCallback.hpp"

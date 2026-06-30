@@ -29,7 +29,7 @@
 
 #include <gtest/gtest.h>
 #include "graph/ThreadPool.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "test/TestGraphTopologies.hpp"
 #include "test/AdvancedTestNodes.hpp"
 #include <atomic>

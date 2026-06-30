@@ -14,7 +14,8 @@
 #include <chrono>
 #include "config/Config.hpp"
 #include "config/DataTypes.hpp"
-#include "graph/Nodes.hpp"
+#include "graph/NamedNodes.hpp"
+#include "graph/SplitNode.hpp"
 #include "graph/Message.hpp"
 #include "graph/ICompletionCallback.hpp"
 #include "graph/IConfigurable.hpp"

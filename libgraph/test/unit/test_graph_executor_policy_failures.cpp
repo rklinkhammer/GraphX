@@ -10,7 +10,7 @@
 
 #include "capabilities/GraphCapability.hpp"
 #include "graph/GraphExecutor.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/IExecutionPolicy.hpp"
 #include "test/TestGraphTopologies.hpp"
 

@@ -26,6 +26,27 @@ add_subdirectory(plugins)
 
 # Unit tests executable
 add_executable(test_libgraph_unit ${UNIT_TEST_SOURCES})
+
+set(PR10_SELF_CONTAINED_HEADERS
+    Lifecycle.hpp PortSpec.hpp PortTypes.hpp InputFunction.hpp
+    OutputFunction.hpp TransferFunction.hpp MergeFunction.hpp ThreadMetrics.hpp)
+foreach(_header IN LISTS PR10_SELF_CONTAINED_HEADERS)
+    string(REPLACE ".hpp" "" _stem "${_header}")
+    string(TOLOWER "${_stem}" _stem)
+    set(_target "pr10_header_${_stem}")
+    add_library(${_target} OBJECT header_self_containment.cpp)
+    target_include_directories(${_target} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+    if(MSVC)
+        target_compile_options(${_target} PRIVATE "/FIgraph/${_header}")
+    else()
+        target_compile_options(${_target} PRIVATE
+            "-include" "graph/${_header}")
+    endif()
+    target_link_libraries(${_target} PRIVATE
+        graphx_project_options graph log4cxx)
+    add_dependencies(test_libgraph_unit ${_target})
+endforeach()
 target_include_directories(test_libgraph_unit PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/include

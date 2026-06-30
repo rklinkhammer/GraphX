@@ -24,7 +24,7 @@
 
 namespace {
 
-void ExpectCoreSidecarIdentityEq(const sar::SarSidecar& actual, const sar::SarSidecar& expected) {
+void ExpectCoreSidecarIdentityEq(const sar::SarPacket& actual, const sar::SarPacket& expected) {
     EXPECT_EQ(actual.sequence_id, expected.sequence_id);
     EXPECT_EQ(actual.batch_id, expected.batch_id);
     EXPECT_EQ(actual.aperture_id, expected.aperture_id);
@@ -38,8 +38,8 @@ void ExpectCoreSidecarIdentityEq(const sar::SarSidecar& actual, const sar::SarSi
     EXPECT_EQ(actual.payload_byte_count, expected.payload_byte_count);
 }
 
-sar::SarAccelControlToken MakeHostToken() {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakeHostToken() {
+    sar::SarControlToken token{};
     token.token_id = 0x1000u;
     token.sidecar.sequence_id = 1u;
     token.sidecar.tile_id = 0u;
@@ -59,8 +59,8 @@ sar::SarAccelControlToken MakeHostToken() {
     return token;
 }
 
-sar::SarAccelControlToken MakePulseForTokenSidecar() {
-    sar::SarAccelControlToken token{};
+sar::SarControlToken MakePulseForTokenSidecar() {
+    sar::SarControlToken token{};
     token.token_id = 9u;
     token.sidecar.sequence_id = 9u;
     token.sidecar.batch_id = 5u;
@@ -148,9 +148,6 @@ TEST(SarAccelNodesTest, H2DTransformD2HContractFlowUsesAccelTypes) {
     ASSERT_TRUE(host_out.has_value());
     ASSERT_TRUE(host_out->has_host_view);
     EXPECT_TRUE(graph::gpu::accel::IsValidView(host_out->host_view));
-    EXPECT_EQ(
-        reinterpret_cast<std::uintptr_t>(host_out->host_view.host_ptr),
-        static_cast<std::uintptr_t>(0x1u));
     EXPECT_TRUE(graph::gpu::accel::IsValidLease(d2h.last_lease()));
     EXPECT_TRUE(graph::gpu::accel::IsValidTransferTicket(d2h.last_transfer_ticket()));
     EXPECT_EQ(d2h.last_transfer_ticket().execution_queue_id, 11u);
@@ -185,7 +182,7 @@ TEST(SarAccelNodesTest, NativeBackprojectionDelegatesToMetalKernelNodeAndPreserv
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(64, 0, input_lease));
-    sar::SarAccelControlToken input{};
+    sar::SarControlToken input{};
     input.token_id = 0xCAFEu;
     input.sidecar.sequence_id = 3u;
     input.sidecar.tile_id = 1u;
@@ -245,7 +242,7 @@ TEST(SarAccelNodesTest, NativeBackprojectionSupportsConfigurableKernelShapingPar
 
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(128, 0, input_lease));
-    sar::SarAccelControlToken input{};
+    sar::SarControlToken input{};
     input.token_id = 0x55AAu;
     input.sidecar.sequence_id = 4u;
     input.sidecar.tile_id = 2u;
@@ -400,7 +397,7 @@ TEST(SarAccelNodesTest, NativeAndSyntheticBackprojectionPreserveEquivalentSideca
     graph::gpu::accel::BufferLease input_lease{};
     ASSERT_TRUE(memory_pool->AllocateDevice(64, 0, input_lease));
 
-    sar::SarAccelControlToken input{};
+    sar::SarControlToken input{};
     input.token_id = 0xACEu;
     input.sidecar.sequence_id = 42u;
     input.sidecar.batch_id = 6u;
@@ -673,7 +670,7 @@ TEST(SarAccelNodesTest, MergeIdentityIsInvariantToHostPointerWhenSidecarIsConsta
     EXPECT_EQ(status_a->sidecar.kernel_dispatches, status_b->sidecar.kernel_dispatches);
 }
 
-TEST(SarAccelNodesTest, SplitDoesNotEncodeIdentityIntoHostPointerChannel) {
+TEST(SarAccelNodesTest, SplitUsesTypedHostViewsForDistinctDomainPackets) {
     sar::AzimuthTileSplitNode split;
 
     auto first = MakePulseForTokenSidecar();
@@ -700,12 +697,8 @@ TEST(SarAccelNodesTest, SplitDoesNotEncodeIdentityIntoHostPointerChannel) {
     ASSERT_TRUE(token_a->has_host_view);
     ASSERT_TRUE(token_b->has_host_view);
 
-    EXPECT_EQ(
-        reinterpret_cast<std::uintptr_t>(token_a->host_view.host_ptr),
-        reinterpret_cast<std::uintptr_t>(token_b->host_view.host_ptr));
-    EXPECT_EQ(
-        reinterpret_cast<std::uintptr_t>(token_a->host_view.host_ptr),
-        static_cast<std::uintptr_t>(0x1u));
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(token_a->host_view));
+    EXPECT_TRUE(graph::gpu::accel::IsValidView(token_b->host_view));
 
     EXPECT_NE(token_a->sidecar.sequence_id, token_b->sidecar.sequence_id);
     EXPECT_NE(token_a->sidecar.stream_id, token_b->sidecar.stream_id);

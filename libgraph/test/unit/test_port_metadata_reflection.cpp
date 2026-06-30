@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 #include "test/AdvancedTestNodes.hpp"
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 #include "graph/Reflection.hpp"
 #include <log4cxx/logger.h>
 

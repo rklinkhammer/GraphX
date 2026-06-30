@@ -223,14 +223,14 @@ std::optional<sar::FocusedImageResult> RunAdapterAndTransform(
     std::optional<sar::SarPhaseHistoryControlMessage> assembled;
     const auto num_segments = fake_reader->ReadOrderedSet({}).value.segments.size();
     for (std::uint64_t i = 0u; i < num_segments; ++i) {
-        sar::SarAccelControlToken data_tok{};
+        sar::SarControlToken data_tok{};
         data_tok.sidecar.marker = sar::SarFrameMarker::Data;
         data_tok.sidecar.sequence_id = i;
         adapter.Transfer(data_tok,
             std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
     }
-    sar::SarAccelControlToken eos{};
+    sar::SarControlToken eos{};
     eos.sidecar.marker = sar::SarFrameMarker::EndOfStream;
     assembled = adapter.Transfer(eos,
         std::integral_constant<std::size_t, 0>{},
@@ -373,9 +373,9 @@ TEST(CrsdFocusedImageTransformNodeTest, PlatformPositionPerturbationChangesOutpu
         << "Platform position perturbation must change the focused image output hash";
 }
 
-// --- SarAccelControlToken is preserved ---
+// --- SarControlToken is preserved ---
 
-TEST(CrsdFocusedImageTransformNodeTest, SarAccelControlTokenPreservedInOutput) {
+TEST(CrsdFocusedImageTransformNodeTest, SarControlTokenPreservedInOutput) {
     auto reader_result = MakeCoherentPointTargetResult(3u, 3u, 16u);
     auto fake_reader = std::make_shared<FakeAdapterReader>(reader_result);
     sar::CrsdApertureAssemblyAdapterNode adapter(
@@ -384,14 +384,14 @@ TEST(CrsdFocusedImageTransformNodeTest, SarAccelControlTokenPreservedInOutput) {
         {"crsd_paths", nlohmann::json::array({"a/product.crsd", "b/product.crsd", "c/product.crsd"})}}));
 
     for (std::uint64_t i = 0u; i < 3u; ++i) {
-        sar::SarAccelControlToken t{};
+        sar::SarControlToken t{};
         t.sidecar.marker = sar::SarFrameMarker::Data;
         t.sidecar.sequence_id = i;
         adapter.Transfer(t, std::integral_constant<std::size_t, 0>{},
             std::integral_constant<std::size_t, 0>{});
     }
 
-    sar::SarAccelControlToken eos{};
+    sar::SarControlToken eos{};
     eos.sidecar.marker = sar::SarFrameMarker::EndOfStream;
     eos.sidecar.stream_id = 42u;
     eos.sidecar.backend_id = 7u;

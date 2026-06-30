@@ -14,7 +14,7 @@
 #include "graph/ExecutionState.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/IExecutionPolicy.hpp"
 #include "graph/EdgeRegistry.hpp"
 #include "graph/EdgeRegistration.hpp"

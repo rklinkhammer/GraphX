@@ -23,8 +23,8 @@
 
 namespace {
 
-TEST(SarTokenContractTest, SarSidecarCarriesCanonicalIdentityFields) {
-    sar::SarSidecar sidecar{};
+TEST(SarTokenContractTest, SarPacketCarriesCanonicalIdentityFields) {
+    sar::SarPacket sidecar{};
     sidecar.sequence_id = 101;
     sidecar.batch_id = 17;
     sidecar.aperture_id = 9;
@@ -61,7 +61,7 @@ TEST(SarTokenContractTest, SarSidecarCarriesCanonicalIdentityFields) {
 }
 
 TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
-    sar::SarAccelControlToken token{};
+    sar::SarControlToken token{};
     token.token_id = 55;
     token.sidecar.sequence_id = 8;
     token.sidecar.marker = sar::SarFrameMarker::Data;
@@ -79,9 +79,9 @@ TEST(SarTokenContractTest, CanonicalTokenCarriesSidecarAndAccelViews) {
     EXPECT_FALSE(token.has_lease);
 }
 
-TEST(SarTokenContractTest, SarAccelTokenUsesSarSidecar) {
-    EXPECT_TRUE((graph::AccelControlTokenFor<sar::SarAccelControlToken,
-                                             sar::SarSidecar>));
+TEST(SarTokenContractTest, SarAccelTokenUsesSarPacket) {
+    EXPECT_TRUE((graph::AccelControlTokenFor<sar::SarControlToken,
+                                             sar::SarPacket>));
 }
 
 TEST(SarTokenContractTest, CompileTimePortContractsAreTokenHardenedAcrossDomains) {
@@ -104,24 +104,24 @@ TEST(SarTokenContractTest, CompileTimePortContractsAreTokenHardenedAcrossDomains
     static_assert(graph::InputPortUsesAccelControlTokenFor<
                   sar::H2DAsyncAccelNode,
                   0,
-                  sar::SarSidecar>);
+                  sar::SarPacket>);
     static_assert(graph::OutputPortUsesAccelControlTokenFor<
                   sar::H2DAsyncAccelNode,
                   0,
-                  sar::SarSidecar>);
+                  sar::SarPacket>);
 
     static_assert(graph::OutputPortUsesAccelControlTokenFor<
                   sar::OrderedCrsdSetInputSourceNode,
                   0,
-                  sar::SarSidecar>);
+                  sar::SarPacket>);
     static_assert(graph::OutputPortUsesAccelControlTokenFor<
                   sar::GotchaReplaySourceNode,
                   0,
-                  sar::SarSidecar>);
+                  sar::SarPacket>);
     static_assert(graph::InputPortUsesAccelControlTokenFor<
                   sar::SarDiagnosticsSinkNode,
                   0,
-                  sar::SarSidecar>);
+                  sar::SarPacket>);
 
     static_assert(graph::InputPortTypeIs<
                   graph::gpu::cuda::nodes::H2DAsyncNode,

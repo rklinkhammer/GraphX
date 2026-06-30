@@ -13,8 +13,8 @@
 
 namespace sar {
 
-std::optional<SarAccelControlToken> SarMaterializedImageSinkNode::Transfer(
-    const SarAccelControlToken& value,
+std::optional<SarControlToken> SarMaterializedImageSinkNode::Transfer(
+    const SarControlToken& value,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled) {

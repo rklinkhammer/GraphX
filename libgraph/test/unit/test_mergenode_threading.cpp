@@ -12,7 +12,7 @@
 #include <chrono>
 #include <atomic>
 #include <vector>
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 
 using namespace graph;
 

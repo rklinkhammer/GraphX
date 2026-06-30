@@ -10,7 +10,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace graph::dashboard {
+namespace dsp::fhss {
 
 struct FHSSMessageCorrelation {
   std::string scenario_id;
@@ -61,4 +61,4 @@ public:
   ProduceInjectedMessage() = 0;
 };
 
-} // namespace graph::dashboard
+} // namespace dsp::fhss

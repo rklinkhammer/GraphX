@@ -77,9 +77,12 @@ TEST(PR12BuildDocGuardrailTest, Cxx26EnforcementIsCentralizedAndModulePilotRemov
 TEST(PR12BuildDocGuardrailTest, ActiveDocsUseMarkdownReviewInputsAndNoMalformedSimplifierFile) {
   const auto root = RepositoryRoot();
 
-  const auto pr_agents = ReadFile(root / "plan" / "agents" / "GRAPHX_PR_AGENTS.md");
-  ExpectContains(pr_agents, "plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md");
-  ExpectNotContains(pr_agents, "GRAPHX_SIMPLIFIER_REPORT.m`");
+  const auto roadmap =
+      ReadFile(root / "plan" / "roadmap" / "GRAPHX_PR_ROADMAP.md");
+  const auto roles =
+      ReadFile(root / "plan" / "agents" / "GRAPHX_AGENT_ROLES.md");
+  ExpectContains(roadmap, "plan/reviews/GRAPHX_SIMPLIFIER_REPORT.md");
+  ExpectNotContains(roles, "GRAPHX_SIMPLIFIER_REPORT.m`");
 
   EXPECT_TRUE(std::filesystem::exists(root / "plan" / "reviews" / "GRAPHX_INSPECTOR_REPORT.md"));
   EXPECT_TRUE(std::filesystem::exists(root / "plan" / "reviews" / "GRAPHX_SIMPLIFIER_REPORT.md"));

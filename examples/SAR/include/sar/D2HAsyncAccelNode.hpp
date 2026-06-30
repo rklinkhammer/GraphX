@@ -36,16 +36,16 @@ struct D2HAsyncAccelConfig {
  */
 class D2HAsyncAccelNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           D2HAsyncAccelNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
     D2HAsyncAccelNode() = default;
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& input,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 

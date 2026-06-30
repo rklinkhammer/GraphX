@@ -543,6 +543,17 @@ GraphConfigParser::ParseSafe(const std::string& json_text) noexcept {
                     if (variant.concrete_type.empty()) {
                         return std::unexpected(app::error::ConfigError::ValidationFailed);
                     }
+                    if (variant_json.contains("capability")) {
+                        if (!variant_json["capability"].is_string()) {
+                            return std::unexpected(app::error::ConfigError::TypeMismatch);
+                        }
+                        const auto capability = ParseResolverCapability(
+                            variant_json["capability"].get<std::string>());
+                        if (!capability) {
+                            return std::unexpected(app::error::ConfigError::ValidationFailed);
+                        }
+                        variant.capability = *capability;
+                    }
                     mapping.variants.push_back(std::move(variant));
                 }
 

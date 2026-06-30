@@ -151,7 +151,7 @@ protected:
     runtime_session_ = std::make_shared<graph::dashboard::GraphRuntimeSession>();
     snapshot_collector_ = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
     source_ = std::make_shared<dsp::fhss::FHSSSyntheticIqSourceNode>(LoadSourceConfig(config_));
-    controller_ = std::make_shared<graph::dashboard::FHSSScenarioController>(
+    controller_ = std::make_shared<dsp::fhss::FHSSScenarioController>(
         configuration_service_, runtime_session_);
     controller_->BindInjectionSource(source_);
 
@@ -180,7 +180,7 @@ protected:
   std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session_;
   std::shared_ptr<graph::dashboard::GraphSnapshotCollector> snapshot_collector_;
   std::shared_ptr<dsp::fhss::FHSSSyntheticIqSourceNode> source_;
-  std::shared_ptr<graph::dashboard::FHSSScenarioController> controller_;
+  std::shared_ptr<dsp::fhss::FHSSScenarioController> controller_;
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
@@ -197,8 +197,8 @@ TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
   });
   EXPECT_EQ(first_future.wait_for(std::chrono::milliseconds(20)), std::future_status::timeout);
 
-  ASSERT_TRUE(queue.Enqueue(graph::dashboard::FHSSMessageInjectionRequest{
-      .kind = graph::dashboard::FHSSMessageInjectionKind::ScheduledMessage,
+  ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
+      .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
       .correlation = {.scenario_id = "scenario-a", .message_id = 1, .release_sequence = 1},
       .scheduled_message = source_messages.at(0),
       .end_of_stream_after_produce = false}));
@@ -212,8 +212,8 @@ TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
   });
   EXPECT_EQ(second_future.wait_for(std::chrono::milliseconds(20)), std::future_status::timeout);
 
-  ASSERT_TRUE(queue.Enqueue(graph::dashboard::FHSSMessageInjectionRequest{
-      .kind = graph::dashboard::FHSSMessageInjectionKind::ScheduledMessage,
+  ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
+      .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
       .correlation = {.scenario_id = "scenario-a", .message_id = 2, .release_sequence = 2},
       .scheduled_message = source_messages.at(0),
       .end_of_stream_after_produce = true}));
@@ -242,9 +242,9 @@ TEST_F(DashboardServerStep5Test, RejectsDuplicateOrConcurrentStepRequests) {
 
   const auto correlation = controller_->ActiveCorrelationForTesting();
   ASSERT_TRUE(correlation.has_value());
-  controller_->PublishTerminalResultForTesting(graph::dashboard::FHSSMessageTerminalResult{
+  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
       .correlation = *correlation,
-      .status = graph::dashboard::FHSSMessageTerminalStatus::Completed,
+      .status = dsp::fhss::FHSSMessageTerminalStatus::Completed,
       .code = "message_completed",
       .message = "completed"});
 
@@ -319,14 +319,14 @@ TEST_F(DashboardServerStep5Test, FailureInjectionTimeoutRaceAndQueueDisableAreSt
   const auto correlation = controller_->ActiveCorrelationForTesting();
   ASSERT_TRUE(correlation.has_value());
 
-  controller_->PublishTerminalResultForTesting(graph::dashboard::FHSSMessageTerminalResult{
+  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
       .correlation = *correlation,
-      .status = graph::dashboard::FHSSMessageTerminalStatus::TimedOut,
+      .status = dsp::fhss::FHSSMessageTerminalStatus::TimedOut,
       .code = "step_timeout",
       .message = "timed out"});
-  controller_->PublishTerminalResultForTesting(graph::dashboard::FHSSMessageTerminalResult{
+  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
       .correlation = *correlation,
-      .status = graph::dashboard::FHSSMessageTerminalStatus::Cancelled,
+      .status = dsp::fhss::FHSSMessageTerminalStatus::Cancelled,
       .code = "cancelled_late",
       .message = "cancelled late"});
 

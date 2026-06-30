@@ -36,7 +36,7 @@
 #include <thread>
 #include <log4cxx/logger.h>
 #include "config/DataTypes.hpp"
-#include "graph/Nodes.hpp"
+#include "graph/NamedNodes.hpp"
 #include "graph/Message.hpp"
 
 namespace test {
@@ -76,4 +76,3 @@ namespace test {
     };
 
 } // namespace avionics
-

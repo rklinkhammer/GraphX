@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <string>
 #include <system_error>
@@ -17,6 +18,10 @@
 
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
+#include "dsp/fhss/FHSSPulseMergeNode.hpp"
+#include "dsp/fhss/FHSSPulseWordDecoderNode.hpp"
+#include "dsp/fhss/FHSSSyntheticIqSourceNode.hpp"
+#include "dsp/fhss/PerChannelPulseDetectorNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/NodeProviderBootstrap.hpp"
@@ -69,6 +74,20 @@ ResolveFHSSMessageSink(const std::shared_ptr<graph::GraphManager> &manager) {
     }
   }
   return nullptr;
+}
+
+template <typename NodeT>
+std::vector<std::shared_ptr<NodeT>>
+ResolveNodes(const std::shared_ptr<graph::GraphManager> &manager) {
+  std::vector<std::shared_ptr<NodeT>> result;
+  if (!manager) return result;
+  for (const auto &node : manager->GetNodes()) {
+    auto wrapper =
+        std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+    if (!wrapper) continue;
+    if (auto resolved = wrapper->GetNode<NodeT>()) result.push_back(resolved);
+  }
+  return result;
 }
 
 std::vector<std::string> ExpectedChannelizedFHSSNodeTypes() {
@@ -252,6 +271,24 @@ TEST(FHSSGraphXExecutorTest,
   auto sink = ResolveFHSSMessageSink(graph_manager);
   ASSERT_NE(sink, nullptr);
   const auto diagnostics = sink->GetDiagnostics().Raw();
+
+  const auto sources = ResolveNodes<FHSSSyntheticIqSourceNode>(graph_manager);
+  const auto detectors = ResolveNodes<PerChannelPulseDetectorNode>(graph_manager);
+  const auto merges = ResolveNodes<FHSSPulseMergeNode>(graph_manager);
+  const auto decoders = ResolveNodes<FHSSPulseWordDecoderNode>(graph_manager);
+  ASSERT_EQ(sources.size(), 1u);
+  ASSERT_EQ(detectors.size(), 64u);
+  ASSERT_EQ(merges.size(), 1u);
+  ASSERT_EQ(decoders.size(), 1u);
+  EXPECT_EQ(sources.front()->LastEmittedPulseCount(), kCanonicalFixturePulseCount);
+  const auto detector_pulse_count = std::accumulate(
+      detectors.begin(), detectors.end(), std::size_t{0},
+      [](std::size_t count, const auto &detector) {
+        return count + detector->LastDetectedPulseCount();
+      });
+  EXPECT_EQ(detector_pulse_count, kCanonicalFixturePulseCount);
+  EXPECT_EQ(merges.front()->LastMergedPulseCount(), kCanonicalFixturePulseCount);
+  EXPECT_EQ(decoders.front()->LastDecodedPulseCount(), kCanonicalFixturePulseCount);
 
   EXPECT_EQ(diagnostics.at("schema").get<std::string>(),
             "graphx.fhss.message_sink.diagnostics.v1");

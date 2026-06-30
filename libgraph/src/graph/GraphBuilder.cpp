@@ -27,7 +27,7 @@
 // SOFTWARE.
 
 #include "graph/GraphBuilder.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphConfigParser.hpp"
 #include "graph/JsonDynamicGraphLoader.hpp"

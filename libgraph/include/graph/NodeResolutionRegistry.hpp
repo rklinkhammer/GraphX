@@ -34,6 +34,7 @@ namespace graph {
 struct NodeResolutionVariant {
     ResolverBackend backend{ResolverBackend::Unknown};
     std::string concrete_type;
+    ResolverCapability capability{ResolverCapability::Supported};
 };
 
 /**

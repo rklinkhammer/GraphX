@@ -20,17 +20,13 @@ std::string ReadText(const std::filesystem::path& path) {
 } // namespace
 
 TEST(Pr13BackendSurfaceGuardrailTest,
-     MetalCollectiveReduceNodeIsExplicitlyLabeledUnsupportedAcrossActiveSurfaces) {
+     UnsupportedMetalCollectiveReduceSurfaceWasDeleted) {
     const auto root = std::filesystem::path{GRAPHX_SOURCE_ROOT};
 
-    const auto readme = ReadText(root / "README.md");
-    const auto plugin_src =
-        ReadText(root / "libgpu/plugins/metal_collective_reduce_node_plugin.cpp");
-    const auto plugin_cmake = ReadText(root / "libgpu/plugins/CMakeLists.txt");
-
-    EXPECT_NE(readme.find("CollectiveReduceNodeMetal | unsupported"), std::string::npos);
-    EXPECT_NE(plugin_src.find("runtime unsupported"), std::string::npos);
-    EXPECT_NE(plugin_cmake.find("runtime unsupported"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "libgpu/include/gpu/metal/nodes/CollectiveReduceNodeMetal.hpp"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "libgpu/plugins/metal_collective_reduce_node_plugin.cpp"));
 }
 
 TEST(Pr13BackendSurfaceGuardrailTest,
@@ -55,4 +51,18 @@ TEST(Pr13BackendSurfaceGuardrailTest,
     EXPECT_NE(cmake_text.find("add_test(NAME libgpu_stub_unit"), std::string::npos);
     EXPECT_NE(cmake_text.find("add_test(NAME libgpu_backend_unit"), std::string::npos);
     EXPECT_NE(cmake_text.find("add_test(NAME libgpu_metal_runtime"), std::string::npos);
+}
+
+TEST(Pr13BackendSurfaceGuardrailTest,
+     ReadmeRecordsSupportedSurfaceAndTestOwnerForEveryBackend) {
+    const auto readme = ReadText(
+        std::filesystem::path{GRAPHX_SOURCE_ROOT} / "README.md");
+    EXPECT_NE(readme.find("| Metal | transfer"), std::string::npos);
+    EXPECT_NE(readme.find("| CUDA | contract-safe stub capability only"),
+              std::string::npos);
+    EXPECT_NE(readme.find("| SYCL | contract-safe stub capability only"),
+              std::string::npos);
+    EXPECT_NE(readme.find("`libgpu_metal_runtime`"), std::string::npos);
+    EXPECT_NE(readme.find("`libgpu_stub_unit`"), std::string::npos);
+    EXPECT_NE(readme.find("`libgpu_backend_unit`"), std::string::npos);
 }

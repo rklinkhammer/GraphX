@@ -150,3 +150,96 @@ TEST(MetalNativeRuntimeFailureInjectionTest, InvalidInputsFailGracefullyAndTrack
     context->DestroyEvent(event_id);
     context->DestroyCommandQueue(queue_id);
 }
+
+TEST(MetalNativeRuntimeFailureInjectionTest,
+     Pr14_ComponentLevelFailureInjectionCoversNativeCapabilitySeams) {
+    const bool native_available = NativeMetalRuntimeAvailableForTest();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+#endif
+
+    namespace caps = graph::gpu::metal::capabilities;
+    auto runtime_context = caps::CreateNativeMetalRuntimeContext();
+    ASSERT_NE(runtime_context, nullptr);
+
+    caps::NativeMetalContextCapability context(runtime_context);
+    caps::NativeMetalMemoryPoolCapability memory_pool(runtime_context);
+    caps::NativeMetalTransferCapability transfer(runtime_context);
+    caps::NativeMetalKernelCapability kernel(runtime_context);
+    caps::NativeMetalTelemetryCapability telemetry(runtime_context);
+    caps::NativeMetalCollectiveCapability collective(runtime_context);
+
+    ASSERT_TRUE(context.SelectDevice(0U));
+    const auto queue_id = context.CreateCommandQueue();
+    ASSERT_NE(queue_id, 0U);
+
+    graph::gpu::accel::BufferLease lease{};
+    EXPECT_FALSE(memory_pool.AllocateDevice(0U, 0U, lease));
+    EXPECT_FALSE(memory_pool.AllocateShared(0U, 0U, lease));
+    EXPECT_FALSE(memory_pool.AllocateHost(0U, lease));
+
+    graph::gpu::accel::HostPinnedBufferView host_src{};
+    graph::gpu::accel::DeviceBufferView device_dst{};
+    graph::gpu::accel::TransferTicket transfer_ticket{};
+    EXPECT_FALSE(transfer.EnqueueH2D(host_src, device_dst, queue_id, transfer_ticket));
+
+    EXPECT_FALSE(kernel.RegisterKernel(0U, "graphx_invalid_kernel"));
+
+    telemetry.ResetForTesting();
+    const auto errors_before = telemetry.ErrorCount();
+    telemetry.RecordTransfer(graph::gpu::accel::TransferTicket{}, 10U);
+    telemetry.RecordKernel(graph::gpu::accel::KernelTicket{}, 20U);
+    EXPECT_EQ(telemetry.ErrorCount(), errors_before + 2U);
+
+    graph::gpu::accel::CollectiveTicket collective_ticket{};
+    EXPECT_FALSE(collective.AllReduce(device_dst, collective_ticket));
+
+    context.DestroyCommandQueue(queue_id);
+}
+
+TEST(MetalNativeRuntimeFailureInjectionTest,
+    Pr14_InvalidTicketDiagnosticsPreserveNativeTelemetryContract) {
+    const bool native_available = NativeMetalRuntimeAvailableForTest();
+#if GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
+    ASSERT_TRUE(native_available)
+        << "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=ON but native Metal runtime unavailable: "
+        << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+#else
+    if (!native_available) {
+        GTEST_SKIP() << "Native Metal runtime unavailable: "
+                     << graph::gpu::metal::capabilities::NativeMetalRuntimeDiagnostics();
+        return;
+    }
+#endif
+
+    namespace caps = graph::gpu::metal::capabilities;
+    auto runtime_context = caps::CreateNativeMetalRuntimeContext();
+    ASSERT_NE(runtime_context, nullptr);
+
+    caps::NativeMetalTelemetryCapability native(runtime_context);
+    native.ResetForTesting();
+
+    const graph::gpu::accel::TransferTicket invalid_transfer{};
+    const graph::gpu::accel::KernelTicket invalid_kernel{};
+
+    native.RecordTransfer(invalid_transfer, 77U);
+    native.RecordKernel(invalid_kernel, 88U);
+
+    const auto native_snapshot = native.Snapshot();
+
+    EXPECT_EQ(native_snapshot.transfer_samples, 0U);
+    EXPECT_EQ(native_snapshot.kernel_samples, 0U);
+    EXPECT_EQ(native_snapshot.transfer_total_duration_ns, 0U);
+    EXPECT_EQ(native_snapshot.kernel_total_duration_ns, 0U);
+    EXPECT_EQ(native_snapshot.last_transfer_duration_ns, 0U);
+    EXPECT_EQ(native_snapshot.last_kernel_duration_ns, 0U);
+    EXPECT_EQ(native_snapshot.error_count, 2U);
+}

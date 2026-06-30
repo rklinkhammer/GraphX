@@ -68,11 +68,17 @@ public:
       output.sidecar.decoded_pulses.push_back(std::move(packet));
     }
     output.sidecar.globally_ordered = true;
+    last_decoded_pulse_count_ = output.sidecar.decoded_pulses.size();
     return output;
+  }
+
+  [[nodiscard]] std::size_t LastDecodedPulseCount() const noexcept {
+    return last_decoded_pulse_count_;
   }
 
 private:
   FHSSPulseWordDecoderConfig config_{};
+  std::size_t last_decoded_pulse_count_{0};
 };
 
 } // namespace dsp::fhss

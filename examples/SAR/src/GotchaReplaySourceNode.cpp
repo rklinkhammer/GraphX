@@ -233,7 +233,7 @@ std::vector<GotchaNormalizedPulseRecord> GotchaOfflineConverter::LoadFromJson(
 GotchaReplaySourceNode::GotchaReplaySourceNode(GotchaReplaySourceConfig config)
     : config_(std::move(config)) {}
 
-std::optional<SarAccelControlToken> GotchaReplaySourceNode::Produce(
+std::optional<SarControlToken> GotchaReplaySourceNode::Produce(
     std::integral_constant<std::size_t, 0>) {
     if (eos_emitted_) {
         return std::nullopt;
@@ -354,8 +354,8 @@ const GotchaReplaySourceConfig& GotchaReplaySourceNode::GetConfig() const noexce
     return config_;
 }
 
-SarAccelControlToken GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedPulseRecord& record) const {
-    SarAccelControlToken out{};
+SarControlToken GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedPulseRecord& record) const {
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     out.sidecar.sequence_id = record.ordering_key;
     out.sidecar.batch_id = record.pass_id;
@@ -377,7 +377,7 @@ SarAccelControlToken GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedP
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(out.sidecar.payload_byte_count);
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(static_cast<std::uint64_t>(
@@ -387,8 +387,8 @@ SarAccelControlToken GotchaReplaySourceNode::MakeMessage(const GotchaNormalizedP
     return out;
 }
 
-SarAccelControlToken GotchaReplaySourceNode::MakeControlMessage(SarFrameMarker marker) const {
-    SarAccelControlToken out{};
+SarControlToken GotchaReplaySourceNode::MakeControlMessage(SarFrameMarker marker) const {
+    SarControlToken out{};
     out.token_id = NextOpaqueTokenId();
     const auto control_sequence_id = static_cast<std::uint64_t>(config_.records.size());
     out.sidecar.sequence_id = control_sequence_id;
@@ -411,7 +411,7 @@ SarAccelControlToken GotchaReplaySourceNode::MakeControlMessage(SarFrameMarker m
         (backend == graph::gpu::accel::BackendKind::Unknown) ? graph::gpu::accel::BackendKind::Metal
                                                               : backend;
     // host_ptr is opaque transport metadata only. SAR identity derives from sidecar.
-    host_view.host_ptr = runtime::OpaqueHostPointer();
+    host_view = runtime::MakeSyntheticHostView(host_view);
     host_view.bytes = static_cast<std::uint64_t>(sizeof(float));
     host_view.dtype = graph::gpu::accel::DataType::Float32;
     host_view.layout = MakeAccelVectorLayout(1u);

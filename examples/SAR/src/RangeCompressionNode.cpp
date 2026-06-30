@@ -62,8 +62,8 @@ std::string OutputToString(RangeCompressionOutput output) {
 RangeCompressionNode::RangeCompressionNode(RangeCompressionConfig config)
     : config_(config) {}
 
-std::optional<SarAccelControlToken> RangeCompressionNode::Transfer(
-    const SarAccelControlToken& input,
+std::optional<SarControlToken> RangeCompressionNode::Transfer(
+    const SarControlToken& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
     if (!config_.enabled || input.sidecar.marker == SarFrameMarker::EndOfStream) {

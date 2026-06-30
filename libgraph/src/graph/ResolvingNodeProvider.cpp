@@ -14,6 +14,30 @@
 
 namespace graph {
 
+nlohmann::json
+NodeResolutionDiagnosticToJson(const NodeResolutionDiagnostic& diagnostic) {
+    return nlohmann::json{
+        {"intent_type", diagnostic.intent_type},
+        {"concrete_type", diagnostic.concrete_type},
+        {"state", ToString(diagnostic.state)},
+        {"selected_backend", ToString(diagnostic.selected_backend)},
+        {"fallback_reason", ToString(diagnostic.fallback_reason)},
+        {"fallback_used", diagnostic.fallback_used},
+        {"input_token_type", diagnostic.input_token_type},
+        {"output_token_type", diagnostic.output_token_type},
+    };
+}
+
+nlohmann::json NodeResolutionFailureToJson(
+    const NodeResolutionFailure& failure) {
+    return nlohmann::json{
+        {"intent_type", failure.intent_type},
+        {"requested_backend", ToString(failure.requested_backend)},
+        {"state", ToString(failure.state)},
+        {"detail", failure.detail},
+    };
+}
+
 namespace {
 
 std::vector<ResolverBackend> BackendPreference(ResolverBackend requested_backend,
@@ -41,14 +65,14 @@ std::vector<ResolverBackend> BackendPreference(ResolverBackend requested_backend
     return order;
 }
 
-std::optional<std::string> ConcreteForBackend(const NodeResolutionContract& contract,
-                                              ResolverBackend backend) {
+const NodeResolutionVariant* VariantForBackend(
+    const NodeResolutionContract& contract, ResolverBackend backend) {
     for (const auto& variant : contract.variants) {
         if (variant.backend == backend) {
-            return variant.concrete_type;
+            return &variant;
         }
     }
-    return std::nullopt;
+    return nullptr;
 }
 
 } // namespace
@@ -77,7 +101,13 @@ ResolvingNodeProvider::CreateNodeExpected(const std::string& node_type_name) noe
 
     auto resolved = ResolveNodeType(node_type_name);
     if (!resolved) {
-        return std::unexpected(NodeCreationError::TypeNotFound);
+        if (resolver_config_.resolver_diagnostics) {
+            resolution_failures_.push_back(resolved.error());
+        }
+        return std::unexpected(
+            resolved.error().state == ResolverResolutionState::Unsupported
+                ? NodeCreationError::Unsupported
+                : NodeCreationError::BackendUnavailable);
     }
 
     if (resolver_config_.resolver_diagnostics) {
@@ -115,10 +145,15 @@ std::vector<std::string> ResolvingNodeProvider::GetAvailableNodeTypes() const {
     return {types.begin(), types.end()};
 }
 
-std::optional<NodeResolutionDiagnostic>
+NodeResolutionResult
 ResolvingNodeProvider::ResolveNodeType(const std::string& node_type_name) const {
     if (!inner_) {
-        return std::nullopt;
+        return std::unexpected(NodeResolutionFailure{
+            .intent_type = node_type_name,
+            .requested_backend = resolver_config_.execution_backend,
+            .state = ResolverResolutionState::Unavailable,
+            .detail = "node provider is not initialized",
+        });
     }
     return ResolveWithAvailability(
         node_type_name,
@@ -127,18 +162,28 @@ ResolvingNodeProvider::ResolveNodeType(const std::string& node_type_name) const 
         });
 }
 
-std::optional<NodeResolutionDiagnostic>
+NodeResolutionResult
 ResolvingNodeProvider::ResolveWithAvailability(
     const std::string& node_type_name,
     const AvailabilityFn& available) const {
     if (!available) {
-        return std::nullopt;
+        return std::unexpected(NodeResolutionFailure{
+            .intent_type = node_type_name,
+            .requested_backend = resolver_config_.execution_backend,
+            .state = ResolverResolutionState::Unavailable,
+            .detail = "node availability query is not configured",
+        });
     }
 
     const auto* contract = resolution_registry_.Find(node_type_name);
     if (contract == nullptr) {
         if (!available(node_type_name)) {
-            return std::nullopt;
+            return std::unexpected(NodeResolutionFailure{
+                .intent_type = node_type_name,
+                .requested_backend = ResolverBackend::Direct,
+                .state = ResolverResolutionState::Unavailable,
+                .detail = "direct node type is unavailable",
+            });
         }
         return NodeResolutionDiagnostic{
             .intent_type = node_type_name,
@@ -148,23 +193,28 @@ ResolvingNodeProvider::ResolveWithAvailability(
             .input_token_type = "",
             .output_token_type = "",
             .fallback_used = false,
+            .state = ResolverResolutionState::Selected,
         };
     }
 
     const auto requested_backend = resolver_config_.execution_backend;
     const auto fallback_policy = resolver_config_.backend_fallback_policy;
 
+    bool supported_variant_seen = false;
     for (const auto& backend : BackendPreference(requested_backend, fallback_policy)) {
-        auto concrete = ConcreteForBackend(*contract, backend);
-        if (!concrete || !available(*concrete)) {
+        const auto* variant = VariantForBackend(*contract, backend);
+        if (variant == nullptr ||
+            variant->capability == ResolverCapability::Unsupported) {
             continue;
         }
+        supported_variant_seen = true;
+        if (!available(variant->concrete_type)) continue;
 
         const bool fallback_used =
             requested_backend != ResolverBackend::Auto && backend != requested_backend;
         return NodeResolutionDiagnostic{
             .intent_type = node_type_name,
-            .concrete_type = *concrete,
+            .concrete_type = variant->concrete_type,
             .selected_backend = backend,
             .fallback_reason = fallback_used
                 ? ResolverFallbackReason::RequestedBackendUnavailable
@@ -172,10 +222,25 @@ ResolvingNodeProvider::ResolveWithAvailability(
             .input_token_type = contract->input_token_type,
             .output_token_type = contract->output_token_type,
             .fallback_used = fallback_used,
+            .state = fallback_used ? ResolverResolutionState::Fallback
+                                   : ResolverResolutionState::Selected,
         };
     }
 
-    return std::nullopt;
+    const bool requested_has_variant = requested_backend == ResolverBackend::Auto ||
+        VariantForBackend(*contract, requested_backend) != nullptr;
+    const auto failure_state =
+        (!requested_has_variant || !supported_variant_seen)
+            ? ResolverResolutionState::Unsupported
+            : ResolverResolutionState::Unavailable;
+    return std::unexpected(NodeResolutionFailure{
+        .intent_type = node_type_name,
+        .requested_backend = requested_backend,
+        .state = failure_state,
+        .detail = failure_state == ResolverResolutionState::Unsupported
+            ? "requested backend does not support this node intent"
+            : "supported backend node is unavailable",
+    });
 }
 
 } // namespace graph

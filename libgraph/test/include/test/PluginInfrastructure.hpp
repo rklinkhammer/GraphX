@@ -11,7 +11,7 @@
 #include <memory>
 #include <stdexcept>
 #include <log4cxx/logger.h>
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"

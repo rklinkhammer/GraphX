@@ -39,8 +39,8 @@ struct ImageTileMergeConfig {
  */
 class ImageTileMergeNode
     : public graph::NamedInteriorNode<
-          graph::TypeList<SarAccelControlToken>,
-          graph::TypeList<SarAccelControlToken>,
+          graph::TypeList<SarControlToken>,
+          graph::TypeList<SarControlToken>,
           ImageTileMergeNode>,
     public graph::IConfigurable,
     public graph::IParameterized {
@@ -48,8 +48,8 @@ public:
     ImageTileMergeNode() = default;
     explicit ImageTileMergeNode(ImageTileMergeConfig config);
 
-    std::optional<SarAccelControlToken> Transfer(
-        const SarAccelControlToken& input,
+    std::optional<SarControlToken> Transfer(
+        const SarControlToken& input,
         std::integral_constant<std::size_t, 0>,
         std::integral_constant<std::size_t, 0>) override;
 
@@ -119,8 +119,8 @@ public:
 
 private:
     void FinalizeOutputSidecar(
-        SarAccelControlToken& out,
-        const SarAccelControlToken& input,
+        SarControlToken& out,
+        const SarControlToken& input,
         std::uint64_t sequence_id,
         std::uint32_t stream_id,
         std::size_t byte_count,
@@ -128,11 +128,11 @@ private:
         bool complete) const;
 
     void FinalizeOutputTickets(
-        SarAccelControlToken& out,
-        const SarAccelControlToken& input) const;
+        SarControlToken& out,
+        const SarControlToken& input) const;
 
-    SarAccelControlToken BuildOutputToken(
-        const SarAccelControlToken& input,
+    SarControlToken BuildOutputToken(
+        const SarControlToken& input,
         std::uint64_t sequence_id,
         std::uint32_t tile_id,
         std::uint32_t stream_id,

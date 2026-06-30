@@ -96,7 +96,7 @@ struct SarPhaseHistoryApertureFrame {
 };
 
 struct SarPhaseHistoryControlMessage {
-    SarAccelControlToken control{};
+    SarControlToken control{};
     SarPhaseHistoryApertureFrame frame{};
 };
 

@@ -8,8 +8,8 @@
   "resolver_mappings": [
     {
       "intent_type": "H2DAsyncAccelNode",
-      "input_token_type": "SarAccelControlToken",
-      "output_token_type": "SarAccelControlToken",
+      "input_token_type": "SarControlToken",
+      "output_token_type": "SarControlToken",
       "variants": [
         { "backend": "metal", "concrete_type": "H2DAsyncAccelNode" },
         { "backend": "stub", "concrete_type": "H2DAsyncAccelNode" }
@@ -17,8 +17,8 @@
     },
     {
       "intent_type": "SarBackprojectionTransformAccelNode",
-      "input_token_type": "SarAccelControlToken",
-      "output_token_type": "SarAccelControlToken",
+      "input_token_type": "SarControlToken",
+      "output_token_type": "SarControlToken",
       "variants": [
         { "backend": "metal", "concrete_type": "SarBackprojectionTransformAccelNode" },
         { "backend": "stub", "concrete_type": "SarBackprojectionTransformAccelNode" }
@@ -26,8 +26,8 @@
     },
     {
       "intent_type": "D2HAsyncAccelNode",
-      "input_token_type": "SarAccelControlToken",
-      "output_token_type": "SarAccelControlToken",
+      "input_token_type": "SarControlToken",
+      "output_token_type": "SarControlToken",
       "variants": [
         { "backend": "metal", "concrete_type": "D2HAsyncAccelNode" },
         { "backend": "stub", "concrete_type": "D2HAsyncAccelNode" }

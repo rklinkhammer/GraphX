@@ -7,8 +7,8 @@
   "resolver_mappings": [
     {
       "intent_type": "SarBackprojectionTransformAccelNode",
-      "input_token_type": "SarAccelControlToken",
-      "output_token_type": "SarAccelControlToken",
+      "input_token_type": "SarControlToken",
+      "output_token_type": "SarControlToken",
       "variants": [
         {
           "backend": "metal",

@@ -10,7 +10,7 @@
 #include "test/PluginInfrastructure.hpp"
 #include "test/AdvancedTestNodes.hpp"
 #include "test/ProducerTestNodes.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include <stdexcept>
 #include <memory>
 #include <vector>

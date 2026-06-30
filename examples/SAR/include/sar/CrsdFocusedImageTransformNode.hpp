@@ -64,7 +64,7 @@ struct FocusedImageGrid {
 };
 
 struct FocusedImageResult {
-    SarAccelControlToken control{};
+    SarControlToken control{};
     FocusedImageGrid grid{};
     std::vector<float> pixels{};
     std::uint64_t output_hash{0};

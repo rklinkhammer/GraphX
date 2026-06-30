@@ -10,7 +10,7 @@
 #include "graph/RegisteredNodeProvider.hpp"
 #include "graph/NodeProvider.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "plugins/PluginRegistry.hpp"
 #include "plugins/PluginLoader.hpp"

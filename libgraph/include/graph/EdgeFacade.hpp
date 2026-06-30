@@ -41,7 +41,7 @@
 #include <cassert>
 
 #include "graph/GraphMetrics.hpp"
-#include "graph/Nodes.hpp"
+#include "graph/NodeShapes.hpp"
 
 namespace graph {
 

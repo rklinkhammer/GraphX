@@ -9,7 +9,7 @@
 #pragma once
 
 #include "graph/EdgeRegistry.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "test/AdvancedTestNodes.hpp"
 #include <memory>
 

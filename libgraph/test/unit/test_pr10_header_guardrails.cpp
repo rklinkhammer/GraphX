@@ -91,6 +91,13 @@ TEST(PR10HeaderGuardrailTest, FocusedHeaderFilesExist) {
     }
 }
 
+TEST(PR10HeaderGuardrailTest, LegacyUmbrellaHeadersWereDeleted) {
+    const fs::path graph_include =
+        fs::path{GRAPHX_SOURCE_ROOT} / "libgraph" / "include" / "graph";
+    EXPECT_FALSE(fs::exists(graph_include / "Nodes.hpp"));
+    EXPECT_FALSE(fs::exists(graph_include / "GraphManager.hpp"));
+}
+
 TEST(PR10HeaderGuardrailTest, FocusedHeadersExposeCoreCompileTimeTypes) {
     using Payloads = graph::PayloadList<int, double>;
     static_assert(Payloads::size == 2);

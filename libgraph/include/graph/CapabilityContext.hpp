@@ -17,7 +17,7 @@
 
 #include "capabilities/GraphCapability.hpp"
 #include "graph/CapabilityDiscovery.hpp"
-#include "graph/GraphManager.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/NodeMetadataService.hpp"
 #include "graph/NodeDescriptor.hpp"
 #include "graph/NodeFacadeAdapterSpecializations.hpp"
