@@ -24,7 +24,7 @@ Completed cleanup roadmap:
 
 Cleanup implementer/verifier prompts:
 
-- `plan/agents/GRAPHX_PR_AGENTS.md`
+- `plan/agents/GRAPHX_AGENT_ROLES.md`
 
 ## Current Architecture
 

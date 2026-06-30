@@ -11,7 +11,7 @@ baseline consolidation:
 
 - active planning baseline: `plan/BASELINE.md`
 - completed cleanup roadmap: `plan/roadmap/GRAPHX_PR_ROADMAP.md`
-- cleanup implementer/verifier prompts: `plan/agents/GRAPHX_PR_AGENTS.md`
+- active agent-role guidance: `plan/agents/GRAPHX_AGENT_ROLES.md`
 - archived plan material: `plan/archive/2026-06-baseline/`
 - archived user docs: `docs/archive/2026-06-baseline/`
 

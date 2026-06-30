@@ -40,7 +40,7 @@ TEST(BaselineArchitectureGuardrailTest, ActiveDocsNameBaselineAndCompletedRoadma
   const auto readme = root / "README.md";
   const auto baseline = root / "plan" / "BASELINE.md";
   const auto roadmap = root / "plan" / "roadmap" / "GRAPHX_PR_ROADMAP.md";
-  const auto agents = root / "plan" / "agents" / "GRAPHX_PR_AGENTS.md";
+  const auto agents = root / "plan" / "agents" / "GRAPHX_AGENT_ROLES.md";
 
   ASSERT_TRUE(std::filesystem::exists(readme));
   ASSERT_TRUE(std::filesystem::exists(baseline));
@@ -50,7 +50,7 @@ TEST(BaselineArchitectureGuardrailTest, ActiveDocsNameBaselineAndCompletedRoadma
   const auto active_docs = ReadFile(readme) + "\n" + ReadFile(baseline);
   ExpectContains(active_docs, "plan/BASELINE.md");
   ExpectContains(active_docs, "plan/roadmap/GRAPHX_PR_ROADMAP.md");
-  ExpectContains(active_docs, "plan/agents/GRAPHX_PR_AGENTS.md");
+  ExpectContains(active_docs, "plan/agents/GRAPHX_AGENT_ROLES.md");
   ExpectContains(active_docs, "plan/archive/2026-06-baseline/");
   ExpectContains(active_docs, "docs/archive/2026-06-baseline/");
   ExpectContains(active_docs, "archived");
@@ -67,15 +67,16 @@ TEST(BaselineArchitectureGuardrailTest,
   const auto root = RepositoryRoot();
   const auto roadmap =
       ReadFile(root / "plan" / "roadmap" / "GRAPHX_PR_ROADMAP.md");
-  ExpectContains(roadmap, "Status: Complete");
+  ExpectContains(roadmap, "Status: Proposed; no implementation authorized.");
 
-  for (int pr = 1; pr <= 17; ++pr) {
-    const auto suffix = std::to_string(pr) + ".md";
-    EXPECT_TRUE(std::filesystem::exists(
-        root / "plan" / "reviews" / ("GRAPHX_IMPL_PR" + suffix)));
-    EXPECT_TRUE(std::filesystem::exists(
-        root / "plan" / "reviews" / ("GRAPHX_VERIFY_PR" + suffix)));
-  }
+  EXPECT_TRUE(std::filesystem::exists(
+    root / "plan" / "reviews" / "GRAPHX_INSPECTOR_REPORT.md"));
+  EXPECT_TRUE(std::filesystem::exists(
+    root / "plan" / "reviews" / "GRAPHX_SIMPLIFIER_REPORT.md"));
+  EXPECT_FALSE(std::filesystem::exists(
+    root / "plan" / "reviews" / "GRAPHX_IMPL_PR12.md"));
+  EXPECT_FALSE(std::filesystem::exists(
+    root / "plan" / "reviews" / "GRAPHX_VERIFY_PR12.md"));
 }
 
 TEST(BaselineArchitectureGuardrailTest, ActiveDocsPreserveCoreGraphXInvariants) {

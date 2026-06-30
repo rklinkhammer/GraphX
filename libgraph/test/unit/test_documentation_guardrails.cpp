@@ -64,9 +64,9 @@ TEST_F(DocumentationGuardrailTest, ActiveDocsReferencedInReadme) {
             std::string::npos)
       << "README should reference active PR roadmap";
 
-  EXPECT_NE(readme_content.find("plan/agents/GRAPHX_PR_AGENTS.md"),
-            std::string::npos)
-      << "README should reference active PR prompts";
+    EXPECT_NE(readme_content.find("plan/agents/GRAPHX_AGENT_ROLES.md"),
+      std::string::npos)
+    << "README should reference active agent role guidance";
 
   EXPECT_NE(readme_content.find("docs/archive"), std::string::npos)
       << "README should reference archived documentation location";
@@ -153,7 +153,7 @@ TEST_F(DocumentationGuardrailTest, ActivePlanDocsNotReferenceArchive) {
   auto root = GetSourceRoot();
   std::vector<fs::path> active_plan_files = {
       root / "plan/roadmap/GRAPHX_PR_ROADMAP.md",
-      root / "plan/agents/GRAPHX_PR_AGENTS.md",
+      root / "plan/agents/GRAPHX_AGENT_ROLES.md",
   };
 
   // These files should be able to reference archive for context
