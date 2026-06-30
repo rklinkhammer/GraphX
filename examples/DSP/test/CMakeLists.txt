@@ -35,6 +35,7 @@ target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
     Threads::Threads
     dsp
+    dsp_fhss_dashboard_api
     log4cxx
     nlohmann_json::nlohmann_json
 )

@@ -5,6 +5,7 @@
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
+#include "FHSSDashboardApi.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -739,6 +740,9 @@ int RunDashboardNoRunMode(const CliOptions &options,
   graph::dashboard::EmbeddedDashboardServer::Options server_options;
   server_options.port = options.dashboard_port;
   server_options.asset_directory = options.dashboard_assets;
+  server_options.artifact_root = options.dashboard_assets.parent_path();
+  server_options.application_api_handler = dsp::fhss::dashboard::MakeApiHandler(
+      configuration_service, server_options.artifact_root);
 
   graph::dashboard::EmbeddedDashboardServer server(
       server_options, configuration_service, runtime_session, snapshot_collector);

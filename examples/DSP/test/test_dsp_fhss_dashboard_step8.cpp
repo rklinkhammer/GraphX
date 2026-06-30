@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "FHSSDashboardApi.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -128,6 +129,8 @@ protected:
     options.asset_directory =
         std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
     options.artifact_root = artifact_root_;
+    options.application_api_handler = dsp::fhss::dashboard::MakeApiHandler(
+        configuration_service_, options.artifact_root);
 
     server_ = std::make_unique<graph::dashboard::EmbeddedDashboardServer>(
         options, configuration_service_, runtime_session_, snapshot_collector_);

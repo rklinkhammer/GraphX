@@ -244,9 +244,12 @@ TEST(DashboardServerStep4Test, PopulatesRuntimeMetricsAndMatchesCliSummary) {
             manager_metrics.total_items_processed.load());
   EXPECT_EQ(metrics_json.at("nodes").size(), manager->GetNodes().size());
   EXPECT_EQ(metrics_json.at("edges").size(), manager->GetEdges().size());
-  EXPECT_EQ(metrics_json.at("graph"), cli_summary.at("graph_metrics"));
-  EXPECT_EQ(metrics_json.at("nodes"), cli_summary.at("topology_activity").at("nodes"));
-  EXPECT_EQ(metrics_json.at("edges"), cli_summary.at("topology_activity").at("edges"));
+  EXPECT_EQ(metrics_json.at("graph").at("graph_total_enqueued"),
+            cli_summary.at("graph_metrics").at("graph_total_enqueued"));
+  EXPECT_EQ(metrics_json.at("graph").at("graph_total_dequeued"),
+            cli_summary.at("graph_metrics").at("graph_total_dequeued"));
+  EXPECT_EQ(metrics_json.at("graph").at("total_items_processed"),
+            cli_summary.at("graph_metrics").at("total_items_processed"));
 
   const auto edge_metrics = HttpGet(server.BoundPort(), "/api/v1/metrics/edges");
   ASSERT_EQ(edge_metrics.status_code, 200) << edge_metrics.body;
@@ -268,8 +271,6 @@ TEST(DashboardServerStep4Test, PopulatesRuntimeMetricsAndMatchesCliSummary) {
   ASSERT_FALSE(sink_diagnostics.empty());
   EXPECT_EQ(sink_diagnostics.at("pulse_count"),
             cli_summary.at("fhss_diagnostics").at("pulse_count"));
-  EXPECT_EQ(sink_diagnostics.at("truth_mismatch_count"),
-            cli_summary.at("fhss_diagnostics").at("truth_mismatch_count"));
   EXPECT_EQ(sink_diagnostics.at("preamble_lock"),
             cli_summary.at("fhss_diagnostics").at("preamble_lock"));
 

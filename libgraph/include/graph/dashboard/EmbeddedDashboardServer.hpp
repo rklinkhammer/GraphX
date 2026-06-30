@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -25,11 +26,28 @@ namespace graph::dashboard {
 
 class EmbeddedDashboardServer {
 public:
+  struct ApiRequest {
+    std::string method;
+    std::string path;
+    std::string query;
+    std::string body;
+  };
+
+  struct ApiResponse {
+    int status_code = 200;
+    std::string content_type = "application/json";
+    std::string body;
+  };
+
+  using ApiHandler =
+      std::function<std::optional<ApiResponse>(const ApiRequest &request)>;
+
   struct Options {
     std::string host = "127.0.0.1";
     std::uint16_t port = 0;
     std::filesystem::path asset_directory;
     std::filesystem::path artifact_root;
+    ApiHandler application_api_handler;
   };
 
   EmbeddedDashboardServer(Options options,

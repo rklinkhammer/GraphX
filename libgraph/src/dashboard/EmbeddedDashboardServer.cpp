@@ -788,6 +788,19 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     }
   }
 
+  if (options_.application_api_handler) {
+    const auto application_response = options_.application_api_handler(
+        ApiRequest{.method = request.method,
+                   .path = request.path,
+                   .query = request.query,
+                   .body = request.body});
+    if (application_response) {
+      return Response{.status_code = application_response->status_code,
+                      .content_type = application_response->content_type,
+                      .body = application_response->body};
+    }
+  }
+
   return Response{.status_code = 404,
                   .content_type = "application/json",
                   .body = ErrorBody(404, "not_found", "resource not found")};
