@@ -59,7 +59,7 @@ comparison lane uses tiny synthetic GraphX/Python image fixtures and writes:
 - `difference_magnitude.png`
 - `phase_difference.png`
 
-When metadata JSON is provided, the report also records PR8 lineage fields:
+When metadata JSON is provided, the report also records resolver-lineage fields:
 
 - per-segment CRSD input checksums
 - ordered-set checksum and ordered-input list

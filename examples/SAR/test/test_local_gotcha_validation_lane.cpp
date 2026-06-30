@@ -198,7 +198,7 @@ protected:
 
 TEST_F(LocalGotchaValidationLaneTest, OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet) {
     if (!IsOptedIn()) {
-        GTEST_SKIP() << "GRAPHX_SAR_CRSD_ROOT is not set; PR9 local validation lane is opt-in";
+        GTEST_SKIP() << "GRAPHX_SAR_CRSD_ROOT is not set; local validation lane is opt-in";
     }
 
     std::vector<std::filesystem::path> baseline_paths;
@@ -209,7 +209,7 @@ TEST_F(LocalGotchaValidationLaneTest, OptionalSmokeRunsOnlyWhenRealDatasetEnviro
     const auto config_template = std::filesystem::path{SAR_CRSD_GOTCHA_LOCAL_VALIDATION_CONFIG_JSON};
     ASSERT_TRUE(std::filesystem::exists(config_template)) << config_template;
 
-    const auto temp_root = std::filesystem::temp_directory_path() / "graphx_pr9_local_validation";
+    const auto temp_root = std::filesystem::temp_directory_path() / "graphx_local_validation";
     std::error_code error;
     std::filesystem::remove_all(temp_root, error);
     ASSERT_TRUE(std::filesystem::create_directories(temp_root));

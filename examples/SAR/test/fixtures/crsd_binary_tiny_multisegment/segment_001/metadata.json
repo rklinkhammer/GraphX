@@ -12,7 +12,7 @@
     "collector_name": "GOTCHA",
     "coordinate_frame": "ecef",
     "product_id": "crsd-binary-seg-001",
-    "provenance_label": "graphx_pr2b_binary_fixture",
+    "provenance_label": "graphx_crsd_binary_fixture",
     "source_files": [
       "subData02.mat"
     ],

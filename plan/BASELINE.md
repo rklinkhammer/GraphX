@@ -105,7 +105,7 @@ PR7: Consolidated SAR config set (13 active configs):
 Current canonical SAR GPU path is `sar_crsd_tiny_fixture_focused_image_metal.json` (experimental/incomplete).
 It is the only active canonical SAR GPU path and remains experimental/incomplete until explicitly promoted.
 
-PR13 external SAR baseline survey status:
+External SAR baseline survey status:
 
 - Planning-only survey completed; no external baseline package is integrated,
   required, or supported by GraphX in this PR.

@@ -406,7 +406,7 @@ std::optional<SarPhaseHistoryControlMessage> CrsdApertureAssemblyAdapterNode::Bu
     frame.split_boundary_output_hash = folded_hash;
 
     // Build split/merge partition scheme: one partition per segment, covering its vector range,
-    // deterministically keyed for stable merge ordering in PR4.
+    // deterministically keyed for stable partition/merge ordering.
     SarAperturePartitionScheme scheme{};
     scheme.expected_partition_count = static_cast<std::uint64_t>(frame.segments.size());
     scheme.merge_ordering_key = frame.split_boundary_input_hash;

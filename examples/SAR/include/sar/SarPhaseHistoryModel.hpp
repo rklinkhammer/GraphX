@@ -62,7 +62,7 @@ struct SarPhaseHistorySegment {
     std::vector<SarPhaseHistoryVector> vectors{};
 };
 
-// Split/merge partition metadata contract for PR4 parallel focused-image formation.
+// Split/merge metadata contract for parallel focused-image formation.
 struct SarAperturePartition {
     std::uint64_t partition_id{0};
     std::uint64_t partition_count{0};

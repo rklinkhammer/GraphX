@@ -214,7 +214,7 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
 }
 
 TEST(SarJsonRuntimeTest, MaintainedPresetsKeepAccelTokenAndResolverContractExplicit) {
-    // PR7: Test maintained canonical and specialized stripmap configs.
+    // Test maintained canonical and specialized stripmap configs.
     // Stripmap family includes the basic simulated config, definitive config,
     // and specialized variants (fanout, matched_filter, materialized_image).
     struct PresetExpectation {
@@ -460,7 +460,7 @@ TEST(SarJsonRuntimeTest, DefinitivePresetResolvesCommonMetalNodesWithComposedPro
     std::filesystem::remove(temp_path, remove_error);
 }
 
-TEST(SarJsonRuntimeTest, PR8_DefinitiveResolverDiagnosticsRequireNoFallbackForCanonicalGpuStages) {
+TEST(SarJsonRuntimeTest, DefinitiveResolverDiagnosticsRequireNoFallbackForCanonicalGpuStages) {
     const std::filesystem::path config_path{SAR_DEFINITIVE_JSON_CONFIG_PATH};
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -474,7 +474,7 @@ TEST(SarJsonRuntimeTest, PR8_DefinitiveResolverDiagnosticsRequireNoFallbackForCa
     metal_config["backend_fallback_policy"] = "strict";
 
     const auto temp_path = std::filesystem::temp_directory_path() /
-                           "sar_stripmap_definitive_pr8_no_fallback_assertions.json";
+                           "sar_stripmap_definitive_no_fallback_assertions.json";
     {
         std::ofstream out(temp_path, std::ios::trunc);
         ASSERT_TRUE(out.good());

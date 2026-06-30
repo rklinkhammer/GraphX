@@ -119,7 +119,7 @@ list(REMOVE_DUPLICATES _sar_owned_unique)
 if(NOT "${_sar_all_sorted}" STREQUAL "${_sar_owned_sorted}" OR
    NOT "${_sar_owned_sorted}" STREQUAL "${_sar_owned_unique}")
     message(FATAL_ERROR
-        "Every SAR test source must belong to exactly one PR2 ownership lane")
+        "Every SAR test source must belong to exactly one ownership lane")
 endif()
 
 add_library(graphx_sar_test_support STATIC ${SAR_TEST_SUPPORT_SOURCES})
@@ -152,10 +152,10 @@ target_compile_definitions(${target} PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
     GPU_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
-    # PR7: Canonical SAR configs (CPU stripmap family)
+    # Canonical SAR configs (CPU stripmap family)
     SAR_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_simulated.json"
     SAR_DEFINITIVE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_definitive.json"
-    # PR7: Specialized stripmap variants (kept for dedicated test scenarios)
+    # Specialized stripmap variants (kept for dedicated test scenarios)
     SAR_FANOUT_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_fanout.json"
     SAR_MATCHED_FILTER_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_matched_filter.json"
     SAR_MATERIALIZED_IMAGE_JSON_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_stripmap_materialized_image.json"
@@ -193,16 +193,16 @@ target_compile_definitions(${target} PRIVATE
     SARPY_VALIDATE_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/validate_crsd.py"
     SARPY_REFERENCE_IMAGE_FROM_CRSD_TOOL_PATH="${CMAKE_SOURCE_DIR}/tools/sarpy/reference_image_from_crsd.py"
     SAR_CRSD_TINY_FIXTURE_BASE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/crsd_binary_tiny_multisegment"
-    # PR7: CRSD input mode variants (kept for dedicated input source tests)
+    # CRSD input mode variants (kept for dedicated input source tests)
     SAR_CRSD_TINY_CONFIG_PATHS_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input.json"
     SAR_CRSD_TINY_CONFIG_DIRECTORY_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_directory.json"
     SAR_CRSD_TINY_CONFIG_MANIFEST_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_set_input_manifest.json"
-    # PR7: CRSD CPU canonical and full pipeline variant
+    # CRSD CPU canonical and full pipeline variant
     SAR_CRSD_TINY_FOCUSED_IMAGE_CPU_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_cpu.json"
     SAR_CRSD_TINY_FULL_PIPELINE_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_full_pipeline.json"
-    # PR7: CRSD GPU experimental candidate (marked as such in BASELINE.md)
+    # CRSD GPU experimental candidate (marked as such in BASELINE.md)
     SAR_CRSD_TINY_FOCUSED_IMAGE_METAL_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_tiny_fixture_focused_image_metal.json"
-    # PR7: Local-only GOTCHA validation config
+    # Local-only GOTCHA validation config
     SAR_CRSD_GOTCHA_LOCAL_VALIDATION_CONFIG_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../config/sar_crsd_gotcha_local_validation.json"
 )
 target_link_libraries(${target} PRIVATE

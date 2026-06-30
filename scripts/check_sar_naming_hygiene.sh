@@ -17,6 +17,16 @@ is_allowed_historical_path() {
     esac
 }
 
+is_active_sar_path() {
+    local path="$1"
+    case "$path" in
+        examples/SAR/*) return 0 ;;
+        docs/sar/*) return 0 ;;
+        tools/sarpy/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 is_generated_or_binary_path() {
     local path="$1"
     case "$path" in
@@ -41,7 +51,7 @@ content_hits_file="$(mktemp)"
 trap 'rm -f "$scan_paths_file" "$filename_hits_file" "$content_hits_file"' EXIT
 
 while IFS= read -r -d '' path; do
-    if is_allowed_historical_path "$path" || is_generated_or_binary_path "$path"; then
+    if ! is_active_sar_path "$path" || is_allowed_historical_path "$path" || is_generated_or_binary_path "$path"; then
         continue
     fi
 

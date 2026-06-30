@@ -302,7 +302,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, DynamicPluginLoadAndInstantiationSmoke
     ASSERT_TRUE(node);
 }
 
-// --- PR3b: Metadata/PVP mapping tests (field-by-field) ---
+// --- Metadata/PVP mapping tests (field-by-field) ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, MetadataPvpMappingPreservesAllFieldsFieldByField) {
     auto result = MakeValidThreeSegmentResult(/*vectors_per_segment=*/2u, /*samples=*/4u,
@@ -351,7 +351,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, MetadataPvpMappingPreservesAllFieldsFi
     }
 }
 
-// --- PR3b: Ownership/layout/checksum invariant tests ---
+// --- Ownership/layout/checksum invariant tests ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, OwnershipSampleFormatAndLayoutAreExplicitAndValid) {
     auto result = MakeValidThreeSegmentResult();
@@ -381,7 +381,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, OwnershipSampleFormatAndLayoutAreExpli
     EXPECT_NE(frame.split_boundary_output_hash, 0u);
 }
 
-// --- PR3b: Accounting invariant (total_vector_count == sum of segments == emitted vectors) ---
+// --- Accounting invariant (total_vector_count == sum of segments == emitted vectors) ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, TotalVectorCountEqualsSumOfSegmentVectorsAndEmittedPayload) {
     auto result = MakeValidThreeSegmentResult(/*vectors_per_segment=*/3u);
@@ -416,7 +416,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, TotalVectorCountEqualsSumOfSegmentVect
     EXPECT_EQ(emitted, frame.total_vector_count);
 }
 
-// --- PR3b: Channel consistency enforcement ---
+// --- Channel consistency enforcement ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, ChannelIdPropagatedCorrectlyThroughAdapterBoundary) {
     auto result = MakeValidThreeSegmentResult(2u, 4u, 9.6e9, 1.0e9, /*channel_id=*/42u);
@@ -452,7 +452,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, InconsistentChannelIdAcrossSegmentsRej
         graph::ConfigError);
 }
 
-// --- PR3b: SarControlToken preservation ---
+// --- SarControlToken preservation ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, SarControlTokenPreservedThroughAdapterBoundary) {
     auto result = MakeValidThreeSegmentResult();
@@ -486,7 +486,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, SarControlTokenPreservedThroughAdapter
     EXPECT_EQ(assembled->control.sidecar.payload_byte_count, 123u);
 }
 
-// --- PR3b: Vector/channel/sample ordering ---
+// --- Vector/channel/sample ordering ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, PerVectorSampleOrderSurvivesAdapterBoundary) {
     auto result = MakeValidThreeSegmentResult(2u, 4u);
@@ -526,7 +526,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, PerVectorSampleOrderSurvivesAdapterBou
     }
 }
 
-// --- PR3b: Split/merge partition metadata contract ---
+// --- Split/merge partition metadata contract ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, PartitionSchemeIsPopulatedWithCorrectContractForPR4) {
     auto result = MakeValidThreeSegmentResult(2u);
@@ -570,7 +570,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, PartitionSchemeIsPopulatedWithCorrectC
     EXPECT_EQ(keys.size(), 3u);
 }
 
-// --- PR3b: Geometry-field validation (nonfinite rejection) ---
+// --- Geometry-field validation (nonfinite rejection) ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, NonfiniteRcvTimeRejectedAtConfigure) {
     auto result = MakeValidThreeSegmentResult();
@@ -603,7 +603,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, NanCarrierHzRejectedAtConfigure) {
         graph::ConfigError);
 }
 
-// --- PR3b: Empty/truncated/dropped payload negative tests ---
+// --- Empty/truncated/dropped payload negative tests ---
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, EmptySignalVectorRejectedAtConfigure) {
     auto result = MakeValidThreeSegmentResult();
@@ -638,7 +638,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, ZeroVectorCountSegmentRejectedAtConfig
         graph::ConfigError);
 }
 
-// --- PR3b: Sidecar-as-physics-misuse negative test ---
+// --- Sidecar-as-physics-misuse negative test ---
 // The adapter must build its phase-history from typed CRSD reader payload, not from sidecar routing fields.
 // This test verifies: when sidecar routing fields carry contradictory values, the adapter ignores them
 // (or only treats them as optional cross-check when explicitly configured) and the payload is authoritative.
@@ -672,7 +672,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, SidecarRoutingFieldsNotUsedAsPhysicsIn
     EXPECT_EQ(assembled->frame.samples_per_vector, 4u);
 }
 
-// --- PR3b: Per-segment-finalization negative test ---
+// --- Per-segment-finalization negative test ---
 // No output must be produced on data tokens; output is only allowed on EOS.
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, NoOutputProducedOnDataTokensOnlyOnEos) {
@@ -702,7 +702,7 @@ TEST(CrsdApertureAssemblyAdapterNodeTest, NoOutputProducedOnDataTokensOnlyOnEos)
     EXPECT_EQ(eos_output_count, 1u);
 }
 
-// --- PR3b: Accounting mismatch rejection ---
+// --- Accounting mismatch rejection ---
 // If total_vector_count in read result is inconsistent, configure must throw.
 
 TEST(CrsdApertureAssemblyAdapterNodeTest, AccountingMismatchInReadResultRejectedAtConfigure) {

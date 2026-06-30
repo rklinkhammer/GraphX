@@ -28,7 +28,7 @@ It is not a normal CI dependency and does not prove GraphX phase-history image-f
 1. Comparator-only stance is mandatory for all registered external packages.
 2. Do not copy or mirror external package internal APIs into GraphX core.
 3. Do not modify `libgraph` or `libgpu` contracts to imitate external framework designs.
-4. Keep canonical GraphX SAR runtime contract unchanged: `ControlToken<SarSidecar>`.
+4. Keep canonical GraphX SAR runtime contract unchanged: `ControlToken<SarPacket>`.
 5. Keep Metal as the first backend in maintained GraphX presets.
 6. Keep dynamic loading and resolver behavior GraphX-native.
 

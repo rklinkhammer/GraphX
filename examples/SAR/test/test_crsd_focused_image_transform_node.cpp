@@ -247,7 +247,7 @@ std::optional<sar::FocusedImageResult> RunAdapterAndTransform(
 } // namespace
 
 // ===========================================================================
-// PR4 Tests
+// Partition-contract tests
 // ===========================================================================
 
 // --- Basic construction and configuration ---

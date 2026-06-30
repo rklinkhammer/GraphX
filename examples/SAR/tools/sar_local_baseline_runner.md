@@ -6,7 +6,7 @@ It does not run by default in CI, does not add external dependencies to GraphX r
 
 ## Selected Baseline
 
-PR14 selects SarPy as the local-only baseline package for runner integration.
+SarPy is the selected local-only baseline package for runner integration.
 
 ## Gating
 

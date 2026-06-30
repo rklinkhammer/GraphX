@@ -50,7 +50,7 @@ TEST(SarBaselineGuardrailTest, DocsNameExactlyOneCanonicalGpuPath) {
   EXPECT_NE(active_docs.find(canonical_path), std::string::npos);
   EXPECT_NE(active_docs.find("experimental"), std::string::npos);
   
-  // PR7: After consolidation, verify no second canonical GPU path is mentioned
+  // After consolidation, verify no second canonical GPU path is mentioned.
   EXPECT_EQ(active_docs.find("second canonical SAR GPU path is supported"),
             std::string::npos);
   EXPECT_EQ(active_docs.find("Other SAR Metal configs are development"),
@@ -76,8 +76,8 @@ TEST(SarBaselineGuardrailTest, CanonicalGpuPathUsesAccelTokenContract) {
   }
 }
 
-TEST(SarBaselineGuardrailTest, PR7_ConfigSetConsolidation) {
-  // PR7: Verify SAR config set consolidation.
+TEST(SarBaselineGuardrailTest, ConfigSetConsolidation) {
+  // Verify SAR config set consolidation.
   // This test ensures that:
   // 1. Only active, named canonical configs remain in examples/SAR/config/
   // 2. Stale, duplicate, or experimental configs have been deleted
@@ -94,8 +94,7 @@ TEST(SarBaselineGuardrailTest, PR7_ConfigSetConsolidation) {
     }
   }
   
-  // PR7: After consolidation, expect exactly 13 canonical/active configs
-  // (down from 21 in the pre-PR7 state)
+  // After consolidation, expect exactly 13 canonical/active configs.
   EXPECT_EQ(config_count, 13) 
       << "SAR config consolidation should keep exactly 13 active configs; "
       << "deleted configs: sar_gotcha_external_manual, "
@@ -132,11 +131,11 @@ TEST(SarBaselineGuardrailTest, PR7_ConfigSetConsolidation) {
             std::string::npos);
 }
 
-TEST(SarBaselineGuardrailTest, PR13_ExternalBaselineSurveyRemainsPlanningOnly) {
+TEST(SarBaselineGuardrailTest, ExternalBaselineSurveyRemainsPlanningOnly) {
   const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
   const auto baseline = ReadFile(root / "plan" / "BASELINE.md");
 
-  EXPECT_NE(baseline.find("PR13 external SAR baseline survey status"),
+  EXPECT_NE(baseline.find("External SAR baseline survey status"),
             std::string::npos);
   EXPECT_NE(baseline.find("no external baseline package is integrated"),
             std::string::npos);
@@ -149,7 +148,7 @@ TEST(SarBaselineGuardrailTest, PR13_ExternalBaselineSurveyRemainsPlanningOnly) {
 }
 
 TEST(SarBaselineGuardrailTest,
-     PR16_SubstitutionRemainsLocalOnlyAndGpuPathStaysSingular) {
+     SubstitutionRemainsLocalOnlyAndGpuPathStaysSingular) {
   const auto root = std::filesystem::path(GRAPHX_SOURCE_ROOT);
   const auto active_docs =
       ReadFile(root / "README.md") + "\n" +
