@@ -80,10 +80,10 @@ Inputs:
 
 
 Task:
-Implement PR11 only.
+Implement PR14 only.
 
 Scope:
-Apply required fixes for PR11 only:
+Apply required fixes for PR14 only:
 Add explicit tests that enforce the rule.
 
 Rules:
@@ -92,8 +92,8 @@ Rules:
 - Do not preserve obsolete behavior.
 - Do not add compatibility shims.
 - Do not touch future-PR items.
-- Delete obsolete code if PR11 requires it.
-- Add or update tests for PR11.
+- Delete obsolete code if PR14 requires it.
+- Add or update tests for PR14.
 - Remove tests that only validate obsolete behavior.
 - Keep Metal as the first backend.
 - Preserve GraphX dynamic loading and resolver behavior.

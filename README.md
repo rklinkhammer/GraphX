@@ -44,6 +44,22 @@ MATLAB is not a GraphX build-time, runtime, or test-time dependency.
 
 ## Quick Start
 
+### Development container
+
+Open the repository in a Dev Container-compatible editor and choose **Reopen
+in Container**. The container provides GCC 14, CMake, Ninja, the C++ library
+dependencies, HDF5, and Python tooling. It configures the `ninja-debug` preset
+on first creation; build and test it with:
+
+```bash
+cmake --build --preset build-debug
+ctest --preset test-libgraph-unit --output-on-failure
+```
+
+The container is Linux-based, so native Metal development and runtime tests
+still require a macOS host build. CUDA and SYCL toolchains are not installed by
+the default container.
+
 Configure and build the default debug tree:
 
 ```bash
