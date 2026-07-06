@@ -12,6 +12,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(GRAPHX_BUILD_PROFILE "default" CACHE STRING
+    "Logical build profile label (for example: default, linux-ninja-host)")
+set_property(CACHE GRAPHX_BUILD_PROFILE PROPERTY STRINGS
+    default
+    linux-ninja-host)
+
+if(NOT (GRAPHX_BUILD_PROFILE STREQUAL "default" OR
+        GRAPHX_BUILD_PROFILE STREQUAL "linux-ninja-host"))
+    message(FATAL_ERROR
+        "Unsupported GRAPHX_BUILD_PROFILE='${GRAPHX_BUILD_PROFILE}'. "
+        "Supported values: default, linux-ninja-host")
+endif()
+
 option(GRAPHX_REQUIRE_NINJA "Require Ninja generator for all GraphX configurations" ON)
 
 if(GRAPHX_REQUIRE_NINJA)
@@ -222,6 +235,7 @@ message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal native runtime: ${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}")
 message(STATUS "GraphX strict native Metal requirement: ${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}")
+message(STATUS "GraphX build profile: ${GRAPHX_BUILD_PROFILE}")
 message(STATUS "GraphX GPU test hooks: ${GRAPHX_GPU_TEST_HOOKS_ENABLED}")
 if(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
     message(STATUS "GraphX metal-cpp include dir: ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}")

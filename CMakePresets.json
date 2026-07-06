@@ -26,6 +26,20 @@
       }
     },
     {
+      "name": "ninja-debug-linux-host",
+      "displayName": "Ninja Debug (Linux Host)",
+      "description": "Debug build profile for Linux hosts without Metal-native requirements",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GRAPHX_BUILD_PROFILE": "linux-ninja-host",
+        "ENABLE_METAL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF"
+      }
+    },
+    {
       "name": "ninja-release",
       "displayName": "Ninja Release",
       "description": "Release build with Ninja (modules pilot OFF)",
@@ -85,6 +99,11 @@
       "name": "build-debug",
       "displayName": "Build Debug",
       "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "build-debug-linux-host",
+      "displayName": "Build Debug (Linux Host)",
+      "configurePreset": "ninja-debug-linux-host"
     },
     {
       "name": "build-release",
@@ -203,6 +222,19 @@
       }
     },
     {
+      "name": "test-libgraph-unit-linux-host",
+      "displayName": "Run libgraph unit tests (Linux Host Debug)",
+      "configurePreset": "ninja-debug-linux-host",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libgraph_unit"
+        }
+      }
+    },
+    {
       "name": "test-libgraph-unit-metal-native",
       "displayName": "Run libgraph unit tests (Metal Native Debug)",
       "configurePreset": "ninja-debug-metal-native",
@@ -232,6 +264,19 @@
       "name": "test-libdsp-unit",
       "displayName": "Run libdsp unit tests",
       "configurePreset": "ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "libdsp_unit"
+        }
+      }
+    },
+    {
+      "name": "test-libdsp-unit-linux-host",
+      "displayName": "Run libdsp unit tests (Linux Host Debug)",
+      "configurePreset": "ninja-debug-linux-host",
       "output": {
         "outputOnFailure": true
       },

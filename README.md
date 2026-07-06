@@ -51,6 +51,13 @@ cmake --preset ninja-debug
 cmake --build --preset build-debug
 ```
 
+Configure and build a Linux-host debug tree (disables Metal-native and Metal graph-node requests):
+
+```bash
+cmake --preset ninja-debug-linux-host
+cmake --build --preset build-debug-linux-host
+```
+
 Configure and build the native-Metal-requested tree used by most current DSP
 and FHSS examples:
 
@@ -63,6 +70,13 @@ Run the main libgraph test lane:
 
 ```bash
 ctest --preset test-libgraph-unit --output-on-failure
+```
+
+Run Linux-host-focused unit test lanes:
+
+```bash
+ctest --preset test-libgraph-unit-linux-host --output-on-failure
+ctest --preset test-libdsp-unit-linux-host --output-on-failure
 ```
 
 Run Metal runtime tests where native Metal is available:
@@ -106,6 +120,7 @@ Top-level options:
 | `ENABLE_METAL_NATIVE_RUNTIME` | `ON` | Request native Metal runtime on Apple. |
 | `GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME` | `OFF` | Fail if native Metal runtime cannot be enabled. |
 | `MULTI_GPU_TESTS` | `OFF` | Enable multi-GPU test lanes when supported. |
+| `GRAPHX_BUILD_PROFILE` | `default` | Logical build profile label. Supported: `default`, `linux-ninja-host`. |
 
 Useful cache variables:
 

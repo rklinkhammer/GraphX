@@ -197,6 +197,10 @@ target_compile_definitions(${target} PRIVATE
 )
 target_link_libraries(${target} PRIVATE
     graphx_sar_test_support
+    "-Wl,--start-group"
+    graph
+    gpu
+    "-Wl,--end-group"
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

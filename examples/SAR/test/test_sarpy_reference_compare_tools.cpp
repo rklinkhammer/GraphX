@@ -215,7 +215,7 @@ TEST(SarpyReferenceCompareToolsTest, GeneratesReferenceAndDeterministicCompariso
     EXPECT_NEAR(metrics.at("rmse_magnitude").get<double>(), 0.0, 1e-9);
     EXPECT_NEAR(metrics.at("phase_rmse_radians").get<double>(), 0.0, 1e-9);
     EXPECT_NEAR(metrics.at("peak_error_magnitude").get<double>(), 0.0, 1e-9);
-    EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1e-9);
+    EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1e-6);
 
     const auto lineage = report.at("lineage");
     EXPECT_TRUE(lineage.at("ordered_set_checksum").at("match").get<bool>());

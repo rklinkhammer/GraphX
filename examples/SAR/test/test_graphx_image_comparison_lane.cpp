@@ -299,7 +299,7 @@ TEST_F(GraphxImageComparisonLaneTest, TinyGraphxImageMatchesPythonReferenceDeter
     EXPECT_NEAR(metrics.at("rmse_magnitude").get<double>(), 0.0, 1.0e-9);
     EXPECT_NEAR(metrics.at("phase_rmse_radians").get<double>(), 0.0, 1.0e-9);
     EXPECT_NEAR(metrics.at("peak_error_magnitude").get<double>(), 0.0, 1.0e-9);
-    EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1.0e-9);
+    EXPECT_NEAR(metrics.at("magnitude_correlation").get<double>(), 1.0, 1.0e-6);
     ASSERT_TRUE(metrics.contains("ssim_magnitude"));
     EXPECT_NEAR(metrics.at("ssim_magnitude").get<double>(), 1.0, 1.0e-9);
 

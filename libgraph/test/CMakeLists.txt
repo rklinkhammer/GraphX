@@ -55,7 +55,15 @@ target_compile_definitions(test_libgraph_unit PRIVATE
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
 )
-target_link_libraries(test_libgraph_unit PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
+target_link_libraries(test_libgraph_unit PRIVATE
+    "-Wl,--start-group"
+    graph
+    gpu
+    "-Wl,--end-group"
+    GTest::gtest_main
+    Threads::Threads
+    log4cxx
+)
 target_link_libraries(test_libgraph_unit PRIVATE graphx_project_options)
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_libgraph_unit graphx_dynamic_nodes)
@@ -79,7 +87,15 @@ if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     target_compile_definitions(test_threadpool_extended PRIVATE
         PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     )
-    target_link_libraries(test_threadpool_extended PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_threadpool_extended PRIVATE
+        "-Wl,--start-group"
+        graph
+        gpu
+        "-Wl,--end-group"
+        GTest::gtest_main
+        Threads::Threads
+        log4cxx
+    )
     target_link_libraries(test_threadpool_extended PRIVATE graphx_project_options)
     add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
     set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")
@@ -95,7 +111,15 @@ if(INTEGRATION_TEST_SOURCES)
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_link_libraries(test_libgraph_integration PRIVATE gpu GTest::gtest_main Threads::Threads log4cxx)
+    target_link_libraries(test_libgraph_integration PRIVATE
+        "-Wl,--start-group"
+        graph
+        gpu
+        "-Wl,--end-group"
+        GTest::gtest_main
+        Threads::Threads
+        log4cxx
+    )
     target_link_libraries(test_libgraph_integration PRIVATE graphx_project_options)
     if(TARGET graphx_dynamic_nodes)
         add_dependencies(test_libgraph_integration graphx_dynamic_nodes)

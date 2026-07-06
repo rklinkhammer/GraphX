@@ -26,6 +26,10 @@ target_compile_definitions(test_libdsp_unit PRIVATE
 )
 target_link_libraries(test_libdsp_unit PRIVATE
     dsp
+    "-Wl,--start-group"
+    graph
+    gpu
+    "-Wl,--end-group"
     GTest::gtest_main
     Threads::Threads
     log4cxx

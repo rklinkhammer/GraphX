@@ -8,6 +8,7 @@ include(CMakePackageConfigHelpers)
 find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
+find_package(log4cxx REQUIRED)
 
 # Collect source files
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
@@ -40,6 +41,7 @@ target_link_libraries(graph PUBLIC
     nlohmann_json::nlohmann_json
     Eigen3::Eigen
     Threads::Threads
+    log4cxx
 )
 
 # Keep warning/sanitizer options local for install-exported static library.
