@@ -175,7 +175,15 @@ function(add_graphx_plugin)
     # ========================================================================
     # Compilation flags
     # ========================================================================
-    target_compile_features(${PLUGIN_TARGET_NAME} PRIVATE ${PLUGIN_CXX_STANDARD})
+    # Use compile_options instead of compile_features since CMake 4.3 does not
+    # recognize cxx_std_26 feature.
+    if(DEFINED GRAPHX_CXX_STANDARD_FLAG AND NOT GRAPHX_CXX_STANDARD_FLAG STREQUAL "")
+        target_compile_options(${PLUGIN_TARGET_NAME} PRIVATE ${GRAPHX_CXX_STANDARD_FLAG})
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(${PLUGIN_TARGET_NAME} PRIVATE -std=gnu++26)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+        target_compile_options(${PLUGIN_TARGET_NAME} PRIVATE -std=c++2c)
+    endif()
 
     # ========================================================================
     # Shared library properties

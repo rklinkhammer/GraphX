@@ -10,6 +10,7 @@
       "name": "ninja-base",
       "hidden": true,
       "generator": "Ninja",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/graphx-host.cmake",
       "binaryDir": "${sourceDir}/build-ninja/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -91,6 +92,35 @@
         "ENABLE_METAL_GRAPH_NODES": "ON",
         "ENABLE_METAL_NATIVE_RUNTIME": "ON",
         "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
+      }
+    },
+    {
+      "name": "ninja-ci-linux",
+      "displayName": "Ninja CI (Linux)",
+      "description": "CI configure preset for Linux hosts",
+      "inherits": "ninja-debug-linux-host",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "ninja-ci-macos",
+      "displayName": "Ninja CI (macOS)",
+      "description": "CI configure preset for macOS hosts",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_GRAPH_NODES": "ON",
+        "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
       }
     }
   ],
@@ -205,6 +235,16 @@
       "name": "build-release-metal-native",
       "displayName": "Build Release (Metal Native)",
       "configurePreset": "ninja-release-metal-native"
+    },
+    {
+      "name": "build-ci-linux",
+      "displayName": "Build CI (Linux)",
+      "configurePreset": "ninja-ci-linux"
+    },
+    {
+      "name": "build-ci-macos",
+      "displayName": "Build CI (macOS)",
+      "configurePreset": "ninja-ci-macos"
     }
   ],
   "testPresets": [
@@ -387,6 +427,32 @@
       "filter": {
         "include": {
           "label": "sarpy"
+        }
+      }
+    },
+    {
+      "name": "test-ci-linux",
+      "displayName": "Run CI test lanes (Linux)",
+      "configurePreset": "ninja-ci-linux",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$"
+        }
+      }
+    },
+    {
+      "name": "test-ci-macos",
+      "displayName": "Run CI test lanes (macOS)",
+      "configurePreset": "ninja-ci-macos",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$"
         }
       }
     }

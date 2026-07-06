@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 4.0.0)
+
 project(gdashboard-workspace VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
@@ -6,9 +7,30 @@ include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
+    message(FATAL_ERROR
+        "GraphX host builds are supported only on Linux and macOS. "
+        "Detected target system: ${CMAKE_SYSTEM_NAME}")
+endif()
+
+if(NOT DEFINED GRAPHX_CXX_STANDARD_FLAG OR GRAPHX_CXX_STANDARD_FLAG STREQUAL "")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(GRAPHX_CXX_STANDARD_FLAG "-std=gnu++26")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+        set(GRAPHX_CXX_STANDARD_FLAG "-std=c++2c")
+    else()
+        message(FATAL_ERROR
+            "Unable to infer a C++26 compiler flag for compiler '${CMAKE_CXX_COMPILER_ID}'. "
+            "Configure with the GraphX toolchain file or set GRAPHX_CXX_STANDARD_FLAG manually.")
+    endif()
+endif()
+
+# Set C++26 flag after project() to ensure it's applied to all targets.
+add_compile_options("${GRAPHX_CXX_STANDARD_FLAG}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GRAPHX_CXX_STANDARD_FLAG}")
+
+# Don't set CMAKE_CXX_STANDARD since CMake 4.3 doesn't support C++26 mapping
+# The flag is already in CMAKE_CXX_FLAGS_INIT
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -36,9 +58,6 @@ if(GRAPHX_REQUIRE_NINJA)
     endif()
 endif()
 
-if(NOT CMAKE_CXX_STANDARD EQUAL 26)
-    message(FATAL_ERROR "GraphX requires C++26 as the only supported standard")
-endif()
 
 # Build options
 option(BUILD_TESTS "Build test targets" ON)
@@ -235,6 +254,8 @@ message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal native runtime: ${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}")
 message(STATUS "GraphX strict native Metal requirement: ${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}")
+message(STATUS "GraphX target system: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "GraphX C++ standard flag: ${GRAPHX_CXX_STANDARD_FLAG}")
 message(STATUS "GraphX build profile: ${GRAPHX_BUILD_PROFILE}")
 message(STATUS "GraphX GPU test hooks: ${GRAPHX_GPU_TEST_HOOKS_ENABLED}")
 if(GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)

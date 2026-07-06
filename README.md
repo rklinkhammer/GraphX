@@ -33,6 +33,7 @@ baseline consolidation:
 
 - CMake 3.23 or newer.
 - Ninja. The project requires Ninja by default.
+- Host platform: Linux or macOS.
 - A C++ compiler with C++26 support.
 - Optional GPU/backend prerequisites:
   - CUDA: CUDAToolkit discoverable by CMake.
@@ -41,6 +42,11 @@ baseline consolidation:
   - Native Metal runtime: Apple frameworks plus `metal-cpp` headers.
 
 MATLAB is not a GraphX build-time, runtime, or test-time dependency.
+
+GraphX now encodes a build-system invariant: CMake configuration and build
+logic must remain valid on both Linux and macOS. Presets apply
+`cmake/toolchains/graphx-host.cmake`, which selects host-appropriate compiler
+defaults and C++26 flags while preserving caller overrides.
 
 ## Quick Start
 
@@ -101,12 +107,28 @@ Run Metal runtime tests where native Metal is available:
 ctest --preset test-libgpu-metal-runtime --output-on-failure
 ```
 
+Cross-platform CI presets:
+
+```bash
+# Linux CI jobs
+cmake --preset ninja-ci-linux
+cmake --build --preset build-ci-linux
+ctest --preset test-ci-linux --output-on-failure
+
+# macOS CI jobs
+cmake --preset ninja-ci-macos
+cmake --build --preset build-ci-macos
+ctest --preset test-ci-macos --output-on-failure
+```
+
 ## Manual Build
 
 Without presets:
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/graphx-host.cmake \
+  -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
