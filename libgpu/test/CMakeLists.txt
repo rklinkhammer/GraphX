@@ -56,7 +56,7 @@ if((GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED) AND GPU_
     endif()
     add_test(NAME libgpu_backend_unit COMMAND test_libgpu_backend_unit)
     set_tests_properties(libgpu_backend_unit PROPERTIES
-        LABELS "gpu;backend;unit;host-any")
+        LABELS "gpu;backend;unit;host-linux")
 endif()
 
 if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)

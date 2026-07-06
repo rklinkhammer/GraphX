@@ -14,17 +14,25 @@ if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin
 endif()
 
 if(NOT DEFINED GRAPHX_CXX_STANDARD_FLAG OR GRAPHX_CXX_STANDARD_FLAG STREQUAL "")
-    message(WARNING
-        "GRAPHX_CXX_STANDARD_FLAG was not set by a toolchain preset. "
-        "Falling back to compiler-id inference for ad-hoc/manual configure.")
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(GRAPHX_CXX_STANDARD_FLAG "-std=gnu++26")
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
-        set(GRAPHX_CXX_STANDARD_FLAG "-std=c++2c")
+    if(DEFINED GRAPHX_HOST_DEFAULT_CXX_STANDARD_FLAG AND
+       NOT GRAPHX_HOST_DEFAULT_CXX_STANDARD_FLAG STREQUAL "")
+        message(WARNING
+            "GRAPHX_CXX_STANDARD_FLAG was not set by a compiler toolchain preset. "
+            "Using host default language mode '${GRAPHX_HOST_DEFAULT_CXX_STANDARD_FLAG}'.")
+        set(GRAPHX_CXX_STANDARD_FLAG "${GRAPHX_HOST_DEFAULT_CXX_STANDARD_FLAG}")
     else()
-        message(FATAL_ERROR
-            "Unable to infer a C++26 compiler flag for compiler '${CMAKE_CXX_COMPILER_ID}'. "
-            "Configure with the GraphX toolchain file or set GRAPHX_CXX_STANDARD_FLAG manually.")
+        message(WARNING
+            "GRAPHX_CXX_STANDARD_FLAG was not set by a toolchain preset. "
+            "Falling back to compiler-id inference for ad-hoc/manual configure.")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set(GRAPHX_CXX_STANDARD_FLAG "-std=gnu++26")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+            set(GRAPHX_CXX_STANDARD_FLAG "-std=c++2c")
+        else()
+            message(FATAL_ERROR
+                "Unable to infer a C++26 compiler flag for compiler '${CMAKE_CXX_COMPILER_ID}'. "
+                "Configure with the GraphX toolchain file or set GRAPHX_CXX_STANDARD_FLAG manually.")
+        endif()
     endif()
 endif()
 
