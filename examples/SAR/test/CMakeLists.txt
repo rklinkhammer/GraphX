@@ -144,6 +144,12 @@ function(configure_sar_test_target target)
 target_include_directories(${target} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
+set(GRAPHX_LINK_GROUP_BEGIN "")
+set(GRAPHX_LINK_GROUP_END "")
+if(UNIX AND NOT APPLE)
+    set(GRAPHX_LINK_GROUP_BEGIN "-Wl,--start-group")
+    set(GRAPHX_LINK_GROUP_END "-Wl,--end-group")
+endif()
 target_compile_definitions(${target} PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/examples/SAR/plugins"
@@ -197,10 +203,10 @@ target_compile_definitions(${target} PRIVATE
 )
 target_link_libraries(${target} PRIVATE
     graphx_sar_test_support
-    "-Wl,--start-group"
+    ${GRAPHX_LINK_GROUP_BEGIN}
     graph
     gpu
-    "-Wl,--end-group"
+    ${GRAPHX_LINK_GROUP_END}
     ${SAR_LOG4CXX_LIB}
     GTest::gtest_main
     Threads::Threads

@@ -16,6 +16,13 @@ foreach(_source IN LISTS LIBDSP_UNIT_TEST_SOURCES)
     endif()
 endforeach()
 
+set(GRAPHX_LINK_GROUP_BEGIN "")
+set(GRAPHX_LINK_GROUP_END "")
+if(UNIX AND NOT APPLE)
+    set(GRAPHX_LINK_GROUP_BEGIN "-Wl,--start-group")
+    set(GRAPHX_LINK_GROUP_END "-Wl,--end-group")
+endif()
+
 add_executable(test_libdsp_unit ${LIBDSP_UNIT_TEST_SOURCES})
 target_include_directories(test_libdsp_unit PRIVATE
     ${CMAKE_SOURCE_DIR}/libgraph/test/include
@@ -26,10 +33,10 @@ target_compile_definitions(test_libdsp_unit PRIVATE
 )
 target_link_libraries(test_libdsp_unit PRIVATE
     dsp
-    "-Wl,--start-group"
+    ${GRAPHX_LINK_GROUP_BEGIN}
     graph
     gpu
-    "-Wl,--end-group"
+    ${GRAPHX_LINK_GROUP_END}
     GTest::gtest_main
     Threads::Threads
     log4cxx
