@@ -1,0 +1,34 @@
+{
+  "name": "GraphX C++26",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "CC": "gcc-14",
+    "CXX": "g++-14",
+    "CCACHE_DIR": "/home/vscode/.cache/ccache",
+    "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+  },
+  "mounts": [
+    "source=graphx-ccache,target=/home/vscode/.cache/ccache,type=volume"
+  ],
+  "postCreateCommand": "cmake --preset ninja-debug",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "cmake.useCMakePresets": "always",
+        "clangd.arguments": [
+          "--background-index",
+          "--compile-commands-dir=build-ninja/ninja-debug"
+        ]
+      }
+    }
+  }
+}
