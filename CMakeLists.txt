@@ -14,6 +14,9 @@ if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin
 endif()
 
 if(NOT DEFINED GRAPHX_CXX_STANDARD_FLAG OR GRAPHX_CXX_STANDARD_FLAG STREQUAL "")
+    message(WARNING
+        "GRAPHX_CXX_STANDARD_FLAG was not set by a toolchain preset. "
+        "Falling back to compiler-id inference for ad-hoc/manual configure.")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(GRAPHX_CXX_STANDARD_FLAG "-std=gnu++26")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
@@ -23,6 +26,12 @@ if(NOT DEFINED GRAPHX_CXX_STANDARD_FLAG OR GRAPHX_CXX_STANDARD_FLAG STREQUAL "")
             "Unable to infer a C++26 compiler flag for compiler '${CMAKE_CXX_COMPILER_ID}'. "
             "Configure with the GraphX toolchain file or set GRAPHX_CXX_STANDARD_FLAG manually.")
     endif()
+endif()
+
+if(NOT GRAPHX_CXX_STANDARD_FLAG MATCHES "^-std=")
+    message(FATAL_ERROR
+        "GRAPHX_CXX_STANDARD_FLAG='${GRAPHX_CXX_STANDARD_FLAG}' is invalid. "
+        "Expected a compiler language mode flag like -std=gnu++26 or -std=c++2c.")
 endif()
 
 # Set C++26 flag after project() to ensure it's applied to all targets.

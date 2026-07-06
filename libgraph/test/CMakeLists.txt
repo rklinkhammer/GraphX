@@ -76,14 +76,14 @@ if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_libgraph_unit graphx_dynamic_nodes)
 endif()
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
-set_tests_properties(libgraph_unit PROPERTIES LABELS "core;unit;ci-safe")
+set_tests_properties(libgraph_unit PROPERTIES LABELS "core;unit;ci-safe;host-any")
 add_test(NAME libgraph_unit_discovery
     COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:test_libgraph_unit>
         -DEXPECTED_SUITE=ActiveQueueTest
         -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
 set_tests_properties(libgraph_unit_discovery PROPERTIES
-    LABELS "core;unit;ownership;discovery;ci-safe")
+    LABELS "core;unit;ownership;discovery;ci-safe;host-any")
 
 if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     add_executable(test_threadpool_extended ${THREADPOOL_EXTENDED_TEST_SOURCES})
@@ -105,7 +105,7 @@ if(ENABLE_THREADPOOL_EXTENDED_TESTS)
     )
     target_link_libraries(test_threadpool_extended PRIVATE graphx_project_options)
     add_test(NAME threadpool_extended COMMAND test_threadpool_extended)
-    set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark")
+    set_tests_properties(threadpool_extended PROPERTIES LABELS "threadpool;extended;benchmark;host-any")
 endif()
 
 # Collect integration test files
@@ -132,6 +132,8 @@ if(INTEGRATION_TEST_SOURCES)
         add_dependencies(test_libgraph_integration graphx_dynamic_nodes)
     endif()
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
+    set_tests_properties(libgraph_integration PROPERTIES
+        LABELS "core;integration;ci-safe;host-any")
 endif()
 
 # Test target

@@ -47,14 +47,14 @@ if(TARGET graphx_dynamic_nodes)
 endif()
 
 add_test(NAME libdsp_unit COMMAND test_libdsp_unit)
-set_tests_properties(libdsp_unit PROPERTIES LABELS "dsp;fhss;unit;ci-safe")
+set_tests_properties(libdsp_unit PROPERTIES LABELS "dsp;fhss;unit;ci-safe;host-any")
 add_test(NAME libdsp_unit_discovery
     COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:test_libdsp_unit>
         -DEXPECTED_SUITE=FHSSGraphXExecutorTest
         -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
 set_tests_properties(libdsp_unit_discovery PROPERTIES
-    LABELS "dsp;fhss;unit;ownership;discovery;ci-safe")
+    LABELS "dsp;fhss;unit;ownership;discovery;ci-safe;host-any")
 
 add_custom_target(test_libdsp
     COMMAND ${CMAKE_CTEST_COMMAND} -R "^libdsp_unit$" --output-on-failure

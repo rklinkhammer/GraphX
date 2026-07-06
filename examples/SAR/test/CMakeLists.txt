@@ -256,15 +256,15 @@ foreach(_target IN ITEMS
 endforeach()
 
 add_test(NAME sar_crsd_io COMMAND test_sar_crsd_io)
-set_tests_properties(sar_crsd_io PROPERTIES LABELS "sar;crsd;io;ci-safe")
+set_tests_properties(sar_crsd_io PROPERTIES LABELS "sar;crsd;io;ci-safe;host-any")
 add_test(NAME sar_nodes COMMAND test_sar_nodes)
-set_tests_properties(sar_nodes PROPERTIES LABELS "sar;nodes;unit;ci-safe")
+set_tests_properties(sar_nodes PROPERTIES LABELS "sar;nodes;unit;ci-safe;host-any")
 add_test(NAME sar_runtime_integration COMMAND test_sar_runtime_integration)
 set_tests_properties(sar_runtime_integration PROPERTIES
-    LABELS "sar;runtime;integration;ci-safe")
+    LABELS "sar;runtime;integration;ci-safe;host-any")
 add_test(NAME sar_local_only COMMAND test_sar_local_only)
 set_tests_properties(sar_local_only PROPERTIES
-    LABELS "sar;local-only;gated")
+    LABELS "sar;local-only;gated;host-local-only")
 
 function(add_sar_discovery_test name target expected_suite labels)
     add_test(NAME ${name}
@@ -276,30 +276,34 @@ function(add_sar_discovery_test name target expected_suite labels)
 endfunction()
 
 add_sar_discovery_test(sar_crsd_io_discovery test_sar_crsd_io
-    CrsdIoTest "sar;crsd;ownership;discovery;ci-safe")
+    CrsdIoTest "sar;crsd;ownership;discovery;ci-safe;host-any")
 add_sar_discovery_test(sar_nodes_discovery test_sar_nodes
-    AzimuthTileSplitNodeTest "sar;nodes;ownership;discovery;ci-safe")
+    AzimuthTileSplitNodeTest "sar;nodes;ownership;discovery;ci-safe;host-any")
 add_sar_discovery_test(sar_runtime_integration_discovery
     test_sar_runtime_integration SarJsonRuntimeTest
-    "sar;runtime;ownership;discovery;ci-safe")
+    "sar;runtime;ownership;discovery;ci-safe;host-any")
 add_sar_discovery_test(sar_local_only_discovery test_sar_local_only
-    LocalRunnerContractTest "sar;local-only;ownership;discovery;gated")
+    LocalRunnerContractTest "sar;local-only;ownership;discovery;gated;host-local-only")
 
 add_test(NAME sar_example_ci_lane
     COMMAND test_sar_runtime_integration --gtest_filter=CiValidationLaneTest.*)
+set_tests_properties(sar_example_ci_lane PROPERTIES
+    LABELS "sar;ci-safe;runtime;host-any")
 add_test(NAME sar_example_main_executable
     COMMAND test_sar_runtime_integration --gtest_filter=SarMainExecutableTest.*)
+set_tests_properties(sar_example_main_executable PROPERTIES
+    LABELS "sar;runtime;integration;host-any")
 
 add_test(NAME sar_example_sarpy_probe_lane
     COMMAND test_sar_local_only --gtest_filter=SarpyReferenceCompareToolsTest.ProbeCommandsAreLocalOnlyAndNonBlocking:SarpyCrsdValidationHarnessTest.ProbeCommandsDeclareLocalOnlyHarness)
-set_tests_properties(sar_example_sarpy_probe_lane PROPERTIES LABELS "sar;sarpy;probe;local-only;gated")
+set_tests_properties(sar_example_sarpy_probe_lane PROPERTIES LABELS "sar;sarpy;probe;local-only;gated;host-local-only")
 
 add_test(NAME sar_example_sarpy_integration_lane
     COMMAND test_sar_local_only --gtest_filter=SarpyReferenceCompareToolsTest.*:SarpyCrsdValidationHarnessTest.*)
-set_tests_properties(sar_example_sarpy_integration_lane PROPERTIES LABELS "sar;sarpy;integration;local-only;gated")
+set_tests_properties(sar_example_sarpy_integration_lane PROPERTIES LABELS "sar;sarpy;integration;local-only;gated;host-local-only")
 
 add_test(NAME sar_real_gotcha_local_validation
     COMMAND test_sar_local_only --gtest_filter=LocalGotchaValidationLaneTest.OptionalSmokeRunsOnlyWhenRealDatasetEnvironmentIsSet)
 set_tests_properties(sar_real_gotcha_local_validation PROPERTIES
     DISABLED TRUE
-    LABELS "sar;gotcha;real-data;local-only;gated")
+    LABELS "sar;gotcha;real-data;local-only;gated;host-local-only")

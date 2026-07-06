@@ -31,6 +31,8 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
         add_dependencies(test_libgpu_stub_unit graphx_dynamic_nodes)
     endif()
     add_test(NAME libgpu_stub_unit COMMAND test_libgpu_stub_unit)
+    set_tests_properties(libgpu_stub_unit PROPERTIES
+        LABELS "gpu;unit;ci-safe;host-any")
 endif()
 
 if((GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED) AND GPU_BACKEND_UNIT_TEST_SOURCES)
@@ -53,6 +55,8 @@ if((GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED) AND GPU_
         add_dependencies(test_libgpu_backend_unit graphx_dynamic_nodes)
     endif()
     add_test(NAME libgpu_backend_unit COMMAND test_libgpu_backend_unit)
+    set_tests_properties(libgpu_backend_unit PROPERTIES
+        LABELS "gpu;backend;unit;host-any")
 endif()
 
 if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
@@ -76,7 +80,14 @@ if(GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
         if(TARGET graphx_dynamic_nodes)
             add_dependencies(test_libgpu_metal_runtime graphx_dynamic_nodes)
         endif()
-        add_test(NAME libgpu_metal_runtime COMMAND test_libgpu_metal_runtime)
+        add_test(NAME libgpu_metal_runtime
+            COMMAND ${CMAKE_SOURCE_DIR}/cmake/run_if_host_matches.sh
+                Darwin
+                libgpu_metal_runtime
+                $<TARGET_FILE:test_libgpu_metal_runtime>)
+        set_tests_properties(libgpu_metal_runtime PROPERTIES
+            LABELS "gpu;metal;runtime;host-macos"
+            SKIP_RETURN_CODE 77)
     endif()
 endif()
 
@@ -100,6 +111,8 @@ if(GPU_INTEGRATION_TEST_SOURCES)
         add_dependencies(test_libgpu_integration graphx_dynamic_nodes)
     endif()
     add_test(NAME libgpu_integration COMMAND test_libgpu_integration)
+    set_tests_properties(libgpu_integration PROPERTIES
+        LABELS "gpu;integration;host-any")
 endif()
 
 if(GPU_PERF_TEST_SOURCES)
@@ -122,4 +135,6 @@ if(GPU_PERF_TEST_SOURCES)
         add_dependencies(test_libgpu_perf graphx_dynamic_nodes)
     endif()
     add_test(NAME libgpu_perf COMMAND test_libgpu_perf)
+    set_tests_properties(libgpu_perf PROPERTIES
+        LABELS "gpu;perf;host-any")
 endif()

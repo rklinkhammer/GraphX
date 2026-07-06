@@ -10,7 +10,6 @@
       "name": "ninja-base",
       "hidden": true,
       "generator": "Ninja",
-      "toolchainFile": "${sourceDir}/cmake/toolchains/graphx-host.cmake",
       "binaryDir": "${sourceDir}/build-ninja/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -18,19 +17,66 @@
       }
     },
     {
+      "name": "ninja-base-appleclang-macos",
+      "hidden": true,
+      "inherits": "ninja-base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/graphx-appleclang-macos.cmake",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "ninja-base-gcc-linux",
+      "hidden": true,
+      "inherits": "ninja-base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/graphx-gcc-linux.cmake",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "ninja-base-clang-linux",
+      "hidden": true,
+      "inherits": "ninja-base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/graphx-clang-linux.cmake",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "ninja-debug",
       "displayName": "Ninja Debug",
       "description": "Default GraphX development preset (Ninja, modules pilot OFF)",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ninja-debug-linux-clang",
+      "displayName": "Ninja Debug (Linux Clang)",
+      "description": "Debug build profile for Linux hosts using Clang toolchain",
+      "inherits": "ninja-base-clang-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GRAPHX_BUILD_PROFILE": "linux-ninja-host",
+        "ENABLE_METAL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF"
       }
     },
     {
       "name": "ninja-debug-linux-host",
       "displayName": "Ninja Debug (Linux Host)",
       "description": "Debug build profile for Linux hosts without Metal-native requirements",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-gcc-linux",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "GRAPHX_BUILD_PROFILE": "linux-ninja-host",
@@ -44,7 +90,7 @@
       "name": "ninja-release",
       "displayName": "Ninja Release",
       "description": "Release build with Ninja (modules pilot OFF)",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -53,7 +99,7 @@
       "name": "ninja-debug-modules",
       "displayName": "Ninja Debug (Module Pilot)",
       "description": "Debug build with Ninja and module pilot enabled (toolchain dependent)",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "GRAPHX_ENABLE_MODULE_PILOT": "ON"
@@ -63,7 +109,7 @@
       "name": "ninja-debug-metal-native",
       "displayName": "Ninja Debug (Metal Native)",
       "description": "Debug build with native Metal runtime requested via metal-cpp",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_SYCL_GRAPH_NODES": "OFF",
@@ -85,7 +131,7 @@
       "name": "ninja-release-metal-native",
       "displayName": "Ninja Release (Metal Native)",
       "description": "Release build with native Metal runtime requested via metal-cpp",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "ENABLE_SYCL_GRAPH_NODES": "OFF",
@@ -109,7 +155,7 @@
       "name": "ninja-ci-macos",
       "displayName": "Ninja CI (macOS)",
       "description": "CI configure preset for macOS hosts",
-      "inherits": "ninja-base",
+      "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_SYCL_GRAPH_NODES": "OFF",
@@ -361,7 +407,8 @@
       },
       "filter": {
         "include": {
-          "name": "libgpu_metal_runtime"
+          "name": "libgpu_metal_runtime",
+          "label": "host-macos"
         }
       }
     },
@@ -374,7 +421,8 @@
       },
       "filter": {
         "include": {
-          "name": "libgpu_metal_runtime"
+          "name": "libgpu_metal_runtime",
+          "label": "host-macos"
         }
       }
     },
@@ -439,7 +487,8 @@
       },
       "filter": {
         "include": {
-          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$"
+          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$",
+          "label": "host-any|host-linux"
         }
       }
     },
@@ -452,7 +501,8 @@
       },
       "filter": {
         "include": {
-          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$"
+          "name": "^(libgraph_unit|libdsp_unit|sar_(crsd_io|nodes|runtime_integration))$",
+          "label": "host-any|host-macos"
         }
       }
     }
