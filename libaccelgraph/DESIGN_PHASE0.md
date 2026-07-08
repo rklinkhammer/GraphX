@@ -80,3 +80,21 @@ node-base wrappers:
 
 No justified direct-`INode` exceptions were needed for transfer nodes in this
 phase.
+
+## Phase 3 Native Metal Provider Notes
+
+Phase 3 adds `MetalAcceleratorProvider` directly in `libaccelgraph` against the
+new `IAcceleratorProvider` and `IAcceleratorSession` contracts. The
+implementation keeps device, queue, buffer, command buffer, shared event, and
+completion tracking internal to the provider/session implementation.
+
+Diagnostic categories are intentionally explicit:
+
+- `Metal support not compiled (ACCELGRAPH_ENABLE_METAL=OFF).`
+- `Metal runtime unavailable.`
+- `Metal runtime unavailable: no compatible device.`
+- `Metal session creation failure.`
+- `Metal transfer failure.`
+
+No `IMetal*Capability` inheritance or wrappers are introduced, and transfer
+graph node types remain backend-neutral.

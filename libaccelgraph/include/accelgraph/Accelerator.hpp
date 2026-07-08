@@ -123,6 +123,7 @@ private:
     explicit HostAllocationHandle(std::shared_ptr<State> state);
 
     friend class CpuAcceleratorSession;
+    friend class MetalAcceleratorSession;
 };
 
 class DeviceAllocationHandle {
@@ -143,6 +144,7 @@ private:
     explicit DeviceAllocationHandle(std::shared_ptr<State> state);
 
     friend class CpuAcceleratorSession;
+    friend class MetalAcceleratorSession;
 };
 
 class QueueHandle {
@@ -163,6 +165,7 @@ private:
     explicit QueueHandle(std::shared_ptr<State> state);
 
     friend class CpuAcceleratorSession;
+    friend class MetalAcceleratorSession;
 };
 
 class EventHandle {
@@ -183,6 +186,7 @@ private:
     explicit EventHandle(std::shared_ptr<State> state);
 
     friend class CpuAcceleratorSession;
+    friend class MetalAcceleratorSession;
 };
 
 class TransferCompletion {
@@ -205,6 +209,7 @@ private:
     TransferCompletion(std::shared_ptr<State> state, EventHandle event);
 
     friend class CpuAcceleratorSession;
+    friend class MetalAcceleratorSession;
 };
 
 struct HostAllocationRequest {

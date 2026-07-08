@@ -1,6 +1,11 @@
 {
   "name": "AccelGraphPhase2TransferTopology",
   "description": "Host ingress -> H2D -> D2H -> Host egress with lease release sink.",
+  "accelerator_session": {
+    "session_key": "graph.default",
+    "provider_id": "metal.default",
+    "backend": "metal"
+  },
   "num_threads": 4,
   "nodes": [
     {

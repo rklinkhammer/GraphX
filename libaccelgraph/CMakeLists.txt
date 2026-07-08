@@ -4,8 +4,20 @@ project(libaccelgraph VERSION 0.1.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-option(ACCELGRAPH_ENABLE_METAL "Enable libaccelgraph native Metal backend" OFF)
+set(_accelgraph_enable_metal_default OFF)
+if(DEFINED GRAPHX_METAL_NATIVE_RUNTIME_ENABLED AND GRAPHX_METAL_NATIVE_RUNTIME_ENABLED)
+    set(_accelgraph_enable_metal_default ON)
+endif()
+
+option(ACCELGRAPH_ENABLE_METAL "Enable libaccelgraph native Metal backend" ${_accelgraph_enable_metal_default})
 option(ACCELGRAPH_ENABLE_CUDA "Enable libaccelgraph native CUDA backend" OFF)
+
+set(ACCELGRAPH_METAL_HEADERS_AVAILABLE OFF)
+if(ACCELGRAPH_ENABLE_METAL AND APPLE)
+    if(DEFINED GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED AND GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
+        set(ACCELGRAPH_METAL_HEADERS_AVAILABLE ON)
+    endif()
+endif()
 
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
 
@@ -13,14 +25,27 @@ add_library(accelgraph STATIC ${SOURCES})
 target_compile_definitions(accelgraph PUBLIC
     ACCELGRAPH_ENABLE_METAL=$<BOOL:${ACCELGRAPH_ENABLE_METAL}>
     ACCELGRAPH_ENABLE_CUDA=$<BOOL:${ACCELGRAPH_ENABLE_CUDA}>
+    ACCELGRAPH_METAL_HEADERS_AVAILABLE=$<BOOL:${ACCELGRAPH_METAL_HEADERS_AVAILABLE}>
 )
 target_include_directories(accelgraph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
+    target_include_directories(accelgraph PRIVATE
+        ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}
+    )
+endif()
 target_link_libraries(accelgraph PUBLIC
     graph
 )
+if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
+    target_link_libraries(accelgraph PRIVATE
+        ${GRAPHX_METAL_FRAMEWORK}
+        ${GRAPHX_FOUNDATION_FRAMEWORK}
+        ${GRAPHX_QUARTZCORE_FRAMEWORK}
+    )
+endif()
 
 if(MSVC)
     target_compile_options(accelgraph PRIVATE /W4)
