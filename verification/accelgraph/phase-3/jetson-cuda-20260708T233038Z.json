@@ -1,0 +1,122 @@
+{
+  "phase": 3,
+  "generated_at_utc": "2026-07-08T23:30:38Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "d69832a783e5edcfebd8e755b63f5a56b91b95dc",
+  "diff_identity": {
+    "type": "commit",
+    "value": "d69832a783e5edcfebd8e755b63f5a56b91b95dc",
+    "working_tree_dirty": false
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "compiler": {
+    "c": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "cxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  },
+  "build_tools": {
+    "cmake": "cmake version 4.3.4",
+    "ninja": "1.11.1"
+  },
+  "cmake": {
+    "generator": "Ninja",
+    "build_directory": "build-ninja/ninja-debug-linux-host"
+  },
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": [
+      "OFF (jetson cpu lane)",
+      "ON (jetson cuda lane)"
+    ]
+  },
+  "backend_status": {
+    "cpu": {
+      "compiled": "yes",
+      "runtime_available": "yes",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "native"
+    },
+    "cuda": {
+      "compiled": "not_required_phase3",
+      "runtime_available": "unavailable",
+      "device_detected": "detected_via_nvidia_smi",
+      "provider_execution_mode": "not_implemented_phase3",
+      "diagnostic": "nvcc not found on host; phase-3 scope is Metal provider implementation intended for macOS"
+    },
+    "metal": {
+      "compiled": "off_in_jetson_lanes",
+      "runtime_available": "unavailable_on_jetson",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "pending_external_macos_verification"
+    }
+  },
+  "commands_run": [
+    {
+      "name": "sync_branch_identity",
+      "command": "git pull --ff-only",
+      "result": "pass",
+      "diagnostic": "Already up to date."
+    },
+    {
+      "name": "jetson_cpu_configure_build_test",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=OFF && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "jetson_cuda_configure_build_test",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "libaccelgraph_smoke",
+      "AccelGraphPhase3MetalProviderTest.DiagnosticsDistinguishMetalAvailabilityStates (present in binary)",
+      "AccelGraphPhase3MetalProviderTest.GenericTransferTopologyRequestsMetalProviderAndExecutesOrSkips (present in binary)"
+    ],
+    "failed": [],
+    "skipped": []
+  },
+  "searches_run": [
+    {
+      "query": "#include\\s*[<\\\"].*IMetal.*Capability|IMetal.*Capability",
+      "path": "libaccelgraph/include libaccelgraph/src libaccelgraph/test",
+      "result": "pass",
+      "diagnostic": "No matches in code."
+    },
+    {
+      "query": "MetalHostToDeviceNode|MetalDeviceToHostNode|MetalHostIngressNode|MetalHostEgressNode|MetalReleaseLeaseNode|Metal.*Transfer.*Node",
+      "path": "libaccelgraph/include libaccelgraph/src libaccelgraph/plugins libaccelgraph/test",
+      "result": "pass",
+      "diagnostic": "No backend-specific graph transfer node variants found."
+    },
+    {
+      "query": "#include\\s*[<\\\"](Metal/Metal\\.h|Foundation/Foundation\\.h|objc/|simd/)",
+      "path": "libaccelgraph/include/accelgraph",
+      "result": "pass",
+      "diagnostic": "No public Metal native includes required by Jetson/CUDA builds."
+    }
+  ],
+  "host_specific_checks": {
+    "jetson_cpu_lane": "passed",
+    "jetson_cuda_lane": "passed",
+    "macos_cpu_lane": "pending_external_verification",
+    "macos_metal_lane": "pending_external_verification"
+  },
+  "overall_status": "pass",
+  "blockers": [],
+  "recommended_fix_list": []
+}
