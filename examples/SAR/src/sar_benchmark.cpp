@@ -1077,6 +1077,8 @@ nlohmann::json StatsToJson(const BenchmarkStats& stats) {
 
 std::string BackendKindToString(graph::gpu::accel::BackendKind backend) {
     switch (backend) {
+        case graph::gpu::accel::BackendKind::CPU:
+            return "cpu";
         case graph::gpu::accel::BackendKind::CUDA:
             return "cuda";
         case graph::gpu::accel::BackendKind::SYCL:

@@ -13,6 +13,7 @@
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
 #include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
+#include "gpu/session/AcceleratorSessionProviders.hpp"
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/cuda/capabilities/DefaultCudaCapabilities.hpp"
@@ -35,29 +36,15 @@
 
 namespace graph::gpu {
 
-namespace {
-
-/**
- * @brief Make shared gpu capability bus.
- */
-std::shared_ptr<graph::CapabilityBus> MakeSharedGpuCapabilityBus() {
-    auto bus = std::make_shared<graph::CapabilityBus>();
-    RegisterDefaultGpuCapabilities(*bus);
-    return bus;
-}
-
-/**
- * @brief Shared gpu capability bus storage.
- */
-std::shared_ptr<graph::CapabilityBus>& SharedGpuCapabilityBusStorage() {
-    static auto shared_bus = MakeSharedGpuCapabilityBus();
-    return shared_bus;
-}
-
-} // namespace
-
 void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
                                     const GpuCapabilityBootstrapOptions& options) {
+    if (!bus.Has<AcceleratorSessionRegistry>()) {
+        bus.Register<AcceleratorSessionRegistry>(CreateDefaultAcceleratorSessionRegistry(
+            AcceleratorProviderOptions{.enable_cpu = options.enable_cpu,
+                                       .enable_cuda = options.enable_cuda,
+                                       .enable_sycl = options.enable_sycl,
+                                       .enable_metal = options.enable_metal}));
+    }
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     if (options.enable_cuda) {
         if (!bus.Has<cuda::capabilities::ICudaContextCapability>()) {
@@ -230,21 +217,6 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
     (void)options.enable_metal;
     (void)options.require_native_metal_runtime;
 #endif
-}
-
-/**
- * @brief Get shared gpu capability bus.
- */
-graph::CapabilityBus& GetSharedGpuCapabilityBus() {
-    return *SharedGpuCapabilityBusStorage();
-}
-
-std::shared_ptr<graph::CapabilityBus> OverrideSharedGpuCapabilityBusForTesting(
-    std::shared_ptr<graph::CapabilityBus> replacement_bus) {
-    auto& storage = SharedGpuCapabilityBusStorage();
-    auto previous_bus = storage;
-    storage = replacement_bus ? std::move(replacement_bus) : MakeSharedGpuCapabilityBus();
-    return previous_bus;
 }
 
 } // namespace graph::gpu

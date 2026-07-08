@@ -18,6 +18,8 @@ namespace graph::gpu::accel {
 
 inline const char* ToString(BackendKind backend) noexcept {
     switch (backend) {
+    case BackendKind::CPU:
+        return "CPU";
     case BackendKind::CUDA:
         return "CUDA";
     case BackendKind::SYCL:

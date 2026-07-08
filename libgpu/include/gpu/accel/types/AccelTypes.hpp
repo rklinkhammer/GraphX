@@ -31,6 +31,7 @@ constexpr std::size_t kMaxTensorRank = 8;
  */
 enum class BackendKind : std::uint8_t {
     Unknown = 0,
+    CPU,
     CUDA,
     SYCL,
     Metal
@@ -132,6 +133,7 @@ struct TensorLayout {
 
 struct DeviceBufferView {
     BackendKind backend{BackendKind::Unknown};
+    std::uint64_t session_id{0};
     void* device_ptr{nullptr};
     std::uint64_t bytes{0};
     DataType dtype{DataType::Unknown};
@@ -155,6 +157,7 @@ struct DeviceBufferView {
 
 struct HostPinnedBufferView {
     BackendKind backend{BackendKind::Unknown};
+    std::uint64_t session_id{0};
     void* host_ptr{nullptr};
     std::uint64_t bytes{0};
     DataType dtype{DataType::Unknown};
@@ -175,6 +178,7 @@ struct HostPinnedBufferView {
  */
 
 struct BufferLease {
+    std::uint64_t session_id{0};
     std::uint64_t pool_id{0};
     std::uint64_t allocation_id{0};
     ReleasePolicy release_policy{ReleasePolicy::Manual};
@@ -196,6 +200,7 @@ struct BufferLease {
 
 struct TransferTicket {
     BackendKind backend{BackendKind::Unknown};
+    std::uint64_t session_id{0};
     std::uint64_t transfer_id{0};
     std::uint64_t execution_queue_id{0};
     std::uint64_t completion_event{0};
@@ -241,6 +246,7 @@ struct KernelLaunchConfig {
 
 struct KernelTicket {
     BackendKind backend{BackendKind::Unknown};
+    std::uint64_t session_id{0};
     std::uint64_t kernel_id{0};
     KernelLaunchConfig launch{};
     std::uint32_t arg_count{0};
