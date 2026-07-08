@@ -1,0 +1,147 @@
+{
+  "phase": 2,
+  "generated_at_utc": "2026-07-08T23:19:45Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "6b8b36cc2cf7ab56907581254460b50e9338df35",
+  "diff_identity": {
+    "type": "uncommitted_diff",
+    "value": "c8be972655b048041e272bcfe0223838b33d6db0583644a11fef75f6ea4c7b08",
+    "base_commit": "6b8b36cc2cf7ab56907581254460b50e9338df35",
+    "working_tree_dirty": true,
+    "files": [
+      "libaccelgraph/test/CMakeLists.txt"
+    ]
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "compiler": {
+    "c": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "cxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  },
+  "build_tools": {
+    "cmake": "cmake version 4.3.4",
+    "ninja": "1.11.1"
+  },
+  "cmake": {
+    "generator": "Ninja",
+    "build_directory": "build-ninja/ninja-debug-linux-host"
+  },
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": [
+      "OFF (cpu lane configure)",
+      "ON (cuda lane configure)"
+    ]
+  },
+  "backend_status": {
+    "cpu": {
+      "compiled": "yes",
+      "runtime_available": "yes",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "native"
+    },
+    "cuda": {
+      "compiled": "not_required_phase2",
+      "runtime_available": "unavailable",
+      "device_detected": "detected_via_nvidia_smi",
+      "provider_execution_mode": "not_implemented_phase2",
+      "diagnostic": "nvcc not found on host; phase-2 scope is backend-neutral transfer nodes over CPU provider"
+    },
+    "metal": {
+      "compiled": "no",
+      "runtime_available": "unavailable",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "not_applicable"
+    }
+  },
+  "commands_run": [
+    {
+      "name": "sync_branch_identity",
+      "command": "git pull --ff-only",
+      "result": "pass",
+      "diagnostic": "Already up to date."
+    },
+    {
+      "name": "cpu_configure",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=OFF",
+      "result": "pass",
+      "diagnostic": "Configure completed."
+    },
+    {
+      "name": "cpu_build_libaccelgraph_tests",
+      "command": "cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc)",
+      "result": "pass",
+      "diagnostic": "Build completed after minimal test-link fix."
+    },
+    {
+      "name": "cpu_run_libaccelgraph_tests",
+      "command": "ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "cuda_configure",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON",
+      "result": "pass",
+      "diagnostic": "Configure completed."
+    },
+    {
+      "name": "cuda_build_libaccelgraph_tests",
+      "command": "cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc)",
+      "result": "pass",
+      "diagnostic": "Build completed after minimal test-link fix."
+    },
+    {
+      "name": "cuda_run_libaccelgraph_tests",
+      "command": "ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "libaccelgraph_smoke",
+      "AccelGraphPhase2TransferNodesTest.CpuTransferTopologyRoundTripAndRelease",
+      "AccelGraphPhase2TransferNodesTest.PluginDiscoveryAndRoundTripViaProvider"
+    ],
+    "failed": [],
+    "skipped": []
+  },
+  "searches_run": [
+    {
+      "query": "IMetal.*Capability|ICuda.*Capability|Metal.*Capability|Cuda.*Capability|cuda|metal",
+      "path": "libaccelgraph/src/TransferGraphNodes.cpp libaccelgraph/include/accelgraph/TransferGraphNodes.hpp libaccelgraph/include/accelgraph/TransferGraphTypes.hpp",
+      "result": "pass",
+      "diagnostic": "No matches."
+    },
+    {
+      "query": "CudaHostToDeviceNode|MetalHostToDeviceNode|CudaDeviceToHostNode|MetalDeviceToHostNode|Cuda.*Ingress|Metal.*Ingress|Cuda.*Egress|Metal.*Egress|Cuda.*Lease|Metal.*Lease",
+      "path": "libaccelgraph",
+      "result": "pass",
+      "diagnostic": "No backend-specific transfer node variants found."
+    }
+  ],
+  "host_specific_checks": {
+    "jetson_cpu_lane": "passed",
+    "jetson_cuda_lane": "passed",
+    "macos_cpu_lane": "pending_external_verification",
+    "macos_metal_lane": "pending_external_verification"
+  },
+  "verification_notes": [
+    "Minimal current-phase fix applied: add graph library to test_libaccelgraph_smoke link list in libaccelgraph/test/CMakeLists.txt to resolve static link-order failure in this host build."
+  ],
+  "overall_status": "pass",
+  "blockers": [],
+  "recommended_fix_list": []
+}

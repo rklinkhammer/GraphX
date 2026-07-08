@@ -3,7 +3,8 @@
 - Phase verified: 2
 - Verifier host: jetson-cuda (mars)
 - Branch: codex/gpu-clean-restart
-- Commit: 43381c00d0c842a73484f015939ee1c43b14181d
+- Commit: 6b8b36cc2cf7ab56907581254460b50e9338df35
+- Diff identity: c8be972655b048041e272bcfe0223838b33d6db0583644a11fef75f6ea4c7b08 (uncommitted)
 - Imported results: none
 
 ## Result
@@ -23,6 +24,10 @@ Status: PASS
 - `rg -n "IMetal.*Capability|ICuda.*Capability|Metal.*Capability|Cuda.*Capability|cuda|metal" libaccelgraph/src/TransferGraphNodes.cpp libaccelgraph/include/accelgraph/TransferGraphNodes.hpp libaccelgraph/include/accelgraph/TransferGraphTypes.hpp -i`: pass (no matches)
 - `rg -n "CudaHostToDeviceNode|MetalHostToDeviceNode|CudaDeviceToHostNode|MetalDeviceToHostNode|Cuda.*Ingress|Metal.*Ingress|Cuda.*Egress|Metal.*Egress|Cuda.*Lease|Metal.*Lease" libaccelgraph`: pass (no matches)
 
+## Minimal Fix Applied
+
+- Added `graph` to `test_libaccelgraph_smoke` link libraries in [libaccelgraph/test/CMakeLists.txt](libaccelgraph/test/CMakeLists.txt#L1) to resolve host link failure while building the phase-2 test executable.
+
 ## Phase 2 Evidence
 
 - Executed binary includes phase-2 topology checks:
@@ -38,4 +43,4 @@ Status: PASS
 
 ## Artifact
 
-- jetson-cuda-20260708T230838Z.json
+- jetson-cuda-20260708T231945Z.json
