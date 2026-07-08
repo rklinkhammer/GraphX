@@ -135,6 +135,59 @@ Imported results from the other host are acceptable only when they include the
 shared backend status report schema and exact command output summary. Imported
 results must be labeled as imported, not locally reproduced.
 
+### Jetson error ownership
+
+When a Jetson verification failure occurs, the Jetson Verifier Agent owns the
+first diagnosis because it is running on the host that can reproduce CUDA
+failures.
+
+The Jetson verifier must classify each failure as one of:
+
+- shared-core API failure;
+- shared CMake/build-option failure;
+- CUDA compile failure;
+- CUDA link failure;
+- CUDA runtime/device failure;
+- CUDA correctness/test failure;
+- CUDA benchmark/performance failure;
+- Jetson environment/toolchain failure;
+- artifact/schema mismatch.
+
+The Jetson verifier report must include:
+
+- exact command that failed;
+- full relevant error output or a path to the captured log;
+- branch and commit/diff identity;
+- host status report;
+- failure classification;
+- suspected owning area;
+- recommended fix owner;
+- whether the failure is reproducible on macOS, Jetson-only, or unknown;
+- whether macOS CPU/Metal lanes are affected.
+
+Assign fixes using these rules:
+
+1. If the failure is CUDA-specific or only reproducible on Jetson, assign the
+   fix to a Jetson Implementor Agent. The macOS Implementor Agent may not claim
+   the issue fixed without a later Jetson verifier pass.
+2. If the failure is shared-core C++ or shared CMake and is reproducible on
+   macOS, the macOS Implementor Agent may fix it, but Jetson verification
+   remains pending until rerun on Jetson.
+3. If the failure is a test expectation or verification artifact/schema mismatch,
+   assign the fix to the host that owns the failing test/artifact, then rerun the
+   affected host lane.
+4. If the failure reveals a cross-host design conflict, pause implementation,
+   update the design/prompt notes, and do not continue coding until the conflict
+   is resolved.
+5. If the failure is environment/toolchain-specific, do not change production
+   code unless the verifier identifies a real portability bug. Record the
+   required host setup or toolchain correction instead.
+
+Do not guess-fix native CUDA failures from macOS. macOS may prepare obvious
+text, CMake, or shared-interface fixes, but CUDA compile/link/runtime/device
+failures are not closed until the Jetson verifier reruns the failing command and
+passes it or reclassifies it.
+
 ### VS Code and cross-host handoff workflow
 
 Use two VS Code windows rather than trying to force macOS and Jetson into one
@@ -204,6 +257,8 @@ Each host verification JSON must include:
 - commands run;
 - command result: pass, fail, skip, or pending;
 - exact skip/failure diagnostic;
+- failure classification, when applicable;
+- recommended fix owner, when applicable;
 - tests passed/failed/skipped;
 - searches run;
 - benchmark results when applicable.
@@ -995,6 +1050,7 @@ End every invocation with:
 - host lanes passed, skipped, imported, or pending external verification;
 - verification artifacts written or imported;
 - branch and commit/diff identity used by each host;
+- Jetson failure classifications and fix owners, if any;
 - old `libgpu` surfaces touched, if any;
 - explicit deferred work;
 - exact next phase prompt.
