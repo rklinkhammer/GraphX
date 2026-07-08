@@ -12,6 +12,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
     )
     target_link_libraries(test_libaccelgraph_smoke PRIVATE
         accelgraph
+        gpu
         GTest::gtest_main
         graphx_project_options
     )

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -11,6 +12,9 @@
 #include "accelgraph/AcceleratorSessionRegistry.hpp"
 #include "accelgraph/CpuAcceleratorProvider.hpp"
 #include "accelgraph/TransferGraphNodes.hpp"
+#include "graph/GraphExecutorBuilder.hpp"
+#include "graph/GraphManagerCore.hpp"
+#include "graph/NodeFacadeAdapterWrapper.hpp"
 #include "graph/RegisteredNodeProvider.hpp"
 #include "plugins/PluginLoader.hpp"
 #include "plugins/PluginRegistry.hpp"
@@ -44,6 +48,32 @@ std::vector<std::byte> BuildPayload(std::size_t size) {
 
 std::string PluginFilename(const std::string& stem) {
     return "lib" + stem + kSharedLibraryExtension;
+}
+
+std::filesystem::path TransferTopologyConfigPath() {
+    return std::filesystem::path(__FILE__).parent_path().parent_path() /
+           "config" / "topologies" / "accelgraph_phase2_transfer_topology.json";
+}
+
+template <typename NodeT>
+std::shared_ptr<NodeT> ResolveNode(const std::shared_ptr<graph::GraphManager>& graph_manager) {
+    if (!graph_manager) {
+        return nullptr;
+    }
+
+    for (const auto& node : graph_manager->GetNodes()) {
+        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+        if (!wrapper) {
+            continue;
+        }
+
+        auto typed = wrapper->GetNode<NodeT>();
+        if (typed) {
+            return typed;
+        }
+    }
+
+    return nullptr;
 }
 
 }  // namespace
@@ -234,6 +264,72 @@ TEST(AccelGraphPhase2TransferNodesTest, PluginDiscoveryAndRoundTripViaProvider) 
     ASSERT_TRUE(h2d_out.has_value());
 
     auto d2h_out = d2h->Execute(*h2d_out, "phase2.plugin.d2h");
+    ASSERT_TRUE(d2h_out.has_value());
+
+    auto egress_payload = egress->Execute(d2h_out->output_host_buffer);
+    ASSERT_TRUE(egress_payload.has_value());
+    EXPECT_EQ(egress_payload.value(), payload);
+
+    ASSERT_TRUE(release->Execute(h2d_out->transfer_completion).has_value());
+    ASSERT_TRUE(release->Execute(d2h_out->transfer_completion).has_value());
+    ASSERT_TRUE(release->Execute(h2d_out->queue).has_value());
+    ASSERT_TRUE(release->Execute(h2d_out->device_buffer).has_value());
+    ASSERT_TRUE(release->Execute(ingress_out->host_buffer).has_value());
+    ASSERT_TRUE(release->Execute(d2h_out->output_host_buffer).has_value());
+}
+
+TEST(AccelGraphPhase2TransferNodesTest, JsonTopologyLoadsThroughGraphExecutorBuilder) {
+    const auto config_path = TransferTopologyConfigPath();
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    const auto plugin_dir = std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
+    ASSERT_TRUE(std::filesystem::exists(plugin_dir));
+
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithJsonConfig(config_path.string())
+                        .WithPluginDirectory(plugin_dir.string())
+                        .WithExecutorTimeout(std::chrono::seconds(5))
+                        .Build();
+    ASSERT_NE(executor, nullptr);
+
+    auto graph_manager = executor->GetGraphManager();
+    ASSERT_NE(graph_manager, nullptr);
+    EXPECT_EQ(graph_manager->GetNodes().size(), 5u);
+    EXPECT_EQ(graph_manager->GetEdges().size(), 3u);
+
+    auto ingress = ResolveNode<accelgraph::HostIngressNode>(graph_manager);
+    auto h2d = ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
+    auto d2h = ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
+    auto egress = ResolveNode<accelgraph::HostEgressNode>(graph_manager);
+    auto release = ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
+
+    ASSERT_NE(ingress, nullptr);
+    ASSERT_NE(h2d, nullptr);
+    ASSERT_NE(d2h, nullptr);
+    ASSERT_NE(egress, nullptr);
+    ASSERT_NE(release, nullptr);
+
+    auto session = CreateCpuSession();
+    ASSERT_NE(session, nullptr);
+
+    accelgraph::AcceleratorSessionRegistry session_registry;
+    ASSERT_TRUE(session_registry.RegisterSession("graph.default", session));
+
+    ASSERT_TRUE(ingress->Initialize(session_registry, "graph.default"));
+    ASSERT_TRUE(h2d->Initialize(session_registry, "graph.default"));
+    ASSERT_TRUE(d2h->Initialize(session_registry, "graph.default"));
+    ASSERT_TRUE(egress->Initialize(session_registry, "graph.default"));
+    ASSERT_TRUE(release->Initialize(session_registry, "graph.default"));
+
+    const auto payload = BuildPayload(128);
+
+    auto ingress_out = ingress->Execute(payload, "phase2.executor.ingress");
+    ASSERT_TRUE(ingress_out.has_value());
+
+    auto h2d_out = h2d->Execute(ingress_out->host_buffer, "phase2.executor.h2d");
+    ASSERT_TRUE(h2d_out.has_value());
+
+    auto d2h_out = d2h->Execute(*h2d_out, "phase2.executor.d2h");
     ASSERT_TRUE(d2h_out.has_value());
 
     auto egress_payload = egress->Execute(d2h_out->output_host_buffer);

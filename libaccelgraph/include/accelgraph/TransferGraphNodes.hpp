@@ -15,14 +15,14 @@
 
 namespace accelgraph {
 
-class HostIngressNode : public graph::NamedSourceNode<HostIngressNode, HostIngressOutput> {
+class HostIngressNode : public graph::NamedSourceNode<HostIngressNode, HostBufferToken> {
 public:
     bool Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key);
 
     void StageInput(std::span<const std::byte> input_bytes,
                     const std::string& debug_label = "host-ingress");
 
-    std::optional<HostIngressOutput> Produce(std::integral_constant<std::size_t, 0>) override;
+    std::optional<HostBufferToken> Produce(std::integral_constant<std::size_t, 0>) override;
 
     [[nodiscard]] std::expected<HostIngressOutput, AcceleratorError>
     Execute(std::span<const std::byte> input_bytes, const std::string& debug_label = "host-ingress");
@@ -91,15 +91,18 @@ private:
     std::vector<TransferCompletion> completion_leases_;
 };
 
-class HostEgressNode : public graph::NamedSinkNode<HostEgressNode, HostBufferToken> {
+class HostEgressNode : public graph::NamedSinkNode<HostEgressNode, DeviceToHostOutput> {
 public:
     bool Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key);
 
-    bool Consume(const HostBufferToken& host_buffer,
+    bool Consume(const DeviceToHostOutput& transfer_output,
                  std::integral_constant<std::size_t, 0>) override;
 
     [[nodiscard]] std::expected<std::vector<std::byte>, AcceleratorError>
     Execute(const HostBufferToken& host_buffer) const;
+
+    [[nodiscard]] std::expected<std::vector<std::byte>, AcceleratorError>
+    Execute(const DeviceToHostOutput& transfer_output) const;
 
     [[nodiscard]] const std::vector<std::byte>& LastPayload() const noexcept;
 

@@ -34,7 +34,7 @@ void HostIngressNode::StageInput(std::span<const std::byte> input_bytes,
     staged_debug_label_ = debug_label;
 }
 
-std::optional<HostIngressOutput> HostIngressNode::Produce(std::integral_constant<std::size_t, 0>) {
+std::optional<HostBufferToken> HostIngressNode::Produce(std::integral_constant<std::size_t, 0>) {
     if (staged_input_.empty()) {
         return std::nullopt;
     }
@@ -45,7 +45,7 @@ std::optional<HostIngressOutput> HostIngressNode::Produce(std::integral_constant
         return std::nullopt;
     }
 
-    return produced.value();
+    return produced->host_buffer;
 }
 
 std::expected<HostIngressOutput, AcceleratorError>
@@ -83,7 +83,7 @@ HostIngressNode::Execute(std::span<const std::byte> input_bytes, const std::stri
 
 void HostIngressNode::Stop() {
     if (!session_) {
-        graph::NamedSourceNode<HostIngressNode, HostIngressOutput>::Stop();
+        graph::NamedSourceNode<HostIngressNode, HostBufferToken>::Stop();
         return;
     }
 
@@ -91,7 +91,7 @@ void HostIngressNode::Stop() {
         session_->Release(lease, ReleaseRequest{.allow_if_released = true});
     }
     leases_.clear();
-    graph::NamedSourceNode<HostIngressNode, HostIngressOutput>::Stop();
+    graph::NamedSourceNode<HostIngressNode, HostBufferToken>::Stop();
 }
 
 bool HostToDeviceNode::Initialize(AcceleratorSessionRegistry& registry,
@@ -314,15 +314,20 @@ bool HostEgressNode::Initialize(AcceleratorSessionRegistry& registry, const std:
     return ResolveSession(registry, session_key, session_);
 }
 
-bool HostEgressNode::Consume(const HostBufferToken& host_buffer,
+bool HostEgressNode::Consume(const DeviceToHostOutput& transfer_output,
                              std::integral_constant<std::size_t, 0>) {
-    auto payload = Execute(host_buffer);
+    auto payload = Execute(transfer_output);
     if (!payload.has_value()) {
         return false;
     }
 
     last_payload_ = std::move(payload.value());
     return true;
+}
+
+std::expected<std::vector<std::byte>, AcceleratorError>
+HostEgressNode::Execute(const DeviceToHostOutput& transfer_output) const {
+    return Execute(transfer_output.output_host_buffer);
 }
 
 std::expected<std::vector<std::byte>, AcceleratorError>
@@ -358,7 +363,7 @@ const std::vector<std::byte>& HostEgressNode::LastPayload() const noexcept {
 }
 
 void HostEgressNode::Stop() {
-    graph::NamedSinkNode<HostEgressNode, HostBufferToken>::Stop();
+    graph::NamedSinkNode<HostEgressNode, DeviceToHostOutput>::Stop();
 }
 
 bool ReleaseLeaseNode::Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key) {

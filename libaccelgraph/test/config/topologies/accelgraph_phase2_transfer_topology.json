@@ -1,0 +1,52 @@
+{
+  "name": "AccelGraphPhase2TransferTopology",
+  "description": "Host ingress -> H2D -> D2H -> Host egress with lease release sink.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "ingress",
+      "type": "HostIngressNode",
+      "name": "ingress"
+    },
+    {
+      "id": "h2d",
+      "type": "HostToDeviceNode",
+      "name": "h2d"
+    },
+    {
+      "id": "d2h",
+      "type": "DeviceToHostNode",
+      "name": "d2h"
+    },
+    {
+      "id": "egress",
+      "type": "HostEgressNode",
+      "name": "egress"
+    },
+    {
+      "id": "release",
+      "type": "ReleaseLeaseNode",
+      "name": "release"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "ingress",
+      "source_port": 0,
+      "target_node_id": "h2d",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "h2d",
+      "source_port": 0,
+      "target_node_id": "d2h",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "egress",
+      "target_port": 0
+    }
+  ]
+}
