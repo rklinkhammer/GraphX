@@ -33,6 +33,8 @@ if(ENABLE_TSAN)
     target_link_options(accelgraph PRIVATE -fsanitize=thread)
 endif()
 
+add_subdirectory(plugins)
+
 set(ACCELGRAPH_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/accelgraph")
 
 install(TARGETS accelgraph EXPORT accelgraphTargets

@@ -252,6 +252,101 @@ public:
         return result;
     }
 
+    std::expected<HostWriteResult, AcceleratorError>
+    WriteHost(const HostAllocationHandle& handle, const HostWriteRequest& request) override {
+        auto valid = ValidateOwnedHandle(handle.state_, "WriteHost");
+        if (!valid) {
+            return std::unexpected(valid.error());
+        }
+        if (request.source.empty()) {
+            return std::unexpected(MakeError(info_,
+                                             AcceleratorErrorCategory::InvalidArgument,
+                                             "WriteHost",
+                                             "write source must not be empty"));
+        }
+
+        {
+            std::scoped_lock<std::mutex> lock(mutex_);
+            auto it = host_allocations_.find(handle.state_->internal_id);
+            if (it == host_allocations_.end()) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::TransferFailed,
+                                                 "WriteHost",
+                                                 "host allocation is not active"));
+            }
+
+            if (request.destination_offset > it->second.size()) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::InvalidArgument,
+                                                 "WriteHost",
+                                                 "destination offset is out of range"));
+            }
+
+            if (request.source.size() > it->second.size() - request.destination_offset) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::TransferFailed,
+                                                 "WriteHost",
+                                                 "write range exceeds allocation bounds"));
+            }
+
+            std::memcpy(it->second.data() + request.destination_offset,
+                        request.source.data(),
+                        request.source.size());
+        }
+
+        HostWriteResult result;
+        result.bytes_written = request.source.size();
+        return result;
+    }
+
+    std::expected<HostReadResult, AcceleratorError>
+    ReadHost(const HostAllocationHandle& handle, const HostReadRequest& request) override {
+        auto valid = ValidateOwnedHandle(handle.state_, "ReadHost");
+        if (!valid) {
+            return std::unexpected(valid.error());
+        }
+        if (request.byte_size == 0) {
+            return std::unexpected(MakeError(info_,
+                                             AcceleratorErrorCategory::InvalidArgument,
+                                             "ReadHost",
+                                             "read byte_size must be greater than zero"));
+        }
+
+        HostReadResult result;
+
+        {
+            std::scoped_lock<std::mutex> lock(mutex_);
+            auto it = host_allocations_.find(handle.state_->internal_id);
+            if (it == host_allocations_.end()) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::TransferFailed,
+                                                 "ReadHost",
+                                                 "host allocation is not active"));
+            }
+
+            if (request.source_offset > it->second.size()) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::InvalidArgument,
+                                                 "ReadHost",
+                                                 "source offset is out of range"));
+            }
+
+            if (request.byte_size > it->second.size() - request.source_offset) {
+                return std::unexpected(MakeError(info_,
+                                                 AcceleratorErrorCategory::TransferFailed,
+                                                 "ReadHost",
+                                                 "read range exceeds allocation bounds"));
+            }
+
+            result.bytes.resize(request.byte_size);
+            std::memcpy(result.bytes.data(),
+                        it->second.data() + request.source_offset,
+                        request.byte_size);
+        }
+
+        return result;
+    }
+
     std::expected<DeviceAllocationResult, AcceleratorError>
     AllocateDevice(const DeviceAllocationRequest& request) override {
         if (request.byte_size == 0) {

@@ -66,3 +66,17 @@ this phase.
   later phases when toolchain/device prerequisites are available.
 - Shared requirement: core `libaccelgraph` contracts remain backend-neutral and
   verifiable in CPU-only mode on both hosts before native backend claims.
+
+## Phase 2A Transfer-Node Compliance Notes
+
+Phase 2A converted all five transfer nodes in `libaccelgraph` to GraphX
+node-base wrappers:
+
+- `HostIngressNode` derives from `graph::NamedSourceNode`;
+- `HostToDeviceNode` and `DeviceToHostNode` derive from
+  `graph::NamedInteriorNode`;
+- `HostEgressNode` and `ReleaseLeaseNode` derive from
+  `graph::NamedSinkNode`.
+
+No justified direct-`INode` exceptions were needed for transfer nodes in this
+phase.

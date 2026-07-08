@@ -563,6 +563,18 @@ a graph-owned registry or capability/service container during initialization.
 Every accelerator graph node must also have a dynamically loadable plugin entry
 point; do not introduce nodes that only exist for direct linkage.
 
+Each accelerator graph node must be implemented as a proper GraphX node type.
+Use GraphX node bases appropriate to node shape:
+
+- `graph::SourceNodeBase<...>` for source-only nodes;
+- `graph::SinkNodeBase<...>` for sink-only nodes;
+- `graph::InteriorNodeBase<...>` for transform/relay nodes;
+- `graph::INode` only when a specialized shape is required and explicitly
+   justified in design notes.
+
+Do not implement accelerator graph nodes as plain helper/service classes that
+skip GraphX node inheritance.
+
 Nodes must not:
 
 - create providers opportunistically;
@@ -570,6 +582,13 @@ Nodes must not:
 - bind directly to CUDA or Metal capability interfaces;
 - expose backend-native objects through ports;
 - silently fall back from native GPU to CPU while reporting GPU execution.
+
+Plugin loadability is mandatory for all accelerator graph nodes:
+
+- every node must have a dynamic plugin entry point and registration path;
+- tests must verify the node can be discovered and loaded through the plugin
+   system, not only constructed via direct linkage;
+- a phase cannot pass if node behavior tests pass but plugin loading is absent.
 
 Backend selection must be explicit and diagnostic. If a requested backend is not
 available, initialization should fail or skip in tests with a precise diagnostic.
@@ -780,6 +799,12 @@ Nodes:
 Each node must resolve exactly one `IAcceleratorSession` from the graph-owned
 registry during initialization.
 
+Each node must also:
+
+- derive from the appropriate GraphX node base (`SourceNodeBase`,
+  `SinkNodeBase`, `InteriorNodeBase`, or justified `INode`);
+- be dynamically loadable through the repository plugin system.
+
 Tasks:
 
 1. define graph-facing packet/token types for host buffers, device buffers,
@@ -798,10 +823,46 @@ Verification:
 4. `git diff --check`;
 5. search proving the new transfer nodes do not include or mention CUDA or
    Metal capability headers;
-6. search proving no backend-specific transfer node variants were introduced.
+6. search proving no backend-specific transfer node variants were introduced;
+7. search proving transfer nodes inherit from GraphX node bases;
+8. plugin-load test proving each transfer node is dynamically discoverable and
+   loadable through plugin registration.
 
 Stop after Phase 2. Report files changed, tests run, topology status, and the
 next phase.
+
+## Phase 2A: Node base and plugin compliance remediation
+
+Use this phase when previously implemented accelerator nodes are not derived
+from GraphX node bases and/or are not dynamically loadable via the plugin
+system.
+
+Tasks:
+
+1. inventory all nodes currently implemented under `libaccelgraph`;
+2. for each node, verify inheritance from a valid GraphX node base and convert
+   non-compliant nodes;
+3. add plugin entry points and registration for every accelerator node that
+   lacks them;
+4. ensure node construction in tests goes through plugin discovery/loading for
+   at least one lane, not only direct linkage;
+5. preserve backend-neutral node naming and avoid backend-specific node classes;
+6. update design notes with any justified `INode` exceptions.
+
+Verification:
+
+1. CPU-only configure and build;
+2. plugin-discovery and plugin-load tests pass for all Phase 2 transfer nodes;
+3. end-to-end CPU transfer topology still passes when nodes are loaded via
+   plugin registration;
+4. `git diff --check`;
+5. search proving all accelerator transfer nodes derive from GraphX node bases;
+6. search proving no transfer node is direct-link only without a plugin entry
+   point;
+7. search proving no backend-specific transfer node variants were introduced.
+
+Stop after Phase 2A. Report files changed, tests run, plugin-load status, and
+the next phase.
 
 ## Phase 3: Native Metal memory/transfer provider on macOS
 

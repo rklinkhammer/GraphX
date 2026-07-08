@@ -8,6 +8,7 @@
 #include <expected>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -262,6 +263,24 @@ struct ReleaseResult {
     bool released{false};
 };
 
+struct HostWriteRequest {
+    std::span<const std::byte> source{};
+    std::size_t destination_offset{0};
+};
+
+struct HostReadRequest {
+    std::size_t byte_size{0};
+    std::size_t source_offset{0};
+};
+
+struct HostWriteResult {
+    std::size_t bytes_written{0};
+};
+
+struct HostReadResult {
+    std::vector<std::byte> bytes;
+};
+
 struct AcceleratorSessionCreateRequest {
     std::optional<AcceleratorDeviceId> requested_device;
     std::string debug_label;
@@ -275,6 +294,12 @@ public:
 
     virtual std::expected<HostAllocationResult, AcceleratorError>
     AllocateHost(const HostAllocationRequest& request) = 0;
+
+    virtual std::expected<HostWriteResult, AcceleratorError>
+    WriteHost(const HostAllocationHandle& handle, const HostWriteRequest& request) = 0;
+
+    virtual std::expected<HostReadResult, AcceleratorError>
+    ReadHost(const HostAllocationHandle& handle, const HostReadRequest& request) = 0;
 
     virtual std::expected<DeviceAllocationResult, AcceleratorError>
     AllocateDevice(const DeviceAllocationRequest& request) = 0;
