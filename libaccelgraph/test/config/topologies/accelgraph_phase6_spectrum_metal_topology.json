@@ -1,0 +1,36 @@
+{
+  "name": "AccelGraphPhase6SpectrumMetalTopology",
+  "description": "GraphExecutor metal-selected spectrum topology with plugin-loaded generic accelgraph spectrum nodes.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "source",
+      "type": "SineWaveSourceNode",
+      "name": "source"
+    },
+    {
+      "id": "analysis",
+      "type": "SpectrumAnalysisNode",
+      "name": "analysis"
+    },
+    {
+      "id": "sink",
+      "type": "SpectrumSinkNode",
+      "name": "sink"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "analysis",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "analysis",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}
