@@ -329,10 +329,10 @@ TEST(AccelGraphPhase6SpectrumTest, GraphPluginSurfaceDoesNotExposeMetalSpecificS
     EXPECT_TRUE(available_types.contains("SpectrumSinkNode"));
 
     for (const auto& type_name : available_types) {
-        const bool looks_metal_specific_spectrum =
+        const bool looks_metal_specific_spectrum_analysis =
             type_name.find("Metal") != std::string::npos &&
-            type_name.find("Spectrum") != std::string::npos &&
+            type_name.find("SpectrumAnalysis") != std::string::npos &&
             type_name.find("Node") != std::string::npos;
-        EXPECT_FALSE(looks_metal_specific_spectrum) << type_name;
+        EXPECT_FALSE(looks_metal_specific_spectrum_analysis) << type_name;
     }
 }

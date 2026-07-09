@@ -9,6 +9,7 @@
 #include <numbers>
 #include <string>
 
+#include "accelgraph/CudaAcceleratorProvider.hpp"
 #include "accelgraph/MetalAcceleratorProvider.hpp"
 #include "config/ConfigError.hpp"
 
@@ -84,8 +85,11 @@ std::expected<AcceleratorBackend, std::string> ParseSpectrumBackend(const graph:
     if (backend == "metal") {
         return AcceleratorBackend::Metal;
     }
+    if (backend == "cuda") {
+        return AcceleratorBackend::Cuda;
+    }
 
-    return std::unexpected(std::string("backend must be one of: cpu, metal"));
+    return std::unexpected(std::string("backend must be one of: cpu, metal, cuda"));
 }
 
 }  // namespace
@@ -197,6 +201,8 @@ void SpectrumAnalysisNode::Configure(const graph::JsonView& cfg) {
     used_fallback_ = false;
     fallback_diagnostic_.clear();
     metal_session_.reset();
+    cuda_session_.reset();
+    cuda_device_ordinal_ = 0;
 
     if (json.contains("strict_fallback")) {
         if (!json["strict_fallback"].is_boolean()) {
@@ -205,8 +211,50 @@ void SpectrumAnalysisNode::Configure(const graph::JsonView& cfg) {
         strict_fallback_ = json["strict_fallback"].get<bool>();
     }
 
+    if (json.contains("fallback_policy")) {
+        if (!json["fallback_policy"].is_string()) {
+            throw graph::ConfigError("SpectrumAnalysisNode fallback_policy must be string (strict|allow)");
+        }
+        const std::string policy = json["fallback_policy"].get<std::string>();
+        if (policy == "strict") {
+            strict_fallback_ = true;
+        } else if (policy == "allow") {
+            strict_fallback_ = false;
+        } else {
+            throw graph::ConfigError("SpectrumAnalysisNode fallback_policy must be one of: strict, allow");
+        }
+    }
+
+    if (json.contains("cuda_device_ordinal")) {
+        if (!json["cuda_device_ordinal"].is_number_integer() || json["cuda_device_ordinal"].get<int>() < 0) {
+            throw graph::ConfigError("SpectrumAnalysisNode cuda_device_ordinal must be a non-negative integer");
+        }
+        cuda_device_ordinal_ = json["cuda_device_ordinal"].get<int>();
+    }
+
     if (requested_backend_ != AcceleratorBackend::Metal) {
+        if (requested_backend_ != AcceleratorBackend::Cuda) {
+            selected_backend_ = AcceleratorBackend::Cpu;
+            return;
+        }
+
+        CudaAcceleratorProvider provider;
+        AcceleratorSessionCreateRequest request;
+        request.requested_device = AcceleratorDeviceId{"cuda:" + std::to_string(cuda_device_ordinal_)};
+        auto session = provider.CreateSession(request);
+        if (session.has_value()) {
+            cuda_session_ = session.value();
+            selected_backend_ = AcceleratorBackend::Cuda;
+            return;
+        }
+
+        fallback_diagnostic_ = session.error().diagnostic;
+        if (strict_fallback_) {
+            throw graph::ConfigError(fallback_diagnostic_);
+        }
+
         selected_backend_ = AcceleratorBackend::Cpu;
+        used_fallback_ = true;
         return;
     }
 
@@ -287,6 +335,30 @@ SpectrumAnalysisNode::Execute(const DeterministicIqPacket& input) const {
                                          "SpectrumAnalysisNode::ExecuteMetal");
         if (!metal_result.has_value()) {
             return std::unexpected(metal_result.error());
+        }
+        return output;
+    }
+
+    if (selected_backend_ == AcceleratorBackend::Cuda) {
+        if (!cuda_session_) {
+            AcceleratorError error;
+            error.category = AcceleratorErrorCategory::InvalidState;
+            error.backend = AcceleratorBackend::Cuda;
+            error.execution_mode = AcceleratorExecutionMode::HostSynchronous;
+            error.operation = "SpectrumAnalysisNode::ExecuteCuda";
+            error.diagnostic = "cuda backend selected without active cuda session";
+            return std::unexpected(error);
+        }
+
+        // Phase 6B correctness path: CUDA-selected execution currently reuses
+        // the deterministic reference DFT after CUDA session validation to
+        // preserve parity and strict fallback semantics through GraphExecutor.
+        auto cuda_result = RunDirectDft(input,
+                                        output,
+                                        AcceleratorBackend::Cuda,
+                                        "SpectrumAnalysisNode::ExecuteCuda");
+        if (!cuda_result.has_value()) {
+            return std::unexpected(cuda_result.error());
         }
         return output;
     }

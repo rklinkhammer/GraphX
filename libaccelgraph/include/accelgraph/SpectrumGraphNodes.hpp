@@ -63,10 +63,10 @@ public:
         return {
             graph::JsonField{.name = "backend", .type = graph::JsonType::String, .required = true,
                              .min = std::nullopt, .max = std::nullopt, .default_value = "cpu",
-                             .enum_values = std::nullopt, .description = "Selected spectrum backend (cpu or metal)"},
+                             .enum_values = std::nullopt, .description = "Selected spectrum backend (cpu, metal, or cuda)"},
             graph::JsonField{.name = "strict_fallback", .type = graph::JsonType::Boolean, .required = false,
                              .min = std::nullopt, .max = std::nullopt, .default_value = "true",
-                             .enum_values = std::nullopt, .description = "When true, reject fallback from metal to cpu"},
+                             .enum_values = std::nullopt, .description = "When true, reject fallback from requested backend to cpu"},
         };
     }
 
@@ -87,6 +87,8 @@ private:
     bool used_fallback_{false};
     std::string fallback_diagnostic_;
     std::shared_ptr<IAcceleratorSession> metal_session_;
+    std::shared_ptr<IAcceleratorSession> cuda_session_;
+    int cuda_device_ordinal_{0};
 };
 
 class SpectrumSinkNode

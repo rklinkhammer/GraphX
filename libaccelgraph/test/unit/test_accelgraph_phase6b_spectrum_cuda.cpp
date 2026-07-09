@@ -146,16 +146,16 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionVia
         ASSERT_NE(cuda_sink, nullptr);
         ASSERT_TRUE(cuda_sink->LastSpectrum().has_value());
 
-        const auto& cpu = cpu_sink->LastSpectrum().value();
-        const auto& cuda = cuda_sink->LastSpectrum().value();
+        const auto cpu = cpu_sink->LastSpectrum().value();
+        const auto cuda = cuda_sink->LastSpectrum().value();
 
         ASSERT_FALSE(cpu.magnitudes.empty());
         ASSERT_EQ(cpu.magnitudes.size(), cuda.magnitudes.size());
 
-        EXPECT_EQ(cuda.requested_backend, "cuda");
-        EXPECT_EQ(cuda.execution_backend, "cuda");
-        EXPECT_FALSE(cuda.fallback_used);
-        EXPECT_EQ(cuda.fallback_reason, "none");
+        EXPECT_EQ(cuda.requested_backend, accelgraph::AcceleratorBackend::Cuda);
+        EXPECT_EQ(cuda.selected_backend, accelgraph::AcceleratorBackend::Cuda);
+        EXPECT_FALSE(cuda.used_fallback);
+        EXPECT_TRUE(cuda.fallback_diagnostic.empty());
 
         EXPECT_EQ(cpu.peak_bin, cuda.peak_bin);
 
@@ -236,11 +236,11 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
         ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
         ASSERT_TRUE(sink->LastSpectrum().has_value());
 
-        const auto& resolved = sink->LastSpectrum().value();
-        EXPECT_EQ(resolved.requested_backend, "cuda");
-        EXPECT_EQ(resolved.execution_backend, "cpu");
-        EXPECT_TRUE(resolved.fallback_used);
-        EXPECT_NE(resolved.fallback_reason, "none");
+        const auto resolved = sink->LastSpectrum().value();
+        EXPECT_EQ(resolved.requested_backend, accelgraph::AcceleratorBackend::Cuda);
+        EXPECT_EQ(resolved.selected_backend, accelgraph::AcceleratorBackend::Cpu);
+        EXPECT_TRUE(resolved.used_fallback);
+        EXPECT_FALSE(resolved.fallback_diagnostic.empty());
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
         if (IsExpectedCudaSkipDiagnostic(message)) {
