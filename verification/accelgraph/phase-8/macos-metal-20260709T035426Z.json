@@ -1,0 +1,94 @@
+{
+  "phase": "8",
+  "generated_at_utc": "2026-07-09T03:54:26Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "4262624b4a20d0ee5a5b3047f4f1660717931350",
+  "diff_identity": {
+    "type": "working_tree",
+    "value": "uncommitted_phase8_artifacts",
+    "working_tree_dirty": true
+  },
+  "host_class": "macos-metal",
+  "hostname": "unknown",
+  "operating_system": "macOS 26.5.1 (25F80)",
+  "architecture": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "cmake_generator": "Ninja",
+  "build_directory": "build-ninja/ninja-metal-phase3",
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "ON",
+    "ACCELGRAPH_ENABLE_CUDA": "OFF"
+  },
+  "backend_status": {
+    "metal_compiled": "ON",
+    "cuda_compiled": "OFF",
+    "runtime_available": "not-executed-in-phase8",
+    "device_detected": "not-executed-in-phase8",
+    "provider_execution_mode": "not-executed-in-phase8"
+  },
+  "commands_run": [
+    {
+      "name": "phase7_gate_check",
+      "command": "rg -n \"Replacement Recommendation|Decision:\" verification/accelgraph/phase-7/summary.md",
+      "result": "pass",
+      "diagnostic": "Decision: NOT READY to replace libgpu pieces yet."
+    },
+    {
+      "name": "phase8_scope_diff",
+      "command": "git diff -- libgpu CMakeLists.txt libaccelgraph verification/accelgraph/phase-8",
+      "result": "pass",
+      "diagnostic": "Only phase-8 verification artifacts changed; no legacy surface edits."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No diff-check issues."
+    }
+  ],
+  "searches_run": [
+    {
+      "query": "Replacement Recommendation|NOT READY|READY",
+      "target": "verification/accelgraph/phase-7/summary.md",
+      "result": "match",
+      "diagnostic": "NOT READY"
+    },
+    {
+      "query": "\\\"backend\\\": \\\"(cpu|metal|cuda)\\\"|\\\"measurement_origin\\\"|\\\"imported\\\"",
+      "target": "verification/accelgraph/phase-7/macos-jetson-matrix-default-import-20260709T034459Z.json",
+      "result": "match",
+      "diagnostic": "CPU/Metal/CUDA rows present with imported CUDA row"
+    }
+  ],
+  "tests": {
+    "passed": [],
+    "failed": [],
+    "skipped": [
+      "Phase8 code deletion checks skipped because replacement-value gate is NOT READY."
+    ]
+  },
+  "phase8_requirements": {
+    "replacement_value_gate": "fail",
+    "execute_one_deletion_slice": "blocked",
+    "no_compatibility_adapters": "pass",
+    "no_dual_registration_permanent_state": "pass",
+    "preserve_unrelated_changes": "pass"
+  },
+  "host_specific_checks": {
+    "macos_phase8_gate_verification": "passed",
+    "jetson_cuda_phase8_verification": "pending_external_verification"
+  },
+  "overall_status": "incomplete",
+  "failure_classification": [
+    "artifact/schema mismatch"
+  ],
+  "recommended_fix_owner": [
+    "macos-implementor-for-phase7-replacement-decision-update-after-credible-speedup-evidence",
+    "jetson-verifier-for-external-lane-confirmation"
+  ],
+  "blockers": [
+    "Phase 7 summary remains NOT READY, therefore Phase 8 deletion is not permitted."
+  ]
+}
