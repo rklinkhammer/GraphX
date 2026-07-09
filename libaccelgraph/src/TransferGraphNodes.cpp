@@ -2,36 +2,203 @@
 
 #include "accelgraph/TransferGraphNodes.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <cstdint>
+#include <mutex>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
+
+#include "accelgraph/CpuAcceleratorProvider.hpp"
+#include "accelgraph/MetalAcceleratorProvider.hpp"
+#include "config/ConfigError.hpp"
 
 namespace accelgraph {
 
 namespace {
 
-bool ResolveSession(AcceleratorSessionRegistry& registry,
-                    const std::string& session_key,
-                    std::shared_ptr<IAcceleratorSession>& session_out) {
-    auto session_result = registry.ResolveExactlyOne(session_key);
-    if (!session_result.has_value()) {
-        return false;
+struct SessionSelection {
+    std::string session_key;
+    AcceleratorProviderId provider_id;
+    AcceleratorBackend backend{AcceleratorBackend::Cpu};
+};
+
+std::string ToLower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
+
+std::expected<SessionSelection, AcceleratorError>
+ParseSessionSelection(const graph::JsonView& cfg, const char* operation) {
+    const auto& json = cfg.Raw();
+    if (!json.is_object()) {
+        AcceleratorError error;
+        error.category = AcceleratorErrorCategory::InvalidArgument;
+        error.operation = operation;
+        error.diagnostic = "configuration must be a JSON object";
+        return std::unexpected(error);
     }
 
-    session_out = std::move(session_result.value());
-    return true;
+    if (!json.contains("session_key") || !json["session_key"].is_string()) {
+        AcceleratorError error;
+        error.category = AcceleratorErrorCategory::InvalidArgument;
+        error.operation = operation;
+        error.diagnostic = "session_key must be a string";
+        return std::unexpected(error);
+    }
+
+    if (!json.contains("provider_id") || !json["provider_id"].is_string()) {
+        AcceleratorError error;
+        error.category = AcceleratorErrorCategory::InvalidArgument;
+        error.operation = operation;
+        error.diagnostic = "provider_id must be a string";
+        return std::unexpected(error);
+    }
+
+    if (!json.contains("backend") || !json["backend"].is_string()) {
+        AcceleratorError error;
+        error.category = AcceleratorErrorCategory::InvalidArgument;
+        error.operation = operation;
+        error.diagnostic = "backend must be a string";
+        return std::unexpected(error);
+    }
+
+    const std::string backend = ToLower(json["backend"].get<std::string>());
+    AcceleratorBackend parsed_backend = AcceleratorBackend::Cpu;
+    if (backend == "cpu") {
+        parsed_backend = AcceleratorBackend::Cpu;
+    } else if (backend == "metal") {
+        parsed_backend = AcceleratorBackend::Metal;
+    } else {
+        AcceleratorError error;
+        error.category = AcceleratorErrorCategory::InvalidArgument;
+        error.operation = operation;
+        error.diagnostic = "backend must be one of: cpu, metal";
+        return std::unexpected(error);
+    }
+
+    SessionSelection selection;
+    selection.session_key = json["session_key"].get<std::string>();
+    selection.provider_id = AcceleratorProviderId{json["provider_id"].get<std::string>()};
+    selection.backend = parsed_backend;
+    return selection;
+}
+
+std::expected<std::shared_ptr<IAcceleratorProvider>, AcceleratorError>
+CreateProvider(const SessionSelection& selection, const char* operation) {
+    const auto provider_id = ToLower(selection.provider_id.value);
+    if (selection.backend == AcceleratorBackend::Cpu || provider_id == "cpu.default") {
+        return std::static_pointer_cast<IAcceleratorProvider>(std::make_shared<CpuAcceleratorProvider>());
+    }
+
+    if (selection.backend == AcceleratorBackend::Metal || provider_id == "metal.default") {
+        return std::static_pointer_cast<IAcceleratorProvider>(std::make_shared<MetalAcceleratorProvider>());
+    }
+
+    AcceleratorError error;
+    error.category = AcceleratorErrorCategory::InvalidArgument;
+    error.operation = operation;
+    error.diagnostic = "unsupported provider_id/backend combination";
+    return std::unexpected(error);
+}
+
+std::expected<std::shared_ptr<IAcceleratorSession>, AcceleratorError>
+AcquireOrCreateSession(const SessionSelection& selection, const char* operation) {
+    static std::mutex cache_mutex;
+    static std::unordered_map<std::string, std::weak_ptr<IAcceleratorSession>> cache;
+
+    const std::string cache_key = selection.session_key + "|" +
+                                  selection.provider_id.value + "|" +
+                                  (selection.backend == AcceleratorBackend::Metal ? "metal" : "cpu");
+
+    {
+        std::scoped_lock<std::mutex> lock(cache_mutex);
+        const auto it = cache.find(cache_key);
+        if (it != cache.end()) {
+            if (auto existing = it->second.lock()) {
+                return existing;
+            }
+        }
+    }
+
+    auto provider_result = CreateProvider(selection, operation);
+    if (!provider_result.has_value()) {
+        return std::unexpected(provider_result.error());
+    }
+
+    auto session_result = provider_result.value()->CreateSession(AcceleratorSessionCreateRequest{});
+    if (!session_result.has_value()) {
+        return std::unexpected(session_result.error());
+    }
+
+    {
+        std::scoped_lock<std::mutex> lock(cache_mutex);
+        cache[cache_key] = session_result.value();
+    }
+
+    return session_result.value();
 }
 
 }  // namespace
 
-bool HostIngressNode::Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key) {
-    return ResolveSession(registry, session_key, session_);
-}
+void HostIngressNode::Configure(const graph::JsonView& cfg) {
+    auto session_selection = ParseSessionSelection(cfg, "HostIngressNode::Configure");
+    if (!session_selection.has_value()) {
+        throw graph::ConfigError(session_selection.error().diagnostic);
+    }
+    auto session_result = AcquireOrCreateSession(session_selection.value(), "HostIngressNode::Configure");
+    if (!session_result.has_value()) {
+        throw graph::ConfigError(session_result.error().diagnostic);
+    }
+    session_ = session_result.value();
 
-void HostIngressNode::StageInput(std::span<const std::byte> input_bytes,
-                                 const std::string& debug_label) {
-    staged_input_.assign(input_bytes.begin(), input_bytes.end());
-    staged_debug_label_ = debug_label;
+    const auto& json = cfg.Raw();
+
+    int payload_size = 0;
+    int payload_multiplier = 13;
+    int payload_offset = 5;
+
+    if (json.contains("payload_size")) {
+        if (!json["payload_size"].is_number_integer() || json["payload_size"].get<int>() < 0) {
+            throw graph::ConfigError("HostIngressNode payload_size must be a non-negative integer");
+        }
+        payload_size = json["payload_size"].get<int>();
+    }
+
+    if (json.contains("payload_multiplier")) {
+        if (!json["payload_multiplier"].is_number_integer()) {
+            throw graph::ConfigError("HostIngressNode payload_multiplier must be an integer");
+        }
+        payload_multiplier = json["payload_multiplier"].get<int>();
+    }
+
+    if (json.contains("payload_offset")) {
+        if (!json["payload_offset"].is_number_integer()) {
+            throw graph::ConfigError("HostIngressNode payload_offset must be an integer");
+        }
+        payload_offset = json["payload_offset"].get<int>();
+    }
+
+    if (json.contains("debug_label")) {
+        if (!json["debug_label"].is_string()) {
+            throw graph::ConfigError("HostIngressNode debug_label must be a string");
+        }
+        staged_debug_label_ = json["debug_label"].get<std::string>();
+    }
+
+    if (payload_size > 0) {
+        staged_input_.resize(static_cast<std::size_t>(payload_size));
+        for (int i = 0; i < payload_size; ++i) {
+            const auto value = static_cast<std::uint8_t>((i * payload_multiplier + payload_offset) & 0xFF);
+            staged_input_[static_cast<std::size_t>(i)] = static_cast<std::byte>(value);
+        }
+    } else {
+        staged_input_.clear();
+    }
 }
 
 std::optional<HostBufferToken> HostIngressNode::Produce(std::integral_constant<std::size_t, 0>) {
@@ -94,16 +261,31 @@ void HostIngressNode::Stop() {
     graph::NamedSourceNode<HostIngressNode, HostBufferToken>::Stop();
 }
 
-bool HostToDeviceNode::Initialize(AcceleratorSessionRegistry& registry,
-                                  const std::string& session_key) {
-    return ResolveSession(registry, session_key, session_);
+void HostToDeviceNode::Configure(const graph::JsonView& cfg) {
+    auto session_selection = ParseSessionSelection(cfg, "HostToDeviceNode::Configure");
+    if (!session_selection.has_value()) {
+        throw graph::ConfigError(session_selection.error().diagnostic);
+    }
+    auto session_result = AcquireOrCreateSession(session_selection.value(), "HostToDeviceNode::Configure");
+    if (!session_result.has_value()) {
+        throw graph::ConfigError(session_result.error().diagnostic);
+    }
+    session_ = session_result.value();
+
+    const auto& json = cfg.Raw();
+    if (json.contains("debug_label")) {
+        if (!json["debug_label"].is_string()) {
+            throw graph::ConfigError("HostToDeviceNode debug_label must be a string");
+        }
+        default_debug_label_ = json["debug_label"].get<std::string>();
+    }
 }
 
 std::optional<HostToDeviceOutput> HostToDeviceNode::Transfer(
     const HostBufferToken& host_buffer,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    auto transferred = ExecuteImpl(host_buffer, "h2d-transfer");
+    auto transferred = ExecuteImpl(host_buffer, default_debug_label_);
     if (!transferred.has_value()) {
         return std::nullopt;
     }
@@ -205,16 +387,31 @@ void HostToDeviceNode::Stop() {
         HostToDeviceNode>::Stop();
 }
 
-bool DeviceToHostNode::Initialize(AcceleratorSessionRegistry& registry,
-                                  const std::string& session_key) {
-    return ResolveSession(registry, session_key, session_);
+void DeviceToHostNode::Configure(const graph::JsonView& cfg) {
+    auto session_selection = ParseSessionSelection(cfg, "DeviceToHostNode::Configure");
+    if (!session_selection.has_value()) {
+        throw graph::ConfigError(session_selection.error().diagnostic);
+    }
+    auto session_result = AcquireOrCreateSession(session_selection.value(), "DeviceToHostNode::Configure");
+    if (!session_result.has_value()) {
+        throw graph::ConfigError(session_result.error().diagnostic);
+    }
+    session_ = session_result.value();
+
+    const auto& json = cfg.Raw();
+    if (json.contains("debug_label")) {
+        if (!json["debug_label"].is_string()) {
+            throw graph::ConfigError("DeviceToHostNode debug_label must be a string");
+        }
+        default_debug_label_ = json["debug_label"].get<std::string>();
+    }
 }
 
 std::optional<DeviceToHostOutput> DeviceToHostNode::Transfer(
     const HostToDeviceOutput& input,
     std::integral_constant<std::size_t, 0>,
     std::integral_constant<std::size_t, 0>) {
-    auto transferred = ExecuteImpl(input, "d2h-transfer");
+    auto transferred = ExecuteImpl(input, default_debug_label_);
     if (!transferred.has_value()) {
         return std::nullopt;
     }
@@ -310,8 +507,16 @@ void DeviceToHostNode::Stop() {
         DeviceToHostNode>::Stop();
 }
 
-bool HostEgressNode::Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key) {
-    return ResolveSession(registry, session_key, session_);
+void HostEgressNode::Configure(const graph::JsonView& cfg) {
+    auto session_selection = ParseSessionSelection(cfg, "HostEgressNode::Configure");
+    if (!session_selection.has_value()) {
+        throw graph::ConfigError(session_selection.error().diagnostic);
+    }
+    auto session_result = AcquireOrCreateSession(session_selection.value(), "HostEgressNode::Configure");
+    if (!session_result.has_value()) {
+        throw graph::ConfigError(session_result.error().diagnostic);
+    }
+    session_ = session_result.value();
 }
 
 bool HostEgressNode::Consume(const DeviceToHostOutput& transfer_output,
@@ -366,8 +571,16 @@ void HostEgressNode::Stop() {
     graph::NamedSinkNode<HostEgressNode, DeviceToHostOutput>::Stop();
 }
 
-bool ReleaseLeaseNode::Initialize(AcceleratorSessionRegistry& registry, const std::string& session_key) {
-    return ResolveSession(registry, session_key, session_);
+void ReleaseLeaseNode::Configure(const graph::JsonView& cfg) {
+    auto session_selection = ParseSessionSelection(cfg, "ReleaseLeaseNode::Configure");
+    if (!session_selection.has_value()) {
+        throw graph::ConfigError(session_selection.error().diagnostic);
+    }
+    auto session_result = AcquireOrCreateSession(session_selection.value(), "ReleaseLeaseNode::Configure");
+    if (!session_result.has_value()) {
+        throw graph::ConfigError(session_result.error().diagnostic);
+    }
+    session_ = session_result.value();
 }
 
 bool ReleaseLeaseNode::Consume(const ReleaseLeaseInput& release,

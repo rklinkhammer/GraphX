@@ -98,3 +98,21 @@ Diagnostic categories are intentionally explicit:
 
 No `IMetal*Capability` inheritance or wrappers are introduced, and transfer
 graph node types remain backend-neutral.
+
+## Phase 3A Public Test-Surface Correction Notes
+
+Behavior validation for libaccelgraph transfer paths is now constrained to the
+public GraphExecutor surface:
+
+- JSON graph configuration;
+- plugin discovery/loading;
+- GraphExecutor lifecycle execution;
+- sink/output verification.
+
+Direct provider/session/backend runtime behavior tests were removed from
+`libaccelgraph/test/unit` and replaced with GraphExecutor-driven tests using
+CPU and Metal transfer topology JSON files.
+
+For later phases (including CUDA), do not reintroduce direct provider/session
+behavior harnesses in unit tests. Direct tests are allowed only for pure
+value/config/schema/compile contracts that do not execute accelerator behavior.
