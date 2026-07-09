@@ -166,3 +166,48 @@ Expected Phase 4 outcome on Jetson:
 
 - configure/build/test lanes pass for CPU-only and CUDA-shell;
 - CUDA shell diagnostics remain truthful until Phase 5 implements native CUDA.
+
+## Phase 6 Generic Spectrum Analysis Contract Notes
+
+Phase 6 introduces backend-neutral spectrum graph contracts in `libaccelgraph`
+without adding backend-specific graph node classes:
+
+- `DeterministicIqPacket` as the public deterministic IQ input contract;
+- `MagnitudeSpectrumPacket` as the public magnitude output contract;
+- `SineWaveSourceNode`, `SpectrumAnalysisNode`, and `SpectrumSinkNode` as the
+  only new graph node surface for this feature area.
+
+`SpectrumAnalysisNode` backend selection is configuration-driven (`backend`
+field: `cpu` or `metal`) and policy-driven (`strict_fallback` boolean):
+
+- CPU selection executes the direct DFT correctness path.
+- Metal selection must first validate availability through
+  `MetalAcceleratorProvider` and reuse the provider's diagnostic constants when
+  reporting unavailability.
+- Metal-selected execution in Phase 6 is an explicit Metal-validated
+  correctness path: it requires an active Metal session and then runs the
+  direct-DFT reference algorithm for parity validation. This is not a native
+  Metal-kernel performance claim.
+- When `strict_fallback=true`, Metal unavailability is a hard failure and must
+  not silently execute on CPU.
+- When `strict_fallback=false`, Metal unavailability may fall back to CPU, and
+  the output contract must truthfully report fallback via
+  `requested_backend`, `selected_backend`, `used_fallback`, and
+  `fallback_diagnostic`.
+
+Phase 6 test behavior constraints are GraphExecutor-only for correctness-path
+verification: plugin loading, topology execution, sink-output assertions,
+parity checks, and strict-fallback enforcement are validated through
+GraphExecutor-configured graphs.
+
+Phase 6B CUDA preservation invariants:
+
+- Do not replace or fork the public spectrum graph node names with CUDA-specific
+  graph node classes.
+- Keep `DeterministicIqPacket` and `MagnitudeSpectrumPacket` as stable public
+  graph contracts; additive fields are allowed, but semantics of existing
+  fields must not change.
+- Preserve strict fallback semantics and truthful backend reporting in
+  `MagnitudeSpectrumPacket`.
+- Preserve GraphExecutor + plugin loaded execution as the primary correctness
+  test surface.

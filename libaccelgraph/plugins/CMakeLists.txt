@@ -58,3 +58,36 @@ target_include_directories(accelgraph_release_lease_node PRIVATE
     ${CMAKE_SOURCE_DIR}/libaccelgraph/include
     ${CMAKE_SOURCE_DIR}/libgraph/include
 )
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_sine_wave_source_node
+    SOURCE_FILE sine_wave_source_node_plugin.cpp
+    DESCRIPTION "Accelgraph deterministic sine-wave IQ source node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_sine_wave_source_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_spectrum_analysis_node
+    SOURCE_FILE spectrum_analysis_node_plugin.cpp
+    DESCRIPTION "Accelgraph backend-neutral spectrum analysis node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_spectrum_analysis_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+)
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_spectrum_sink_node
+    SOURCE_FILE spectrum_sink_node_plugin.cpp
+    DESCRIPTION "Accelgraph spectrum sink node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_spectrum_sink_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+)

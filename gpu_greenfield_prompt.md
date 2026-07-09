@@ -1103,15 +1103,18 @@ Verification:
 Stop after Phase 5. Report files changed, tests run, CUDA native status, Jetson
 status, and the next phase.
 
-## Phase 6: First algorithm operation, not before transfer stability
+## Phase 6: CPU and Metal SpectrumAnalysis on macOS
 
-Only after CPU plus at least one native GPU backend can run the generic transfer
-topology, introduce one backend-neutral algorithm operation. Prefer doing this
-after both macOS+Metal and Jetson+CUDA transfer lanes exist, but it is acceptable
-to begin with Metal if CUDA verification is pending on the Jetson host. The
-preferred first operation is spectrum analysis over deterministic sine-wave IQ
+Only after CPU transfer, Metal transfer, and Phase 3A GraphExecutor-only
+behavior validation pass, introduce the first backend-neutral algorithm
+operation on macOS.
+
+The first operation is spectrum analysis over deterministic sine-wave IQ
 packets, using a direct DFT initially unless a real backend-native FFT
 implementation is already available and testable.
+
+This phase owns the public `SpectrumAnalysis` graph-node API and proves it with
+CPU and Metal. CUDA must not reshape this public API later.
 
 Tasks:
 
@@ -1119,38 +1122,96 @@ Tasks:
    or reuse greenfield equivalents introduced earlier;
 2. add `SineWaveSource` and `SpectrumSink` nodes if they do not already exist in
    the new package or example package;
-3. define a small `SpectrumAnalysis` operation contract;
+3. define the backend-neutral `SpectrumAnalysis` operation contract;
 4. implement CPU spectrum analysis first;
-5. implement one native GPU backend second;
+5. implement Metal spectrum analysis second;
 6. add one generic graph node for the spectrum operation;
-7. add correctness graph configurations for CPU and native GPU;
-8. validate numerical parity and diagnostics.
+7. add CPU and Metal correctness graph configurations;
+8. validate numerical parity and diagnostics through GraphExecutor.
+
+Rules:
+
+- all correctness behavior must execute through GraphExecutor and plugin-loaded
+  nodes;
+- do not add Metal-specific graph nodes;
+- do not implement CUDA spectrum analysis in this phase;
+- do not change the transfer/session public model merely to suit this operation;
+- document any operation-contract choices that Phase 6B CUDA must preserve.
 
 Out of scope:
 
-- full operation registry unless needed for the single operation;
+- CUDA spectrum analysis;
 - SAR migration;
-- performance benchmark claims.
+- performance benchmark claims;
+- full operation registry unless needed for the single operation.
 
 Verification:
 
-1. CPU correctness spectrum graph passes;
+1. CPU correctness spectrum graph passes through GraphExecutor;
 2. macOS Metal correctness spectrum graph passes or skips with exact
-   diagnostics;
-3. Jetson CUDA correctness spectrum graph passes or remains explicitly pending
-   external Jetson verification;
-4. CPU/GPU parity passes for peak bin, peak frequency, and selected magnitude
-   bins within documented tolerance on each available native lane;
-5. strict fallback policy is enforced;
+   diagnostics through GraphExecutor;
+3. CPU/Metal parity passes for peak bin, peak frequency, and selected magnitude
+   bins within documented tolerance;
+4. strict fallback policy is enforced;
+5. searches prove no Metal-specific graph spectrum node was introduced;
 6. `git diff --check`.
 
-Stop after Phase 6. Report parity status, graph configs added, and the next
-phase.
+Stop after Phase 6. Report parity status, graph configs added,
+`SpectrumAnalysis` public API status, macOS verification artifact, and the exact
+Phase 6B prompt.
+
+## Phase 6B: CUDA SpectrumAnalysis on Jetson
+
+Implement CUDA spectrum analysis on the Jetson host against the public
+`SpectrumAnalysis` contract created in Phase 6.
+
+This phase must not change the public `SpectrumAnalysis` graph-node API unless
+the change is required for backend-neutral correctness and is reverified on CPU,
+Metal, and CUDA.
+
+Tasks:
+
+1. pull the branch/commit or diff identity that contains completed Phase 6;
+2. implement CUDA spectrum analysis behind the existing `SpectrumAnalysis`
+   operation contract;
+3. add Jetson CUDA correctness graph configuration using the same public
+   graph-node API as CPU and Metal;
+4. compare CUDA output against a CPU reference generated on Jetson or imported
+   from a matching Phase 6 verification artifact;
+5. produce the required Jetson verification artifact.
+
+Rules:
+
+- all CUDA correctness behavior must execute through GraphExecutor and
+  plugin-loaded nodes;
+- do not create CUDA-specific graph spectrum nodes;
+- do not include CUDA native types in graph-facing packets or node APIs;
+- do not label CPU fallback as CUDA native execution;
+- CUDA-specific failures are owned by the Jetson error ownership rules.
+
+Verification:
+
+1. Jetson CPU correctness spectrum graph passes through GraphExecutor, or a
+   matching CPU reference artifact is imported and verified;
+2. Jetson CUDA correctness spectrum graph passes or skips with exact diagnostics
+   through GraphExecutor;
+3. CPU/CUDA parity passes for peak bin, peak frequency, and selected magnitude
+   bins within documented tolerance;
+4. strict fallback policy is enforced;
+5. searches prove no CUDA-specific graph spectrum node was introduced;
+6. searches prove CUDA native types are not exposed through graph-facing packets
+   or node APIs;
+7. `git diff --check`.
+
+Stop after Phase 6B. Report CUDA parity status, graph configs added, Jetson
+verification artifact, any imported CPU/Metal artifacts, CUDA failure
+classifications if any, and the exact Phase 7 prompt.
 
 ## Phase 7: Benchmarking and replacement decision
 
-Only after the new package has CPU and at least one native GPU transfer path,
-plus one algorithm vertical slice, add performance tests.
+Only after Phase 6 CPU+Metal correctness and Phase 6B CUDA correctness pass, or
+after any missing host lane is explicitly marked pending with a verification
+artifact, add performance tests.
 
 Tasks:
 

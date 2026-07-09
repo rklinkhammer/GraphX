@@ -23,6 +23,9 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         accelgraph_device_to_host_node
         accelgraph_host_egress_node
         accelgraph_release_lease_node
+        accelgraph_sine_wave_source_node
+        accelgraph_spectrum_analysis_node
+        accelgraph_spectrum_sink_node
     )
     add_test(NAME libaccelgraph_smoke COMMAND test_libaccelgraph_smoke)
     set_tests_properties(libaccelgraph_smoke PROPERTIES
