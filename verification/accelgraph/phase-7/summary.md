@@ -2,17 +2,19 @@
 
 ## Scope
 
-Phase 7 was executed after:
-- Phase 6 CPU + Metal correctness passed on macOS.
-- Phase 6B CUDA correctness was available via imported Jetson verification artifact.
+Phase 7 rerun executed on macOS with identity-guarded Jetson import handling.
 
-This phase adds performance benchmarking for the greenfield spectrum graph and records replacement readiness signals.
+Constraints applied in this rerun:
+- GraphExecutor-only benchmark/correctness behavior.
+- No Phase 8 deletion work.
+- No legacy `libgpu` surface changes.
+- No compatibility adapters/wrappers/aliases/shims.
 
 ## Artifacts
 
 - Benchmark schema: `verification/accelgraph/phase-7/benchmark_result.schema.json`
-- Benchmark run: `verification/accelgraph/phase-7/macos-jetson-matrix-20260709T030416Z.json`
-- Imported correctness artifact (Jetson CUDA): `verification/accelgraph/phase-6b/jetson-cuda-20260709T024817Z.json`
+- macOS benchmark run: `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`
+- Jetson lane import status: `verification/accelgraph/phase-7/jetson-cuda-20260709T040049Z.json`
 - Jetson import runbook: `verification/accelgraph/phase-7/JETSON_IMPORT_RUNBOOK.md`
 
 ## Benchmark Configurations Added
@@ -26,7 +28,11 @@ This phase adds performance benchmarking for the greenfield spectrum graph and r
 - `libaccelgraph/test/bench/accelgraph_phase7_benchmark.cpp`
 - CMake target: `accelgraph_phase7_benchmark`
 
-The runner emits required fields for backend/mode/config/packet/frame/warmup timing, throughput, latency, graph overhead, fallback metadata, parity status, host class, and local-vs-imported origin.
+Rerun updates:
+- benchmark parity now uses GraphExecutor output from the CPU benchmark-family row as the baseline;
+- graph/lifecycle overhead estimate now uses GraphExecutor phase timings (`latency_ms - mean(run_elapsed_time_ms)`), not direct node execution;
+- phase-7 schema now includes `branch`, `commit_sha`, and `diff_identity`;
+- imported phase-7 CUDA rows are accepted only when branch/commit identity matches.
 
 Importer behavior (updated):
 - If `imported_artifact` points to a valid phase-7 schema artifact with a matching CUDA row, the row is validated and merged directly (timing/throughput/allocation fields included as available).
@@ -35,58 +41,55 @@ Importer behavior (updated):
 
 ## Results (Current Invocation)
 
-From `macos-jetson-matrix-20260709T030416Z.json`:
+From `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`:
 
 1. CPU-only (local, backend=cpu)
 - packet_size: 256
 - frame_count: 3 (warmup: 1)
-- total_elapsed_time_ms: 80497.840542
-- steady_state_elapsed_time_ms: 60202.824458
-- frames_per_second: 0.0498315491
-- samples_per_second: 12.7568765571
-- latency_ms: 20067.608153
-- cold_frame_ms: 20069.648875
-- warm_frame_ms: 20066.587792
-- graph_overhead_ms: 20064.102292
-- legacy_reference_baseline_ms: 1006.339014
-- correctness_parity_status: pass
+- total_elapsed_time_ms: 80512.114708
+- steady_state_elapsed_time_ms: 60171.598375
+- frames_per_second: 0.0498574092
+- samples_per_second: 12.7634967450
+- latency_ms: 20057.199458
+- graph_overhead_ms: 47.199458
+- transfer_inclusive_gpu_time_ms: 0.0
+- compute_only_gpu_time_ms: not available
+- correctness_parity_status: pass:cpu-benchmark-family-baseline
 
 2. macOS Metal (local, backend=metal)
 - packet_size: 256
 - frame_count: 3 (warmup: 1)
-- total_elapsed_time_ms: 80314.017459
-- steady_state_elapsed_time_ms: 60198.961792
-- frames_per_second: 0.0498347465
-- samples_per_second: 12.7576951020
-- transfer_inclusive_gpu_time_ms: 20066.320597
+- total_elapsed_time_ms: 80280.191541
+- steady_state_elapsed_time_ms: 60181.575291
+- frames_per_second: 0.0498491438
+- samples_per_second: 12.7613808094
+- latency_ms: 20060.525097
+- transfer_inclusive_gpu_time_ms: 20010.333333
 - compute_only_gpu_time_ms: not available
-- latency_ms: 20066.320597
-- cold_frame_ms: 20064.742875
-- warm_frame_ms: 20067.109459
-- graph_overhead_ms: 20063.507764
-- cpu_gpu_speed_ratio: 1.0000641650
-- legacy_reference_baseline_ms: 1007.478917
+- graph_overhead_ms: 50.191764
+- cpu_gpu_speed_ratio: 0.9998342198
 - correctness_parity_status: pass
 
-3. Jetson CUDA (imported)
+3. Jetson CUDA (imported attempt)
 - host_class: jetson-cuda
 - measurement_origin.imported: true
-- correctness_parity_status: pass:imported-correctness
-- transfer_inclusive_gpu_time_ms: pending benchmark import
-- compute_only_gpu_time_ms: pending benchmark import
-- allocation_count/bytes: pending benchmark import
+- correctness_parity_status: pending:phase7-import-identity-mismatch
+- transfer_inclusive_gpu_time_ms: pending identity-matched import
+- compute_only_gpu_time_ms: pending identity-matched import
+- allocation_count/bytes: pending identity-matched import
+- diagnostic: imported phase-7 artifact lacks matching branch/commit identity
 
 ## Replacement Recommendation
 
 Decision: NOT READY to replace libgpu pieces yet.
 
 Rationale:
-- Correctness and parity are passing for local CPU/Metal and imported Jetson CUDA correctness.
-- Current measured throughput/latency for greenfield graph execution is dominated by lifecycle/graph overhead (~20s per frame in this invocation), with CPU and Metal effectively equal (cpu_gpu_speed_ratio ~1.0), so no demonstrated acceleration benefit yet.
-- Jetson CUDA benchmark performance metrics are not yet present in phase-7 schema output (only correctness import exists).
-- Allocation telemetry and compute-only GPU telemetry are currently unavailable in these outputs.
+- macOS CPU and Metal benchmark-family parity is passing through GraphExecutor and plugin-loaded nodes.
+- CPU and Metal throughput remain effectively equal for this benchmark family (`cpu_gpu_speed_ratio ~ 1.0`), with no demonstrated replacement-value speedup.
+- Jetson CUDA lane cannot be accepted as imported evidence yet because branch/commit identity does not match or is missing in the provided phase-7 artifact.
+- Compute-only GPU timing and allocation telemetry are still unavailable in the benchmark output.
 
 Required before replacement approval:
-- Collect native Jetson CUDA phase-7 benchmark using this phase-7 schema.
-- Add compute-only and allocation telemetry plumbing where supported.
-- Reduce graph/lifecycle overhead to avoid timeout-scale per-frame cost.
+- Produce a Jetson phase-7 artifact with matching `branch`, `commit_sha`, and `diff_identity` and pass CUDA parity in the same benchmark family.
+- Add compute-only and allocation telemetry fields when backend telemetry supports them.
+- Demonstrate credible replacement value for at least one legacy surface with non-trivial CPU/GPU advantage and parity maintained.

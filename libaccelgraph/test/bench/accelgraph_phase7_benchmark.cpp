@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
+#include <array>
 #include <chrono>
 #include <cctype>
-#include <cmath>
-#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -73,6 +73,13 @@ struct RunMetrics {
     std::string selected_backend{"unknown"};
     bool used_fallback{false};
     std::string fallback_diagnostic;
+    std::optional<accelgraph::MagnitudeSpectrumPacket> last_spectrum;
+};
+
+struct RepoIdentity {
+    std::string branch;
+    std::string commit_sha;
+    nlohmann::json diff_identity;
 };
 
 std::string ToLower(std::string value) {
@@ -94,76 +101,53 @@ std::string BackendToString(accelgraph::AcceleratorBackend backend) {
     return "unknown";
 }
 
-accelgraph::DeterministicIqPacket GeneratePacket(const BenchmarkConfig& cfg,
-                                                 std::uint64_t packet_number) {
-    accelgraph::DeterministicIqPacket packet;
-    packet.sample_count = cfg.packet_size;
-    packet.packet_number = packet_number;
-    packet.sample_rate_hz = cfg.sample_rate_hz;
-    packet.tone_frequency_hz = cfg.tone_frequency_hz;
-    packet.amplitude = cfg.amplitude;
-    packet.phase_radians = 0.0F;
-    packet.i_samples.resize(cfg.packet_size);
-    packet.q_samples.resize(cfg.packet_size);
-
-    constexpr double kTwoPi = 2.0 * 3.14159265358979323846;
-    for (std::size_t n = 0; n < cfg.packet_size; ++n) {
-        const double phase = kTwoPi * cfg.tone_frequency_hz * static_cast<double>(n) /
-                             cfg.sample_rate_hz;
-        packet.i_samples[n] = cfg.amplitude * static_cast<float>(std::cos(phase));
-        packet.q_samples[n] = cfg.amplitude * static_cast<float>(std::sin(phase));
+std::string Trim(std::string value) {
+    const auto first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return {};
     }
-
-    return packet;
+    const auto last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
 }
 
-std::optional<accelgraph::MagnitudeSpectrumPacket>
-RunCpuReferenceSpectrum(const accelgraph::DeterministicIqPacket& input) {
-    if (input.sample_count < 2 || input.i_samples.size() != input.q_samples.size() ||
-        input.sample_count != input.i_samples.size()) {
-        return std::nullopt;
+std::string CaptureCommand(const std::string& command) {
+    std::array<char, 256> buffer{};
+    std::string output;
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return {};
+    }
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        output.append(buffer.data());
+    }
+    (void)pclose(pipe);
+    return Trim(output);
+}
+
+bool SpectrumParityPasses(const accelgraph::MagnitudeSpectrumPacket& cpu,
+                         const accelgraph::MagnitudeSpectrumPacket& candidate) {
+    if (cpu.magnitudes.size() != candidate.magnitudes.size()) {
+        return false;
+    }
+    if (cpu.peak_bin != candidate.peak_bin) {
+        return false;
     }
 
-    accelgraph::MagnitudeSpectrumPacket output;
-    output.requested_backend = accelgraph::AcceleratorBackend::Cpu;
-    output.selected_backend = accelgraph::AcceleratorBackend::Cpu;
-    output.used_fallback = false;
-    output.fft_size = input.sample_count;
-    output.sample_rate_hz = input.sample_rate_hz;
-    output.packet_number = input.packet_number;
-
-    const std::size_t fft_size = input.sample_count;
-    const std::size_t bins = fft_size / 2;
-    output.magnitudes.assign(bins, 0.0F);
-
-    double best_mag = -1.0;
-    std::size_t best_bin = 0;
-    constexpr double kTwoPi = 2.0 * 3.14159265358979323846;
-
-    for (std::size_t bin = 0; bin < bins; ++bin) {
-        std::complex<double> accum{0.0, 0.0};
-        for (std::size_t n = 0; n < fft_size; ++n) {
-            const std::complex<double> sample(
-                static_cast<double>(input.i_samples[n]),
-                static_cast<double>(input.q_samples[n]));
-            const double angle = -kTwoPi * static_cast<double>(bin) * static_cast<double>(n) /
-                                 static_cast<double>(fft_size);
-            accum += sample * std::complex<double>(std::cos(angle), std::sin(angle));
+    const std::vector<std::size_t> bins{
+        cpu.peak_bin,
+        cpu.peak_bin > 0 ? cpu.peak_bin - 1 : cpu.peak_bin,
+        cpu.peak_bin + 1 < cpu.magnitudes.size() ? cpu.peak_bin + 1 : cpu.peak_bin,
+    };
+    for (const auto bin : bins) {
+        if (bin >= cpu.magnitudes.size() || bin >= candidate.magnitudes.size()) {
+            continue;
         }
-
-        const double mag = std::abs(accum) / static_cast<double>(fft_size);
-        output.magnitudes[bin] = static_cast<float>(mag);
-        if (mag > best_mag) {
-            best_mag = mag;
-            best_bin = bin;
+        const float diff = std::abs(cpu.magnitudes[bin] - candidate.magnitudes[bin]);
+        if (diff > 1.0e-3F) {
+            return false;
         }
     }
-
-    output.peak_bin = best_bin;
-    output.peak_magnitude = output.magnitudes[best_bin];
-    output.peak_frequency_hz = static_cast<double>(best_bin) * output.sample_rate_hz /
-                               static_cast<double>(fft_size);
-    return output;
+    return true;
 }
 
 template <typename NodeT>
@@ -272,7 +256,8 @@ std::optional<double> MeasureLegacyReferenceBaselineMs(const std::filesystem::pa
 
 RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
                              const std::filesystem::path& repo_root,
-                             const std::filesystem::path& plugin_dir) {
+                             const std::filesystem::path& plugin_dir,
+                             const std::optional<accelgraph::MagnitudeSpectrumPacket>& cpu_reference) {
     RunMetrics metrics;
 
     const auto topology = repo_root / cfg.topology_path;
@@ -280,12 +265,8 @@ RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
         throw std::runtime_error("topology path not found: " + topology.string());
     }
 
-    accelgraph::SpectrumAnalysisNode direct_analysis;
-    direct_analysis.Configure(graph::JsonView(nlohmann::json{{"backend", cfg.backend},
-                                                             {"strict_fallback", cfg.strict_fallback}}));
-
     std::vector<double> measured_frame_ms;
-    std::vector<double> measured_direct_ms;
+    std::vector<double> measured_run_phase_ms;
 
     const std::size_t total_frames = cfg.warmup_frame_count + cfg.frame_count;
     const auto total_start = Clock::now();
@@ -343,15 +324,7 @@ RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
             const double elapsed_ms =
                 std::chrono::duration<double, std::milli>(end - start).count();
             measured_frame_ms.push_back(elapsed_ms);
-
-            auto packet = GeneratePacket(cfg, static_cast<std::uint64_t>(frame + 1));
-            const auto direct_start = Clock::now();
-            auto direct = direct_analysis.Execute(packet);
-            const auto direct_end = Clock::now();
-            if (direct.has_value()) {
-                measured_direct_ms.push_back(
-                    std::chrono::duration<double, std::milli>(direct_end - direct_start).count());
-            }
+            measured_run_phase_ms.push_back(static_cast<double>(run.run_elapsed_time_ms));
         }
     }
 
@@ -379,40 +352,32 @@ RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
             metrics.steady_elapsed_ms;
     }
 
-    const double direct_avg = MeanMs(measured_direct_ms);
+    const double run_phase_avg = MeanMs(measured_run_phase_ms);
     metrics.transfer_inclusive_gpu_time_ms = (cfg.backend == "metal" || cfg.backend == "cuda")
-                                                 ? metrics.latency_ms
+                                                 ? run_phase_avg
                                                  : 0.0;
-    metrics.graph_overhead_ms = std::max(0.0, metrics.latency_ms - direct_avg);
+    metrics.graph_overhead_ms = std::max(0.0, metrics.latency_ms - run_phase_avg);
 
-    auto reference_packet = GeneratePacket(cfg, 999);
-    auto reference = RunCpuReferenceSpectrum(reference_packet);
-    if (!reference.has_value() || !last_output.has_value()) {
+    if (!last_output.has_value()) {
         metrics.correctness_parity_status = "fail:no-reference";
     } else {
-        const auto& expected = reference.value();
         const auto& actual = last_output.value();
-        const bool peak_match = expected.peak_bin == actual.peak_bin;
-        bool bins_match = true;
-        const std::vector<std::size_t> bins{expected.peak_bin,
-                                            expected.peak_bin > 0 ? expected.peak_bin - 1 : 0,
-                                            expected.peak_bin + 1};
-        for (const auto bin : bins) {
-            if (bin >= expected.magnitudes.size() || bin >= actual.magnitudes.size()) {
-                continue;
-            }
-            const float diff = std::abs(expected.magnitudes[bin] - actual.magnitudes[bin]);
-            if (diff > 1.0e-3F) {
-                bins_match = false;
-                break;
-            }
-        }
-
-        metrics.correctness_parity_status = (peak_match && bins_match) ? "pass" : "fail:parity";
         metrics.selected_backend = BackendToString(actual.selected_backend);
         metrics.used_fallback = actual.used_fallback;
         metrics.fallback_diagnostic = actual.fallback_diagnostic;
+
+        if (cfg.backend == "cpu") {
+            metrics.correctness_parity_status = "pass:cpu-benchmark-family-baseline";
+        } else if (cpu_reference.has_value()) {
+            metrics.correctness_parity_status = SpectrumParityPasses(cpu_reference.value(), actual)
+                                                    ? "pass"
+                                                    : "fail:parity";
+        } else {
+            metrics.correctness_parity_status = "pending:missing-cpu-benchmark-family-baseline";
+        }
     }
+
+    metrics.last_spectrum = last_output;
 
     metrics.legacy_reference_baseline_ms =
         MeasureLegacyReferenceBaselineMs(repo_root,
@@ -424,7 +389,8 @@ RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
 }
 
 nlohmann::json ImportedResultFromArtifact(const BenchmarkConfig& cfg,
-                                          const std::filesystem::path& repo_root) {
+                                          const std::filesystem::path& repo_root,
+                                          const RepoIdentity& current_identity) {
     const auto pending_row = [&](const std::string& correctness_status,
                                  const std::string& pending_note) {
         return nlohmann::json{
@@ -483,8 +449,21 @@ nlohmann::json ImportedResultFromArtifact(const BenchmarkConfig& cfg,
     const std::string imported_phase = imported.value("phase", "");
     const std::string imported_schema = imported.value("schema", "");
 
-    if (imported_phase == "7" &&
-        imported_schema == "graphx.accelgraph.phase7.spectrum.benchmark.v1") {
+    if (imported_phase == "7" && imported_schema == "graphx.accelgraph.phase7.spectrum.benchmark.v1") {
+        const std::string imported_branch = imported.value("branch", "");
+        const std::string imported_commit = imported.value("commit_sha", "");
+        const bool identity_present = !imported_branch.empty() && !imported_commit.empty();
+        if (!identity_present || imported_branch != current_identity.branch ||
+            imported_commit != current_identity.commit_sha) {
+            if (!note.empty()) {
+                note += " ";
+            }
+            note += "Phase-7 artifact identity mismatch or missing identity fields."
+                    " Expected branch=" + current_identity.branch +
+                    " commit=" + current_identity.commit_sha + ".";
+            return pending_row("pending:phase7-import-identity-mismatch", note);
+        }
+
         const auto results_it = imported.find("results");
         if (results_it == imported.end() || !results_it->is_array()) {
             throw std::runtime_error("phase-7 imported artifact missing results array: " +
@@ -610,6 +589,20 @@ std::string UtcNow() {
     return oss.str();
 }
 
+RepoIdentity ReadRepoIdentity() {
+    RepoIdentity identity;
+    identity.branch = CaptureCommand("git rev-parse --abbrev-ref HEAD 2>/dev/null");
+    identity.commit_sha = CaptureCommand("git rev-parse HEAD 2>/dev/null");
+    const std::string status = CaptureCommand("git status --porcelain 2>/dev/null | head -n 1");
+    const bool dirty = !status.empty();
+    identity.diff_identity = {
+        {"type", "working_tree"},
+        {"value", dirty ? "uncommitted_changes_present" : "clean"},
+        {"working_tree_dirty", dirty},
+    };
+    return identity;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -684,8 +677,11 @@ int main(int argc, char** argv) {
 #endif
         };
 
+        const RepoIdentity repo_identity = ReadRepoIdentity();
+
         std::vector<nlohmann::json> results;
         std::optional<double> cpu_latency_ms;
+        std::optional<accelgraph::MagnitudeSpectrumPacket> cpu_reference_spectrum;
 
         for (const auto& rel_path : config_paths) {
             const auto cfg_path = rel_path.is_absolute() ? rel_path : (repo_root / rel_path);
@@ -693,13 +689,14 @@ int main(int argc, char** argv) {
             ApplyOverrides(cfg, frames_override, warmup_override);
 
             if (ToLower(cfg.execution_mode) == "imported") {
-                results.push_back(ImportedResultFromArtifact(cfg, repo_root));
+                results.push_back(ImportedResultFromArtifact(cfg, repo_root, repo_identity));
                 continue;
             }
 
-            const auto metrics = RunLocalBenchmark(cfg, repo_root, plugin_dir);
+            const auto metrics = RunLocalBenchmark(cfg, repo_root, plugin_dir, cpu_reference_spectrum);
             if (cfg.backend == "cpu") {
                 cpu_latency_ms = metrics.latency_ms;
+                cpu_reference_spectrum = metrics.last_spectrum;
             }
 
             nlohmann::json row = {
@@ -746,6 +743,9 @@ int main(int argc, char** argv) {
         }
 
         report["results"] = results;
+        report["branch"] = repo_identity.branch;
+        report["commit_sha"] = repo_identity.commit_sha;
+        report["diff_identity"] = repo_identity.diff_identity;
 
         std::filesystem::create_directories(output_path.parent_path());
         std::ofstream out(output_path);

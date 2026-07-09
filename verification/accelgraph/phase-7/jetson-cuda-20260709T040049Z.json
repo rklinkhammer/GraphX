@@ -1,0 +1,40 @@
+{
+  "phase": "7",
+  "generated_at_utc": "2026-07-09T04:00:49Z",
+  "verification_role": "verifier",
+  "imported": true,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "3b2e544cd199e11623cf35c04618477ef7f5ced3",
+  "diff_identity": {
+    "type": "working_tree",
+    "value": "uncommitted_changes_present",
+    "working_tree_dirty": true
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "unknown",
+  "operating_system": "Linux",
+  "architecture": "aarch64",
+  "source_artifact": "verification/accelgraph/phase-7/jetson-cuda-latest.json",
+  "import_identity_match": false,
+  "diagnostic": "Imported phase-7 Jetson artifact is missing branch/commit identity or does not match current macOS branch/commit.",
+  "commands_run": [
+    {
+      "name": "identity_guard",
+      "command": "phase7 importer identity check",
+      "result": "pending",
+      "diagnostic": "expected branch=codex/gpu-clean-restart commit=3b2e544cd199e11623cf35c04618477ef7f5ced3"
+    }
+  ],
+  "tests": {
+    "passed": [],
+    "failed": [],
+    "skipped": [
+      "Jetson benchmark lane not locally executed on macOS host"
+    ]
+  },
+  "overall_status": "pending_external_verification",
+  "required_jetson_commands": [
+    "cmake --build build-ninja/ninja-debug-linux-host --target accelgraph_phase7_benchmark -- -j$(nproc)",
+    "build-ninja/ninja-debug-linux-host/libaccelgraph/test/accelgraph_phase7_benchmark --config=libaccelgraph/test/config/benchmarks/accelgraph_phase7_spectrum_cuda_jetson.json --frames=24 --warmup=4 --output=verification/accelgraph/phase-7/jetson-cuda-latest.json"
+  ]
+}
