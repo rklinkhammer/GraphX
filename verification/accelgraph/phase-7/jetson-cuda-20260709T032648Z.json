@@ -1,0 +1,80 @@
+{
+  "generated_at_utc": "2026-07-09T03:26:50Z",
+  "host": {
+    "architecture": "aarch64",
+    "hostname": "unknown",
+    "operating_system": "Linux"
+  },
+  "phase": "7",
+  "results": [
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cpu",
+      "cold_frame_ms": 21003.018336,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6",
+      "correctness_parity_status": "pass",
+      "cpu_gpu_speed_ratio": null,
+      "execution_mode": "local",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04761102928690199,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cpu_macos",
+      "graph_overhead_ms": 20996.216931999996,
+      "host_class": "cpu-only",
+      "latency_ms": 21003.536679999997,
+      "legacy_reference_baseline_ms": 1002.75389075,
+      "measurement_origin": {
+        "imported": false,
+        "measured_locally": true,
+        "note": null,
+        "source_artifact": null
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.188423497446909,
+      "selected_backend": "cpu",
+      "steady_state_elapsed_time_ms": 84014.14671999999,
+      "total_elapsed_time_ms": 105164.958569,
+      "transfer_inclusive_gpu_time_ms": 0.0,
+      "used_fallback": false,
+      "warm_frame_ms": 21003.709461333336,
+      "warmup_frame_count": 1
+    },
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cuda",
+      "cold_frame_ms": 21003.716798,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6b",
+      "correctness_parity_status": "pass",
+      "cpu_gpu_speed_ratio": 1.0000088077728142,
+      "execution_mode": "local",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04761144863403139,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cuda_jetson_local",
+      "graph_overhead_ms": 20996.03018525,
+      "host_class": "jetson-cuda",
+      "latency_ms": 21003.35168725,
+      "legacy_reference_baseline_ms": 1002.6321845,
+      "measurement_origin": {
+        "imported": false,
+        "measured_locally": true,
+        "note": null,
+        "source_artifact": null
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.188530850312036,
+      "selected_backend": "cuda",
+      "steady_state_elapsed_time_ms": 84013.406749,
+      "total_elapsed_time_ms": 105095.636219,
+      "transfer_inclusive_gpu_time_ms": 21003.35168725,
+      "used_fallback": false,
+      "warm_frame_ms": 21003.229983666668,
+      "warmup_frame_count": 1
+    }
+  ],
+  "schema": "graphx.accelgraph.phase7.spectrum.benchmark.v1"
+}

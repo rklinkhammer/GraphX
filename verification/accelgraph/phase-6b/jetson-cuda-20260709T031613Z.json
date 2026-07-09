@@ -1,0 +1,93 @@
+{
+  "phase": "6b",
+  "generated_at_utc": "2026-07-09T03:16:13Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "f4bde50ac5918307b620d49d1fd5e1e27a1de169",
+  "diff_identity": {
+    "type": "commit",
+    "value": "f4bde50ac5918307b620d49d1fd5e1e27a1de169",
+    "working_tree_dirty": false
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "cuda_toolkit": {
+    "nvcc_version": "Build cuda_13.2.r13.2/compiler.37668154_0",
+    "gpu_name": "Orin (nvgpu)"
+  },
+  "cmake_generator": "Ninja",
+  "build_directory": "build-ninja/ninja-debug-linux-host",
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": [
+      "OFF (jetson cpu lane)",
+      "ON (jetson cuda lane)"
+    ]
+  },
+  "commands_run": [
+    {
+      "name": "jetson_phase6b_cpu_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=OFF && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter=AccelGraphPhase6BCudaSpectrumTest.* --gtest_color=no",
+      "result": "skip",
+      "diagnostic": "Binary exit 0; 0 tests ran. test_accelgraph_phase6b_spectrum_cuda.cpp is excluded from smoke target when ACCELGRAPH_ENABLE_CUDA=OFF by libaccelgraph/test/CMakeLists.txt."
+    },
+    {
+      "name": "jetson_phase6b_cuda_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter=AccelGraphPhase6BCudaSpectrumTest.* --gtest_color=no",
+      "result": "pass",
+      "diagnostic": "Binary exit 0. 2 passed, 0 failed, 0 skipped. Includes CPU/CUDA parity test and strict fallback enforcement test via GraphExecutor + plugin-loaded nodes."
+    },
+    {
+      "name": "constraint_search_nodes",
+      "command": "rg -n \"CudaSpectrumAnalysisNode|Cuda.*Spectrum.*Node\" libaccelgraph/include libaccelgraph/src libaccelgraph/plugins libaccelgraph/test",
+      "result": "pass",
+      "diagnostic": "No matches found."
+    },
+    {
+      "name": "constraint_search_graph_api_types",
+      "command": "rg -n \"cudaStream_t|cudaEvent_t|cudaError_t|cuda_runtime_api|CUstream|CUevent|cudaArray\" libaccelgraph/include/accelgraph/Spectrum*.hpp libaccelgraph/test/config/topologies/accelgraph_phase6b_spectrum_*.json",
+      "result": "pass",
+      "diagnostic": "No matches found."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "AccelGraphPhase6BCudaSpectrumTest.CpuCudaParityAndStrictNativeExecutionViaGraphExecutor",
+      "AccelGraphPhase6BCudaSpectrumTest.StrictFallbackPolicyIsEnforced"
+    ],
+    "failed": [],
+    "skipped": [
+      "Phase6B CPU-lane filtered run executed 0 tests because CUDA-disabled build excludes phase6b cuda test translation unit"
+    ]
+  },
+  "phase6b_requirements": {
+    "graph_executor_and_plugins": "pass",
+    "jetson_cpu_correctness": "covered_by_cpu_path_in_passing_cuda_lane_parity_test",
+    "jetson_cuda_correctness": "pass",
+    "cpu_cuda_parity_peak_and_selected_bins": "pass",
+    "strict_fallback_policy_enforced": "pass",
+    "no_cuda_specific_graph_spectrum_node": "pass",
+    "no_cuda_native_types_in_graph_facing_packets_or_node_apis": "pass"
+  },
+  "host_specific_checks": {
+    "jetson_cpu_lane": "skip (0-tests due CMake exclusion under CUDA OFF)",
+    "jetson_cuda_lane": "passed",
+    "macos_cpu_lane": "pending_external_verification",
+    "macos_metal_lane": "pending_external_verification"
+  },
+  "overall_status": "complete",
+  "failure_classification": [],
+  "recommended_fix_owner": [],
+  "blockers": []
+}
