@@ -1,0 +1,15 @@
+{
+  "name": "accelgraph_phase7_spectrum_metal_macos",
+  "host_class": "macos-metal",
+  "execution_mode": "local",
+  "topology_path": "libaccelgraph/test/config/topologies/accelgraph_phase6_spectrum_metal_topology.json",
+  "backend": "metal",
+  "packet_size": 256,
+  "frame_count": 24,
+  "warmup_frame_count": 4,
+  "sample_rate_hz": 48000.0,
+  "tone_frequency_hz": 1500.0,
+  "amplitude": 1.0,
+  "strict_fallback": true,
+  "correctness_family": "phase6"
+}

@@ -1,6 +1,7 @@
 find_package(GTest REQUIRED)
 
 file(GLOB ACCELGRAPH_UNIT_TEST_SOURCES CONFIGURE_DEPENDS "unit/test_*.cpp")
+file(GLOB ACCELGRAPH_BENCHMARK_SOURCES CONFIGURE_DEPENDS "bench/*.cpp")
 
 if(NOT ACCELGRAPH_ENABLE_CUDA)
     list(FILTER ACCELGRAPH_UNIT_TEST_SOURCES EXCLUDE REGEX "test_accelgraph_phase6b_spectrum_cuda\\.cpp$")
@@ -34,4 +35,29 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
     add_test(NAME libaccelgraph_smoke COMMAND test_libaccelgraph_smoke)
     set_tests_properties(libaccelgraph_smoke PROPERTIES
         LABELS "accelgraph;smoke;unit;host-any")
+endif()
+
+if(ACCELGRAPH_BENCHMARK_SOURCES)
+    add_executable(accelgraph_phase7_benchmark ${ACCELGRAPH_BENCHMARK_SOURCES})
+    target_compile_definitions(accelgraph_phase7_benchmark PRIVATE
+        PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    )
+    target_include_directories(accelgraph_phase7_benchmark PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    )
+    target_link_libraries(accelgraph_phase7_benchmark PRIVATE
+        accelgraph
+        graph
+        gpu
+        graphx_project_options
+    )
+
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(accelgraph_phase7_benchmark graphx_dynamic_nodes)
+    endif()
+
+    add_test(NAME accelgraph_phase7_benchmark_smoke
+        COMMAND accelgraph_phase7_benchmark --frames=4 --warmup=1)
+    set_tests_properties(accelgraph_phase7_benchmark_smoke PROPERTIES
+        LABELS "accelgraph;benchmark;phase7;host-any")
 endif()
