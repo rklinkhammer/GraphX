@@ -1,0 +1,46 @@
+{
+  "generated_at_utc": "2026-07-09T04:20:50Z",
+  "host": {
+    "architecture": "aarch64",
+    "hostname": "unknown",
+    "operating_system": "Linux"
+  },
+  "phase": "7",
+  "results": [
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cuda",
+      "cold_frame_ms": 21002.799986,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6b",
+      "correctness_parity_status": "pass",
+      "cpu_gpu_speed_ratio": 1.0120604191659361,
+      "execution_mode": "imported",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04818512356706329,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cuda_jetson",
+      "graph_overhead_ms": 20745.982234749998,
+      "host_class": "jetson-cuda",
+      "latency_ms": 20753.29325675,
+      "legacy_reference_baseline_ms": 1002.7618345000001,
+      "measurement_origin": {
+        "imported": true,
+        "measured_locally": false,
+        "note": "Expected import path for Jetson phase-7 output; if unavailable, correctness-only fallback may be imported from a phase-6b artifact path passed via --config override. Imported metrics from phase-7 artifact jetson-cuda-latest.json",
+        "source_artifact": "/home/rklinkhammer/workspace/GraphX/verification/accelgraph/phase-7/jetson-cuda-latest.json"
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.335391633168202,
+      "selected_backend": "cuda",
+      "steady_state_elapsed_time_ms": 83013.173027,
+      "total_elapsed_time_ms": 104088.971114,
+      "transfer_inclusive_gpu_time_ms": 20753.29325675,
+      "used_fallback": false,
+      "warm_frame_ms": 20670.124347,
+      "warmup_frame_count": 1
+    }
+  ],
+  "schema": "graphx.accelgraph.phase7.spectrum.benchmark.v1"
+}
