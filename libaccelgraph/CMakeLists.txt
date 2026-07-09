@@ -17,6 +17,31 @@ if(DEFINED GRAPHX_HAS_CUDA_TOOLKIT AND GRAPHX_HAS_CUDA_TOOLKIT)
     set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
 endif()
 
+set(ACCELGRAPH_CUDA_INCLUDE_DIR "")
+set(ACCELGRAPH_CUDART_LIBRARY "")
+if(ACCELGRAPH_ENABLE_CUDA)
+    find_path(ACCELGRAPH_CUDA_INCLUDE_DIR
+        NAMES cuda_runtime_api.h
+        HINTS
+            /usr/local/cuda/include
+            /usr/local/cuda-13.2/include
+        NO_DEFAULT_PATH
+    )
+    find_library(ACCELGRAPH_CUDART_LIBRARY
+        NAMES cudart
+        HINTS
+            /usr/local/cuda/lib64
+            /usr/local/cuda-13.2/lib64
+            /usr/local/cuda/targets/sbsa-linux/lib
+            /usr/local/cuda-13.2/targets/sbsa-linux/lib
+        NO_DEFAULT_PATH
+    )
+
+    if(ACCELGRAPH_CUDA_INCLUDE_DIR AND ACCELGRAPH_CUDART_LIBRARY)
+        set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
+    endif()
+endif()
+
 set(ACCELGRAPH_METAL_HEADERS_AVAILABLE OFF)
 if(ACCELGRAPH_ENABLE_METAL AND APPLE)
     if(DEFINED GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED AND GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED)
@@ -42,6 +67,11 @@ if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
         ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}
     )
 endif()
+if(ACCELGRAPH_ENABLE_CUDA AND ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE)
+    target_include_directories(accelgraph PRIVATE
+        ${ACCELGRAPH_CUDA_INCLUDE_DIR}
+    )
+endif()
 target_link_libraries(accelgraph PUBLIC
     graph
 )
@@ -50,6 +80,11 @@ if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
         ${GRAPHX_METAL_FRAMEWORK}
         ${GRAPHX_FOUNDATION_FRAMEWORK}
         ${GRAPHX_QUARTZCORE_FRAMEWORK}
+    )
+endif()
+if(ACCELGRAPH_ENABLE_CUDA AND ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE)
+    target_link_libraries(accelgraph PRIVATE
+        ${ACCELGRAPH_CUDART_LIBRARY}
     )
 endif()
 

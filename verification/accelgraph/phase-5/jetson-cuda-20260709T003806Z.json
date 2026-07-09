@@ -1,0 +1,129 @@
+{
+  "phase": 5,
+  "generated_at_utc": "2026-07-09T00:38:06Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "6e5158317d500c792df42de7bbbd82c22538b7e6",
+  "diff_identity": {
+    "type": "commit",
+    "value": "6e5158317d500c792df42de7bbbd82c22538b7e6",
+    "working_tree_dirty": false
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "compiler": {
+    "c": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "cxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  },
+  "build_tools": {
+    "cmake": "cmake version 4.3.4",
+    "ninja": "1.11.1"
+  },
+  "cmake": {
+    "generator": "Ninja",
+    "build_directory": "build-ninja/ninja-debug-linux-host"
+  },
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": [
+      "OFF (jetson cpu lane)",
+      "ON (jetson cuda lane)"
+    ]
+  },
+  "backend_status": {
+    "cpu": {
+      "compiled": "yes",
+      "runtime_available": "yes",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "native"
+    },
+    "cuda": {
+      "compiled": "phase4_shell_only",
+      "runtime_available": "driver_present_toolkit_unavailable",
+      "device_detected": "detected_via_nvidia_smi",
+      "provider_execution_mode": "shell_diagnostics_only",
+      "diagnostic": "Phase 5 stop-rule triggered: Jetson has visible GPU and libcuda runtime but nvcc/toolkit is unavailable in this invocation (command -v nvcc returned empty)."
+    },
+    "metal": {
+      "compiled": "off_in_jetson_lanes",
+      "runtime_available": "unavailable_on_jetson",
+      "device_detected": "not_applicable",
+      "provider_execution_mode": "pending_external_macos_verification"
+    }
+  },
+  "commands_run": [
+    {
+      "name": "sync_branch_identity",
+      "command": "git pull --ff-only",
+      "result": "pass",
+      "diagnostic": "Already up to date."
+    },
+    {
+      "name": "jetson_cpu_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=OFF && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "jetson_cuda_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+      "result": "pass",
+      "diagnostic": "1/1 tests passed."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "AccelGraphPhase3ATest.CpuTransferTopologyExecutesViaGraphExecutorAndPlugins",
+      "AccelGraphPhase3ATest.MetalTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic",
+      "AccelGraphPhase4CudaTest.ProviderInfoUsesCudaIdentityWithoutNativeDeviceClaims",
+      "AccelGraphPhase4CudaTest.CreateSessionReportsStructuredPhase4ShellDiagnostic",
+      "AccelGraphSmokeTest.ReportsPhase0ScaffoldState"
+    ],
+    "failed": [],
+    "skipped": []
+  },
+  "searches_run": [
+    {
+      "query": "CudaHostToDeviceNode|CudaDeviceToHostNode|CudaHostIngressNode|CudaHostEgressNode|CudaReleaseLeaseNode|Cuda.*Transfer.*Node",
+      "path": "libaccelgraph/include libaccelgraph/src libaccelgraph/plugins libaccelgraph/test",
+      "result": "pass",
+      "diagnostic": "No CUDA-specific graph transfer nodes found."
+    }
+  ],
+  "host_specific_checks": {
+    "jetson_cpu_lane": "passed",
+    "jetson_cuda_lane": "passed",
+    "phase5_native_cuda_vertical_slice": "blocked_toolkit_unavailable",
+    "macos_cpu_lane": "pending_external_verification",
+    "macos_metal_lane": "pending_external_verification"
+  },
+  "exact_jetson_execution_commands": [
+    "cd /home/rklinkhammer/workspace/GraphX",
+    "command -v nvcc && nvcc --version",
+    "nvidia-smi -L",
+    "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON",
+    "cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc)",
+    "ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure",
+    "./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='*Phase5*:*Cuda*'",
+    "git diff --check"
+  ],
+  "overall_status": "incomplete",
+  "blockers": [
+    "Phase 5 native CUDA was not implemented in this invocation because CUDA toolkit access is missing (nvcc not available), which triggers the prompt's mandatory stop rule."
+  ],
+  "recommended_fix_list": [
+    "Install or expose CUDA toolkit on Jetson so nvcc is available in PATH for this workspace session.",
+    "Re-run Phase 5 on same branch/identity and execute GraphExecutor-only CUDA transfer topology behavior tests.",
+    "After toolkit is available, implement native CUDA allocation/release/queue/H2D/D2H/completion/wait and rerun Jetson CPU/CUDA lanes."
+  ]
+}

@@ -124,6 +124,7 @@ private:
 
     friend class CpuAcceleratorSession;
     friend class MetalAcceleratorSession;
+    friend class CudaAcceleratorSession;
 };
 
 class DeviceAllocationHandle {
@@ -145,6 +146,7 @@ private:
 
     friend class CpuAcceleratorSession;
     friend class MetalAcceleratorSession;
+    friend class CudaAcceleratorSession;
 };
 
 class QueueHandle {
@@ -166,6 +168,7 @@ private:
 
     friend class CpuAcceleratorSession;
     friend class MetalAcceleratorSession;
+    friend class CudaAcceleratorSession;
 };
 
 class EventHandle {
@@ -187,6 +190,7 @@ private:
 
     friend class CpuAcceleratorSession;
     friend class MetalAcceleratorSession;
+    friend class CudaAcceleratorSession;
 };
 
 class TransferCompletion {
@@ -210,6 +214,7 @@ private:
 
     friend class CpuAcceleratorSession;
     friend class MetalAcceleratorSession;
+    friend class CudaAcceleratorSession;
 };
 
 struct HostAllocationRequest {
