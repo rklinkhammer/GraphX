@@ -593,6 +593,46 @@ Plugin loadability is mandatory for all accelerator graph nodes:
 Backend selection must be explicit and diagnostic. If a requested backend is not
 available, initialization should fail or skip in tests with a precise diagnostic.
 
+## GraphExecutor-only behavior testing
+
+GraphExecutor is the only valid behavioral test surface for accelerator graph
+behavior.
+
+All graph behavior, node behavior, transfer behavior, backend behavior, topology
+behavior, correctness behavior, lifecycle behavior, and performance behavior
+must be tested through:
+
+```text
+graph configuration
+  -> plugin discovery/loading
+  -> GraphExecutor
+  -> graph execution
+  -> sink/output/diagnostics
+```
+
+Do not validate accelerator behavior by directly constructing providers,
+sessions, backend runtimes, backend nodes, transfer nodes, or native runtime
+objects outside GraphExecutor.
+
+Direct tests are allowed only for pure value/internal-contract checks that do
+not execute accelerator behavior, such as:
+
+- `AcceleratorError` category, formatting, and serialization;
+- opaque handle move/copy/value semantics without backend execution;
+- graph configuration parsing;
+- verification artifact schema validation;
+- compile/interface conformance checks.
+
+A phase may define provider/session APIs as internal implementation seams, but
+it may not claim provider, node, transfer, Metal, CUDA, correctness, lifecycle,
+or performance success unless the relevant behavior is exercised through
+GraphExecutor.
+
+If a completed phase already contains direct provider/session/backend behavior
+tests, do not extend that pattern. Insert a correction phase before continuing
+backend work, migrate behavior coverage to GraphExecutor, and leave only allowed
+value/contract tests.
+
 ## Performance reference graph
 
 Define the benchmark target early, but do not implement benchmark tests until the
@@ -655,7 +695,7 @@ Use separate graph configurations for correctness and performance:
    - packet size around 256 or 1024;
    - small frame count;
    - validates peak bin, peak frequency, magnitude shape, and sink completion;
-   - used in unit tests and native-backend parity tests.
+   - used in GraphExecutor correctness and native-backend parity tests.
 2. performance config:
    - larger packet size and/or many frames, for example 4096+ samples and
      hundreds or thousands of frames;
@@ -761,21 +801,16 @@ Tasks:
 
 Required tests:
 
-- provider discovery;
-- session creation and teardown;
-- allocation and deterministic release;
 - move/copy semantics;
-- double-release prevention;
-- cross-session rejection;
 - structured failure categories;
-- queue lifecycle;
-- transfer completion lifecycle;
-- repeated creation and teardown.
+- configuration parsing;
+- compile/interface conformance;
+- opaque handle value semantics that do not execute accelerator behavior.
 
 Verification:
 
 1. CPU-only configure and build;
-2. new `libaccelgraph` unit tests pass;
+2. allowed value/config/schema/compile tests pass;
 3. existing libgraph unit tests pass if available in the build;
 4. `git diff --check`;
 5. search proving public `libaccelgraph` APIs expose no raw device pointers or
@@ -818,14 +853,15 @@ Tasks:
 Verification:
 
 1. CPU-only configure and build;
-2. new transfer-node unit tests pass;
-3. CPU end-to-end topology test passes;
+2. allowed value/config/schema/compile tests pass;
+3. CPU end-to-end topology test passes through GraphExecutor using plugin-loaded
+   nodes;
 4. `git diff --check`;
 5. search proving the new transfer nodes do not include or mention CUDA or
    Metal capability headers;
 6. search proving no backend-specific transfer node variants were introduced;
 7. search proving transfer nodes inherit from GraphX node bases;
-8. plugin-load test proving each transfer node is dynamically discoverable and
+8. GraphExecutor test proves each transfer node is dynamically discoverable and
    loadable through plugin registration.
 
 Stop after Phase 2. Report files changed, tests run, topology status, and the
@@ -844,8 +880,8 @@ Tasks:
    non-compliant nodes;
 3. add plugin entry points and registration for every accelerator node that
    lacks them;
-4. ensure node construction in tests goes through plugin discovery/loading for
-   at least one lane, not only direct linkage;
+4. ensure behavior tests execute through GraphExecutor and plugin
+   discovery/loading, not direct linkage;
 5. preserve backend-neutral node naming and avoid backend-specific node classes;
 6. update design notes with any justified `INode` exceptions.
 
@@ -853,8 +889,8 @@ Verification:
 
 1. CPU-only configure and build;
 2. plugin-discovery and plugin-load tests pass for all Phase 2 transfer nodes;
-3. end-to-end CPU transfer topology still passes when nodes are loaded via
-   plugin registration;
+3. end-to-end CPU transfer topology still passes through GraphExecutor when
+   nodes are loaded via plugin registration;
 4. `git diff --check`;
 5. search proving all accelerator transfer nodes derive from GraphX node bases;
 6. search proving no transfer node is direct-link only without a plugin entry
@@ -896,9 +932,9 @@ Verification:
 
 1. macOS CPU-only configure and build still passes;
 2. macOS Metal-enabled configure and build passes where supported;
-3. Metal provider unit tests pass or skip with the exact unavailable-hardware
-   diagnostic;
-4. generic Metal transfer topology passes or skips precisely;
+3. Metal GraphExecutor transfer topology passes or skips with the exact
+   unavailable-hardware diagnostic;
+4. generic Metal transfer topology runs only through GraphExecutor;
 5. `git diff --check`;
 6. search proving `libaccelgraph` does not include old `IMetal*Capability`
    headers;
@@ -908,6 +944,77 @@ Verification:
 
 Stop after Phase 3. Report files changed, tests run, Metal status, and the next
 phase.
+
+## Phase 3A: Public GraphExecutor test-surface correction
+
+Use this phase when Phases 1, 2, 2A, and 3 already exist but any behavioral
+coverage was implemented through direct provider/session/backend/runtime tests
+instead of the public GraphExecutor path.
+
+Objective:
+
+Make GraphExecutor the only behavioral validation surface before CUDA work
+continues.
+
+Do not implement Phase 4 CUDA work in this phase.
+
+Rules:
+
+1. All behavior tests must execute through:
+   graph configuration -> plugin discovery/loading -> GraphExecutor ->
+   graph execution -> sink/output/diagnostics.
+2. Transfer and accelerator nodes must use capability-only initialization:
+   all runtime/session/provider/backend/value initialization must flow through
+   `IConfigurable` node configuration. Do not add or retain parallel
+   initialization methods (for example, registry/session `Initialize(...)`
+   paths or ad hoc staging methods).
+3. Direct tests are allowed only for pure value/internal-contract checks that do
+   not execute accelerator behavior:
+   - `AcceleratorError` category, formatting, and serialization;
+   - opaque handle move/copy/value semantics without backend execution;
+   - graph configuration parsing;
+   - verification artifact schema validation;
+   - compile/interface conformance checks.
+4. Delete or rewrite tests that directly construct providers, sessions, backend
+   runtimes, backend nodes, or transfer nodes to validate behavior.
+5. Provider/session APIs may exist internally, but they are not public
+   behavioral validation surfaces.
+6. Preserve completed Phase 1/2/2A/3 implementation behavior. Change only the
+   validation surface unless a small production adjustment is required to enable
+   GraphExecutor validation.
+
+Tasks:
+
+1. audit all `libaccelgraph` and accelerator-related tests;
+2. classify each test as:
+   - allowed value/contract test;
+   - forbidden direct provider/session/backend behavior test;
+   - valid GraphExecutor behavior test;
+   - missing GraphExecutor equivalent;
+3. migrate forbidden behavior tests to GraphExecutor graph configurations;
+4. delete direct behavior tests that are fully replaced by GraphExecutor tests;
+5. keep allowed value/config/schema/compile tests only if they do not execute
+   accelerator behavior;
+6. add or update CPU and Metal transfer graph configurations used by
+   GraphExecutor tests;
+7. update design notes so Phase 4+ cannot reintroduce direct backend behavior
+   test harnesses.
+
+Verification:
+
+1. CPU GraphExecutor transfer topology passes;
+2. Metal GraphExecutor transfer topology passes or skips with exact diagnostic;
+3. behavior tests use plugin discovery/loading and GraphExecutor;
+4. no behavior test directly constructs providers, sessions, backend runtimes,
+   backend nodes, transfer nodes, or native runtime objects;
+5. direct tests remain only for value/config/schema/compile contracts;
+6. `git diff --check`;
+7. searches proving forbidden direct behavior test patterns are absent;
+8. searches proving GraphExecutor configs cover CPU and Metal transfer paths.
+
+Stop after Phase 3A. Report migrated tests, deleted tests, remaining allowed
+direct tests, GraphExecutor configs used, CPU/Metal GraphExecutor status, and
+the exact Phase 4 prompt.
 
 ## Phase 4: CUDA provider shell and Jetson build lane
 
@@ -923,7 +1030,9 @@ Tasks:
    compiled;
 4. return structured `Unsupported` or `Unavailable` errors for unimplemented
    operations;
-5. add tests that verify diagnostics and prevent false native labels;
+5. add allowed value/config/schema/compile tests that verify diagnostics and
+   prevent false native labels without executing CUDA behavior outside
+   GraphExecutor;
 6. document the Jetson lane commands expected to configure, build, and test the
    CUDA shell.
 
@@ -941,7 +1050,8 @@ Verification:
 2. macOS Metal configure and build still passes if available;
 3. Jetson CPU-only configure and build passes when run on Jetson;
 4. Jetson CUDA-shell configure and build passes when run on Jetson;
-5. CUDA provider shell tests pass or skip with exact diagnostics;
+5. allowed CUDA shell value/config/schema/compile tests pass or skip with exact
+   diagnostics;
 6. if Jetson is not available in the current invocation, add exact commands and
    mark the Jetson lane as pending external verification rather than pretending
    it passed;
@@ -964,7 +1074,8 @@ Tasks:
 
 1. implement CUDA allocation, release, queue/stream, H2D, D2H, completion, and
    wait;
-2. run the generic transfer topology against the CUDA provider;
+2. run the generic transfer topology against the CUDA provider only through
+   GraphExecutor and plugin-loaded nodes;
 3. add native availability diagnostics distinguishing toolkit, driver, device,
    session, allocation, transfer, and synchronization failures;
 4. keep all CUDA native objects inside the provider/session implementation;
@@ -981,8 +1092,10 @@ Verification:
 
 1. Jetson CPU-only configure and build still passes;
 2. Jetson CUDA configure and build passes;
-3. CUDA provider tests pass or skip with exact diagnostics;
-4. CUDA generic transfer topology passes or skips precisely;
+3. allowed CUDA value/config/schema/compile tests pass or skip with exact
+   diagnostics;
+4. CUDA generic transfer topology passes or skips precisely through
+   GraphExecutor;
 5. macOS CPU/Metal build files remain unaffected;
 6. `git diff --check`;
 7. search proving no CUDA-specific graph transfer nodes were introduced.
