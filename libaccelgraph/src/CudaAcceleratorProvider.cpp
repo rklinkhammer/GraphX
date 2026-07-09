@@ -13,18 +13,13 @@
 #include <unordered_map>
 #include <utility>
 
-#if ACCELGRAPH_ENABLE_CUDA && ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE && __has_include(<cuda_runtime_api.h>)
-#define ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE 1
+#if ACCELGRAPH_ENABLE_CUDA && ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE && ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
 #include <cuda_runtime_api.h>
-#else
-#define ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE 0
 #endif
 
 #include <optional>
 
 namespace accelgraph {
-
-namespace {
 
 struct SharedHandleState {
     AcceleratorProviderId provider_id;
@@ -34,6 +29,16 @@ struct SharedHandleState {
     HandleDebugInfo debug;
     std::atomic<bool> released{false};
 };
+
+#if ACCELGRAPH_ENABLE_CUDA && ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE && ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
+struct HostAllocationHandle::State : SharedHandleState {};
+struct DeviceAllocationHandle::State : SharedHandleState {};
+struct QueueHandle::State : SharedHandleState {};
+struct EventHandle::State : SharedHandleState {};
+struct TransferCompletion::State : SharedHandleState {
+    std::uint64_t event_internal_id{0};
+};
+#endif
 
 #if ACCELGRAPH_ENABLE_CUDA && ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE && ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
 std::atomic<std::uint64_t> g_next_cuda_id{1};
@@ -97,14 +102,6 @@ AcceleratorError MakeProviderError(const AcceleratorProviderInfo& info,
 }
 
 #if ACCELGRAPH_ENABLE_CUDA && ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE && ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
-struct HostAllocationHandle::State : SharedHandleState {};
-struct DeviceAllocationHandle::State : SharedHandleState {};
-struct QueueHandle::State : SharedHandleState {};
-struct EventHandle::State : SharedHandleState {};
-struct TransferCompletion::State : SharedHandleState {
-    std::uint64_t event_internal_id{0};
-};
-
 class CudaAcceleratorSession final : public IAcceleratorSession {
 public:
     CudaAcceleratorSession(AcceleratorSessionInfo info, int device_ordinal)
@@ -828,8 +825,6 @@ private:
 };
 #endif
 
-}  // namespace
-
 CudaAcceleratorProvider::CudaAcceleratorProvider() {
     info_.provider_id = AcceleratorProviderId{"cuda.default"};
     info_.backend = AcceleratorBackend::Cuda;
@@ -865,11 +860,17 @@ CudaAcceleratorProvider::CreateSession(const AcceleratorSessionCreateRequest& re
                                              "CreateSession",
                                              kCudaSupportNotCompiledDiagnostic,
                                              request.requested_device));
-#elif !ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE || !ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
+#elif !ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE
     return std::unexpected(MakeProviderError(info_,
                                              AcceleratorErrorCategory::Unavailable,
                                              "CreateSession",
                                              kCudaToolkitUnavailableDiagnostic,
+                                             request.requested_device));
+#elif !ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE
+    return std::unexpected(MakeProviderError(info_,
+                                             AcceleratorErrorCategory::Unavailable,
+                                             "CreateSession",
+                                             kCudaRuntimeHeadersUnavailableDiagnostic,
                                              request.requested_device));
 #else
     int device_count = 0;

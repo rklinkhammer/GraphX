@@ -13,6 +13,7 @@ option(ACCELGRAPH_ENABLE_METAL "Enable libaccelgraph native Metal backend" ${_ac
 option(ACCELGRAPH_ENABLE_CUDA "Enable libaccelgraph native CUDA backend" OFF)
 
 set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE OFF)
+set(ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE OFF)
 if(DEFINED GRAPHX_HAS_CUDA_TOOLKIT AND GRAPHX_HAS_CUDA_TOOLKIT)
     set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
 endif()
@@ -20,25 +21,51 @@ endif()
 set(ACCELGRAPH_CUDA_INCLUDE_DIR "")
 set(ACCELGRAPH_CUDART_LIBRARY "")
 if(ACCELGRAPH_ENABLE_CUDA)
-    find_path(ACCELGRAPH_CUDA_INCLUDE_DIR
-        NAMES cuda_runtime_api.h
-        HINTS
-            /usr/local/cuda/include
-            /usr/local/cuda-13.2/include
-        NO_DEFAULT_PATH
-    )
-    find_library(ACCELGRAPH_CUDART_LIBRARY
-        NAMES cudart
-        HINTS
-            /usr/local/cuda/lib64
-            /usr/local/cuda-13.2/lib64
-            /usr/local/cuda/targets/sbsa-linux/lib
-            /usr/local/cuda-13.2/targets/sbsa-linux/lib
-        NO_DEFAULT_PATH
-    )
+    if(TARGET CUDA::cudart)
+        set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
+        if(CUDAToolkit_BIN_DIR)
+            cmake_path(GET CUDAToolkit_BIN_DIR PARENT_PATH _accelgraph_cuda_root)
+            list(APPEND _accelgraph_cuda_include_hints
+                "${_accelgraph_cuda_root}/include"
+                "${_accelgraph_cuda_root}/targets/sbsa-linux/include"
+                "${_accelgraph_cuda_root}/targets/aarch64-linux/include")
+        endif()
+        find_path(ACCELGRAPH_CUDA_INCLUDE_DIR
+            NAMES cuda_runtime_api.h
+            HINTS ${_accelgraph_cuda_include_hints}
+                /usr/local/cuda/include
+                /usr/local/cuda-13.2/include
+        )
+
+        set(ACCELGRAPH_CUDART_LIBRARY CUDA::cudart)
+    else()
+        find_path(ACCELGRAPH_CUDA_INCLUDE_DIR
+            NAMES cuda_runtime_api.h
+            HINTS
+                /usr/local/cuda/include
+                /usr/local/cuda-13.2/include
+        )
+        find_library(ACCELGRAPH_CUDART_LIBRARY
+            NAMES cudart
+            HINTS
+                /usr/local/cuda/lib64
+                /usr/local/cuda-13.2/lib64
+                /usr/local/cuda/targets/sbsa-linux/lib
+                /usr/local/cuda-13.2/targets/sbsa-linux/lib
+        )
+    endif()
 
     if(ACCELGRAPH_CUDA_INCLUDE_DIR AND ACCELGRAPH_CUDART_LIBRARY)
         set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
+    endif()
+
+    if(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE)
+        if(TARGET CUDA::cudart)
+            set(ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE ON)
+        elseif(ACCELGRAPH_CUDA_INCLUDE_DIR AND
+               EXISTS "${ACCELGRAPH_CUDA_INCLUDE_DIR}/cuda_runtime_api.h")
+            set(ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE ON)
+        endif()
     endif()
 endif()
 
@@ -56,6 +83,7 @@ target_compile_definitions(accelgraph PUBLIC
     ACCELGRAPH_ENABLE_METAL=$<BOOL:${ACCELGRAPH_ENABLE_METAL}>
     ACCELGRAPH_ENABLE_CUDA=$<BOOL:${ACCELGRAPH_ENABLE_CUDA}>
     ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE=$<BOOL:${ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE}>
+    ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE=$<BOOL:${ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE}>
     ACCELGRAPH_METAL_HEADERS_AVAILABLE=$<BOOL:${ACCELGRAPH_METAL_HEADERS_AVAILABLE}>
 )
 target_include_directories(accelgraph PUBLIC

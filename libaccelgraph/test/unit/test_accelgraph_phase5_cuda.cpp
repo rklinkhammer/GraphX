@@ -67,6 +67,7 @@ void ConfigureTransferNode(const std::shared_ptr<graph::INode>& node,
 bool IsExpectedCudaSkipDiagnostic(const std::string& message) {
     return message.find(accelgraph::kCudaSupportNotCompiledDiagnostic) != std::string::npos ||
            message.find(accelgraph::kCudaToolkitUnavailableDiagnostic) != std::string::npos ||
+           message.find(accelgraph::kCudaRuntimeHeadersUnavailableDiagnostic) != std::string::npos ||
            message.find("driver") != std::string::npos ||
            message.find("device") != std::string::npos ||
            message.find("CUDA") != std::string::npos;

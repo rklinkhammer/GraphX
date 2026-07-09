@@ -8,7 +8,7 @@
 
 ## Result
 
-Status: INCOMPLETE
+Status: COMPLETE
 
 ## What Was Completed
 
@@ -16,13 +16,14 @@ Status: INCOMPLETE
 - Added GraphExecutor-only CUDA transfer topology and behavior test (no CUDA-specific graph node types introduced).
 - Verified Jetson CPU lane and Jetson CUDA lane build/test execution.
 
-## Remaining Blocker
+## Phase 5 Result
 
-Phase 5 GraphExecutor CUDA behavior test is present and executed, but skips with exact runtime diagnostic:
+Phase 5 native CUDA vertical slice is now verified on Jetson.
 
-- `CUDA toolkit unavailable (ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE=OFF).`
-
-This means the native CUDA runtime path is implemented but not validated end-to-end on this host configuration yet.
+- `ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE` now resolves to `ON` for the CUDA lane build.
+- Phase 5 GraphExecutor behavior test executed and passed:
+	`AccelGraphPhase5CudaGraphExecutorTest.CudaTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic`
+- CUDA toolkit and device are both detected (`nvcc` present, `nvidia-smi` reports Orin).
 
 ## Commands and Results
 
@@ -31,7 +32,8 @@ This means the native CUDA runtime path is implemented but not validated end-to-
 - `./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_color=no`: pass (4 passed, 2 skipped)
 - `cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON`: pass
 - `cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc)`: pass
-- `./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_color=no`: pass (4 passed, 2 skipped; Phase 5 CUDA test skipped with toolkit unavailable diagnostic)
+- `./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_color=no` (CPU lane): pass (4 passed, 2 skipped)
+- `./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_color=no` (CUDA lane): pass (5 passed, 1 skipped)
 - `ctest --test-dir build-ninja/ninja-debug-linux-host -R '^libaccelgraph_smoke$' --output-on-failure`: pass
 - `git diff --check`: pass
 - `rg -n "CudaHostToDeviceNode|CudaDeviceToHostNode|CudaHostIngressNode|CudaHostEgressNode|CudaReleaseLeaseNode|Cuda.*Transfer.*Node" libaccelgraph/include libaccelgraph/src libaccelgraph/plugins libaccelgraph/test`: pass (no matches)
@@ -52,3 +54,5 @@ This means the native CUDA runtime path is implemented but not validated end-to-
 ## Artifact
 
 - jetson-cuda-20260709T010007Z.json
+- jetson-cuda-20260709T010610Z.json
+- jetson-cuda-20260709T011433Z.json

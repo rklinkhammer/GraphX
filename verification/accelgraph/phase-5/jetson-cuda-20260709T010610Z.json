@@ -1,0 +1,67 @@
+{
+  "phase": 5,
+  "generated_at_utc": "2026-07-09T01:06:10Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "1af2fbd80e9058b5368deaefe94d20f80cf00904",
+  "diff_identity": {
+    "type": "commit",
+    "value": "1af2fbd80e9058b5368deaefe94d20f80cf00904",
+    "working_tree_dirty": true
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": "ON"
+  },
+  "backend_status": {
+    "cpu": {
+      "compiled": "yes",
+      "runtime_available": "yes"
+    },
+    "cuda": {
+      "toolkit_cli_present": "yes",
+      "nvcc_version": "Build cuda_13.2.r13.2/compiler.37668154_0",
+      "gpu_detected": "yes",
+      "phase5_native_code_present": "yes",
+      "session_runtime_status": "skipped",
+      "skip_reason": "CUDA toolkit appears present, but cuda_runtime_api.h was not visible during libaccelgraph compilation (ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE=OFF)."
+    }
+  },
+  "commands_run": [
+    {
+      "name": "jetson_cuda_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_color=no",
+      "result": "pass",
+      "diagnostic": "Binary exit 0. Passed 4, skipped 2."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "AccelGraphPhase3ATest.CpuTransferTopologyExecutesViaGraphExecutorAndPlugins",
+      "AccelGraphPhase4CudaTest.ProviderInfoUsesCudaIdentityWithoutNativeDeviceClaims",
+      "AccelGraphPhase4CudaTest.CreateSessionReportsStructuredPhase4ShellDiagnostic",
+      "AccelGraphSmokeTest.ReportsPhase0ScaffoldState"
+    ],
+    "failed": [],
+    "skipped": [
+      "AccelGraphPhase3ATest.MetalTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic (Metal support not compiled)",
+      "AccelGraphPhase5CudaGraphExecutorTest.CudaTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic (ACCELGRAPH_CUDA_RUNTIME_HEADER_AVAILABLE=OFF)"
+    ]
+  },
+  "overall_status": "incomplete",
+  "blockers": [
+    "Phase 5 remains incomplete because runtime GraphExecutor CUDA behavior did not execute; skip reason is compile-time CUDA runtime header visibility mismatch, not missing CUDA toolkit installation."
+  ]
+}
