@@ -12,6 +12,7 @@
 #include <variant>
 
 #include "accelgraph/CpuAcceleratorProvider.hpp"
+#include "accelgraph/CudaAcceleratorProvider.hpp"
 #include "accelgraph/MetalAcceleratorProvider.hpp"
 #include "config/ConfigError.hpp"
 
@@ -73,11 +74,13 @@ ParseSessionSelection(const graph::JsonView& cfg, const char* operation) {
         parsed_backend = AcceleratorBackend::Cpu;
     } else if (backend == "metal") {
         parsed_backend = AcceleratorBackend::Metal;
+    } else if (backend == "cuda") {
+        parsed_backend = AcceleratorBackend::Cuda;
     } else {
         AcceleratorError error;
         error.category = AcceleratorErrorCategory::InvalidArgument;
         error.operation = operation;
-        error.diagnostic = "backend must be one of: cpu, metal";
+        error.diagnostic = "backend must be one of: cpu, metal, cuda";
         return std::unexpected(error);
     }
 
@@ -99,6 +102,10 @@ CreateProvider(const SessionSelection& selection, const char* operation) {
         return std::static_pointer_cast<IAcceleratorProvider>(std::make_shared<MetalAcceleratorProvider>());
     }
 
+    if (selection.backend == AcceleratorBackend::Cuda || provider_id == "cuda.default") {
+        return std::static_pointer_cast<IAcceleratorProvider>(std::make_shared<CudaAcceleratorProvider>());
+    }
+
     AcceleratorError error;
     error.category = AcceleratorErrorCategory::InvalidArgument;
     error.operation = operation;
@@ -113,7 +120,9 @@ AcquireOrCreateSession(const SessionSelection& selection, const char* operation)
 
     const std::string cache_key = selection.session_key + "|" +
                                   selection.provider_id.value + "|" +
-                                  (selection.backend == AcceleratorBackend::Metal ? "metal" : "cpu");
+                                (selection.backend == AcceleratorBackend::Metal
+                                    ? "metal"
+                                    : (selection.backend == AcceleratorBackend::Cuda ? "cuda" : "cpu"));
 
     {
         std::scoped_lock<std::mutex> lock(cache_mutex);

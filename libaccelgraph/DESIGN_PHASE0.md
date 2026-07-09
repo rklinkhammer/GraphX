@@ -116,3 +116,53 @@ CPU and Metal transfer topology JSON files.
 For later phases (including CUDA), do not reintroduce direct provider/session
 behavior harnesses in unit tests. Direct tests are allowed only for pure
 value/config/schema/compile contracts that do not execute accelerator behavior.
+
+## Phase 4 CUDA Provider Shell and Jetson Lane Notes
+
+Phase 4 adds `CudaAcceleratorProvider` as a truthful shell only. It does not
+introduce native CUDA session behavior or CUDA-specific graph nodes.
+
+Structured shell diagnostics are explicit and phase-scoped:
+
+- `CUDA support not compiled (ACCELGRAPH_ENABLE_CUDA=OFF).`
+- `CUDA toolkit unavailable (ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE=OFF).`
+- `CUDA native provider not implemented in Phase 4 shell.`
+
+The provider reports backend identity (`cuda.default`, `AcceleratorBackend::Cuda`)
+without claiming discovered native CUDA devices in this phase. No CUDA headers
+are required in public CPU/Metal headers, and CPU/Metal lanes remain buildable
+without CUDA toolkit dependencies.
+
+Jetson verification is pending external execution on Jetson hardware/toolchain.
+Run exactly these commands on Jetson:
+
+CPU-only lane:
+
+```bash
+cmake -S . -B build-ninja/jetson-phase4-cpu -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/graphx-gcc-linux.cmake \
+  -DBUILD_TESTS=ON \
+  -DENABLE_METAL_GRAPH_NODES=OFF \
+  -DENABLE_METAL_NATIVE_RUNTIME=OFF \
+  -DACCELGRAPH_ENABLE_CUDA=OFF
+cmake --build build-ninja/jetson-phase4-cpu --target test_libaccelgraph_smoke
+ctest --test-dir build-ninja/jetson-phase4-cpu -R libaccelgraph_smoke --output-on-failure
+```
+
+CUDA-shell lane (still Phase 4 shell, not native CUDA execution):
+
+```bash
+cmake -S . -B build-ninja/jetson-phase4-cuda-shell -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/graphx-gcc-linux.cmake \
+  -DBUILD_TESTS=ON \
+  -DENABLE_METAL_GRAPH_NODES=OFF \
+  -DENABLE_METAL_NATIVE_RUNTIME=OFF \
+  -DACCELGRAPH_ENABLE_CUDA=ON
+cmake --build build-ninja/jetson-phase4-cuda-shell --target test_libaccelgraph_smoke
+ctest --test-dir build-ninja/jetson-phase4-cuda-shell -R libaccelgraph_smoke --output-on-failure
+```
+
+Expected Phase 4 outcome on Jetson:
+
+- configure/build/test lanes pass for CPU-only and CUDA-shell;
+- CUDA shell diagnostics remain truthful until Phase 5 implements native CUDA.
