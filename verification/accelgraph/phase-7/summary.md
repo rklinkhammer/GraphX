@@ -7,39 +7,60 @@ Phase 7 rerun executed on macOS with identity-guarded Jetson import handling.
 Constraints applied in this rerun:
 - GraphExecutor-only benchmark/correctness behavior.
 - No Phase 8 deletion work.
+This update continues **Phase 7 only** and does not perform any Phase 8 deletion/integration work.
+
+Constraints held:
+- GraphExecutor + plugin-loaded nodes only for benchmark-family runs.
+>>>>>>> t1
 - No legacy `libgpu` surface changes.
 - No compatibility adapters/wrappers/aliases/shims.
 
-## Artifacts
+## Identity Alignment
 
 - Benchmark schema: `verification/accelgraph/phase-7/benchmark_result.schema.json`
 - macOS benchmark run: `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`
 - Jetson lane import status: `verification/accelgraph/phase-7/jetson-cuda-20260709T040049Z.json`
 - Jetson import runbook: `verification/accelgraph/phase-7/JETSON_IMPORT_RUNBOOK.md`
 
-## Benchmark Configurations Added
+macOS rerun identity to match:
+- branch: `codex/gpu-clean-restart`
+- commit_sha: `3b2e544cd199e11623cf35c04618477ef7f5ced3`
+- diff_identity: `{"type":"working_tree","value":"uncommitted_changes_present","working_tree_dirty":true}`
 
-- `libaccelgraph/test/config/benchmarks/accelgraph_phase7_spectrum_cpu_macos.json`
-- `libaccelgraph/test/config/benchmarks/accelgraph_phase7_spectrum_metal_macos.json`
-- `libaccelgraph/test/config/benchmarks/accelgraph_phase7_spectrum_cuda_jetson.json`
+Jetson Phase 7 schema artifact now includes and matches this identity.
 
-## Benchmark Runner Added
+## Updated Artifacts
 
-- `libaccelgraph/test/bench/accelgraph_phase7_benchmark.cpp`
-- CMake target: `accelgraph_phase7_benchmark`
+- Schema: `verification/accelgraph/phase-7/benchmark_result.schema.json`
+- Matching-identity Jetson local benchmark artifact:
+	- `verification/accelgraph/phase-7/jetson-cuda-20260709T041603Z.json`
+- Updated import source path:
+	- `verification/accelgraph/phase-7/jetson-cuda-latest.json`
+- Import validation artifact using matching Jetson schema artifact:
+	- `verification/accelgraph/phase-7/jetson-import-check-20260709T042050Z.json`
+- Existing macOS rerun artifact (external host evidence):
+	- `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`
+
+## Jetson Benchmark-Family Re-run (Local)
 
 Rerun updates:
 - benchmark parity now uses GraphExecutor output from the CPU benchmark-family row as the baseline;
 - graph/lifecycle overhead estimate now uses GraphExecutor phase timings (`latency_ms - mean(run_elapsed_time_ms)`), not direct node execution;
 - phase-7 schema now includes `branch`, `commit_sha`, and `diff_identity`;
 - imported phase-7 CUDA rows are accepted only when branch/commit identity matches.
+Command family used (CUDA-enabled build):
+- benchmark target: `accelgraph_phase7_benchmark`
+- configs:
+	- CPU family: `accelgraph_phase7_spectrum_cpu_macos.json`
+	- Jetson CUDA family (local): `accelgraph_phase7_spectrum_cuda_jetson` (local config variant)
+>>>>>>> t1
 
-Importer behavior (updated):
-- If `imported_artifact` points to a valid phase-7 schema artifact with a matching CUDA row, the row is validated and merged directly (timing/throughput/allocation fields included as available).
-- If phase-7 artifact is missing or lacks a matching CUDA row, output remains pending for CUDA lane.
-- If a phase-6b verifier artifact is provided instead, correctness-only import fallback is used.
+From `jetson-cuda-20260709T041603Z.json`:
 
-## Results (Current Invocation)
+1. CPU row (local)
+- correctness_parity_status: `pass`
+- latency_ms: `21003.5866725`
+- transfer_inclusive_gpu_time_ms: `0.0`
 
 From `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`:
 
@@ -79,9 +100,44 @@ From `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`:
 - allocation_count/bytes: pending identity-matched import
 - diagnostic: imported phase-7 artifact lacks matching branch/commit identity
 
+2. CUDA row (local)
+- correctness_parity_status: `pass`
+- latency_ms: `20753.29325675`
+- transfer_inclusive_gpu_time_ms: `20753.29325675`
+- cpu_gpu_speed_ratio: `1.0120604191659361`
+
+## Jetson Import Validation
+
+From `jetson-import-check-20260709T042050Z.json`:
+- imported CUDA row status: `pass`
+- origin: `imported=true`
+- source_artifact: `verification/accelgraph/phase-7/jetson-cuda-latest.json`
+
+## Telemetry Fields (Compute/Allocation)
+
+Phase 7 required fields are present in the Jetson schema artifact.
+
+- `compute_only_gpu_time_ms`: present, currently `null`
+- `allocation_count`: present, currently `null`
+- `allocation_bytes`: present, currently `null`
+
+Interpretation:
+- these fields are emitted and ready;
+- backend telemetry support in the current runtime path does not yet provide non-null values.
+
+## macOS CPU/Metal Re-run Requirement
+
+This invocation runs on Jetson only. Native macOS Metal benchmark-family execution is not available on this host.
+
+- Explicit Jetson attempt to run the macOS Metal benchmark-family config failed with expected host diagnostic:
+	- `Metal support not compiled (ACCELGRAPH_ENABLE_METAL=OFF).`
+- macOS CPU/Metal rerun evidence remains the external artifact:
+	- `verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json`
+>>>>>>> t1
+
 ## Replacement Recommendation
 
-Decision: NOT READY to replace libgpu pieces yet.
+Decision: **NOT READY**
 
 Rationale:
 - macOS CPU and Metal benchmark-family parity is passing through GraphExecutor and plugin-loaded nodes.
@@ -93,3 +149,11 @@ Required before replacement approval:
 - Produce a Jetson phase-7 artifact with matching `branch`, `commit_sha`, and `diff_identity` and pass CUDA parity in the same benchmark family.
 - Add compute-only and allocation telemetry fields when backend telemetry supports them.
 - Demonstrate credible replacement value for at least one legacy surface with non-trivial CPU/GPU advantage and parity maintained.
+
+Reasoning:
+- Parity is maintained across benchmark-family CPU/CUDA runs on Jetson.
+- Jetson CUDA shows only a small improvement over CPU in this run (`cpu_gpu_speed_ratio ~ 1.012`), which is not yet strong enough as credible replacement value for a legacy surface.
+- macOS CPU/Metal evidence still shows no meaningful acceleration advantage in prior rerun (`~1.0` ratio).
+- Compute-only and allocation telemetry remain unavailable (`null`), reducing confidence in native compute-vs-transfer decomposition.
+
+READY criterion was not met in this phase update because no candidate legacy surface demonstrated clear, credible replacement value with maintained parity.
