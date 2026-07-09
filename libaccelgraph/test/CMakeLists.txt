@@ -2,6 +2,10 @@ find_package(GTest REQUIRED)
 
 file(GLOB ACCELGRAPH_UNIT_TEST_SOURCES CONFIGURE_DEPENDS "unit/test_*.cpp")
 
+if(NOT ACCELGRAPH_ENABLE_CUDA)
+    list(FILTER ACCELGRAPH_UNIT_TEST_SOURCES EXCLUDE REGEX "test_accelgraph_phase6b_spectrum_cuda\\.cpp$")
+endif()
+
 if(ACCELGRAPH_UNIT_TEST_SOURCES)
     add_executable(test_libaccelgraph_smoke ${ACCELGRAPH_UNIT_TEST_SOURCES})
     target_compile_definitions(test_libaccelgraph_smoke PRIVATE

@@ -20,6 +20,7 @@ endif()
 
 set(ACCELGRAPH_CUDA_INCLUDE_DIR "")
 set(ACCELGRAPH_CUDART_LIBRARY "")
+set(ACCELGRAPH_CUFFT_LIBRARY "")
 if(ACCELGRAPH_ENABLE_CUDA)
     if(TARGET CUDA::cudart)
         set(ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE ON)
@@ -38,6 +39,9 @@ if(ACCELGRAPH_ENABLE_CUDA)
         )
 
         set(ACCELGRAPH_CUDART_LIBRARY CUDA::cudart)
+        if(TARGET CUDA::cufft)
+            set(ACCELGRAPH_CUFFT_LIBRARY CUDA::cufft)
+        endif()
     else()
         find_path(ACCELGRAPH_CUDA_INCLUDE_DIR
             NAMES cuda_runtime_api.h
@@ -53,6 +57,14 @@ if(ACCELGRAPH_ENABLE_CUDA)
                 /usr/local/cuda/targets/sbsa-linux/lib
                 /usr/local/cuda-13.2/targets/sbsa-linux/lib
         )
+            find_library(ACCELGRAPH_CUFFT_LIBRARY
+                NAMES cufft
+                HINTS
+                /usr/local/cuda/lib64
+                /usr/local/cuda-13.2/lib64
+                /usr/local/cuda/targets/sbsa-linux/lib
+                /usr/local/cuda-13.2/targets/sbsa-linux/lib
+            )
     endif()
 
     if(ACCELGRAPH_CUDA_INCLUDE_DIR AND ACCELGRAPH_CUDART_LIBRARY)
@@ -114,6 +126,11 @@ if(ACCELGRAPH_ENABLE_CUDA AND ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE)
     target_link_libraries(accelgraph PRIVATE
         ${ACCELGRAPH_CUDART_LIBRARY}
     )
+    if(ACCELGRAPH_CUFFT_LIBRARY)
+        target_link_libraries(accelgraph PRIVATE
+            ${ACCELGRAPH_CUFFT_LIBRARY}
+        )
+    endif()
 endif()
 
 if(MSVC)

@@ -1,0 +1,36 @@
+{
+  "name": "AccelGraphPhase6BSpectrumCudaTopology",
+  "description": "GraphExecutor CUDA spectrum correctness topology with plugin-loaded accelgraph nodes.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "sine",
+      "type": "SineWaveSourceNode",
+      "name": "sine"
+    },
+    {
+      "id": "spectrum",
+      "type": "SpectrumAnalysisNode",
+      "name": "spectrum"
+    },
+    {
+      "id": "sink",
+      "type": "SpectrumSinkNode",
+      "name": "sink"
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "sine",
+      "source_port": 0,
+      "target_node_id": "spectrum",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "spectrum",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}
