@@ -464,4 +464,13 @@ Finish each phase with:
 
 ## Completion Notes
 
-- Not started.
+- Phase 0 complete (macOS): Added design record [plan/reviews/FHSS_ACCELGRAPH_UPGRADE_DESIGN.md](plan/reviews/FHSS_ACCELGRAPH_UPGRADE_DESIGN.md) with node sequence, fallback policy guidance, topology naming, and Jetson verification lane planning. No code behavior changes in this phase.
+- Phase 1 complete (macOS): Added shared FHSS accel contract surface in [libaccelgraph/include/accelgraph/fhss/FHSSAccelTypes.hpp](libaccelgraph/include/accelgraph/fhss/FHSSAccelTypes.hpp) and [libaccelgraph/include/accelgraph/fhss/FHSSAccelConfig.hpp](libaccelgraph/include/accelgraph/fhss/FHSSAccelConfig.hpp), plus focused unit coverage in [libaccelgraph/test/unit/test_accelgraph_fhss_accel_contract.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_accel_contract.cpp). Wired smoke discovery expectations in [libaccelgraph/test/CMakeLists.txt](libaccelgraph/test/CMakeLists.txt).
+- Phase 1 verification (macOS):
+   - `git status --short`
+   - `cmake --build build-ninja/ninja-debug --target test_libaccelgraph_smoke`
+   - `build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_list_tests`
+   - `build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='*Fhss*:*FHSS*:*AccelContract*' --gtest_brief=1` (8/8 passed)
+   - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
+   - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
+   - `git diff --check`

@@ -14,6 +14,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
     )
     target_include_directories(test_libaccelgraph_smoke PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_SOURCE_DIR}/libdsp/include
     )
     target_link_libraries(test_libaccelgraph_smoke PRIVATE
         accelgraph
@@ -37,6 +38,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         LABELS "accelgraph;smoke;unit;host-any")
 
     set(ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
+        AccelGraphFhssAccelContractTest
         AccelGraphPhase2TopologyContractTest
         AccelGraphPhase3ATest
         AccelGraphPhase5CudaGraphExecutorTest
