@@ -29,13 +29,14 @@ struct TopologyCase {
     bool may_need_cuda;
 };
 
-constexpr std::array<TopologyCase, 9> kTopologyMatrix = {{
+constexpr std::array<TopologyCase, 10> kTopologyMatrix = {{
     {"accelgraph_phase3a_transfer_cpu_topology.json", 5u, 3u, false, false},
     {"accelgraph_phase3a_transfer_metal_topology.json", 5u, 3u, true, false},
     {"accelgraph_phase5_transfer_cuda_topology.json", 5u, 3u, false, true},
     {"accelgraph_phase6_spectrum_cpu_topology.json", 3u, 2u, false, false},
     {"accelgraph_phase6_spectrum_metal_topology.json", 3u, 2u, true, false},
     {"accelgraph_phase6_spectrum_metal_allow_fallback_topology.json", 3u, 2u, true, false},
+    {"accelgraph_phase6b_spectrum_cpu_topology.json", 3u, 2u, false, false},
     {"accelgraph_phase6b_spectrum_cuda_topology.json", 3u, 2u, false, true},
     {"accelgraph_phase6b_spectrum_cuda_allow_fallback_topology.json", 3u, 2u, false, true},
     {"accelgraph_phase2_spectrum_cpu_fanout_topology.json", 4u, 3u, false, false},
