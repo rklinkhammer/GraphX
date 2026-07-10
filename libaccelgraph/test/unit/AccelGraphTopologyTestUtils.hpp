@@ -75,4 +75,24 @@ inline bool IsGraphBuildFailureDiagnostic(const std::string& message) {
     return message.find("Graph building failed") != std::string::npos;
 }
 
+inline bool IsMetalRuntimeAvailableForTests() {
+#if !ACCELGRAPH_ENABLE_METAL
+    return false;
+#else
+    accelgraph::MetalAcceleratorProvider provider;
+    auto session = provider.CreateSession(accelgraph::AcceleratorSessionCreateRequest{});
+    return session.has_value();
+#endif
+}
+
+inline bool IsCudaRuntimeAvailableForTests() {
+#if !ACCELGRAPH_ENABLE_CUDA
+    return false;
+#else
+    accelgraph::CudaAcceleratorProvider provider;
+    auto session = provider.CreateSession(accelgraph::AcceleratorSessionCreateRequest{});
+    return session.has_value();
+#endif
+}
+
 }  // namespace accelgraph::test

@@ -12,8 +12,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "accelgraph/CudaAcceleratorProvider.hpp"
-#include "accelgraph/MetalAcceleratorProvider.hpp"
+#include "AccelGraphTopologyTestUtils.hpp"
 #include "accelgraph/SpectrumGraphNodes.hpp"
 #include "accelgraph/TransferGraphNodes.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -55,22 +54,6 @@ std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path&
         .WithPluginDirectory(PluginDirectoryPath().string())
         .WithExecutorTimeout(std::chrono::seconds(15))
         .Build();
-}
-
-bool IsExpectedMetalDiagnostic(const std::string& message) {
-    return message.find(accelgraph::kMetalSupportNotCompiledDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalRuntimeUnavailableDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalNoCompatibleDeviceDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalSessionCreationFailureDiagnostic) != std::string::npos;
-}
-
-bool IsExpectedCudaDiagnostic(const std::string& message) {
-    return message.find(accelgraph::kCudaSupportNotCompiledDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaToolkitUnavailableDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaRuntimeHeadersUnavailableDiagnostic) != std::string::npos ||
-           message.find("driver") != std::string::npos ||
-           message.find("device") != std::string::npos ||
-           message.find("CUDA") != std::string::npos;
 }
 
 nlohmann::json LoadJson(const std::filesystem::path& path) {
@@ -213,8 +196,15 @@ TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecu
             ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
         } catch (const std::exception& ex) {
             const std::string message = ex.what();
-            const bool expected_metal_skip = topology.may_need_metal && IsExpectedMetalDiagnostic(message);
-            const bool expected_cuda_skip = topology.may_need_cuda && IsExpectedCudaDiagnostic(message);
+            const bool is_wrapped_graph_build_failure = accelgraph::test::IsGraphBuildFailureDiagnostic(message);
+            const bool expected_metal_skip =
+                topology.may_need_metal &&
+                (accelgraph::test::IsExpectedMetalDiagnostic(message) ||
+                 (is_wrapped_graph_build_failure && !accelgraph::test::IsMetalRuntimeAvailableForTests()));
+            const bool expected_cuda_skip =
+                topology.may_need_cuda &&
+                (accelgraph::test::IsExpectedCudaDiagnostic(message) ||
+                 (is_wrapped_graph_build_failure && !accelgraph::test::IsCudaRuntimeAvailableForTests()));
             if (expected_metal_skip || expected_cuda_skip) {
                 SUCCEED() << "Hardware-specific skip for " << topology.file_name << ": " << message;
                 continue;
