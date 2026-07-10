@@ -60,6 +60,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         AccelGraphFhssAccelContractTest
         AccelGraphFhssBranchMetricTest
         AccelGraphFhssChannelizerTest
+        AccelGraphFhssPhase7EvidenceTest
         AccelGraphFhssE2EHybridTest
         AccelGraphFhssDetectorTest
         AccelGraphFhssDownconverterTest
