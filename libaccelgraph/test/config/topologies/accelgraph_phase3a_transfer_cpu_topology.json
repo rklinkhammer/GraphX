@@ -51,16 +51,6 @@
         "provider_id": "cpu.default",
         "backend": "cpu"
       }
-    },
-    {
-      "id": "release",
-      "type": "ReleaseLeaseNode",
-      "name": "release",
-      "node_config": {
-        "session_key": "graph.default",
-        "provider_id": "cpu.default",
-        "backend": "cpu"
-      }
     }
   ],
   "edges": [

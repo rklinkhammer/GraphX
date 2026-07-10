@@ -1,6 +1,6 @@
 {
   "name": "AccelGraphPhase2TransferTopology",
-  "description": "Host ingress -> H2D -> D2H -> Host egress with lease release sink.",
+  "description": "Host ingress -> H2D -> D2H -> Host egress transfer topology.",
   "accelerator_session": {
     "session_key": "graph.default",
     "provider_id": "metal.default",
@@ -27,11 +27,6 @@
       "id": "egress",
       "type": "HostEgressNode",
       "name": "egress"
-    },
-    {
-      "id": "release",
-      "type": "ReleaseLeaseNode",
-      "name": "release"
     }
   ],
   "edges": [

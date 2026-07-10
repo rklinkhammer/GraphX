@@ -39,12 +39,10 @@ TEST(AccelGraphPhase5CudaGraphExecutorTest, CudaTransferTopologyExecutesViaGraph
     auto h2d = accelgraph::test::ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
     auto d2h = accelgraph::test::ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
     auto egress = accelgraph::test::ResolveNode<accelgraph::HostEgressNode>(graph_manager);
-    auto release = accelgraph::test::ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
     ASSERT_NE(ingress, nullptr);
     ASSERT_NE(h2d, nullptr);
     ASSERT_NE(d2h, nullptr);
     ASSERT_NE(egress, nullptr);
-    ASSERT_NE(release, nullptr);
 
     try {
         const auto run_result = executor->Execute();

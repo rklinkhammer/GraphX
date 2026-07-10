@@ -51,16 +51,6 @@
         "provider_id": "cuda.default",
         "backend": "cuda"
       }
-    },
-    {
-      "id": "release",
-      "type": "ReleaseLeaseNode",
-      "name": "release",
-      "node_config": {
-        "session_key": "graph.default",
-        "provider_id": "cuda.default",
-        "backend": "cuda"
-      }
     }
   ],
   "edges": [

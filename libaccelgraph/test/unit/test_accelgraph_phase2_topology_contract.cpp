@@ -13,6 +13,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 #include "AccelGraphTopologyTestUtils.hpp"
 #include "accelgraph/SpectrumGraphNodes.hpp"
@@ -30,9 +31,9 @@ struct TopologyCase {
 };
 
 constexpr std::array<TopologyCase, 10> kTopologyMatrix = {{
-    {"accelgraph_phase3a_transfer_cpu_topology.json", 5u, 3u, false, false},
-    {"accelgraph_phase3a_transfer_metal_topology.json", 5u, 3u, true, false},
-    {"accelgraph_phase5_transfer_cuda_topology.json", 5u, 3u, false, true},
+    {"accelgraph_phase3a_transfer_cpu_topology.json", 4u, 3u, false, false},
+    {"accelgraph_phase3a_transfer_metal_topology.json", 4u, 3u, true, false},
+    {"accelgraph_phase5_transfer_cuda_topology.json", 4u, 3u, false, true},
     {"accelgraph_phase6_spectrum_cpu_topology.json", 3u, 2u, false, false},
     {"accelgraph_phase6_spectrum_metal_topology.json", 3u, 2u, true, false},
     {"accelgraph_phase6_spectrum_metal_allow_fallback_topology.json", 3u, 2u, true, false},
@@ -354,6 +355,96 @@ TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParse
             ASSERT_TRUE(node.contains("name"));
             if (!is_legacy_without_node_config(file_name)) {
                 ASSERT_TRUE(node.contains("node_config"));
+            }
+        }
+    }
+}
+
+TEST(AccelGraphPhase2TopologyContractTest, TopologyNodesHaveTruthfulConnectivityShapes) {
+    const auto files = CheckedInTopologyJsonFiles();
+    ASSERT_FALSE(files.empty());
+
+    const std::set<std::string> allowed_source_only_types = {
+        "SineWaveSourceNode",
+        "HostIngressNode",
+    };
+    const std::set<std::string> allowed_sink_only_types = {
+        "SpectrumSinkNode",
+        "HostEgressNode",
+        "ReleaseLeaseNode",
+    };
+
+    for (const auto& file : files) {
+        SCOPED_TRACE(file.string());
+        const auto doc = LoadJson(file);
+
+        std::unordered_map<std::string, std::string> type_by_id;
+        std::unordered_map<std::string, std::size_t> incoming_degree;
+        std::unordered_map<std::string, std::size_t> outgoing_degree;
+
+        for (const auto& node : doc["nodes"]) {
+            ASSERT_TRUE(node.contains("id"));
+            ASSERT_TRUE(node["id"].is_string());
+            ASSERT_TRUE(node.contains("type"));
+            ASSERT_TRUE(node["type"].is_string());
+
+            const std::string id = node["id"].get<std::string>();
+            const std::string type = node["type"].get<std::string>();
+            type_by_id[id] = type;
+            incoming_degree[id] = 0;
+            outgoing_degree[id] = 0;
+        }
+
+        for (const auto& edge : doc["edges"]) {
+            ASSERT_TRUE(edge.contains("source_node_id"));
+            ASSERT_TRUE(edge["source_node_id"].is_string());
+            ASSERT_TRUE(edge.contains("target_node_id"));
+            ASSERT_TRUE(edge["target_node_id"].is_string());
+
+            const std::string src = edge["source_node_id"].get<std::string>();
+            const std::string dst = edge["target_node_id"].get<std::string>();
+
+            ASSERT_TRUE(type_by_id.find(src) != type_by_id.end())
+                << "edge source references unknown node id: " << src;
+            ASSERT_TRUE(type_by_id.find(dst) != type_by_id.end())
+                << "edge target references unknown node id: " << dst;
+
+            ++outgoing_degree[src];
+            ++incoming_degree[dst];
+        }
+
+        for (const auto& [id, type] : type_by_id) {
+            const auto incoming = incoming_degree[id];
+            const auto outgoing = outgoing_degree[id];
+
+            if (type == "ReleaseLeaseNode") {
+                EXPECT_GT(incoming, 0u)
+                    << "ReleaseLeaseNode must be exercised by topology flow (missing incoming edge): "
+                    << file.filename().string() << " node_id=" << id;
+                EXPECT_EQ(outgoing, 0u)
+                    << "ReleaseLeaseNode is a sink and must not have outgoing edges: "
+                    << file.filename().string() << " node_id=" << id;
+            }
+
+            if (incoming == 0 && outgoing == 0) {
+                ADD_FAILURE()
+                    << "Disconnected node in topology: " << file.filename().string()
+                    << " node_id=" << id << " type=" << type;
+                continue;
+            }
+
+            if (incoming == 0 && outgoing > 0 &&
+                allowed_source_only_types.find(type) == allowed_source_only_types.end()) {
+                ADD_FAILURE()
+                    << "Only known source node types may be source-only: "
+                    << file.filename().string() << " node_id=" << id << " type=" << type;
+            }
+
+            if (incoming > 0 && outgoing == 0 &&
+                allowed_sink_only_types.find(type) == allowed_sink_only_types.end()) {
+                ADD_FAILURE()
+                    << "Only known sink node types may be sink-only: "
+                    << file.filename().string() << " node_id=" << id << " type=" << type;
             }
         }
     }

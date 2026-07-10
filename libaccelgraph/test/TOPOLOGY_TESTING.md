@@ -58,3 +58,9 @@ CTest registration should include:
 - `libaccelgraph_smoke`
 
 CUDA-only topology suites are expected to compile out or skip cleanly on non-CUDA builds.
+
+## Topology Connectivity Truthfulness
+
+Lifecycle nodes must be truthful in graph flow coverage:
+- `ReleaseLeaseNode` must be wired as a real sink (targeted by an edge) if present.
+- If lifecycle/release behavior cannot be exercised through existing graph port contracts, omit the lifecycle node from the topology instead of leaving it disconnected.
