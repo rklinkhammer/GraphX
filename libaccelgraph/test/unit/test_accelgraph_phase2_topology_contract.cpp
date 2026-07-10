@@ -167,6 +167,13 @@ TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecu
         }
 #endif
 
+#if !ACCELGRAPH_ENABLE_METAL
+        if (topology.may_need_metal) {
+            SUCCEED() << "Metal topology skipped on non-Metal build: " << topology.file_name;
+            continue;
+        }
+#endif
+
         const auto doc = LoadJson(config_path);
         EXPECT_EQ(doc["nodes"].size(), topology.expected_nodes);
         EXPECT_EQ(doc["edges"].size(), topology.expected_edges);
