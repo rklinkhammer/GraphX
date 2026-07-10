@@ -62,28 +62,18 @@ bool IsExpectedCudaSkipDiagnostic(const std::string& message) {
            message.find("CUDA") != std::string::npos;
 }
 
-bool IsExpectedNodeConfigDescriptorGapDiagnostic(const std::string& message) {
-    return message.find("descriptor declares no config_fields") != std::string::npos ||
-           message.find("unknown node_config fields") != std::string::npos;
-}
-
 }  // namespace
 
 TEST(AccelGraphPhase5CudaGraphExecutorTest, CudaTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
+#if !ACCELGRAPH_ENABLE_CUDA
+    GTEST_SKIP() << accelgraph::kCudaSupportNotCompiledDiagnostic;
+#endif
+
     const auto config_path = CudaTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
 
-    std::shared_ptr<graph::GraphExecutor> executor;
-    try {
-        executor = BuildExecutor(config_path);
-    } catch (const std::exception& ex) {
-        const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
-        throw;
-    }
+    auto executor = BuildExecutor(config_path);
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
@@ -105,9 +95,6 @@ TEST(AccelGraphPhase5CudaGraphExecutorTest, CudaTransferTopologyExecutesViaGraph
         ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (IsExpectedCudaSkipDiagnostic(message)) {
             GTEST_SKIP() << message;
         }

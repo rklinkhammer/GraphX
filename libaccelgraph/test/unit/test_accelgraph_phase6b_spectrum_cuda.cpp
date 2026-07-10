@@ -75,27 +75,13 @@ bool IsExpectedCudaSkipDiagnostic(const std::string& message) {
            message.find("CUDA") != std::string::npos;
 }
 
-bool IsExpectedNodeConfigDescriptorGapDiagnostic(const std::string& message) {
-    return message.find("descriptor declares no config_fields") != std::string::npos ||
-           message.find("unknown node_config fields") != std::string::npos;
-}
-
 bool IsGraphBuildFailureDiagnostic(const std::string& message) {
     return message.find("Graph building failed") != std::string::npos;
 }
 
 std::shared_ptr<accelgraph::SpectrumSinkNode>
 RunSpectrumGraph(const std::filesystem::path& config_path) {
-    std::shared_ptr<graph::GraphExecutor> executor;
-    try {
-        executor = BuildExecutor(config_path);
-    } catch (const std::exception& ex) {
-        const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            throw;
-        }
-        throw;
-    }
+    auto executor = BuildExecutor(config_path);
     EXPECT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
@@ -165,9 +151,6 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionVia
         }
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (IsExpectedCudaSkipDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
@@ -187,9 +170,6 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
             strict_executor = BuildExecutor(CudaSpectrumTopologyConfigPath());
         } catch (const std::exception& ex) {
             const std::string message = ex.what();
-            if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-                GTEST_SKIP() << message;
-            }
             if (IsExpectedCudaSkipDiagnostic(message) ||
                 IsGraphBuildFailureDiagnostic(message)) {
                 strict_rejected = true;
@@ -227,9 +207,6 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
         }
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (IsExpectedCudaSkipDiagnostic(message)) {
             GTEST_SKIP() << message;
         }

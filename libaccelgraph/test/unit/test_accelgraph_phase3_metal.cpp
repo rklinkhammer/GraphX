@@ -30,8 +30,6 @@ std::filesystem::path PluginDirectoryPath() {
 
 constexpr const char* kMetalSupportNotCompiledDiagnostic =
     "Metal support not compiled (ACCELGRAPH_ENABLE_METAL=OFF).";
-constexpr const char* kNodeConfigDescriptorGapDiagnostic =
-    "descriptor declares no config_fields";
 
 std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
     return graph::GraphExecutorBuilder()
@@ -39,11 +37,6 @@ std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path&
         .WithPluginDirectory(PluginDirectoryPath().string())
         .WithExecutorTimeout(std::chrono::seconds(5))
         .Build();
-}
-
-bool IsExpectedNodeConfigDescriptorGapDiagnostic(const std::string& message) {
-    return message.find(kNodeConfigDescriptorGapDiagnostic) != std::string::npos ||
-           message.find("unknown node_config fields") != std::string::npos;
 }
 
 template <typename NodeT>
@@ -74,16 +67,7 @@ TEST(AccelGraphPhase3ATest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugin
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
 
-    std::shared_ptr<graph::GraphExecutor> executor;
-    try {
-        executor = BuildExecutor(config_path);
-    } catch (const std::exception& ex) {
-        const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
-        throw;
-    }
+    auto executor = BuildExecutor(config_path);
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
@@ -136,9 +120,6 @@ TEST(AccelGraphPhase3ATest, MetalTransferTopologyExecutesViaGraphExecutorOrSkips
         ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (message.find(kMetalSupportNotCompiledDiagnostic) != std::string::npos) {
             GTEST_SKIP() << message;
         }

@@ -79,11 +79,6 @@ bool IsExpectedMetalDiagnostic(const std::string& message) {
            message.find(accelgraph::kMetalSessionCreationFailureDiagnostic) != std::string::npos;
 }
 
-bool IsExpectedNodeConfigDescriptorGapDiagnostic(const std::string& message) {
-    return message.find("descriptor declares no config_fields") != std::string::npos ||
-           message.find("unknown node_config fields") != std::string::npos;
-}
-
 bool IsGraphBuildFailureDiagnostic(const std::string& message) {
     return message.find("Graph building failed") != std::string::npos;
 }
@@ -95,16 +90,7 @@ TEST(AccelGraphPhase6SpectrumTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAnd
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
 
-    std::shared_ptr<graph::GraphExecutor> executor;
-    try {
-        executor = BuildExecutor(config_path);
-    } catch (const std::exception& ex) {
-        const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
-        throw;
-    }
+    auto executor = BuildExecutor(config_path);
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
@@ -148,9 +134,6 @@ TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorO
         executor = BuildExecutor(config_path);
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (IsExpectedMetalDiagnostic(message) ||
             IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
@@ -187,24 +170,12 @@ TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithin
     ASSERT_TRUE(std::filesystem::exists(cpu_config_path));
     ASSERT_TRUE(std::filesystem::exists(metal_config_path));
 
-    std::shared_ptr<graph::GraphExecutor> cpu_executor;
-    try {
-        cpu_executor = BuildExecutor(cpu_config_path);
-    } catch (const std::exception& ex) {
-        const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
-        throw;
-    }
+    auto cpu_executor = BuildExecutor(cpu_config_path);
     std::shared_ptr<graph::GraphExecutor> metal_executor;
     try {
         metal_executor = BuildExecutor(metal_config_path);
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
-        }
         if (IsExpectedMetalDiagnostic(message) ||
             IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
@@ -272,9 +243,6 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
         strict_executor = BuildExecutor(strict_config_path);
     } catch (const std::exception& ex) {
         strict_diagnostic = ex.what();
-        if (IsExpectedNodeConfigDescriptorGapDiagnostic(strict_diagnostic)) {
-            GTEST_SKIP() << strict_diagnostic;
-        }
         if (IsExpectedMetalDiagnostic(strict_diagnostic) ||
             IsGraphBuildFailureDiagnostic(strict_diagnostic)) {
             strict_rejected = true;
