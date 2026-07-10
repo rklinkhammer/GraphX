@@ -474,3 +474,23 @@ Finish each phase with:
    - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
    - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
    - `git diff --check`
+- Phase 2 complete (macOS): Implemented first accelerator-aware FHSS RF/DSP node `AccelFhssDownconverterNode` in [libaccelgraph/include/accelgraph/fhss/FHSSDownconverterGraphNode.hpp](libaccelgraph/include/accelgraph/fhss/FHSSDownconverterGraphNode.hpp) and [libaccelgraph/src/FHSSDownconverterGraphNode.cpp](libaccelgraph/src/FHSSDownconverterGraphNode.cpp), with plugin registration in [libaccelgraph/plugins/accel_fhss_downconverter_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_downconverter_node_plugin.cpp). Added topology sink plugin [libaccelgraph/plugins/accel_fhss_downconverter_sink_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_downconverter_sink_node_plugin.cpp) for JSON-owned topology validation.
+- Phase 2 topology set added:
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cpu_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cpu_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_metal_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_metal_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_metal_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_metal_allow_fallback_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cuda_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cuda_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cuda_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_downconverter_cuda_allow_fallback_topology.json)
+- Phase 2 tests added/updated:
+   - [libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp)
+   - [libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp](libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp) matrix and descriptor coverage updated for new FHSS topologies/node descriptors.
+   - [libaccelgraph/test/CMakeLists.txt](libaccelgraph/test/CMakeLists.txt) smoke/discovery updated with new FHSS suite and plugin dependencies.
+- Phase 2 verification (macOS):
+   - `git status --short`
+   - `cmake --build build-ninja/ninja-debug --target test_libaccelgraph_smoke`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_list_tests`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='*Fhss*:*FHSS*:*Downconverter*' --gtest_brief=1`
+   - `ctest --test-dir build-ninja/ninja-debug -R "libaccelgraph_smoke|libaccelgraph_smoke_discovery" --output-on-failure`
+   - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
+   - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
+   - `git diff --check`

@@ -102,6 +102,9 @@ target_include_directories(accelgraph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_include_directories(accelgraph PRIVATE
+    ${CMAKE_SOURCE_DIR}/libdsp/include
+)
 if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
     target_include_directories(accelgraph PRIVATE
         ${GRAPHX_METAL_CPP_INCLUDE_DIR_RESOLVED}
@@ -114,6 +117,9 @@ if(ACCELGRAPH_ENABLE_CUDA AND ACCELGRAPH_CUDA_TOOLKIT_AVAILABLE)
 endif()
 target_link_libraries(accelgraph PUBLIC
     graph
+)
+target_link_libraries(accelgraph PRIVATE
+    dsp
 )
 if(ACCELGRAPH_METAL_HEADERS_AVAILABLE)
     target_link_libraries(accelgraph PRIVATE
