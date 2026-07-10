@@ -1,0 +1,120 @@
+{
+  "name": "AccelGraphFhssChannelizerMetalTopology",
+  "description": "GraphExecutor strict metal-selected FHSS channelizer topology with accelgraph plugins.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "source",
+      "type": "FHSSSyntheticIqSourceNode",
+      "name": "source",
+      "node_config": {
+        "active_frequency_indices": [24, 28, 32, 36],
+        "iq_center_frequency_hz": 1240000000.0,
+        "messages": [
+          {
+            "message_id": 1,
+            "transmit_start_sample": 0,
+            "pulses": [
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 16909060, "role": "body"}
+            ]
+          }
+        ],
+        "idle_mode": "zero",
+        "idle_duration_samples": 0,
+        "enable_noise": false,
+        "enable_doppler": false,
+        "enable_multipath": false,
+        "allow_overlap": false
+      }
+    },
+    {
+      "id": "downconverter",
+      "type": "AccelFhssDownconverterNode",
+      "name": "downconverter",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "input_iq_center_frequency_hz": 1240000000.0,
+        "input_reference_frequency_hz": 1240000000.0,
+        "output_iq_center_frequency_hz": 1240000000.0,
+        "output_reference_frequency_hz": 1240000000.0,
+        "translation_frequency_hz": 0.0,
+        "passthrough": true,
+        "phase_convention": "passthrough_no_phase_rotation",
+        "sample_rate_hz": 500000000.0,
+        "provider_id": "cpu.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0
+      }
+    },
+    {
+      "id": "channelizer",
+      "type": "AccelFhssChannelizerNode",
+      "name": "channelizer",
+      "node_config": {
+        "backend": "metal",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "provider_id": "metal.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0,
+        "iq_center_frequency_hz": 1240000000.0,
+        "transmitted_active_frequency_indices": [24, 28, 32, 36],
+        "transmitted_pulse_frequency_indices": [24, 28, 32, 36],
+        "sample_rate_hz": 500000000.0,
+        "channel_sample_rate_hz": 250000000.0,
+        "decimation_factor": 2,
+        "filter_group_delay_input_samples": 0,
+        "iq_capture": {
+          "enabled": false,
+          "output_directory": "",
+          "frequency_indices": [],
+          "overwrite": true
+        }
+      }
+    },
+    {
+      "id": "sink",
+      "type": "AccelFhssChannelizerSinkNode",
+      "name": "sink",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "downconverter",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "downconverter",
+      "source_port": 0,
+      "target_node_id": "channelizer",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "channelizer",
+      "source_port": 24,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

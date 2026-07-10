@@ -117,3 +117,29 @@ target_include_directories(accelgraph_fhss_downconverter_sink_node PRIVATE
     ${CMAKE_SOURCE_DIR}/libdsp/include
     ${CMAKE_SOURCE_DIR}/libgpu/include
 )
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_fhss_channelizer_node
+    SOURCE_FILE accel_fhss_channelizer_node_plugin.cpp
+    DESCRIPTION "Accelgraph FHSS backend-aware fixture channelizer node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_fhss_channelizer_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+    ${CMAKE_SOURCE_DIR}/libdsp/include
+    ${CMAKE_SOURCE_DIR}/libgpu/include
+)
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_fhss_channelizer_sink_node
+    SOURCE_FILE accel_fhss_channelizer_sink_node_plugin.cpp
+    DESCRIPTION "Accelgraph FHSS channelized IQ sink node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_fhss_channelizer_sink_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+    ${CMAKE_SOURCE_DIR}/libdsp/include
+    ${CMAKE_SOURCE_DIR}/libgpu/include
+)

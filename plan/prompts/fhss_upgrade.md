@@ -494,3 +494,23 @@ Finish each phase with:
    - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
    - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
    - `git diff --check`
+- Phase 3 complete (macOS): Implemented `AccelFhssChannelizerNode` and topology sink in [libaccelgraph/include/accelgraph/fhss/FHSSChannelizerGraphNode.hpp](libaccelgraph/include/accelgraph/fhss/FHSSChannelizerGraphNode.hpp) and [libaccelgraph/src/FHSSChannelizerGraphNode.cpp](libaccelgraph/src/FHSSChannelizerGraphNode.cpp), with plugin registration in [libaccelgraph/plugins/accel_fhss_channelizer_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_channelizer_node_plugin.cpp) and [libaccelgraph/plugins/accel_fhss_channelizer_sink_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_channelizer_sink_node_plugin.cpp). Descriptor metadata now includes shared accel config fields plus channelizer-specific fields including `iq_capture`.
+- Phase 3 topology set added:
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cpu_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cpu_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_metal_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_metal_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_metal_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_metal_allow_fallback_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cuda_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cuda_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cuda_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_channelizer_cuda_allow_fallback_topology.json)
+- Phase 3 tests added/updated:
+   - [libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp) (CPU parity vs `FHSSFixtureFrequencyChannelizerNode`, topology execution via `GraphExecutorBuilder`, strict-metal execute-or-skip, allow-fallback behavior, descriptor-field coverage).
+   - [libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp](libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp) matrix expanded for channelizer CPU/Metal/CUDA strict+allow topologies, descriptor checks expanded, strict-skip diagnostics updated, and sink connectivity allowances updated.
+   - [libaccelgraph/test/CMakeLists.txt](libaccelgraph/test/CMakeLists.txt) updated with channelizer plugin dependencies and discovery expectation for `AccelGraphFhssChannelizerTest`.
+- Phase 3 verification (macOS):
+   - `cmake --build build-ninja/ninja-debug --target test_libaccelgraph_smoke`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='*Fhss*:*FHSS*:*Channelizer*' --gtest_brief=1`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_list_tests`
+   - `ctest --test-dir build-ninja/ninja-debug -R "libaccelgraph_smoke|libaccelgraph_smoke_discovery" --output-on-failure`
+   - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
+   - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
+   - `git diff --check`
+- Phase 3 status: macOS lane complete and green. Jetson CUDA verification remains required to validate native CUDA strict/allow behavior on ACCELGRAPH_ENABLE_CUDA=ON builds.
