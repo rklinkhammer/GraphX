@@ -83,6 +83,28 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
     return doc;
 }
 
+std::vector<std::filesystem::path> CheckedInTopologyJsonFiles() {
+    const auto topology_dir = std::filesystem::path(__FILE__).parent_path().parent_path() /
+                              "config" / "topologies";
+    std::vector<std::filesystem::path> files;
+    if (!std::filesystem::exists(topology_dir)) {
+        return files;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(topology_dir)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+        const auto& path = entry.path();
+        if (path.extension() == ".json") {
+            files.push_back(path);
+        }
+    }
+
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
 std::filesystem::path WriteTempJson(const nlohmann::json& doc, const std::string& suffix) {
     const auto temp = std::filesystem::temp_directory_path() /
                       ("graphx_phase2_" + suffix + ".json");
@@ -271,6 +293,42 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyFanOutConfigIsCheckedInAndUse
     }
 }
 
+TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParseableAndStructured) {
+    const auto files = CheckedInTopologyJsonFiles();
+    ASSERT_FALSE(files.empty());
+
+    const std::array<std::string, 1> legacy_without_node_config = {{
+        "accelgraph_phase2_transfer_topology.json",
+    }};
+
+    auto is_legacy_without_node_config = [&](const std::string& file_name) {
+        return std::find(legacy_without_node_config.begin(), legacy_without_node_config.end(), file_name) !=
+               legacy_without_node_config.end();
+    };
+
+    for (const auto& file : files) {
+        SCOPED_TRACE(file.string());
+        const auto file_name = file.filename().string();
+        const auto doc = LoadJson(file);
+
+        ASSERT_TRUE(doc.contains("name"));
+        ASSERT_TRUE(doc["name"].is_string());
+        ASSERT_TRUE(doc.contains("nodes"));
+        ASSERT_TRUE(doc["nodes"].is_array());
+        ASSERT_TRUE(doc.contains("edges"));
+        ASSERT_TRUE(doc["edges"].is_array());
+
+        for (const auto& node : doc["nodes"]) {
+            ASSERT_TRUE(node.contains("id"));
+            ASSERT_TRUE(node.contains("type"));
+            ASSERT_TRUE(node.contains("name"));
+            if (!is_legacy_without_node_config(file_name)) {
+                ASSERT_TRUE(node.contains("node_config"));
+            }
+        }
+    }
+}
+
 TEST(AccelGraphPhase2TopologyContractTest, TopologyTestsDoNotUseDirectConfigureCalls) {
     const std::array<std::string, 4> topology_test_files = {{
         "test_accelgraph_phase3_metal.cpp",
@@ -295,4 +353,20 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyTestsDoNotUseDirectConfigureC
         EXPECT_EQ(content.find(".Configure("), std::string::npos)
             << "Direct Configure calls are not allowed in topology tests: " << file_name;
     }
+}
+
+TEST(AccelGraphPhase2TopologyContractTest, TopologyHelperDoesNotUseDirectConfigureBypass) {
+    const auto helper_path = std::filesystem::path(__FILE__).parent_path() /
+                             "AccelGraphTopologyTestUtils.hpp";
+    ASSERT_TRUE(std::filesystem::exists(helper_path));
+
+    std::ifstream in(helper_path);
+    ASSERT_TRUE(in.is_open());
+    const std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+
+    EXPECT_EQ(content.find("ConfigureNode"), std::string::npos);
+    EXPECT_EQ(content.find("ConfigureTransferNode"), std::string::npos);
+    EXPECT_EQ(content.find("JsonView("), std::string::npos);
+    EXPECT_EQ(content.find("->Configure("), std::string::npos);
+    EXPECT_EQ(content.find(".Configure("), std::string::npos);
 }

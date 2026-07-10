@@ -178,6 +178,8 @@ Finish with:
 - Phase 1 status: complete and verified on macOS and Jetson.
 - Phase 2 status: complete and verified on macOS and Jetson.
 - Phase 3 status: shared topology test mechanics refactored on macOS using a lightweight helper while preserving suite-level assertions and backend-specific diagnostics.
+- Phase 4 status: topology hardening guardrails and topology-author documentation added on macOS; synthetic topology tests remain in the standard smoke/unit path and backend-unavailable diagnostics remain actionable.
 - Phase 2 invariant status: topology tests use checked-in JSON `node_config` through `GraphExecutorBuilder`, JSON loader, plugin descriptors, and `IConfigurable`; no direct post-build test-side node configuration helpers are used.
 - Phase 3 invariant status: JSON-owned initialization remains enforced; topology tests do not introduce direct `Configure(...)`-style bypasses.
-- Remaining work before/for Phase 4+: continue parity/catalog expansion and guardrails while keeping loader-owned initialization and backend-accurate diagnostics.
+- Phase 4 scope note: legacy checked-in topology formats may coexist with synthetic-node_config topologies, but synthetic coverage remains strictly topology-driven and guardrailed.
+- Remaining work before/for Phase 5+: continue parity/catalog expansion and additional anti-bypass guardrails while keeping loader-owned initialization and backend-accurate diagnostics.
