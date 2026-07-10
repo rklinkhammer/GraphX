@@ -2,75 +2,76 @@
 
 ## Scope
 
-This update reruns **Phase 7 only** on macOS.
+This update is Phase 7 only.
 
 Constraints held:
-- GraphExecutor + plugin-loaded nodes only for benchmark-family behavior.
-- No Phase 8 deletion work.
-- No legacy `libgpu` surface changes.
-- No compatibility adapters/wrappers/aliases/shims.
+- GraphExecutor and plugin-loaded nodes only for benchmark-family runs.
+- No Phase 8 deletion or integration work.
+- No legacy libgpu API surface modifications.
 
-## Artifacts
+## Artifacts Updated In This Run
 
-- Benchmark schema: `verification/accelgraph/phase-7/benchmark_result.schema.json`
-- macOS benchmark run: `verification/accelgraph/phase-7/macos-metal-20260709T043226Z.json`
-- Jetson lane import status: `verification/accelgraph/phase-7/jetson-cuda-20260709T043519Z.json`
-- Jetson import source (not identity-matching in this invocation):
-  `verification/accelgraph/phase-7/jetson-cuda-latest.json`
-- Jetson import runbook: `verification/accelgraph/phase-7/JETSON_IMPORT_RUNBOOK.md`
+- Schema reference: verification/accelgraph/phase-7/benchmark_result.schema.json
+- Jetson local CPU+CUDA benchmark-family artifact: verification/accelgraph/phase-7/jetson-cuda-20260709T044523Z.json
+- Published import source artifact: verification/accelgraph/phase-7/jetson-cuda-latest.json
+- Jetson import validation artifact: verification/accelgraph/phase-7/jetson-import-check-20260709T044948Z.json
+- macOS reference artifact available in this workspace: verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json
 
-## Results (Current Invocation)
+## Identity Status
 
-From `verification/accelgraph/phase-7/macos-metal-20260709T043226Z.json`:
+Jetson artifact identity from verification/accelgraph/phase-7/jetson-cuda-20260709T044523Z.json:
+- branch: HEAD
+- commit_sha: f3b2c611bec624dd721e5f43f36dafd6ea478043
+- diff_identity: {"type":"working_tree","value":"clean","working_tree_dirty":false}
 
-1. CPU-only (local, backend=cpu)
-- packet_size: 256
-- frame_count: 3 (warmup: 1)
-- total_elapsed_time_ms: 80469.979000
-- steady_state_elapsed_time_ms: 60164.208916
-- frames_per_second: 0.0498635327
-- samples_per_second: 12.7650643769
-- latency_ms: 20054.736305
-- transfer_inclusive_gpu_time_ms: 0.0
-- compute_only_gpu_time_ms: not available
-- graph_overhead_ms: 48.736305
+Interpretation:
+- Commit identity matches the target f3b2c611 rerun.
+- Branch identity does not match codex/gpu-clean-restart because this run was executed in detached HEAD.
+- Import guard passes when producer and consumer are both on this detached identity (confirmed below).
+
+## Jetson Benchmark-Family Results (Local)
+
+From verification/accelgraph/phase-7/jetson-cuda-20260709T044523Z.json:
+
+1. CPU row
+- graph_configuration_name: accelgraph_phase7_spectrum_cpu_macos
 - correctness_parity_status: pass:cpu-benchmark-family-baseline
+- latency_ms: 21003.326207
+- transfer_inclusive_gpu_time_ms: 0.0
 
-2. macOS Metal (local, backend=metal)
-- packet_size: 256
-- frame_count: 3 (warmup: 1)
-- total_elapsed_time_ms: 80309.223292
-- steady_state_elapsed_time_ms: 60210.911126
-- frames_per_second: 0.0498248564
-- samples_per_second: 12.7551632360
-- latency_ms: 20070.303709
-- transfer_inclusive_gpu_time_ms: 20009.666667
-- compute_only_gpu_time_ms: not available
-- graph_overhead_ms: 60.637042
-- cpu_gpu_speed_ratio: 0.9992243564
+2. CUDA row
+- graph_configuration_name: accelgraph_phase7_spectrum_cuda_jetson
 - correctness_parity_status: pass
+- latency_ms: 21003.428421
+- transfer_inclusive_gpu_time_ms: 20005.0
+- cpu_gpu_speed_ratio: 0.9999951334611686
 
-3. Jetson CUDA (import attempt on macOS)
-- host_class: jetson-cuda
+## Jetson Import Validation
+
+From verification/accelgraph/phase-7/jetson-import-check-20260709T044948Z.json:
+- imported CUDA row status: pass
 - measurement_origin.imported: true
-- correctness_parity_status: pending:phase7-import-identity-mismatch
-- transfer_inclusive_gpu_time_ms: pending identity-matched import
-- compute_only_gpu_time_ms: pending identity-matched import
-- allocation_count/bytes: pending identity-matched import
-- diagnostic: imported phase-7 artifact commit (`3b2e544...`) does not match current commit (`f3b2c611...`)
+- source_artifact: verification/accelgraph/phase-7/jetson-cuda-latest.json
+
+## macOS Re-import Constraint
+
+This host cannot execute native macOS Metal benchmark-family runs.
+
+- The available macOS evidence in this workspace is verification/accelgraph/phase-7/macos-metal-20260709T040049Z.json.
+- The macOS artifact for f3b2c611 referenced earlier (macos-metal-20260709T043226Z.json) is not present in the current workspace state, so direct cross-host import verification against that exact file cannot be completed here.
 
 ## Replacement Recommendation
 
-Decision: **NOT READY**
+Decision: NOT READY
 
-Rationale:
-- macOS CPU and Metal parity is passing through GraphExecutor and plugin-loaded nodes.
-- CPU and Metal throughput remain effectively equal (`cpu_gpu_speed_ratio ~ 1.0`), with no credible replacement-value speedup.
-- CUDA imported evidence cannot be accepted in this invocation due branch/commit identity mismatch.
-- Compute-only GPU timing and allocation telemetry remain unavailable (`null`).
+Reasoning:
+- Parity passes for local Jetson CPU and CUDA rows.
+- Imported CUDA row parity also passes in the current identity context.
+- Observed acceleration value is effectively neutral on this benchmark-family run (cpu_gpu_speed_ratio approximately 1.0).
+- Compute-only and allocation telemetry fields remain null in this lane.
+- Branch identity remains HEAD due detached execution, so strict branch+commit identity matching to codex/gpu-clean-restart cannot be claimed from this Jetson artifact.
 
-Required before replacement approval:
-- Produce a Jetson phase-7 artifact with matching `branch`, `commit_sha`, and `diff_identity`.
-- Preserve CUDA benchmark-family parity pass in that matching artifact.
-- Add compute-only and allocation telemetry values when backend telemetry supports them.
-- Demonstrate credible replacement value for at least one legacy surface with parity maintained.
+READY criteria not met:
+- Re-run Jetson benchmark while checked out on branch codex/gpu-clean-restart at commit f3b2c611 to produce branch+commit identity match without detached HEAD.
+- Re-run macOS import step against that exact Jetson artifact to confirm imported CUDA lane parity under the same branch+commit identity.
+- Demonstrate non-trivial replacement-value advantage (not parity-only, ratio approximately 1.0).
