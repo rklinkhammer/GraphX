@@ -16,6 +16,7 @@
 #include <unordered_map>
 
 #include "AccelGraphTopologyTestUtils.hpp"
+#include "accelgraph/fhss/FHSSBranchMetricGraphNode.hpp"
 #include "accelgraph/fhss/FHSSChannelizerGraphNode.hpp"
 #include "accelgraph/fhss/FHSSDownconverterGraphNode.hpp"
 #include "accelgraph/fhss/FHSSPerChannelPulseDetectorGraphNode.hpp"
@@ -33,7 +34,7 @@ struct TopologyCase {
     bool may_need_cuda;
 };
 
-constexpr std::array<TopologyCase, 25> kTopologyMatrix = {{
+constexpr std::array<TopologyCase, 30> kTopologyMatrix = {{
     {"accelgraph_phase3a_transfer_cpu_topology.json", 4u, 3u, false, false},
     {"accelgraph_phase3a_transfer_metal_topology.json", 4u, 3u, true, false},
     {"accelgraph_phase5_transfer_cuda_topology.json", 4u, 3u, false, true},
@@ -59,6 +60,11 @@ constexpr std::array<TopologyCase, 25> kTopologyMatrix = {{
     {"accelgraph_fhss_detector_metal_allow_fallback_topology.json", 5u, 4u, true, false},
     {"accelgraph_fhss_detector_cuda_topology.json", 5u, 4u, false, true},
     {"accelgraph_fhss_detector_cuda_allow_fallback_topology.json", 5u, 4u, false, true},
+    {"accelgraph_fhss_branch_metric_cpu_topology.json", 6u, 5u, false, false},
+    {"accelgraph_fhss_branch_metric_metal_topology.json", 6u, 5u, true, false},
+    {"accelgraph_fhss_branch_metric_metal_allow_fallback_topology.json", 6u, 5u, true, false},
+    {"accelgraph_fhss_branch_metric_cuda_topology.json", 6u, 5u, false, true},
+    {"accelgraph_fhss_branch_metric_cuda_allow_fallback_topology.json", 6u, 5u, false, true},
 }};
 
 bool IsExpectedFhssDownconverterDiagnostic(const std::string& message) {
@@ -74,6 +80,11 @@ bool IsExpectedFhssChannelizerDiagnostic(const std::string& message) {
 bool IsExpectedFhssDetectorDiagnostic(const std::string& message) {
     return message.find(accelgraph::fhss::kFhssPerChannelPulseDetectorMetalNativeNotImplementedDiagnostic) != std::string::npos ||
            message.find(accelgraph::fhss::kFhssPerChannelPulseDetectorCudaNativeNotImplementedDiagnostic) != std::string::npos;
+}
+
+bool IsExpectedFhssBranchMetricDiagnostic(const std::string& message) {
+    return message.find(accelgraph::fhss::kFhssBranchMetricMetalNativeNotImplementedDiagnostic) != std::string::npos ||
+           message.find(accelgraph::fhss::kFhssBranchMetricCudaNativeNotImplementedDiagnostic) != std::string::npos;
 }
 
 std::filesystem::path TopologyPath(const std::string& file_name) {
@@ -201,6 +212,7 @@ TEST(AccelGraphPhase2TopologyContractTest, DescriptorMetadataDeclaresSupportedFi
     const auto analysis_fields = accelgraph::SpectrumAnalysisNode::Fields();
     const auto fhss_channelizer_fields = accelgraph::fhss::AccelFhssChannelizerNode::Fields();
     const auto fhss_detector_fields = accelgraph::fhss::AccelFhssPerChannelPulseDetectorNode::Fields();
+    const auto fhss_branch_metric_fields = accelgraph::fhss::AccelFhssBranchMetricNode::Fields();
     const auto fhss_downconverter_fields = accelgraph::fhss::AccelFhssDownconverterNode::Fields();
     const auto ingress_fields = accelgraph::HostIngressNode::Fields();
 
@@ -254,6 +266,18 @@ TEST(AccelGraphPhase2TopologyContractTest, DescriptorMetadataDeclaresSupportedFi
     EXPECT_TRUE(has_field(fhss_detector_fields, "noise_floor_db"));
     EXPECT_TRUE(has_field(fhss_detector_fields, "nominal_bandwidth_hz"));
     EXPECT_TRUE(has_field(fhss_detector_fields, "max_pulse_input_samples"));
+
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "backend"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "strict_fallback"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "fallback_policy"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "provider_id"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "session_key"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "cuda_device_ordinal"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "symbol_count"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "modulation_index"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "initial_phase_state"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "check_terminal_phase"));
+    EXPECT_TRUE(has_field(fhss_branch_metric_fields, "expected_terminal_phase_state"));
 
     EXPECT_TRUE(has_field(fhss_downconverter_fields, "backend"));
     EXPECT_TRUE(has_field(fhss_downconverter_fields, "strict_fallback"));
@@ -326,6 +350,8 @@ TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecu
                 topology_name.find("accelgraph_fhss_channelizer_") != std::string::npos;
             const bool is_fhss_detector_topology =
                 topology_name.find("accelgraph_fhss_detector_") != std::string::npos;
+            const bool is_fhss_branch_metric_topology =
+                topology_name.find("accelgraph_fhss_branch_metric_") != std::string::npos;
             const bool expected_fhss_downconverter_strict_skip =
                 is_fhss_downconverter_topology && is_wrapped_graph_build_failure &&
                 (topology.may_need_metal || topology.may_need_cuda);
@@ -335,26 +361,33 @@ TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecu
             const bool expected_fhss_detector_strict_skip =
                 is_fhss_detector_topology && is_wrapped_graph_build_failure &&
                 (topology.may_need_metal || topology.may_need_cuda);
+            const bool expected_fhss_branch_metric_strict_skip =
+                is_fhss_branch_metric_topology && is_wrapped_graph_build_failure &&
+                (topology.may_need_metal || topology.may_need_cuda);
             const bool expected_metal_skip =
                 topology.may_need_metal &&
                 (accelgraph::test::IsExpectedMetalDiagnostic(message) ||
                  IsExpectedFhssDownconverterDiagnostic(message) ||
                  IsExpectedFhssChannelizerDiagnostic(message) ||
                  IsExpectedFhssDetectorDiagnostic(message) ||
+                 IsExpectedFhssBranchMetricDiagnostic(message) ||
                  (is_wrapped_graph_build_failure && !accelgraph::test::IsMetalRuntimeAvailableForTests()) ||
                  expected_fhss_downconverter_strict_skip ||
                  expected_fhss_channelizer_strict_skip ||
-                 expected_fhss_detector_strict_skip);
+                 expected_fhss_detector_strict_skip ||
+                 expected_fhss_branch_metric_strict_skip);
             const bool expected_cuda_skip =
                 topology.may_need_cuda &&
                 (accelgraph::test::IsExpectedCudaDiagnostic(message) ||
                  IsExpectedFhssDownconverterDiagnostic(message) ||
                  IsExpectedFhssChannelizerDiagnostic(message) ||
                  IsExpectedFhssDetectorDiagnostic(message) ||
+                 IsExpectedFhssBranchMetricDiagnostic(message) ||
                  (is_wrapped_graph_build_failure && !accelgraph::test::IsCudaRuntimeAvailableForTests()) ||
                  expected_fhss_downconverter_strict_skip ||
                  expected_fhss_channelizer_strict_skip ||
-                 expected_fhss_detector_strict_skip);
+                 expected_fhss_detector_strict_skip ||
+                 expected_fhss_branch_metric_strict_skip);
             if (expected_metal_skip || expected_cuda_skip) {
                 SUCCEED() << "Hardware-specific skip for " << topology.file_name << ": " << message;
                 continue;
@@ -483,6 +516,7 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyNodesHaveTruthfulConnectivity
         "AccelFhssChannelizerSinkNode",
         "AccelFhssPerChannelPulseDetectorSinkNode",
         "AccelFhssDownconverterSinkNode",
+        "AccelFhssBranchMetricSinkNode",
         "HostEgressNode",
         "ReleaseLeaseNode",
     };

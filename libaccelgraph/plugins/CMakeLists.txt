@@ -169,3 +169,29 @@ target_include_directories(accelgraph_fhss_per_channel_pulse_detector_sink_node 
     ${CMAKE_SOURCE_DIR}/libdsp/include
     ${CMAKE_SOURCE_DIR}/libgpu/include
 )
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_fhss_branch_metric_node
+    SOURCE_FILE accel_fhss_branch_metric_node_plugin.cpp
+    DESCRIPTION "Accelgraph FHSS backend-aware branch metric node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_fhss_branch_metric_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+    ${CMAKE_SOURCE_DIR}/libdsp/include
+    ${CMAKE_SOURCE_DIR}/libgpu/include
+)
+
+add_graphx_plugin(
+    TARGET_NAME accelgraph_fhss_branch_metric_sink_node
+    SOURCE_FILE accel_fhss_branch_metric_sink_node_plugin.cpp
+    DESCRIPTION "Accelgraph FHSS branch metric sink node"
+    DEPENDENCIES accelgraph
+)
+target_include_directories(accelgraph_fhss_branch_metric_sink_node PRIVATE
+    ${CMAKE_SOURCE_DIR}/libaccelgraph/include
+    ${CMAKE_SOURCE_DIR}/libgraph/include
+    ${CMAKE_SOURCE_DIR}/libdsp/include
+    ${CMAKE_SOURCE_DIR}/libgpu/include
+)

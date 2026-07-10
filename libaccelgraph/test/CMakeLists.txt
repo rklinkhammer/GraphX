@@ -38,6 +38,8 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         accelgraph_fhss_channelizer_sink_node
         accelgraph_fhss_per_channel_pulse_detector_node
         accelgraph_fhss_per_channel_pulse_detector_sink_node
+        accelgraph_fhss_branch_metric_node
+        accelgraph_fhss_branch_metric_sink_node
     )
     if(TARGET graphx_dynamic_nodes)
         add_dependencies(test_libaccelgraph_smoke graphx_dynamic_nodes)
@@ -48,6 +50,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
 
     set(ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
         AccelGraphFhssAccelContractTest
+        AccelGraphFhssBranchMetricTest
         AccelGraphFhssChannelizerTest
         AccelGraphFhssDetectorTest
         AccelGraphFhssDownconverterTest

@@ -1,0 +1,170 @@
+{
+  "name": "AccelGraphFhssBranchMetricCudaAllowFallbackTopology",
+  "description": "GraphExecutor cuda-selected FHSS branch metric topology allowing CPU fallback.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "source",
+      "type": "FHSSSyntheticIqSourceNode",
+      "name": "source",
+      "node_config": {
+        "active_frequency_indices": [24, 28, 32, 36],
+        "iq_center_frequency_hz": 1240000000.0,
+        "messages": [
+          {
+            "message_id": 1,
+            "transmit_start_sample": 0,
+            "pulses": [
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+              {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+              {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+              {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+              {"frequency_index": 24, "value": 16909060, "role": "body"}
+            ]
+          }
+        ],
+        "idle_mode": "zero",
+        "idle_duration_samples": 0,
+        "enable_noise": false,
+        "enable_doppler": false,
+        "enable_multipath": false,
+        "allow_overlap": false
+      }
+    },
+    {
+      "id": "downconverter",
+      "type": "AccelFhssDownconverterNode",
+      "name": "downconverter",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "input_iq_center_frequency_hz": 1240000000.0,
+        "input_reference_frequency_hz": 1240000000.0,
+        "output_iq_center_frequency_hz": 1240000000.0,
+        "output_reference_frequency_hz": 1240000000.0,
+        "translation_frequency_hz": 0.0,
+        "passthrough": true,
+        "phase_convention": "passthrough_no_phase_rotation",
+        "sample_rate_hz": 500000000.0,
+        "provider_id": "cpu.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0
+      }
+    },
+    {
+      "id": "channelizer",
+      "type": "AccelFhssChannelizerNode",
+      "name": "channelizer",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "provider_id": "cpu.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0,
+        "iq_center_frequency_hz": 1240000000.0,
+        "transmitted_active_frequency_indices": [24, 28, 32, 36],
+        "transmitted_pulse_frequency_indices": [24, 28, 32, 36],
+        "sample_rate_hz": 500000000.0,
+        "channel_sample_rate_hz": 500000000.0,
+        "decimation_factor": 1,
+        "filter_group_delay_input_samples": 0,
+        "iq_capture": {
+          "enabled": false,
+          "output_directory": "",
+          "frequency_indices": [],
+          "overwrite": true
+        }
+      }
+    },
+    {
+      "id": "detector",
+      "type": "AccelFhssPerChannelPulseDetectorNode",
+      "name": "detector",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "provider_id": "cpu.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0,
+        "detector_id": 17,
+        "packet_sequence": 19,
+        "min_power_linear": 1.0e-18,
+        "min_symbol_coherence": 0.1,
+        "noise_floor_db": -120.0,
+        "nominal_bandwidth_hz": 5000000.0,
+        "max_pulse_input_samples": 4096
+      }
+    },
+    {
+      "id": "branch_metric",
+      "type": "AccelFhssBranchMetricNode",
+      "name": "branch_metric",
+      "node_config": {
+        "backend": "cuda",
+        "strict_fallback": false,
+        "fallback_policy": "allow",
+        "provider_id": "cuda.default",
+        "session_key": "graph.default",
+        "cuda_device_ordinal": 0,
+        "symbol_count": 32,
+        "modulation_index": 0.5,
+        "initial_phase_state": 0,
+        "check_terminal_phase": false,
+        "expected_terminal_phase_state": 0
+      }
+    },
+    {
+      "id": "sink",
+      "type": "AccelFhssBranchMetricSinkNode",
+      "name": "sink",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "downconverter",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "downconverter",
+      "source_port": 0,
+      "target_node_id": "channelizer",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "channelizer",
+      "source_port": 24,
+      "target_node_id": "detector",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "detector",
+      "source_port": 0,
+      "target_node_id": "branch_metric",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "branch_metric",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}
