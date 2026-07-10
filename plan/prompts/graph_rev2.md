@@ -180,6 +180,7 @@ Finish with:
 - Phase 3 status: shared topology test mechanics refactored on macOS using a lightweight helper while preserving suite-level assertions and backend-specific diagnostics.
 - Phase 4 status: topology hardening guardrails and topology-author documentation added on macOS; synthetic topology tests remain in the standard smoke/unit path and backend-unavailable diagnostics remain actionable.
 - Phase 5 status: complete on macOS and Jetson; topology anti-bypass guard now auto-discovers `test_accelgraph_phase*.cpp` files and scans topology-style phase tests for forbidden manual configuration tokens while allowlisting explicit non-topology phase unit tests.
+- Phase 6 status: complete on macOS; libaccelgraph now has explicit CTest discovery coverage mirroring libgraph/libdsp patterns, required topology suites are asserted in `test_libaccelgraph_smoke`, and CUDA-only phase 6b discovery remains gated by `ACCELGRAPH_ENABLE_CUDA`.
 - Phase 2 invariant status: topology tests use checked-in JSON `node_config` through `GraphExecutorBuilder`, JSON loader, plugin descriptors, and `IConfigurable`; no direct post-build test-side node configuration helpers are used.
 - Phase 3 invariant status: JSON-owned initialization remains enforced; topology tests do not introduce direct `Configure(...)`-style bypasses.
 - Phase 4 scope note: legacy checked-in topology formats may coexist with synthetic-node_config topologies, but synthetic coverage remains strictly topology-driven and guardrailed.

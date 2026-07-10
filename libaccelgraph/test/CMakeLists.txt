@@ -35,6 +35,25 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
     add_test(NAME libaccelgraph_smoke COMMAND test_libaccelgraph_smoke)
     set_tests_properties(libaccelgraph_smoke PROPERTIES
         LABELS "accelgraph;smoke;unit;host-any")
+
+    set(ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
+        AccelGraphPhase2TopologyContractTest
+        AccelGraphPhase3ATest
+        AccelGraphPhase5CudaGraphExecutorTest
+        AccelGraphPhase6SpectrumTest
+    )
+    if(ACCELGRAPH_ENABLE_CUDA)
+        list(APPEND ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
+            AccelGraphPhase6BCudaSpectrumTest)
+    endif()
+
+    add_test(NAME libaccelgraph_smoke_discovery
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_EXECUTABLE=$<TARGET_FILE:test_libaccelgraph_smoke>
+            -DEXPECTED_SUITES=${ACCELGRAPH_DISCOVERY_EXPECTED_SUITES}
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
+    set_tests_properties(libaccelgraph_smoke_discovery PROPERTIES
+        LABELS "accelgraph;smoke;unit;ownership;discovery;host-any")
 endif()
 
 if(ACCELGRAPH_BENCHMARK_SOURCES)
