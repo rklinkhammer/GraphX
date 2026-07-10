@@ -46,7 +46,15 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
     endif()
     add_test(NAME libaccelgraph_smoke COMMAND test_libaccelgraph_smoke)
     set_tests_properties(libaccelgraph_smoke PROPERTIES
-        LABELS "accelgraph;smoke;unit;host-any")
+        LABELS "accelgraph;smoke;unit;host-any"
+        TIMEOUT 1800)
+
+    add_test(NAME libaccelgraph_fhss_phase6_hybrid
+        COMMAND test_libaccelgraph_smoke
+            --gtest_filter=AccelGraphFhssE2EHybridTest.*)
+    set_tests_properties(libaccelgraph_fhss_phase6_hybrid PROPERTIES
+        LABELS "accelgraph;fhss;phase6;hybrid;unit;host-any"
+        TIMEOUT 600)
 
     set(ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
         AccelGraphFhssAccelContractTest

@@ -87,6 +87,14 @@ cmake --preset ninja-debug-jetson-cuda
 cmake --build --preset build-jetson-cuda
 ```
 
+The Jetson CUDA smoke lane now carries a longer timeout, and the FHSS Phase 6
+hybrid suite is split into a focused ctest target for quicker validation:
+
+```bash
+ctest --test-dir build-jetson-cuda -R libaccelgraph_smoke --output-on-failure
+ctest --test-dir build-jetson-cuda -R libaccelgraph_fhss_phase6_hybrid --output-on-failure
+```
+
 Configure and build the native-Metal-requested tree used by most current DSP
 and FHSS examples:
 
