@@ -115,6 +115,11 @@ public:
     template <std::size_t Port>
     bool ConsumeInput(const typename Base::template InputType<Port>& input) {
         static_assert(Port == 0);
+        if (selected_backend_ == AcceleratorBackend::Cuda) {
+            if (!StageInputThroughCuda(input)) {
+                return false;
+            }
+        }
         if (!cpu_reference_.template ConsumeInput<0>(input)) {
             return false;
         }
@@ -133,6 +138,8 @@ public:
     [[nodiscard]] const std::string& FallbackDiagnostic() const noexcept;
 
 private:
+    bool StageInputThroughCuda(const InputTokenType& input);
+
     template <std::size_t Port>
     bool ForwardAllOutputs() {
         if constexpr (Port < kOutputPortCount) {

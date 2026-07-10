@@ -101,6 +101,8 @@ public:
     [[nodiscard]] const std::string& FallbackDiagnostic() const noexcept;
 
 private:
+    bool StageInputThroughCuda(const FHSSChannelizedIqToken& input);
+
     FHSSAccelConfig accel_config_{};
     dsp::fhss::PerChannelPulseDetectorConfig detector_config_{};
     AcceleratorBackend requested_backend_{AcceleratorBackend::Cpu};

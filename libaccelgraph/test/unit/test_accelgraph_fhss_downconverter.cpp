@@ -38,6 +38,18 @@ std::filesystem::path FhssDownconverterMetalAllowFallbackTopologyConfigPath() {
         "accelgraph_fhss_downconverter_metal_allow_fallback_topology.json");
 }
 
+std::filesystem::path FhssDownconverterCudaTopologyConfigPath() {
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_fhss_downconverter_cuda_topology.json");
+}
+
+std::filesystem::path FhssDownconverterCudaAllowFallbackTopologyConfigPath() {
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_fhss_downconverter_cuda_allow_fallback_topology.json");
+}
+
 dsp::fhss::FHSSSyntheticIqToken MakeSyntheticIqInputToken() {
     auto samples = std::make_shared<const std::vector<std::complex<double>>>(
         std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0}, {-1.0, 0.0}, {0.0, -1.0}});
@@ -214,6 +226,68 @@ TEST(AccelGraphFhssDownconverterTest, MetalAllowFallbackUsesCpuWhenNativePathUna
     EXPECT_EQ(node->SelectedBackend(), accelgraph::AcceleratorBackend::Cpu);
     EXPECT_TRUE(node->UsedFallback());
     EXPECT_FALSE(node->FallbackDiagnostic().empty());
+}
+
+TEST(AccelGraphFhssDownconverterTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
+    const auto config_path = FhssDownconverterCudaTopologyConfigPath();
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    std::shared_ptr<graph::GraphExecutor> executor;
+    try {
+        executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(10));
+    } catch (const std::exception& ex) {
+        const std::string message = ex.what();
+        if (accelgraph::test::IsExpectedCudaDiagnostic(message) ||
+            accelgraph::test::IsGraphBuildFailureDiagnostic(message) ||
+            message.find(accelgraph::fhss::kFhssDownconverterCudaNativeNotImplementedDiagnostic) != std::string::npos) {
+            GTEST_SKIP() << message;
+        }
+        throw;
+    }
+
+    ASSERT_NE(executor, nullptr);
+
+    auto graph_manager = executor->GetGraphManager();
+    ASSERT_NE(graph_manager, nullptr);
+    auto node = accelgraph::test::ResolveNode<AccelFhssDownconverterNode>(graph_manager);
+    ASSERT_NE(node, nullptr);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+
+    EXPECT_EQ(node->RequestedBackend(), accelgraph::AcceleratorBackend::Cuda);
+    EXPECT_EQ(node->SelectedBackend(), accelgraph::AcceleratorBackend::Cuda);
+    EXPECT_FALSE(node->UsedFallback());
+}
+
+TEST(AccelGraphFhssDownconverterTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
+    const auto config_path = FhssDownconverterCudaAllowFallbackTopologyConfigPath();
+    ASSERT_TRUE(std::filesystem::exists(config_path));
+
+    auto executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(10));
+    ASSERT_NE(executor, nullptr);
+
+    auto graph_manager = executor->GetGraphManager();
+    ASSERT_NE(graph_manager, nullptr);
+    auto node = accelgraph::test::ResolveNode<AccelFhssDownconverterNode>(graph_manager);
+    auto sink = accelgraph::test::ResolveNode<AccelFhssDownconverterSinkNode>(graph_manager);
+    ASSERT_NE(node, nullptr);
+    ASSERT_NE(sink, nullptr);
+
+    const auto run_result = executor->Execute();
+    ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
+
+    auto output = sink->LastPacket();
+    ASSERT_TRUE(output.has_value());
+
+    EXPECT_EQ(node->RequestedBackend(), accelgraph::AcceleratorBackend::Cuda);
+    if (node->SelectedBackend() == accelgraph::AcceleratorBackend::Cpu) {
+        EXPECT_TRUE(node->UsedFallback());
+        EXPECT_FALSE(node->FallbackDiagnostic().empty());
+    } else {
+        EXPECT_EQ(node->SelectedBackend(), accelgraph::AcceleratorBackend::Cuda);
+        EXPECT_FALSE(node->UsedFallback());
+    }
 }
 
 TEST(AccelGraphFhssDownconverterTest, DescriptorFieldsDeclareFullConfigSurface) {
