@@ -1,0 +1,53 @@
+{
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "0e80b1be0719b21c574db1954c2ba73ded0f4163",
+  "diff_identity": {
+    "type": "working_tree",
+    "value": "uncommitted_changes_present",
+    "working_tree_dirty": true
+  },
+  "generated_at_utc": "2026-07-10T02:27:32Z",
+  "host": {
+    "architecture": "aarch64",
+    "hostname": "unknown",
+    "operating_system": "Linux"
+  },
+  "phase": "7",
+  "results": [
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cpu",
+      "cold_frame_ms": 21003.2453,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6",
+      "correctness_parity_status": "pass:cpu-benchmark-family-baseline",
+      "cpu_gpu_speed_ratio": null,
+      "execution_mode": "local",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04761168058322456,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cpu_macos",
+      "graph_overhead_ms": 998.7493654999998,
+      "host_class": "cpu-only",
+      "latency_ms": 21003.2493655,
+      "legacy_reference_baseline_ms": 1002.67147075,
+      "measurement_origin": {
+        "imported": false,
+        "measured_locally": true,
+        "note": null,
+        "source_artifact": null
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.188590229305488,
+      "selected_backend": "cpu",
+      "steady_state_elapsed_time_ms": 84012.997462,
+      "total_elapsed_time_ms": 105148.902554,
+      "transfer_inclusive_gpu_time_ms": 0.0,
+      "used_fallback": false,
+      "warm_frame_ms": 21003.250720666667,
+      "warmup_frame_count": 1
+    }
+  ],
+  "schema": "graphx.accelgraph.phase7.spectrum.benchmark.v1"
+}

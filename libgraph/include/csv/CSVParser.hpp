@@ -497,7 +497,7 @@ namespace converters {
  */
 inline auto MakeUInt64Converter() {
     return [](const std::string& s) -> std::any { 
-        return std::stoull(s); 
+        return static_cast<uint64_t>(std::stoull(s)); 
     };
 }
 
@@ -507,7 +507,7 @@ inline auto MakeUInt64Converter() {
  */
 inline auto MakeInt64Converter() {
     return [](const std::string& s) -> std::any { 
-        return std::stoll(s); 
+        return static_cast<int64_t>(std::stoll(s)); 
     };
 }
 

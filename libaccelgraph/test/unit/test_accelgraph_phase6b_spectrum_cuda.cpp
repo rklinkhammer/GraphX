@@ -92,7 +92,7 @@ RunSpectrumGraph(const std::filesystem::path& config_path) {
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
         if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
-            GTEST_SKIP() << message;
+            throw;
         }
         throw;
     }
@@ -165,6 +165,9 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionVia
         }
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
+        if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
+            GTEST_SKIP() << message;
+        }
         if (IsExpectedCudaSkipDiagnostic(message)) {
             GTEST_SKIP() << message;
         }

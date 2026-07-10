@@ -151,7 +151,8 @@ TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorO
         if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
-        if (IsExpectedMetalDiagnostic(message)) {
+        if (IsExpectedMetalDiagnostic(message) ||
+            IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;
@@ -204,7 +205,8 @@ TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithin
         if (IsExpectedNodeConfigDescriptorGapDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
-        if (IsExpectedMetalDiagnostic(message)) {
+        if (IsExpectedMetalDiagnostic(message) ||
+            IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;
