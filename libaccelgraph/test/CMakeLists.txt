@@ -39,6 +39,9 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         accelgraph_fhss_per_channel_pulse_detector_node
         accelgraph_fhss_per_channel_pulse_detector_sink_node
     )
+    if(TARGET graphx_dynamic_nodes)
+        add_dependencies(test_libaccelgraph_smoke graphx_dynamic_nodes)
+    endif()
     add_test(NAME libaccelgraph_smoke COMMAND test_libaccelgraph_smoke)
     set_tests_properties(libaccelgraph_smoke PROPERTIES
         LABELS "accelgraph;smoke;unit;host-any")

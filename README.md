@@ -80,6 +80,13 @@ cmake --preset ninja-debug-linux-host
 cmake --build --preset build-debug-linux-host
 ```
 
+Configure and build a Jetson CUDA debug tree for FHSS CUDA verification:
+
+```bash
+cmake --preset ninja-debug-jetson-cuda
+cmake --build --preset build-jetson-cuda
+```
+
 Configure and build the native-Metal-requested tree used by most current DSP
 and FHSS examples:
 

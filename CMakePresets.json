@@ -87,6 +87,21 @@
       }
     },
     {
+      "name": "ninja-debug-jetson-cuda",
+      "displayName": "Ninja Debug (Jetson CUDA)",
+      "description": "Debug build profile for Jetson CUDA verification with CUDA graph nodes enabled",
+      "binaryDir": "${sourceDir}/build-jetson-cuda",
+      "inherits": "ninja-debug-linux-host",
+      "cacheVariables": {
+        "ENABLE_CUDA_GRAPH_NODES": "ON",
+        "ACCELGRAPH_ENABLE_CUDA": "ON",
+        "ENABLE_SYCL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_GRAPH_NODES": "OFF",
+        "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
+      }
+    },
+    {
       "name": "ninja-release",
       "displayName": "Ninja Release",
       "description": "Release build with Ninja (modules pilot OFF)",
@@ -180,6 +195,11 @@
       "name": "build-debug-linux-host",
       "displayName": "Build Debug (Linux Host)",
       "configurePreset": "ninja-debug-linux-host"
+    },
+    {
+      "name": "build-jetson-cuda",
+      "displayName": "Build Debug (Jetson CUDA)",
+      "configurePreset": "ninja-debug-jetson-cuda"
     },
     {
       "name": "build-release",
