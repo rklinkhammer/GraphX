@@ -172,3 +172,10 @@ Finish with:
 - test results and hardware skip reasons;
 - remaining follow-up work, especially fan-in/fan-out GPU graph coverage if supporting nodes are not yet available.
 ```
+
+## Completion Notes
+
+- Phase 1 status: complete and verified on macOS and Jetson.
+- Phase 2 status: complete and verified on macOS and Jetson.
+- Phase 2 invariant status: topology tests use checked-in JSON `node_config` through `GraphExecutorBuilder`, JSON loader, plugin descriptors, and `IConfigurable`; no direct post-build test-side node configuration helpers are used.
+- Remaining work before/for Phase 3: continue expanding topology-style validation and execution diagnostics using loader-owned initialization without introducing test-side configuration bypass paths.
