@@ -10,86 +10,40 @@
 #include <string>
 #include <vector>
 
-#include "accelgraph/CudaAcceleratorProvider.hpp"
 #include "accelgraph/SpectrumGraphNodes.hpp"
-#include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManagerCore.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "AccelGraphTopologyTestUtils.hpp"
 
 namespace {
 
 std::filesystem::path CpuSpectrumTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6b_spectrum_cpu_topology.json";
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6b_spectrum_cpu_topology.json");
 }
 
 std::filesystem::path CudaSpectrumTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6b_spectrum_cuda_topology.json";
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6b_spectrum_cuda_topology.json");
 }
 
 std::filesystem::path CudaSpectrumAllowFallbackTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6b_spectrum_cuda_allow_fallback_topology.json";
-}
-
-std::filesystem::path PluginDirectoryPath() {
-    return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
-}
-
-std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
-    return graph::GraphExecutorBuilder()
-        .WithJsonConfig(config_path.string())
-        .WithPluginDirectory(PluginDirectoryPath().string())
-        .WithExecutorTimeout(std::chrono::seconds(20))
-        .Build();
-}
-
-template <typename NodeT>
-std::shared_ptr<NodeT> ResolveNode(const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-
-        auto typed = wrapper->GetNode<NodeT>();
-        if (typed) {
-            return typed;
-        }
-    }
-
-    return nullptr;
-}
-
-bool IsExpectedCudaSkipDiagnostic(const std::string& message) {
-    return message.find(accelgraph::kCudaSupportNotCompiledDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaToolkitUnavailableDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaRuntimeHeadersUnavailableDiagnostic) != std::string::npos ||
-           message.find("driver") != std::string::npos ||
-           message.find("device") != std::string::npos ||
-           message.find("CUDA") != std::string::npos;
-}
-
-bool IsGraphBuildFailureDiagnostic(const std::string& message) {
-    return message.find("Graph building failed") != std::string::npos;
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6b_spectrum_cuda_allow_fallback_topology.json");
 }
 
 std::shared_ptr<accelgraph::SpectrumSinkNode>
 RunSpectrumGraph(const std::filesystem::path& config_path) {
-    auto executor = BuildExecutor(config_path);
+    auto executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(20));
     EXPECT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
     EXPECT_NE(graph_manager, nullptr);
 
-    auto source = ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
-    auto analysis = ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
-    auto sink = ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
+    auto source = accelgraph::test::ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
+    auto analysis = accelgraph::test::ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
+    auto sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
 
     EXPECT_NE(source, nullptr);
     EXPECT_NE(analysis, nullptr);
@@ -105,7 +59,7 @@ RunSpectrumGraph(const std::filesystem::path& config_path) {
 TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionViaGraphExecutor) {
     ASSERT_TRUE(std::filesystem::exists(CpuSpectrumTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumTopologyConfigPath()));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     try {
         auto cpu_sink = RunSpectrumGraph(CpuSpectrumTopologyConfigPath());
@@ -151,7 +105,7 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionVia
         }
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedCudaSkipDiagnostic(message)) {
+        if (accelgraph::test::IsExpectedCudaDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;
@@ -161,17 +115,17 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, CpuCudaParityAndStrictNativeExecutionVia
 TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumAllowFallbackTopologyConfigPath()));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     try {
         bool strict_rejected = false;
         std::shared_ptr<graph::GraphExecutor> strict_executor;
         try {
-            strict_executor = BuildExecutor(CudaSpectrumTopologyConfigPath());
+            strict_executor = accelgraph::test::BuildExecutor(CudaSpectrumTopologyConfigPath(), std::chrono::seconds(20));
         } catch (const std::exception& ex) {
             const std::string message = ex.what();
-            if (IsExpectedCudaSkipDiagnostic(message) ||
-                IsGraphBuildFailureDiagnostic(message)) {
+            if (accelgraph::test::IsExpectedCudaDiagnostic(message) ||
+                accelgraph::test::IsGraphBuildFailureDiagnostic(message)) {
                 strict_rejected = true;
             } else {
                 throw;
@@ -192,7 +146,7 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
             ASSERT_NE(strict_executor, nullptr);
             auto strict_graph = strict_executor->GetGraphManager();
             ASSERT_NE(strict_graph, nullptr);
-            auto strict_sink = ResolveNode<accelgraph::SpectrumSinkNode>(strict_graph);
+            auto strict_sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(strict_graph);
             ASSERT_NE(strict_sink, nullptr);
 
             const auto run_result = strict_executor->Execute();
@@ -207,7 +161,7 @@ TEST(AccelGraphPhase6BCudaSpectrumTest, StrictFallbackPolicyIsEnforced) {
         }
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedCudaSkipDiagnostic(message)) {
+        if (accelgraph::test::IsExpectedCudaDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;

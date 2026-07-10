@@ -7,59 +7,15 @@
 #include <memory>
 #include <string>
 
-#include "accelgraph/CudaAcceleratorProvider.hpp"
 #include "accelgraph/TransferGraphNodes.hpp"
-#include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManagerCore.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "AccelGraphTopologyTestUtils.hpp"
 
 namespace {
 
 std::filesystem::path CudaTransferTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase5_transfer_cuda_topology.json";
-}
-
-std::filesystem::path PluginDirectoryPath() {
-    return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
-}
-
-std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
-    return graph::GraphExecutorBuilder()
-        .WithJsonConfig(config_path.string())
-        .WithPluginDirectory(PluginDirectoryPath().string())
-        .WithExecutorTimeout(std::chrono::seconds(10))
-        .Build();
-}
-
-template <typename NodeT>
-std::shared_ptr<NodeT> ResolveNode(const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-
-        auto typed = wrapper->GetNode<NodeT>();
-        if (typed) {
-            return typed;
-        }
-    }
-
-    return nullptr;
-}
-
-bool IsExpectedCudaSkipDiagnostic(const std::string& message) {
-    return message.find(accelgraph::kCudaSupportNotCompiledDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaToolkitUnavailableDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kCudaRuntimeHeadersUnavailableDiagnostic) != std::string::npos ||
-           message.find("driver") != std::string::npos ||
-           message.find("device") != std::string::npos ||
-           message.find("CUDA") != std::string::npos;
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase5_transfer_cuda_topology.json");
 }
 
 }  // namespace
@@ -71,19 +27,19 @@ TEST(AccelGraphPhase5CudaGraphExecutorTest, CudaTransferTopologyExecutesViaGraph
 
     const auto config_path = CudaTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
-    auto executor = BuildExecutor(config_path);
+    auto executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(10));
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto ingress = ResolveNode<accelgraph::HostIngressNode>(graph_manager);
-    auto h2d = ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
-    auto d2h = ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
-    auto egress = ResolveNode<accelgraph::HostEgressNode>(graph_manager);
-    auto release = ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
+    auto ingress = accelgraph::test::ResolveNode<accelgraph::HostIngressNode>(graph_manager);
+    auto h2d = accelgraph::test::ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
+    auto d2h = accelgraph::test::ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
+    auto egress = accelgraph::test::ResolveNode<accelgraph::HostEgressNode>(graph_manager);
+    auto release = accelgraph::test::ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
     ASSERT_NE(ingress, nullptr);
     ASSERT_NE(h2d, nullptr);
     ASSERT_NE(d2h, nullptr);
@@ -95,7 +51,7 @@ TEST(AccelGraphPhase5CudaGraphExecutorTest, CudaTransferTopologyExecutesViaGraph
         ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedCudaSkipDiagnostic(message)) {
+        if (accelgraph::test::IsExpectedCudaDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;

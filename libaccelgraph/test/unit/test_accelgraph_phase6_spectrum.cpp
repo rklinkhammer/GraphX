@@ -8,11 +8,8 @@
 #include <set>
 #include <string>
 
-#include "accelgraph/MetalAcceleratorProvider.hpp"
 #include "accelgraph/SpectrumGraphNodes.hpp"
-#include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManagerCore.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "AccelGraphTopologyTestUtils.hpp"
 #include "graph/NodeProviderBootstrap.hpp"
 
 namespace {
@@ -25,62 +22,21 @@ constexpr float kMagnitudeTolerance = 1.0e-4F;
 constexpr double kFrequencyToleranceHz = 1.0e-6;
 
 std::filesystem::path SpectrumCpuTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6_spectrum_cpu_topology.json";
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6_spectrum_cpu_topology.json");
 }
 
 std::filesystem::path SpectrumMetalTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6_spectrum_metal_topology.json";
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6_spectrum_metal_topology.json");
 }
 
 std::filesystem::path SpectrumMetalAllowFallbackTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase6_spectrum_metal_allow_fallback_topology.json";
-}
-
-std::filesystem::path PluginDirectoryPath() {
-    return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
-}
-
-std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
-    return graph::GraphExecutorBuilder()
-        .WithJsonConfig(config_path.string())
-        .WithPluginDirectory(PluginDirectoryPath().string())
-        .WithExecutorTimeout(std::chrono::seconds(10))
-        .Build();
-}
-
-template <typename NodeT>
-std::shared_ptr<NodeT> ResolveNode(const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-
-        auto typed = wrapper->GetNode<NodeT>();
-        if (typed) {
-            return typed;
-        }
-    }
-
-    return nullptr;
-}
-
-bool IsExpectedMetalDiagnostic(const std::string& message) {
-    return message.find(accelgraph::kMetalSupportNotCompiledDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalRuntimeUnavailableDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalNoCompatibleDeviceDiagnostic) != std::string::npos ||
-           message.find(accelgraph::kMetalSessionCreationFailureDiagnostic) != std::string::npos;
-}
-
-bool IsGraphBuildFailureDiagnostic(const std::string& message) {
-    return message.find("Graph building failed") != std::string::npos;
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase6_spectrum_metal_allow_fallback_topology.json");
 }
 
 }  // namespace
@@ -88,17 +44,17 @@ bool IsGraphBuildFailureDiagnostic(const std::string& message) {
 TEST(AccelGraphPhase6SpectrumTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAndPlugins) {
     const auto config_path = SpectrumCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
-    auto executor = BuildExecutor(config_path);
+    auto executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(10));
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto source = ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
-    auto analysis = ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
-    auto sink = ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
+    auto source = accelgraph::test::ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
+    auto analysis = accelgraph::test::ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
+    auto sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
     ASSERT_NE(source, nullptr);
     ASSERT_NE(analysis, nullptr);
     ASSERT_NE(sink, nullptr);
@@ -127,15 +83,15 @@ TEST(AccelGraphPhase6SpectrumTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAnd
 TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorOrSkipsWithExactDiagnostic) {
     const auto config_path = SpectrumMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     std::shared_ptr<graph::GraphExecutor> executor;
     try {
-        executor = BuildExecutor(config_path);
+        executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(10));
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedMetalDiagnostic(message) ||
-            IsGraphBuildFailureDiagnostic(message)) {
+        if (accelgraph::test::IsExpectedMetalDiagnostic(message) ||
+            accelgraph::test::IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;
@@ -145,9 +101,9 @@ TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorO
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto source = ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
-    auto analysis = ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
-    auto sink = ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
+    auto source = accelgraph::test::ResolveNode<accelgraph::SineWaveSourceNode>(graph_manager);
+    auto analysis = accelgraph::test::ResolveNode<accelgraph::SpectrumAnalysisNode>(graph_manager);
+    auto sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(graph_manager);
     ASSERT_NE(source, nullptr);
     ASSERT_NE(analysis, nullptr);
     ASSERT_NE(sink, nullptr);
@@ -170,14 +126,14 @@ TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithin
     ASSERT_TRUE(std::filesystem::exists(cpu_config_path));
     ASSERT_TRUE(std::filesystem::exists(metal_config_path));
 
-    auto cpu_executor = BuildExecutor(cpu_config_path);
+    auto cpu_executor = accelgraph::test::BuildExecutor(cpu_config_path, std::chrono::seconds(10));
     std::shared_ptr<graph::GraphExecutor> metal_executor;
     try {
-        metal_executor = BuildExecutor(metal_config_path);
+        metal_executor = accelgraph::test::BuildExecutor(metal_config_path, std::chrono::seconds(10));
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        if (IsExpectedMetalDiagnostic(message) ||
-            IsGraphBuildFailureDiagnostic(message)) {
+        if (accelgraph::test::IsExpectedMetalDiagnostic(message) ||
+            accelgraph::test::IsGraphBuildFailureDiagnostic(message)) {
             GTEST_SKIP() << message;
         }
         throw;
@@ -190,12 +146,12 @@ TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithin
     ASSERT_NE(cpu_graph, nullptr);
     ASSERT_NE(metal_graph, nullptr);
 
-    auto cpu_source = ResolveNode<accelgraph::SineWaveSourceNode>(cpu_graph);
-    auto cpu_analysis = ResolveNode<accelgraph::SpectrumAnalysisNode>(cpu_graph);
-    auto cpu_sink = ResolveNode<accelgraph::SpectrumSinkNode>(cpu_graph);
-    auto metal_source = ResolveNode<accelgraph::SineWaveSourceNode>(metal_graph);
-    auto metal_analysis = ResolveNode<accelgraph::SpectrumAnalysisNode>(metal_graph);
-    auto metal_sink = ResolveNode<accelgraph::SpectrumSinkNode>(metal_graph);
+    auto cpu_source = accelgraph::test::ResolveNode<accelgraph::SineWaveSourceNode>(cpu_graph);
+    auto cpu_analysis = accelgraph::test::ResolveNode<accelgraph::SpectrumAnalysisNode>(cpu_graph);
+    auto cpu_sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(cpu_graph);
+    auto metal_source = accelgraph::test::ResolveNode<accelgraph::SineWaveSourceNode>(metal_graph);
+    auto metal_analysis = accelgraph::test::ResolveNode<accelgraph::SpectrumAnalysisNode>(metal_graph);
+    auto metal_sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(metal_graph);
     ASSERT_NE(cpu_source, nullptr);
     ASSERT_NE(cpu_analysis, nullptr);
     ASSERT_NE(cpu_sink, nullptr);
@@ -240,11 +196,11 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
     std::string strict_diagnostic;
     std::shared_ptr<graph::GraphExecutor> strict_executor;
     try {
-        strict_executor = BuildExecutor(strict_config_path);
+        strict_executor = accelgraph::test::BuildExecutor(strict_config_path, std::chrono::seconds(10));
     } catch (const std::exception& ex) {
         strict_diagnostic = ex.what();
-        if (IsExpectedMetalDiagnostic(strict_diagnostic) ||
-            IsGraphBuildFailureDiagnostic(strict_diagnostic)) {
+        if (accelgraph::test::IsExpectedMetalDiagnostic(strict_diagnostic) ||
+            accelgraph::test::IsGraphBuildFailureDiagnostic(strict_diagnostic)) {
             strict_rejected = true;
         } else {
             throw;
@@ -252,12 +208,12 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
     }
 
     if (strict_rejected) {
-        auto allow_executor = BuildExecutor(allow_config_path);
+        auto allow_executor = accelgraph::test::BuildExecutor(allow_config_path, std::chrono::seconds(10));
         ASSERT_NE(allow_executor, nullptr);
 
         auto allow_graph = allow_executor->GetGraphManager();
         ASSERT_NE(allow_graph, nullptr);
-        auto allow_sink = ResolveNode<accelgraph::SpectrumSinkNode>(allow_graph);
+        auto allow_sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(allow_graph);
         ASSERT_NE(allow_sink, nullptr);
 
         const auto run_result = allow_executor->Execute();
@@ -269,12 +225,12 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
         EXPECT_EQ(output->selected_backend, accelgraph::AcceleratorBackend::Cpu);
         EXPECT_TRUE(output->used_fallback);
         EXPECT_FALSE(output->fallback_diagnostic.empty());
-        EXPECT_TRUE(IsExpectedMetalDiagnostic(output->fallback_diagnostic));
+        EXPECT_TRUE(accelgraph::test::IsExpectedMetalDiagnostic(output->fallback_diagnostic));
     } else {
         ASSERT_NE(strict_executor, nullptr);
         auto strict_graph = strict_executor->GetGraphManager();
         ASSERT_NE(strict_graph, nullptr);
-        auto strict_sink = ResolveNode<accelgraph::SpectrumSinkNode>(strict_graph);
+        auto strict_sink = accelgraph::test::ResolveNode<accelgraph::SpectrumSinkNode>(strict_graph);
         ASSERT_NE(strict_sink, nullptr);
 
         const auto run_result = strict_executor->Execute();
@@ -289,9 +245,9 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
 }
 
 TEST(AccelGraphPhase6SpectrumTest, GraphPluginSurfaceDoesNotExposeMetalSpecificSpectrumNodeType) {
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
-    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(PluginDirectoryPath().string());
+    auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(accelgraph::test::PluginDirectoryPath().string());
     ASSERT_TRUE(bootstrap);
     ASSERT_NE(bootstrap->provider, nullptr);
 

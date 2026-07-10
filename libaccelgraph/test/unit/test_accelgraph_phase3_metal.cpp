@@ -8,76 +8,43 @@
 #include <string>
 
 #include "accelgraph/TransferGraphNodes.hpp"
-#include "graph/GraphExecutorBuilder.hpp"
-#include "graph/GraphManagerCore.hpp"
-#include "graph/NodeFacadeAdapterWrapper.hpp"
+#include "AccelGraphTopologyTestUtils.hpp"
 
 namespace {
 
 std::filesystem::path CpuTransferTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase3a_transfer_cpu_topology.json";
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase3a_transfer_cpu_topology.json");
 }
 
 std::filesystem::path MetalTransferTopologyConfigPath() {
-    return std::filesystem::path(__FILE__).parent_path().parent_path() /
-           "config" / "topologies" / "accelgraph_phase3a_transfer_metal_topology.json";
-}
-
-std::filesystem::path PluginDirectoryPath() {
-    return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
+    return accelgraph::test::TopologyConfigPath(
+        __FILE__,
+        "accelgraph_phase3a_transfer_metal_topology.json");
 }
 
 constexpr const char* kMetalSupportNotCompiledDiagnostic =
     "Metal support not compiled (ACCELGRAPH_ENABLE_METAL=OFF).";
-
-std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
-    return graph::GraphExecutorBuilder()
-        .WithJsonConfig(config_path.string())
-        .WithPluginDirectory(PluginDirectoryPath().string())
-        .WithExecutorTimeout(std::chrono::seconds(5))
-        .Build();
-}
-
-template <typename NodeT>
-std::shared_ptr<NodeT> ResolveNode(const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-
-        auto typed = wrapper->GetNode<NodeT>();
-        if (typed) {
-            return typed;
-        }
-    }
-
-    return nullptr;
-}
 
 }  // namespace
 
 TEST(AccelGraphPhase3ATest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugins) {
     const auto config_path = CpuTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
-    auto executor = BuildExecutor(config_path);
+    auto executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(5));
     ASSERT_NE(executor, nullptr);
 
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto ingress = ResolveNode<accelgraph::HostIngressNode>(graph_manager);
-    auto h2d = ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
-    auto d2h = ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
-    auto egress = ResolveNode<accelgraph::HostEgressNode>(graph_manager);
-    auto release = ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
+    auto ingress = accelgraph::test::ResolveNode<accelgraph::HostIngressNode>(graph_manager);
+    auto h2d = accelgraph::test::ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
+    auto d2h = accelgraph::test::ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
+    auto egress = accelgraph::test::ResolveNode<accelgraph::HostEgressNode>(graph_manager);
+    auto release = accelgraph::test::ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
     ASSERT_NE(ingress, nullptr);
     ASSERT_NE(h2d, nullptr);
     ASSERT_NE(d2h, nullptr);
@@ -91,11 +58,11 @@ TEST(AccelGraphPhase3ATest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugin
 TEST(AccelGraphPhase3ATest, MetalTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
     const auto config_path = MetalTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
-    ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
+    ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     std::shared_ptr<graph::GraphExecutor> executor;
     try {
-        executor = BuildExecutor(config_path);
+        executor = accelgraph::test::BuildExecutor(config_path, std::chrono::seconds(5));
     } catch (const std::exception&) {
         GTEST_SKIP() << kMetalSupportNotCompiledDiagnostic;
     }
@@ -104,11 +71,11 @@ TEST(AccelGraphPhase3ATest, MetalTransferTopologyExecutesViaGraphExecutorOrSkips
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 
-    auto ingress = ResolveNode<accelgraph::HostIngressNode>(graph_manager);
-    auto h2d = ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
-    auto d2h = ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
-    auto egress = ResolveNode<accelgraph::HostEgressNode>(graph_manager);
-    auto release = ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
+    auto ingress = accelgraph::test::ResolveNode<accelgraph::HostIngressNode>(graph_manager);
+    auto h2d = accelgraph::test::ResolveNode<accelgraph::HostToDeviceNode>(graph_manager);
+    auto d2h = accelgraph::test::ResolveNode<accelgraph::DeviceToHostNode>(graph_manager);
+    auto egress = accelgraph::test::ResolveNode<accelgraph::HostEgressNode>(graph_manager);
+    auto release = accelgraph::test::ResolveNode<accelgraph::ReleaseLeaseNode>(graph_manager);
     ASSERT_NE(ingress, nullptr);
     ASSERT_NE(h2d, nullptr);
     ASSERT_NE(d2h, nullptr);
