@@ -514,3 +514,23 @@ Finish each phase with:
    - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
    - `git diff --check`
 - Phase 3 status: macOS lane complete and green. Jetson CUDA verification remains required to validate native CUDA strict/allow behavior on ACCELGRAPH_ENABLE_CUDA=ON builds.
+- Phase 4 complete (macOS): Implemented `AccelFhssPerChannelPulseDetectorNode` and topology sink in [libaccelgraph/include/accelgraph/fhss/FHSSPerChannelPulseDetectorGraphNode.hpp](libaccelgraph/include/accelgraph/fhss/FHSSPerChannelPulseDetectorGraphNode.hpp) and [libaccelgraph/src/FHSSPerChannelPulseDetectorGraphNode.cpp](libaccelgraph/src/FHSSPerChannelPulseDetectorGraphNode.cpp), with plugin registration in [libaccelgraph/plugins/accel_fhss_per_channel_pulse_detector_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_per_channel_pulse_detector_node_plugin.cpp) and [libaccelgraph/plugins/accel_fhss_per_channel_pulse_detector_sink_node_plugin.cpp](libaccelgraph/plugins/accel_fhss_per_channel_pulse_detector_sink_node_plugin.cpp). Detector node exposes backend/fallback controls plus detector threshold/config fields through descriptor metadata.
+- Phase 4 topology set added:
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cpu_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cpu_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_detector_metal_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_detector_metal_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_detector_metal_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_detector_metal_allow_fallback_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cuda_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cuda_topology.json)
+   - [libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cuda_allow_fallback_topology.json](libaccelgraph/test/config/topologies/accelgraph_fhss_detector_cuda_allow_fallback_topology.json)
+- Phase 4 tests added/updated:
+   - [libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp) (CPU parity vs `PerChannelPulseDetectorNode`, topology execution via `GraphExecutorBuilder`, strict-metal execute-or-skip, allow-fallback behavior, metadata preservation checks, descriptor-field coverage).
+   - [libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp](libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp) matrix expanded for detector CPU/Metal/CUDA strict+allow topologies, descriptor checks expanded, strict-skip diagnostics updated, and sink connectivity allowances updated.
+   - [libaccelgraph/test/CMakeLists.txt](libaccelgraph/test/CMakeLists.txt) updated with detector plugin dependencies and discovery expectation for `AccelGraphFhssDetectorTest`.
+- Phase 4 verification (macOS):
+   - `cmake --build build-ninja/ninja-debug --target test_libaccelgraph_smoke`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_list_tests`
+   - `./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='*Fhss*:*FHSS*:*Detector*:*Pulse*' --gtest_brief=1`
+   - `ctest --test-dir build-ninja/ninja-debug -R "libaccelgraph_smoke|libaccelgraph_smoke_discovery" --output-on-failure`
+   - `jq -e . libaccelgraph/test/config/topologies/*.json >/dev/null`
+   - `rg "ConfigureNode|ConfigureTransferNode|JsonView\\(|->Configure\\(|\\.Configure\\(" libaccelgraph/test/unit`
+   - `git diff --check`
+- Phase 4 status: macOS lane complete and green. Jetson CUDA verification remains required to validate native CUDA strict/allow behavior on ACCELGRAPH_ENABLE_CUDA=ON builds.
