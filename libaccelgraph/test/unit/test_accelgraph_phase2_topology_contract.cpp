@@ -9,6 +9,8 @@
 #include <iterator>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <regex>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -87,6 +89,43 @@ std::vector<std::filesystem::path> CheckedInTopologyJsonFiles() {
     std::sort(files.begin(), files.end());
     return files;
 }
+
+std::vector<std::filesystem::path> PhaseTestFilesInUnitDir(const std::filesystem::path& unit_dir) {
+    std::vector<std::filesystem::path> files;
+    if (!std::filesystem::exists(unit_dir)) {
+        return files;
+    }
+
+    static const std::regex kPhaseTestPattern(R"(^test_accelgraph_phase.*\.cpp$)");
+    for (const auto& entry : std::filesystem::directory_iterator(unit_dir)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+        const auto file_name = entry.path().filename().string();
+        if (std::regex_match(file_name, kPhaseTestPattern)) {
+            files.push_back(entry.path());
+        }
+    }
+
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+std::string ReadWholeFile(const std::filesystem::path& path) {
+    std::ifstream in(path);
+    if (!in.is_open()) {
+        throw std::runtime_error("Failed to open file: " + path.string());
+    }
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+constexpr std::array<const char*, 5> kForbiddenBypassTokens = {{
+    "ConfigureNode",
+    "ConfigureTransferNode",
+    "JsonView(",
+    "->Configure(",
+    ".Configure(",
+}};
 
 std::filesystem::path WriteTempJson(const nlohmann::json& doc, const std::string& suffix) {
     const auto temp = std::filesystem::temp_directory_path() /
@@ -320,28 +359,31 @@ TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParse
 }
 
 TEST(AccelGraphPhase2TopologyContractTest, TopologyTestsDoNotUseDirectConfigureCalls) {
-    const std::array<std::string, 4> topology_test_files = {{
-        "test_accelgraph_phase3_metal.cpp",
-        "test_accelgraph_phase5_cuda.cpp",
-        "test_accelgraph_phase6_spectrum.cpp",
-        "test_accelgraph_phase6b_spectrum_cuda.cpp",
-    }};
-
     const auto unit_dir = std::filesystem::path(__FILE__).parent_path();
+    const auto phase_test_files = PhaseTestFilesInUnitDir(unit_dir);
+    ASSERT_FALSE(phase_test_files.empty());
 
-    for (const auto& file_name : topology_test_files) {
+    const std::set<std::string> allowlisted_non_topology_phase_tests = {
+        std::filesystem::path(__FILE__).filename().string(),
+        "test_accelgraph_phase4_cuda.cpp",
+    };
+
+    for (const auto& file_path : phase_test_files) {
+        const auto file_name = file_path.filename().string();
+        if (allowlisted_non_topology_phase_tests.find(file_name) !=
+            allowlisted_non_topology_phase_tests.end()) {
+            continue;
+        }
+
         SCOPED_TRACE(file_name);
-        const auto file_path = unit_dir / file_name;
         ASSERT_TRUE(std::filesystem::exists(file_path));
+        const std::string content = ReadWholeFile(file_path);
 
-        std::ifstream in(file_path);
-        ASSERT_TRUE(in.is_open());
-        const std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-
-        EXPECT_EQ(content.find("->Configure("), std::string::npos)
-            << "Direct Configure calls are not allowed in topology tests: " << file_name;
-        EXPECT_EQ(content.find(".Configure("), std::string::npos)
-            << "Direct Configure calls are not allowed in topology tests: " << file_name;
+        for (const auto* token : kForbiddenBypassTokens) {
+            EXPECT_EQ(content.find(token), std::string::npos)
+                << "Topology tests must not bypass JSON-owned initialization: token='"
+                << token << "' file='" << file_name << "'";
+        }
     }
 }
 
@@ -350,13 +392,8 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyHelperDoesNotUseDirectConfigu
                              "AccelGraphTopologyTestUtils.hpp";
     ASSERT_TRUE(std::filesystem::exists(helper_path));
 
-    std::ifstream in(helper_path);
-    ASSERT_TRUE(in.is_open());
-    const std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-
-    EXPECT_EQ(content.find("ConfigureNode"), std::string::npos);
-    EXPECT_EQ(content.find("ConfigureTransferNode"), std::string::npos);
-    EXPECT_EQ(content.find("JsonView("), std::string::npos);
-    EXPECT_EQ(content.find("->Configure("), std::string::npos);
-    EXPECT_EQ(content.find(".Configure("), std::string::npos);
+    const std::string content = ReadWholeFile(helper_path);
+    for (const auto* token : kForbiddenBypassTokens) {
+        EXPECT_EQ(content.find(token), std::string::npos);
+    }
 }
