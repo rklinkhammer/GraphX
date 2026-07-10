@@ -34,7 +34,7 @@ struct TopologyCase {
     bool may_need_cuda;
 };
 
-constexpr std::array<TopologyCase, 30> kTopologyMatrix = {{
+constexpr std::array<TopologyCase, 33> kTopologyMatrix = {{
     {"accelgraph_phase3a_transfer_cpu_topology.json", 4u, 3u, false, false},
     {"accelgraph_phase3a_transfer_metal_topology.json", 4u, 3u, true, false},
     {"accelgraph_phase5_transfer_cuda_topology.json", 4u, 3u, false, true},
@@ -65,6 +65,9 @@ constexpr std::array<TopologyCase, 30> kTopologyMatrix = {{
     {"accelgraph_fhss_branch_metric_metal_allow_fallback_topology.json", 6u, 5u, true, false},
     {"accelgraph_fhss_branch_metric_cuda_topology.json", 6u, 5u, false, true},
     {"accelgraph_fhss_branch_metric_cuda_allow_fallback_topology.json", 6u, 5u, false, true},
+    {"accelgraph_fhss_e2e_hybrid_cpu_topology.json", 10u, 9u, false, false},
+    {"accelgraph_fhss_e2e_hybrid_metal_topology.json", 10u, 9u, true, false},
+    {"accelgraph_fhss_e2e_hybrid_metal_allow_fallback_topology.json", 10u, 9u, true, false},
 }};
 
 bool IsExpectedFhssDownconverterDiagnostic(const std::string& message) {
@@ -479,6 +482,12 @@ TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParse
                legacy_without_node_config.end();
     };
 
+    const std::set<std::string> allow_missing_node_config_types = {
+        "CPSMViterbiDecoderNode",
+        "FHSSPulseWordDecoderNode",
+        "FHSSMessageSinkNode",
+    };
+
     for (const auto& file : files) {
         SCOPED_TRACE(file.string());
         const auto file_name = file.filename().string();
@@ -496,7 +505,11 @@ TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParse
             ASSERT_TRUE(node.contains("type"));
             ASSERT_TRUE(node.contains("name"));
             if (!is_legacy_without_node_config(file_name)) {
-                ASSERT_TRUE(node.contains("node_config"));
+                ASSERT_TRUE(node["type"].is_string());
+                const auto type = node["type"].get<std::string>();
+                if (allow_missing_node_config_types.find(type) == allow_missing_node_config_types.end()) {
+                    ASSERT_TRUE(node.contains("node_config"));
+                }
             }
         }
     }
@@ -517,6 +530,7 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyNodesHaveTruthfulConnectivity
         "AccelFhssPerChannelPulseDetectorSinkNode",
         "AccelFhssDownconverterSinkNode",
         "AccelFhssBranchMetricSinkNode",
+        "FHSSMessageSinkNode",
         "HostEgressNode",
         "ReleaseLeaseNode",
     };

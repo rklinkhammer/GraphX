@@ -52,6 +52,7 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         AccelGraphFhssAccelContractTest
         AccelGraphFhssBranchMetricTest
         AccelGraphFhssChannelizerTest
+        AccelGraphFhssE2EHybridTest
         AccelGraphFhssDetectorTest
         AccelGraphFhssDownconverterTest
         AccelGraphPhase2TopologyContractTest
