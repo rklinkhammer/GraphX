@@ -11,27 +11,56 @@
     {
       "id": "ingress",
       "type": "HostIngressNode",
-      "name": "ingress"
+      "name": "ingress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu",
+        "payload_size": 256,
+        "payload_multiplier": 13,
+        "payload_offset": 5,
+        "debug_label": "phase3a.cpu.ingress"
+      }
     },
     {
       "id": "h2d",
       "type": "HostToDeviceNode",
-      "name": "h2d"
+      "name": "h2d",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
     },
     {
       "id": "d2h",
       "type": "DeviceToHostNode",
-      "name": "d2h"
+      "name": "d2h",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
     },
     {
       "id": "egress",
       "type": "HostEgressNode",
-      "name": "egress"
+      "name": "egress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
     },
     {
       "id": "release",
       "type": "ReleaseLeaseNode",
-      "name": "release"
+      "name": "release",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
     }
   ],
   "edges": [

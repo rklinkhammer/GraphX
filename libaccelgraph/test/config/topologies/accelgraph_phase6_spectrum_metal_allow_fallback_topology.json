@@ -1,6 +1,6 @@
 {
-  "name": "AccelGraphPhase6SpectrumCpuTopology",
-  "description": "GraphExecutor CPU spectrum topology with plugin-loaded generic accelgraph spectrum nodes.",
+  "name": "AccelGraphPhase6SpectrumMetalAllowFallbackTopology",
+  "description": "GraphExecutor metal-selected spectrum topology that allows fallback to cpu when Metal is unavailable.",
   "num_threads": 4,
   "nodes": [
     {
@@ -21,9 +21,9 @@
       "type": "SpectrumAnalysisNode",
       "name": "analysis",
       "node_config": {
-        "backend": "cpu",
-        "strict_fallback": true,
-        "fallback_policy": "strict"
+        "backend": "metal",
+        "strict_fallback": false,
+        "fallback_policy": "allow"
       }
     },
     {

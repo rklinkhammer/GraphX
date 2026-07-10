@@ -1,29 +1,30 @@
 {
-  "name": "AccelGraphPhase6SpectrumCpuTopology",
-  "description": "GraphExecutor CPU spectrum topology with plugin-loaded generic accelgraph spectrum nodes.",
+  "name": "AccelGraphPhase6BSpectrumCudaAllowFallbackTopology",
+  "description": "GraphExecutor CUDA spectrum correctness topology that allows fallback to cpu when CUDA is unavailable.",
   "num_threads": 4,
   "nodes": [
     {
-      "id": "source",
+      "id": "sine",
       "type": "SineWaveSourceNode",
-      "name": "source",
+      "name": "sine",
       "node_config": {
         "sample_count": 256,
         "sample_rate_hz": 48000.0,
-        "tone_frequency_hz": 1500.0,
+        "tone_frequency_hz": 1000.0,
         "amplitude": 1.0,
         "phase_radians": 0.0,
-        "packet_number": 42
+        "packet_number": 1
       }
     },
     {
-      "id": "analysis",
+      "id": "spectrum",
       "type": "SpectrumAnalysisNode",
-      "name": "analysis",
+      "name": "spectrum",
       "node_config": {
-        "backend": "cpu",
-        "strict_fallback": true,
-        "fallback_policy": "strict"
+        "backend": "cuda",
+        "strict_fallback": false,
+        "fallback_policy": "allow",
+        "cuda_device_ordinal": 0
       }
     },
     {
@@ -35,13 +36,13 @@
   ],
   "edges": [
     {
-      "source_node_id": "source",
+      "source_node_id": "sine",
       "source_port": 0,
-      "target_node_id": "analysis",
+      "target_node_id": "spectrum",
       "target_port": 0
     },
     {
-      "source_node_id": "analysis",
+      "source_node_id": "spectrum",
       "source_port": 0,
       "target_node_id": "sink",
       "target_port": 0

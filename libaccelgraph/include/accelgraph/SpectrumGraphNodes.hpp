@@ -59,7 +59,7 @@ class SpectrumAnalysisNode
           SpectrumAnalysisNode>,
       public graph::IConfigurable {
 public:
-    static constexpr std::array<graph::JsonField, 2> Fields() {
+    static constexpr std::array<graph::JsonField, 4> Fields() {
         return {
             graph::JsonField{.name = "backend", .type = graph::JsonType::String, .required = true,
                              .min = std::nullopt, .max = std::nullopt, .default_value = "cpu",
@@ -67,6 +67,12 @@ public:
             graph::JsonField{.name = "strict_fallback", .type = graph::JsonType::Boolean, .required = false,
                              .min = std::nullopt, .max = std::nullopt, .default_value = "true",
                              .enum_values = std::nullopt, .description = "When true, reject fallback from requested backend to cpu"},
+            graph::JsonField{.name = "fallback_policy", .type = graph::JsonType::String, .required = false,
+                             .min = std::nullopt, .max = std::nullopt, .default_value = "strict",
+                             .enum_values = std::nullopt, .description = "Fallback policy (strict or allow)"},
+            graph::JsonField{.name = "cuda_device_ordinal", .type = graph::JsonType::Integer, .required = false,
+                             .min = 0.0, .max = std::nullopt, .default_value = "0",
+                             .enum_values = std::nullopt, .description = "CUDA device ordinal for cuda backend selection"},
         };
     }
 

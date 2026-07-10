@@ -205,6 +205,41 @@ inline PortMetadataC ToPortMetadataC(const PortMetadata& info) {
         info.direction);
 }
 
+inline JsonType JsonTypeFromSchemaTypeName(std::string_view type_name);
+
+inline const char* JsonTypeToSchemaTypeName(JsonType type) {
+    switch (type) {
+        case JsonType::String:
+            return "string";
+        case JsonType::Number:
+            return "number";
+        case JsonType::Integer:
+            return "integer";
+        case JsonType::Boolean:
+            return "boolean";
+        case JsonType::Array:
+            return "array";
+        case JsonType::Object:
+        default:
+            return "object";
+    }
+}
+
+inline ConfigFieldMetadata ToConfigFieldMetadata(const ConfigFieldMetadataC& info) {
+    return ConfigFieldMetadata{
+        .name = info.name,
+        .type = JsonTypeFromSchemaTypeName(info.type),
+        .required = info.required,
+    };
+}
+
+inline ConfigFieldMetadataC ToConfigFieldMetadataC(const ConfigFieldMetadata& info) {
+    return MakeConfigFieldMetadataC(
+        info.name,
+        JsonTypeToSchemaTypeName(info.type),
+        info.required);
+}
+
 inline JsonType JsonTypeFromJsonValue(const nlohmann::json& value) {
     if (value.is_string()) {
         return JsonType::String;

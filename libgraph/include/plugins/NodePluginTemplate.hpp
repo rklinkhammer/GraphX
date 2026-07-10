@@ -621,6 +621,44 @@ static inline void FreePortMetadataImpl(PortMetadataC* metadata)
     }
 }
 
+template <typename NodeType>
+ConfigFieldMetadataC* GetConfigFieldMetadataImpl(NodePluginInstance<NodeType>* inst, size_t* out_count)
+{
+    if (!inst || !out_count) {
+        if (out_count) *out_count = 0;
+        return nullptr;
+    }
+
+    try {
+        auto descriptor = BuildDescriptorFromPluginInstance(inst);
+        *out_count = descriptor.config_fields.size();
+        if (descriptor.config_fields.empty()) {
+            return nullptr;
+        }
+
+        auto* result = new ConfigFieldMetadataC[descriptor.config_fields.size()];
+        for (size_t i = 0; i < descriptor.config_fields.size(); ++i) {
+            result[i] = ToConfigFieldMetadataC(descriptor.config_fields[i]);
+        }
+        return result;
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(_metadata_logger,
+                      "Exception in GetConfigFieldMetadataImpl: " << e.what());
+        *out_count = 0;
+        return nullptr;
+    } catch (...) {
+        LOG4CXX_ERROR(_metadata_logger,
+                      "Unknown exception in GetConfigFieldMetadataImpl");
+        *out_count = 0;
+        return nullptr;
+    }
+}
+
+static inline void FreeConfigFieldMetadataImpl(ConfigFieldMetadataC* metadata)
+{
+    delete[] metadata;
+}
+
 // ============================================================================
 // PluginPolicy - Customizable behavior for plugin node types
 // ============================================================================
@@ -774,6 +812,14 @@ struct PluginPolicy {
          * @return Method-specific result, status, or produced value when the signature provides one.
          */
         FreePortMetadataImpl(metadata);
+    }
+
+    static ConfigFieldMetadataC* GetConfigFieldMetadata(NodePluginInstance<NodeT>* inst, size_t* out_count) {
+        return GetConfigFieldMetadataImpl<NodeT>(inst, out_count);
+    }
+
+    static void FreeConfigFieldMetadata(ConfigFieldMetadataC* metadata) {
+        FreeConfigFieldMetadataImpl(metadata);
     }
 
     /**
@@ -1486,6 +1532,14 @@ struct PluginGlue {
         return Policy::FreePortMetadata(metadata);
     }
 
+    static ConfigFieldMetadataC* GetConfigFieldMetadata(void* h, size_t* out_count) {
+        return Policy::GetConfigFieldMetadata(static_cast<Instance*>(h), out_count);
+    }
+
+    static void FreeConfigFieldMetadata(ConfigFieldMetadataC* metadata) {
+        return Policy::FreeConfigFieldMetadata(metadata);
+    }
+
     /**
      * @brief Creates or builds the object described by Create Input Runtime Port.
      *
@@ -1647,6 +1701,8 @@ struct PluginGlue {
         facade.GetInputPortMetadata = GetInputPortMetadata;
         facade.GetOutputPortMetadata = GetOutputPortMetadata;
         facade.FreePortMetadata = FreePortMetadata;
+        facade.GetConfigFieldMetadata = GetConfigFieldMetadata;
+        facade.FreeConfigFieldMetadata = FreeConfigFieldMetadata;
         facade.CreateInputRuntimePort = CreateInputRuntimePort;
         facade.CreateOutputRuntimePort = CreateOutputRuntimePort;
         facade.DestroyRuntimePort = DestroyRuntimePort;

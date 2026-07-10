@@ -620,6 +620,8 @@ public:
  */
     std::vector<PortMetadataC> GetInputPortMetadata() const;
 
+    std::vector<ConfigFieldMetadataC> GetConfigFieldMetadata() const;
+
     /**
      * Get detailed metadata for all output ports (Option C: Stable Memory)
      *

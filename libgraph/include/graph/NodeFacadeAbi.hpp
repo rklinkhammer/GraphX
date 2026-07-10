@@ -44,6 +44,12 @@ struct PortMetadataC {
     char direction[16];
 };
 
+struct ConfigFieldMetadataC {
+    char name[256];
+    char type[16];
+    bool required;
+};
+
 inline PortMetadataC MakePortMetadataC(
     std::size_t index,
     std::string_view port_name,
@@ -83,6 +89,25 @@ inline PortMetadataC MakePortMetadataC(
      * @return Method-specific result, status, or produced value when the signature provides one.
      */
     copy_field(metadata.direction, sizeof(metadata.direction), direction);
+    return metadata;
+}
+
+inline ConfigFieldMetadataC MakeConfigFieldMetadataC(
+    std::string_view name,
+    std::string_view type,
+    bool required)
+{
+    ConfigFieldMetadataC metadata{};
+
+    const auto copy_field = [](char* destination, std::size_t destination_size, std::string_view value) {
+        const std::size_t count = value.size() < destination_size - 1 ? value.size() : destination_size - 1;
+        std::memcpy(destination, value.data(), count);
+        destination[count] = '\0';
+    };
+
+    copy_field(metadata.name, sizeof(metadata.name), name);
+    copy_field(metadata.type, sizeof(metadata.type), type);
+    metadata.required = required;
     return metadata;
 }
 
@@ -169,6 +194,8 @@ struct NodeFacade {
     PortMetadataC* (*GetInputPortMetadata)(NodeHandle handle, size_t* out_count);
     PortMetadataC* (*GetOutputPortMetadata)(NodeHandle handle, size_t* out_count);
     void (*FreePortMetadata)(PortMetadataC* metadata);
+    ConfigFieldMetadataC* (*GetConfigFieldMetadata)(NodeHandle handle, size_t* out_count);
+    void (*FreeConfigFieldMetadata)(ConfigFieldMetadataC* metadata);
 
     void* (*CreateInputRuntimePort)(NodeHandle handle, size_t port);
     void* (*CreateOutputRuntimePort)(NodeHandle handle, size_t port);

@@ -11,27 +11,56 @@
     {
       "id": "ingress",
       "type": "HostIngressNode",
-      "name": "ingress"
+      "name": "ingress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cuda.default",
+        "backend": "cuda",
+        "payload_size": 512,
+        "payload_multiplier": 17,
+        "payload_offset": 3,
+        "debug_label": "phase5.cuda.ingress"
+      }
     },
     {
       "id": "h2d",
       "type": "HostToDeviceNode",
-      "name": "h2d"
+      "name": "h2d",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cuda.default",
+        "backend": "cuda"
+      }
     },
     {
       "id": "d2h",
       "type": "DeviceToHostNode",
-      "name": "d2h"
+      "name": "d2h",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cuda.default",
+        "backend": "cuda"
+      }
     },
     {
       "id": "egress",
       "type": "HostEgressNode",
-      "name": "egress"
+      "name": "egress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cuda.default",
+        "backend": "cuda"
+      }
     },
     {
       "id": "release",
       "type": "ReleaseLeaseNode",
-      "name": "release"
+      "name": "release",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cuda.default",
+        "backend": "cuda"
+      }
     }
   ],
   "edges": [

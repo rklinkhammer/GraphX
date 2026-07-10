@@ -6,17 +6,32 @@
     {
       "id": "sine",
       "type": "SineWaveSourceNode",
-      "name": "sine"
+      "name": "sine",
+      "node_config": {
+        "sample_count": 256,
+        "sample_rate_hz": 48000.0,
+        "tone_frequency_hz": 1000.0,
+        "amplitude": 1.0,
+        "phase_radians": 0.0,
+        "packet_number": 1
+      }
     },
     {
       "id": "spectrum",
       "type": "SpectrumAnalysisNode",
-      "name": "spectrum"
+      "name": "spectrum",
+      "node_config": {
+        "backend": "cuda",
+        "strict_fallback": true,
+        "fallback_policy": "strict",
+        "cuda_device_ordinal": 0
+      }
     },
     {
       "id": "sink",
       "type": "SpectrumSinkNode",
-      "name": "sink"
+      "name": "sink",
+      "node_config": {}
     }
   ],
   "edges": [
