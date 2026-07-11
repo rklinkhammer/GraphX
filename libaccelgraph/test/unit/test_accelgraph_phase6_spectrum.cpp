@@ -41,7 +41,7 @@ std::filesystem::path SpectrumMetalAllowFallbackTopologyConfigPath() {
 
 }  // namespace
 
-TEST(AccelGraphSpectrumTopologyTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAndPlugins) {
+TEST(AccelGraphSpectrumBackendMatrixTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAndPlugins) {
     const auto config_path = SpectrumCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -80,7 +80,7 @@ TEST(AccelGraphSpectrumTopologyTest, CpuSpectrumCorrectnessRunsViaGraphExecutorA
     EXPECT_NEAR(output->magnitudes[kExpectedPeakBin + 1], 0.0F, kMagnitudeTolerance);
 }
 
-TEST(AccelGraphSpectrumTopologyTest, MetalSpectrumCorrectnessRunsViaGraphExecutorOrSkipsWithExactDiagnostic) {
+TEST(AccelGraphSpectrumBackendMatrixTest, MetalSpectrumCorrectnessRunsViaGraphExecutorOrSkipsWithExactDiagnostic) {
     const auto config_path = SpectrumMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -120,7 +120,7 @@ TEST(AccelGraphSpectrumTopologyTest, MetalSpectrumCorrectnessRunsViaGraphExecuto
     EXPECT_EQ(output->peak_bin, kExpectedPeakBin);
 }
 
-TEST(AccelGraphSpectrumTopologyTest, CpuMetalParityChecksPeakAndSelectedBinsWithinTolerance) {
+TEST(AccelGraphSpectrumBackendMatrixTest, CpuMetalParityChecksPeakAndSelectedBinsWithinTolerance) {
     const auto cpu_config_path = SpectrumCpuTopologyConfigPath();
     const auto metal_config_path = SpectrumMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(cpu_config_path));
@@ -174,7 +174,7 @@ TEST(AccelGraphSpectrumTopologyTest, CpuMetalParityChecksPeakAndSelectedBinsWith
 
     ASSERT_GT(cpu->magnitudes.size(), kExpectedPeakBin + 1);
     ASSERT_GT(metal->magnitudes.size(), kExpectedPeakBin + 1);
-    // Phase 6 parity tolerance for representative bins around the expected tone.
+    // Representative bins around the expected tone use the same tolerance.
     EXPECT_NEAR(cpu->magnitudes[kExpectedPeakBin - 1],
                 metal->magnitudes[kExpectedPeakBin - 1],
                 kMagnitudeTolerance);
@@ -186,7 +186,7 @@ TEST(AccelGraphSpectrumTopologyTest, CpuMetalParityChecksPeakAndSelectedBinsWith
                 kMagnitudeTolerance);
 }
 
-TEST(AccelGraphSpectrumTopologyTest, StrictFallbackPolicyIsEnforcedForMetalSelection) {
+TEST(AccelGraphSpectrumBackendMatrixTest, StrictFallbackPolicyIsEnforcedForMetalSelection) {
     const auto strict_config_path = SpectrumMetalTopologyConfigPath();
     const auto allow_config_path = SpectrumMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(strict_config_path));
@@ -244,7 +244,7 @@ TEST(AccelGraphSpectrumTopologyTest, StrictFallbackPolicyIsEnforcedForMetalSelec
     }
 }
 
-TEST(AccelGraphSpectrumTopologyTest, GraphPluginSurfaceDoesNotExposeMetalSpecificSpectrumNodeType) {
+TEST(AccelGraphSpectrumBackendMatrixTest, GraphPluginSurfaceDoesNotExposeMetalSpecificSpectrumNodeType) {
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(accelgraph::test::PluginDirectoryPath().string());

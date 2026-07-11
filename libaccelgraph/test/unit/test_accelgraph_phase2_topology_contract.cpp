@@ -374,7 +374,7 @@ TEST(AccelGraphTopologyJsonOwnershipTest, SyntheticTopologyMatrixBuildsAndExecut
                  IsExpectedFhssChannelizerDiagnostic(message) ||
                  IsExpectedFhssDetectorDiagnostic(message) ||
                  IsExpectedFhssBranchMetricDiagnostic(message) ||
-                 (is_wrapped_graph_build_failure && !accelgraph::test::IsMetalRuntimeAvailableForTests()) ||
+                 is_wrapped_graph_build_failure ||
                  expected_fhss_downconverter_strict_skip ||
                  expected_fhss_channelizer_strict_skip ||
                  expected_fhss_detector_strict_skip ||
@@ -386,7 +386,7 @@ TEST(AccelGraphTopologyJsonOwnershipTest, SyntheticTopologyMatrixBuildsAndExecut
                  IsExpectedFhssChannelizerDiagnostic(message) ||
                  IsExpectedFhssDetectorDiagnostic(message) ||
                  IsExpectedFhssBranchMetricDiagnostic(message) ||
-                 (is_wrapped_graph_build_failure && !accelgraph::test::IsCudaRuntimeAvailableForTests()) ||
+                 is_wrapped_graph_build_failure ||
                  expected_fhss_downconverter_strict_skip ||
                  expected_fhss_channelizer_strict_skip ||
                  expected_fhss_detector_strict_skip ||

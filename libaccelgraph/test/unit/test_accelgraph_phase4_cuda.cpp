@@ -23,7 +23,7 @@ TEST(CudaGraphExecutorContractTest, ProviderInfoUsesCudaIdentityWithoutNativeDev
     }
 }
 
-TEST(CudaGraphExecutorContractTest, CreateSessionReportsStructuredPhase4ShellDiagnostic) {
+TEST(CudaGraphExecutorContractTest, CreateSessionReportsStructuredUnavailableDiagnostic) {
     accelgraph::CudaAcceleratorProvider provider;
     auto result = provider.CreateSession(accelgraph::AcceleratorSessionCreateRequest{});
 

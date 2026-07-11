@@ -66,7 +66,7 @@ RunSpectrumGraph(const std::filesystem::path& config_path) {
 
 }  // namespace
 
-TEST(AccelGraphCudaSpectrumBackendMatrixTest, CpuCudaParityAndStrictNativeExecutionViaGraphExecutor) {
+TEST(AccelGraphSpectrumBackendMatrixTest, CpuCudaParityAndStrictNativeExecutionViaGraphExecutor) {
     ASSERT_TRUE(std::filesystem::exists(CpuSpectrumTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -128,7 +128,7 @@ TEST(AccelGraphCudaSpectrumBackendMatrixTest, CpuCudaParityAndStrictNativeExecut
     }
 }
 
-TEST(AccelGraphCudaSpectrumBackendMatrixTest, StrictFallbackPolicyIsEnforced) {
+TEST(AccelGraphSpectrumBackendMatrixTest, StrictFallbackPolicyIsEnforcedForCudaSelection) {
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(CudaSpectrumAllowFallbackTopologyConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));

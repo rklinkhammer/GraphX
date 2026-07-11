@@ -66,15 +66,10 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         AccelGraphFhssDownconverterTopologyTest
         AccelGraphScaffoldTest
         AccelGraphTopologyJsonOwnershipTest
-        AccelGraphTransferTopologyTest
-        AccelGraphCudaTransferTopologyTest
+        AccelGraphTransferBackendMatrixTest
         CudaGraphExecutorContractTest
-        AccelGraphSpectrumTopologyTest
+        AccelGraphSpectrumBackendMatrixTest
     )
-    if(ACCELGRAPH_ENABLE_CUDA)
-        list(APPEND ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
-            AccelGraphCudaSpectrumBackendMatrixTest)
-    endif()
 
     add_test(NAME libaccelgraph_smoke_discovery
         COMMAND ${CMAKE_COMMAND}

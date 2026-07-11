@@ -251,7 +251,9 @@ nlohmann::json BuildReportSummary(bool output_present,
 std::string ClassifyOutcome(const nlohmann::json& row) {
     const std::string status = row.value("status", "unknown");
     const std::string requested_backend = row.value("requested_backend", "");
-    const std::string diagnostic = row.value("diagnostic", "");
+    const std::string diagnostic = row.contains("diagnostic") && row["diagnostic"].is_string()
+                                       ? row["diagnostic"].get<std::string>()
+                                       : std::string{};
 
     if (status == "skipped") {
         if (diagnostic.find("missing topology") != std::string::npos ||

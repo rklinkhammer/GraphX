@@ -20,7 +20,7 @@ std::filesystem::path CudaTransferTopologyConfigPath() {
 
 }  // namespace
 
-TEST(AccelGraphCudaTransferTopologyTest, CudaTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
+TEST(AccelGraphTransferBackendMatrixTest, CudaTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
 #if !ACCELGRAPH_ENABLE_CUDA
     GTEST_SKIP() << accelgraph::kCudaSupportNotCompiledDiagnostic;
 #endif
