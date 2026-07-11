@@ -104,7 +104,7 @@ dsp::fhss::FHSSChannelizedIqToken MakeChannelizedInputToken() {
 
 }  // namespace
 
-TEST(AccelGraphFhssDetectorTest, CpuReferenceParityMatchesDspPerChannelDetector) {
+TEST(AccelGraphFhssDetectorTopologyTest, CpuReferenceParityMatchesDspPerChannelDetector) {
     const auto input = MakeChannelizedInputToken();
 
     AccelFhssPerChannelPulseDetectorNode accel_node;
@@ -162,7 +162,7 @@ TEST(AccelGraphFhssDetectorTest, CpuReferenceParityMatchesDspPerChannelDetector)
     EXPECT_TRUE(accel_node.FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssDetectorTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
+TEST(AccelGraphFhssDetectorTopologyTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
     const auto config_path = FhssDetectorCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -191,7 +191,7 @@ TEST(AccelGraphFhssDetectorTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) 
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDetectorTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssDetectorTopologyTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssDetectorMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -223,7 +223,7 @@ TEST(AccelGraphFhssDetectorTest, MetalStrictExecutionOrSkipWithExactDiagnostic) 
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDetectorTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssDetectorTopologyTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssDetectorMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -249,7 +249,7 @@ TEST(AccelGraphFhssDetectorTest, MetalAllowFallbackUsesCpuWhenNativePathUnavaila
     EXPECT_FALSE(node->FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssDetectorTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssDetectorTopologyTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssDetectorCudaTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -281,7 +281,7 @@ TEST(AccelGraphFhssDetectorTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDetectorTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssDetectorTopologyTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssDetectorCudaAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -311,7 +311,7 @@ TEST(AccelGraphFhssDetectorTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailab
     }
 }
 
-TEST(AccelGraphFhssDetectorTest, DescriptorFieldsDeclareFullConfigSurface) {
+TEST(AccelGraphFhssDetectorTopologyTest, DescriptorFieldsDeclareFullConfigSurface) {
     const auto fields = AccelFhssPerChannelPulseDetectorNode::Fields();
     auto has_field = [&](std::string_view name) {
         for (const auto& field : fields) {

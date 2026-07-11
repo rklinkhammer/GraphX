@@ -38,7 +38,15 @@ Phase-specific or phase-labeled suites found in the workspace.
 | [libaccelgraph/test/unit/test_accelgraph_fhss_e2e_hybrid.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_e2e_hybrid.cpp) | `AccelGraphFhssE2EHybridTest`; `libaccelgraph_smoke`, `libaccelgraph_smoke_discovery`, and `libaccelgraph_fhss_phase6_hybrid` | `libaccelgraph` | End-to-end FHSS hybrid pipeline with CPU decode tail and backend fallback honesty | KEEP_AS_CONTRACT | `AccelGraphFhssHybridPipelineTest` | Some overlap with per-stage FHSS tests, but it protects a distinct full-pipeline contract | Metal and CUDA rows are host-specific | Moderate | Yes, but not as a phase suite |
 | [libaccelgraph/test/unit/test_accelgraph_fhss_phase7_evidence.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_phase7_evidence.cpp) | `AccelGraphFhssPhase7EvidenceTest`; `libaccelgraph_smoke`, `libaccelgraph_smoke_discovery` | `libaccelgraph` | Evidence JSON generation, stage diagnostics, fallback honesty, discovered topology list | MOVE_TO_BENCHMARK_OR_MANUAL_VERIFICATION | `AccelGraphFhssEvidenceTest` in a benchmark/evidence lane | Yes, evidence already overlaps stage tests and is intentionally slower | Backend rows may be hardware-specific | Yes | No |
 | [libaccelgraph/test/bench/accelgraph_phase7_benchmark.cpp](libaccelgraph/test/bench/accelgraph_phase7_benchmark.cpp) | `accelgraph_phase7_benchmark_smoke`; `accelgraph_phase7_benchmark` | `libaccelgraph` | Benchmark metrics, imported-result validation, benchmark artifact generation | MOVE_TO_BENCHMARK_OR_MANUAL_VERIFICATION | `AccelGraphSpectrumBenchmarkTest` or `AccelGraphBenchmarkEvidenceTest` | Yes, benchmark and evidence overlap with phase-specific smoke tests | Hardware-specific rows in configs | Yes | No |
-| [examples/DSP/test/test_dsp_fhss_dashboard_step1.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step1.cpp) through [examples/DSP/test/test_dsp_fhss_dashboard_step8.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step8.cpp) | `DashboardServerStep*Test`, `GraphConfigurationServiceStep2Test`, `DashboardStep5SourceTest`; `dsp_example_unit` | `examples/DSP` | FHSS dashboard server startup, schemas, patch/rebuild lifecycle, stepping, event replay, visualization snapshots, decoder diagnostics, and artifact export | RENAME_TO_BEHAVIOR_TEST; MERGE_INTO_FINAL_SUITE | Split or rename into `FhssDashboardServerContractTest`, `FhssDashboardConfigurationTest`, `FhssDashboardRuntimeControlTest`, `FhssDashboardEventReplayTest`, `FhssDashboardVisualizationTest`, and `FhssDashboardArtifactExportTest` | Partial; step labels encode implementation order rather than final feature areas | No | No to moderate | Yes, as `dsp_example_unit`, but not with step-numbered suite names |
+| [libgraph/test/unit/test_graph_executor_execute_timing.cpp](libgraph/test/unit/test_graph_executor_execute_timing.cpp) | `GraphExecutorExecuteTimingTest`; `libgraph_unit` | `libgraph` | GraphExecutor timing contract, lifecycle phase accounting, deterministic timing fields | RENAME_TO_BEHAVIOR_TEST | `GraphExecutorTimingContractTest` or `GraphExecutorLifecycleTimingTest` | No | No | Yes | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step1.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step1.cpp) | `DashboardServerStep1Test; DashboardServerStep1FailureInjectionTest`; `dsp_example_unit` | `examples/DSP` | Dashboard server bootstrap, health/readiness, asset serving, schema checks, clean shutdown, startup failure modes | RENAME_TO_BEHAVIOR_TEST; MERGE_INTO_FINAL_SUITE | `FhssDashboardServerContractTest`; `FhssDashboardServerFailureTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step2.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step2.cpp) | `DashboardServerStep2Test; GraphConfigurationServiceStep2Test`; `dsp_example_unit` | `examples/DSP` | Patch validation, stale revision handling, export/replay, and failure injection | RENAME_TO_BEHAVIOR_TEST; MERGE_INTO_FINAL_SUITE | `FhssDashboardConfigurationTest`; `FhssDashboardConfigurationServiceTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step2_browser.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step2_browser.cpp) | `DashboardBrowserConcurrencyTest`; `dsp_example_unit` | `examples/DSP` | Browser-session optimistic concurrency for the dashboard config endpoint | RENAME_TO_BEHAVIOR_TEST | `FhssDashboardConfigurationConcurrencyTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step3.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step3.cpp) | `DashboardServerStep3Test`; `dsp_example_unit` | `examples/DSP` | Rebuild acceptance, activation, cleanup, and failure injection | RENAME_TO_BEHAVIOR_TEST; MERGE_INTO_FINAL_SUITE | `FhssDashboardRebuildControlTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step5.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step5.cpp) | `DashboardServerStep5Test; DashboardStep5SourceTest`; `dsp_example_unit` | `examples/DSP` | Step/continue/reset sequencing, source gating, and failure injection | RENAME_TO_BEHAVIOR_TEST; MERGE_INTO_FINAL_SUITE | `FhssDashboardMessageControlTest`; `FhssDashboardMessageSourceTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step6.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step6.cpp) | `DashboardServerStep6Test`; `dsp_example_unit` | `examples/DSP` | Event replay monotonicity, resume semantics, backpressure, reconnect failure injection | RENAME_TO_BEHAVIOR_TEST | `FhssDashboardEventReplayTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step7.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step7.cpp) | `DashboardServerStep7Test`; `dsp_example_unit` | `examples/DSP` | Schedule rendering, heatmap snapshots, and refresh bounds | RENAME_TO_BEHAVIOR_TEST | `FhssDashboardVisualizationTest` | No | No | No to moderate | Yes |
+| [examples/DSP/test/test_dsp_fhss_dashboard_step8.cpp](examples/DSP/test/test_dsp_fhss_dashboard_step8.cpp) | `DashboardServerStep8Test`; `dsp_example_unit` | `examples/DSP` | Decoder diagnostics, artifact export, containment, and write-failure handling | RENAME_TO_BEHAVIOR_TEST | `FhssDashboardArtifactExportTest` | No | No | No to moderate | Yes |
 | [libgraph/test/integration/test_csv_pipeline_3.cpp](libgraph/test/integration/test_csv_pipeline_3.cpp) | file/comment phase label; `libgraph_integration` | `libgraph` | CSV parser/config and full CSV pipeline integration behavior | RENAME_TO_BEHAVIOR_TEST | `CsvPipelineIntegrationTest` or `GraphCsvPipelineIntegrationTest`; remove phase-label wording from comments/file name when convenient | No | No | No to moderate | Integration lane, not default unit |
 
 ### Notes On Non-Phase But Important Final Suites
@@ -48,6 +56,52 @@ The workspace also contains behavior-oriented suites that should remain, but the
 - [libdsp/test/CMakeLists.txt](libdsp/test/CMakeLists.txt) already splits DSP/FHSS ownership cleanly into `libdsp_unit` and `libdsp_unit_discovery`.
 - [libgpu/test/CMakeLists.txt](libgpu/test/CMakeLists.txt) already separates stub, backend, Metal runtime, integration, and perf lanes.
 - [examples/SAR/test/CMakeLists.txt](examples/SAR/test/CMakeLists.txt) already separates CRSD IO, nodes, runtime integration, local-only/manual, discovery, and local validation lanes.
+
+## Phase 1 Freeze Decisions
+
+The classification table above is the accepted freeze map for this phase. No test names, CTest names, or build behavior should change in Phase 1.
+
+### Do Not Rename Yet
+
+- Keep all existing phase and step names intact until Phase 2 rename PRs start.
+- Do not change any CMake or CTest registration in this pass.
+- Do not split or merge any source files in this pass.
+
+### Discovery Updates Required When Renamed
+
+- `libaccelgraph_smoke_discovery` must be updated when the FHSS contract, FHSS topology, or backend-matrix suite names change.
+- `libgraph_unit_discovery` must be updated once `test_graph_1.cpp` is split or renamed into behavior-focused suites.
+- `dsp_example_unit` does not currently have a discovery lane, so the DSP dashboard renames can land without a discovery update, but any future discovery test should use the final behavior names.
+
+### Jetson CUDA Verification Required
+
+- `AccelGraphPhase4CudaTest` / `CudaGraphExecutorContractTest`
+- `AccelGraphPhase5CudaGraphExecutorTest`
+- `AccelGraphPhase6BCudaSpectrumTest`
+- `AccelGraphFhssBranchMetricTest`
+- `AccelGraphFhssChannelizerTest`
+- `AccelGraphFhssDetectorTest`
+- `AccelGraphFhssDownconverterTest`
+- `AccelGraphFhssE2EHybridTest`
+- `AccelGraphFhssPhase7EvidenceTest` and `accelgraph_phase7_benchmark`
+
+### Move Out Of Default Fast Unit Path
+
+- `AccelGraphFhssPhase7EvidenceTest`
+- `accelgraph_phase7_benchmark_smoke`
+- `threadpool_extended`
+- any future FHSS evidence replay or artifact export lane that writes benchmark-grade reports
+
+### Open Questions
+
+- Should `libgraph/test/integration/test_graph_1.cpp` become multiple executables in Phase 2, or stay as one integration target with behavior-based suite names?
+- Should FHSS parity helpers be split into dedicated `*ParityTest` files during the rename PR, or kept inside the topology files with clear subcase naming?
+- Should `AccelGraphPhase4CudaTest` remain a smoke-only provider contract, or be given a separate CUDA discovery expectation once the final name is chosen?
+- There is no live `examples/DSP/test/test_dsp_fhss_dashboard_step4.cpp` file today; if one appears later, it should be classified with the other dashboard behavior suites, not as a new phase milestone.
+
+### No-Phase-Label Notice
+
+The audit did not find an active `graph_rev2` test suite name in live test sources. That term remains documentation-only and should not drive source renames.
 
 ## Proposed Final Suite Structure
 
@@ -168,9 +222,9 @@ The main graph_rev2 lesson is that phase numbers are temporary implementation sc
 - The FHSS dashboard tests are step-numbered in file and suite names, for example `DashboardServerStep1Test` through `DashboardServerStep8Test`, and are built into `dsp_example_unit`.
 - These steps should be renamed into feature contracts rather than preserved as implementation chronology.
 - Recommended grouping:
-  - `FhssDashboardServerContractTest` for startup, health/readiness, static assets, and clean shutdown.
-  - `FhssDashboardConfigurationTest` for graph/config schemas, patch validation, export/replay, and failure injection.
-  - `FhssDashboardRuntimeControlTest` for rebuild, activation, stepping, reset, and scenario cursor behavior.
+  - `FhssDashboardServerContractTest` and `FhssDashboardServerFailureTest` for startup, health/readiness, static assets, clean shutdown, and startup failure modes.
+  - `FhssDashboardConfigurationTest` and `FhssDashboardConfigurationServiceTest` for graph/config schemas, patch validation, export/replay, and failure injection.
+  - `FhssDashboardRebuildControlTest`, `FhssDashboardMessageControlTest`, and `FhssDashboardMessageSourceTest` for rebuild, activation, stepping, reset, source gating, and scenario cursor behavior.
   - `FhssDashboardEventReplayTest` for monotonic event sequences, replay/resume, retention gaps, and backpressure.
   - `FhssDashboardVisualizationTest` for schedule/heatmap snapshots and refresh bounds.
   - `FhssDashboardArtifactExportTest` for decoder diagnostics, artifact bundles, path containment, and write-failure handling.

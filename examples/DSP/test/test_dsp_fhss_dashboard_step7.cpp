@@ -113,7 +113,7 @@ const nlohmann::json *FindSourceNodeConfig(const nlohmann::json &graph_config) {
   return nullptr;
 }
 
-class DashboardServerStep7Test : public ::testing::Test {
+class FhssDashboardVisualizationTest : public ::testing::Test {
 protected:
   void SetUp() override {
     config_ = LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
@@ -155,7 +155,7 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(DashboardServerStep7Test, ScheduleAndHeatmapRenderingAreCorrect) {
+TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   const auto index_response = HttpGet(server_->BoundPort(), "/");
   ASSERT_EQ(index_response.status_code, 200);
   EXPECT_NE(index_response.body.find("FHSS Schedule"), std::string::npos);
@@ -208,7 +208,7 @@ TEST_F(DashboardServerStep7Test, ScheduleAndHeatmapRenderingAreCorrect) {
   }
 }
 
-TEST_F(DashboardServerStep7Test, SnapshotSizeAndRefreshRateAreBounded) {
+TEST_F(FhssDashboardVisualizationTest, SnapshotSizeAndRefreshRateAreBounded) {
   const auto aggressive = VisualizationRequest(
       "?message_offset=0&message_limit=100000&pulse_offset=0&pulse_limit=100000&refresh_ms=1");
 

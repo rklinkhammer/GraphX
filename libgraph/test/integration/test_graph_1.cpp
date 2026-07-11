@@ -86,10 +86,10 @@ void build_graph() {
 // ============================================================================
 
 /**
- * @class TestGraph1
+ * @class GraphExecutorBehaviorTest
  * @brief Test graph 1 implementation for GraphX.
  */
-class TestGraph1 : public ::testing::Test {
+class GraphExecutorBehaviorTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Test setup if needed
@@ -103,7 +103,7 @@ protected:
 /**
  * TEST 1: Graph can be built with FluentGraphBuilder
  */
-TEST_F(TestGraph1, FluentBuilder_GraphConstruction) {
+TEST_F(GraphExecutorBehaviorTest, FluentBuilder_GraphConstruction) {
     FluentGraphBuilder<> builder;
     
     // Add nodes
@@ -119,7 +119,7 @@ TEST_F(TestGraph1, FluentBuilder_GraphConstruction) {
 /**
  * TEST 2: Graph topology defines correct connections
  */
-TEST_F(TestGraph1, GraphTopology_ProducerToSinks) {
+TEST_F(GraphExecutorBehaviorTest, GraphTopology_ProducerToSinks) {
     auto producer = std::make_shared<TestIntProducer>();
     
     // Verify producer has the expected output ports
@@ -130,7 +130,7 @@ TEST_F(TestGraph1, GraphTopology_ProducerToSinks) {
 /**
  * TEST 3: Sink nodes accept correct input types
  */
-TEST_F(TestGraph1, SinkNodes_InputTypes) {
+TEST_F(GraphExecutorBehaviorTest, SinkNodes_InputTypes) {
     auto int_sink = std::make_shared<TestIntSinkNode>();
     auto completion_sink = std::make_shared<CompletionNode>();
     
@@ -170,7 +170,7 @@ CreateTestGraph1Nodes() {
  * Validates state machine transitions:
  * INITIALIZED → RUNNING → STOPPED
  */
-TEST_F(TestGraph1, Phase1_ExecutorLifecycle_Complete) {
+TEST_F(GraphExecutorBehaviorTest, ExecutorLifecycle_Complete) {
     // NOTE: This test validates the executor state transitions.
     // GraphExecutor requires a GraphManager, which should be pre-configured
     // with Test Graph 1 topology via GraphExecutorBuilder or manual creation.
@@ -217,7 +217,7 @@ TEST_F(TestGraph1, Phase1_ExecutorLifecycle_Complete) {
  * - No data loss
  * - No duplication
  */
-TEST_F(TestGraph1, Phase1_DataFlow_AllDataReaches) {
+TEST_F(GraphExecutorBehaviorTest, DataFlow_AllDataReaches) {
     // Create nodes
     auto [producer, sink, completion] = CreateTestGraph1Nodes();
     
@@ -238,7 +238,7 @@ TEST_F(TestGraph1, Phase1_DataFlow_AllDataReaches) {
  * - CompletionNode receives signal
  * - Signal arrives after all data
  */
-TEST_F(TestGraph1, Phase1_Completion_SignalDelivered) {
+TEST_F(GraphExecutorBehaviorTest, Completion_SignalDelivered) {
     // Create nodes
     auto [producer, sink, completion] = CreateTestGraph1Nodes();
     
@@ -255,7 +255,7 @@ TEST_F(TestGraph1, Phase1_Completion_SignalDelivered) {
  * - Completion signal arrives after
  * - CompletionNode returns false to stop consuming
  */
-TEST_F(TestGraph1, Phase1_Completion_OrderingAndStopping) {
+TEST_F(GraphExecutorBehaviorTest, Completion_OrderingAndStopping) {
     // Create nodes
     auto [producer, sink, completion] = CreateTestGraph1Nodes();
     
@@ -272,7 +272,7 @@ TEST_F(TestGraph1, Phase1_Completion_OrderingAndStopping) {
  * - Skip first value (0)
  * - Receive [1, 2, 3, 4]
  */
-TEST_F(TestGraph1, Phase1_DataFlow_CorrectValues) {
+TEST_F(GraphExecutorBehaviorTest, DataFlow_CorrectValues) {
     auto [producer, sink, completion] = CreateTestGraph1Nodes();
     
     // Verify sink can track values
@@ -288,7 +288,7 @@ TEST_F(TestGraph1, Phase1_DataFlow_CorrectValues) {
  * - No sequential gaps
  * - No missing messages
  */
-TEST_F(TestGraph1, Phase1_DataFlow_NoDataLoss) {
+TEST_F(GraphExecutorBehaviorTest, DataFlow_NoDataLoss) {
     auto [producer, sink, completion] = CreateTestGraph1Nodes();
     
     // Verify loss detection works
@@ -494,7 +494,7 @@ private:
  * - Timestamps are monotonically increasing
  * - FIFO queue semantics preserved
  */
-TEST_F(TestGraph1, Phase2_DataOrder_FIFOPreserved) {
+TEST_F(GraphExecutorBehaviorTest, DataOrder_FIFOPreserved) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNodeWithTimestamps>();
     auto completion = std::make_shared<CompletionNode>();
@@ -520,7 +520,7 @@ TEST_F(TestGraph1, Phase2_DataOrder_FIFOPreserved) {
  * - Queue thread-safety under simultaneous read/write
  * - All data delivered without loss
  */
-TEST_F(TestGraph1, Phase2_Concurrency_ProducerSinkSafe) {
+TEST_F(GraphExecutorBehaviorTest, Concurrency_ProducerSinkSafe) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNodeWithTimestamps>();
     auto completion = std::make_shared<CompletionNode>();
@@ -544,7 +544,7 @@ TEST_F(TestGraph1, Phase2_Concurrency_ProducerSinkSafe) {
  * - Callback invoked exactly once on completion
  * - Correct timing (after all data)
  */
-TEST_F(TestGraph1, Phase2_Completion_CallbackInvoked) {
+TEST_F(GraphExecutorBehaviorTest, Completion_CallbackInvoked) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNode>();
     auto completion = std::make_shared<CompletionNodeWithCallback>();
@@ -571,7 +571,7 @@ TEST_F(TestGraph1, Phase2_Completion_CallbackInvoked) {
  * - Provider mechanism integrates with completion node
  * - Executor can be notified of completion
  */
-TEST_F(TestGraph1, Phase2_ICompletion_CallbackProvider) {
+TEST_F(GraphExecutorBehaviorTest, ICompletion_CallbackProvider) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNode>();
     auto completion = std::make_shared<CompletionNodeWithCallback>();
@@ -607,7 +607,7 @@ TEST_F(TestGraph1, Phase2_ICompletion_CallbackProvider) {
  * - CompletionNode receives signal
  * - Executor transitions to STOPPED
  */
-TEST_F(TestGraph1, Phase3_Termination_NaturalCompletion) {
+TEST_F(GraphExecutorBehaviorTest, Termination_NaturalCompletion) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNode>();
     auto completion = std::make_shared<CompletionNode>();
@@ -633,7 +633,7 @@ TEST_F(TestGraph1, Phase3_Termination_NaturalCompletion) {
  * - No hanging resources
  * - No memory leaks
  */
-TEST_F(TestGraph1, Phase3_Termination_ResourceCleanup) {
+TEST_F(GraphExecutorBehaviorTest, Termination_ResourceCleanup) {
     {
         auto producer = std::make_shared<TestIntProducer>();
         auto sink = std::make_shared<TestIntSinkNode>();
@@ -664,7 +664,7 @@ TEST_F(TestGraph1, Phase3_Termination_ResourceCleanup) {
  * - Error message populated
  * - Clean shutdown possible
  */
-TEST_F(TestGraph1, Phase3_ErrorHandling_ProducerError) {
+TEST_F(GraphExecutorBehaviorTest, ErrorHandling_ProducerError) {
     auto failing_producer = std::make_shared<FailingProducerNode>(
         FailingProducerNode::FailureMode::ThrowException,
         2);  // Fail on 2nd iteration
@@ -696,7 +696,7 @@ TEST_F(TestGraph1, Phase3_ErrorHandling_ProducerError) {
  * - Overall execution completes in expected time (~400µs)
  * - Timing within tolerance (±10%)
  */
-TEST_F(TestGraph1, Phase4_Performance_TimingCompliance) {
+TEST_F(GraphExecutorBehaviorTest, Performance_TimingCompliance) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNodeWithTimestamps>();
     auto completion = std::make_shared<CompletionNode>();
@@ -725,7 +725,7 @@ TEST_F(TestGraph1, Phase4_Performance_TimingCompliance) {
  * - Queue thread-safety under load
  * - No silent data loss
  */
-TEST_F(TestGraph1, Phase4_Load_NoConcurrentDataLoss) {
+TEST_F(GraphExecutorBehaviorTest, Load_NoConcurrentDataLoss) {
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNodeWithTimestamps>();
     auto completion = std::make_shared<CompletionNode>();
@@ -758,7 +758,7 @@ TEST_F(TestGraph1, Phase4_Load_NoConcurrentDataLoss) {
  * - Fluent API methods chain correctly
  * - Built executor is functional
  */
-TEST_F(TestGraph1, Phase5_Builder_FluentAPI) {
+TEST_F(GraphExecutorBehaviorTest, Builder_FluentAPI) {
     // Verify Test Graph 1 nodes can be instantiated
     auto producer = std::make_shared<TestIntProducer>();
     auto sink = std::make_shared<TestIntSinkNode>();
@@ -790,7 +790,7 @@ TEST_F(TestGraph1, Phase5_Builder_FluentAPI) {
  * - Results identical (deterministic execution)
  * - No state leakage
  */
-TEST_F(TestGraph1, Phase5_Advanced_ReExecutionAfterTermination) {
+TEST_F(GraphExecutorBehaviorTest, Advanced_ReExecutionAfterTermination) {
     {
         auto producer = std::make_shared<TestIntProducer>();
         auto sink = std::make_shared<TestIntSinkNode>();

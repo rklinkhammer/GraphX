@@ -41,7 +41,7 @@ std::filesystem::path SpectrumMetalAllowFallbackTopologyConfigPath() {
 
 }  // namespace
 
-TEST(AccelGraphPhase6SpectrumTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAndPlugins) {
+TEST(AccelGraphSpectrumTopologyTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAndPlugins) {
     const auto config_path = SpectrumCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -80,7 +80,7 @@ TEST(AccelGraphPhase6SpectrumTest, CpuSpectrumCorrectnessRunsViaGraphExecutorAnd
     EXPECT_NEAR(output->magnitudes[kExpectedPeakBin + 1], 0.0F, kMagnitudeTolerance);
 }
 
-TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorOrSkipsWithExactDiagnostic) {
+TEST(AccelGraphSpectrumTopologyTest, MetalSpectrumCorrectnessRunsViaGraphExecutorOrSkipsWithExactDiagnostic) {
     const auto config_path = SpectrumMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -120,7 +120,7 @@ TEST(AccelGraphPhase6SpectrumTest, MetalSpectrumCorrectnessRunsViaGraphExecutorO
     EXPECT_EQ(output->peak_bin, kExpectedPeakBin);
 }
 
-TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithinTolerance) {
+TEST(AccelGraphSpectrumTopologyTest, CpuMetalParityChecksPeakAndSelectedBinsWithinTolerance) {
     const auto cpu_config_path = SpectrumCpuTopologyConfigPath();
     const auto metal_config_path = SpectrumMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(cpu_config_path));
@@ -186,7 +186,7 @@ TEST(AccelGraphPhase6SpectrumTest, CpuMetalParityChecksPeakAndSelectedBinsWithin
                 kMagnitudeTolerance);
 }
 
-TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelection) {
+TEST(AccelGraphSpectrumTopologyTest, StrictFallbackPolicyIsEnforcedForMetalSelection) {
     const auto strict_config_path = SpectrumMetalTopologyConfigPath();
     const auto allow_config_path = SpectrumMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(strict_config_path));
@@ -244,7 +244,7 @@ TEST(AccelGraphPhase6SpectrumTest, StrictFallbackPolicyIsEnforcedForMetalSelecti
     }
 }
 
-TEST(AccelGraphPhase6SpectrumTest, GraphPluginSurfaceDoesNotExposeMetalSpecificSpectrumNodeType) {
+TEST(AccelGraphSpectrumTopologyTest, GraphPluginSurfaceDoesNotExposeMetalSpecificSpectrumNodeType) {
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
 
     auto bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(accelgraph::test::PluginDirectoryPath().string());

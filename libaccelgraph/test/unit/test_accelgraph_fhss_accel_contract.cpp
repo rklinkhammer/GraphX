@@ -28,7 +28,7 @@ std::vector<std::string> FieldNames(const std::array<graph::JsonField, 6>& field
 
 }  // namespace
 
-TEST(AccelGraphFhssAccelContractTest, TypeBridgeReusesExistingFhssTokenAliases) {
+TEST(AccelGraphFhssContractTest, TypeBridgeReusesExistingFhssTokenAliases) {
     static_assert(std::is_same_v<accelgraph::fhss::FHSSSyntheticIqToken,
                                  dsp::fhss::FHSSSyntheticIqToken>);
     static_assert(std::is_same_v<accelgraph::fhss::FHSSDownconvertedIqToken,
@@ -48,7 +48,7 @@ TEST(AccelGraphFhssAccelContractTest, TypeBridgeReusesExistingFhssTokenAliases) 
     SUCCEED();
 }
 
-TEST(AccelGraphFhssAccelContractTest, ParseDefaultsUsesCpuStrictAndDefaultIds) {
+TEST(AccelGraphFhssContractTest, ParseDefaultsUsesCpuStrictAndDefaultIds) {
     const nlohmann::json json = nlohmann::json::object();
     const graph::JsonView view{json};
     const auto config = accelgraph::fhss::ParseFHSSAccelConfig(view);
@@ -61,7 +61,7 @@ TEST(AccelGraphFhssAccelContractTest, ParseDefaultsUsesCpuStrictAndDefaultIds) {
     EXPECT_EQ(config.cuda_device_ordinal, 0);
 }
 
-TEST(AccelGraphFhssAccelContractTest, ParseStrictFallbackForMetal) {
+TEST(AccelGraphFhssContractTest, ParseStrictFallbackForMetal) {
     const nlohmann::json json = {
         {"backend", "metal"},
         {"strict_fallback", true},
@@ -75,7 +75,7 @@ TEST(AccelGraphFhssAccelContractTest, ParseStrictFallbackForMetal) {
     EXPECT_EQ(config.provider_id, "metal.default");
 }
 
-TEST(AccelGraphFhssAccelContractTest, ParseAllowFallbackForCuda) {
+TEST(AccelGraphFhssContractTest, ParseAllowFallbackForCuda) {
     const nlohmann::json json = {
         {"backend", "cuda"},
         {"fallback_policy", "allow"},
@@ -91,7 +91,7 @@ TEST(AccelGraphFhssAccelContractTest, ParseAllowFallbackForCuda) {
     EXPECT_EQ(config.cuda_device_ordinal, 3);
 }
 
-TEST(AccelGraphFhssAccelContractTest, InvalidBackendStringIsRejected) {
+TEST(AccelGraphFhssContractTest, InvalidBackendStringIsRejected) {
     const nlohmann::json json = {
         {"backend", "invalid"},
     };
@@ -104,7 +104,7 @@ TEST(AccelGraphFhssAccelContractTest, InvalidBackendStringIsRejected) {
         graph::ConfigError);
 }
 
-TEST(AccelGraphFhssAccelContractTest, InvalidCudaDeviceOrdinalIsRejected) {
+TEST(AccelGraphFhssContractTest, InvalidCudaDeviceOrdinalIsRejected) {
     const nlohmann::json json = {
         {"backend", "cuda"},
         {"cuda_device_ordinal", -1},
@@ -118,7 +118,7 @@ TEST(AccelGraphFhssAccelContractTest, InvalidCudaDeviceOrdinalIsRejected) {
         graph::ConfigError);
 }
 
-TEST(AccelGraphFhssAccelContractTest, ProviderBackendMismatchIsRejected) {
+TEST(AccelGraphFhssContractTest, ProviderBackendMismatchIsRejected) {
     const nlohmann::json json = {
         {"backend", "metal"},
         {"provider_id", "cpu.default"},
@@ -132,7 +132,7 @@ TEST(AccelGraphFhssAccelContractTest, ProviderBackendMismatchIsRejected) {
         graph::ConfigError);
 }
 
-TEST(AccelGraphFhssAccelContractTest, DescriptorFieldsContainAllSharedConfigKeys) {
+TEST(AccelGraphFhssContractTest, DescriptorFieldsContainAllSharedConfigKeys) {
     const auto names = FieldNames(accelgraph::fhss::FHSSAccelConfigFields());
 
     const std::vector<std::string> expected = {

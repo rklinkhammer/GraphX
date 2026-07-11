@@ -28,7 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #ifndef DSP_FHSS_CHANNELIZED_CONFIG_PATH
-#define DSP_FHSS_CHANNELIZED_CONFIG_PATH \
+#define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                       \
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 #endif
 
@@ -46,7 +46,7 @@ std::filesystem::path MakeTempAssetDirectory(const std::string &name) {
   std::filesystem::create_directories(dir, error);
 
   std::ofstream index(dir / "index.html", std::ios::trunc);
-  index << "<html><body>GraphX Dashboard Step5 Test</body></html>";
+  index << "<html><body>GraphX Dashboard Runtime Control Test</body></html>";
   return dir;
 }
 
@@ -121,8 +121,8 @@ nlohmann::json CommandRequestJson(const std::string &command_id) {
   return nlohmann::json{{"command_id", command_id}};
 }
 
-dsp::fhss::FHSSSyntheticIqGeneratorConfig LoadSourceConfig(
-    const nlohmann::json &graph_config) {
+dsp::fhss::FHSSSyntheticIqGeneratorConfig
+LoadSourceConfig(const nlohmann::json &graph_config) {
   for (const auto &node : graph_config.at("nodes")) {
     if (node.at("type") == "FHSSSyntheticIqSourceNode") {
       return dsp::fhss::FHSSSyntheticIqGeneratorConfigFromJson(
@@ -141,16 +141,20 @@ nlohmann::json LoadSourceNodeConfigJson(const nlohmann::json &graph_config) {
   throw std::runtime_error("FHSSSyntheticIqSourceNode not found");
 }
 
-class DashboardServerStep5Test : public ::testing::Test {
+class FhssDashboardMessageControlTest : public ::testing::Test {
 protected:
   void SetUp() override {
     assets_ = MakeTempAssetDirectory("graphx_dashboard_step5_assets");
-    config_ = LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
+    config_ =
+        LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
     configuration_service_ =
         std::make_shared<graph::dashboard::GraphConfigurationService>(config_);
-    runtime_session_ = std::make_shared<graph::dashboard::GraphRuntimeSession>();
-    snapshot_collector_ = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
-    source_ = std::make_shared<dsp::fhss::FHSSSyntheticIqSourceNode>(LoadSourceConfig(config_));
+    runtime_session_ =
+        std::make_shared<graph::dashboard::GraphRuntimeSession>();
+    snapshot_collector_ =
+        std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+    source_ = std::make_shared<dsp::fhss::FHSSSyntheticIqSourceNode>(
+        LoadSourceConfig(config_));
     controller_ = std::make_shared<dsp::fhss::FHSSScenarioController>(
         configuration_service_, runtime_session_);
     controller_->BindInjectionSource(source_);
@@ -176,7 +180,8 @@ protected:
 
   std::filesystem::path assets_;
   nlohmann::json config_;
-  std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration_service_;
+  std::shared_ptr<graph::dashboard::GraphConfigurationService>
+      configuration_service_;
   std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session_;
   std::shared_ptr<graph::dashboard::GraphSnapshotCollector> snapshot_collector_;
   std::shared_ptr<dsp::fhss::FHSSSyntheticIqSourceNode> source_;
@@ -184,8 +189,10 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
-  const auto config = LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
+TEST(FhssDashboardMessageSourceTest,
+     ExactlyOneMessagePerStepBlocksBetweenRequests) {
+  const auto config =
+      LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
   dsp::fhss::FHSSSyntheticIqSourceNode source(LoadSourceConfig(config));
   const auto source_messages = LoadSourceNodeConfigJson(config).at("messages");
   ASSERT_GE(source_messages.size(), 1u);
@@ -195,11 +202,14 @@ TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
   auto first_future = std::async(std::launch::async, [&source]() {
     return source.Produce(std::integral_constant<std::size_t, 0>{});
   });
-  EXPECT_EQ(first_future.wait_for(std::chrono::milliseconds(20)), std::future_status::timeout);
+  EXPECT_EQ(first_future.wait_for(std::chrono::milliseconds(20)),
+            std::future_status::timeout);
 
   ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
       .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
-      .correlation = {.scenario_id = "scenario-a", .message_id = 1, .release_sequence = 1},
+      .correlation = {.scenario_id = "scenario-a",
+                      .message_id = 1,
+                      .release_sequence = 1},
       .scheduled_message = source_messages.at(0),
       .end_of_stream_after_produce = false}));
   const auto first_token = first_future.get();
@@ -210,11 +220,14 @@ TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
   auto second_future = std::async(std::launch::async, [&source]() {
     return source.Produce(std::integral_constant<std::size_t, 0>{});
   });
-  EXPECT_EQ(second_future.wait_for(std::chrono::milliseconds(20)), std::future_status::timeout);
+  EXPECT_EQ(second_future.wait_for(std::chrono::milliseconds(20)),
+            std::future_status::timeout);
 
   ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
       .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
-      .correlation = {.scenario_id = "scenario-a", .message_id = 2, .release_sequence = 2},
+      .correlation = {.scenario_id = "scenario-a",
+                      .message_id = 2,
+                      .release_sequence = 2},
       .scheduled_message = source_messages.at(0),
       .end_of_stream_after_produce = true}));
   const auto second_token = second_future.get();
@@ -223,30 +236,32 @@ TEST(DashboardStep5SourceTest, ExactlyOneMessagePerStepBlocksBetweenRequests) {
   EXPECT_EQ(second_token->sidecar.correlation.release_sequence, 2u);
 }
 
-TEST_F(DashboardServerStep5Test, RejectsDuplicateOrConcurrentStepRequests) {
+TEST_F(FhssDashboardMessageControlTest,
+       RejectsDuplicateOrConcurrentStepRequests) {
   controller_->SetAutoCompleteForTesting(false);
 
-  const auto first = HttpRequest(server_->BoundPort(), "POST",
-                                 "/api/v1/commands/step-message",
-                                 CommandRequestJson("cmd-step5-1").dump());
+  const auto first =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-1").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
   EXPECT_EQ(first_json.at("status").get<std::string>(), "running");
 
-  const auto duplicate = HttpRequest(server_->BoundPort(), "POST",
-                                     "/api/v1/commands/step-message",
-                                     CommandRequestJson("cmd-step5-2").dump());
+  const auto duplicate =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-2").dump());
   EXPECT_EQ(duplicate.status_code, 409) << duplicate.body;
   const auto duplicate_json = nlohmann::json::parse(duplicate.body);
   EXPECT_EQ(duplicate_json.at("code").get<std::string>(), "message_in_flight");
 
   const auto correlation = controller_->ActiveCorrelationForTesting();
   ASSERT_TRUE(correlation.has_value());
-  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
-      .correlation = *correlation,
-      .status = dsp::fhss::FHSSMessageTerminalStatus::Completed,
-      .code = "message_completed",
-      .message = "completed"});
+  controller_->PublishTerminalResultForTesting(
+      dsp::fhss::FHSSMessageTerminalResult{
+          .correlation = *correlation,
+          .status = dsp::fhss::FHSSMessageTerminalStatus::Completed,
+          .code = "message_completed",
+          .message = "completed"});
 
   const auto operation = HttpRequest(
       server_->BoundPort(), "GET",
@@ -257,36 +272,40 @@ TEST_F(DashboardServerStep5Test, RejectsDuplicateOrConcurrentStepRequests) {
   EXPECT_EQ(operation_json.at("status").get<std::string>(), "succeeded");
 }
 
-TEST_F(DashboardServerStep5Test, ContinueProcessesMessagesSequentiallyAndCompletes) {
+TEST_F(FhssDashboardMessageControlTest,
+       ContinueProcessesMessagesSequentiallyAndCompletes) {
   controller_->SetAutoCompleteForTesting(true);
 
-  const auto response = HttpRequest(server_->BoundPort(), "POST",
-                                    "/api/v1/commands/continue",
-                                    CommandRequestJson("cmd-step5-continue").dump());
+  const auto response =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/continue",
+                  CommandRequestJson("cmd-step5-continue").dump());
   EXPECT_EQ(response.status_code, 202) << response.body;
 
   const auto response_json = nlohmann::json::parse(response.body);
   EXPECT_TRUE(response_json.at("terminal").get<bool>());
   EXPECT_EQ(response_json.at("status").get<std::string>(), "succeeded");
   ASSERT_TRUE(response_json.contains("result"));
-  EXPECT_EQ(response_json.at("result").at("command").get<std::string>(), "continue");
-  EXPECT_GT(response_json.at("result").at("message_count").get<std::uint64_t>(), 0u);
+  EXPECT_EQ(response_json.at("result").at("command").get<std::string>(),
+            "continue");
+  EXPECT_GT(response_json.at("result").at("message_count").get<std::uint64_t>(),
+            0u);
 }
 
-TEST_F(DashboardServerStep5Test, ResetRetainsTerminalRecordsAndRestartsScenarioCursor) {
+TEST_F(FhssDashboardMessageControlTest,
+       ResetRetainsTerminalRecordsAndRestartsScenarioCursor) {
   controller_->SetAutoCompleteForTesting(true);
 
-  const auto first = HttpRequest(server_->BoundPort(), "POST",
-                                 "/api/v1/commands/step-message",
-                                 CommandRequestJson("cmd-step5-reset-1").dump());
+  const auto first =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-reset-1").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
   EXPECT_TRUE(first_json.at("terminal").get<bool>());
   const auto first_correlation = first_json.at("result").at("correlation");
 
-  const auto reset = HttpRequest(server_->BoundPort(), "POST",
-                                 "/api/v1/commands/reset",
-                                 CommandRequestJson("cmd-step5-reset").dump());
+  const auto reset =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/reset",
+                  CommandRequestJson("cmd-step5-reset").dump());
   EXPECT_EQ(reset.status_code, 202) << reset.body;
 
   const auto retained = HttpRequest(
@@ -296,56 +315,62 @@ TEST_F(DashboardServerStep5Test, ResetRetainsTerminalRecordsAndRestartsScenarioC
   const auto retained_json = nlohmann::json::parse(retained.body);
   EXPECT_TRUE(retained_json.at("terminal").get<bool>());
 
-  const auto after_reset = HttpRequest(server_->BoundPort(), "POST",
-                                       "/api/v1/commands/step-message",
-                                       CommandRequestJson("cmd-step5-reset-2").dump());
+  const auto after_reset =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-reset-2").dump());
   EXPECT_EQ(after_reset.status_code, 202) << after_reset.body;
   const auto after_reset_json = nlohmann::json::parse(after_reset.body);
-  const auto after_reset_correlation = after_reset_json.at("result").at("correlation");
+  const auto after_reset_correlation =
+      after_reset_json.at("result").at("correlation");
   EXPECT_EQ(after_reset_correlation.at("message_id").get<std::uint64_t>(),
             first_correlation.at("message_id").get<std::uint64_t>());
   EXPECT_NE(after_reset_correlation.at("scenario_id").get<std::string>(),
             first_correlation.at("scenario_id").get<std::string>());
 }
 
-TEST_F(DashboardServerStep5Test, FailureInjectionTimeoutRaceAndQueueDisableAreStable) {
+TEST_F(FhssDashboardMessageControlTest,
+       FailureInjectionTimeoutRaceAndQueueDisableAreStable) {
   controller_->SetAutoCompleteForTesting(false);
 
-  const auto first = HttpRequest(server_->BoundPort(), "POST",
-                                 "/api/v1/commands/step-message",
-                                 CommandRequestJson("cmd-step5-race").dump());
+  const auto first =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-race").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
   const auto correlation = controller_->ActiveCorrelationForTesting();
   ASSERT_TRUE(correlation.has_value());
 
-  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
-      .correlation = *correlation,
-      .status = dsp::fhss::FHSSMessageTerminalStatus::TimedOut,
-      .code = "step_timeout",
-      .message = "timed out"});
-  controller_->PublishTerminalResultForTesting(dsp::fhss::FHSSMessageTerminalResult{
-      .correlation = *correlation,
-      .status = dsp::fhss::FHSSMessageTerminalStatus::Cancelled,
-      .code = "cancelled_late",
-      .message = "cancelled late"});
+  controller_->PublishTerminalResultForTesting(
+      dsp::fhss::FHSSMessageTerminalResult{
+          .correlation = *correlation,
+          .status = dsp::fhss::FHSSMessageTerminalStatus::TimedOut,
+          .code = "step_timeout",
+          .message = "timed out"});
+  controller_->PublishTerminalResultForTesting(
+      dsp::fhss::FHSSMessageTerminalResult{
+          .correlation = *correlation,
+          .status = dsp::fhss::FHSSMessageTerminalStatus::Cancelled,
+          .code = "cancelled_late",
+          .message = "cancelled late"});
 
   const auto operation = HttpRequest(
       server_->BoundPort(), "GET",
       "/api/v1/operations/" + first_json.at("operation_id").get<std::string>());
   EXPECT_EQ(operation.status_code, 200) << operation.body;
   const auto operation_json = nlohmann::json::parse(operation.body);
-  EXPECT_EQ(operation_json.at("result").at("terminal_status").get<std::string>(), "timed_out");
+  EXPECT_EQ(
+      operation_json.at("result").at("terminal_status").get<std::string>(),
+      "timed_out");
 
-  const auto reset = HttpRequest(server_->BoundPort(), "POST",
-                                 "/api/v1/commands/reset",
-                                 CommandRequestJson("cmd-step5-race-reset").dump());
+  const auto reset =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/reset",
+                  CommandRequestJson("cmd-step5-race-reset").dump());
   EXPECT_EQ(reset.status_code, 202) << reset.body;
 
   source_->DisableMessageInjectionQueue();
-  const auto disabled = HttpRequest(server_->BoundPort(), "POST",
-                                    "/api/v1/commands/step-message",
-                                    CommandRequestJson("cmd-step5-disabled").dump());
+  const auto disabled =
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+                  CommandRequestJson("cmd-step5-disabled").dump());
   EXPECT_EQ(disabled.status_code, 202) << disabled.body;
   const auto disabled_json = nlohmann::json::parse(disabled.body);
   EXPECT_TRUE(disabled_json.at("terminal").get<bool>());

@@ -42,7 +42,7 @@ std::filesystem::path MakeTempAssetDirectory(const std::string &name) {
   std::filesystem::create_directories(dir, error);
 
   std::ofstream index(dir / "index.html", std::ios::trunc);
-  index << "<html><body>GraphX Dashboard Step6 Test</body></html>";
+  index << "<html><body>GraphX Dashboard Event Replay Test</body></html>";
   return dir;
 }
 
@@ -105,7 +105,7 @@ HttpResponse HttpGet(std::uint16_t port, const std::string &target) {
   return parsed;
 }
 
-class DashboardServerStep6Test : public ::testing::Test {
+class FhssDashboardEventReplayTest : public ::testing::Test {
 protected:
   void SetUp() override {
     assets_ = MakeTempAssetDirectory("graphx_dashboard_step6_assets");
@@ -157,7 +157,7 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(DashboardServerStep6Test, EventsUseMonotonicSequenceContract) {
+TEST_F(FhssDashboardEventReplayTest, EventsUseMonotonicSequenceContract) {
   server_->PublishEventForTesting("status", nlohmann::json{{"state", "ready"}});
   server_->PublishEventForTesting("metrics", nlohmann::json{{"graph_total_enqueued", 1}});
   server_->PublishEventForTesting("diagnostics", nlohmann::json{{"ok", true}});
@@ -175,7 +175,7 @@ TEST_F(DashboardServerStep6Test, EventsUseMonotonicSequenceContract) {
   }
 }
 
-TEST_F(DashboardServerStep6Test, ReplayResumeRequiresContiguousRetainedRangeOnly) {
+TEST_F(FhssDashboardEventReplayTest, ReplayResumeRequiresContiguousRetainedRangeOnly) {
   server_->PublishEventForTesting("command", nlohmann::json{{"code", "a"}});
   server_->PublishEventForTesting("command", nlohmann::json{{"code", "b"}});
 
@@ -194,7 +194,7 @@ TEST_F(DashboardServerStep6Test, ReplayResumeRequiresContiguousRetainedRangeOnly
   EXPECT_EQ(resumed.at("events").at(1).at("sequence").get<std::uint64_t>(), last_seen + 2);
 }
 
-TEST_F(DashboardServerStep6Test, MissingOrExpiredRangeForcesResyncRequired) {
+TEST_F(FhssDashboardEventReplayTest, MissingOrExpiredRangeForcesResyncRequired) {
   server_->SetEventRetentionForTesting(std::chrono::milliseconds(1));
   server_->PublishEventForTesting("status", nlohmann::json{{"phase", "initial"}});
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -205,7 +205,7 @@ TEST_F(DashboardServerStep6Test, MissingOrExpiredRangeForcesResyncRequired) {
   EXPECT_TRUE(reconnect.at("events").empty());
 }
 
-TEST_F(DashboardServerStep6Test, SlowClientBackpressureDoesNotBlockPublishers) {
+TEST_F(FhssDashboardEventReplayTest, SlowClientBackpressureDoesNotBlockPublishers) {
   server_->SetEventQueueDepthForTesting(8);
   (void)PollEvents("slow-client");
 
@@ -222,7 +222,7 @@ TEST_F(DashboardServerStep6Test, SlowClientBackpressureDoesNotBlockPublishers) {
   EXPECT_LT(elapsed.count(), 250);
 }
 
-TEST_F(DashboardServerStep6Test, FailureInjectionDisconnectReconnectUnderLoadMaintainsReplay) {
+TEST_F(FhssDashboardEventReplayTest, FailureInjectionDisconnectReconnectUnderLoadMaintainsReplay) {
   server_->SetEventQueueDepthForTesting(1024);
 
   server_->PublishEventForTesting("status", nlohmann::json{{"seed", 0}});
@@ -244,7 +244,7 @@ TEST_F(DashboardServerStep6Test, FailureInjectionDisconnectReconnectUnderLoadMai
   EXPECT_FALSE(resumed.at("events").empty());
 }
 
-TEST_F(DashboardServerStep6Test, FailureInjectionRetentionGapDuringReconnectForcesResync) {
+TEST_F(FhssDashboardEventReplayTest, FailureInjectionRetentionGapDuringReconnectForcesResync) {
   server_->SetEventRetentionForTesting(std::chrono::milliseconds(1));
   server_->PublishEventForTesting("command", nlohmann::json{{"state", "pre-gap"}});
   const auto initial = PollEvents("retention-gap-client", 0);

@@ -162,7 +162,7 @@ void ExpectFallbackState(const char* stage_name,
 
 }  // namespace
 
-TEST(AccelGraphFhssE2EHybridTest, CpuTopologyExecutesWithAccelFrontendAndCpuDecodeTail) {
+TEST(AccelGraphFhssHybridPipelineTest, CpuTopologyExecutesWithAccelFrontendAndCpuDecodeTail) {
     const auto config_path = FhssE2EHybridCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -194,7 +194,7 @@ TEST(AccelGraphFhssE2EHybridTest, CpuTopologyExecutesWithAccelFrontendAndCpuDeco
     ExpectSinkDiagnosticsContainHybridProvenance(*message_sink);
 }
 
-TEST(AccelGraphFhssE2EHybridTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssHybridPipelineTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssE2EHybridMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -239,7 +239,7 @@ TEST(AccelGraphFhssE2EHybridTest, MetalStrictExecutionOrSkipWithExactDiagnostic)
     EXPECT_FALSE(branch_metric->UsedFallback());
 }
 
-TEST(AccelGraphFhssE2EHybridTest, MetalAllowFallbackExecutesAndReportsPerStageFallback) {
+TEST(AccelGraphFhssHybridPipelineTest, MetalAllowFallbackExecutesAndReportsPerStageFallback) {
     const auto config_path = FhssE2EHybridMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -280,7 +280,7 @@ TEST(AccelGraphFhssE2EHybridTest, MetalAllowFallbackExecutesAndReportsPerStageFa
     ExpectSinkDiagnosticsContainHybridProvenance(*message_sink);
 }
 
-TEST(AccelGraphFhssE2EHybridTest, StrictCudaTopologyIsIntentionallyUnsupportedUntilNativePathIsComplete) {
+TEST(AccelGraphFhssHybridPipelineTest, StrictCudaTopologyIsIntentionallyUnsupportedUntilNativePathIsComplete) {
     EXPECT_FALSE(std::filesystem::exists(FhssE2EHybridCudaTopologyConfigPath()));
     EXPECT_FALSE(std::filesystem::exists(FhssE2EHybridCudaAllowFallbackTopologyConfigPath()));
 }

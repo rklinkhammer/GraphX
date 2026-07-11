@@ -81,7 +81,7 @@ dsp::fhss::FHSSDownconverterConfig MakeTranslatedDownconverterConfig() {
 
 }  // namespace
 
-TEST(AccelGraphFhssDownconverterTest, CpuReferenceParityMatchesDspDownconverterTranslationPath) {
+TEST(AccelGraphFhssDownconverterTopologyTest, CpuReferenceParityMatchesDspDownconverterTranslationPath) {
     auto input = MakeSyntheticIqInputToken();
     const auto cfg = MakeTranslatedDownconverterConfig();
 
@@ -141,7 +141,7 @@ TEST(AccelGraphFhssDownconverterTest, CpuReferenceParityMatchesDspDownconverterT
     EXPECT_TRUE(accel_node.FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssDownconverterTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
+TEST(AccelGraphFhssDownconverterTopologyTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
     const auto config_path = FhssDownconverterCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -170,7 +170,7 @@ TEST(AccelGraphFhssDownconverterTest, CpuTopologyExecutesViaGraphExecutorAndPlug
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDownconverterTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssDownconverterTopologyTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssDownconverterMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -202,7 +202,7 @@ TEST(AccelGraphFhssDownconverterTest, MetalStrictExecutionOrSkipWithExactDiagnos
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDownconverterTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssDownconverterTopologyTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssDownconverterMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -228,7 +228,7 @@ TEST(AccelGraphFhssDownconverterTest, MetalAllowFallbackUsesCpuWhenNativePathUna
     EXPECT_FALSE(node->FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssDownconverterTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssDownconverterTopologyTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssDownconverterCudaTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -260,7 +260,7 @@ TEST(AccelGraphFhssDownconverterTest, CudaStrictExecutionOrSkipWithExactDiagnost
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssDownconverterTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssDownconverterTopologyTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssDownconverterCudaAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -290,7 +290,7 @@ TEST(AccelGraphFhssDownconverterTest, CudaAllowFallbackUsesCpuWhenNativePathUnav
     }
 }
 
-TEST(AccelGraphFhssDownconverterTest, DescriptorFieldsDeclareFullConfigSurface) {
+TEST(AccelGraphFhssDownconverterTopologyTest, DescriptorFieldsDeclareFullConfigSurface) {
     const auto fields = AccelFhssDownconverterNode::Fields();
     auto has_field = [&](std::string_view name) {
         for (const auto& field : fields) {

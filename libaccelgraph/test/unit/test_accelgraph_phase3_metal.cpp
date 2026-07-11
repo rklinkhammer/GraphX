@@ -29,7 +29,7 @@ constexpr const char* kMetalSupportNotCompiledDiagnostic =
 
 }  // namespace
 
-TEST(AccelGraphPhase3ATest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugins) {
+TEST(AccelGraphTransferTopologyTest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugins) {
     const auto config_path = CpuTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -53,7 +53,7 @@ TEST(AccelGraphPhase3ATest, CpuTransferTopologyExecutesViaGraphExecutorAndPlugin
     EXPECT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
 }
 
-TEST(AccelGraphPhase3ATest, MetalTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
+TEST(AccelGraphTransferTopologyTest, MetalTransferTopologyExecutesViaGraphExecutorOrSkipsWithExactDiagnostic) {
     const auto config_path = MetalTransferTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));

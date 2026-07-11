@@ -77,10 +77,14 @@ if(TARGET graphx_dynamic_nodes)
 endif()
 add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 set_tests_properties(libgraph_unit PROPERTIES LABELS "core;unit;ci-safe;host-any")
+set(LIBGRAPH_DISCOVERY_EXPECTED_SUITES
+    ActiveQueueTest
+    GraphExecutorBehaviorTest
+    GraphExecutorTimingContractTest)
 add_test(NAME libgraph_unit_discovery
     COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:test_libgraph_unit>
-        -DEXPECTED_SUITE=ActiveQueueTest
+        -DEXPECTED_SUITES=${LIBGRAPH_DISCOVERY_EXPECTED_SUITES}
         -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
 set_tests_properties(libgraph_unit_discovery PROPERTIES
     LABELS "core;unit;ownership;discovery;ci-safe;host-any")

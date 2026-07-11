@@ -39,15 +39,13 @@ std::filesystem::path MakeTempAssetDirectory(const std::string &name) {
 }
 
 nlohmann::json MinimalGraphConfig() {
-  return nlohmann::json{{"nodes", nlohmann::json::array({
-                                      nlohmann::json{{"id", "source"},
-                                                     {"type", "FHSSSyntheticIqSourceNode"},
-                                                     {"node_config", nlohmann::json::object()}}
-                                  })},
-                        {"edges", nlohmann::json::array({
-                                      nlohmann::json{{"source", "source"},
-                                                     {"target", "sink"}}
-                                  })}};
+  return nlohmann::json{
+      {"nodes", nlohmann::json::array({nlohmann::json{
+                    {"id", "source"},
+                    {"type", "FHSSSyntheticIqSourceNode"},
+                    {"node_config", nlohmann::json::object()}}})},
+      {"edges", nlohmann::json::array({nlohmann::json{{"source", "source"},
+                                                      {"target", "sink"}}})}};
 }
 
 HttpResponse HttpGet(std::uint16_t port, const std::string &target) {
@@ -66,8 +64,9 @@ HttpResponse HttpGet(std::uint16_t port, const std::string &target) {
     return {};
   }
 
-  const std::string request = "GET " + target +
-                              " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+  const std::string request =
+      "GET " + target +
+      " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
   ::send(fd, request.c_str(), request.size(), 0);
 
   std::string response;
@@ -101,7 +100,7 @@ HttpResponse HttpGet(std::uint16_t port, const std::string &target) {
   return parsed;
 }
 
-class DashboardServerStep1Test : public ::testing::Test {
+class FhssDashboardServerContractTest : public ::testing::Test {
 protected:
   void SetUp() override {
     assets_ = MakeTempAssetDirectory("graphx_dashboard_step1_assets");
@@ -138,13 +137,14 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(DashboardServerStep1Test, SupportsEphemeralPortStartupAndAssetServing) {
+TEST_F(FhssDashboardServerContractTest,
+       SupportsEphemeralPortStartupAndAssetServing) {
   const auto root = HttpGet(server_->BoundPort(), "/");
   EXPECT_EQ(root.status_code, 200);
   EXPECT_NE(root.body.find("GraphX Dashboard Test"), std::string::npos);
 }
 
-TEST_F(DashboardServerStep1Test, HealthzAndReadyzStateEndpoints) {
+TEST_F(FhssDashboardServerContractTest, HealthzAndReadyzStateEndpoints) {
   const auto health = HttpGet(server_->BoundPort(), "/healthz");
   EXPECT_EQ(health.status_code, 200);
   const auto health_json = nlohmann::json::parse(health.body);
@@ -157,11 +157,12 @@ TEST_F(DashboardServerStep1Test, HealthzAndReadyzStateEndpoints) {
   EXPECT_EQ(ready_json.at("state").get<std::string>(), "ready");
 }
 
-TEST_F(DashboardServerStep1Test, GraphAndConfigResponseSchemas) {
+TEST_F(FhssDashboardServerContractTest, GraphAndConfigResponseSchemas) {
   const auto graph = HttpGet(server_->BoundPort(), "/api/v1/graph");
   EXPECT_EQ(graph.status_code, 200);
   const auto graph_json = nlohmann::json::parse(graph.body);
-  EXPECT_EQ(graph_json.at("schema").get<std::string>(), "graphx.dashboard.graph.v1");
+  EXPECT_EQ(graph_json.at("schema").get<std::string>(),
+            "graphx.dashboard.graph.v1");
   EXPECT_TRUE(graph_json.contains("config_revision"));
   EXPECT_TRUE(graph_json.at("graph").contains("nodes"));
   EXPECT_TRUE(graph_json.at("graph").contains("edges"));
@@ -169,13 +170,15 @@ TEST_F(DashboardServerStep1Test, GraphAndConfigResponseSchemas) {
   const auto config = HttpGet(server_->BoundPort(), "/api/v1/config");
   EXPECT_EQ(config.status_code, 200);
   const auto config_json = nlohmann::json::parse(config.body);
-  EXPECT_EQ(config_json.at("schema").get<std::string>(), "graphx.dashboard.config.v1");
+  EXPECT_EQ(config_json.at("schema").get<std::string>(),
+            "graphx.dashboard.config.v1");
   EXPECT_TRUE(config_json.contains("owner"));
   EXPECT_TRUE(config_json.at("effective").contains("nodes"));
   EXPECT_TRUE(config_json.at("effective").contains("edges"));
 }
 
-TEST_F(DashboardServerStep1Test, MetricsSchemasAreStableWithDefaultPayloads) {
+TEST_F(FhssDashboardServerContractTest,
+       MetricsSchemasAreStableWithDefaultPayloads) {
   const auto metrics = HttpGet(server_->BoundPort(), "/api/v1/metrics");
   EXPECT_EQ(metrics.status_code, 200);
   const auto metrics_json = nlohmann::json::parse(metrics.body);
@@ -186,7 +189,8 @@ TEST_F(DashboardServerStep1Test, MetricsSchemasAreStableWithDefaultPayloads) {
   EXPECT_EQ(metrics_json.at("nodes").size(), 0u);
   EXPECT_EQ(metrics_json.at("edges").size(), 0u);
 
-  const auto edge_metrics = HttpGet(server_->BoundPort(), "/api/v1/metrics/edges");
+  const auto edge_metrics =
+      HttpGet(server_->BoundPort(), "/api/v1/metrics/edges");
   EXPECT_EQ(edge_metrics.status_code, 200);
   const auto edge_metrics_json = nlohmann::json::parse(edge_metrics.body);
   EXPECT_EQ(edge_metrics_json.at("schema").get<std::string>(),
@@ -195,7 +199,7 @@ TEST_F(DashboardServerStep1Test, MetricsSchemasAreStableWithDefaultPayloads) {
   EXPECT_EQ(edge_metrics_json.at("edges").size(), 0u);
 }
 
-TEST_F(DashboardServerStep1Test, CleanShutdownStopsServer) {
+TEST_F(FhssDashboardServerContractTest, CleanShutdownStopsServer) {
   ASSERT_TRUE(server_->IsRunning());
   server_->Stop();
   EXPECT_FALSE(server_->IsRunning());
@@ -204,7 +208,7 @@ TEST_F(DashboardServerStep1Test, CleanShutdownStopsServer) {
   EXPECT_EQ(after_shutdown.status_code, 0);
 }
 
-TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenAssetDirectoryMissing) {
+TEST(FhssDashboardServerFailureTest, StartupFailsWhenAssetDirectoryMissing) {
   auto config_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
           MinimalGraphConfig());
@@ -215,17 +219,16 @@ TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenAssetDirectoryMis
 
   graph::dashboard::EmbeddedDashboardServer::Options options;
   options.port = 0;
-  options.asset_directory =
-      std::filesystem::temp_directory_path() / "graphx_missing_dashboard_assets";
+  options.asset_directory = std::filesystem::temp_directory_path() /
+                            "graphx_missing_dashboard_assets";
 
-  graph::dashboard::EmbeddedDashboardServer server(options, config_service,
-                                                   runtime_session,
-                                                   snapshot_collector);
+  graph::dashboard::EmbeddedDashboardServer server(
+      options, config_service, runtime_session, snapshot_collector);
   EXPECT_FALSE(server.Start());
   EXPECT_NE(server.LastError().find("asset directory"), std::string::npos);
 }
 
-TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenConfigurationIsInvalid) {
+TEST(FhssDashboardServerFailureTest, StartupFailsWhenConfigurationIsInvalid) {
   auto config_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
           nlohmann::json{{"nodes", nlohmann::json::array()}});
@@ -234,24 +237,26 @@ TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenConfigurationIsIn
   auto snapshot_collector =
       std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
-  const auto assets = MakeTempAssetDirectory("graphx_dashboard_invalid_cfg_assets");
+  const auto assets =
+      MakeTempAssetDirectory("graphx_dashboard_invalid_cfg_assets");
 
   graph::dashboard::EmbeddedDashboardServer::Options options;
   options.port = 0;
   options.asset_directory = assets;
 
-  graph::dashboard::EmbeddedDashboardServer server(options, config_service,
-                                                   runtime_session,
-                                                   snapshot_collector);
+  graph::dashboard::EmbeddedDashboardServer server(
+      options, config_service, runtime_session, snapshot_collector);
   EXPECT_FALSE(server.Start());
-  EXPECT_NE(server.LastError().find("invalid effective graph"), std::string::npos);
+  EXPECT_NE(server.LastError().find("invalid effective graph"),
+            std::string::npos);
 
   std::error_code error;
   std::filesystem::remove_all(assets, error);
 }
 
-TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenPortAlreadyBound) {
-  const auto assets = MakeTempAssetDirectory("graphx_dashboard_bind_failure_assets");
+TEST(FhssDashboardServerFailureTest, StartupFailsWhenPortAlreadyBound) {
+  const auto assets =
+      MakeTempAssetDirectory("graphx_dashboard_bind_failure_assets");
   auto config_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
           MinimalGraphConfig());
@@ -266,9 +271,8 @@ TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenPortAlreadyBound)
   options_a.port = 0;
   options_a.asset_directory = assets;
 
-  graph::dashboard::EmbeddedDashboardServer server_a(options_a, config_service,
-                                                     runtime_session_a,
-                                                     snapshot_collector);
+  graph::dashboard::EmbeddedDashboardServer server_a(
+      options_a, config_service, runtime_session_a, snapshot_collector);
   ASSERT_TRUE(server_a.Start()) << server_a.LastError();
   const auto occupied_port = server_a.BoundPort();
   ASSERT_GT(occupied_port, 0u);
@@ -277,9 +281,8 @@ TEST(DashboardServerStep1FailureInjectionTest, StartupFailsWhenPortAlreadyBound)
   options_b.port = occupied_port;
   options_b.asset_directory = assets;
 
-  graph::dashboard::EmbeddedDashboardServer server_b(options_b, config_service,
-                                                     runtime_session_b,
-                                                     snapshot_collector);
+  graph::dashboard::EmbeddedDashboardServer server_b(
+      options_b, config_service, runtime_session_b, snapshot_collector);
   EXPECT_FALSE(server_b.Start());
   EXPECT_NE(server_b.LastError().find("bind"), std::string::npos);
 

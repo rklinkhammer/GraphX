@@ -6,7 +6,7 @@
 
 #include "accelgraph/CudaAcceleratorProvider.hpp"
 
-TEST(AccelGraphPhase4CudaTest, ProviderInfoUsesCudaIdentityWithoutNativeDeviceClaims) {
+TEST(CudaGraphExecutorContractTest, ProviderInfoUsesCudaIdentityWithoutNativeDeviceClaims) {
     const accelgraph::CudaAcceleratorProvider provider;
     const auto info = provider.Info();
 
@@ -23,7 +23,7 @@ TEST(AccelGraphPhase4CudaTest, ProviderInfoUsesCudaIdentityWithoutNativeDeviceCl
     }
 }
 
-TEST(AccelGraphPhase4CudaTest, CreateSessionReportsStructuredPhase4ShellDiagnostic) {
+TEST(CudaGraphExecutorContractTest, CreateSessionReportsStructuredPhase4ShellDiagnostic) {
     accelgraph::CudaAcceleratorProvider provider;
     auto result = provider.CreateSession(accelgraph::AcceleratorSessionCreateRequest{});
 

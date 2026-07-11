@@ -210,7 +210,7 @@ bool HasSingleSourceAndDualSinks(const nlohmann::json& doc) {
 
 }  // namespace
 
-TEST(AccelGraphPhase2TopologyContractTest, DescriptorMetadataDeclaresSupportedFields) {
+TEST(AccelGraphTopologyJsonOwnershipTest, DescriptorMetadataDeclaresSupportedFields) {
     const auto source_fields = accelgraph::SineWaveSourceNode::Fields();
     const auto analysis_fields = accelgraph::SpectrumAnalysisNode::Fields();
     const auto fhss_channelizer_fields = accelgraph::fhss::AccelFhssChannelizerNode::Fields();
@@ -306,7 +306,7 @@ TEST(AccelGraphPhase2TopologyContractTest, DescriptorMetadataDeclaresSupportedFi
     EXPECT_TRUE(has_field(ingress_fields, "debug_label"));
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecutesOrSkipsWithHardwareDiagnostic) {
+TEST(AccelGraphTopologyJsonOwnershipTest, SyntheticTopologyMatrixBuildsAndExecutesOrSkipsWithHardwareDiagnostic) {
     ASSERT_TRUE(std::filesystem::exists(PluginDirectoryPath()));
 
     for (const auto& topology : kTopologyMatrix) {
@@ -400,7 +400,7 @@ TEST(AccelGraphPhase2TopologyContractTest, SyntheticTopologyMatrixBuildsAndExecu
     }
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, UnknownNodeConfigFieldIsRejectedByLoader) {
+TEST(AccelGraphTopologyJsonOwnershipTest, UnknownNodeConfigFieldIsRejectedByLoader) {
     auto doc = LoadJson(TopologyPath("accelgraph_phase6_spectrum_cpu_topology.json"));
     doc["nodes"][1]["node_config"]["not_a_real_field"] = 1;
 
@@ -419,7 +419,7 @@ TEST(AccelGraphPhase2TopologyContractTest, UnknownNodeConfigFieldIsRejectedByLoa
     std::filesystem::remove(temp_path);
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, MissingRequiredNodeConfigFieldIsRejectedByLoader) {
+TEST(AccelGraphTopologyJsonOwnershipTest, MissingRequiredNodeConfigFieldIsRejectedByLoader) {
     auto doc = LoadJson(TopologyPath("accelgraph_phase6_spectrum_cpu_topology.json"));
     doc["nodes"][1]["node_config"].erase("backend");
 
@@ -438,7 +438,7 @@ TEST(AccelGraphPhase2TopologyContractTest, MissingRequiredNodeConfigFieldIsRejec
     std::filesystem::remove(temp_path);
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, WrongNodeConfigTypeIsRejectedByLoader) {
+TEST(AccelGraphTopologyJsonOwnershipTest, WrongNodeConfigTypeIsRejectedByLoader) {
     auto doc = LoadJson(TopologyPath("accelgraph_phase6_spectrum_cpu_topology.json"));
     doc["nodes"][0]["node_config"]["sample_count"] = "bad-type";
 
@@ -457,7 +457,7 @@ TEST(AccelGraphPhase2TopologyContractTest, WrongNodeConfigTypeIsRejectedByLoader
     std::filesystem::remove(temp_path);
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, TopologyFanOutConfigIsCheckedInAndUsesJsonOwnedInitialization) {
+TEST(AccelGraphTopologyJsonOwnershipTest, TopologyFanOutConfigIsCheckedInAndUsesJsonOwnedInitialization) {
     const auto config_path = TopologyPath("accelgraph_phase2_spectrum_cpu_fanout_topology.json");
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -469,7 +469,7 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyFanOutConfigIsCheckedInAndUse
     }
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParseableAndStructured) {
+TEST(AccelGraphTopologyJsonOwnershipTest, AllCheckedInTopologyJsonFilesAreParseableAndStructured) {
     const auto files = CheckedInTopologyJsonFiles();
     ASSERT_FALSE(files.empty());
 
@@ -515,7 +515,7 @@ TEST(AccelGraphPhase2TopologyContractTest, AllCheckedInTopologyJsonFilesAreParse
     }
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, TopologyNodesHaveTruthfulConnectivityShapes) {
+TEST(AccelGraphTopologyJsonOwnershipTest, TopologyNodesHaveTruthfulConnectivityShapes) {
     const auto files = CheckedInTopologyJsonFiles();
     ASSERT_FALSE(files.empty());
 
@@ -611,7 +611,7 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyNodesHaveTruthfulConnectivity
     }
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, TopologyTestsDoNotUseDirectConfigureCalls) {
+TEST(AccelGraphTopologyJsonOwnershipTest, TopologyTestsDoNotUseDirectConfigureCalls) {
     const auto unit_dir = std::filesystem::path(__FILE__).parent_path();
     const auto phase_test_files = PhaseTestFilesInUnitDir(unit_dir);
     ASSERT_FALSE(phase_test_files.empty());
@@ -641,7 +641,7 @@ TEST(AccelGraphPhase2TopologyContractTest, TopologyTestsDoNotUseDirectConfigureC
     }
 }
 
-TEST(AccelGraphPhase2TopologyContractTest, TopologyHelperDoesNotUseDirectConfigureBypass) {
+TEST(AccelGraphTopologyJsonOwnershipTest, TopologyHelperDoesNotUseDirectConfigureBypass) {
     const auto helper_path = std::filesystem::path(__FILE__).parent_path() /
                              "AccelGraphTopologyTestUtils.hpp";
     ASSERT_TRUE(std::filesystem::exists(helper_path));

@@ -14,7 +14,7 @@ std::string BuildScaffoldSummary() {
     const bool has_node_provider = capability_bus.Has<graph::INodeProvider>();
 
     std::ostringstream output;
-    output << "libaccelgraph phase0 scaffold"
+    output << "libaccelgraph scaffold"
            << ";node_provider_registered=" << (has_node_provider ? "true" : "false")
            << ";metal_enabled=" << (ACCELGRAPH_ENABLE_METAL ? "true" : "false")
            << ";cuda_enabled=" << (ACCELGRAPH_ENABLE_CUDA ? "true" : "false");

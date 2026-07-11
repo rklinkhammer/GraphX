@@ -115,7 +115,7 @@ HttpResponse HttpRequest(std::uint16_t port, const std::string &method,
   return parsed;
 }
 
-class DashboardBrowserConcurrencyTest : public ::testing::Test {
+class FhssDashboardConfigurationConcurrencyTest : public ::testing::Test {
 protected:
   void SetUp() override {
     assets_ = MakeTempAssetDirectory("graphx_dashboard_step2_browser_assets");
@@ -149,7 +149,7 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(DashboardBrowserConcurrencyTest, TwoBrowserSessionsSeeDeterministicOptimisticConcurrency) {
+TEST_F(FhssDashboardConfigurationConcurrencyTest, TwoBrowserSessionsSeeDeterministicOptimisticConcurrency) {
   const auto browser_a = HttpRequest(server_->BoundPort(), "GET", "/api/v1/config");
   const auto browser_b = HttpRequest(server_->BoundPort(), "GET", "/api/v1/config");
   EXPECT_EQ(browser_a.status_code, 200);

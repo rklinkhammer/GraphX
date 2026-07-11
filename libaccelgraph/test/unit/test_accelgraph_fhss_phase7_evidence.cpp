@@ -595,7 +595,7 @@ void WriteReport(const nlohmann::json& report) {
 
 }  // namespace
 
-TEST(AccelGraphFhssPhase7EvidenceTest, DiscoversExpectedTopologyFiles) {
+TEST(AccelGraphFhssEvidenceTest, DiscoversExpectedTopologyFiles) {
     const auto expected_files = ExpectedTopologyFiles();
     ASSERT_FALSE(expected_files.empty());
 
@@ -609,7 +609,7 @@ TEST(AccelGraphFhssPhase7EvidenceTest, DiscoversExpectedTopologyFiles) {
     }
 }
 
-TEST(AccelGraphFhssPhase7EvidenceTest, FallbackExecutionIsNeverMarkedAsNativeGpuExecution) {
+TEST(AccelGraphFhssEvidenceTest, FallbackExecutionIsNeverMarkedAsNativeGpuExecution) {
     StageEvidence fallback_stage;
     fallback_stage.stage_name = "downconverter";
     fallback_stage.node_type = "AccelFhssDownconverterNode";
@@ -624,7 +624,7 @@ TEST(AccelGraphFhssPhase7EvidenceTest, FallbackExecutionIsNeverMarkedAsNativeGpu
     EXPECT_FALSE(fallback_stage.fallback_diagnostic.empty());
 }
 
-TEST(AccelGraphFhssPhase7EvidenceTest, GeneratesBenchmarkEvidenceArtifactWithBackendDiagnostics) {
+TEST(AccelGraphFhssEvidenceTest, GeneratesBenchmarkEvidenceArtifactWithBackendDiagnostics) {
     const auto cases = EvidenceCases();
     ASSERT_FALSE(cases.empty());
 

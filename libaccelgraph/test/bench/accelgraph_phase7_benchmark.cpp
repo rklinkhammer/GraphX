@@ -547,7 +547,7 @@ nlohmann::json ImportedResultFromArtifact(const BenchmarkConfig& cfg,
                 continue;
             }
             if (t.get<std::string>() ==
-                "AccelGraphPhase6BCudaSpectrumTest.CpuCudaParityAndStrictNativeExecutionViaGraphExecutor") {
+                "AccelGraphCudaSpectrumBackendMatrixTest.CpuCudaParityAndStrictNativeExecutionViaGraphExecutor") {
                 phase6b_ok = true;
                 break;
             }

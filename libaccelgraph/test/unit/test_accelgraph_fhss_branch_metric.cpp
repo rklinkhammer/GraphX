@@ -142,7 +142,7 @@ dsp::fhss::FHSSPulseCandidateToken MakePulseCandidateInputToken(
 
 }  // namespace
 
-TEST(AccelGraphFhssBranchMetricTest, CpuReferenceParityMatchesDspCpsmBranchMetricNode) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, CpuReferenceParityMatchesDspCpsmBranchMetricNode) {
     const auto input = MakePulseEvidenceInputToken();
     const auto candidate_input = MakePulseCandidateInputToken(input);
 
@@ -197,7 +197,7 @@ TEST(AccelGraphFhssBranchMetricTest, CpuReferenceParityMatchesDspCpsmBranchMetri
     EXPECT_TRUE(accel_node.FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssBranchMetricTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, CpuTopologyExecutesViaGraphExecutorAndPlugins) {
     const auto config_path = FhssBranchMetricCpuTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
     ASSERT_TRUE(std::filesystem::exists(accelgraph::test::PluginDirectoryPath()));
@@ -232,7 +232,7 @@ TEST(AccelGraphFhssBranchMetricTest, CpuTopologyExecutesViaGraphExecutorAndPlugi
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssBranchMetricTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, MetalStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssBranchMetricMetalTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -264,7 +264,7 @@ TEST(AccelGraphFhssBranchMetricTest, MetalStrictExecutionOrSkipWithExactDiagnost
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssBranchMetricTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, MetalAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssBranchMetricMetalAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -290,7 +290,7 @@ TEST(AccelGraphFhssBranchMetricTest, MetalAllowFallbackUsesCpuWhenNativePathUnav
     EXPECT_FALSE(node->FallbackDiagnostic().empty());
 }
 
-TEST(AccelGraphFhssBranchMetricTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, CudaStrictExecutionOrSkipWithExactDiagnostic) {
     const auto config_path = FhssBranchMetricCudaTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -322,7 +322,7 @@ TEST(AccelGraphFhssBranchMetricTest, CudaStrictExecutionOrSkipWithExactDiagnosti
     EXPECT_FALSE(node->UsedFallback());
 }
 
-TEST(AccelGraphFhssBranchMetricTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, CudaAllowFallbackUsesCpuWhenNativePathUnavailable) {
     const auto config_path = FhssBranchMetricCudaAllowFallbackTopologyConfigPath();
     ASSERT_TRUE(std::filesystem::exists(config_path));
 
@@ -352,7 +352,7 @@ TEST(AccelGraphFhssBranchMetricTest, CudaAllowFallbackUsesCpuWhenNativePathUnava
     }
 }
 
-TEST(AccelGraphFhssBranchMetricTest, DescriptorFieldsDeclareFullConfigSurface) {
+TEST(AccelGraphFhssBranchMetricTopologyTest, DescriptorFieldsDeclareFullConfigSurface) {
     const auto fields = AccelFhssBranchMetricNode::Fields();
     auto has_field = [&](std::string_view name) {
         for (const auto& field : fields) {

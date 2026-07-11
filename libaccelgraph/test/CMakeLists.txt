@@ -49,29 +49,31 @@ if(ACCELGRAPH_UNIT_TEST_SOURCES)
         LABELS "accelgraph;smoke;unit;host-any"
         TIMEOUT 1800)
 
-    add_test(NAME libaccelgraph_fhss_phase6_hybrid
+    add_test(NAME libaccelgraph_fhss_hybrid_pipeline
         COMMAND test_libaccelgraph_smoke
-            --gtest_filter=AccelGraphFhssE2EHybridTest.*)
-    set_tests_properties(libaccelgraph_fhss_phase6_hybrid PROPERTIES
-        LABELS "accelgraph;fhss;phase6;hybrid;unit;host-any"
+            --gtest_filter=AccelGraphFhssHybridPipelineTest.*)
+    set_tests_properties(libaccelgraph_fhss_hybrid_pipeline PROPERTIES
+        LABELS "accelgraph;fhss;hybrid;pipeline;unit;host-any"
         TIMEOUT 600)
 
     set(ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
-        AccelGraphFhssAccelContractTest
-        AccelGraphFhssBranchMetricTest
-        AccelGraphFhssChannelizerTest
-        AccelGraphFhssPhase7EvidenceTest
-        AccelGraphFhssE2EHybridTest
-        AccelGraphFhssDetectorTest
-        AccelGraphFhssDownconverterTest
-        AccelGraphPhase2TopologyContractTest
-        AccelGraphPhase3ATest
-        AccelGraphPhase5CudaGraphExecutorTest
-        AccelGraphPhase6SpectrumTest
+        AccelGraphFhssContractTest
+        AccelGraphFhssBranchMetricTopologyTest
+        AccelGraphFhssChannelizerTopologyTest
+        AccelGraphFhssEvidenceTest
+        AccelGraphFhssHybridPipelineTest
+        AccelGraphFhssDetectorTopologyTest
+        AccelGraphFhssDownconverterTopologyTest
+        AccelGraphScaffoldTest
+        AccelGraphTopologyJsonOwnershipTest
+        AccelGraphTransferTopologyTest
+        AccelGraphCudaTransferTopologyTest
+        CudaGraphExecutorContractTest
+        AccelGraphSpectrumTopologyTest
     )
     if(ACCELGRAPH_ENABLE_CUDA)
         list(APPEND ACCELGRAPH_DISCOVERY_EXPECTED_SUITES
-            AccelGraphPhase6BCudaSpectrumTest)
+            AccelGraphCudaSpectrumBackendMatrixTest)
     endif()
 
     add_test(NAME libaccelgraph_smoke_discovery
