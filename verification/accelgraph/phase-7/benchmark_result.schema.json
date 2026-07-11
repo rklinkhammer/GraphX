@@ -42,7 +42,8 @@
           "frame_count",
           "warmup_frame_count",
           "correctness_parity_status",
-          "measurement_origin"
+          "measurement_origin",
+          "outcome_classification"
         ],
         "properties": {
           "graph_configuration_name": {"type": "string"},
@@ -80,6 +81,9 @@
               "source_artifact": {"type": ["string", "null"]},
               "note": {"type": ["string", "null"]}
             }
+          },
+          "outcome_classification": {
+            "type": "string"
           }
         }
       }

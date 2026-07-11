@@ -30,6 +30,7 @@ Each result row records:
 - host backend / feature flags
 - topology file
 - stage name
+- explicit outcome classification for native, fallback, strict-skip, and unavailable paths
 - strict vs allow-fallback mode
 - requested backend
 - selected backend

@@ -248,6 +248,39 @@ nlohmann::json BuildReportSummary(bool output_present,
     };
 }
 
+std::string ClassifyOutcome(const nlohmann::json& row) {
+    const std::string status = row.value("status", "unknown");
+    const std::string requested_backend = row.value("requested_backend", "");
+    const std::string diagnostic = row.value("diagnostic", "");
+
+    if (status == "skipped") {
+        if (diagnostic.find("missing topology") != std::string::npos ||
+            diagnostic.find("not compiled") != std::string::npos ||
+            diagnostic.find("not detected") != std::string::npos ||
+            diagnostic.find("unavailable") != std::string::npos) {
+            return "build_or_backend_unavailable";
+        }
+        if (requested_backend == "cuda" || requested_backend == "metal") {
+            return "strict_skipped";
+        }
+        return "skipped";
+    }
+
+    if (requested_backend == "cpu") {
+        return row.value("native_gpu_execution", false) ? "native_gpu" : "cpu_reference";
+    }
+
+    if (row.value("native_gpu_execution", false)) {
+        return requested_backend == "cuda" ? "native_cuda" : "native_metal";
+    }
+
+    if (!row.value("fallback_stages", nlohmann::json::array()).empty()) {
+        return "cpu_fallback";
+    }
+
+    return requested_backend == "cuda" ? "host_specific_cuda_pending" : "host_specific_pending";
+}
+
 nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
     nlohmann::json row = {
         {"benchmark_name", item.name},
@@ -265,11 +298,13 @@ nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
         {"timing_summary", nlohmann::json::object()},
         {"validation_summary", nlohmann::json::object()},
         {"diagnostic", nullptr},
+        {"outcome_classification", "pending"},
     };
 
     if (!std::filesystem::exists(item.topology_path)) {
         row["status"] = "skipped";
         row["diagnostic"] = "missing topology: " + item.topology_path.string();
+        row["outcome_classification"] = ClassifyOutcome(row);
         return row;
     }
 
@@ -277,6 +312,7 @@ nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
     if (item.requested_backend == "cuda") {
         row["status"] = "skipped";
         row["diagnostic"] = accelgraph::kCudaSupportNotCompiledDiagnostic;
+        row["outcome_classification"] = ClassifyOutcome(row);
         return row;
     }
 #endif
@@ -285,6 +321,7 @@ nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
     if (item.requested_backend == "metal") {
         row["status"] = "skipped";
         row["diagnostic"] = accelgraph::kMetalSupportNotCompiledDiagnostic;
+        row["outcome_classification"] = ClassifyOutcome(row);
         return row;
     }
 #endif
@@ -298,6 +335,7 @@ nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
         if (IsKnownBackendBuildDiagnostic(message)) {
             row["status"] = "skipped";
             row["diagnostic"] = message;
+            row["outcome_classification"] = ClassifyOutcome(row);
             return row;
         }
         throw;
@@ -491,9 +529,11 @@ nlohmann::json ExecuteEvidenceCase(const EvidenceCase& item) {
     row["fallback_stages"] = fallback_stages;
     row["backend_diagnostics"] = backend_diagnostics;
     row["status"] = "pass";
+    row["outcome_classification"] = ClassifyOutcome(row);
 
     if (item.requested_backend != "cpu" && fallback_stages.empty()) {
         row["native_gpu_execution"] = true;
+        row["outcome_classification"] = ClassifyOutcome(row);
     }
 
     return row;
