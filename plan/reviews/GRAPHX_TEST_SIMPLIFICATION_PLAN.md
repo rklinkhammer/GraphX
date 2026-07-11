@@ -124,7 +124,8 @@ FHSS is the clearest example of how to simplify the suite without weakening cove
 
 - Keep [libaccelgraph/test/unit/test_accelgraph_fhss_accel_contract.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_accel_contract.cpp) as the permanent contract test for token aliases, config parsing, and descriptor metadata.
 - Keep [libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp](libaccelgraph/test/unit/test_accelgraph_phase2_topology_contract.cpp) as the permanent JSON-topology ownership guardrail.
-- Keep the direct `Configure(...)` calls in [libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp), [libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp), [libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp), and [libaccelgraph/test/unit/test_accelgraph_fhss_branch_metric.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_branch_metric.cpp) because they are narrow parity/unit tests, not topology tests. They should be documented as such, not treated as topology bypasses.
+- Keep the direct `Configure(...)` calls in [libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_downconverter.cpp), [libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_channelizer.cpp), [libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_detector.cpp), and [libaccelgraph/test/unit/test_accelgraph_fhss_branch_metric.cpp](libaccelgraph/test/unit/test_accelgraph_fhss_branch_metric.cpp) only while those calls remain narrow parity/unit checks, not topology tests. They should be documented as such, not treated as topology bypasses.
+- If a file is renamed to `*TopologyTest`, direct `Configure(...)` calls should move to a separate `*ParityTest` or `*UnitTest` suite, or the topology ownership guardrail should explicitly exclude only the parity helper section by naming convention. A `*TopologyTest` suite should mean JSON/`GraphExecutorBuilder`/`IConfigurable` construction.
 - If any future FHSS topology test starts using direct `Configure(...)`, move it into the topology ownership guardrail file and fail the test instead of normalizing the bypass.
 
 ### Recommended FHSS Renames And Merges
@@ -162,16 +163,34 @@ The main graph_rev2 lesson is that phase numbers are temporary implementation sc
 - `libdsp` already looks mostly final.
 - Its FHSS tests are behavior-oriented rather than phase-oriented, so the simplification work there is mostly to keep ownership clean and avoid introducing duplicate accelgraph copies.
 
+### examples/DSP
+
+- The FHSS dashboard tests are step-numbered in file and suite names, for example `DashboardServerStep1Test` through `DashboardServerStep8Test`, and are built into `dsp_example_unit`.
+- These steps should be renamed into feature contracts rather than preserved as implementation chronology.
+- Recommended grouping:
+  - `FhssDashboardServerContractTest` for startup, health/readiness, static assets, and clean shutdown.
+  - `FhssDashboardConfigurationTest` for graph/config schemas, patch validation, export/replay, and failure injection.
+  - `FhssDashboardRuntimeControlTest` for rebuild, activation, stepping, reset, and scenario cursor behavior.
+  - `FhssDashboardEventReplayTest` for monotonic event sequences, replay/resume, retention gaps, and backpressure.
+  - `FhssDashboardVisualizationTest` for schedule/heatmap snapshots and refresh bounds.
+  - `FhssDashboardArtifactExportTest` for decoder diagnostics, artifact bundles, path containment, and write-failure handling.
+- The CTest name can remain `dsp_example_unit`; the simplification target is the step-numbered source/suite names.
+
 ## CTest And Discovery Recommendations
 
 The key discovery rule is that the suite names and the discovery expectations must move together.
+
+Current caveat: `AccelGraphPhase4CudaTest` is compiled into `test_libaccelgraph_smoke`, but it is not listed in `ACCELGRAPH_DISCOVERY_EXPECTED_SUITES` today. During cleanup, either add its final behavior name to discovery expectations or explicitly document why provider-shell diagnostics are smoke-only and not discovery-enforced.
 
 ### Standard CTest Should Include
 
 - `libgraph_unit`
 - `libgraph_unit_discovery`
+- `libgraph_integration`
 - `libdsp_unit`
 - `libdsp_unit_discovery`
+- `dsp_example_unit`
+- `fhss_fixture_topology_generator`
 - `libaccelgraph_smoke`
 - `libaccelgraph_smoke_discovery`
 - `libgpu_stub_unit`
@@ -182,6 +201,7 @@ The key discovery rule is that the suite names and the discovery expectations mu
 - `libgpu_metal_runtime` on macOS Metal-capable hosts
 - CUDA-specific accelgraph suites only on CUDA-capable hosts
 - `libgpu_backend_unit` only where the backend build is actually enabled
+- `libgpu_perf` only in a performance lane, not the default local unit lane
 
 ### Benchmark And Manual Lanes Should Stay Out Of Default Fast Unit
 
@@ -223,6 +243,7 @@ The key discovery rule is that the suite names and the discovery expectations mu
 
 - Update `libaccelgraph_smoke_discovery`, `libgraph_unit_discovery`, and `libdsp_unit_discovery` after the renames land.
 - Keep discovery tests aligned with the actual suite names, not the old phase names.
+- Decide whether the final replacement for `AccelGraphPhase4CudaTest` belongs in `libaccelgraph_smoke_discovery`. If it remains a permanent CUDA provider contract, it should be discovery-enforced under its final name.
 
 ### Step 7: Verify On macOS, Then On Jetson
 
@@ -242,8 +263,8 @@ The key discovery rule is that the suite names and the discovery expectations mu
 Recommended lane:
 
 ```bash
-cmake --build build-ninja/ninja-debug --target test_libgraph_unit test_libdsp_unit test_libaccelgraph_smoke test_libgpu_stub_unit test_libgpu_integration
-ctest --test-dir build-ninja/ninja-debug --output-on-failure -R '^(libgraph_unit|libgraph_unit_discovery|libdsp_unit|libdsp_unit_discovery|libaccelgraph_smoke|libaccelgraph_smoke_discovery|libgpu_stub_unit|libgpu_integration)$'
+cmake --build build-ninja/ninja-debug --target test_libgraph_unit test_libgraph_integration test_libdsp_unit test_dsp_example_unit test_libaccelgraph_smoke test_libgpu_stub_unit test_libgpu_integration
+ctest --test-dir build-ninja/ninja-debug --output-on-failure -R '^(libgraph_unit|libgraph_unit_discovery|libgraph_integration|libdsp_unit|libdsp_unit_discovery|dsp_example_unit|fhss_fixture_topology_generator|libaccelgraph_smoke|libaccelgraph_smoke_discovery|libgpu_stub_unit|libgpu_integration)$'
 ```
 
 ### macOS Metal
@@ -277,6 +298,13 @@ Recommended lane:
 ```
 
 The evidence artifact should remain under `build/fhss_accelgraph_evidence.json`.
+
+There are two evidence artifact families today and they should be kept distinct:
+
+- The FHSS evidence unit helper writes `build/fhss_accelgraph_evidence.json`.
+- The Phase 7 benchmark executable writes `verification/accelgraph/phase-7/macos-local-latest.json` by default, with Jetson imports and matrix reports also living under `verification/accelgraph/phase-7/`.
+
+The long-term cleanup may rename the benchmark executable and configs away from `phase7`, but the durable verification artifacts should remain under `verification/accelgraph/`.
 
 ## Risks And Rollback Strategy
 
