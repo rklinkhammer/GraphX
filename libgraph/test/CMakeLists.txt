@@ -79,7 +79,6 @@ add_test(NAME libgraph_unit COMMAND test_libgraph_unit)
 set_tests_properties(libgraph_unit PROPERTIES LABELS "core;unit;ci-safe;host-any")
 set(LIBGRAPH_DISCOVERY_EXPECTED_SUITES
     ActiveQueueTest
-    GraphExecutorBehaviorTest
     GraphExecutorTimingContractTest)
 add_test(NAME libgraph_unit_discovery
     COMMAND ${CMAKE_COMMAND}
