@@ -137,6 +137,23 @@ if(INTEGRATION_TEST_SOURCES)
     add_test(NAME libgraph_integration COMMAND test_libgraph_integration)
     set_tests_properties(libgraph_integration PROPERTIES
         LABELS "core;integration;ci-safe;host-any")
+
+    set(LIBGRAPH_INTEGRATION_DISCOVERY_EXPECTED_SUITES
+        GraphExecutorBuilderContractTest
+        GraphExecutorDataFlowTest
+        GraphExecutorLifecycleTest
+        GraphExecutorCompletionTest
+        GraphExecutorConcurrencyTest
+        GraphExecutorTerminationTest
+        GraphExecutorTimingContractTest)
+    add_test(NAME libgraph_integration_discovery
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_EXECUTABLE=$<TARGET_FILE:test_libgraph_integration>
+            -DEXPECTED_SUITES=${LIBGRAPH_INTEGRATION_DISCOVERY_EXPECTED_SUITES}
+            -DUNEXPECTED_SUITES=GraphExecutorBehaviorTest
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
+    set_tests_properties(libgraph_integration_discovery PROPERTIES
+        LABELS "core;integration;ownership;discovery;ci-safe;host-any")
 endif()
 
 # Test target

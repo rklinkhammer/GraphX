@@ -45,6 +45,31 @@ if(TARGET graphx_dynamic_nodes)
 endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
+set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
+    FhssDashboardServerContractTest
+    FhssDashboardServerFailureTest
+    FhssDashboardConfigurationConcurrencyTest
+    FhssDashboardConfigurationTest
+    FhssDashboardConfigurationServiceTest
+    FhssDashboardRebuildControlTest
+    FhssDashboardEventReplayTest
+    FhssDashboardVisualizationTest
+    FhssDashboardArtifactExportTest)
+set(DSP_EXAMPLE_DISCOVERY_UNEXPECTED_SUITES
+    DashboardServerStep1Test
+    DashboardServerStep2Test
+    DashboardServerStep3Test
+    DashboardServerStep6Test
+    DashboardServerStep7Test
+    DashboardServerStep8Test)
+add_test(NAME dsp_example_unit_discovery
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:test_dsp_example_unit>
+        -DEXPECTED_SUITES=${DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES}
+        -DUNEXPECTED_SUITES=${DSP_EXAMPLE_DISCOVERY_UNEXPECTED_SUITES}
+        -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
+set_tests_properties(dsp_example_unit_discovery PROPERTIES
+    LABELS "dsp;fhss;dashboard;discovery;ci-safe;host-any")
 
 add_test(
     NAME fhss_fixture_topology_generator

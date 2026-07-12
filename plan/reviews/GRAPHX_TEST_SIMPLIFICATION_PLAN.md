@@ -292,18 +292,21 @@ Current caveat: `AccelGraphPhase4CudaTest` is compiled into `test_libaccelgraph_
 - Move the FHSS evidence runner to a benchmark/evidence lane.
 - Keep benchmark files under `bench/` or a clearly labeled evidence lane.
 - Keep evidence generation out of the default fast unit path.
+- Implementation note: `AccelGraphFhssEvidenceTest` should be built and run via the dedicated `test_libaccelgraph_evidence` / `libaccelgraph_evidence` lane, not as part of `test_libaccelgraph_smoke`.
 
 ### Step 6: Update Discovery Expectations
 
 - Update `libaccelgraph_smoke_discovery`, `libgraph_unit_discovery`, and `libdsp_unit_discovery` after the renames land.
 - Keep discovery tests aligned with the actual suite names, not the old phase names.
 - Decide whether the final replacement for `AccelGraphPhase4CudaTest` belongs in `libaccelgraph_smoke_discovery`. If it remains a permanent CUDA provider contract, it should be discovery-enforced under its final name.
+- Implementation note: graph executor integration behavior is discovery-enforced through `libgraph_integration_discovery`; DSP dashboard behavior is discovery-enforced through `dsp_example_unit_discovery`; AccelGraph smoke discovery rejects `AccelGraphFhssEvidenceTest` so evidence remains in `libaccelgraph_evidence`.
 
 ### Step 7: Verify On macOS, Then On Jetson
 
 - Run the macOS unit and discovery lanes first.
 - Run the macOS Metal lane if Metal-specific suites are present.
 - Run the Jetson CUDA lane only after the rename/merge work is stable.
+- Implementation note: macOS local and macOS Metal lanes are green after the Step 6 discovery updates. The configured macOS local tree does not currently register `libgpu_integration`; include that target/test only in build trees that actually configure GPU integration sources.
 
 ### Step 8: Delete Duplicate Phase Wrappers
 
@@ -320,6 +323,8 @@ Recommended lane:
 cmake --build build-ninja/ninja-debug --target test_libgraph_unit test_libgraph_integration test_libdsp_unit test_dsp_example_unit test_libaccelgraph_smoke test_libgpu_stub_unit test_libgpu_integration
 ctest --test-dir build-ninja/ninja-debug --output-on-failure -R '^(libgraph_unit|libgraph_unit_discovery|libgraph_integration|libdsp_unit|libdsp_unit_discovery|dsp_example_unit|fhss_fixture_topology_generator|libaccelgraph_smoke|libaccelgraph_smoke_discovery|libgpu_stub_unit|libgpu_integration)$'
 ```
+
+`test_libgpu_integration` / `libgpu_integration` are optional for build trees that register GPU integration sources; omit them when the configured tree only has `test_libgpu_stub_unit`.
 
 ### macOS Metal
 
@@ -348,7 +353,7 @@ Recommended lane:
 
 ```bash
 ./build-ninja/ninja-debug/libaccelgraph/test/accelgraph_phase7_benchmark --frames=4 --warmup=1
-./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter='AccelGraphFhssPhase7EvidenceTest.*' --gtest_brief=1
+./build-ninja/ninja-debug/libaccelgraph/test/test_libaccelgraph_evidence --gtest_filter='AccelGraphFhssEvidenceTest.*' --gtest_brief=1
 ```
 
 The evidence artifact should remain under `build/fhss_accelgraph_evidence.json`.
