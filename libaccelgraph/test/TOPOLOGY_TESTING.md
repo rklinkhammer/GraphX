@@ -18,7 +18,7 @@ Accepted keys in `node_config` must be declared by node descriptor metadata (`Fi
 When adding new configurable node behavior:
 1. Add/adjust descriptor field metadata in node `Fields()`.
 2. Use those keys only through topology JSON `node_config`.
-3. Validate with topology contract tests in `test_accelgraph_phase2_topology_contract.cpp`.
+3. Validate with topology contract tests in `test_accelgraph_topology_json_ownership.cpp`.
 
 ## How Topology Tests Must Execute
 

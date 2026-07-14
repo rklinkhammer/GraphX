@@ -312,6 +312,7 @@ Current caveat: `AccelGraphPhase4CudaTest` is compiled into `test_libaccelgraph_
 
 - Remove the old phase-named wrappers only after the final suites are green and discovery tests are updated.
 - Preserve rollback by keeping one rename-only PR separate from any behavioral change.
+- Implementation note (2026-07-13): removed duplicate phase-era accelgraph wrappers by consolidating transfer and spectrum backend-matrix coverage into `test_accelgraph_transfer_backend_matrix.cpp` and `test_accelgraph_spectrum_backend_matrix.cpp`, and renamed remaining contracts to `test_accelgraph_topology_json_ownership.cpp` and `test_accelgraph_cuda_graph_executor_contract.cpp`. Discovery suite names and benchmark/evidence lane ownership are unchanged.
 
 ## Verification Matrix
 

@@ -139,19 +139,20 @@ std::vector<std::filesystem::path> CheckedInTopologyJsonFiles() {
     return files;
 }
 
-std::vector<std::filesystem::path> PhaseTestFilesInUnitDir(const std::filesystem::path& unit_dir) {
+std::vector<std::filesystem::path> BehaviorTopologyTestFilesInUnitDir(const std::filesystem::path& unit_dir) {
     std::vector<std::filesystem::path> files;
     if (!std::filesystem::exists(unit_dir)) {
         return files;
     }
 
-    static const std::regex kPhaseTestPattern(R"(^test_accelgraph_phase.*\.cpp$)");
+    static const std::regex kTopologyTestPattern(
+        R"(^test_accelgraph_(topology_json_ownership|transfer_backend_matrix|spectrum_backend_matrix|cuda_graph_executor_contract)\.cpp$)");
     for (const auto& entry : std::filesystem::directory_iterator(unit_dir)) {
         if (!entry.is_regular_file()) {
             continue;
         }
         const auto file_name = entry.path().filename().string();
-        if (std::regex_match(file_name, kPhaseTestPattern)) {
+        if (std::regex_match(file_name, kTopologyTestPattern)) {
             files.push_back(entry.path());
         }
     }
@@ -613,19 +614,19 @@ TEST(AccelGraphTopologyJsonOwnershipTest, TopologyNodesHaveTruthfulConnectivityS
 
 TEST(AccelGraphTopologyJsonOwnershipTest, TopologyTestsDoNotUseDirectConfigureCalls) {
     const auto unit_dir = std::filesystem::path(__FILE__).parent_path();
-    const auto phase_test_files = PhaseTestFilesInUnitDir(unit_dir);
-    ASSERT_FALSE(phase_test_files.empty());
+    const auto behavior_test_files = BehaviorTopologyTestFilesInUnitDir(unit_dir);
+    ASSERT_FALSE(behavior_test_files.empty());
 
-    const std::set<std::string> allowlisted_non_topology_phase_tests = {
+    const std::set<std::string> allowlisted_non_topology_tests = {
         std::filesystem::path(__FILE__).filename().string(),
-        "test_accelgraph_phase4_cuda.cpp",
+        "test_accelgraph_cuda_graph_executor_contract.cpp",
         "test_accelgraph_fhss_downconverter.cpp",
     };
 
-    for (const auto& file_path : phase_test_files) {
+    for (const auto& file_path : behavior_test_files) {
         const auto file_name = file_path.filename().string();
-        if (allowlisted_non_topology_phase_tests.find(file_name) !=
-            allowlisted_non_topology_phase_tests.end()) {
+        if (allowlisted_non_topology_tests.find(file_name) !=
+            allowlisted_non_topology_tests.end()) {
             continue;
         }
 
