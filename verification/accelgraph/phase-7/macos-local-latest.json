@@ -1,16 +1,16 @@
 {
   "branch": "codex/gpu-clean-restart",
-  "commit_sha": "4e9285a31b3318df835367e5cd25fa6f04d03186",
+  "commit_sha": "44ce17f11d12a40a4455a2c00c09407de125e5a0",
   "diff_identity": {
     "type": "working_tree",
-    "value": "uncommitted_changes_present",
-    "working_tree_dirty": true
+    "value": "clean",
+    "working_tree_dirty": false
   },
-  "generated_at_utc": "2026-07-12T02:31:24Z",
+  "generated_at_utc": "2026-07-14T01:49:40Z",
   "host": {
     "architecture": "aarch64",
     "hostname": "unknown",
-    "operating_system": "macOS"
+    "operating_system": "Linux"
   },
   "phase": "7",
   "results": [
@@ -18,7 +18,7 @@
       "allocation_bytes": null,
       "allocation_count": null,
       "backend": "cpu",
-      "cold_frame_ms": 20142.49225,
+      "cold_frame_ms": 21003.114149,
       "compute_only_gpu_time_ms": null,
       "correctness_family": "phase6",
       "correctness_parity_status": "pass:cpu-benchmark-family-baseline",
@@ -26,12 +26,12 @@
       "execution_mode": "local",
       "fallback_diagnostic": null,
       "frame_count": 4,
-      "frames_per_second": 0.049726512107947575,
+      "frames_per_second": 0.049375541450382254,
       "graph_configuration_name": "accelgraph_phase7_spectrum_cpu_macos",
-      "graph_overhead_ms": 97.24681274999966,
+      "graph_overhead_ms": 252.6924614999989,
       "host_class": "cpu-only",
-      "latency_ms": 20109.99681275,
-      "legacy_reference_baseline_ms": 1004.30801025,
+      "latency_ms": 20252.9424615,
+      "legacy_reference_baseline_ms": 1002.651341,
       "measurement_origin": {
         "imported": false,
         "measured_locally": true,
@@ -39,13 +39,13 @@
         "source_artifact": null
       },
       "packet_size": 256,
-      "samples_per_second": 12.72998709963458,
+      "samples_per_second": 12.640138611297857,
       "selected_backend": "cpu",
-      "steady_state_elapsed_time_ms": 80439.987251,
-      "total_elapsed_time_ms": 100781.042417,
+      "steady_state_elapsed_time_ms": 81011.769846,
+      "total_elapsed_time_ms": 102179.515759,
       "transfer_inclusive_gpu_time_ms": 0.0,
       "used_fallback": false,
-      "warm_frame_ms": 20099.165000333334,
+      "warm_frame_ms": 20002.88523233333,
       "warmup_frame_count": 1
     }
   ],
