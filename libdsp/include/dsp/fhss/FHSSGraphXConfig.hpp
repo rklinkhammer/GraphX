@@ -350,13 +350,18 @@ FHSSSyntheticIqGeneratorConfigFromJson(const graph::JsonView &cfg) {
 
 inline std::vector<FHSSPreamblePulseSpec>
 FHSSPreamblePulseSpecsFromJson(const graph::JsonView &cfg) {
-  return FHSSDecodeConfigFromJson(cfg).preamble_pulses;
+  const auto &json = cfg.Raw();
+  if (!json.contains("preamble_pulses")) {
+    throw graph::ConfigError(
+        "FHSS config field 'preamble_pulses' must be an array");
+  }
+  return FHSSPreamblePulseSpecsFromJsonArray(json.at("preamble_pulses"));
 }
 
 inline FHSSMessageAssemblerConfig
 FHSSMessageAssemblerConfigFromJson(const graph::JsonView &cfg) {
   FHSSMessageAssemblerConfig config{};
-  config.preamble_pulses = FHSSDecodeConfigFromJson(cfg).preamble_pulses;
+  config.preamble_pulses = FHSSPreamblePulseSpecsFromJson(cfg);
   return config;
 }
 

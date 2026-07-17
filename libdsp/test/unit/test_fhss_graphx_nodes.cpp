@@ -17,6 +17,7 @@
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
 #include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
+#include "dsp/fhss/FHSSBinaryIqFileSourceNode.hpp"
 #include "dsp/fhss/FHSSFixtureFrequencyChannelizerNode.hpp"
 #include "dsp/fhss/FHSSDownconverterNode.hpp"
 #include "dsp/fhss/FHSSMessageAssemblerNode.hpp"
@@ -360,6 +361,7 @@ struct FHSSPluginExpectation {
 const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
   static const std::vector<FHSSPluginExpectation> expectations{
       {"FHSSSyntheticIqSourceNode", "fhss_synthetic_iq_source_node"},
+      {"FHSSBinaryIqFileSourceNode", "fhss_binary_iq_file_source_node"},
       {"FHSSDownconverterNode", "fhss_downconverter_node"},
       {"FHSSFixtureFrequencyChannelizerNode", "fhss_fixture_frequency_channelizer_node"},
       {"PerChannelPulseDetectorNode", "per_channel_pulse_detector_node"},
@@ -378,6 +380,7 @@ const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
 TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
   static_assert(
       IsControlTokenV<FHSSSyntheticIqSourceNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSBinaryIqFileSourceNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::InputType<0>>);
@@ -410,6 +413,10 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
   static_assert(std::is_same_v<
                 typename TokenSidecar<
                     FHSSSyntheticIqSourceNode::OutputType<0>>::type,
+                FHSSSyntheticIqOutputPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<
+                    FHSSBinaryIqFileSourceNode::OutputType<0>>::type,
                 FHSSSyntheticIqOutputPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<

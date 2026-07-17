@@ -43,6 +43,11 @@ std::filesystem::path FHSSChannelizedConfigPath() {
          "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json";
 }
 
+std::filesystem::path FHSSBinaryIqConfigPath() {
+  return std::filesystem::path(GRAPHX_SOURCE_ROOT) /
+         "libdsp/config/fhss_cpsm_binary_iq_500msps.json";
+}
+
 std::filesystem::path PluginDirectory() {
   return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
 }
@@ -55,6 +60,38 @@ nlohmann::json LoadJson(const std::filesystem::path &path) {
   nlohmann::json json;
   input >> json;
   return json;
+}
+
+TEST(FHSSGraphXExecutorTest,
+     BinaryIqReplayTopologyBuildsWithoutMessageDefinitions) {
+  const auto config_path = FHSSBinaryIqConfigPath();
+  const auto config = LoadJson(config_path);
+  EXPECT_EQ(config.dump().find("\"messages\""), std::string::npos);
+  EXPECT_EQ(config.dump().find("transmitted_active_frequency_indices"),
+            std::string::npos);
+  EXPECT_EQ(config.dump().find("transmitted_pulse_frequency_indices"),
+            std::string::npos);
+  ASSERT_TRUE(config.at("nodes").is_array());
+  ASSERT_FALSE(config.at("nodes").empty());
+  EXPECT_EQ(config.at("nodes").front().at("type").get<std::string>(),
+            "FHSSBinaryIqFileSourceNode");
+  EXPECT_EQ(config.at("nodes")
+                .front()
+                .at("node_config")
+                .at("sample_format")
+                .get<std::string>(),
+            "cf32_le");
+
+  auto executor = graph::GraphExecutorBuilder()
+                      .WithJsonConfig(config_path.string())
+                      .WithPluginDirectory(PluginDirectory().string())
+                      .WithExecutorTimeout(std::chrono::seconds(12))
+                      .Build();
+
+  ASSERT_NE(executor, nullptr);
+  ASSERT_NE(executor->GetGraphManager(), nullptr);
+  EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 75u);
+  EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 137u);
 }
 
 std::shared_ptr<dsp::fhss::FHSSMessageSinkNode>
@@ -80,12 +117,15 @@ template <typename NodeT>
 std::vector<std::shared_ptr<NodeT>>
 ResolveNodes(const std::shared_ptr<graph::GraphManager> &manager) {
   std::vector<std::shared_ptr<NodeT>> result;
-  if (!manager) return result;
+  if (!manager)
+    return result;
   for (const auto &node : manager->GetNodes()) {
     auto wrapper =
         std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-    if (!wrapper) continue;
-    if (auto resolved = wrapper->GetNode<NodeT>()) result.push_back(resolved);
+    if (!wrapper)
+      continue;
+    if (auto resolved = wrapper->GetNode<NodeT>())
+      result.push_back(resolved);
   }
   return result;
 }
@@ -118,8 +158,8 @@ std::size_t CountNodeType(const nlohmann::json &config,
   return count;
 }
 
-std::vector<std::uint32_t> ActiveFrequenciesFromSource(
-    const nlohmann::json &config) {
+std::vector<std::uint32_t>
+ActiveFrequenciesFromSource(const nlohmann::json &config) {
   for (const auto &node : config.at("nodes")) {
     if (node.at("id").get<std::string>() == "source") {
       return node.at("node_config")
@@ -163,8 +203,7 @@ TEST(FHSSGraphXExecutorTest,
   ASSERT_TRUE(std::filesystem::exists(config_path));
 
   const auto config = LoadJson(config_path);
-  EXPECT_EQ(config.value("name", ""),
-            "fhss_cpsm_channelized_fixture_500msps");
+  EXPECT_EQ(config.value("name", ""), "fhss_cpsm_channelized_fixture_500msps");
   ASSERT_TRUE(config.at("nodes").is_array());
   ASSERT_TRUE(config.at("edges").is_array());
 
@@ -229,9 +268,8 @@ TEST(FHSSGraphXExecutorTest,
   ASSERT_TRUE(bootstrap);
   ASSERT_NE(bootstrap->provider, nullptr);
 
-  auto available =
-      app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(
-          bootstrap->provider);
+  auto available = app::NodeProviderBootstrap::GetAvailableNodeTypesExpected(
+      bootstrap->provider);
   ASSERT_TRUE(available);
   const std::set<std::string> available_types(available->begin(),
                                               available->end());
@@ -243,8 +281,7 @@ TEST(FHSSGraphXExecutorTest,
   EXPECT_EQ(CountNodeType(config_json, "PerChannelPulseDetectorNode"), 64u);
   const auto active = ActiveFrequenciesFromSource(config_json);
   EXPECT_EQ(active, (std::vector<std::uint32_t>{24, 28, 32, 36}));
-  const auto &source_config =
-      config_json.at("nodes").at(0).at("node_config");
+  const auto &source_config = config_json.at("nodes").at(0).at("node_config");
   const auto expected_fixture = GenerateSyntheticIqFixture(
       FHSSSyntheticIqGeneratorConfigFromJson(graph::JsonView(source_config)));
   ASSERT_TRUE(expected_fixture) << expected_fixture.error().message;
@@ -273,26 +310,30 @@ TEST(FHSSGraphXExecutorTest,
   const auto diagnostics = sink->GetDiagnostics().Raw();
 
   const auto sources = ResolveNodes<FHSSSyntheticIqSourceNode>(graph_manager);
-  const auto detectors = ResolveNodes<PerChannelPulseDetectorNode>(graph_manager);
+  const auto detectors =
+      ResolveNodes<PerChannelPulseDetectorNode>(graph_manager);
   const auto merges = ResolveNodes<FHSSPulseMergeNode>(graph_manager);
   const auto decoders = ResolveNodes<FHSSPulseWordDecoderNode>(graph_manager);
   ASSERT_EQ(sources.size(), 1u);
   ASSERT_EQ(detectors.size(), 64u);
   ASSERT_EQ(merges.size(), 1u);
   ASSERT_EQ(decoders.size(), 1u);
-  EXPECT_EQ(sources.front()->LastEmittedPulseCount(), kCanonicalFixturePulseCount);
-  const auto detector_pulse_count = std::accumulate(
-      detectors.begin(), detectors.end(), std::size_t{0},
-      [](std::size_t count, const auto &detector) {
-        return count + detector->LastDetectedPulseCount();
-      });
+  EXPECT_EQ(sources.front()->LastEmittedPulseCount(),
+            kCanonicalFixturePulseCount);
+  const auto detector_pulse_count =
+      std::accumulate(detectors.begin(), detectors.end(), std::size_t{0},
+                      [](std::size_t count, const auto &detector) {
+                        return count + detector->LastDetectedPulseCount();
+                      });
   EXPECT_EQ(detector_pulse_count, kCanonicalFixturePulseCount);
-  EXPECT_EQ(merges.front()->LastMergedPulseCount(), kCanonicalFixturePulseCount);
-  EXPECT_EQ(decoders.front()->LastDecodedPulseCount(), kCanonicalFixturePulseCount);
+  EXPECT_EQ(merges.front()->LastMergedPulseCount(),
+            kCanonicalFixturePulseCount);
+  EXPECT_EQ(decoders.front()->LastDecodedPulseCount(),
+            kCanonicalFixturePulseCount);
 
   EXPECT_EQ(diagnostics.at("schema").get<std::string>(),
             "graphx.fhss.message_sink.diagnostics.v1");
-  const std::array<const char*, 8> required_keys{{
+  const std::array<const char *, 8> required_keys{{
       "schema",
       "pulse_count",
       "rejected_count",
@@ -302,7 +343,7 @@ TEST(FHSSGraphXExecutorTest,
       "active_frequency_indices",
       "decoded_pulses",
   }};
-  for (const char* key : required_keys) {
+  for (const char *key : required_keys) {
     EXPECT_TRUE(diagnostics.contains(key)) << key;
   }
 
@@ -316,8 +357,8 @@ TEST(FHSSGraphXExecutorTest,
   EXPECT_EQ(diagnostics.at("synchronization_assumption").get<std::string>(),
             "known message_start_sample = 0");
 
-  const auto locked_active =
-      diagnostics.at("active_frequency_indices").get<std::vector<std::uint32_t>>();
+  const auto locked_active = diagnostics.at("active_frequency_indices")
+                                 .get<std::vector<std::uint32_t>>();
   EXPECT_EQ(locked_active, active);
 
   ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array());

@@ -32,6 +32,14 @@ if(TARGET graphx_dynamic_nodes)
     add_dependencies(dsp_spectrum_demo graphx_dynamic_nodes)
 endif()
 
+add_executable(dsp_fhss_iq_generator
+    src/fhss_iq_generator.cpp
+)
+set_target_properties(dsp_fhss_iq_generator PROPERTIES
+    OUTPUT_NAME "graphx-dsp-fhss-iq-generator"
+)
+target_link_libraries(dsp_fhss_iq_generator PRIVATE dsp)
+
 add_executable(dsp_fhss_demo
     src/fhss_demo.cpp
 )
@@ -62,5 +70,9 @@ install(TARGETS dsp_spectrum_demo
 )
 
 install(TARGETS dsp_fhss_demo
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS dsp_fhss_iq_generator
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
