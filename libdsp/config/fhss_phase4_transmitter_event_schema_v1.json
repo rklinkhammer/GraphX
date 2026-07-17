@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "graphx.fhss.phase4-transmitter-events.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "session_id", "capture_id", "time_reference", "timing_uncertainty_samples", "events"],
+  "properties": {
+    "schema": {"const": "graphx.fhss.phase4-transmitter-events.v1"}, "session_id": {"type": "string"},
+    "capture_id": {"type": "string"}, "time_reference": {"type": "string"},
+    "timing_uncertainty_samples": {"type": "integer", "minimum": 0},
+    "events": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["event_id", "message_id", "start_sample", "frequency_index", "word"],
+      "properties": {"event_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+        "message_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"}, "start_sample": {"type": "integer", "minimum": 0},
+        "frequency_index": {"type": "integer", "minimum": 0, "maximum": 63},
+        "word": {"type": "integer", "minimum": 0, "maximum": 4294967295}, "collision": {"type": "boolean"}}}}
+  }
+}

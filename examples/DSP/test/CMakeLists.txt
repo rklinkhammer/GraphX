@@ -127,3 +127,12 @@ add_test(
 set_tests_properties(fhss_phase3_actual_graph_smoke PROPERTIES
     LABELS "dsp;fhss;phase3;actual-graph;ci-safe;host-any"
     TIMEOUT 90)
+
+add_test(
+    NAME fhss_phase4_recorded_infrastructure
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase4_recorded.py
+)
+set_tests_properties(fhss_phase4_recorded_infrastructure PROPERTIES
+    LABELS "dsp;fhss;phase4;recorded-iq;ci-safe;host-any"
+    TIMEOUT 30)

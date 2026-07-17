@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "graphx.fhss.phase4-equipment.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["equipment_id", "category", "manufacturer", "model", "firmware", "identifier_policy", "calibration_record_ids"],
+  "properties": {
+    "equipment_id": {"type": "string"}, "category": {"type": "string"}, "manufacturer": {"type": "string"},
+    "model": {"type": "string"}, "firmware": {"type": "string"},
+    "identifier_policy": {"enum": ["anonymized_stable", "approved_serial"]},
+    "calibration_record_ids": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}
+  }
+}

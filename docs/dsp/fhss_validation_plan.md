@@ -590,13 +590,35 @@ Gate: declared simulation thresholds pass without using shared truth logic.
 
 ### Phase 4: recorded IQ and HIL
 
+Current scope (2026-07-17): hardware-in-loop, conducted,
+channel-emulator, and OTA testing are unavailable. Phase 4 test data is limited
+to explicitly labeled synthetic dry-run fixtures. Those fixtures may validate
+ingestion, replay, journaling, matching, statistics, and correlation plumbing,
+but they are not recorded/hardware evidence, cannot be assigned a physical
+capture class, and cannot satisfy the Phase 4 gate. Physical capture/HIL
+acceptance is unavailable and deferred; all physical session, capture,
+searched-exposure, held-out replay, and hardware paired-point counts remain
+zero. Phase 3 v7 simulation evidence must not be reused as Phase 4 hardware
+data.
+
 Deliver:
 
 - Conducted, channel-emulator, and OTA datasets.
 - Held-out replay results.
 - Simulation-to-hardware correlation report.
 
-Gate: held-out capture performance satisfies the validation profile.
+Gate: held-out physical capture performance satisfies the validation profile.
+Under the current synthetic-only scope this gate is UNAVAILABLE/DEFERRED, not
+PASS, and no recorded-IQ, hardware-validation, HIL, OTA, or
+simulation-to-hardware correlation claim is permitted.
+
+Any future physical run must freeze the complete statistical threshold set,
+including its digest, and the correlation agreement criteria before held-out
+evidence is inspected. Physical aggregation validates the bound v2 journal's
+exact selected set and applies the declared confidence-bound gates; process
+completion or a cherry-picked subset cannot produce PASS. Dataset, freeze
+manifest, journal, and aggregate correlation bindings use exact file-byte
+SHA-256 values.
 
 ### Phase 5: qualification and maintenance
 

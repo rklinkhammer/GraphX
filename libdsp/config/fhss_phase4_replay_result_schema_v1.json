@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "graphx.fhss.phase4-replay-result.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "capture_id", "session_id", "attempt_number", "status", "command", "return_status", "receiver_completed", "completed", "elapsed_seconds", "hashes", "searched_samples", "searched_exposure_known", "matching", "allocation", "failure"],
+  "properties": {
+    "schema": {"const": "graphx.fhss.phase4-replay-result.v1"}, "capture_id": {"type": "string"}, "session_id": {"type": "string"},
+    "attempt_number": {"const": 1}, "status": {"enum": ["attempting", "completed", "failed", "timed_out"]}, "command": {"type": "array", "items": {"type": "string"}},
+    "return_status": {"type": ["integer", "null"]}, "receiver_completed": {"type": "boolean"}, "completed": {"type": "boolean"}, "elapsed_seconds": {"type": "number", "minimum": 0},
+    "hashes": {"type": "object", "additionalProperties": false,
+      "required": ["iq_sha256", "receiver_sha256", "base_graph_sha256", "effective_graph_sha256", "effective_config_sha256", "plugin_manifest_sha256", "stdout_sha256", "stderr_sha256"],
+      "properties": {"iq_sha256": {"type": ["string", "null"]}, "receiver_sha256": {"type": ["string", "null"]}, "base_graph_sha256": {"type": ["string", "null"]}, "effective_graph_sha256": {"type": ["string", "null"]}, "effective_config_sha256": {"type": ["string", "null"]}, "plugin_manifest_sha256": {"type": ["string", "null"]}, "stdout_sha256": {"type": ["string", "null"]}, "stderr_sha256": {"type": ["string", "null"]}}},
+    "searched_samples": {"type": "integer", "minimum": 0}, "searched_exposure_known": {"type": "boolean"}, "matching": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/matching"}]},
+    "allocation": {"type": "object", "additionalProperties": false, "required": ["reported_node_count", "sum_high_water_bytes", "max_high_water_bytes"],
+      "properties": {"reported_node_count": {"type": "integer", "minimum": 0}, "sum_high_water_bytes": {"type": "integer", "minimum": 0}, "max_high_water_bytes": {"type": "integer", "minimum": 0}}},
+    "failure": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/failure"}]}
+  },
+  "$defs": {
+    "match": {"type": "object", "additionalProperties": false,
+      "required": ["event_id", "detection_id", "timing_error_samples", "frequency_correct", "bit_errors", "word_error", "collision"],
+      "properties": {"event_id": {"type": "string"}, "detection_id": {"type": "string"}, "timing_error_samples": {"type": "integer"}, "frequency_correct": {"type": "boolean"}, "bit_errors": {"type": "integer", "minimum": 0, "maximum": 32}, "word_error": {"type": "boolean"}, "collision": {"type": "boolean"}}},
+    "matching": {"type": "object", "additionalProperties": false,
+      "required": ["matched", "miss_event_ids", "association_failure_event_ids", "false_detection_ids", "duplicate_detection_ids", "collision_truth_count", "collision_matched_count", "event_count", "detection_count", "matched_count"],
+      "properties": {"matched": {"type": "array", "items": {"$ref": "#/$defs/match"}}, "miss_event_ids": {"type": "array", "items": {"type": "string"}}, "association_failure_event_ids": {"type": "array", "items": {"type": "string"}}, "false_detection_ids": {"type": "array", "items": {"type": "string"}}, "duplicate_detection_ids": {"type": "array", "items": {"type": "string"}}, "collision_truth_count": {"type": "integer", "minimum": 0}, "collision_matched_count": {"type": "integer", "minimum": 0}, "event_count": {"type": "integer", "minimum": 0}, "detection_count": {"type": "integer", "minimum": 0}, "matched_count": {"type": "integer", "minimum": 0}}},
+    "failure": {"type": "object", "additionalProperties": false,
+      "required": ["stage", "kind", "message"], "properties": {"stage": {"enum": ["pre_execution", "receiver_execution", "post_receiver_evaluator", "interrupted_attempt"]}, "kind": {"type": "string"}, "message": {"type": "string"}, "receiver_completed": {"type": "boolean"}}}
+  }
+}

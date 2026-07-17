@@ -1,0 +1,122 @@
+{
+  "schema": "graphx.fhss.phase4-validation-profile.v1",
+  "version": 1,
+  "status": "synthetic_only_infrastructure_physical_validation_unavailable",
+  "claim_level": "recorded_iq_hil_engineering_validation_only_when_all_gates_pass",
+  "extends_phase3": {
+    "profile_path": "libdsp/config/fhss_phase3_validation_profile_v7.json",
+    "profile_sha256": "3a9b8d332d78f6f6b0de6f464047e5e5a3012b34abdfb78d66db416953e14a83",
+    "raw_sha256": "70ec33d427e2c1bb4296382de5c059b2aa6723432f81a55e04ba791de5af6240",
+    "report_sha256": "e5c5f7b18cc917aab8a3faea794b70a0d407d1c2a5b679b6905f2ef0f91339d1",
+    "freeze_manifest_sha256": "895507c6955257d2ee07e14545b7b684cf6ef25474aacdbc2a23a2565daee0d8",
+    "inventory_sha256": "3625e25ec0d360a7e691a242a2c03f058dd91f0c4f63672f33c6173680790b55"
+  },
+  "waveform": {
+    "sample_rate_hz": 500000000.0,
+    "bit_rate_hz": 5000000.0,
+    "sample_formats": ["cf32_le", "cf32_be", "cf64_le", "cf64_be"],
+    "canonical_replay_format": "cf32_le",
+    "architecture": "docs/dsp/fhss_architecture.md"
+  },
+  "capture_program": {
+    "required_classes": ["conducted", "channel_emulator", "ota"],
+    "minimum_independent_sessions_per_class": 3,
+    "minimum_captures_per_class": 10,
+    "minimum_searched_seconds_per_class": 60.0,
+    "maximum_transmitter_messages_per_capture": 1,
+    "conducted": {
+      "wanted_power_dbm_range": [-110.0, -20.0],
+      "attenuation_db_range": [0.0, 120.0],
+      "required_cases": ["noise_only", "wanted_sweep", "adjacent_blocker", "alternate_blocker", "cochannel", "overload_check", "independent_oscillators"]
+    },
+    "channel_emulator": {
+      "required_cases": ["awgn_ebn0", "deterministic_tdl", "rayleigh", "rician", "positive_doppler", "negative_doppler", "adjacent_blocker", "cochannel"]
+    },
+    "ota": {
+      "required_cases": ["static_los", "obstructed_los", "indoor_multipath"],
+      "authorization_required": true,
+      "preferred_order": "conducted_or_shielded_before_ota"
+    }
+  },
+  "statistics": {
+    "confidence_method": "session-clustered deterministic percentile bootstrap enveloped by Wilson score bounds",
+    "confidence_level": 0.95,
+    "cluster_unit": "capture_session",
+    "metrics": ["detection_probability", "false_alarms_per_second", "conditional_ber", "word_error_rate", "message_per", "timing_error_samples", "frequency_confusion", "cfo_error_hz"],
+    "failed_run_policy": "retain_and_fail_no_retry_or_substitution",
+    "matching": {
+      "method": "deterministic maximum-cardinality then minimum-total-absolute-timing-error assignment after receiver completion",
+      "nominal_tolerance_samples": 200,
+      "timing_uncertainty_policy": "add independently calibrated 95-percent time-reference bound",
+      "duplicate_policy": "unmatched extra detections are false detections"
+    },
+    "thresholds": {
+      "status": "provisional_engineering_not_frozen",
+      "origin": "must be approved and frozen before held-out hardware results are inspected",
+      "threshold_set_sha256": null,
+      "detection_probability_lower_bound": 0.95,
+      "conditional_ber_upper_bound": 0.01,
+      "message_per_upper_bound": 0.10,
+      "false_alarms_per_second_upper_bound": 0.001
+    }
+  },
+  "replay": {
+    "receiver_graph": "libdsp/config/fhss_phase2_binary_iq_receiver.json",
+    "receiver_graph_sha256": "672cc99fe1776e608d05972ab1fdc9873ada9d3f0ba43285d5000e9a257c2ae8",
+    "allowed_patches": ["binary_iq_file_path", "receiver_output_paths"],
+    "forbidden_receiver_fields": ["messages", "transmitter_events", "expected_words", "truth_manifest", "waveform_generator", "transmitted_frequency_indices", "hidden_burst_epochs", "generator_truth"],
+    "executor_timeout_seconds": 120,
+    "process_timeout_seconds": 150,
+    "ci_tier": "manifest/schema/hash/format/truth-isolation and literal-byte conversion only; no external download",
+    "offline_tier": "explicit external corpus; immutable journal; no synthetic fallback; missing corpus is failure"
+  },
+  "correlation": {
+    "paired_metrics": ["detection_probability_difference", "false_alarm_rate_ratio", "conditional_ber_difference", "word_error_difference", "message_per_difference", "timing_bias_difference", "timing_percentile_difference", "frequency_confusion_difference", "cfo_error_difference", "sensitivity_offset_db", "blocker_capture_offset_db"],
+    "agreement_criteria": {
+      "status": "provisional_not_frozen",
+      "decision_rule": "absolute residual including declared compatible units/reference plane must not exceed frozen absolute margin; uncertainty is reported separately",
+      "metrics": {
+        "detection_probability_difference": {"unit": "probability", "absolute_margin": 0.05},
+        "false_alarm_rate_ratio": {"unit": "ratio", "absolute_margin": 1.0},
+        "conditional_ber_difference": {"unit": "probability", "absolute_margin": 0.01},
+        "word_error_difference": {"unit": "probability", "absolute_margin": 0.05},
+        "message_per_difference": {"unit": "probability", "absolute_margin": 0.10},
+        "timing_bias_difference": {"unit": "samples", "absolute_margin": 20.0},
+        "timing_percentile_difference": {"unit": "samples", "absolute_margin": 20.0},
+        "frequency_confusion_difference": {"unit": "probability", "absolute_margin": 0.01},
+        "cfo_error_difference": {"unit": "hertz", "absolute_margin": 25000.0},
+        "sensitivity_offset_db": {"unit": "decibel", "absolute_margin": 3.0},
+        "blocker_capture_offset_db": {"unit": "decibel", "absolute_margin": 3.0}
+      }
+    },
+    "reference_plane_policy": "pair only compatible calibrated reference planes and normalizations",
+    "uncertainty_policy": "propagate calibration uncertainty and session-clustered confidence bounds"
+  },
+  "partitions": {
+    "development_session_ids": [],
+    "validation_session_ids": [],
+    "held_out_session_ids": [],
+    "unit": "physical_capture_session",
+    "adjacent_slice_partitioning": "prohibited"
+  },
+  "freeze": {
+    "held_out_status": "not_frozen_physical_validation_unavailable",
+    "reason": "User-confirmed scope: no hardware-in-loop, conducted, channel-emulator, or OTA testing is available; synthetic dry runs cannot satisfy the physical Phase 4 gate.",
+    "profile_sha256": null,
+    "dataset_manifest_sha256": null,
+    "receiver_executable_sha256": null,
+    "plugin_manifest_sha256": null,
+    "independent_tool_sha256": "dc76bf40f1138dc3d224d1741af9971eb0597660f0b8cc0270ea82b579c5288a",
+    "freeze_manifest_path": null,
+    "freeze_manifest_sha256": null
+  },
+  "limitations": [
+    "Synthetic-only infrastructure readiness is not a Phase 4 physical validation pass.",
+    "Hardware-in-loop, conducted, channel-emulator, and OTA testing is unavailable/deferred; all physical evidence counts are zero.",
+    "Synthetic dry-run fixtures may exercise plumbing but cannot be labeled recorded/hardware or satisfy the Phase 4 gate.",
+    "No hardware held-out replay or simulation-to-hardware correlation evidence exists.",
+    "Partial-hop collision offsets t800 and t1600 remain unsupported.",
+    "The generic executor may perform an unbounded join after timeout if active Consume lacks cooperative interruption.",
+    "No product, regulatory, certification, interoperability, or production-RF qualification claim is authorized."
+  ]
+}
