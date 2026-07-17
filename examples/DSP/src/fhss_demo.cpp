@@ -233,6 +233,7 @@ nlohmann::json SourceConfigFromMessageJson(const nlohmann::json &message_json) {
       "enable_doppler",
       "enable_multipath",
       "allow_overlap",
+      "realistic",
   };
 
   nlohmann::json filtered = nlohmann::json::object();
