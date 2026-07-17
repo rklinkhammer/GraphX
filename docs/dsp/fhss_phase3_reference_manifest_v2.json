@@ -1,0 +1,44 @@
+{
+  "schema": "graphx.fhss.phase3-reference-manifest.v2",
+  "claim": "Engineering references only; none is asserted as a normative product standard for the GraphX fixture waveform.",
+  "researched_on": "2026-07-17",
+  "references": [
+    {
+      "organization": "ITU-R",
+      "title": "Multipath propagation and parameterization of its characteristics",
+      "identifier": "Recommendation ITU-R P.1407-8",
+      "version_date": "09/2021",
+      "sections": ["2.1 power delay profiles", "2.2.3 r.m.s. delay spread", "5 received-signal variation"],
+      "url": "https://www.itu.int/dms_pubrec/itu-r/rec/p/R-REC-P.1407-8-202109-I!!PDF-E.pdf",
+      "adaptation": "The harness represents a channel as a normalized linear transversal filter of delayed complex replicas and reports tap power, mean delay, RMS delay spread, and Doppler separately. No ITU environment distribution or qualification limit is imported."
+    },
+    {
+      "organization": "3GPP",
+      "title": "Study on channel model for frequencies from 0.5 to 100 GHz",
+      "identifier": "3GPP TR 38.901 V19.2.0 (Release 19), archive 38901-j20",
+      "version_date": "2026-01",
+      "sections": ["7.7.2 tapped delay line models", "7.7.3 clustered delay line models"],
+      "url": "https://www.3gpp.org/ftp/Specs/archive/38_series/38.901/38901-j20.zip",
+      "adaptation": "Only the TDL vocabulary—relative delays, normalized tap powers, fading coefficients, and Doppler—is used. GraphX uses small explicit engineering tap sets, not a claimed 3GPP deployment scenario."
+    },
+    {
+      "organization": "ETSI",
+      "title": "Wideband transmission systems; Data transmission equipment operating in the 2,4 GHz band; Harmonised Standard for access to radio spectrum",
+      "identifier": "ETSI EN 300 328 V2.2.2",
+      "version_date": "2019-07",
+      "sections": ["4.3.1.12 Receiver Blocking for FHSS equipment", "5.4.11 Receiver Blocking test conditions and method", "5.4.11.2.1 conducted measurements"],
+      "url": "https://www.etsi.org/deliver/etsi_en/300300_300399/300328/02.02.02_60/en_300328v020202p.pdf",
+      "adaptation": "The published method motivates recording wanted level, blocker frequency/level, communication performance, and each tested combination. The GraphX harness adapts this only to calibrated complex-baseband engineering SIR sweeps; it does not reproduce the 2.4 GHz bands, receiver categories, dBm limits, companion-device procedure, conducted/radiated setup, or any regulatory conformance claim."
+    },
+    {
+      "organization": "Institution of Engineering and Technology",
+      "title": "Jakes fading model revisited",
+      "authors": ["P. Dent", "G. E. Bottomley", "T. Croft"],
+      "identifier": "Electronics Letters, DOI 10.1049/el:19930777",
+      "version_date": "1993-06-24",
+      "sections": ["sum-of-sinusoids Rayleigh fading construction and second-order behavior"],
+      "url": "https://doi.org/10.1049/el:19930777",
+      "adaptation": "The implemented time-varying engineering Rayleigh option is a reproducible finite sum of complex sinusoids with component frequencies bounded by the declared maximum Doppler. Analytical tests cover component support, finite-record power, and autocorrelation. It is not labeled as an exact standardized Jakes deployment profile, and composite instantaneous phase is not bounded near fading nulls."
+    }
+  ]
+}

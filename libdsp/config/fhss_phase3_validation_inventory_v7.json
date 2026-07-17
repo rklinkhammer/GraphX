@@ -1,0 +1,79 @@
+{
+  "schema": "graphx.fhss.phase3-validation-inventory.v7",
+  "profile_binding": {
+    "path": "libdsp/config/fhss_phase3_validation_profile_v7.json",
+    "file_sha256": "3a9b8d332d78f6f6b0de6f464047e5e5a3012b34abdfb78d66db416953e14a83",
+    "canonical_sha256": "709df93e2d829a39730dbdc062485c1e37b71c32c6bf865c890e2473a062c5bf",
+    "frozen_sha256": "a4aa258dd5461fb7d3e4e51e016e9a827040e226db1c227bea760153c4140ee4"
+  },
+  "implementation_binding": {
+    "evaluator_path": "examples/DSP/tools/fhss_phase3_independent_v7.py",
+    "evaluator_sha256": "65283b6d80c6179ce329f97c6b5a7638107ed360ef2bd87590ad29f33099ae8a",
+    "receiver_executable_path": "build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo",
+    "receiver_executable_sha256": "a52a78d98fd744e68feeff89c4ed57dba27d2bbeca9a03ec3b9fdbb21143336b",
+    "receiver_graph_path": "libdsp/config/fhss_phase2_binary_iq_receiver.json",
+    "receiver_graph_sha256": "672cc99fe1776e608d05972ab1fdc9873ada9d3f0ba43285d5000e9a257c2ae8",
+    "plugin_set_sha256": "1a8f56259bebfcb03a718fa4684f3a043889857d26387b908b0f18ef6ca5e94f",
+    "cxx_mode": "c++26"
+  },
+  "held_out_evidence_binding": {
+    "raw_path": "libdsp/config/fhss_phase3_evaluation_raw_v7.json",
+    "raw_sha256": "70ec33d427e2c1bb4296382de5c059b2aa6723432f81a55e04ba791de5af6240",
+    "raw_cases_sha256": "12cc70464ac2844cd84532b44ec8834953147aa5cb3edef7a0ada904952374cd",
+    "report_path": "libdsp/config/fhss_phase3_characterization_report_v7.json",
+    "report_sha256": "e5c5f7b18cc917aab8a3faea794b70a0d407d1c2a5b679b6905f2ef0f91339d1",
+    "case_count": 162,
+    "execution_failures": 0,
+    "matrix_complete": true,
+    "overall_pass": true
+  },
+  "supported_held_out_matrix": {
+    "cochannel_same_hop_fhss_sir_db": [
+      -6.0,
+      0.0,
+      6.0,
+      12.0
+    ],
+    "relative_timing_samples": [
+      0,
+      6500,
+      13000
+    ],
+    "classification": "fresh v7 held-out characterization; all declared whole-hop matrix cases completed without retry"
+  },
+  "unsupported_deferred": [
+    {
+      "id": "cochannel_fhss_partial_hop_t800",
+      "sir_db": 6.0,
+      "relative_timing_samples": 800,
+      "same_hops": true,
+      "historical_validation_seed": 34102,
+      "historical_execution_attempts": 2,
+      "historical_implementation_phase": "pre-circular-FIR",
+      "post_circular_fir_revalidated": false,
+      "outcome": "FAIL_UNSUPPORTED_DEFERRED",
+      "historical_failure": "actual Phase 2 receiver did not complete within the then-configured 30-second executor timeout and 45-second process guard",
+      "conservative_status_reason": "the circular-FIR fix removed an observed workload pathology but this partial-hop point was intentionally not rerun with fresh v7 held-out seeds; absent new predeclared evidence, historical failure status is retained",
+      "claim": "unsupported/deferred FAIL; no passing claim"
+    },
+    {
+      "id": "cochannel_fhss_partial_hop_t1600",
+      "sir_db": 6.0,
+      "relative_timing_samples": 1600,
+      "same_hops": true,
+      "historical_validation_seeds": [],
+      "historical_execution_attempts": 0,
+      "historical_implementation_phase": "pre-circular-FIR",
+      "post_circular_fir_revalidated": false,
+      "outcome": "FAIL_NOT_SEPARATELY_EXECUTED_UNSUPPORTED_DEFERRED",
+      "historical_failure": "classified in the same partial-hop completion-risk class; the original development sequence stopped after repeated t800 timeout",
+      "conservative_status_reason": "no separate pre-fix or post-fix passing evidence exists, and no fresh v7 held-out seed was spent on this omitted point",
+      "claim": "unsupported/deferred FAIL; no passing claim"
+    }
+  ],
+  "policy": {
+    "fresh_v7_seed_executions_for_unsupported_points": 0,
+    "status_transition": "none",
+    "qualification_effect": "none; inventory does not expand the frozen v7 matrix or support a hardware, OTA, regulatory, interoperability, or product claim"
+  }
+}

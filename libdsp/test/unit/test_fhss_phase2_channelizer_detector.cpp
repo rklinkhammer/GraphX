@@ -6,6 +6,7 @@
 #include "dsp/fhss/FHSSProductionCandidateChannelizerNode.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -259,12 +260,40 @@ TEST(FHSSPhase2ChannelizerTest,
     actual.insert(actual.end(), rhs->samples.begin(), rhs->samples.end());
     ASSERT_EQ(actual.size(), expected->samples.size());
     for (std::size_t index = 0; index < actual.size(); ++index) {
-      EXPECT_NEAR(actual[index].real(), expected->samples[index].real(),
-                  1.0e-12);
-      EXPECT_NEAR(actual[index].imag(), expected->samples[index].imag(),
-                  1.0e-12);
+      EXPECT_EQ(actual[index], expected->samples[index]);
     }
   }
+}
+
+TEST(FHSSPhase2ChannelizerTest,
+     ValidationSizedCaptureUsesFixedHistoryAndLinearInsertionWork) {
+  constexpr std::size_t kValidationCaptureSamples = 188'876u;
+  const auto config = ProductionConfig();
+  const auto coefficients =
+      DesignFHSSHammingLowpass(config.fir_tap_count, config.cutoff_frequency_hz,
+                               config.frequency.sample_rate_hz);
+  const auto input = Tone(kValidationCaptureSamples, 3'750'000.0,
+                          config.frequency.sample_rate_hz, 0.25, 0.37);
+  FHSSFirChannelizerKernel kernel(coefficients, config.decimation_factor,
+                                  3'750'000.0,
+                                  config.frequency.sample_rate_hz);
+
+  const auto started = std::chrono::steady_clock::now();
+  const auto output = kernel.Process(input, 0u);
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+
+  ASSERT_TRUE(output.has_value());
+  EXPECT_EQ(kernel.HistoryStorageSize(), coefficients.size());
+  EXPECT_EQ(kernel.HistoryWriteCount(), input.size());
+  EXPECT_EQ(kernel.HistoryOverwriteCount(),
+            input.size() - coefficients.size());
+  EXPECT_EQ(output->samples.size(), 18'864u);
+  RecordProperty(
+      "elapsed_microseconds",
+      std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
+  RecordProperty("history_storage_elements", kernel.HistoryStorageSize());
+  RecordProperty("history_writes", kernel.HistoryWriteCount());
+  RecordProperty("history_overwrites", kernel.HistoryOverwriteCount());
 }
 
 TEST(FHSSPhase2ChannelizerTest,
@@ -431,6 +460,34 @@ TEST(FHSSPhase2ChannelizerTest,
   }
 }
 
+TEST(FHSSPhase2ChannelizerTest,
+     ValidationSizedProductionNodeCompletesAll64LanesWithFixedHistory) {
+  constexpr std::size_t kValidationCaptureSamples = 188'876u;
+  const auto samples =
+      std::make_shared<const std::vector<std::complex<double>>>(Tone(
+          kValidationCaptureSamples,
+          ProductionConfig().frequency.iq_offset_frequency_hz[24],
+          FHSSProtocolConstants::kSampleRateHz, 0.25, 0.37));
+  FHSSProductionCandidateChannelizerNode channelizer(ProductionConfig());
+  const auto input = DownconvertedToken(samples, 0u, true);
+
+  const auto started = std::chrono::steady_clock::now();
+  ASSERT_TRUE(channelizer.ConsumeInput<0>(input));
+  const auto channel24 = DrainChannelizer<24>(channelizer);
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+
+  ASSERT_TRUE(channel24.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      channel24->edge_control));
+  EXPECT_EQ(channel24->sidecar.iq.sample_count, 18'864u);
+  EXPECT_GT(channelizer.AllocationHighWaterBytes(), 0u);
+  RecordProperty(
+      "elapsed_microseconds",
+      std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
+  RecordProperty("input_samples", kValidationCaptureSamples);
+  RecordProperty("lane_count", FHSSProtocolConstants::kFrequencyCount);
+}
+
 TEST(FHSSPhase2DetectorTest,
      AcquiresUnknownEpochMultipleBurstsAndMeasuresNoiseFromEvidence) {
   FHSSAcquisitionPulseDetectorKernel kernel;
@@ -444,6 +501,57 @@ TEST(FHSSPhase2DetectorTest,
   EXPECT_GT(detections->at(0).noise_power_linear, 0.0);
   EXPECT_GT(detections->at(0).mean_power_linear,
             detections->at(0).noise_power_linear * 8.0);
+}
+
+TEST(FHSSPhase2DetectorTest,
+     WholeHopTwoTransmitterCaptureHasBoundedCandidateAndDecodeWork) {
+  constexpr std::uint64_t kEpoch = 100u;
+  constexpr std::uint64_t kPulsePeriod = 650u;
+  constexpr std::uint64_t kRelativeStart = 650u;
+  constexpr std::uint64_t kCaptureSamples = 12'000u;
+  constexpr double kWeakAmplitude = 0.251188643150958;
+  std::size_t total_candidates = 0u;
+  std::size_t maximum_channel_candidates = 0u;
+
+  for (std::uint32_t frequency_index = 0;
+       frequency_index < FHSSProtocolConstants::kFrequencyCount;
+       ++frequency_index) {
+    std::vector<std::uint64_t> wanted_starts;
+    std::vector<std::uint64_t> weak_starts;
+    for (std::uint32_t ordinal = 0; ordinal < 17u; ++ordinal) {
+      const auto pulse_frequency = ordinal < 16u
+                                       ? 24u + 4u * (ordinal % 4u)
+                                       : 32u;
+      if (pulse_frequency == frequency_index) {
+        wanted_starts.push_back(kEpoch + ordinal * kPulsePeriod);
+        weak_starts.push_back(kEpoch + kRelativeStart +
+                              ordinal * kPulsePeriod);
+      }
+    }
+
+    auto capture = CaptureWithPulses(wanted_starts, kCaptureSamples, 10u,
+                                     1.0, 0.41, 0.0, 0.01, 38'011u);
+    const auto weak =
+        CaptureWithPulses(weak_starts, kCaptureSamples, 10u, kWeakAmplitude,
+                          -0.27, 0.0, 0.0, 38'012u);
+    std::ranges::transform(capture, weak, capture.begin(), std::plus{});
+
+    FHSSAcquisitionPulseDetectorKernel kernel;
+    const auto detections = kernel.Detect(capture, 10u);
+    ASSERT_TRUE(detections.has_value()) << frequency_index;
+    total_candidates += detections->size();
+    maximum_channel_candidates =
+        std::max(maximum_channel_candidates, detections->size());
+  }
+
+  const auto estimated_decoded_samples =
+      total_candidates * FHSSProtocolConstants::kPulseWidthSamples;
+  RecordProperty("total_candidates", total_candidates);
+  RecordProperty("maximum_channel_candidates", maximum_channel_candidates);
+  RecordProperty("estimated_decoded_samples", estimated_decoded_samples);
+  EXPECT_EQ(total_candidates, 34u);
+  EXPECT_EQ(maximum_channel_candidates, 10u);
+  EXPECT_EQ(estimated_decoded_samples, 108'800u);
 }
 
 TEST(FHSSPhase2DetectorTest,
@@ -922,6 +1030,57 @@ TEST(FHSSPhase2IntegrationContractTest,
       FHSSGraphXComplexEvidenceSamples(packet.complex_evidence), 10);
   EXPECT_EQ(expanded.size(), 3'200u);
   EXPECT_TRUE(FHSSExpandDecimatedCpsmEvidence(*samples, 3).empty());
+}
+
+TEST(FHSSPhase2IntegrationContractTest,
+     CausalFilteredEvidencePreservesFirstBitPhaseSlope) {
+  constexpr std::uint32_t kWord = 0x85B1'3A59u;
+  constexpr std::uint64_t kPulseStart = 1'000u;
+  const auto config = ProductionConfig();
+  std::vector<std::complex<double>> input(5'000, {0.0, 0.0});
+  double completed = 0.0;
+  for (std::uint32_t local = 0;
+       local < FHSSProtocolConstants::kPulseWidthSamples; ++local) {
+    const auto symbol_index = local / FHSSProtocolConstants::kSamplesPerSymbol;
+    const auto in_symbol = local % FHSSProtocolConstants::kSamplesPerSymbol;
+    if (in_symbol == 0u && symbol_index != 0u) {
+      const auto prior = (kWord >> (32u - symbol_index)) & 1u;
+      completed += prior == 0u ? 0.5 : -0.5;
+    }
+    const auto bit = (kWord >> (31u - symbol_index)) & 1u;
+    const double symbol = bit == 0u ? 1.0 : -1.0;
+    const double phase =
+        std::numbers::pi *
+        (completed + symbol * 0.5 * static_cast<double>(in_symbol) /
+                         FHSSProtocolConstants::kSamplesPerSymbol);
+    input[kPulseStart + local] = std::polar(1.0, phase);
+  }
+  const auto taps =
+      DesignFHSSHammingLowpass(config.fir_tap_count, config.cutoff_frequency_hz,
+                               config.frequency.sample_rate_hz);
+  FHSSFirChannelizerKernel kernel(taps, config.decimation_factor, 0.0,
+                                  config.frequency.sample_rate_hz);
+  const auto filtered = kernel.Process(input, 0u);
+  ASSERT_TRUE(filtered.has_value());
+  ASSERT_TRUE(filtered->has_output);
+  const auto first_center = filtered->first_causal_input_global_sample;
+  ASSERT_LE(first_center, kPulseStart + 120u);
+  const auto evidence_begin =
+      (kPulseStart + 120u - first_center) / config.decimation_factor;
+  ASSERT_LE(evidence_begin + 320u, filtered->samples.size());
+  const std::vector<std::complex<double>> decimated(
+      filtered->samples.begin() + static_cast<std::ptrdiff_t>(evidence_begin),
+      filtered->samples.begin() +
+          static_cast<std::ptrdiff_t>(evidence_begin + 320u));
+  const auto expanded =
+      FHSSExpandDecimatedCpsmEvidence(decimated, config.decimation_factor);
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(expanded);
+  ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
+  std::uint32_t actual = 0u;
+  for (const double symbol : decoded->symbols) {
+    actual = (actual << 1u) | (symbol < 0.0 ? 1u : 0u);
+  }
+  EXPECT_EQ(actual, kWord);
 }
 
 } // namespace

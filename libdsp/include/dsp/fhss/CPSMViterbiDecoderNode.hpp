@@ -31,6 +31,15 @@ public:
            std::integral_constant<std::size_t, 0>) override {
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
+    output.sidecar.correlation = input.sidecar.correlation;
+    if (input.sidecar.pulse_metrics.empty() &&
+        input.sidecar.branch_costs.empty() &&
+        !FHSSGraphXEvidenceHasHostComplexIq(
+            input.sidecar.candidate.complex_evidence)) {
+      last_decision_pulse_count_ = 0;
+      return output;
+    }
     const auto &metrics =
         input.sidecar.pulse_metrics.empty()
             ? std::vector<FHSSCpsmPulseBranchMetric>{FHSSCpsmPulseBranchMetric{

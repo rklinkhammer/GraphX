@@ -6,6 +6,44 @@ deterministic FHSS CPSM fixture and decoder lane. It is useful for GraphX packet
 contracts, node integration, scheduler behavior, diagnostics, and accelerator
 front-end validation. It is not yet a production RF receiver.
 
+## Phase 3 validation boundary
+
+Phase 3 adds an independent waveform/channel harness at
+`examples/DSP/tools/fhss_phase3_independent.py`. It is deliberately outside
+`libdsp` and does not import production generator, decoder, channelizer,
+detector, fixture, or truth helpers. It writes binary IQ and a separate
+evaluator-only truth manifest. The truth-free Phase 2 receiver graph receives
+only the IQ path and declared receiver configuration.
+
+Acquisition revealed that absolute-phase CPSM branch scoring made the first bit
+absorb unknown initial carrier phase and the causal FIR burst-start transient.
+The receiver now eliminates one constant nuisance phase with a pulse-global
+reference. It does not re-anchor every symbol: the accumulated h=1/2 phase
+state and phase continuity across symbol boundaries remain in the branch
+metric. Tests distinguish the same symbol from different states, reject an
+inserted boundary phase reset, preserve an unknown constant carrier phase, and
+cover causal filter/decimate/expand first-bit evidence.
+
+The Phase 3 profile, schemas, raw measurements, aggregate, and limitations are
+documented in `fhss_phase3_characterization.md`. Those results are engineering
+simulation only. In particular, the present detector frequency-error field is
+not a qualified CFO estimator, decoder confidence is not calibrated as a
+probability, and overlapping co-channel FHSS transmitters are not separated.
+The v2/v3 evidence is retained as invalidated history because it used an
+incorrect noise calibration, conditional-error denominators, and insufficient
+message statistics. The remediated harness defines wanted active-symbol power
+before blockers, hardware, and noise. For complex baseband,
+`E{|n[k]|^2}=N0*Fs`, `Eb=Es=Pactive/Rb`, and sample SNR is
+`Pactive/E{|n[k]|^2}`. IQ/DC, AGC, AWGN, clipping, and quantization execute as
+separate ordered stages. SIR is referenced to the wanted active power and the
+blocker is excluded from the AWGN reference.
+The implemented time-varying engineering Rayleigh process is a seeded finite
+sum of complex sinusoids. Its test validates the component
+frequencies, finite-record power, and autocorrelation. It does not constrain an
+instantaneous composite phase derivative, which can become arbitrarily large
+near a fading null even when every component is within the declared Doppler
+support.
+
 ## Scope
 
 The canonical implementation is the channelized fixture graph:

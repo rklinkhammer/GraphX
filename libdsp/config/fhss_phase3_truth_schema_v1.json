@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graphx.invalid/schema/fhss-phase3-truth-v1.json",
+  "title": "GraphX FHSS Phase 3 evaluator-only truth manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generator", "scenario_id", "seed", "sample_rate_hz", "sample_format", "sample_count", "events", "channel", "scenario_sha256", "iq_sha256"],
+  "properties": {
+    "schema": {"const": "graphx.fhss.phase3-truth.v1"},
+    "generator": {"type": "string"},
+    "scenario_id": {"type": "string"},
+    "seed": {"type": "integer", "minimum": 0},
+    "sample_rate_hz": {"const": 500000000.0},
+    "sample_format": {"enum": ["cf32_le", "cf64_le"]},
+    "sample_count": {"type": "integer", "minimum": 0, "maximum": 4194304},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["message_id", "transmitter_id", "pulse_ordinal", "nominal_transmit_start_sample", "received_start_sample", "received_end_sample", "frequency_index", "rf_frequency_hz", "iq_offset_frequency_hz", "word", "role", "amplitude_linear", "signal_power_linear", "noise_power_linear", "snr_db", "es_n0_db", "eb_n0_db", "cfo_hz", "sample_clock_offset_ppm", "doppler_hz", "channel_taps", "impairment_order", "dropped", "collided"]
+      }
+    },
+    "channel": {"type": "object"},
+    "scenario_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "iq_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

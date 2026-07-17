@@ -218,6 +218,32 @@ public:
     const std::size_t start =
         static_cast<std::size_t>(symbol_index) * timing.samples_per_symbol;
 
+    // A single constant carrier phase is a nuisance parameter shared by the
+    // complete pulse, not an independent phase for every symbol.  Normalize
+    // every observation by one pulse-global reference and every hypothesis by
+    // the configured initial trellis phase.  Constant carrier phase cancels,
+    // while the accumulated CPSM phase state and symbol-boundary continuity
+    // remain in the metric.  A per-symbol anchor would incorrectly erase the
+    // trellis state and admit discontinuous phase resets at every boundary.
+    std::size_t anchor = 0u;
+    while (anchor < samples.size() &&
+           std::abs(samples[anchor]) <=
+               std::numeric_limits<double>::epsilon()) {
+      ++anchor;
+    }
+    if (anchor >= timing.samples_per_symbol || anchor >= samples.size()) {
+      return CPSMBranchMetric{.symbol_index = symbol_index,
+                              .from_state = from_state,
+                              .to_state =
+                                  CPSMTransitionState(from_state, symbol),
+                              .symbol = symbol,
+                              .correlation = -1.0,
+                              .cost = 2.0};
+    }
+    const auto observed_reference = samples[anchor] / std::abs(samples[anchor]);
+    const auto predicted_reference = CPSMPredictedSample(
+        config.initial_phase_state, symbol, static_cast<std::uint32_t>(anchor),
+        timing.samples_per_symbol, config.modulation_index);
     double correlation_sum = 0.0;
     double usable_samples = 0.0;
     for (std::uint32_t i = 0; i < timing.samples_per_symbol; ++i) {
@@ -226,23 +252,24 @@ public:
       if (magnitude <= std::numeric_limits<double>::epsilon()) {
         continue;
       }
-      const auto observed_unit = sample / magnitude;
-      const auto predicted =
+      const auto observed_relative =
+          sample / magnitude * std::conj(observed_reference);
+      const auto predicted_relative =
           CPSMPredictedSample(from_state, symbol, i, timing.samples_per_symbol,
-                              config.modulation_index);
-      correlation_sum += (observed_unit * std::conj(predicted)).real();
+                              config.modulation_index) *
+          std::conj(predicted_reference);
+      correlation_sum +=
+          (observed_relative * std::conj(predicted_relative)).real();
       usable_samples += 1.0;
     }
-
     const double correlation =
         usable_samples == 0.0 ? -1.0 : correlation_sum / usable_samples;
-    const double cost = 1.0 - std::clamp(correlation, -1.0, 1.0);
     return CPSMBranchMetric{.symbol_index = symbol_index,
                             .from_state = from_state,
                             .to_state = CPSMTransitionState(from_state, symbol),
                             .symbol = symbol,
                             .correlation = correlation,
-                            .cost = cost};
+                            .cost = 1.0 - std::clamp(correlation, -1.0, 1.0)};
   }
 
   [[nodiscard]] static FHSSResult<std::vector<CPSMBranchMetric>>

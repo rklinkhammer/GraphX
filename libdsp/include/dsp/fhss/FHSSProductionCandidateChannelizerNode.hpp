@@ -238,16 +238,26 @@ public:
                            static_cast<double>(global) / sample_rate_hz_;
       const auto mixed =
           input[i] * std::complex<double>(std::cos(phase), std::sin(phase));
-      history_.push_back(mixed);
-      if (history_.size() > taps_.size()) {
-        history_.erase(history_.begin());
+      if (history_.size() < taps_.size()) {
+        history_.push_back(mixed);
+      } else {
+        history_[history_write_index_] = mixed;
+        history_write_index_ = (history_write_index_ + 1u) % history_.size();
+        ++history_overwrite_count_;
       }
+      ++history_write_count_;
       if (history_.size() != taps_.size() || global % decimation_ != 0u) {
         continue;
       }
       std::complex<double> filtered{0.0, 0.0};
-      for (std::size_t tap = 0; tap < taps_.size(); ++tap) {
-        filtered += taps_[tap] * history_[history_.size() - 1u - tap];
+      std::size_t tap = 0u;
+      for (std::size_t history_index = history_write_index_;
+           history_index-- > 0u;) {
+        filtered += taps_[tap++] * history_[history_index];
+      }
+      for (std::size_t history_index = history_.size();
+           history_index-- > history_write_index_;) {
+        filtered += taps_[tap++] * history_[history_index];
       }
       if (!output.has_output) {
         output.first_causal_input_global_sample = global;
@@ -267,8 +277,23 @@ public:
     return allocation_high_water_bytes_;
   }
 
+  [[nodiscard]] std::size_t HistoryStorageSize() const noexcept {
+    return history_.size();
+  }
+
+  [[nodiscard]] std::size_t HistoryWriteCount() const noexcept {
+    return history_write_count_;
+  }
+
+  [[nodiscard]] std::size_t HistoryOverwriteCount() const noexcept {
+    return history_overwrite_count_;
+  }
+
   void Reset() {
     history_.clear();
+    history_write_index_ = 0u;
+    history_write_count_ = 0u;
+    history_overwrite_count_ = 0u;
     next_global_sample_.reset();
   }
 
@@ -278,6 +303,9 @@ private:
   double mix_frequency_hz_ = 0.0;
   double sample_rate_hz_ = 1.0;
   std::vector<std::complex<double>> history_;
+  std::size_t history_write_index_ = 0u;
+  std::size_t history_write_count_ = 0u;
+  std::size_t history_overwrite_count_ = 0u;
   std::optional<std::uint64_t> next_global_sample_;
   std::size_t allocation_high_water_bytes_ = 0u;
 };
@@ -287,7 +315,8 @@ class FHSSProductionCandidateChannelizerNode
                                       graph::TypeList<FHSSDownconvertedIqToken>,
                                       FHSSChannelizerOutputList>,
       public graph::IConfigurable,
-      public graph::IParameterized {
+      public graph::IParameterized,
+      public graph::IDiagnosable {
 public:
   using Base =
       graph::TypedFixedFanNode<FHSSProductionCandidateChannelizerNode,
@@ -371,6 +400,12 @@ public:
   }
   [[nodiscard]] std::size_t AllocationHighWaterBytes() const noexcept {
     return allocation_high_water_bytes_;
+  }
+  [[nodiscard]] graph::JsonView GetDiagnostics() const override {
+    diagnostics_cache_ = {
+        {"schema", "graphx.fhss.production_channelizer.diagnostics.v1"},
+        {"allocation_high_water_bytes", allocation_high_water_bytes_}};
+    return graph::JsonView(diagnostics_cache_);
   }
   [[nodiscard]] std::vector<graph::PortMetadata>
   GetInputPortMetadata() const override {
@@ -542,6 +577,7 @@ private:
   bool initialized_ = false;
   std::size_t allocation_cycle_bytes_ = 0u;
   std::size_t allocation_high_water_bytes_ = 0u;
+  mutable nlohmann::json diagnostics_cache_ = nlohmann::json::object();
 };
 
 } // namespace dsp::fhss

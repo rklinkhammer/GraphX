@@ -1,0 +1,32 @@
+{
+  "schema": "graphx.fhss.phase3-validation-inventory.v4",
+  "profile": "fhss_phase3_validation_profile_v4.json",
+  "supported_held_out_matrix": {
+    "cochannel_same_hop_fhss_sir_db": [-6.0, 0.0, 6.0, 12.0],
+    "relative_timing_samples": [0, 6500, 13000],
+    "classification": "fresh held-out characterization after pre-freeze development completion"
+  },
+  "unsupported_deferred": [
+    {
+      "id": "cochannel_fhss_partial_hop_t800",
+      "sir_db": 6.0,
+      "relative_timing_samples": 800,
+      "same_hops": true,
+      "validation_seed": 34102,
+      "execution_attempts": 2,
+      "outcome": "FAIL",
+      "failure": "actual Phase 2 receiver did not complete within the configured 30 second executor timeout (45 second process guard)",
+      "claim": "unsupported/deferred; omitted from held-out matrix to avoid spending fresh seeds on a known machine failure"
+    },
+    {
+      "id": "cochannel_fhss_partial_hop_t1600",
+      "sir_db": 6.0,
+      "relative_timing_samples": 1600,
+      "same_hops": true,
+      "validation_seeds": [],
+      "outcome": "FAIL_NOT_SEPARATELY_EXECUTED_AFTER_T800_REPEAT",
+      "failure": "same partial-hop completion-risk class; original development sequence stopped after repeated t800 timeout",
+      "claim": "unsupported/deferred; no passing claim"
+    }
+  ]
+}

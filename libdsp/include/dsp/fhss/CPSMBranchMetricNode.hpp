@@ -30,13 +30,16 @@ public:
   std::optional<OutputTokenType>
   Transfer(const InputTokenType &input, std::integral_constant<std::size_t, 0>,
            std::integral_constant<std::size_t, 0>) override {
-    if (input.sidecar.ordered_candidates.empty()) {
-      last_rejection_reason_ = "no ordered candidates";
-      return std::nullopt;
-    }
-
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
+    output.sidecar.correlation = input.sidecar.correlation;
+    if (input.sidecar.ordered_candidates.empty()) {
+      last_metric_pulse_count_ = 0;
+      last_rejection_reason_.clear();
+      return output;
+    }
+
     output.sidecar.pulse_metrics.reserve(
         input.sidecar.ordered_candidates.size());
     for (const auto &candidate : input.sidecar.ordered_candidates) {

@@ -1,0 +1,13 @@
+{
+  "byte_equal_over_common_length": false,
+  "canonical_samples": 104000,
+  "compared_samples": 100701,
+  "frequency_error_hz": 0.0,
+  "independent_samples": 100701,
+  "interpretation": "agreement evidence only, not proof; independent analytical vectors are the correctness oracle",
+  "maximum_complex_error": 1.1102230246251565e-16,
+  "maximum_phase_error_rad": 1.3412661348629257e-16,
+  "rms_complex_error": 2.834673623130921e-17,
+  "schema": "graphx.fhss.phase3-clean-parity.v1",
+  "timing_placement_error_samples": 0
+}

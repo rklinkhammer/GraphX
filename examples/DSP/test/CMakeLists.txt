@@ -24,6 +24,7 @@ target_compile_definitions(test_dsp_example_unit PRIVATE
     DSP_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_fft_spectrum_256.json"
     DSP_METAL_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_metal_dft_spectrum_256.json"
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
+    DSP_FHSS_BINARY_RECEIVER_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
     DSP_FHSS_BINARY_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_binary_iq_500msps.json"
     DSP_FHSS_DEMO_MESSAGE_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/fixtures/fhss_demo_messages.json"
     DSP_FHSS_MESSAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/tools/fhss_message_tool.py"
@@ -97,3 +98,32 @@ add_test(
 )
 set_tests_properties(fhss_phase2_candidate_characterization_smoke PROPERTIES
     LABELS "dsp;fhss;phase2;characterization;ci-safe;host-any")
+
+add_test(
+    NAME fhss_phase3_independent_analytical
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase3_independent.py
+)
+set_tests_properties(fhss_phase3_independent_analytical PROPERTIES
+    LABELS "dsp;fhss;phase3;independent;ci-safe;host-any"
+    ENVIRONMENT "GRAPHX_FHSS_CANONICAL_GENERATOR=$<TARGET_FILE:dsp_fhss_iq_generator>")
+
+add_test(
+    NAME fhss_phase3_actual_graph_smoke
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/tools/fhss_phase3_independent.py
+            evaluate
+            --profile ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase3_validation_profile_v6.json
+            --receiver $<TARGET_FILE:dsp_fhss_demo>
+            --graph ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json
+            --plugins ${CMAKE_BINARY_DIR}/plugins
+            --partition validation
+            --limit 1
+            --seed-limit 1
+            --smoke
+            --raw ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_raw.json
+            --report ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_report.json
+)
+set_tests_properties(fhss_phase3_actual_graph_smoke PROPERTIES
+    LABELS "dsp;fhss;phase3;actual-graph;ci-safe;host-any"
+    TIMEOUT 90)

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSGraphXConfig.hpp"
+#include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
-#include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -18,8 +18,7 @@ namespace dsp::fhss {
 class FHSSPreambleDetectorNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FHSSDecodedPulseWordsToken>,
-          graph::TypeList<FHSSAssembledMessageToken>,
-          FHSSPreambleDetectorNode>,
+          graph::TypeList<FHSSAssembledMessageToken>, FHSSPreambleDetectorNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
@@ -64,10 +63,13 @@ public:
     auto lock = FHSSPreambleDetectorKernel::Detect(decoded, preamble_);
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
+    output.sidecar.correlation = input.sidecar.correlation;
     output.sidecar.ordered_pulses = input.sidecar.decoded_pulses;
     output.sidecar.active_frequency_indices = lock.active_frequency_indices;
     output.sidecar.preamble_lock = lock.preamble_lock;
-    output.sidecar.diagnostics.pulse_count = input.sidecar.decoded_pulses.size();
+    output.sidecar.diagnostics.pulse_count =
+        input.sidecar.decoded_pulses.size();
     output.sidecar.diagnostics.preamble_lock = lock.preamble_lock;
     output.sidecar.diagnostics.unsupported_overlap_rejected = true;
     output.sidecar.diagnostics.unsupported_impairments_rejected = true;

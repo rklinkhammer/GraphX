@@ -36,21 +36,26 @@ public:
            std::integral_constant<std::size_t, 0>) override {
     OutputTokenType output{};
     output.token_id = input.token_id;
-    const auto &decisions = input.sidecar.pulse_decisions.empty()
-                                ? std::vector<FHSSCpsmPulseSymbolDecision>{
-                                      FHSSCpsmPulseSymbolDecision{
-                                          .pulse = input.sidecar.pulse,
-                                          .symbols = input.sidecar.symbols,
-                                          .phase_states =
-                                              input.sidecar.phase_states,
-                                          .best_path_metric =
-                                              input.sidecar.best_path_metric,
-                                          .confidence =
-                                              input.sidecar.confidence,
-                                          .status = input.sidecar.status,
-                                          .status_message =
-                                              input.sidecar.status_message}}
-                                : input.sidecar.pulse_decisions;
+    output.edge_control = input.edge_control;
+    output.sidecar.correlation = input.sidecar.correlation;
+    output.sidecar.globally_ordered = true;
+    if (input.sidecar.pulse_decisions.empty() &&
+        input.sidecar.symbols.empty()) {
+      last_decoded_pulse_count_ = 0;
+      return output;
+    }
+    const auto &decisions =
+        input.sidecar.pulse_decisions.empty()
+            ? std::vector<
+                  FHSSCpsmPulseSymbolDecision>{FHSSCpsmPulseSymbolDecision{
+                  .pulse = input.sidecar.pulse,
+                  .symbols = input.sidecar.symbols,
+                  .phase_states = input.sidecar.phase_states,
+                  .best_path_metric = input.sidecar.best_path_metric,
+                  .confidence = input.sidecar.confidence,
+                  .status = input.sidecar.status,
+                  .status_message = input.sidecar.status_message}}
+            : input.sidecar.pulse_decisions;
     output.sidecar.decoded_pulses.reserve(decisions.size());
     for (const auto &decision : decisions) {
       CPSMViterbiResult viterbi{};
@@ -67,7 +72,6 @@ public:
       packet.pulse = decision.pulse;
       output.sidecar.decoded_pulses.push_back(std::move(packet));
     }
-    output.sidecar.globally_ordered = true;
     last_decoded_pulse_count_ = output.sidecar.decoded_pulses.size();
     return output;
   }

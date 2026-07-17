@@ -74,17 +74,17 @@ FHSSSyntheticIqGeneratorConfig GeneratorConfig(std::uint32_t value) {
   FHSSScheduledMessageSpec message{};
   message.message_id = 1;
   for (const auto &pulse : config.decode_config.preamble_pulses) {
-    message.pulses.push_back(FHSSMessagePulseSpec{
-        .frequency_index = pulse.frequency_index,
-        .value = pulse.word_value,
-        .role = FHSSMessagePulseRole::Preamble});
+    message.pulses.push_back(
+        FHSSMessagePulseSpec{.frequency_index = pulse.frequency_index,
+                             .value = pulse.word_value,
+                             .role = FHSSMessagePulseRole::Preamble});
   }
   config.messages.push_back(std::move(message));
   return config;
 }
 
-std::vector<std::complex<double>> MakeCpsmEvidence(
-    const std::vector<double> &symbols) {
+std::vector<std::complex<double>>
+MakeCpsmEvidence(const std::vector<double> &symbols) {
   CPSMDecoderConfig config{};
   const auto timing = dsp::fhss::DeriveTimingModel(config.timing).value();
 
@@ -112,22 +112,21 @@ std::vector<double> ExpectedSymbolsForWord(std::uint32_t value) {
   return expected;
 }
 
-std::vector<std::complex<double>> ExtractDehoppedPulseSamples(
-    const dsp::fhss::FHSSSyntheticIqFixture &fixture,
-    std::size_t pulse_index = 0) {
+std::vector<std::complex<double>>
+ExtractDehoppedPulseSamples(const dsp::fhss::FHSSSyntheticIqFixture &fixture,
+                            std::size_t pulse_index = 0) {
   const auto &truth = fixture.truth_pulses.at(pulse_index);
   std::vector<std::complex<double>> samples;
   samples.reserve(static_cast<std::size_t>(truth.duration_samples));
   constexpr double kTwoPi = 6.283185307179586476925286766559;
   for (std::uint64_t i = 0; i < truth.duration_samples; ++i) {
     const auto global_sample = truth.global_start_sample + i;
-    const auto mixedown = std::exp(std::complex<double>(
-        0.0, -kTwoPi * truth.iq_offset_frequency_hz *
-                 static_cast<double>(global_sample) /
-                 FHSSProtocolConstants::kSampleRateHz));
+    const auto mixedown = std::exp(
+        std::complex<double>(0.0, -kTwoPi * truth.iq_offset_frequency_hz *
+                                      static_cast<double>(global_sample) /
+                                      FHSSProtocolConstants::kSampleRateHz));
     samples.push_back(
-        fixture.samples.at(static_cast<std::size_t>(global_sample)) *
-        mixedown);
+        fixture.samples.at(static_cast<std::size_t>(global_sample)) * mixedown);
   }
   return samples;
 }
@@ -140,18 +139,17 @@ double SequenceMetric(const std::vector<std::complex<double>> &samples,
   std::uint32_t state = config.initial_phase_state;
   double metric = 0.0;
   for (std::uint32_t i = 0; i < symbols.size(); ++i) {
-    const auto branch =
-        CPSMBranchMetricKernel::ScoreBranch(samples, i, state, symbols[i],
-                                          config);
+    const auto branch = CPSMBranchMetricKernel::ScoreBranch(samples, i, state,
+                                                            symbols[i], config);
     metric += branch.cost;
     state = branch.to_state;
   }
   return metric;
 }
 
-std::vector<double> BruteForceOracleReduced(
-    const std::vector<std::complex<double>> &samples,
-    std::uint32_t symbol_count) {
+std::vector<double>
+BruteForceOracleReduced(const std::vector<std::complex<double>> &samples,
+                        std::uint32_t symbol_count) {
   std::vector<double> best_symbols;
   double best_metric = std::numeric_limits<double>::infinity();
   const std::uint32_t combinations = 1u << symbol_count;
@@ -177,8 +175,8 @@ TEST(FHSSCpsmDecoderTest, RectangularFullResponseThetaIsContinuous) {
 
   double max_step = 0.0;
   for (std::size_t i = 1; i < samples.size(); ++i) {
-    max_step = std::max(max_step, std::abs(std::arg(samples[i] *
-                                                   std::conj(samples[i - 1]))));
+    max_step = std::max(
+        max_step, std::abs(std::arg(samples[i] * std::conj(samples[i - 1]))));
   }
 
   EXPECT_LT(max_step, 0.1);
@@ -193,8 +191,7 @@ TEST(FHSSCpsmDecoderTest, TrellisTransitionsAreAccumulatedPhaseModuloTwoPi) {
   EXPECT_EQ(dsp::fhss::CPSMTransitionState(0, -1.0), 3u);
   EXPECT_EQ(dsp::fhss::CPSMTransitionState(3, 1.0), 0u);
   EXPECT_EQ(dsp::fhss::CPSMTransitionState(0, -1.0), 3u);
-  EXPECT_NEAR(dsp::fhss::CPSMStatePhaseRad(3), 1.5 * std::numbers::pi,
-              1.0e-12);
+  EXPECT_NEAR(dsp::fhss::CPSMStatePhaseRad(3), 1.5 * std::numbers::pi, 1.0e-12);
 }
 
 TEST(FHSSCpsmDecoderTest, BranchMetricFavorsMatchingSymbolAndState) {
@@ -210,6 +207,49 @@ TEST(FHSSCpsmDecoderTest, BranchMetricFavorsMatchingSymbolAndState) {
   EXPECT_LT(matching.cost, 1.0e-12);
   EXPECT_GT(wrong.cost, matching.cost + 0.5);
   EXPECT_GT(matching.correlation, wrong.correlation);
+}
+
+TEST(FHSSCpsmDecoderTest, PulseGlobalNuisancePhaseRetainsLaterTrellisState) {
+  const auto samples = MakeCpsmEvidence({1.0, -1.0});
+  CPSMDecoderConfig config{};
+  config.symbol_count = 2;
+
+  const auto matching =
+      CPSMBranchMetricKernel::ScoreBranch(samples, 1, 1, -1.0, config);
+  const auto wrong_state =
+      CPSMBranchMetricKernel::ScoreBranch(samples, 1, 3, -1.0, config);
+
+  EXPECT_LT(matching.cost, 1.0e-12);
+  EXPECT_GT(wrong_state.cost, matching.cost + 0.5);
+}
+
+TEST(FHSSCpsmDecoderTest, PulseGlobalNuisancePhaseRejectsBoundaryReset) {
+  const std::vector<double> symbols{1.0, -1.0, 1.0};
+  const auto continuous = MakeCpsmEvidence(symbols);
+  auto discontinuous = continuous;
+  const auto rotation = std::polar(1.0, 0.7);
+  for (std::size_t index = FHSSProtocolConstants::kSamplesPerSymbol;
+       index < discontinuous.size(); ++index) {
+    discontinuous[index] *= rotation;
+  }
+
+  EXPECT_LT(SequenceMetric(continuous, symbols) + 0.1,
+            SequenceMetric(discontinuous, symbols));
+}
+
+TEST(FHSSCpsmDecoderTest, UnknownConstantCarrierPhaseDoesNotChangeDecode) {
+  const std::vector<double> symbols{1.0, -1.0, -1.0, 1.0, 1.0};
+  auto samples = MakeCpsmEvidence(symbols);
+  const auto nuisance = std::polar(1.0, 2.123);
+  for (auto &sample : samples) {
+    sample *= nuisance;
+  }
+  CPSMDecoderConfig config{};
+  config.symbol_count = static_cast<std::uint32_t>(symbols.size());
+  const auto decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
+
+  ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
+  EXPECT_EQ(decoded->symbols, symbols);
 }
 
 TEST(FHSSCpsmDecoderTest, KnownGeneratedPulseDecodesToSymbols) {
@@ -234,9 +274,8 @@ TEST(FHSSCpsmDecoderTest, ViterbiMatchesReducedBruteForceOracle) {
   config.symbol_count = static_cast<std::uint32_t>(expected.size());
 
   const auto decoded = CPSMViterbiDecoderKernel::Decode(samples, config);
-  const auto oracle =
-      BruteForceOracleReduced(samples, static_cast<std::uint32_t>(
-                                           expected.size()));
+  const auto oracle = BruteForceOracleReduced(
+      samples, static_cast<std::uint32_t>(expected.size()));
 
   ASSERT_TRUE(decoded.has_value()) << decoded.error().message;
   EXPECT_EQ(decoded->symbols, oracle);
@@ -270,14 +309,15 @@ TEST(FHSSCpsmDecoderTest, MagnitudeOnlyInputIsImpossibleByDecoderType) {
   static_assert(std::is_invocable_v<decltype(&CPSMViterbiDecoderKernel::Decode),
                                     const std::vector<std::complex<double>> &,
                                     const CPSMDecoderConfig &>);
-  static_assert(!std::is_invocable_v<decltype(&CPSMViterbiDecoderKernel::Decode),
-                                     const std::vector<double> &,
-                                     const CPSMDecoderConfig &>);
+  static_assert(
+      !std::is_invocable_v<decltype(&CPSMViterbiDecoderKernel::Decode),
+                           const std::vector<double> &,
+                           const CPSMDecoderConfig &>);
 }
 
 TEST(FHSSCpsmDecoderTest, InvalidEvidenceLengthIsRejected) {
-  const std::vector<std::complex<double>> magnitude_like_samples(32, {1.0,
-                                                                      0.0});
+  const std::vector<std::complex<double>> magnitude_like_samples(32,
+                                                                 {1.0, 0.0});
 
   const auto decoded = CPSMViterbiDecoderKernel::Decode(magnitude_like_samples);
 

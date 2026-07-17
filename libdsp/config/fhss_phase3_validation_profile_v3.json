@@ -1,0 +1,107 @@
+{
+  "schema": "graphx.fhss.phase3-validation-profile.v3",
+  "version": 3,
+  "claim_level": "provisional_engineering_characterization_only",
+  "prohibited_claims": [
+    "product qualification",
+    "regulatory conformance",
+    "interoperability conformance",
+    "hardware or OTA qualification",
+    "production RF qualification"
+  ],
+  "waveform": {
+    "sample_rate_hz": 500000000.0,
+    "bit_rate_hz": 5000000.0,
+    "samples_per_symbol": 100,
+    "bits_per_pulse": 32,
+    "modulation": "binary rectangular full-response CPSM h=1/2, MSB first, 0=>+1, 1=>-1",
+    "pulse_samples": 3200,
+    "gap_samples": 3300,
+    "period_samples": 6500,
+    "preamble_pulses": 16,
+    "maximum_message_pulses": 256,
+    "active_frequency_indices": [24, 28, 32, 36],
+    "iq_offset_formula": "-236250000 + 7500000 * frequency_index",
+    "rf_role": "metadata_only"
+  },
+  "statistics": {
+    "seed_partitions": {
+      "development": [30101, 30102],
+      "validation": [30201, 30901, 30902, 31901, 31902],
+      "evaluation": [32901, 32902],
+      "gate_extension": [32903, 32904, 32905]
+    },
+    "gate_extension_point_ids": ["clean_30db", "awgn_10db"],
+    "confidence": "two-sided Wilson score, 95 percent",
+    "stopping_rule": "execute two fresh evaluation seeds at every frozen matrix point and three additional pre-frozen seeds only at points referenced by gates; apply declared gates to Wilson confidence bounds",
+    "failure_policy": "retain only minimized scenario JSON, seed, profile hash, and IQ hash outside the source tree"
+  },
+  "matrix": [
+    {"id": "clean_30db", "family": "clean_and_snr", "snr_db": 30.0},
+    {"id": "awgn_20db", "family": "snr_ebn0", "snr_db": 20.0},
+    {"id": "awgn_10db", "family": "snr_ebn0", "snr_db": 10.0},
+    {"id": "awgn_5db", "family": "snr_ebn0", "snr_db": 5.0},
+    {"id": "cfo_neg25khz", "family": "cfo", "snr_db": 20.0, "cfo_hz": -25000.0},
+    {"id": "cfo_pos25khz", "family": "cfo", "snr_db": 20.0, "cfo_hz": 25000.0},
+    {"id": "cfo_neg25khz_10db", "family": "cfo", "snr_db": 10.0, "cfo_hz": -25000.0},
+    {"id": "cfo_pos25khz_10db", "family": "cfo", "snr_db": 10.0, "cfo_hz": 25000.0},
+    {"id": "clock_neg50ppm", "family": "sample_clock", "snr_db": 20.0, "sample_clock_offset_ppm": -50.0},
+    {"id": "clock_pos50ppm", "family": "sample_clock", "snr_db": 20.0, "sample_clock_offset_ppm": 50.0},
+    {"id": "clock_neg50ppm_10db", "family": "sample_clock", "snr_db": 10.0, "sample_clock_offset_ppm": -50.0},
+    {"id": "clock_pos50ppm_10db", "family": "sample_clock", "snr_db": 10.0, "sample_clock_offset_ppm": 50.0},
+    {"id": "timing_quarter_sample", "family": "fractional_timing", "snr_db": 20.0, "fractional_delay_samples": 0.25},
+    {"id": "timing_half_sample", "family": "fractional_timing", "snr_db": 20.0, "fractional_delay_samples": 0.5},
+    {"id": "timing_three_quarter_sample", "family": "fractional_timing", "snr_db": 20.0, "fractional_delay_samples": 0.75},
+    {"id": "tdl_40ns", "family": "multipath", "snr_db": 20.0, "taps": [{"delay_samples": 0.0, "power_linear": 0.8}, {"delay_samples": 20.0, "power_linear": 0.2, "phase_rad": 0.7}]},
+    {"id": "tdl_80ns", "family": "multipath", "snr_db": 20.0, "taps": [{"delay_samples": 0.0, "power_linear": 0.7}, {"delay_samples": 40.0, "power_linear": 0.3, "phase_rad": -0.9}]},
+    {"id": "rayleigh", "family": "fading", "snr_db": 20.0, "fading": "rayleigh"},
+    {"id": "rician_6db", "family": "fading", "snr_db": 20.0, "fading": "rician", "k_factor_db": 6.0},
+    {"id": "jakes_rayleigh_1khz", "family": "fading_doppler", "snr_db": 20.0, "fading": "jakes_rayleigh", "max_doppler_hz": 1000.0},
+    {"id": "doppler_neg1khz", "family": "doppler", "snr_db": 20.0, "doppler_hz": -1000.0},
+    {"id": "doppler_pos1khz", "family": "doppler", "snr_db": 20.0, "doppler_hz": 1000.0},
+    {"id": "doppler_pos5khz", "family": "doppler", "snr_db": 20.0, "doppler_hz": 5000.0},
+    {"id": "adjacent_blocker_20db", "family": "adjacent_blocker", "snr_db": 20.0, "blockers": [{"frequency_hz": -48750000.0, "sir_db": 20.0}]},
+    {"id": "adjacent_blocker_6db", "family": "adjacent_blocker", "snr_db": 20.0, "blockers": [{"frequency_hz": -48750000.0, "sir_db": 6.0}]},
+    {"id": "alternate_blocker_6db", "family": "alternate_blocker", "snr_db": 20.0, "blockers": [{"frequency_hz": -41250000.0, "sir_db": 6.0}]},
+    {"id": "cochannel_blocker_6db", "family": "cochannel_capture", "snr_db": 20.0, "blockers": [{"frequency_hz": -56250000.0, "sir_db": 6.0}]},
+    {"id": "fhss_collision_equal_800", "family": "collision", "snr_db": 20.0, "collision": {"relative_start_samples": 800, "relative_power_db": 0.0, "same_hops": false}},
+    {"id": "fhss_collision_strong_same_hop", "family": "collision_capture", "snr_db": 20.0, "collision": {"relative_start_samples": 0, "relative_power_db": 6.0, "same_hops": true}},
+    {"id": "fhss_collision_weak_late", "family": "collision_capture", "snr_db": 20.0, "collision": {"relative_start_samples": 1600, "relative_power_db": -6.0, "same_hops": false}},
+    {"id": "phase_noise_characterization", "family": "phase_noise", "snr_db": 20.0, "phase_noise_step_std_rad": 0.00001},
+    {"id": "hardware_characterization", "family": "hardware", "snr_db": 20.0, "hardware": {"iq_gain_imbalance_db": 1.0, "iq_phase_imbalance_deg": 3.0, "dc_i": 0.01, "dc_q": -0.01, "clip_magnitude": 1.2, "quantization_bits": 12, "agc_transient_samples": 500}}
+  ],
+  "frozen": {
+    "matching_tolerance_samples": 160.0,
+    "frequency_match": "exact frequency_index",
+    "impairment_order": [
+      "fractional_timing_and_sample_clock",
+      "multipath_and_fading",
+      "doppler_cfo_and_phase",
+      "blockers_and_collisions",
+      "iq_imbalance_and_dc",
+      "agc",
+      "awgn",
+      "clipping_and_quantization"
+    ],
+    "matrix_sha256": "3ffe358dbe0a9865c078ad2decd020e8389332289c382aef9364a4ee0e9bf349",
+    "seed_partitions_sha256": "b4dccb5f71db818f7ada241fca8f7f2657d3712faa46c49d3a8c2aca27c9bda4",
+    "gates": [
+      {"id": "clean_detection_probability", "point_id": "clean_30db", "metric": "pd", "statistic": "lower_ci95", "comparison": ">=", "limit": 0.95, "units": "lower Wilson 95% bound for matched truth pulses / truth pulses"},
+      {"id": "clean_bit_error_rate", "point_id": "clean_30db", "metric": "ber", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.01, "units": "upper Wilson 95% bound for incorrect bits / transmitted bits"},
+      {"id": "clean_message_error_rate", "point_id": "clean_30db", "metric": "per", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.5, "units": "upper Wilson 95% bound for failed messages / transmitted messages"},
+      {"id": "awgn_10db_detection_probability", "point_id": "awgn_10db", "metric": "pd", "statistic": "lower_ci95", "comparison": ">=", "limit": 0.90, "units": "lower Wilson 95% bound for matched truth pulses / truth pulses"},
+      {"id": "false_alarm_rate_at_clean", "point_id": "clean_30db", "metric": "false_alarms_per_sample", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.000001, "units": "upper Wilson 95% bound for unmatched detections / searched channel sample"}
+    ]
+  },
+  "freeze": {
+    "status": "frozen_before_held_out_evaluation",
+    "sha256": "cb41e714f3ed79f6fdb62e03e74e84ea62a52abcb99d1187e64ebc9376d19ced"
+  },
+  "limitations": [
+    "Engineering simulation only; no hardware, conducted, channel-emulator, or OTA evidence.",
+    "Phase noise is a discrete Wiener engineering model, not a measured oscillator mask.",
+    "Rayleigh/Rician fading is constant per bounded capture; time-varying Doppler is separately modeled as phase rotation.",
+    "Hardware-like models are characterized but have no passing product gate.",
+    "The 500 Msps complex input represents configured IQ offsets; RF frequencies are metadata only."
+  ]
+}

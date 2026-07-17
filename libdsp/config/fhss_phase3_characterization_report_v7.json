@@ -1,0 +1,3811 @@
+{
+  "acceptance": {
+    "clean_conditional_bit_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_conditional_bit_error_rate",
+        "limit": 0.01,
+        "metric": "conditional_ber",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for incorrect bits / decoded associated bits; misses excluded"
+      },
+      "gate_statistic_value": 0.00017650646959373138,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "clean_detection_probability",
+        "limit": 0.95,
+        "metric": "pd",
+        "point_id": "clean_60db",
+        "statistic": "lower_ci95",
+        "units": "lower Wilson 95% bound for matched truth pulses / truth pulses"
+      },
+      "gate_statistic_value": 0.9943825300862589,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_message_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_message_error_rate",
+        "limit": 0.1,
+        "metric": "per",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for failed unique (message_id, transmitter_id) messages / transmitted messages"
+      },
+      "gate_statistic_value": 0.08762160119728664,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "ebn0_30db_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "ebn0_30db_detection_probability",
+        "limit": 0.9,
+        "metric": "pd",
+        "point_id": "ebn0_30db",
+        "statistic": "lower_ci95",
+        "units": "lower Wilson 95% bound for matched truth pulses / truth pulses at active-symbol Eb/N0=30 dB (sample SNR=10 dB)"
+      },
+      "gate_statistic_value": 0.9943825300862589,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "false_alarm_rate_at_clean": {
+      "expected": {
+        "comparison": "<=",
+        "id": "false_alarm_rate_at_clean",
+        "limit": 1e-06,
+        "metric": "false_alarms_per_sample",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for unmatched detections / searched channel sample"
+      },
+      "gate_statistic_value": 8.627719954915304e-08,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    }
+  },
+  "claim_level": "provisional_engineering_characterization_only",
+  "frozen_sha256": "a4aa258dd5461fb7d3e4e51e016e9a827040e226db1c227bea760153c4140ee4",
+  "independent_tool_sha256": "65283b6d80c6179ce329f97c6b5a7638107ed360ef2bd87590ad29f33099ae8a",
+  "limitations": [
+    "Engineering simulation only; no hardware, conducted, channel-emulator, OTA, regulatory, interoperability, or product qualification.",
+    "Phase noise is a discrete Wiener engineering model, not a measured oscillator mask.",
+    "Static Rayleigh/Rician coefficients and the finite time-varying sum-of-sinusoids option are engineering models, not a claimed deployment profile.",
+    "Hardware-like impairments are synthetic and have no passing product gate.",
+    "The 500 Msps complex input represents configured IQ offsets; RF frequencies are metadata only.",
+    "CFO diagnostics and decoder confidence are characterized but not qualified or probability-calibrated."
+  ],
+  "machine_acceptance": {
+    "actual_allocation_high_water_available": {
+      "pass": true,
+      "policy": "machine FAIL when either production channelizer or acquisition detector omits allocation diagnostics"
+    },
+    "all_receiver_executions_completed": {
+      "failed_case_count": 0,
+      "failed_cases": [],
+      "pass": true,
+      "policy": "every nonzero status or timeout is retained and is machine FAIL"
+    }
+  },
+  "matrix_complete": true,
+  "overall_pass": true,
+  "partition": "evaluation",
+  "profile_sha256": "709df93e2d829a39730dbdc062485c1e37b71c32c6bf865c890e2473a062c5bf",
+  "raw_cases_sha256": "12cc70464ac2844cd84532b44ec8834953147aa5cb3edef7a0ada904952374cd",
+  "rows": [
+    {
+      "allocation_max_node_high_water_bytes": 23855632,
+      "allocation_sum_high_water_bytes": 74849072,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 40,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 79192,
+      "burst_epoch_min_samples": 22733,
+      "cfo_rmse_hz": 455420.7245249448,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.00017650646959373138
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.005617469913741177
+      ],
+      "confidence_calibration_absolute_error": 0.9698397748818252,
+      "decoded_bits": 21760,
+      "decoded_words": 680,
+      "eb_n0_db": 60.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        8.627719954915304e-08
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "clean",
+      "frequency_index_confusion": {
+        "24->24": 170,
+        "28->28": 168,
+        "32->32": 173,
+        "36->36": 169
+      },
+      "matched_events": 680,
+      "mean_matched_confidence": 0.030160225118174858,
+      "message_errors": 0,
+      "messages": 40,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.9943825300862589,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.08762160119728664
+      ],
+      "point_id": "clean_60db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 147.9417226589576,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 40.0,
+      "searched_samples": 44524608,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 9.0,
+      "timing_absolute_error_p50_samples": 4.0,
+      "timing_absolute_error_p95_samples": 8.049999999999955,
+      "timing_absolute_error_p99_samples": 9.0,
+      "timing_rmse_samples": 5.274940757961174,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 680,
+          "message_capture_probability": 1.0,
+          "messages": 40,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 40,
+          "truth_events": 680
+        }
+      },
+      "trials": 40,
+      "truth_events": 680,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74613552,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 1,
+      "attempted_trials": 2,
+      "bit_errors": 66,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 402061.53831792437,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0625,
+      "conditional_ber_ci95": [
+        0.04942657914389628,
+        0.07874491074275858
+      ],
+      "conditional_wer": 0.2727272727272727,
+      "conditional_wer_ci95": [
+        0.1506744088542064,
+        0.44217559002872625
+      ],
+      "confidence_calibration_absolute_error": 0.9468378568723699,
+      "decoded_bits": 1056,
+      "decoded_words": 33,
+      "eb_n0_db": 10.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 7,
+        "36->36": 8
+      },
+      "matched_events": 33,
+      "mean_matched_confidence": 0.023750378421747754,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.9705882352941176,
+      "pd_ci95": [
+        0.8508442670731406,
+        0.9947890937237309
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "ebn0_10db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.741516459005652,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": -10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 30.0,
+      "timing_absolute_error_p50_samples": 10.0,
+      "timing_absolute_error_p95_samples": 21.0,
+      "timing_absolute_error_p99_samples": 27.119999999999997,
+      "timing_rmse_samples": 12.005049442680864,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 33,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.9705882352941176,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 9
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74613552,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 4,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 441121.02615160367,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.003676470588235294,
+      "conditional_ber_ci95": [
+        0.0014306082542503594,
+        0.0094147930858711
+      ],
+      "conditional_wer": 0.058823529411764705,
+      "conditional_wer_ci95": [
+        0.016282655210122746,
+        0.19093606904280996
+      ],
+      "confidence_calibration_absolute_error": 0.973301051137244,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 15.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.026698948862755978,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "ebn0_15db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.73502920899773,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": -5.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 20.0,
+      "timing_absolute_error_p50_samples": 10.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 17.030000000000015,
+      "timing_rmse_samples": 8.396427811873332,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 2
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74590512,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 451569.6718058251,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9716034145903084,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.028396585409691616,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "ebn0_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.736886541970307,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 6.501131123301001,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546048,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454442.8624268535,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9708166003542688,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 25.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029183399645731252,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "ebn0_25db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.7570638329780195,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 5.000000000000001,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 5.68020297897469,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23855632,
+      "allocation_sum_high_water_bytes": 74849360,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 40,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 79192,
+      "burst_epoch_min_samples": 22733,
+      "cfo_rmse_hz": 454745.707980639,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.00017650646959373138
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.005617469913741177
+      ],
+      "confidence_calibration_absolute_error": 0.9699157758590524,
+      "decoded_bits": 21760,
+      "decoded_words": 680,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        8.627719954915304e-08
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 170,
+        "28->28": 168,
+        "32->32": 173,
+        "36->36": 169
+      },
+      "matched_events": 680,
+      "mean_matched_confidence": 0.03008422414094755,
+      "message_errors": 0,
+      "messages": 40,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.9943825300862589,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.08762160119728664
+      ],
+      "point_id": "ebn0_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 147.05883366803755,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 44524608,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 12.0,
+      "timing_absolute_error_p50_samples": 4.0,
+      "timing_absolute_error_p95_samples": 9.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 5.4071031713739615,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 680,
+          "message_capture_probability": 1.0,
+          "messages": 40,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 40,
+          "truth_events": 680
+        }
+      },
+      "trials": 40,
+      "truth_events": 680,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546144,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 139,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 453904.0907177333,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.12775735294117646,
+      "conditional_ber_ci95": [
+        0.10922308887374224,
+        0.14891096213134888
+      ],
+      "conditional_wer": 0.7647058823529411,
+      "conditional_wer_ci95": [
+        0.6000386207746361,
+        0.8756301446736042
+      ],
+      "confidence_calibration_absolute_error": 0.9844746004336772,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.015525399566322784,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_neg25khz_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.779618291009683,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.349999999999998,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 5.575682495813194,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 26
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546096,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 82,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455289.088855055,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.07536764705882353,
+      "conditional_ber_ci95": [
+        0.06113220686791258,
+        0.09259108094530247
+      ],
+      "conditional_wer": 0.23529411764705882,
+      "conditional_wer_ci95": [
+        0.12436985532639575,
+        0.3999613792253638
+      ],
+      "confidence_calibration_absolute_error": 0.970975762238541,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02902423776145898,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_pos25khz_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.778726332995575,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 5.522680508593631,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 8
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74590000,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 148,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 447463.53659261554,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.13602941176470587,
+      "conditional_ber_ci95": [
+        0.11693516605601431,
+        0.15768479492674145
+      ],
+      "conditional_wer": 0.7647058823529411,
+      "conditional_wer_ci95": [
+        0.6000386207746361,
+        0.8756301446736042
+      ],
+      "confidence_calibration_absolute_error": 0.9842678541260679,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.015732145873932155,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_neg25khz_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.78370395800448,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 10.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 7.547886342234766,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 26
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74589488,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 80,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 453368.0832105815,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.07352941176470588,
+      "conditional_ber_ci95": [
+        0.05947577596455878,
+        0.09058397629806414
+      ],
+      "conditional_wer": 0.20588235294117646,
+      "conditional_wer_ci95": [
+        0.10349526899031913,
+        0.36798388051163594
+      ],
+      "confidence_calibration_absolute_error": 0.9698948695280052,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030105130471994864,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_pos25khz_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.778023333987221,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 10.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 8.361325535217627,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 7
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23758528,
+      "allocation_sum_high_water_bytes": 74542320,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455167.11994179117,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.969440526402409,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6946467250886333e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030559473597591005,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.7818783759721555,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266816,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 8.793999999994412,
+      "timing_absolute_error_p50_samples": 5.794225000005099,
+      "timing_absolute_error_p95_samples": 8.257750000004307,
+      "timing_absolute_error_p99_samples": 8.686750000000174,
+      "timing_rmse_samples": 5.9925607819004165,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23760880,
+      "allocation_sum_high_water_bytes": 74549920,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 452255.86871583946,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9703863462788547,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.694503200398878e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02961365372114534,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.790397000004305,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.999999999999998,
+      "searched_samples": 2267008,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 9.205549999998766,
+      "timing_absolute_error_p50_samples": 4.880774999990535,
+      "timing_absolute_error_p95_samples": 8.344299999994472,
+      "timing_absolute_error_p99_samples": 8.991049999998287,
+      "timing_rmse_samples": 5.303550643726279,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23758528,
+      "allocation_sum_high_water_bytes": 74585760,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 451141.1206313303,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9700262302341327,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6946467250886333e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029973769765867284,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.775576374027878,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 0.0,
+      "searched_samples": 2266816,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 17.344450000004144,
+      "timing_absolute_error_p50_samples": 5.794225000005099,
+      "timing_absolute_error_p95_samples": 14.630407500001457,
+      "timing_absolute_error_p99_samples": 16.48645000000223,
+      "timing_rmse_samples": 7.6635801813099205,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23760880,
+      "allocation_sum_high_water_bytes": 74592720,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 444822.6558251003,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9709896650098403,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.694503200398878e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029010334990159686,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.76288124898565,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 0.0,
+      "searched_samples": 2267008,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 16.280549999995856,
+      "timing_absolute_error_p50_samples": 4.837500000001455,
+      "timing_absolute_error_p95_samples": 12.54334249999155,
+      "timing_absolute_error_p99_samples": 16.066049999992977,
+      "timing_rmse_samples": 6.545586929689048,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759712,
+      "allocation_sum_high_water_bytes": 74546096,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455384.0734206236,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9697127440333997,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945510392608237e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030287255966600275,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_quarter_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.76728687499417,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266944,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.75,
+      "timing_absolute_error_p50_samples": 0.75,
+      "timing_absolute_error_p95_samples": 10.75,
+      "timing_absolute_error_p99_samples": 10.75,
+      "timing_rmse_samples": 6.72052387663868,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759712,
+      "allocation_sum_high_water_bytes": 74546160,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455628.17055839713,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9694288243050381,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945510392608237e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030571175694961934,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_half_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.7665020000131335,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266944,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.5,
+      "timing_absolute_error_p50_samples": 9.5,
+      "timing_absolute_error_p95_samples": 10.5,
+      "timing_absolute_error_p99_samples": 10.5,
+      "timing_rmse_samples": 7.7810100659913575,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759712,
+      "allocation_sum_high_water_bytes": 74546112,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455762.4688634738,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9694698313290403,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945510392608237e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030530168670959753,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_three_quarter_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.761231209005928,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266944,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.25,
+      "timing_absolute_error_p50_samples": 9.25,
+      "timing_absolute_error_p95_samples": 10.25,
+      "timing_absolute_error_p99_samples": 10.25,
+      "timing_rmse_samples": 7.5840874436507635,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23762064,
+      "allocation_sum_high_water_bytes": 74553584,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 405883.6214582717,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9729395102147482,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6944075307777614e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "multipath",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02706048978525179,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "tdl_40ns",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.7399559159821365,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2267136,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 10.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 9.482181431816327,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23764432,
+      "allocation_sum_high_water_bytes": 74561104,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 32,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 503774.33178441605,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.029411764705882353,
+      "conditional_ber_ci95": [
+        0.020909789602065163,
+        0.0412251094463463
+      ],
+      "conditional_wer": 0.08823529411764706,
+      "conditional_wer_ci95": [
+        0.030465943674648555,
+        0.22960486562808868
+      ],
+      "confidence_calibration_absolute_error": 0.9707292099034901,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6942162239402217e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "multipath",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.0292707900965099,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "tdl_80ns",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.729320500016911,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2267392,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 21.0,
+      "timing_absolute_error_p50_samples": 20.0,
+      "timing_absolute_error_p95_samples": 21.0,
+      "timing_absolute_error_p99_samples": 21.0,
+      "timing_rmse_samples": 17.88607739852096,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 3
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74545776,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454548.51441379555,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9703023253219094,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029697674678090605,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rayleigh_static",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.745672082994133,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 5.249649848267193,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546272,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454962.10320727644,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9705451728248211,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029454827175178867,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rician_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.74201250099577,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74544400,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 1,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 462566.665338979,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.003624559870462692
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10426999754245206
+      ],
+      "confidence_calibration_absolute_error": 0.9407809487026694,
+      "decoded_bits": 1056,
+      "decoded_words": 33,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading_doppler",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 8,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 33,
+      "mean_matched_confidence": 0.029807286591448292,
+      "message_errors": 1,
+      "messages": 2,
+      "pd": 0.9705882352941176,
+      "pd_ci95": [
+        0.8508442670731406,
+        0.9947890937237309
+      ],
+      "per": 0.5,
+      "per_ci95": [
+        0.09453120573423074,
+        0.9054687942657693
+      ],
+      "point_id": "sum_of_sinusoids_rayleigh_1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.765686458995333,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.9144191062133835,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 33,
+          "message_capture_probability": 0.5,
+          "messages": 2,
+          "pulse_capture_probability": 0.9705882352941176,
+          "successful_messages": 1,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546128,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 453605.44453777326,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9708781269747531,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029121873025246985,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_neg1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.758550083002774,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546128,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 453471.36671591253,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9697804925181128,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.030219507481887176,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.769614958990132,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 3.9741813807448225,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546016,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454882.37676373526,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.967964679038533,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.032035320961466954,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos5khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.736909959028708,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 3.899472060797612,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546000,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454986.0490656756,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9705503076988435,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "adjacent_blocker",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.0294496923011565,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.733897998987231,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546000,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454981.6788709814,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9705526438658347,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "adjacent_blocker",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02944735613416529,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.743393167009344,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546016,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454985.80273280246,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9705486142057476,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "alternate_blocker",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029451385794252476,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "alternate_blocker_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.735015874990495,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74544320,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 9,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 530140.7942495703,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.004778876205676033
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.13319225093904846
+      ],
+      "confidence_calibration_absolute_error": 0.707530304628766,
+      "decoded_bits": 800,
+      "decoded_words": 25,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_tone",
+      "frequency_index_confusion": {
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 25,
+      "mean_matched_confidence": 0.027763813018292928,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.7352941176470589,
+      "pd_ci95": [
+        0.5688285871705534,
+        0.8539880932278825
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cochannel_tone_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.729992791020777,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.759999999999998,
+      "timing_rmse_samples": 4.613025037868319,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 25,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7352941176470589,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74549552,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455797.22275963635,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.470016839978145,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029983160021855044,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 7.747620667010779,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 10.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 3.5021002102100023,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74548976,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 35,
+      "attempted_trials": 2,
+      "bit_errors": 8,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 463027.9172931686,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 33,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.007575757575757576,
+      "conditional_ber_ci95": [
+        0.003843663615434724,
+        0.01487749383274823
+      ],
+      "conditional_wer": 0.030303030303030304,
+      "conditional_wer_ci95": [
+        0.00536941053687183,
+        0.1531872538211892
+      ],
+      "confidence_calibration_absolute_error": 0.45553673364692143,
+      "decoded_bits": 1056,
+      "decoded_words": 33,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 33,
+      "mean_matched_confidence": 0.029757384000137378,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.4852941176470588,
+      "pd_ci95": [
+        0.3705084547256065,
+        0.6016524669367487
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 7.740425958007108,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 10.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 4.320493798938574,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 1,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.029411764705882353,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 1
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546432,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455858.8356631873,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.4700722423942846,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02992775760571542,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 7.740333957015537,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 10.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 4.901980392117648,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546416,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 455303.3808472496,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.4702549270472246,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02974507295277539,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 7.73751491701114,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 10.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 4.901980392117648,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 24529296,
+      "allocation_sum_high_water_bytes": 76991696,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 438072.9389084229,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.4988851286230396,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6346050097980887e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 6,
+        "24->36": 4,
+        "28->24": 6,
+        "28->28": 3,
+        "28->36": 1,
+        "32->28": 6,
+        "32->32": 2,
+        "36->32": 6,
+        "36->36": 2
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.030526636082842798,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 7.7337133749970235,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2350080,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.403281604540969,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 11,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.3235294117647059,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 25,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7352941176470589,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 24529296,
+      "allocation_sum_high_water_bytes": 76988752,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 427395.7536525533,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.49888775507930305,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6346050097980887e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 6,
+        "24->36": 4,
+        "28->24": 6,
+        "28->28": 3,
+        "28->36": 1,
+        "32->28": 5,
+        "32->32": 3,
+        "36->32": 5,
+        "36->36": 3
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.03052400962657929,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 7.735974874987733,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2350080,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 6.141841924229427,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 13,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.38235294117647056,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 23,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6764705882352942,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 24529296,
+      "allocation_sum_high_water_bytes": 76988240,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 419704.3149914442,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.4983369935883129,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6346050097980887e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->36": 3,
+        "28->24": 4,
+        "28->28": 6,
+        "32->28": 5,
+        "32->32": 3,
+        "36->32": 2,
+        "36->36": 6
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.03107477111756948,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 7.739887166011613,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2350080,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 5.57275116576683,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 20,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5882352941176471,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 16,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.47058823529411764,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 24529296,
+      "allocation_sum_high_water_bytes": 76988224,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 8,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 423457.6722132833,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.006944444444444444,
+      "conditional_ber_ci95": [
+        0.003522987682389219,
+        0.013643258318977072
+      ],
+      "conditional_wer": 0.027777777777777776,
+      "conditional_wer_ci95": [
+        0.0049204071398104565,
+        0.14169718653273855
+      ],
+      "confidence_calibration_absolute_error": 0.5001920636276527,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6346050097980887e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->36": 3,
+        "28->24": 5,
+        "28->28": 5,
+        "32->28": 4,
+        "32->32": 4,
+        "36->32": 4,
+        "36->36": 4
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.02921970107822971,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 7.7569641250011045,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2350080,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 6.407460928913696,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 1
+    },
+    {
+      "allocation_max_node_high_water_bytes": 25298896,
+      "allocation_sum_high_water_bytes": 79425552,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 410188.7032594691,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.528072878656891,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5787138167946179e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->32": 3,
+        "28->28": 5,
+        "28->32": 1,
+        "28->36": 4,
+        "32->24": 7,
+        "32->32": 1,
+        "36->28": 5,
+        "36->36": 5
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.0307506507548737,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 7.754546626005322,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2433280,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.630000000000003,
+      "timing_rmse_samples": 2.986813122975548,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 14,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.4117647058823529,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 24,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7058823529411765,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 25298896,
+      "allocation_sum_high_water_bytes": 79422160,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 408282.67729382066,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.5274475904893345,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5787138167946179e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->32": 3,
+        "28->28": 6,
+        "28->32": 1,
+        "28->36": 3,
+        "32->24": 8,
+        "36->28": 5,
+        "36->36": 5
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.03137593892243013,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 7.7319239580247086,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2433280,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.630000000000003,
+      "timing_rmse_samples": 3.398916235941593,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 14,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.4117647058823529,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 24,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7058823529411765,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 25298896,
+      "allocation_sum_high_water_bytes": 79421728,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 399484.44747404224,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.5286370311866274,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5787138167946179e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->32": 3,
+        "28->28": 6,
+        "28->32": 1,
+        "28->36": 3,
+        "32->24": 7,
+        "32->32": 1,
+        "36->28": 3,
+        "36->36": 7
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.03018649822513725,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 7.776242040999932,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2433280,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.149999999999999,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.164385340378325,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 17,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 25298896,
+      "allocation_sum_high_water_bytes": 79421856,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 421614.14417794975,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.5302922157331277,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5787138167946179e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 6,
+        "24->32": 4,
+        "28->28": 6,
+        "28->32": 1,
+        "28->36": 3,
+        "32->24": 6,
+        "32->32": 2,
+        "36->28": 3,
+        "36->36": 7
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.028531313678637003,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 7.729934625007445,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2433280,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.149999999999999,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.64248118778605,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 17,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74546016,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454983.58370815404,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9705525237403171,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "phase_noise",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029447476259682945,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "phase_noise_characterization",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.762200083991047,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.655799672262037,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23759696,
+      "allocation_sum_high_water_bytes": 74545936,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78380,
+      "burst_epoch_min_samples": 35889,
+      "cfo_rmse_hz": 454785.0745156391,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9707902797632405,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6945988808239992e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "hardware",
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029209720236759544,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "hardware_characterization",
+      "relative_timing_samples": null,
+      "runtime_seconds": 7.738863957987633,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2266880,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 10.0,
+      "timing_absolute_error_p99_samples": 10.670000000000002,
+      "timing_rmse_samples": 4.328428596805896,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    }
+  ],
+  "schema": "graphx.fhss.phase3-report.v4"
+}

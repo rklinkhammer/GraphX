@@ -612,6 +612,68 @@ TEST(FHSSGraphXNodeTest,
 }
 
 TEST(FHSSGraphXNodeTest,
+     EveryEmptyTerminalShapeReachesSinkWithoutInventingPulseEvidence) {
+  const std::array<graph::EdgeControl, 3> terminal_shapes = {
+      graph::EdgeEndOfStream{}, graph::EdgeCancellation{"test cancellation"},
+      graph::EdgeFailure{"test failure"}};
+  for (std::size_t index = 0; index < terminal_shapes.size(); ++index) {
+    FHSSPulseCandidateToken candidates{};
+    candidates.token_id = 919 + index;
+    candidates.edge_control = terminal_shapes[index];
+    candidates.sidecar.globally_ordered = true;
+    ASSERT_TRUE(candidates.sidecar.ordered_candidates.empty());
+
+    CPSMBranchMetricNode branch_metric;
+    auto metrics = branch_metric.Transfer(
+        candidates, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(metrics.has_value());
+    EXPECT_EQ(metrics->edge_control, candidates.edge_control);
+    EXPECT_TRUE(metrics->sidecar.pulse_metrics.empty());
+
+    CPSMViterbiDecoderNode viterbi;
+    auto symbols =
+        viterbi.Transfer(*metrics, std::integral_constant<std::size_t, 0>{},
+                         std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(symbols.has_value());
+    EXPECT_EQ(symbols->edge_control, candidates.edge_control);
+    EXPECT_TRUE(symbols->sidecar.pulse_decisions.empty());
+
+    FHSSPulseWordDecoderNode word_decoder;
+    auto decoded = word_decoder.Transfer(
+        *symbols, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded->edge_control, candidates.edge_control);
+    EXPECT_TRUE(decoded->sidecar.decoded_pulses.empty());
+
+    FHSSPreambleDetectorNode preamble_detector(Preamble());
+    auto preamble = preamble_detector.Transfer(
+        *decoded, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(preamble.has_value());
+    EXPECT_EQ(preamble->edge_control, candidates.edge_control);
+    EXPECT_FALSE(preamble->sidecar.preamble_lock);
+    EXPECT_TRUE(preamble->sidecar.ordered_pulses.empty());
+
+    FHSSMessageAssemblerNode assembler(AssemblerConfig());
+    auto message =
+        assembler.Transfer(*preamble, std::integral_constant<std::size_t, 0>{},
+                           std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(message.has_value());
+    EXPECT_EQ(message->edge_control, candidates.edge_control);
+    EXPECT_FALSE(message->sidecar.preamble_lock);
+    EXPECT_TRUE(message->sidecar.ordered_pulses.empty());
+
+    FHSSMessageSinkNode sink;
+    EXPECT_TRUE(
+        sink.Consume(*message, std::integral_constant<std::size_t, 0>{}));
+    EXPECT_EQ(sink.last_diagnostics().pulse_count, 0u);
+    EXPECT_FALSE(sink.last_diagnostics().preamble_lock);
+  }
+}
+
+TEST(FHSSGraphXNodeTest,
      DownconverterPassthroughPreservesSamplesAndGlobalTiming) {
   auto samples = std::make_shared<const std::vector<std::complex<double>>>(
       std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0}, {-1.0, 0.0}});
@@ -846,6 +908,72 @@ TEST(FHSSGraphXNodeTest,
               pulse_index * FHSSProtocolConstants::kPulsePeriodSamples);
   }
   EXPECT_EQ(merge.GetOutputQueueMetrics(1)->current_size.load(), 0u);
+}
+
+TEST(FHSSGraphXNodeTest,
+     MixedEmptyAndNonEmpty64PortTerminalBatchReachesMessageSink) {
+  auto tokens = MergeTokensFor72Pulses();
+  tokens[24].sidecar.detected_pulses.resize(9u);
+  tokens[24].sidecar.pulse_evidence.resize(9u);
+  tokens[28].sidecar.detected_pulses.resize(9u);
+  tokens[28].sidecar.pulse_evidence.resize(9u);
+  tokens[32].sidecar.detected_pulses.resize(8u);
+  tokens[32].sidecar.pulse_evidence.resize(8u);
+  tokens[36].sidecar.detected_pulses.resize(8u);
+  tokens[36].sidecar.pulse_evidence.resize(8u);
+
+  FHSSPulseMergeNode merge;
+  ASSERT_TRUE(ConsumeReversePortsExceptFirst(
+      merge, tokens,
+      std::make_index_sequence<FHSSProtocolConstants::kFrequencyCount - 1>{}));
+  ASSERT_TRUE(merge.ConsumeInput<1>(tokens[0]));
+  auto candidates = merge.ProduceOutput<1>();
+  ASSERT_TRUE(candidates.has_value());
+  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 34u);
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      candidates->edge_control));
+
+  CPSMBranchMetricNode branch_metric;
+  auto metrics = branch_metric.Transfer(
+      *candidates, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(metrics.has_value());
+  ASSERT_EQ(metrics->sidecar.pulse_metrics.size(), 34u);
+
+  CPSMViterbiDecoderNode viterbi;
+  auto symbols =
+      viterbi.Transfer(*metrics, std::integral_constant<std::size_t, 0>{},
+                       std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(symbols.has_value());
+  ASSERT_EQ(symbols->sidecar.pulse_decisions.size(), 34u);
+
+  FHSSPulseWordDecoderNode word_decoder;
+  auto words = word_decoder.Transfer(
+      *symbols, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(words.has_value());
+  ASSERT_EQ(words->sidecar.decoded_pulses.size(), 34u);
+
+  FHSSPreambleDetectorNode preamble_detector(Preamble());
+  auto preamble = preamble_detector.Transfer(
+      *words, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(preamble.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      preamble->edge_control));
+
+  FHSSMessageAssemblerNode assembler(AssemblerConfig());
+  auto message = assembler.Transfer(
+      *preamble, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(message.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      message->edge_control));
+
+  FHSSMessageSinkNode sink;
+  EXPECT_TRUE(
+      sink.Consume(*message, std::integral_constant<std::size_t, 0>{}));
+  EXPECT_EQ(sink.last_diagnostics().pulse_count, 34u);
 }
 
 TEST(FHSSGraphXNodeTest,

@@ -436,7 +436,8 @@ class FHSSAcquisitionPulseDetectorNode
           graph::TypeList<FHSSPerChannelPulseEvidenceToken>,
           FHSSAcquisitionPulseDetectorNode>,
       public graph::IConfigurable,
-      public graph::IParameterized {
+      public graph::IParameterized,
+      public graph::IDiagnosable {
 public:
   using InputTokenType = FHSSChannelizedIqToken;
   using OutputTokenType = FHSSPerChannelPulseEvidenceToken;
@@ -523,6 +524,13 @@ public:
   }
   [[nodiscard]] std::size_t AllocationHighWaterBytes() const noexcept {
     return allocation_high_water_bytes_;
+  }
+  [[nodiscard]] graph::JsonView GetDiagnostics() const override {
+    diagnostics_cache_ = {
+        {"schema", "graphx.fhss.acquisition_detector.diagnostics.v1"},
+        {"allocation_high_water_bytes", allocation_high_water_bytes_},
+        {"last_detected_pulse_count", last_detected_pulse_count_}};
+    return graph::JsonView(diagnostics_cache_);
   }
 
   std::optional<OutputTokenType>
@@ -716,6 +724,7 @@ private:
   std::uint64_t next_input_global_sample_ = 0;
   std::size_t last_detected_pulse_count_ = 0;
   std::size_t allocation_high_water_bytes_ = 0u;
+  mutable nlohmann::json diagnostics_cache_ = nlohmann::json::object();
 };
 
 } // namespace dsp::fhss
