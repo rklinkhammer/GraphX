@@ -40,6 +40,14 @@ set_target_properties(dsp_fhss_iq_generator PROPERTIES
 )
 target_link_libraries(dsp_fhss_iq_generator PRIVATE dsp)
 
+add_executable(dsp_fhss_phase2_characterize
+    src/fhss_phase2_characterize.cpp
+)
+set_target_properties(dsp_fhss_phase2_characterize PROPERTIES
+    OUTPUT_NAME "graphx-dsp-fhss-phase2-characterize"
+)
+target_link_libraries(dsp_fhss_phase2_characterize PRIVATE dsp)
+
 add_executable(dsp_fhss_demo
     src/fhss_demo.cpp
 )
@@ -74,5 +82,9 @@ install(TARGETS dsp_fhss_demo
 )
 
 install(TARGETS dsp_fhss_iq_generator
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS dsp_fhss_phase2_characterize
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

@@ -9,8 +9,8 @@
 #pragma once
 
 #include "dsp/fhss/FHSSCpsmDecoder.hpp"
-#include "dsp/fhss/FHSSPackets.hpp"
 #include "dsp/fhss/FHSSMessageAssembly.hpp"
+#include "dsp/fhss/FHSSPackets.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoder.hpp"
 #include <complex>
@@ -40,8 +40,7 @@ FHSSGraphXComplexEvidenceFromHostSamples(
 FHSSSampleTimeMapFromGraphX(const FHSSGraphXSampleTimeMap &map) {
   return FHSSSampleTimeMap{
       .has_input_global_start_sample = map.has_input_global_start_sample,
-      .input_packet_global_start_sample =
-          map.input_packet_global_start_sample,
+      .input_packet_global_start_sample = map.input_packet_global_start_sample,
       .output_start_sample = map.output_start_sample,
       .decimation_factor = map.decimation_factor,
       .group_delay_input_samples = map.group_delay_input_samples,
@@ -52,13 +51,16 @@ FHSSSampleTimeMapFromGraphX(const FHSSGraphXSampleTimeMap &map) {
 FHSSGraphXSampleTimeMapFromMergeMap(const FHSSSampleTimeMap &map) {
   return FHSSGraphXSampleTimeMap{
       .has_input_global_start_sample = map.has_input_global_start_sample,
-      .input_packet_global_start_sample =
-          map.input_packet_global_start_sample,
+      .input_packet_global_start_sample = map.input_packet_global_start_sample,
       .output_start_sample = map.output_start_sample,
       .decimation_factor = map.decimation_factor,
       .group_delay_input_samples = map.group_delay_input_samples,
       .input_sample_rate_hz = map.sample_rate_hz,
-      .output_sample_rate_hz = map.sample_rate_hz};
+      .output_sample_rate_hz =
+          map.decimation_factor == 0u
+              ? 0.0
+              : map.sample_rate_hz /
+                    static_cast<double>(map.decimation_factor)};
 }
 
 [[nodiscard]] inline FHSSGraphXSampleTimeMap
@@ -104,8 +106,9 @@ FHSSGraphXComplexEvidenceFromMergeEvidence(
       .sample_offset = evidence.sample_offset,
       .sample_count = evidence.sample_count,
       .sample_format = FHSSGraphXSampleFormat::ComplexFloat64,
-      .residency = evidence.samples ? FHSSGraphXPayloadResidency::HostSharedImmutable
-                                    : FHSSGraphXPayloadResidency::Empty,
+      .residency = evidence.samples
+                       ? FHSSGraphXPayloadResidency::HostSharedImmutable
+                       : FHSSGraphXPayloadResidency::Empty,
       .sample_time_map = sample_time_map,
       .decoder_usable_complex_iq = evidence.samples != nullptr};
 }
@@ -172,16 +175,14 @@ FHSSLocalPulseDetectionFromGraphX(const FHSSGraphXPulseMetadata &metadata,
 FHSSGraphXPulseCandidateFromMergeCandidate(
     const FHSSPulseCandidateWithEvidence &candidate) {
   const auto sample_time_map =
-      FHSSGraphXSampleTimeMapFromMergeMap(FHSSSampleTimeMap{});
+      FHSSGraphXSampleTimeMapFromMergeMap(candidate.sample_time_map);
   FHSSGraphXPulseCandidate out{};
   out.pulse = FHSSGraphXPulseMetadataFromDetectedPulse(
-      candidate.candidate.detected_pulse,
-      FHSSGraphXSampleTimeMapFromPulse(candidate.candidate.detected_pulse));
+      candidate.candidate.detected_pulse, sample_time_map);
   out.provisional_slot_index = candidate.candidate.provisional_slot_index;
   out.final_slot_index = candidate.candidate.final_slot_index;
-  out.complex_evidence =
-      FHSSGraphXComplexEvidenceFromMergeEvidence(candidate.complex_evidence,
-                                                sample_time_map);
+  out.complex_evidence = FHSSGraphXComplexEvidenceFromMergeEvidence(
+      candidate.complex_evidence, sample_time_map);
   return out;
 }
 
@@ -242,14 +243,14 @@ FHSSGraphXAssembledMessageFromKernel(const FHSSAssembledMessage &message) {
   packet.status_message = message.status_message;
   packet.ordered_pulses.reserve(message.ordered_pulses.size());
   for (const auto &decoded : message.ordered_pulses) {
-    packet.ordered_pulses.push_back(FHSSGraphXDecodedPulseWordFromKernel(decoded));
+    packet.ordered_pulses.push_back(
+        FHSSGraphXDecodedPulseWordFromKernel(decoded));
   }
   if (!packet.ordered_pulses.empty()) {
     const auto &first = packet.ordered_pulses.front();
     packet.diagnostics.global_start_sample =
         first.pulse.timing.global_start_sample;
-    packet.diagnostics.frequency_index =
-        first.pulse.frequency.frequency_index;
+    packet.diagnostics.frequency_index = first.pulse.frequency.frequency_index;
     packet.diagnostics.confidence = first.confidence;
     packet.diagnostics.viterbi_path_metric = first.viterbi_path_metric;
     packet.diagnostics.decoded_value = first.decoded_value;

@@ -5,9 +5,11 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <complex>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <numbers>
 #include <numeric>
 #include <set>
 #include <string>
@@ -16,8 +18,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include "dsp/fhss/CPSMBranchMetricNode.hpp"
+#include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
+#include "dsp/fhss/FHSSAcquisitionPulseDetectorNode.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
+#include "dsp/fhss/FHSSProductionCandidateChannelizerNode.hpp"
 #include "dsp/fhss/FHSSPulseMergeNode.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoderNode.hpp"
 #include "dsp/fhss/FHSSSyntheticIqSourceNode.hpp"
@@ -48,6 +54,11 @@ std::filesystem::path FHSSBinaryIqConfigPath() {
          "libdsp/config/fhss_cpsm_binary_iq_500msps.json";
 }
 
+std::filesystem::path FHSSPhase2BinaryIqConfigPath() {
+  return std::filesystem::path(GRAPHX_SOURCE_ROOT) /
+         "libdsp/config/fhss_phase2_binary_iq_receiver.json";
+}
+
 std::filesystem::path PluginDirectory() {
   return std::filesystem::path(PLUGIN_OUTPUT_DIRECTORY);
 }
@@ -61,6 +72,13 @@ nlohmann::json LoadJson(const std::filesystem::path &path) {
   input >> json;
   return json;
 }
+
+std::size_t CountNodeType(const nlohmann::json &config,
+                          const std::string &type);
+
+template <typename NodeT>
+std::vector<std::shared_ptr<NodeT>>
+ResolveNodes(const std::shared_ptr<graph::GraphManager> &manager);
 
 TEST(FHSSGraphXExecutorTest,
      BinaryIqReplayTopologyBuildsWithoutMessageDefinitions) {
@@ -92,6 +110,44 @@ TEST(FHSSGraphXExecutorTest,
   ASSERT_NE(executor->GetGraphManager(), nullptr);
   EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 75u);
   EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 137u);
+}
+
+TEST(FHSSGraphXExecutorTest,
+     Phase2TopologyBuildsWithNoScheduleTruthOrTransmitterHints) {
+  const auto config_path = FHSSPhase2BinaryIqConfigPath();
+  const auto config = LoadJson(config_path);
+  const auto rendered = config.dump();
+  for (const std::string forbidden :
+       {"\"messages\"", "FHSSSyntheticIqSourceNode",
+        "transmitted_active_frequency_indices",
+        "transmitted_pulse_frequency_indices", "transmit_start_sample",
+        "generator_truth"}) {
+    EXPECT_EQ(rendered.find(forbidden), std::string::npos) << forbidden;
+  }
+  EXPECT_EQ(CountNodeType(config, "FHSSBinaryIqFileSourceNode"), 1u);
+  EXPECT_EQ(CountNodeType(config, "FHSSProductionCandidateChannelizerNode"),
+            1u);
+  EXPECT_EQ(CountNodeType(config, "FHSSAcquisitionPulseDetectorNode"), 64u);
+  EXPECT_EQ(CountNodeType(config, "FHSSFixtureFrequencyChannelizerNode"), 0u);
+  EXPECT_EQ(CountNodeType(config, "PerChannelPulseDetectorNode"), 0u);
+
+  auto executor = graph::GraphExecutorBuilder()
+                      .WithJsonConfig(config_path.string())
+                      .WithPluginDirectory(PluginDirectory().string())
+                      .WithExecutorTimeout(std::chrono::seconds(12))
+                      .Build();
+  ASSERT_NE(executor, nullptr);
+  const auto manager = executor->GetGraphManager();
+  ASSERT_NE(manager, nullptr);
+  EXPECT_EQ(manager->GetNodes().size(), 75u);
+  EXPECT_EQ(manager->GetEdges().size(), 137u);
+  EXPECT_EQ(
+      ResolveNodes<dsp::fhss::FHSSProductionCandidateChannelizerNode>(manager)
+          .size(),
+      1u);
+  EXPECT_EQ(
+      ResolveNodes<dsp::fhss::FHSSAcquisitionPulseDetectorNode>(manager).size(),
+      64u);
 }
 
 std::shared_ptr<dsp::fhss::FHSSMessageSinkNode>
@@ -195,7 +251,134 @@ private:
   std::filesystem::path path_;
 };
 
+class ScopedIndependentCf32File {
+public:
+  ScopedIndependentCf32File(const std::string &name)
+      : path_(std::filesystem::temp_directory_path() / name) {
+    std::ofstream output(path_, std::ios::binary | std::ios::trunc);
+    if (!output.good()) {
+      throw std::runtime_error("failed to create IQ file: " + path_.string());
+    }
+    constexpr std::uint64_t kCaptureSamples = 10'000;
+    constexpr std::uint64_t kPulseStart = 3'000;
+    constexpr std::uint32_t kWord = 0xAAAA'AAAAu;
+    constexpr double kOffsetHz = -56'250'000.0;
+    double completed_phase_sum = 0.0;
+    for (std::uint64_t global = 0; global < kCaptureSamples; ++global) {
+      std::complex<double> sample{0.0, 0.0};
+      if (global >= kPulseStart &&
+          global < kPulseStart +
+                       dsp::fhss::FHSSProtocolConstants::kPulseWidthSamples) {
+        const auto local = global - kPulseStart;
+        const auto symbol_index = static_cast<std::uint32_t>(
+            local / dsp::fhss::FHSSProtocolConstants::kSamplesPerSymbol);
+        const auto sample_in_symbol = static_cast<std::uint32_t>(
+            local % dsp::fhss::FHSSProtocolConstants::kSamplesPerSymbol);
+        if (sample_in_symbol == 0u && symbol_index != 0u) {
+          const auto prior_bit = (kWord >> (32u - symbol_index)) & 1u;
+          completed_phase_sum += prior_bit == 0u ? 0.5 : -0.5;
+        }
+        const auto bit = (kWord >> (31u - symbol_index)) & 1u;
+        const double symbol = bit == 0u ? 1.0 : -1.0;
+        const double q = 0.5 * static_cast<double>(sample_in_symbol) /
+                         dsp::fhss::FHSSProtocolConstants::kSamplesPerSymbol;
+        const double cpsm_phase =
+            std::numbers::pi * (completed_phase_sum + symbol * q);
+        const double hop_phase =
+            2.0 * std::numbers::pi * kOffsetHz * static_cast<double>(global) /
+            dsp::fhss::FHSSProtocolConstants::kSampleRateHz;
+        sample = std::polar(1.0, cpsm_phase + hop_phase);
+      }
+      const std::array<float, 2> encoded{static_cast<float>(sample.real()),
+                                         static_cast<float>(sample.imag())};
+      output.write(reinterpret_cast<const char *>(encoded.data()),
+                   sizeof(encoded));
+    }
+  }
+
+  ~ScopedIndependentCf32File() {
+    std::error_code ignored;
+    std::filesystem::remove(path_, ignored);
+  }
+
+  [[nodiscard]] const std::filesystem::path &path() const { return path_; }
+
+private:
+  std::filesystem::path path_;
+};
+
 } // namespace
+
+TEST(FHSSGraphXExecutorTest,
+     Phase2TruthFreeIndependentCaptureExecutesAndPropagatesEos) {
+  const ScopedIndependentCf32File capture(
+      "graphx_fhss_phase2_independent.cf32");
+  auto config = LoadJson(FHSSPhase2BinaryIqConfigPath());
+  ASSERT_EQ(config.at("nodes").at(0).at("id").get<std::string>(), "source");
+  config.at("nodes").at(0).at("node_config").at("file_path") =
+      capture.path().string();
+  const ScopedJsonFile patched("graphx_fhss_phase2_noise.json", config);
+
+  auto executor = graph::GraphExecutorBuilder()
+                      .WithJsonConfig(patched.path().string())
+                      .WithPluginDirectory(PluginDirectory().string())
+                      .WithExecutorTimeout(std::chrono::seconds(12))
+                      .Build();
+  ASSERT_NE(executor, nullptr);
+  const auto manager = executor->GetGraphManager();
+  ASSERT_NE(manager, nullptr);
+  const auto result = executor->Execute();
+  ASSERT_TRUE(result.success) << result.message << " " << result.error_details;
+  EXPECT_TRUE(executor->IsCompletionSignaled());
+  const auto detectors =
+      ResolveNodes<dsp::fhss::FHSSAcquisitionPulseDetectorNode>(manager);
+  ASSERT_EQ(detectors.size(), 64u);
+  const auto detected_count =
+      std::accumulate(detectors.begin(), detectors.end(), std::size_t{0},
+                      [](std::size_t count, const auto &detector) {
+                        return count + detector->LastDetectedPulseCount();
+                      });
+  EXPECT_GE(detected_count, 1u);
+  std::vector<std::uint64_t> detected_ids;
+  for (const auto &detector : detectors) {
+    const auto parameters = detector->GetParameters().Raw();
+    EXPECT_DOUBLE_EQ(parameters.at("min_absolute_power_linear").get<double>(),
+                     0.05);
+    if (detector->LastDetectedPulseCount() != 0u) {
+      detected_ids.push_back(parameters.at("detector_id").get<std::uint64_t>());
+    }
+  }
+  EXPECT_EQ(detected_ids, (std::vector<std::uint64_t>{24u}));
+  const auto merges = ResolveNodes<dsp::fhss::FHSSPulseMergeNode>(manager);
+  ASSERT_EQ(merges.size(), 1u);
+  EXPECT_GE(merges.front()->LastMergedPulseCount(), 1u);
+  const auto branches = ResolveNodes<dsp::fhss::CPSMBranchMetricNode>(manager);
+  ASSERT_EQ(branches.size(), 1u);
+  EXPECT_GE(branches.front()->LastMetricPulseCount(), 1u)
+      << branches.front()->LastRejectionReason();
+  const auto viterbi = ResolveNodes<dsp::fhss::CPSMViterbiDecoderNode>(manager);
+  ASSERT_EQ(viterbi.size(), 1u);
+  EXPECT_GE(viterbi.front()->LastDecisionPulseCount(), 1u);
+  const auto decoders =
+      ResolveNodes<dsp::fhss::FHSSPulseWordDecoderNode>(manager);
+  ASSERT_EQ(decoders.size(), 1u);
+  EXPECT_GE(decoders.front()->LastDecodedPulseCount(), 1u);
+  auto sink = ResolveFHSSMessageSink(manager);
+  ASSERT_NE(sink, nullptr);
+  const auto diagnostics = sink->GetDiagnostics().Raw();
+  EXPECT_GE(diagnostics.value("pulse_count", 0u), 1u);
+  ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array());
+  ASSERT_FALSE(diagnostics.at("decoded_pulses").empty());
+  EXPECT_NEAR(diagnostics.at("decoded_pulses")
+                  .front()
+                  .at("global_start_sample")
+                  .get<double>(),
+              3'000.0, 160.0);
+  EXPECT_EQ(diagnostics.at("decoded_pulses").front().at("frequency_index"),
+            24u);
+  EXPECT_TRUE(
+      diagnostics.at("decoded_pulses").front().contains("decoded_value"));
+}
 
 TEST(FHSSGraphXExecutorTest,
      ChannelizedJsonTopologyUsesDownconverterAndOneDetectorPerFrequency) {

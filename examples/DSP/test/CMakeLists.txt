@@ -46,6 +46,7 @@ add_dependencies(test_dsp_example_unit
     dsp_spectrum_demo
     dsp_fhss_demo
     dsp_fhss_iq_generator
+    dsp_fhss_phase2_characterize
 )
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_dsp_example_unit graphx_dynamic_nodes)
@@ -85,3 +86,14 @@ add_test(
             ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_fixture_topology_generator.py
 )
+
+add_test(
+    NAME fhss_phase2_candidate_characterization_smoke
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/tools/characterize_fhss_phase2.py
+            --characterizer $<TARGET_FILE:dsp_fhss_phase2_characterize>
+            --trials 2
+            --seed-partition evaluation
+)
+set_tests_properties(fhss_phase2_candidate_characterization_smoke PROPERTIES
+    LABELS "dsp;fhss;phase2;characterization;ci-safe;host-any")

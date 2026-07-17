@@ -12,11 +12,10 @@
 
 namespace dsp::fhss {
 
-class CPSMViterbiDecoderNode
-    : public graph::NamedInteriorNode<
-          graph::TypeList<FHSSCpsmBranchMetricToken>,
-          graph::TypeList<FHSSCpsmSymbolDecisionToken>,
-          CPSMViterbiDecoderNode> {
+class CPSMViterbiDecoderNode : public graph::NamedInteriorNode<
+                                   graph::TypeList<FHSSCpsmBranchMetricToken>,
+                                   graph::TypeList<FHSSCpsmSymbolDecisionToken>,
+                                   CPSMViterbiDecoderNode> {
 public:
   using InputTokenType = FHSSCpsmBranchMetricToken;
   using OutputTokenType = FHSSCpsmSymbolDecisionToken;
@@ -32,11 +31,11 @@ public:
            std::integral_constant<std::size_t, 0>) override {
     OutputTokenType output{};
     output.token_id = input.token_id;
-    const auto &metrics = input.sidecar.pulse_metrics.empty()
-                              ? std::vector<FHSSCpsmPulseBranchMetric>{
-                                    FHSSCpsmPulseBranchMetric{
-                                        .candidate = input.sidecar.candidate}}
-                              : input.sidecar.pulse_metrics;
+    const auto &metrics =
+        input.sidecar.pulse_metrics.empty()
+            ? std::vector<FHSSCpsmPulseBranchMetric>{FHSSCpsmPulseBranchMetric{
+                  .candidate = input.sidecar.candidate}}
+            : input.sidecar.pulse_metrics;
 
     output.sidecar.pulse_decisions.reserve(metrics.size());
     for (const auto &metric : metrics) {
@@ -49,8 +48,14 @@ public:
       if (evidence_samples.empty()) {
         return std::nullopt;
       }
-      auto decoded = CPSMViterbiDecoderKernel::Decode(
-          evidence_samples, config_);
+      evidence_samples = FHSSExpandDecimatedCpsmEvidence(
+          evidence_samples,
+          candidate.pulse.timing.sample_time_map.decimation_factor);
+      if (evidence_samples.empty()) {
+        return std::nullopt;
+      }
+      auto decoded =
+          CPSMViterbiDecoderKernel::Decode(evidence_samples, config_);
       if (!decoded) {
         return std::nullopt;
       }
@@ -74,11 +79,17 @@ public:
       }
       output.sidecar.pulse_decisions.push_back(std::move(decision));
     }
+    last_decision_pulse_count_ = output.sidecar.pulse_decisions.size();
     return output;
+  }
+
+  [[nodiscard]] std::size_t LastDecisionPulseCount() const noexcept {
+    return last_decision_pulse_count_;
   }
 
 private:
   CPSMDecoderConfig config_{};
+  std::size_t last_decision_pulse_count_ = 0;
 };
 
 } // namespace dsp::fhss

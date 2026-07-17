@@ -495,6 +495,45 @@ Responsibilities:
 This is a fixture channelizer, not a production filter bank. The code itself
 states that it is frequency mixing and decimation only.
 
+### Phase 2 engineering-characterization candidates
+
+`FHSSProductionCandidateChannelizerNode` is separate from the fixture node. It
+mixes each of 64 explicitly configured, distinct IQ offsets to DC, applies a
+normalized odd-length Hamming-window low-pass FIR, and only then decimates. Its
+FIR state is retained across globally contiguous bounded tokens. Group delay is
+carried in the sample-time map; EOS emits available causal output without an
+invented zero-padded tail, then resets state. RF-table values remain metadata:
+at 500 Msps only IQ offsets inside guarded complex Nyquist are representable.
+
+The production channelizer's `input_global_start_sample` names the FIR
+center-time of channel sample zero, while `channel_global_start_sample` names
+its causal availability time and therefore equals center-time plus group
+delay. A sample-time map normalizes local channel offset `n` as
+`anchor + (output_start + n) * decimation - group_delay`. The delay correction
+is evaluated as checked signed arithmetic relative to the unsigned anchor. For
+a delay not divisible by decimation, the remainder is retained in the anchor
+and the quotient in `output_start`; an intermediate negative offset is valid
+when the anchor covers it. This convention preserves exact integer input-time
+mapping across nonaligned packet boundaries for every odd FIR length.
+
+`FHSSAcquisitionPulseDetectorNode` is likewise separate from the scheduled
+fixture detector. It buffers a bounded contiguous channel capture, estimates
+complex-Gaussian noise power from an evidence percentile, smooths power, applies
+hysteretic thresholding and gap bridging, refines burst timing, validates pulse
+duration and symbol coherence, and suppresses duplicates. It finalizes at EOS
+and never consumes configured message epochs, scheduled pulse locations,
+generator truth, or a configured noise-floor value.
+
+The exact provisional numerical gates, representable IQ map, seed partitions,
+and unsupported regions are versioned in
+`libdsp/config/fhss_phase2_validation_profile_v1.json`. These candidates support
+engineering characterization only; they do not establish product, regulatory,
+interoperability, hardware, OTA, accelerator, or production-RF qualification.
+The Phase 2 full-graph operating point qualifies acquisition, frequency and
+timing propagation, terminal control, and downstream completion. Exact payload
+word recovery after causal channel-filter startup is not yet qualified; a
+matched-filter/equalization operating point remains future validation work.
+
 ### Per-Channel Detector
 
 `PerChannelPulseDetectorNode` consumes one `FHSSChannelizedIqToken` and emits
