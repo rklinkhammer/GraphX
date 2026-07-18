@@ -1,12 +1,14 @@
 # FHSS Architecture
 
 This document describes the current GraphX FHSS implementation as of the live
-`libdsp`, `libaccelgraph`, and `examples/DSP` code. The implementation is a
-deterministic FHSS CPSM fixture and decoder lane. It is useful for GraphX packet
-contracts, node integration, scheduler behavior, diagnostics, and accelerator
-front-end validation. It is not yet a production RF receiver.
+`libdsp`, `libaccelgraph`, and `examples/DSP` code. The implementation has two
+closely related runtime variants: a deterministic FHSS/CPSM fixture graph and a
+truth-free binary-IQ engineering receiver. They share the typed downstream
+decode chain, GraphX packet contracts, scheduler behavior, diagnostics, and
+accelerator-facing interfaces. Neither variant is a production-qualified RF
+receiver.
 
-## Phase 3 validation boundary
+## Validation and qualification boundary
 
 Phase 3 adds an independent waveform/channel harness at
 `examples/DSP/tools/fhss_phase3_independent.py`. It is deliberately outside
@@ -44,6 +46,23 @@ instantaneous composite phase derivative, which can become arbitrarily large
 near a fading null even when every component is within the declared Doppler
 support.
 
+Phases 4 and 5 add governance, replay, qualification, traceability, and
+regression-maintenance infrastructure outside the runtime graph. The current
+scope has no conducted, channel-emulator, OTA, independently recorded, or
+hardware-in-the-loop evidence. All validation data is explicitly classified as
+synthetic or software evidence. Consequently:
+
+- software/engineering release readiness may pass from governed software
+  evidence;
+- synthetic characterization may pass from the frozen Phase 3 evidence;
+- recorded-IQ/HIL validation remains `UNAVAILABLE_DEFERRED`;
+- production-RF qualification remains `NOT_QUALIFIED`.
+
+Synthetic evidence cannot be promoted to a physical capture class and Phase 3
+v7 evidence cannot be reused as Phase 4 hardware data. The qualification and
+evidence-management tools are a control plane around the receiver; they are not
+part of its signal-processing data path.
+
 ## Scope
 
 The canonical implementation is the channelized fixture graph:
@@ -79,11 +98,290 @@ FHSSSyntheticIqSourceNode
   -> FHSSMessageSinkNode
 ```
 
+The truth-free engineering receiver is configured by:
+
+```text
+libdsp/config/fhss_phase2_binary_iq_receiver.json
+```
+
+Its input and acquisition lane is:
+
+```text
+FHSSBinaryIqFileSourceNode
+  -> FHSSDownconverterNode
+  -> FHSSProductionCandidateChannelizerNode
+  -> FHSSAcquisitionPulseDetectorNode[64]
+  -> FHSSPulseMergeNode
+  -> FHSSPulseCandidateNode
+  -> CPSMBranchMetricNode
+  -> CPSMViterbiDecoderNode
+  -> FHSSPulseWordDecoderNode
+  -> FHSSPreambleDetectorNode
+  -> FHSSMessageAssemblerNode
+  -> FHSSMessageSinkNode
+```
+
+The two lanes are alternatives, not consecutive stages. The fixture lane starts
+with configured messages and scheduled detector windows. The truth-free lane
+starts with binary IQ and receives no message schedule, expected words,
+transmitted-frequency hints, or generator truth. Both converge at pulse merge
+and use the same downstream decode contracts.
+
 The generated topology is maintained by:
 
 ```text
 examples/DSP/tools/generate_fhss_fixture_topology.py
 ```
+
+## Architectural views and UML semantics
+
+The diagrams in this section use UML concepts expressed with Mermaid syntax:
+
+- `*--` is composition: the contained state belongs to the enclosing object.
+- `o--` is aggregation: a packet references shareable immutable evidence.
+- `-->` is a navigable association or data transformation.
+- `..>` is an implementation dependency without ownership.
+- quoted numbers are multiplicities; `64` means one instance or edge per
+  frequency-table index.
+- `<<component>>`, `<<runtime>>`, `<<plugin>>`, and `<<value>>` are UML
+  stereotypes that describe architectural roles rather than C++ inheritance.
+
+### UML component view
+
+```mermaid
+flowchart LR
+    subgraph Inputs["Input boundary"]
+        SYN["<<component>> Synthetic IQ Source<br/>fixture graph"]
+        FILE["<<component>> Binary IQ File Source<br/>truth-free graph"]
+    end
+
+    DOWN["<<component>> Downconverter"]
+
+    subgraph Acquisition["Channelization and acquisition"]
+        FIXCH["<<component>> Fixture Channelizer<br/>mix + decimate"]
+        PRODCH["<<component>> Production Candidate Channelizer<br/>mix + FIR + decimate"]
+        FIXDET["<<component>> Scheduled Detector x64"]
+        ACQDET["<<component>> Acquisition Detector x64"]
+    end
+
+    MERGE["<<component>> Pulse Merge"]
+    CAND["<<component>> Candidate Policy"]
+    BRANCH["<<component>> CPSM Branch Metric"]
+    VIT["<<component>> Viterbi Decoder"]
+    WORD["<<component>> Pulse Word Decoder"]
+    PRE["<<component>> Preamble Detector"]
+    ASM["<<component>> Message Assembler"]
+    SINK["<<component>> Message and Diagnostic Sink"]
+
+    SYN --> DOWN --> FIXCH
+    FILE --> DOWN --> PRODCH
+    FIXCH -->|"64 typed output ports"| FIXDET
+    PRODCH -->|"64 typed output ports"| ACQDET
+    FIXDET -->|"64 terminal-aware inputs"| MERGE
+    ACQDET -->|"64 terminal-aware inputs"| MERGE
+    MERGE --> CAND --> BRANCH --> VIT --> WORD --> PRE --> ASM --> SINK
+```
+
+The compile-time 64-way fan-out makes the invariant "one logical frequency is
+one GraphX edge" visible to graph construction, plugin resolution, scheduling,
+packet typing, terminal control, and diagnostics. `FHSSPulseMergeNode` waits for
+the matching token or terminal state from every lane before completing a batch.
+
+### UML packet and class view
+
+```mermaid
+classDiagram
+    direction LR
+
+    class GraphExecutor {
+        <<runtime>>
+        +Build()
+        +Run()
+        +Stop()
+    }
+    class GraphManager {
+        <<runtime>>
+        +Start()
+        +Join()
+    }
+    class FHSSNode {
+        <<component>>
+        +Consume(token)
+        +Produce(token)
+    }
+    class ControlToken {
+        <<value>>
+        +token_id
+        +correlation
+        +completion_status
+        +payload
+    }
+    class ComplexEvidence {
+        <<value>>
+        +residency
+        +sample_count
+        +immutable_samples
+    }
+    class TimingMap {
+        <<value>>
+        +global_start_sample
+        +sample_rate_hz
+        +decimation
+        +group_delay
+    }
+    class ChannelizedPacket {
+        <<value>>
+        +channel_id
+        +frequency_index
+        +rf_frequency_hz
+        +iq_offset_frequency_hz
+    }
+    class PulseCandidate {
+        <<value>>
+        +global_start_sample
+        +duration
+        +frequency_index
+        +confidence
+    }
+    class SymbolDecisionPacket {
+        <<value>>
+        +symbols
+        +phase_states
+        +best_metric
+        +second_best_metric
+    }
+    class DecodedWordPacket {
+        <<value>>
+        +word_value
+        +decode_status
+    }
+    class AssembledMessage {
+        <<value>>
+        +preamble_pulses
+        +payload_pulses
+        +active_frequency_indices
+        +status
+    }
+
+    GraphExecutor *-- GraphManager : controls lifecycle
+    GraphManager *-- "many" FHSSNode : owns graph nodes
+    FHSSNode ..> ControlToken : consumes and emits
+    ControlToken *-- ChannelizedPacket : typed payload
+    ChannelizedPacket *-- TimingMap
+    ChannelizedPacket o-- ComplexEvidence
+    PulseCandidate o-- ComplexEvidence
+    SymbolDecisionPacket --> PulseCandidate : decodes evidence for
+    DecodedWordPacket --> SymbolDecisionPacket : symbols to MSB-first word
+    AssembledMessage *-- "1..256" DecodedWordPacket
+```
+
+The token sidecar holds semantic metadata and terminal state. Complex samples
+are currently represented as host-shared immutable evidence for CPU decoding.
+An accelerator implementation may move sample storage out of band, but it must
+preserve the timing, frequency, confidence, status, and diagnostic contracts.
+
+### UML sequence view
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as fhss_demo
+    participant Exec as GraphExecutor
+    participant Src as BinaryIqSource
+    participant Ch as ProductionChannelizer
+    participant Det as Detectors x64
+    participant Merge as PulseMerge
+    participant Dec as CPSM Decode Chain
+    participant Asm as Preamble and Assembler
+    participant Sink as MessageSink
+
+    App->>Exec: Build graph from JSON and load plugins
+    Exec->>Src: Start execution
+    Src-->>Ch: IQ token plus global timing sidecar
+    Ch-->>Det: 64 channel tokens
+    loop each frequency lane
+        Det-->>Merge: pulse evidence or empty token
+    end
+    Merge->>Merge: wait for matching 64-lane batch
+    Merge-->>Dec: globally ordered pulse candidates
+    loop each candidate pulse
+        Dec->>Dec: branch metrics and Viterbi path
+        Dec->>Dec: symbols to 32-bit MSB-first word
+    end
+    Dec-->>Asm: ordered decoded pulse words
+    Asm->>Asm: lock 16-hop preamble and derive active set
+    Asm->>Asm: validate payload frequency membership
+    Asm-->>Sink: assembled message plus status
+    Sink-->>App: diagnostics and summary
+    Src-->>Ch: EOS control token
+    Ch-->>Det: 64 EOS tokens
+    Det-->>Merge: 64 terminal states
+    Merge-->>Sink: downstream terminal propagation
+    Exec-->>App: graph completion status
+```
+
+A zero-detection capture remains a valid graph execution. Empty, failed, and
+cancelled terminal tokens propagate through the decode chain without inventing
+pulse evidence or using an out-of-band control path.
+
+### UML message-assembly state view
+
+This is a semantic state model. The current implementation may compute the
+states as one bounded batch operation rather than persist each state in a
+long-lived stateful object.
+
+```mermaid
+stateDiagram-v2
+    [*] --> AwaitingPulses
+    AwaitingPulses --> Ordering : decoded pulse batch
+    Ordering --> UnsupportedOverlap : [pulses overlap]
+    Ordering --> CheckingPreamble : [no overlap]
+    CheckingPreamble --> MissingPreamble : [fewer than 16 or hop mismatch]
+    CheckingPreamble --> InvalidFixture : [configured preamble invalid]
+    CheckingPreamble --> PreambleLocked : [16-hop sequence matches]
+    PreambleLocked --> DeriveActiveSet
+    DeriveActiveSet --> InvalidActiveSet : [derived set invalid]
+    DeriveActiveSet --> ValidatingPayload : [four valid frequencies]
+    ValidatingPayload --> PayloadRejected : [frequency outside active set]
+    ValidatingPayload --> MessageTooLong : [pulse count greater than 256]
+    ValidatingPayload --> Complete : [all invariants satisfied]
+    Complete --> [*]
+    MissingPreamble --> [*]
+    InvalidFixture --> [*]
+    InvalidActiveSet --> [*]
+    PayloadRejected --> [*]
+    MessageTooLong --> [*]
+    UnsupportedOverlap --> [*]
+```
+
+Preamble lock is hop-order based. The receiver derives the active-frequency set
+from the distinct frequency indices in the configured preamble. The assembler
+therefore needs `preamble_pulses`, but it does not need a redundant
+`active_frequency_indices` field or any scheduled messages.
+
+### UML deployment view
+
+```mermaid
+flowchart TB
+    JSON["Graph JSON configuration"]
+    BUILDER["<<runtime>> GraphExecutorBuilder"]
+    RESOLVER["<<component>> Plugin resolver"]
+    PLUGINS["<<plugin>> FHSS node shared libraries"]
+    GRAPH["<<runtime>> Instantiated GraphX graph"]
+    CPU["<<library>> libdsp CPU kernels"]
+    ACCEL["<<adapter>> libaccelgraph wrappers"]
+    REPORT["Summary, effective config, diagnostics"]
+
+    JSON --> BUILDER --> RESOLVER --> PLUGINS --> GRAPH
+    GRAPH --> CPU
+    ACCEL -.->|"current reference fallback"| CPU
+    GRAPH --> REPORT
+```
+
+The plugin layer dynamically constructs nodes from graph JSON. DSP token types
+remain shared across CPU and accelerator-facing wrappers. Native Metal and CUDA
+FHSS kernels are not implemented; fallback execution must not be reported as
+native accelerator execution.
 
 ## Protocol Model
 
@@ -678,7 +976,7 @@ confidence, Viterbi metric, decoded value, and unsupported-feature flags.
 
 FHSS JSON parsing helpers live in `FHSSGraphXConfig.hpp`.
 
-The source node config supplies:
+The synthetic fixture source config supplies:
 
 - `active_frequency_indices`
 - `iq_center_frequency_hz` or explicit `iq_offsets`
@@ -692,6 +990,15 @@ The source node config supplies:
 Each scheduled message has a stable `message_id`, `transmit_start_sample`, and
 ordered pulse list. The first 16 pulses must be marked `preamble`; later pulses
 must be marked `body` or `payload`.
+
+The truth-free binary-IQ graph deliberately has a smaller input contract. Its
+file source receives the IQ path, format, sample rate, bounded read selection,
+and global input anchor. It does not receive `messages`, expected words,
+transmitted-frequency hints, or burst epochs. The preamble detector and
+assembler parse `preamble_pulses` directly. `FHSSMessageAssemblerConfig` stores
+only that preamble, and the active-frequency set is derived from its distinct
+frequency indices after preamble lock. This prevents the earlier accidental
+receiver dependency on a generator-owned `active_frequency_indices` field.
 
 The graph generator expands the topology instead of relying on compact fan-out
 syntax. That produces one node per detector and one explicit edge from each
@@ -712,6 +1019,10 @@ message JSON, runs the real graph, and can write:
 
 The source supports message injection, and dashboard tests cover configuration,
 rebuild controls, message injection, replay, visualization, and artifact export.
+For binary-IQ replay, the harness patches only the file path and explicitly
+declared receiver/output parameters. Evaluator truth and transmitter logs are
+outside the graph and are opened only after receiver execution when a validation
+tool performs event matching.
 
 ## Plugin Surface
 
@@ -790,15 +1101,29 @@ The implementation intentionally does not yet provide:
 
 - Production RF channelization or adjacent-channel rejection guarantees.
 - A defined spectral mask or production channel filter specification.
-- Noise, multipath, CFO estimation, or broader impairment modeling.
+- Runtime fixture support for arbitrary noise or multipath feature flags. The
+  independent Phase 3 harness models these impairments outside the receiver.
+- A qualified CFO estimator or probability-calibrated decoder confidence.
 - Overlap-aware separation of simultaneous cross-frequency pulses.
 - Native Metal/CUDA FHSS kernels.
 - Full simultaneous interpretation of all 64 1 GHz-spaced RF table entries as
   alias-free 500 Msps sampled RF.
+- Conducted, channel-emulator, OTA, independently recorded, or HWIL evidence.
+- Production-RF, regulatory, certification, or interoperability qualification.
+- Support for the partial-hop same-channel collision offsets at 800 and 1600
+  samples that remain explicitly deferred in the validation inventory.
+
+The generic graph runtime also has a disclosed lifecycle limitation: after a
+timeout, an active `Consume()` operation without cooperative interruption can
+cause the executor to wait in an unbounded join. The production channelizer's
+fixed circular FIR history removes the observed pathological shift workload,
+but it does not change that general runtime API limitation.
 
 The correct reading is that the system models a deterministic, validated,
-channelized FHSS fixture over a semantic packet contract designed to survive
-future accelerator storage changes.
+channelized FHSS fixture and a truth-free engineering receiver over a semantic
+packet contract designed to survive future channelizer, detector, and
+accelerator-storage changes. Current release qualification applies to software
+and synthetic evidence only.
 
 ## Extension Points
 
