@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "required":["schema","phase","source_revision","compiler","build_profile","platform","commands","bound_address","bound_port","dashboard_url","api_version","synthetic_data_only","hwil_available","production_rf_qualified","input_hashes","artifact_hashes","checks","result"],
+  "additionalProperties":false,
+  "properties":{
+    "schema":{"const":"graphx.fhss.dashboard.operator_report.v1"},"phase":{"const":1},
+    "source_revision":{"type":"string"},"compiler":{"type":"string"},"build_profile":{"type":"string"},"platform":{"type":"string"},
+    "commands":{"type":"array","items":{"type":"array","items":{"type":"string"}}},
+    "bound_address":{"enum":["127.0.0.1","::1"]},"bound_port":{"type":"integer","minimum":1,"maximum":65535},
+    "dashboard_url":{"type":"string"},"api_version":{"const":"v1"},"synthetic_data_only":{"const":true},
+    "hwil_available":{"const":false},"production_rf_qualified":{"const":false},
+    "input_hashes":{"type":"object","required":["openapi"],"properties":{"openapi":{"type":"string"}},"additionalProperties":false},
+    "artifact_hashes":{"type":"object","required":["dashboard_index"],"properties":{"dashboard_index":{"type":"string"}},"additionalProperties":false},
+    "checks":{"type":"array","minItems":1,"items":{"type":"object","required":["name","pass","evidence"],"additionalProperties":false,"properties":{"name":{"type":"string"},"pass":{"type":"boolean"},"evidence":{"type":"string"}}}},
+    "result":{"enum":["PASS","FAIL"]}
+  }
+}

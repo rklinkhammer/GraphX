@@ -9,9 +9,15 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(log4cxx REQUIRED)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    find_package(Boost 1.74 REQUIRED)
+endif()
 
 # Collect source files
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/**/*.cpp")
+if(NOT GRAPHX_BUILD_WEB_DASHBOARD)
+    list(FILTER SOURCES EXCLUDE REGEX "/dashboard/")
+endif()
 
 # Create library
 add_library(graph STATIC ${SOURCES})
@@ -43,6 +49,9 @@ target_link_libraries(graph PUBLIC
     Threads::Threads
     log4cxx
 )
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    target_link_libraries(graph PUBLIC Boost::headers)
+endif()
 
 # Keep warning/sanitizer options local for install-exported static library.
 if(MSVC)
@@ -63,9 +72,14 @@ install(TARGETS graph EXPORT graphTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    PATTERN ".DS_Store" EXCLUDE
-)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN ".DS_Store" EXCLUDE)
+else()
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN ".DS_Store" EXCLUDE
+        PATTERN "graph/dashboard" EXCLUDE)
+endif()
 
 # Export cmake config
 install(EXPORT graphTargets

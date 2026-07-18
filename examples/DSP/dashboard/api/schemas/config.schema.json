@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:config:v1",
+  "type": "object", "required": ["schema", "owner", "config_revision", "authoritative", "effective", "derived_paths"], "additionalProperties": false,
+  "properties": {"schema": {"const": "graphx.dashboard.config.v1"}, "owner": {"type": "string"}, "config_revision":{"type":"integer","minimum":0}, "authoritative":{"type":"object"}, "effective": {"type": "object", "required": ["nodes", "edges"]}, "derived_paths":{"type":"array","items":{"type":"string"}}}
+}

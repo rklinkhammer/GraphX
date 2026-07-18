@@ -3,19 +3,24 @@ find_package(Threads REQUIRED)
 find_package(log4cxx REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(GRAPHX_DASHBOARD_CONTRACT_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH
+    "Python interpreter provisioned with dashboard requirements-contracts.lock")
 
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
     test_dsp_fhss_iq_generator.cpp
+)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+target_sources(test_dsp_example_unit PRIVATE
     test_dsp_fhss_dashboard_step1.cpp
     test_dsp_fhss_dashboard_step2_browser.cpp
     test_dsp_fhss_dashboard_step2.cpp
     test_dsp_fhss_dashboard_step3.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
-    test_dsp_fhss_dashboard_step8.cpp
 )
+endif()
 
 target_compile_definitions(test_dsp_example_unit PRIVATE
     DSP_SPECTRUM_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_spectrum_demo>"
@@ -39,10 +44,12 @@ target_include_directories(test_dsp_example_unit PRIVATE
 target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
     Threads::Threads
-    dsp_fhss_dashboard_api
     log4cxx
     nlohmann_json::nlohmann_json
 )
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    target_link_libraries(test_dsp_example_unit PRIVATE dsp_fhss_dashboard_api)
+endif()
 add_dependencies(test_dsp_example_unit
     dsp_spectrum_demo
     dsp_fhss_demo
@@ -54,7 +61,8 @@ if(TARGET graphx_dynamic_nodes)
 endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
-set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+  set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
     FhssDashboardServerContractTest
     FhssDashboardServerFailureTest
     FhssDashboardConfigurationConcurrencyTest
@@ -63,7 +71,10 @@ set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
     FhssDashboardRebuildControlTest
     FhssDashboardEventReplayTest
     FhssDashboardVisualizationTest
-    FhssDashboardArtifactExportTest)
+    FhssDashboardVisualizationCancellationTest)
+else()
+  set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES "")
+endif()
 set(DSP_EXAMPLE_DISCOVERY_UNEXPECTED_SUITES
     DashboardServerStep1Test
     DashboardServerStep2Test
@@ -79,6 +90,33 @@ add_test(NAME dsp_example_unit_discovery
         -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
 set_tests_properties(dsp_example_unit_discovery PROPERTIES
     LABELS "dsp;fhss;dashboard;discovery;ci-safe;host-any")
+
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    add_test(NAME fhss_dashboard_api_contracts
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+                ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/api/validate_contracts.py)
+    set_tests_properties(fhss_dashboard_api_contracts PROPERTIES
+        LABELS "dsp;fhss;dashboard;contracts;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_external_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    set_tests_properties(fhss_dashboard_external_operator fhss_dashboard_installed_tree_operator
+        PROPERTIES LABELS "dsp;fhss;dashboard;operator;ci-safe;host-any" TIMEOUT 60 RUN_SERIAL TRUE)
+endif()
+
+add_test(NAME fhss_dashboard_off_build
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DPARENT_BUILD_DIR=${CMAKE_BINARY_DIR}
+        -P ${CMAKE_SOURCE_DIR}/cmake/ValidateDashboardOffBuild.cmake)
+set_tests_properties(fhss_dashboard_off_build PROPERTIES
+    LABELS "dsp;fhss;dashboard;off-build;ci-safe;host-any" TIMEOUT 180 RUN_SERIAL TRUE)
 
 add_test(
     NAME fhss_fixture_topology_generator

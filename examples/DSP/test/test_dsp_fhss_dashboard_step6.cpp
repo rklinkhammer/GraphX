@@ -137,7 +137,7 @@ protected:
                             std::optional<std::uint64_t> last_sequence = std::nullopt,
                             bool disconnect = false) {
     std::ostringstream target;
-    target << "/api/v1/events?client_id=" << client_id;
+    target << "/api/v1/fhss/events?client_id=" << client_id;
     if (last_sequence.has_value()) {
       target << "&last_sequence=" << *last_sequence;
     }

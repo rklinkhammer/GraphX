@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:metrics:v1","type":"object","required":["schema","graph","nodes","edges"],"additionalProperties":false,"properties":{"schema":{"const":"graphx.dashboard.metrics.v1"},"graph":{"type":"object"},"nodes":{"type":"array","items":{"type":"object"}},"edges":{"type":"array","items":{"type":"object"}}}}

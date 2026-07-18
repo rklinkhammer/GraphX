@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:diagnostics:v1","type":"object","required":["schema","nodes"],"additionalProperties":false,"properties":{"schema":{"const":"graphx.dashboard.diagnostics.v1"},"nodes":{"type":"array","items":{"type":"object"}}}}

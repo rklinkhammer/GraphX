@@ -125,12 +125,16 @@ protected:
     snapshot_collector_ = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
     graph::dashboard::EmbeddedDashboardServer::Options options;
+    options.enable_mutating_routes = true;
     options.port = 0;
     options.asset_directory =
         std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
     options.artifact_root = artifact_root_;
-    options.application_api_handler = dsp::fhss::dashboard::MakeApiHandler(
-        configuration_service_, options.artifact_root);
+    options.application_api_handler =
+        graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
+            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_),
+            .cooperative_cancellation = true,
+            .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
 
     server_ = std::make_unique<graph::dashboard::EmbeddedDashboardServer>(
         options, configuration_service_, runtime_session_, snapshot_collector_);

@@ -80,6 +80,12 @@ endif()
 option(BUILD_TESTS "Build test targets" ON)
 option(BUILD_DOCS "Build Doxygen documentation" OFF)
 option(GRAPHX_BUILD_WEB_DASHBOARD "Build FHSS embedded web dashboard support" OFF)
+if(WIN32 AND GRAPHX_BUILD_WEB_DASHBOARD)
+    message(FATAL_ERROR
+        "GRAPHX_BUILD_WEB_DASHBOARD is unsupported on Windows: secure reparse-point-safe "
+        "static asset opening has not been implemented. Configure with "
+        "-DGRAPHX_BUILD_WEB_DASHBOARD=OFF.")
+endif()
 option(GRAPHX_BUILD_EXAMPLES_SAR "Build the SAR example package under examples/SAR" ON)
 option(GRAPHX_BUILD_EXAMPLES_DSP "Build the DSP example package under examples/DSP" ON)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)

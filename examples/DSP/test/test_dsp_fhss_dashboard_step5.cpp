@@ -160,6 +160,7 @@ protected:
     controller_->BindInjectionSource(source_);
 
     graph::dashboard::EmbeddedDashboardServer::Options options;
+    options.enable_mutating_routes = true;
     options.port = 0;
     options.asset_directory = assets_;
 
@@ -241,14 +242,14 @@ TEST_F(FhssDashboardMessageControlTest,
   controller_->SetAutoCompleteForTesting(false);
 
   const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-1").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
   EXPECT_EQ(first_json.at("status").get<std::string>(), "running");
 
   const auto duplicate =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-2").dump());
   EXPECT_EQ(duplicate.status_code, 409) << duplicate.body;
   const auto duplicate_json = nlohmann::json::parse(duplicate.body);
@@ -265,7 +266,7 @@ TEST_F(FhssDashboardMessageControlTest,
 
   const auto operation = HttpRequest(
       server_->BoundPort(), "GET",
-      "/api/v1/operations/" + first_json.at("operation_id").get<std::string>());
+      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
   EXPECT_EQ(operation.status_code, 200) << operation.body;
   const auto operation_json = nlohmann::json::parse(operation.body);
   EXPECT_TRUE(operation_json.at("terminal").get<bool>());
@@ -277,7 +278,7 @@ TEST_F(FhssDashboardMessageControlTest,
   controller_->SetAutoCompleteForTesting(true);
 
   const auto response =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/continue",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/continue",
                   CommandRequestJson("cmd-step5-continue").dump());
   EXPECT_EQ(response.status_code, 202) << response.body;
 
@@ -296,7 +297,7 @@ TEST_F(FhssDashboardMessageControlTest,
   controller_->SetAutoCompleteForTesting(true);
 
   const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-reset-1").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
@@ -304,19 +305,19 @@ TEST_F(FhssDashboardMessageControlTest,
   const auto first_correlation = first_json.at("result").at("correlation");
 
   const auto reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/reset",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/reset",
                   CommandRequestJson("cmd-step5-reset").dump());
   EXPECT_EQ(reset.status_code, 202) << reset.body;
 
   const auto retained = HttpRequest(
       server_->BoundPort(), "GET",
-      "/api/v1/operations/" + first_json.at("operation_id").get<std::string>());
+      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
   EXPECT_EQ(retained.status_code, 200) << retained.body;
   const auto retained_json = nlohmann::json::parse(retained.body);
   EXPECT_TRUE(retained_json.at("terminal").get<bool>());
 
   const auto after_reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-reset-2").dump());
   EXPECT_EQ(after_reset.status_code, 202) << after_reset.body;
   const auto after_reset_json = nlohmann::json::parse(after_reset.body);
@@ -333,7 +334,7 @@ TEST_F(FhssDashboardMessageControlTest,
   controller_->SetAutoCompleteForTesting(false);
 
   const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-race").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
@@ -355,7 +356,7 @@ TEST_F(FhssDashboardMessageControlTest,
 
   const auto operation = HttpRequest(
       server_->BoundPort(), "GET",
-      "/api/v1/operations/" + first_json.at("operation_id").get<std::string>());
+      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
   EXPECT_EQ(operation.status_code, 200) << operation.body;
   const auto operation_json = nlohmann::json::parse(operation.body);
   EXPECT_EQ(
@@ -363,13 +364,13 @@ TEST_F(FhssDashboardMessageControlTest,
       "timed_out");
 
   const auto reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/reset",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/reset",
                   CommandRequestJson("cmd-step5-race-reset").dump());
   EXPECT_EQ(reset.status_code, 202) << reset.body;
 
   source_->DisableMessageInjectionQueue();
   const auto disabled =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/step-message",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
                   CommandRequestJson("cmd-step5-disabled").dump());
   EXPECT_EQ(disabled.status_code, 202) << disabled.body;
   const auto disabled_json = nlohmann::json::parse(disabled.body);

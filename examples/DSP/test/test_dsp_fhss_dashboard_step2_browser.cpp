@@ -125,6 +125,7 @@ protected:
     snapshot_collector_ = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
     graph::dashboard::EmbeddedDashboardServer::Options options;
+    options.enable_mutating_routes = true;
     options.port = 0;
     options.asset_directory = assets_;
 
@@ -150,8 +151,8 @@ protected:
 };
 
 TEST_F(FhssDashboardConfigurationConcurrencyTest, TwoBrowserSessionsSeeDeterministicOptimisticConcurrency) {
-  const auto browser_a = HttpRequest(server_->BoundPort(), "GET", "/api/v1/config");
-  const auto browser_b = HttpRequest(server_->BoundPort(), "GET", "/api/v1/config");
+  const auto browser_a = HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/config");
+  const auto browser_b = HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/config");
   EXPECT_EQ(browser_a.status_code, 200);
   EXPECT_EQ(browser_b.status_code, 200);
 
@@ -166,7 +167,7 @@ TEST_F(FhssDashboardConfigurationConcurrencyTest, TwoBrowserSessionsSeeDetermini
                                            {"pointer", "/fhss/scenario/iq_center_frequency_hz"},
                                            {"value", 1240000001.0},
                                            {"apply", "staged"}};
-  const auto browser_a_patch = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/config", staged_patch.dump());
+  const auto browser_a_patch = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/fhss/config", staged_patch.dump());
   EXPECT_EQ(browser_a_patch.status_code, 200) << browser_a_patch.body;
   const auto browser_a_patch_json = nlohmann::json::parse(browser_a_patch.body);
   ASSERT_EQ(browser_a_patch_json.at("new_revision").get<std::uint64_t>(), 2u);
@@ -177,13 +178,13 @@ TEST_F(FhssDashboardConfigurationConcurrencyTest, TwoBrowserSessionsSeeDetermini
                                                     {"pointer", "/fhss/scenario/iq_center_frequency_hz"},
                                                     {"value", 1240000002.0},
                                                     {"apply", "staged"}};
-  const auto browser_b_stale = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/config",
+  const auto browser_b_stale = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/fhss/config",
                                            stale_browser_b_patch.dump());
   EXPECT_EQ(browser_b_stale.status_code, 409) << browser_b_stale.body;
   const auto browser_b_stale_json = nlohmann::json::parse(browser_b_stale.body);
   EXPECT_EQ(browser_b_stale_json.at("code").get<std::string>(), "stale_revision_conflict");
 
-  const auto refreshed_browser_b = HttpRequest(server_->BoundPort(), "GET", "/api/v1/config");
+  const auto refreshed_browser_b = HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/config");
   EXPECT_EQ(refreshed_browser_b.status_code, 200);
   const auto refreshed_browser_b_json = nlohmann::json::parse(refreshed_browser_b.body);
   EXPECT_EQ(refreshed_browser_b_json.at("config_revision").get<std::uint64_t>(), 2u);
@@ -194,7 +195,7 @@ TEST_F(FhssDashboardConfigurationConcurrencyTest, TwoBrowserSessionsSeeDetermini
                                                     {"pointer", "/fhss/scenario/iq_center_frequency_hz"},
                                                     {"value", 1240000003.0},
                                                     {"apply", "staged"}};
-  const auto browser_b_retry = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/config",
+  const auto browser_b_retry = HttpRequest(server_->BoundPort(), "PATCH", "/api/v1/fhss/config",
                                            browser_b_retry_patch.dump());
   EXPECT_EQ(browser_b_retry.status_code, 200) << browser_b_retry.body;
   const auto browser_b_retry_json = nlohmann::json::parse(browser_b_retry.body);

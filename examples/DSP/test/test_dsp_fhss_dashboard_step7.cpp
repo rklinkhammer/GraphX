@@ -127,8 +127,11 @@ protected:
     options.asset_directory =
         std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
     options.artifact_root = options.asset_directory.parent_path();
-    options.application_api_handler = dsp::fhss::dashboard::MakeApiHandler(
-        configuration_service_, options.artifact_root);
+    options.application_api_handler =
+        graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
+            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_),
+            .cooperative_cancellation = true,
+            .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
 
     server_ = std::make_unique<graph::dashboard::EmbeddedDashboardServer>(
         options, configuration_service_, runtime_session_, snapshot_collector_);
@@ -160,7 +163,7 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   ASSERT_EQ(index_response.status_code, 200);
   EXPECT_NE(index_response.body.find("FHSS Schedule"), std::string::npos);
   EXPECT_NE(index_response.body.find("64-Channel Heatmap"), std::string::npos);
-  EXPECT_NE(index_response.body.find("Expected / Detected Pulse Timeline"), std::string::npos);
+  EXPECT_NE(index_response.body.find("Synthetic Expected / Placeholder Pulse Timeline"), std::string::npos);
   EXPECT_NE(index_response.body.find("/api/v1/fhss/visualization"), std::string::npos);
 
   const auto viz = VisualizationRequest("?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=32&refresh_ms=250");
@@ -227,6 +230,38 @@ TEST_F(FhssDashboardVisualizationTest, SnapshotSizeAndRefreshRateAreBounded) {
 
   const auto very_slow = VisualizationRequest("?refresh_ms=999999");
   EXPECT_EQ(very_slow.at("bounds").at("refresh_interval_ms").get<std::uint64_t>(), 2000u);
+}
+
+TEST(FhssDashboardVisualizationCancellationTest,
+     ProductionHandlerHonorsDeadlineAndStopCompletesDeterministically) {
+  auto config = LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
+  for (auto &node : config["nodes"]) {
+    if (node.value("type", std::string{}) == "FHSSSyntheticIqSourceNode" &&
+        node["node_config"].contains("messages")) {
+      const auto original = node["node_config"]["messages"];
+      for (int repeat = 0; repeat < 32; ++repeat) {
+        for (const auto &message : original) node["node_config"]["messages"].push_back(message);
+      }
+    }
+  }
+  auto service = std::make_shared<graph::dashboard::GraphConfigurationService>(config);
+  auto runtime = std::make_shared<graph::dashboard::GraphRuntimeSession>();
+  auto snapshots = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+  graph::dashboard::EmbeddedDashboardServer::Options options;
+  options.asset_directory =
+      std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
+  options.total_request_timeout = std::chrono::milliseconds(5);
+  options.application_api_handler =
+      graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
+          .handler = dsp::fhss::dashboard::MakeApiHandler(service),
+          .cooperative_cancellation = true,
+          .maximum_checkpoint_latency = std::chrono::milliseconds(1)};
+  graph::dashboard::EmbeddedDashboardServer server(options, service, runtime, snapshots);
+  ASSERT_TRUE(server.Start()) << server.LastError();
+  EXPECT_EQ(HttpGet(server.BoundPort(), "/api/v1/fhss/visualization").status_code, 408);
+  const auto stop_started = std::chrono::steady_clock::now();
+  server.Stop();
+  EXPECT_LT(std::chrono::steady_clock::now() - stop_started, std::chrono::milliseconds(100));
 }
 
 } // namespace

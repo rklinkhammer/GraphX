@@ -46,20 +46,52 @@
 #ifndef DSP_FHSS_DASHBOARD_ASSET_DIRECTORY
 #define DSP_FHSS_DASHBOARD_ASSET_DIRECTORY "examples/DSP/dashboard"
 #endif
+#ifndef DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY
+#define DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY "share/graphx/fhss-dashboard"
+#endif
 
 namespace {
 
+std::filesystem::path DefaultDashboardAssets(const char *executable) {
+  std::error_code error;
+  const auto executable_path = std::filesystem::weakly_canonical(executable, error);
+  if (!error) {
+    const auto adjacent = executable_path.parent_path().parent_path() /
+                          "share/graphx/fhss-dashboard";
+    if (std::filesystem::is_regular_file(adjacent / "index.html", error)) {
+      return adjacent;
+    }
+  }
+  const std::filesystem::path installed{DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY};
+  if (std::filesystem::is_regular_file(installed / "index.html", error)) {
+    return installed;
+  }
+  return DSP_FHSS_DASHBOARD_ASSET_DIRECTORY;
+}
+
+std::filesystem::path DefaultFhssConfig(const char *executable) {
+  std::error_code error;
+  const auto executable_path = std::filesystem::weakly_canonical(executable, error);
+  if (!error) {
+    const auto adjacent = executable_path.parent_path().parent_path() /
+        "share/graphx/config/fhss_cpsm_channelized_fixture_500msps.json";
+    if (std::filesystem::is_regular_file(adjacent, error)) return adjacent;
+  }
+  return DSP_FHSS_CHANNELIZED_CONFIG_PATH;
+}
+
 struct CliOptions {
-  std::filesystem::path config_path{DSP_FHSS_CHANNELIZED_CONFIG_PATH};
+  std::filesystem::path config_path;
   std::filesystem::path plugin_directory{DSP_PLUGIN_OUTPUT_DIRECTORY};
   std::filesystem::path message_json_path;
   std::filesystem::path summary_json_path;
   std::filesystem::path effective_config_path;
   std::filesystem::path channel_iq_directory;
-  std::filesystem::path dashboard_assets{DSP_FHSS_DASHBOARD_ASSET_DIRECTORY};
+  std::filesystem::path dashboard_assets;
   std::string channel_iq_indices = "active";
   int executor_timeout_s = 12;
   std::uint16_t dashboard_port = 0;
+  std::string dashboard_host = "127.0.0.1";
   std::size_t decoded_pulse_limit = 8;
   bool print_effective_config = false;
   bool dashboard = false;
@@ -112,7 +144,7 @@ void PrintUsage() {
          "                             [--channel-iq-indices active|all|csv]\n"
          "                             [--executor-timeout-s n]\n"
          "                             [--decoded-pulse-limit n]\n"
-         "                             [--dashboard --dashboard-port n]\n"
+         "                             [--dashboard --dashboard-host loopback --dashboard-port n]\n"
          "                             [--dashboard-assets path]\n"
          "                             [--dashboard-no-run]\n\n"
          "Message JSON may be either a full FHSS source node_config object or "
@@ -129,6 +161,8 @@ void PrintUsage() {
 
 CliOptions ParseArgs(int argc, char **argv) {
   CliOptions options;
+  options.config_path = DefaultFhssConfig(argv[0]);
+  options.dashboard_assets = DefaultDashboardAssets(argv[0]);
   for (int i = 1; i < argc; ++i) {
     const std::string arg{argv[i]};
     if (arg == "--help" || arg == "-h") {
@@ -189,6 +223,11 @@ CliOptions ParseArgs(int argc, char **argv) {
         throw std::invalid_argument("--dashboard-port requires a value");
       }
       options.dashboard_port = ParsePortOption(arg, argv[++i]);
+    } else if (arg == "--dashboard-host") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument("--dashboard-host requires an address");
+      }
+      options.dashboard_host = argv[++i];
     } else if (arg == "--dashboard-assets") {
       if (i + 1 >= argc) {
         throw std::invalid_argument("--dashboard-assets requires a path");
@@ -648,8 +687,7 @@ std::atomic<bool> g_dashboard_stop_requested{false};
 void HandleDashboardSignal(int) { g_dashboard_stop_requested.store(true); }
 
 int RunDashboardNoRunMode(const CliOptions &options,
-                          const nlohmann::json &effective_config,
-                          const std::filesystem::path &effective_config_path) {
+                          const nlohmann::json &effective_config) {
   g_dashboard_stop_requested.store(false);
 
   auto configuration_service =
@@ -661,142 +699,16 @@ int RunDashboardNoRunMode(const CliOptions &options,
       std::make_shared<graph::dashboard::GraphSnapshotCollector>();
   runtime_session->MarkReady();
 
-  struct RuntimeExecutionState {
-    std::mutex mutex;
-    std::shared_ptr<graph::GraphExecutor> executor;
-    std::thread worker;
-    bool worker_running = false;
-  };
-  auto execution = std::make_shared<RuntimeExecutionState>();
-
-  const auto start_runtime = [runtime_session, snapshot_collector, execution,
-                              options, effective_config_path]()
-      -> graph::dashboard::GraphRuntimeSession::CommandResult {
-    std::thread stale_worker;
-    {
-      std::lock_guard<std::mutex> lock(execution->mutex);
-      if (!execution->worker_running && execution->worker.joinable()) {
-        stale_worker = std::move(execution->worker);
-      }
-    }
-    if (stale_worker.joinable()) {
-      stale_worker.join();
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(execution->mutex);
-      if (execution->worker_running) {
-        return {.status_code = 409,
-                .code = "invalid_state",
-                .message = "runtime already running"};
-      }
-    }
-
-    const auto state = runtime_session->GetState();
-    if (state == graph::dashboard::GraphRuntimeSession::State::rebuilding ||
-        state == graph::dashboard::GraphRuntimeSession::State::shutting_down ||
-        state == graph::dashboard::GraphRuntimeSession::State::dead ||
-        state == graph::dashboard::GraphRuntimeSession::State::initializing ||
-        state == graph::dashboard::GraphRuntimeSession::State::running) {
-      return {.status_code = 409,
-              .code = "invalid_state",
-              .message = "runtime cannot start in current state"};
-    }
-
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithJsonConfig(effective_config_path.string())
-                        .WithPluginDirectory(options.plugin_directory.string())
-                        .WithExecutorTimeout(
-                            std::chrono::seconds(options.executor_timeout_s))
-                        .Build();
-    if (!executor) {
-      runtime_session->SetLifecycleState(
-          graph::dashboard::GraphRuntimeSession::State::failed);
-      return {.status_code = 500,
-              .code = "executor_construction_failed",
-              .message = "failed to build FHSS graph executor"};
-    }
-
-    auto manager = executor->GetGraphManager();
-    if (!manager) {
-      runtime_session->SetLifecycleState(
-          graph::dashboard::GraphRuntimeSession::State::failed);
-      return {.status_code = 500,
-              .code = "graph_manager_missing",
-              .message = "executor did not expose a GraphManager"};
-    }
-    manager->EnableMetrics(true);
-
-    runtime_session->SetActiveGraphManager(manager);
-    snapshot_collector->BindRuntimeSession(runtime_session);
-    runtime_session->SetLifecycleState(
-        graph::dashboard::GraphRuntimeSession::State::running);
-
-    {
-      std::lock_guard<std::mutex> lock(execution->mutex);
-      execution->executor = executor;
-      execution->worker_running = true;
-      execution->worker = std::thread([runtime_session, execution]() {
-        std::shared_ptr<graph::GraphExecutor> executor_to_run;
-        {
-          std::lock_guard<std::mutex> lock(execution->mutex);
-          executor_to_run = execution->executor;
-        }
-
-        graph::ExecutionResult result{};
-        if (executor_to_run) {
-          result = executor_to_run->Execute();
-        }
-
-        runtime_session->SetLifecycleState(
-            result.success
-                ? graph::dashboard::GraphRuntimeSession::State::completed
-                : graph::dashboard::GraphRuntimeSession::State::failed);
-
-        std::lock_guard<std::mutex> lock(execution->mutex);
-        if (execution->executor == executor_to_run) {
-          execution->executor.reset();
-        }
-        execution->worker_running = false;
-      });
-    }
-
-    return {.status_code = 202,
-            .code = "start_accepted",
-            .message = "runtime start accepted"};
-  };
-
-  const auto stop_runtime =
-      [runtime_session,
-       execution]() -> graph::dashboard::GraphRuntimeSession::CommandResult {
-    std::shared_ptr<graph::GraphExecutor> executor;
-    bool worker_running = false;
-    {
-      std::lock_guard<std::mutex> lock(execution->mutex);
-      executor = execution->executor;
-      worker_running = execution->worker_running;
-    }
-
-    if (!executor || !worker_running) {
-      return {.status_code = 409,
-              .code = "invalid_state",
-              .message = "runtime is not running"};
-    }
-
-    (void)executor->Stop();
-    runtime_session->SetLifecycleState(
-        graph::dashboard::GraphRuntimeSession::State::stopped);
-    return {.status_code = 202,
-            .code = "stop_accepted",
-            .message = "runtime stop accepted"};
-  };
-
   graph::dashboard::EmbeddedDashboardServer::Options server_options;
+  server_options.host = options.dashboard_host;
   server_options.port = options.dashboard_port;
   server_options.asset_directory = options.dashboard_assets;
   server_options.artifact_root = options.dashboard_assets.parent_path();
-  server_options.application_api_handler = dsp::fhss::dashboard::MakeApiHandler(
-      configuration_service, server_options.artifact_root);
+  server_options.application_api_handler =
+      graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
+          .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service),
+          .cooperative_cancellation = true,
+          .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
 
   graph::dashboard::EmbeddedDashboardServer server(
       server_options, configuration_service, runtime_session,
@@ -806,7 +718,10 @@ int RunDashboardNoRunMode(const CliOptions &options,
                              server.LastError());
   }
 
-  std::cout << "Dashboard URL: http://127.0.0.1:" << server.BoundPort() << "\n";
+  const bool ipv6 = server.BoundHost().find(':') != std::string::npos;
+  std::cout << "Dashboard URL: http://" << (ipv6 ? "[" : "")
+            << server.BoundHost() << (ipv6 ? "]" : "") << ':'
+            << server.BoundPort() << '\n' << std::flush;
   std::cout << "Dashboard no-run mode active. Press Ctrl+C to stop.\n";
 
   std::signal(SIGINT, HandleDashboardSignal);
@@ -815,18 +730,7 @@ int RunDashboardNoRunMode(const CliOptions &options,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  std::thread worker_to_join;
   runtime_session->MarkShuttingDown();
-  (void)stop_runtime();
-  {
-    std::lock_guard<std::mutex> lock(execution->mutex);
-    if (execution->worker.joinable()) {
-      worker_to_join = std::move(execution->worker);
-    }
-  }
-  if (worker_to_join.joinable()) {
-    worker_to_join.join();
-  }
   runtime_session->MarkDead();
 
   server.Stop();
@@ -855,8 +759,7 @@ int main(int argc, char **argv) {
 
     if (options.dashboard || options.dashboard_no_run) {
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
-      return RunDashboardNoRunMode(options, graph_config,
-                                   effective_config_path);
+      return RunDashboardNoRunMode(options, graph_config);
 #else
       throw std::runtime_error(
           "dashboard support is not built. Reconfigure with "

@@ -4,13 +4,12 @@ project(graphx_dsp_example LANGUAGES CXX)
 
 find_package(log4cxx REQUIRED)
 
-add_library(dsp_fhss_dashboard_api STATIC
-    dashboard/FHSSDashboardApi.cpp
-)
-target_include_directories(dsp_fhss_dashboard_api PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/dashboard
-)
-target_link_libraries(dsp_fhss_dashboard_api PUBLIC dsp)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    add_library(dsp_fhss_dashboard_api STATIC dashboard/FHSSDashboardApi.cpp)
+    target_include_directories(dsp_fhss_dashboard_api PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/dashboard)
+    target_link_libraries(dsp_fhss_dashboard_api PUBLIC dsp)
+endif()
 
 add_executable(dsp_spectrum_demo
     src/main.cpp
@@ -57,16 +56,18 @@ set_target_properties(dsp_fhss_demo PROPERTIES
 
 # The FHSS fixture graph is CPU-only, but the graph runtime resolves its
 # accelerator token bootstrap symbols from libgpu.
-target_link_libraries(dsp_fhss_demo PRIVATE dsp_fhss_dashboard_api log4cxx graph gpu)
+target_link_libraries(dsp_fhss_demo PRIVATE dsp log4cxx graph gpu)
 target_compile_definitions(dsp_fhss_demo PRIVATE
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 )
 if(GRAPHX_BUILD_WEB_DASHBOARD)
+    target_link_libraries(dsp_fhss_demo PRIVATE dsp_fhss_dashboard_api)
     target_compile_definitions(dsp_fhss_demo PRIVATE
         GRAPHX_BUILD_WEB_DASHBOARD=1
         DSP_FHSS_DASHBOARD_ASSET_DIRECTORY="${CMAKE_SOURCE_DIR}/examples/DSP/dashboard"
+        DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY="${CMAKE_INSTALL_FULL_DATADIR}/graphx/fhss-dashboard"
     )
 endif()
 if(TARGET graphx_dynamic_nodes)
@@ -80,6 +81,19 @@ install(TARGETS dsp_spectrum_demo
 install(TARGETS dsp_fhss_demo
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    install(FILES dashboard/index.html
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard)
+    install(DIRECTORY dashboard/api/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/api)
+    install(DIRECTORY dashboard/operator/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    install(FILES
+        ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/config)
+endif()
 
 install(TARGETS dsp_fhss_iq_generator
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

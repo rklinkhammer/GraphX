@@ -9,8 +9,6 @@
 #include <charconv>
 #include <cmath>
 #include <cstdint>
-#include <fstream>
-#include <iomanip>
 #include <limits>
 #include <optional>
 #include <string_view>
@@ -30,14 +28,19 @@ ApiResponse JsonResponse(int status, const nlohmann::json &body) {
 }
 
 ApiResponse ErrorResponse(int status, std::string code, std::string message) {
-  return JsonResponse(status,
-                      {{"schema", "graphx.dashboard.error.v1"},
+  const auto body = nlohmann::json{{"type", "urn:graphx:dashboard:problem:" + code},
+                       {"title", code},
+                       {"detail", message},
+                       {"schema", "graphx.dashboard.error.v1"},
                        {"status", status},
                        {"code", std::move(code)},
-                       {"message", std::move(message)},
+                       {"message", message},
                        {"details", nullptr},
                        {"request_id", "fhss-dashboard"},
-                       {"retriable", false}});
+                       {"retriable", false}};
+  return {.status_code = status,
+          .content_type = "application/problem+json",
+          .body = body.dump()};
 }
 
 std::string QueryValue(const std::string &query, std::string_view name) {
@@ -81,8 +84,14 @@ std::uint64_t BoundedQuery(const std::string &query,
   return std::clamp(value, minimum, maximum);
 }
 
-nlohmann::json BuildVisualization(const nlohmann::json &scenario,
-                                  const std::string &query) {
+bool Cancelled(const graph::dashboard::EmbeddedDashboardServer::ApiContext &context) {
+  return context.stop_token.stop_requested() ||
+         std::chrono::steady_clock::now() >= context.deadline;
+}
+
+std::optional<nlohmann::json> BuildVisualization(
+    const nlohmann::json &scenario, const std::string &query,
+    const graph::dashboard::EmbeddedDashboardServer::ApiContext &context) {
   const auto messages = scenario.contains("messages") && scenario.at("messages").is_array()
                             ? scenario.at("messages")
                             : nlohmann::json::array();
@@ -105,6 +114,7 @@ nlohmann::json BuildVisualization(const nlohmann::json &scenario,
   std::size_t absolute_pulse = 0;
 
   for (std::size_t message_index = 0; message_index < messages.size(); ++message_index) {
+    if (Cancelled(context)) return std::nullopt;
     const auto &message = messages.at(message_index);
     const auto pulses = message.contains("pulses") && message.at("pulses").is_array()
                             ? message.at("pulses")
@@ -115,6 +125,7 @@ nlohmann::json BuildVisualization(const nlohmann::json &scenario,
 
     for (std::size_t pulse_index = 0; pulse_index < pulses.size();
          ++pulse_index, ++absolute_pulse) {
+      if (Cancelled(context)) return std::nullopt;
       const auto &pulse = pulses.at(pulse_index);
       const auto channel = pulse.value("frequency_index", std::uint64_t{0});
       const auto role = pulse.value("role", std::string{"body"});
@@ -163,6 +174,7 @@ nlohmann::json BuildVisualization(const nlohmann::json &scenario,
 
   nlohmann::json channels = nlohmann::json::array();
   for (std::size_t channel = 0; channel < channel_counts.size(); ++channel) {
+    if (Cancelled(context)) return std::nullopt;
     channels.push_back({{"channel_index", channel},
                         {"expected_pulse_count", channel_counts[channel]},
                         {"detected_pulse_count", 0u},
@@ -170,6 +182,7 @@ nlohmann::json BuildVisualization(const nlohmann::json &scenario,
   }
   nlohmann::json spectrum = nlohmann::json::array();
   for (std::size_t bin = 0; bin < 32u; ++bin) {
+    if (Cancelled(context)) return std::nullopt;
     spectrum.push_back({{"bin", bin},
                         {"magnitude", std::abs(std::sin(bin * 0.35))}});
   }
@@ -204,95 +217,29 @@ nlohmann::json BuildVisualization(const nlohmann::json &scenario,
   return result;
 }
 
-bool IsUnderRoot(const std::filesystem::path &root,
-                 const std::filesystem::path &candidate) {
-  std::error_code error;
-  const auto canonical_root = std::filesystem::weakly_canonical(root, error);
-  if (error) {
-    return false;
-  }
-  const auto canonical_candidate = std::filesystem::weakly_canonical(candidate, error);
-  if (error) {
-    return false;
-  }
-  const auto relative = canonical_candidate.lexically_relative(canonical_root).native();
-  return !relative.empty() && relative != ".." && relative.rfind("..", 0) != 0;
-}
-
-ApiResponse ExportBundle(const ApiRequest &request,
-                         const std::filesystem::path &artifact_root,
-                         const nlohmann::json &scenario) {
-  const auto body = nlohmann::json::parse(request.body, nullptr, false);
-  if (body.is_discarded()) {
-    return ErrorResponse(400, "invalid_json", "request body must be JSON");
-  }
-  const auto output = std::filesystem::path(body.value("output_path", std::string{}));
-  if (output.empty() || !output.is_absolute() ||
-      !IsUnderRoot(artifact_root, output.parent_path())) {
-    return ErrorResponse(400, "artifact_path_not_allowed",
-                         "output_path must stay under the artifact root");
-  }
-  if (body.value("failure_injection", std::string{}) == "enospc") {
-    return ErrorResponse(500, "artifact_write_failed", "injected ENOSPC");
-  }
-
-  std::error_code error;
-  std::filesystem::create_directories(output.parent_path(), error);
-  if (error) {
-    return ErrorResponse(500, "artifact_write_failed", error.message());
-  }
-  const bool include_sigmf = body.value("include_sigmf_capture", false);
-  const nlohmann::json bundle{
-      {"schema", "graphx.dashboard.fhss_artifact_bundle.v1"},
-      {"truth_in_labeling", "Deterministic GraphX CPU FHSS fixture."},
-      {"sigmf_capture", {{"enabled", include_sigmf}, {"contains_raw_iq", false}}},
-      {"scenario_summary", {{"message_count", scenario.value("messages", nlohmann::json::array()).size()}}}};
-  std::ofstream bundle_file(output, std::ios::binary | std::ios::trunc);
-  bundle_file << std::setw(2) << bundle << '\n';
-  if (!bundle_file.good()) {
-    return ErrorResponse(500, "artifact_write_failed", "failed to write bundle");
-  }
-
-  nlohmann::json files = nlohmann::json::array({output.string()});
-  if (include_sigmf) {
-    const auto sigmf = output.parent_path() / (output.stem().string() + ".sigmf-meta");
-    std::ofstream sigmf_file(sigmf, std::ios::binary | std::ios::trunc);
-    sigmf_file << nlohmann::json{{"global", {{"core:datatype", "cf32_le"}}},
-                                 {"captures", nlohmann::json::array()},
-                                 {"annotations", nlohmann::json::array()}}
-               << '\n';
-    if (!sigmf_file.good()) {
-      return ErrorResponse(500, "artifact_write_failed", "failed to write SigMF metadata");
-    }
-    files.push_back(sigmf.string());
-  }
-  return JsonResponse(202,
-                      {{"schema", "graphx.dashboard.fhss_artifact_bundle_result.v1"},
-                       {"status", "succeeded"},
-                       {"files", std::move(files)}});
-}
-
 } // namespace
 
 graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
-    std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration_service,
-    std::filesystem::path artifact_root) {
-  return [service = std::move(configuration_service),
-          root = std::move(artifact_root)](const ApiRequest &request)
+    std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration_service) {
+  return [service = std::move(configuration_service)](const ApiRequest &request,
+                                           const graph::dashboard::EmbeddedDashboardServer::ApiContext &context)
              -> std::optional<ApiResponse> {
+    if (context.stop_token.stop_requested() ||
+        std::chrono::steady_clock::now() >= context.deadline) {
+      return ErrorResponse(408, "request_timeout", "application handler deadline exceeded");
+    }
     if (!service) {
       return std::nullopt;
     }
     const auto scenario = service->GetScenarioResponse().value(
         "scenario", nlohmann::json::object());
     if (request.method == "GET" && request.path == "/api/v1/fhss/visualization") {
-      auto visualization = BuildVisualization(scenario, request.query);
-      visualization["config_revision"] = service->ConfigRevision();
-      return JsonResponse(200, visualization);
-    }
-    if (request.method == "POST" &&
-        request.path == "/api/v1/fhss/artifacts/bundle") {
-      return ExportBundle(request, root, scenario);
+      auto visualization = BuildVisualization(scenario, request.query, context);
+      if (!visualization) {
+        return ErrorResponse(408, "request_timeout", "application handler deadline exceeded");
+      }
+      (*visualization)["config_revision"] = service->ConfigRevision();
+      return JsonResponse(200, *visualization);
     }
     return std::nullopt;
   };

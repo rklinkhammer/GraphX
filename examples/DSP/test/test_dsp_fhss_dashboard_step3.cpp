@@ -141,6 +141,7 @@ protected:
         std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
     graph::dashboard::EmbeddedDashboardServer::Options options;
+    options.enable_mutating_routes = true;
     options.port = 0;
     options.asset_directory = assets_;
 
@@ -177,7 +178,7 @@ TEST_F(FhssDashboardRebuildControlTest, RebuildAcceptedRejectedStateMatrix) {
   for (std::size_t i = 0; i < accepted_states.size(); ++i) {
     runtime_session_->SetStateForTesting(accepted_states[i]);
     const auto response = HttpRequest(
-        server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+        server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
         RebuildRequestJson("cmd-matrix-accept-" + std::to_string(i)).dump());
     EXPECT_EQ(response.status_code, 202) << response.body;
   }
@@ -185,7 +186,7 @@ TEST_F(FhssDashboardRebuildControlTest, RebuildAcceptedRejectedStateMatrix) {
   runtime_session_->SetStateForTesting(
       graph::dashboard::GraphRuntimeSession::State::running);
   const auto running_response =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-matrix-reject-running").dump());
   EXPECT_EQ(running_response.status_code, 409) << running_response.body;
   const auto running_json = nlohmann::json::parse(running_response.body);
@@ -194,7 +195,7 @@ TEST_F(FhssDashboardRebuildControlTest, RebuildAcceptedRejectedStateMatrix) {
   runtime_session_->SetStateForTesting(
       graph::dashboard::GraphRuntimeSession::State::rebuilding);
   const auto rebuilding_response =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-matrix-reject-rebuilding").dump());
   EXPECT_EQ(rebuilding_response.status_code, 409) << rebuilding_response.body;
   const auto rebuilding_json = nlohmann::json::parse(rebuilding_response.body);
@@ -207,7 +208,7 @@ TEST_F(FhssDashboardRebuildControlTest,
       graph::dashboard::GraphRuntimeSession::State::running);
   const auto before_invalid = runtime_session_->SnapshotStatus();
   const auto invalid =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-invalid-running").dump());
   EXPECT_EQ(invalid.status_code, 409) << invalid.body;
   const auto after_invalid = runtime_session_->SnapshotStatus();
@@ -220,7 +221,7 @@ TEST_F(FhssDashboardRebuildControlTest,
   runtime_session_->InjectNextExecutorConstructionFailureForTesting();
   const auto before_failure = runtime_session_->SnapshotStatus();
   const auto failure =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-fail-construction").dump());
   EXPECT_EQ(failure.status_code, 500) << failure.body;
   const auto failure_json = nlohmann::json::parse(failure.body);
@@ -241,14 +242,14 @@ TEST_F(FhssDashboardRebuildControlTest,
 
   runtime_session_->InjectNextExecutorConstructionFailureForTesting();
   const auto failed_rebuild =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-activation-fail").dump());
   EXPECT_EQ(failed_rebuild.status_code, 500) << failed_rebuild.body;
   const auto after_failed = runtime_session_->SnapshotStatus();
   EXPECT_EQ(after_failed.active_generation, before.active_generation);
 
   const auto successful_rebuild =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-activation-pass").dump());
   EXPECT_EQ(successful_rebuild.status_code, 202) << successful_rebuild.body;
   const auto after_success = runtime_session_->SnapshotStatus();
@@ -257,19 +258,19 @@ TEST_F(FhssDashboardRebuildControlTest,
   EXPECT_EQ(after_success.active_generation, before.active_generation + 1);
 
   const auto start =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/start", "{}");
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/start", "{}");
   EXPECT_EQ(start.status_code, 202) << start.body;
   const auto running_status =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/status");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/status");
   EXPECT_EQ(running_status.status_code, 200) << running_status.body;
   const auto running_json = nlohmann::json::parse(running_status.body);
   EXPECT_EQ(running_json.at("lifecycle_state").get<std::string>(), "running");
 
   const auto stop =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/stop", "{}");
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/stop", "{}");
   EXPECT_EQ(stop.status_code, 202) << stop.body;
   const auto stopped_status =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/status");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/status");
   EXPECT_EQ(stopped_status.status_code, 200) << stopped_status.body;
   const auto stopped_json = nlohmann::json::parse(stopped_status.body);
   EXPECT_EQ(stopped_json.at("lifecycle_state").get<std::string>(), "stopped");
@@ -281,7 +282,7 @@ TEST_F(FhssDashboardRebuildControlTest,
       graph::dashboard::GraphRuntimeSession::State::not_built);
 
   const auto default_metrics =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/metrics");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/metrics");
   ASSERT_EQ(default_metrics.status_code, 200) << default_metrics.body;
   const auto default_metrics_json = nlohmann::json::parse(default_metrics.body);
   EXPECT_EQ(default_metrics_json.at("schema").get<std::string>(),
@@ -294,11 +295,11 @@ TEST_F(FhssDashboardRebuildControlTest,
   EXPECT_TRUE(default_metrics_json.at("edges").empty());
 
   const auto start =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/commands/start", "{}");
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/start", "{}");
   ASSERT_EQ(start.status_code, 202) << start.body;
 
   const auto status_after_start =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/status");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/status");
   ASSERT_EQ(status_after_start.status_code, 200) << status_after_start.body;
   const auto status_after_start_json =
       nlohmann::json::parse(status_after_start.body);
@@ -306,7 +307,7 @@ TEST_F(FhssDashboardRebuildControlTest,
             "running");
 
   const auto populated_metrics =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/metrics");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/metrics");
   ASSERT_EQ(populated_metrics.status_code, 200) << populated_metrics.body;
   const auto populated_metrics_json =
       nlohmann::json::parse(populated_metrics.body);
@@ -327,7 +328,7 @@ TEST_F(FhssDashboardRebuildControlTest,
   runtime_session_->InjectNextCleanupFailureForTesting();
 
   const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-cleanup-fail").dump());
   EXPECT_EQ(first.status_code, 202) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
@@ -335,7 +336,7 @@ TEST_F(FhssDashboardRebuildControlTest,
             "succeeded_with_cleanup_failed");
 
   const auto status =
-      HttpRequest(server_->BoundPort(), "GET", "/api/v1/status");
+      HttpRequest(server_->BoundPort(), "GET", "/api/v1/fhss/status");
   EXPECT_EQ(status.status_code, 200) << status.body;
   const auto status_json = nlohmann::json::parse(status.body);
   EXPECT_EQ(status_json.at("lifecycle_state").get<std::string>(),
@@ -343,7 +344,7 @@ TEST_F(FhssDashboardRebuildControlTest,
   EXPECT_TRUE(status_json.at("rebuild_blocked").get<bool>());
 
   const auto blocked =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-cleanup-blocked").dump());
   EXPECT_EQ(blocked.status_code, 409) << blocked.body;
   const auto blocked_json = nlohmann::json::parse(blocked.body);
@@ -356,7 +357,7 @@ TEST_F(FhssDashboardRebuildControlTest,
       graph::dashboard::GraphRuntimeSession::State::stopped);
   runtime_session_->InjectNextQueueDisableFailureForTesting();
   const auto queue_disable =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-queue-disable").dump());
   EXPECT_EQ(queue_disable.status_code, 500) << queue_disable.body;
   const auto queue_disable_json = nlohmann::json::parse(queue_disable.body);
@@ -367,7 +368,7 @@ TEST_F(FhssDashboardRebuildControlTest,
       graph::dashboard::GraphRuntimeSession::State::stopped);
   runtime_session_->InjectShutdownDuringNextRebuildForTesting();
   const auto shutdown =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-sigterm").dump());
   EXPECT_EQ(shutdown.status_code, 503) << shutdown.body;
   const auto shutdown_json = nlohmann::json::parse(shutdown.body);
@@ -380,7 +381,7 @@ TEST_F(FhssDashboardRebuildControlTest,
       graph::dashboard::GraphRuntimeSession::State::stopped);
   runtime_session_->InjectNextThreadInterruptionForTesting();
   const auto interrupted =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/rebuild",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/rebuild",
                   RebuildRequestJson("cmd-thread-interrupt").dump());
   EXPECT_EQ(interrupted.status_code, 503) << interrupted.body;
   const auto interrupted_json = nlohmann::json::parse(interrupted.body);

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:readiness:v1",
+  "type": "object", "required": ["ready", "state"],
+  "properties": {"ready": {"type": "boolean"}, "state": {"type": "string"}}
+}

@@ -140,6 +140,7 @@ protected:
         std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
     graph::dashboard::EmbeddedDashboardServer::Options options;
+    options.enable_mutating_routes = true;
     options.port = 0;
     options.asset_directory = assets_;
     options.artifact_root = artifacts_;
@@ -179,7 +180,7 @@ TEST_F(FhssDashboardConfigurationTest,
                      {"apply", "staged"}};
 
   const auto first = HttpRequest(server_->BoundPort(), "PATCH",
-                                 "/api/v1/config", valid_patch.dump());
+                                 "/api/v1/fhss/config", valid_patch.dump());
   EXPECT_EQ(first.status_code, 200) << first.body;
   const auto first_json = nlohmann::json::parse(first.body);
   EXPECT_EQ(first_json.at("schema").get<std::string>(),
@@ -197,7 +198,7 @@ TEST_F(FhssDashboardConfigurationTest,
                      {"value", 1240000002.0},
                      {"apply", "staged"}};
   const auto stale = HttpRequest(server_->BoundPort(), "PATCH",
-                                 "/api/v1/config", stale_patch.dump());
+                                 "/api/v1/fhss/config", stale_patch.dump());
   EXPECT_EQ(stale.status_code, 409) << stale.body;
   const auto stale_json = nlohmann::json::parse(stale.body);
   EXPECT_EQ(stale_json.at("code").get<std::string>(),
@@ -212,7 +213,7 @@ TEST_F(FhssDashboardConfigurationTest,
                      {"value", nlohmann::json::array({24, 28, 32, 36})},
                      {"apply", "staged"}};
   const auto generated = HttpRequest(server_->BoundPort(), "PATCH",
-                                     "/api/v1/config", generated_patch.dump());
+                                     "/api/v1/fhss/config", generated_patch.dump());
   EXPECT_EQ(generated.status_code, 409) << generated.body;
   const auto generated_json = nlohmann::json::parse(generated.body);
   EXPECT_EQ(generated_json.at("code").get<std::string>(),
@@ -236,7 +237,7 @@ TEST_F(FhssDashboardConfigurationTest,
       {"apply", "validate"}};
 
   const auto response = HttpRequest(server_->BoundPort(), "PATCH",
-                                    "/api/v1/config", invalid_patch.dump());
+                                    "/api/v1/fhss/config", invalid_patch.dump());
   EXPECT_EQ(response.status_code, 200) << response.body;
   const auto json = nlohmann::json::parse(response.body);
   EXPECT_EQ(json.at("schema").get<std::string>(),
@@ -261,7 +262,7 @@ TEST_F(FhssDashboardConfigurationTest,
                      {"value", 1240000001.0},
                      {"apply", "staged"}};
   const auto patch_response = HttpRequest(server_->BoundPort(), "PATCH",
-                                          "/api/v1/config", patch.dump());
+                                          "/api/v1/fhss/config", patch.dump());
   EXPECT_EQ(patch_response.status_code, 200) << patch_response.body;
   const auto patch_json = nlohmann::json::parse(patch_response.body);
   EXPECT_TRUE(patch_json.at("validation").at("valid").get<bool>());
@@ -275,7 +276,7 @@ TEST_F(FhssDashboardConfigurationTest,
                      {"output_path", export_path.string()},
                      {"resource", "effective"}};
   const auto export_response =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/config/export",
+      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/config/export",
                   export_request.dump());
   EXPECT_EQ(export_response.status_code, 202) << export_response.body;
   const auto export_json = nlohmann::json::parse(export_response.body);
@@ -286,7 +287,7 @@ TEST_F(FhssDashboardConfigurationTest,
 
   const auto operation_id = export_json.at("operation_id").get<std::string>();
   const auto operation = HttpRequest(server_->BoundPort(), "GET",
-                                     "/api/v1/operations/" + operation_id);
+                                     "/api/v1/fhss/operations/" + operation_id);
   EXPECT_EQ(operation.status_code, 200) << operation.body;
   const auto operation_json = nlohmann::json::parse(operation.body);
   EXPECT_TRUE(operation_json.at("terminal").get<bool>());
@@ -296,18 +297,18 @@ TEST_F(FhssDashboardConfigurationTest,
 
   const auto cancel =
       HttpRequest(server_->BoundPort(), "POST",
-                  "/api/v1/operations/" + operation_id + "/cancel");
+                  "/api/v1/fhss/operations/" + operation_id + "/cancel");
   EXPECT_EQ(cancel.status_code, 409) << cancel.body;
   const auto cancel_json = nlohmann::json::parse(cancel.body);
   EXPECT_EQ(cancel_json.at("code").get<std::string>(),
             "operation_not_terminal");
 
   const auto deleted = HttpRequest(server_->BoundPort(), "DELETE",
-                                   "/api/v1/operations/" + operation_id);
+                                   "/api/v1/fhss/operations/" + operation_id);
   EXPECT_EQ(deleted.status_code, 204) << deleted.body;
 
   const auto after_delete = HttpRequest(server_->BoundPort(), "GET",
-                                        "/api/v1/operations/" + operation_id);
+                                        "/api/v1/fhss/operations/" + operation_id);
   EXPECT_EQ(after_delete.status_code, 404) << after_delete.body;
   const auto after_delete_json = nlohmann::json::parse(after_delete.body);
   EXPECT_EQ(after_delete_json.at("code").get<std::string>(),
@@ -374,7 +375,7 @@ TEST(FhssDashboardConfigurationServiceTest,
           return graph::dashboard::GraphConfigurationService::ValidationError{
               .level = "construction",
               .node_id = "graph",
-              .pointer = "/api/v1/config/export",
+              .pointer = "/api/v1/fhss/config/export",
               .code = "enospc_during_export",
               .message = "No space left on device"};
         }

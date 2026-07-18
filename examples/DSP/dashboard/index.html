@@ -300,6 +300,7 @@
 <body>
   <header>
     <h1>GraphX FHSS Dashboard</h1>
+    <div class="subtle">Synthetic IQ evaluation only — scenario values are expected truth, not receiver detections.</div>
     <div id="meta"></div>
   </header>
   <nav class="tabs" aria-label="Dashboard tabs">
@@ -309,19 +310,6 @@
   <section class="tab-panel active" id="panel-main" role="tabpanel" aria-labelledby="tab-main">
     <div class="layout">
       <div class="stack">
-        <section class="card">
-          <h2>Commands</h2>
-          <div class="subtle">Issue runtime and FHSS control commands directly from the dashboard.</div>
-          <div class="command-bar">
-            <button class="command-btn primary" id="cmd-start" type="button">Start</button>
-            <button class="command-btn" id="cmd-stop" type="button">Stop</button>
-            <button class="command-btn" id="cmd-rebuild" type="button">Rebuild</button>
-            <button class="command-btn" id="cmd-step" type="button">Step</button>
-            <button class="command-btn" id="cmd-continue" type="button">Continue</button>
-            <button class="command-btn" id="cmd-reset" type="button">Reset</button>
-          </div>
-          <div id="command-status" class="command-result">Ready.</div>
-        </section>
         <section class="card">
           <h2>Runtime Metrics</h2>
           <div id="metrics" class="metrics-grid"></div>
@@ -347,24 +335,25 @@
           <div id="heatmap" class="heatmap-grid"></div>
         </section>
         <section class="card">
-          <h2>Expected / Detected Pulse Timeline</h2>
+          <h2>Synthetic Expected / Placeholder Pulse Timeline</h2>
+          <div class="subtle">Confidence and detected-position fields are synthetic placeholders, not receiver observations.</div>
           <div id="timeline-meta" class="subtle"></div>
           <div id="timeline"></div>
         </section>
         <section class="card">
-          <h2>Decoder Diagnostics</h2>
+          <h2>Synthetic Expected Decoder Preview</h2>
+          <div class="subtle">Path margin and decoder values are scenario-derived placeholders.</div>
           <div id="decoder-meta" class="subtle"></div>
           <div id="decoder" class="decoder-list"></div>
         </section>
         <section class="card">
-          <h2>Selected-Channel Preview</h2>
+          <h2>Synthetic Expected Channel Preview</h2>
+          <div class="subtle">Spectrum magnitudes are generated preview placeholders, not measured RF data.</div>
           <div id="preview-meta" class="subtle"></div>
           <div id="preview" class="preview-grid"></div>
           <div class="controls-row">
             <input id="preview-channel" type="number" min="0" max="63" value="0" />
-            <button id="capture-btn" type="button">Export Artifact Bundle + SigMF Meta</button>
           </div>
-          <div id="capture-meta" class="subtle"></div>
         </section>
       </div>
     </div>
@@ -390,11 +379,6 @@
       nodes: new Set(),
       diagnostics: new Set()
     };
-    const dashboardState = {
-      configRevision: null,
-      commandInFlight: false
-    };
-
     function detailsKey(prefix, name, type, index) {
       const safeName = typeof name === 'string' && name.length ? name : `item_${index}`;
       const safeType = typeof type === 'string' ? type : 'unknown';
@@ -602,14 +586,27 @@
       const table = document.createElement('table');
       table.className = 'timeline-table';
       const header = document.createElement('thead');
-      header.innerHTML = '<tr><th>abs</th><th>msg</th><th>pulse</th><th>role</th><th>freq</th><th>expected</th><th>detected</th><th>conf</th><th>rejected</th></tr>';
+      const headerRow = document.createElement('tr');
+      ['abs', 'msg', 'pulse', 'role', 'freq', 'expected', 'detected', 'conf', 'rejected'].forEach((label) => {
+        const cell = document.createElement('th');
+        cell.textContent = label;
+        headerRow.appendChild(cell);
+      });
+      header.appendChild(headerRow);
       table.appendChild(header);
       const body = document.createElement('tbody');
 
       pulses.forEach((pulse) => {
         const row = document.createElement('tr');
         const detected = pulse.detected_sample_start === null ? '-' : String(pulse.detected_sample_start);
-        row.innerHTML = `<td>${pulse.absolute_pulse_index}</td><td>${pulse.message_id}</td><td>${pulse.pulse_index}</td><td>${pulse.role}</td><td>${pulse.frequency_index}</td><td>${pulse.expected_sample_start}</td><td>${detected}</td><td>${Number(pulse.confidence || 0).toFixed(2)}</td><td>${pulse.rejected ? 'yes' : 'no'}</td>`;
+        [pulse.absolute_pulse_index, pulse.message_id, pulse.pulse_index, pulse.role,
+         pulse.frequency_index, pulse.expected_sample_start, detected,
+         Number(pulse.confidence || 0).toFixed(2), pulse.rejected ? 'yes' : 'no']
+          .forEach((value) => {
+            const cell = document.createElement('td');
+            cell.textContent = String(value);
+            row.appendChild(cell);
+          });
         body.appendChild(row);
       });
 
@@ -658,78 +655,16 @@
       });
     }
 
-    async function exportArtifactBundle(basePath) {
-      const body = {
-        output_path: `${basePath}/step8_bundle.json`,
-        include_sigmf_capture: true
-      };
-      const response = await fetch('/api/v1/fhss/artifacts/bundle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      return response.json();
-    }
-
     async function fetchJson(path) {
       const response = await fetch(path);
       return response.json();
     }
 
-    function commandId(prefix) {
-      const now = Date.now();
-      const random = Math.floor(Math.random() * 1e6);
-      return `${prefix}-${now}-${random}`;
-    }
-
-    function setCommandButtonsDisabled(disabled) {
-      const ids = ['cmd-start', 'cmd-stop', 'cmd-rebuild', 'cmd-step', 'cmd-continue', 'cmd-reset'];
-      ids.forEach((id) => {
-        const button = document.getElementById(id);
-        if (button) {
-          button.disabled = disabled;
-        }
-      });
-    }
-
-    async function postCommand(path, payload) {
-      const response = await fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {})
-      });
-      const body = await response.json();
-      return { status: response.status, body };
-    }
-
-    async function runDashboardCommand(label, path, payloadBuilder) {
-      const statusHost = document.getElementById('command-status');
-      if (dashboardState.commandInFlight) {
-        statusHost.textContent = 'A command is already running. Please wait.';
-        return;
-      }
-
-      dashboardState.commandInFlight = true;
-      setCommandButtonsDisabled(true);
-      statusHost.textContent = `${label}: sending...`;
-
-      try {
-        const payload = payloadBuilder ? payloadBuilder() : {};
-        const result = await postCommand(path, payload);
-        statusHost.textContent = `${label}: HTTP ${result.status}\n${JSON.stringify(result.body, null, 2)}`;
-      } catch (error) {
-        statusHost.textContent = `${label}: failed\n${error}`;
-      } finally {
-        dashboardState.commandInFlight = false;
-        setCommandButtonsDisabled(false);
-      }
-    }
-
     async function refreshDashboard() {
       const [graphData, metricsData, diagnosticsData, visualizationData] = await Promise.all([
-        fetchJson('/api/v1/graph'),
-        fetchJson('/api/v1/metrics'),
-        fetchJson('/api/v1/diagnostics'),
+        fetchJson('/api/v1/fhss/graph'),
+        fetchJson('/api/v1/fhss/metrics'),
+        fetchJson('/api/v1/fhss/diagnostics'),
         fetchJson(`/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250&selected_channel=${Math.max(0, Math.min(63, Number(document.getElementById('preview-channel')?.value || 0)))}`)
       ]);
 
@@ -742,7 +677,6 @@
 
       document.getElementById('meta').textContent =
         `graph=${graphData.schema} metrics=${metricsData.schema} diagnostics=${diagnosticsData.schema} fhss=${visualizationData.schema} revision=${graphData.config_revision}`;
-      dashboardState.configRevision = Number(graphData.config_revision ?? 0);
 
       renderMetrics(metricsData.graph || {});
       renderActivity(nodeMetrics, edgeMetrics);
@@ -783,55 +717,6 @@
 
     refreshDashboard().catch((err) => {
       document.getElementById('meta').textContent = `failed: ${err}`;
-    });
-
-    document.getElementById('capture-btn').addEventListener('click', () => {
-      const host = document.getElementById('capture-meta');
-      host.textContent = 'exporting...';
-      exportArtifactBundle('/tmp/graphx_dashboard_artifacts')
-        .then((result) => {
-          host.textContent = `export status=${result.status || 'unknown'} output=${result.output_path || 'n/a'}`;
-        })
-        .catch((error) => {
-          host.textContent = `export failed: ${error}`;
-        });
-    });
-
-    document.getElementById('cmd-start').addEventListener('click', () => {
-      runDashboardCommand('Start', '/api/v1/commands/start', () => ({
-        command_id: commandId('start')
-      }));
-    });
-
-    document.getElementById('cmd-stop').addEventListener('click', () => {
-      runDashboardCommand('Stop', '/api/v1/commands/stop', () => ({
-        command_id: commandId('stop')
-      }));
-    });
-
-    document.getElementById('cmd-rebuild').addEventListener('click', () => {
-      runDashboardCommand('Rebuild', '/api/v1/config/rebuild', () => ({
-        command_id: commandId('rebuild'),
-        expected_revision: Number(dashboardState.configRevision ?? 0)
-      }));
-    });
-
-    document.getElementById('cmd-step').addEventListener('click', () => {
-      runDashboardCommand('Step', '/api/v1/commands/step-message', () => ({
-        command_id: commandId('step')
-      }));
-    });
-
-    document.getElementById('cmd-continue').addEventListener('click', () => {
-      runDashboardCommand('Continue', '/api/v1/commands/continue', () => ({
-        command_id: commandId('continue')
-      }));
-    });
-
-    document.getElementById('cmd-reset').addEventListener('click', () => {
-      runDashboardCommand('Reset', '/api/v1/commands/reset', () => ({
-        command_id: commandId('reset')
-      }));
     });
 
     document.getElementById('tab-main').addEventListener('click', () => {
