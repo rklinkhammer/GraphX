@@ -1,0 +1,9 @@
+{
+  "limitations": [
+    {"approval":"none","description":"No HWIL, conducted, emulator, OTA, independently recorded, or physical RF evidence exists; all data is synthetic/software.","expires":"when an authorized session-disjoint physical Phase 4 program passes","limitation_id":"LIM-NO-PHYSICAL","status":"OPEN","waiver":null},
+    {"approval":"none","description":"Partial-hop collision offsets t800 and t1600 remain unsupported.","expires":"after separately frozen validation","limitation_id":"LIM-PARTIAL-HOP","status":"OPEN","waiver":null},
+    {"approval":"none","description":"The generic executor may perform an unbounded join after timeout when active Consume lacks cooperative interruption.","expires":"after executor cancellation contract is fixed and regressed","limitation_id":"LIM-EXECUTOR-JOIN","status":"OPEN","waiver":null},
+    {"approval":"none","description":"Native-Metal tests skipped on non-Metal hosts are reported as skips, never passes.","expires":"after execution on a supported Metal host","limitation_id":"LIM-NATIVE-METAL","status":"OPEN","waiver":null}
+  ],
+  "schema": "graphx.fhss.phase5-limitation-waiver-registry.v1"
+}

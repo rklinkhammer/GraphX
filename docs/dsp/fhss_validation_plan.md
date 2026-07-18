@@ -622,11 +622,32 @@ SHA-256 values.
 
 ### Phase 5: qualification and maintenance
 
+Current scope (2026-07-17): no HWIL, conducted, channel-emulator, OTA,
+independently recorded, or other physical RF evidence is available. All Phase
+5 data is synthetic or software-derived. Phase 5 may qualify software release
+readiness and report the already-frozen synthetic characterization, but it
+must keep recorded-IQ/HIL validation `UNAVAILABLE_DEFERRED` and production-RF
+qualification `NOT_QUALIFIED`. Synthetic fixtures, infrastructure tests, and
+Phase 3 simulation results must never be promoted to field, recorded,
+hardware, interoperability, regulatory, certification, or production-RF
+evidence. Current physical session, capture, searched-exposure, paired-point,
+and recorded-field-failure counts are zero.
+
+Phase 5 qualification and read-only verification must freshly execute the
+complete libdsp and DSP example regression suites in addition to the selected
+FHSS corpus gates. Libdsp must report exactly 174 passes and zero skips when
+Metal is available, or exactly 169 passes plus the five explicitly enumerated
+native-Metal skips when no active Metal device exists; any unexpected skip,
+failure, count change, or execution-binding change fails software readiness.
+Historical test attestations are provenance only, never release evidence in
+place of a fresh governed execution.
+
 Deliver:
 
 - Release qualification report.
 - Traceability from requirement to test and artifact.
-- Curated regression corpus containing minimized field failures.
+- Curated regression corpus containing minimized synthetic and software
+  failures, plus a governed intake contract for future real field failures.
 
 Gate: no production-RF claim is made without a corresponding independent and
 recorded-data result.

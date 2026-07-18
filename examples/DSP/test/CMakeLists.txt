@@ -136,3 +136,12 @@ add_test(
 set_tests_properties(fhss_phase4_recorded_infrastructure PROPERTIES
     LABELS "dsp;fhss;phase4;recorded-iq;ci-safe;host-any"
     TIMEOUT 30)
+
+add_test(
+    NAME fhss_phase5_qualification
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase5_qualification.py
+)
+set_tests_properties(fhss_phase5_qualification PROPERTIES
+    LABELS "dsp;fhss;phase5;qualification;ci-safe;host-any"
+    TIMEOUT 30)
