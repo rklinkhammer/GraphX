@@ -62,7 +62,8 @@ endif()
 
 if(ENABLE_TSAN)
     target_compile_options(graph PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
-    target_link_options(graph PRIVATE -fsanitize=thread)
+    # Consumers of this static library must link the TSAN runtime.
+    target_link_options(graph PUBLIC -fsanitize=thread)
 endif()
 
 # Installation

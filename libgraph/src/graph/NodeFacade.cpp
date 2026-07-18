@@ -545,8 +545,10 @@ void NodeFacadeAdapter::Stop() {
     }
     
     facade_->Stop(handle_);
-    started_ = false;
-    LOG4CXX_TRACE(logger_, "Node stopped");
+    // Keep started_ set until Join has joined the plugin-owned port threads.
+    // Clearing it here made the normal GraphManager Stop -> Join sequence skip
+    // Join for every dynamically loaded node.
+    LOG4CXX_TRACE(logger_, "Node stop requested; join remains required");
 }
 
 /**
@@ -566,6 +568,7 @@ void NodeFacadeAdapter::Cleanup() {
         LOG4CXX_TRACE(logger_, "Node still started, stopping before cleanup...");
         try {
             Stop();
+            (void)Join();
         } catch (const std::exception& e) {
             LOG4CXX_WARN(logger_, "Exception during Stop() in Cleanup: " << e.what());
         } catch (...) {
@@ -610,6 +613,7 @@ bool NodeFacadeAdapter::Join() {
     bool result = facade_->Join(handle_);
     
     if (result) {
+        started_ = false;
         LOG4CXX_TRACE(logger_, "Node joined successfully");
     } else {
         LOG4CXX_WARN(logger_, "Node join failed");
@@ -638,6 +642,7 @@ bool NodeFacadeAdapter::JoinWithTimeout(std::chrono::milliseconds timeout) {
     bool result = facade_->JoinWithTimeout(handle_, timeout);
     
     if (result) {
+        started_ = false;
         LOG4CXX_TRACE(logger_, "Node joined successfully");
     } else {
         LOG4CXX_WARN(logger_, "Node join failed");

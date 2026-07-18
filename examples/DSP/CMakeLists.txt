@@ -13,11 +13,17 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         @ONLY)
     add_library(dsp_fhss_dashboard_api STATIC
         dashboard/FHSSDashboardApi.cpp
+        dashboard/FHSSGraphRuntimeOwner.cpp
         dashboard/FHSSDashboardConfigurationPolicy.cpp)
     target_include_directories(dsp_fhss_dashboard_api PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/dashboard
         ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_link_libraries(dsp_fhss_dashboard_api PUBLIC dsp)
+    if(ENABLE_TSAN)
+        target_compile_options(dsp_fhss_dashboard_api PRIVATE
+            -fsanitize=thread -fno-omit-frame-pointer)
+        target_link_options(dsp_fhss_dashboard_api PUBLIC -fsanitize=thread)
+    endif()
     install(FILES
         "${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
         DESTINATION share/graphx/config)

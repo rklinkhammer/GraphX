@@ -205,16 +205,6 @@
       letter-spacing: 0.03em;
       font-size: 0.68rem;
     }
-    .decoder-list {
-      display: grid;
-      gap: 8px;
-    }
-    .decoder-item {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      background: #f8fafc;
-    }
     .preview-grid {
       display: grid;
       grid-template-columns: repeat(8, minmax(30px, 1fr));
@@ -335,25 +325,10 @@
           <div id="heatmap" class="heatmap-grid"></div>
         </section>
         <section class="card">
-          <h2>Synthetic Expected / Placeholder Pulse Timeline</h2>
-          <div class="subtle">Confidence and detected-position fields are synthetic placeholders, not receiver observations.</div>
+          <h2>Synthetic Schedule Expectations</h2>
+          <div class="subtle">This panel contains configured schedule expectations only; receiver observations are unavailable.</div>
           <div id="timeline-meta" class="subtle"></div>
           <div id="timeline"></div>
-        </section>
-        <section class="card">
-          <h2>Synthetic Expected Decoder Preview</h2>
-          <div class="subtle">Path margin and decoder values are scenario-derived placeholders.</div>
-          <div id="decoder-meta" class="subtle"></div>
-          <div id="decoder" class="decoder-list"></div>
-        </section>
-        <section class="card">
-          <h2>Synthetic Expected Channel Preview</h2>
-          <div class="subtle">Spectrum magnitudes are generated preview placeholders, not measured RF data.</div>
-          <div id="preview-meta" class="subtle"></div>
-          <div id="preview" class="preview-grid"></div>
-          <div class="controls-row">
-            <input id="preview-channel" type="number" min="0" max="63" value="0" />
-          </div>
         </section>
       </div>
     </div>
@@ -376,6 +351,16 @@
             <button id="config-apply" type="button">Apply with If-Match</button>
           </div>
           <pre id="config-status"></pre>
+        </section>
+        <section class="card" id="runtime-controls">
+          <h2>Phase 3 Receiver Runtime</h2>
+          <div class="subtle">Rebuild binds the current configuration revision and ETag to a new receiver generation.</div>
+          <div class="command-bar">
+            <button class="command-btn primary" id="runtime-rebuild" type="button">Rebuild</button>
+            <button class="command-btn" id="runtime-start" type="button">Start</button>
+            <button class="command-btn" id="runtime-stop" type="button">Stop</button>
+          </div>
+          <pre class="command-result" id="runtime-status">Runtime controls unavailable.</pre>
         </section>
       </div>
       <div class="stack">
@@ -604,7 +589,7 @@
       table.className = 'timeline-table';
       const header = document.createElement('thead');
       const headerRow = document.createElement('tr');
-      ['abs', 'msg', 'pulse', 'role', 'freq', 'expected', 'detected', 'conf', 'rejected'].forEach((label) => {
+      ['abs', 'msg', 'pulse', 'freq', 'configured start', 'source'].forEach((label) => {
         const cell = document.createElement('th');
         cell.textContent = label;
         headerRow.appendChild(cell);
@@ -615,10 +600,8 @@
 
       pulses.forEach((pulse) => {
         const row = document.createElement('tr');
-        const detected = pulse.detected_sample_start === null ? '-' : String(pulse.detected_sample_start);
-        [pulse.absolute_pulse_index, pulse.message_id, pulse.pulse_index, pulse.role,
-         pulse.frequency_index, pulse.expected_sample_start, detected,
-         Number(pulse.confidence || 0).toFixed(2), pulse.rejected ? 'yes' : 'no']
+        [pulse.absolute_pulse_index, pulse.message_id, pulse.pulse_index,
+         pulse.frequency_index, pulse.expected_sample_start, pulse.source]
           .forEach((value) => {
             const cell = document.createElement('td');
             cell.textContent = String(value);
@@ -631,53 +614,13 @@
       host.appendChild(table);
     }
 
-    function renderDecoder(decoder) {
-      const host = document.getElementById('decoder');
-      host.textContent = '';
-      const meta = document.getElementById('decoder-meta');
-      const messages = Array.isArray(decoder.messages) ? decoder.messages : [];
-      meta.textContent = `${messages.length} decoded messages (schema ${decoder.schema || 'n/a'})`;
-
-      if (!messages.length) {
-        host.textContent = 'No decoder diagnostics in current schedule window.';
-        return;
-      }
-
-      messages.forEach((message) => {
-        const item = document.createElement('div');
-        item.className = 'decoder-item';
-        const margin = Number(message.viterbi?.path_margin_db || 0).toFixed(2);
-        const body = message.body_symbol_count || 0;
-        const preamble = message.preamble_symbol_count || 0;
-        item.textContent = `msg=${message.message_id} preamble=${preamble} body=${body} margin_db=${margin}`;
-        host.appendChild(item);
-      });
-    }
-
-    function renderSelectedChannelPreview(preview) {
-      const host = document.getElementById('preview');
-      host.textContent = '';
-      const meta = document.getElementById('preview-meta');
-      const bins = Array.isArray(preview.spectrum_bins) ? preview.spectrum_bins : [];
-      meta.textContent = `channel=${preview.channel_index ?? 0} bins=${bins.length} pulse_count=${preview.pulse_count || 0} raw_iq_included=${preview.raw_iq_included ? 'yes' : 'no'}`;
-
-      bins.forEach((bin) => {
-        const cell = document.createElement('div');
-        cell.className = 'preview-cell';
-        const magnitude = Number(bin.magnitude || 0);
-        const alpha = Math.min(0.95, 0.1 + magnitude / 8.0);
-        cell.style.background = `rgba(15, 118, 110, ${alpha})`;
-        cell.textContent = magnitude.toFixed(2);
-        host.appendChild(cell);
-      });
-    }
-
     async function fetchJson(path) {
       const response = await fetch(path);
       return response.json();
     }
 
     let configurationEtag = '';
+    let configurationRevision = 0;
     async function refreshConfiguration() {
       const [effectiveResponse, provenance] = await Promise.all([
         fetch('/api/v1/fhss/config/effective'),
@@ -685,12 +628,38 @@
       ]);
       const effective = await effectiveResponse.json();
       configurationEtag = effectiveResponse.headers.get('ETag') || effective.etag || '';
+      configurationRevision = Number(effective.config_revision || 0);
       document.getElementById('config-identity').textContent =
         `revision=${effective.config_revision} etag=${configurationEtag}`;
       document.getElementById('config-effective').textContent =
         `Effective\n${JSON.stringify(effective.effective || effective, null, 2)}`;
       document.getElementById('config-provenance').textContent =
         `Provenance\n${JSON.stringify(provenance.provenance || [], null, 2)}`;
+    }
+
+    async function refreshRuntimeStatus() {
+      const response = await fetch('/api/v1/fhss/status');
+      const host = document.getElementById('runtime-controls');
+      if (response.status === 404) {
+        host.hidden = true;
+        return;
+      }
+      host.hidden = false;
+      const result = await response.json();
+      document.getElementById('runtime-status').textContent = JSON.stringify(result, null, 2);
+      document.getElementById('runtime-rebuild').disabled = !result.rebuild_allowed;
+      document.getElementById('runtime-start').disabled = result.active_generation < 1 ||
+        !['stopped', 'completed'].includes(result.lifecycle_state) || result.rebuild_required;
+      document.getElementById('runtime-stop').disabled = result.lifecycle_state !== 'running';
+    }
+
+    async function submitRuntimeCommand(path, body = {}) {
+      const response = await fetch(path, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      document.getElementById('runtime-status').textContent = JSON.stringify(result, null, 2);
+      await refreshRuntimeStatus();
     }
 
     async function submitConfiguration(validateOnly) {
@@ -720,7 +689,7 @@
         fetchJson('/api/v1/fhss/graph'),
         fetchJson('/api/v1/fhss/metrics'),
         fetchJson('/api/v1/fhss/diagnostics'),
-        fetchJson(`/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250&selected_channel=${Math.max(0, Math.min(63, Number(document.getElementById('preview-channel')?.value || 0)))}`)
+        fetchJson('/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250')
       ]);
 
       const graph = graphData.graph || {};
@@ -739,8 +708,6 @@
       renderSchedule(visualizationData.schedule || {});
       renderHeatmap(visualizationData.heatmap || {});
       renderTimeline(visualizationData.timeline || {});
-      renderDecoder(visualizationData.decoder || {});
-      renderSelectedChannelPreview(visualizationData.selected_channel_preview || {});
 
       const nodesHost = document.getElementById('nodes');
       nodesHost.textContent = '';
@@ -761,6 +728,7 @@
 
       document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
       await refreshConfiguration();
+      await refreshRuntimeStatus();
 
       const bounds = visualizationData.bounds || {};
       const refreshMs = Math.max(100, Number(bounds.refresh_interval_ms || 250));
@@ -790,6 +758,22 @@
     document.getElementById('config-apply').addEventListener('click', () => {
       submitConfiguration(false).catch((error) => {
         document.getElementById('config-status').textContent = `Apply failed: ${error}`;
+      });
+    });
+    document.getElementById('runtime-rebuild').addEventListener('click', () => {
+      submitRuntimeCommand('/api/v1/fhss/config/rebuild', {
+        expected_revision: configurationRevision,
+        command_id: `dashboard-${Date.now()}`
+      }).catch((error) => { document.getElementById('runtime-status').textContent = `Rebuild failed: ${error}`; });
+    });
+    document.getElementById('runtime-start').addEventListener('click', () => {
+      submitRuntimeCommand('/api/v1/fhss/commands/start', {command_id: `dashboard-start-${Date.now()}`}).catch((error) => {
+        document.getElementById('runtime-status').textContent = `Start failed: ${error}`;
+      });
+    });
+    document.getElementById('runtime-stop').addEventListener('click', () => {
+      submitRuntimeCommand('/api/v1/fhss/commands/stop', {command_id: `dashboard-stop-${Date.now()}`}).catch((error) => {
+        document.getElementById('runtime-status').textContent = `Stop failed: ${error}`;
       });
     });
   </script>

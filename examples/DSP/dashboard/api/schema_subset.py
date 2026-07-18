@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 DIALECT = "https://json-schema.org/draft/2020-12/schema"
-ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description", "default"}
+ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description", "default", "format"}
 ASSERTIONS = {
     "$ref", "type", "const", "enum", "minimum", "maximum", "required",
     "properties", "additionalProperties", "items", "minItems",
@@ -37,7 +37,7 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         _fail(location, f"unsupported/unvalidated keywords {sorted(unknown)}")
     if "$schema" in schema and schema["$schema"] != DIALECT:
         _fail(location, "unsupported dialect")
-    for keyword in ("$schema", "$id", "title", "description", "$ref"):
+    for keyword in ("$schema", "$id", "title", "description", "$ref", "format"):
         if keyword in schema and not isinstance(schema[keyword], str):
             _fail(location, f"{keyword} must be a string")
     if "type" in schema and schema["type"] not in TYPES:

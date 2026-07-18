@@ -165,7 +165,8 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   ASSERT_EQ(index_response.status_code, 200);
   EXPECT_NE(index_response.body.find("FHSS Schedule"), std::string::npos);
   EXPECT_NE(index_response.body.find("64-Channel Heatmap"), std::string::npos);
-  EXPECT_NE(index_response.body.find("Synthetic Expected / Placeholder Pulse Timeline"), std::string::npos);
+  EXPECT_NE(index_response.body.find("Synthetic Schedule Expectations"),
+            std::string::npos);
   EXPECT_NE(index_response.body.find("/api/v1/fhss/visualization"), std::string::npos);
 
   const auto viz = VisualizationRequest("?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=32&refresh_ms=250");
@@ -207,9 +208,11 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   EXPECT_LE(timeline.at("pulses").size(), 32u);
   for (const auto &pulse : timeline.at("pulses")) {
     EXPECT_TRUE(pulse.contains("expected_sample_start"));
-    EXPECT_TRUE(pulse.contains("detected_sample_start"));
-    EXPECT_TRUE(pulse.contains("confidence"));
-    EXPECT_TRUE(pulse.contains("rejected"));
+    EXPECT_TRUE(pulse.contains("source"));
+    EXPECT_EQ(pulse.at("source"), "configured_schedule");
+    EXPECT_FALSE(pulse.contains("detected_sample_start"));
+    EXPECT_FALSE(pulse.contains("confidence"));
+    EXPECT_FALSE(pulse.contains("rejected"));
   }
 }
 

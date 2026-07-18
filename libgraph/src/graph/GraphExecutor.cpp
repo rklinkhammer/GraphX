@@ -208,6 +208,12 @@ GraphExecutor::StartExpected() noexcept {
             return std::unexpected(graph_start.error());
         }
         SetExecutionState(ExecutionState::RUNNING);
+        // Publish the exact caller-prepared attempt only after RUNNING and all
+        // graph startup side effects are visible. A later attempt cannot
+        // mistake this publication for its own milestone.
+        startup_complete_attempt_.store(
+            execution_attempt_.load(std::memory_order_acquire),
+            std::memory_order_release);
         LOG4CXX_TRACE(logger_, "GraphExecutor::Start() completed");
 
         result.success = true;
@@ -472,15 +478,16 @@ int GraphExecutor::CountNodesinLifecycleState(graph::LifecycleState state) const
  * @brief Is running.
  */
 bool GraphExecutor::IsRunning() const {
-    return current_state_ == ExecutionState::RUNNING || 
-           current_state_ == ExecutionState::STEPPING;
+    const auto state = GetExecutionState();
+    return state == ExecutionState::RUNNING ||
+           state == ExecutionState::STEPPING;
 }
 
 /**
  * @brief Is in error.
  */
 bool GraphExecutor::IsInError() const {
-    return current_state_ == ExecutionState::ERROR;
+    return GetExecutionState() == ExecutionState::ERROR;
 }
 
 }  // namespace graph

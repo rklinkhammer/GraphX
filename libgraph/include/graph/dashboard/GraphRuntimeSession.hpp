@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "graph/dashboard/IGraphRuntimeOwner.hpp"
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -19,6 +20,7 @@ public:
     initializing,
     not_built,
     stopped,
+    starting,
     running,
     completed,
     failed,
@@ -44,39 +46,53 @@ public:
     std::uint64_t successful_rebuilds = 0;
     std::string last_error_code;
     std::string last_error_message;
+    std::uint64_t active_config_revision = 0;
+    std::string active_config_etag;
+    bool stop_requested = false;
+    std::uint64_t terminal_generation = 0;
+    std::string terminal_result_code;
+    std::string terminal_result_message;
+    std::string started_at;
+    std::string terminal_at;
   };
 
-  GraphRuntimeSession();
+  struct GenerationSnapshot {
+    std::uint64_t generation = 0;
+    std::uint64_t config_revision = 0;
+    std::string config_etag;
+    std::shared_ptr<graph::GraphManager> graph_manager;
+  };
+
+  explicit GraphRuntimeSession(std::shared_ptr<IGraphRuntimeOwner> owner = {});
+  ~GraphRuntimeSession();
 
   [[nodiscard]] State GetState() const;
   [[nodiscard]] bool IsReady() const;
   [[nodiscard]] std::string StateString() const;
   [[nodiscard]] std::string LifecycleStateString() const;
   [[nodiscard]] StatusSnapshot SnapshotStatus() const;
-  [[nodiscard]] std::shared_ptr<graph::GraphManager> GetActiveGraphManager() const;
+  [[nodiscard]] GenerationSnapshot SnapshotGeneration() const;
   [[nodiscard]] static std::string StateToString(State state);
 
   void MarkReady();
   void MarkShuttingDown();
   void MarkDead();
   void SetLifecycleState(State state);
-  void SetActiveGraphManager(std::shared_ptr<graph::GraphManager> graph_manager);
-
-  [[nodiscard]] CommandResult Rebuild();
+  void
+  SetActiveGraphManager(std::shared_ptr<graph::GraphManager> graph_manager);
+  [[nodiscard]] CommandResult
+  Rebuild(IGraphRuntimeOwner::BuildSnapshot snapshot);
   [[nodiscard]] CommandResult Start();
   [[nodiscard]] CommandResult Stop();
 
-  void InjectNextExecutorConstructionFailureForTesting();
-  void InjectNextQueueDisableFailureForTesting();
-  void InjectNextCleanupFailureForTesting();
-  void InjectNextThreadInterruptionForTesting();
-  void InjectShutdownDuringNextRebuildForTesting();
   void SetStateForTesting(State state);
 
   [[nodiscard]] bool IsRebuildAllowedInCurrentState() const;
 
 private:
   static bool IsRebuildAllowedState(State state);
+  void OwnerCompleted(std::uint64_t generation, std::uint64_t run_epoch,
+                      bool success, std::string message);
 
   mutable std::mutex mutex_;
   State state_;
@@ -87,12 +103,14 @@ private:
   std::string last_error_code_;
   std::string last_error_message_;
   std::shared_ptr<graph::GraphManager> active_graph_manager_;
-
-  bool fail_next_executor_construction_ = false;
-  bool fail_next_queue_disable_ = false;
-  bool fail_next_cleanup_ = false;
-  bool interrupt_next_thread_flow_ = false;
-  bool shutdown_during_next_rebuild_ = false;
+  std::shared_ptr<IGraphRuntimeOwner> owner_;
+  std::uint64_t command_epoch_ = 0;
+  GenerationSnapshot active_snapshot_;
+  bool stop_requested_ = false;
+  std::uint64_t active_run_epoch_ = 0;
+  std::uint64_t terminal_generation_ = 0;
+  std::string terminal_result_code_, terminal_result_message_, started_at_,
+      terminal_at_;
 };
 
 } // namespace graph::dashboard

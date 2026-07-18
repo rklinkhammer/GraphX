@@ -1,18 +1,26 @@
 # GraphX FHSS dashboard architecture
 
+The complete live replay checklist is in [FHSS dashboard Phase 3 manual operator test](dsp/fhss_dashboard_phase3_manual_operator_test.md).
+
 ## Scope and evidence boundary
 
-The first GraphX dashboard is an FHSS-specific operator view and Phase 2
-authoritative-configuration editor for synthetic-IQ evaluation. It visualizes the configured synthetic scenario and
+The first GraphX dashboard is an FHSS-specific operator view, authoritative
+configuration editor, and Phase 3 live receiver controller for synthetic-IQ
+evaluation. It visualizes the configured synthetic scenario and
 receiver/runtime observations, but it is not a production RF monitor. There is
 no hardware-in-the-loop (HWIL), conducted-RF, or over-the-air evidence in this
-validation program. The UI labels scenario-derived confidence, decoder, and
-spectrum previews as synthetic placeholders.
+validation program. The configured schedule view is explicitly labelled as a
+configured expectation. Phase 3 does not expose decoder confidence, detected
+pulses, or spectrum previews because no receiver node currently produces those
+observations through the dashboard snapshot contract.
 
-Phase 2 exposes configuration validation, atomic apply, and configuration/graph
-inspection. Runtime rebuild, start/stop, event replay, and operation-lifecycle
-controls belong to Phase 3 and are disabled in the production Phase 2 demo,
-absent from its page, and absent from its OpenAPI contract.
+Phase 3 adds transactional receiver rebuild and bounded start/stop execution to
+the Phase 2 validation, atomic apply, and configuration/graph inspection
+surface. `--dashboard-no-run` retains the inspection-only capability and hides
+runtime routes; `--dashboard` injects the DSP runtime owner and exposes them,
+but deliberately launches in `not_built` with generation zero. Only an
+operator-issued Rebuild followed by Start can begin receiver execution; an
+existing configured IQ path never auto-starts the graph.
 
 ## Components
 
@@ -22,6 +30,8 @@ flowchart LR
   Server --> Config["GraphConfigurationService"]
   Config --> Policy["DSP FHSSDashboardConfigurationPolicy"]
   Server --> Runtime["GraphRuntimeSession"]
+  Runtime --> Owner["FHSSGraphRuntimeOwner"]
+  Owner --> Executor["GraphExecutor and active GraphManager"]
   Server --> Snapshots["GraphSnapshotCollector"]
   Server --> Pool["Bounded cooperative handler pool"]
   Pool --> FHSS["FHSS visualization handler"]
@@ -36,7 +46,9 @@ rules. The DSP-owned `FHSSDashboardConfigurationPolicy` owns architecture
 validation, preamble/active-set derivation, checked sample-window arithmetic,
 receiver-minimal projection, and provenance. The DSP example registers the
 FHSS visualization extension and supplies configuration,
-runtime-session, and snapshot services. The production executable discovers
+runtime-session, DSP runtime-owner, and snapshot services. Runtime ownership is
+injected through the generic `IGraphRuntimeOwner` seam; graph infrastructure
+does not depend on DSP types. The production executable discovers
 installed assets relative to its executable and also supports an explicit
 asset path.
 
@@ -89,10 +101,10 @@ The server executes registered work in a fixed `std::jthread` pool with a
 bounded queue. Deadline expiry requests per-job cancellation and returns 408;
 capacity exhaustion returns 503. Shutdown stops admission, requests
 cancellation for queued and active jobs, and joins the pool. The FHSS handler
-checks cancellation in message, pulse, channel, and spectrum loops. Phase 1
+checks cancellation in message, pulse, and channel loops. Phase 1
 contains no extension filesystem writes.
 
-## Phase 2 routes
+## Phase 3 routes
 
 The versioned application namespace is `/api/v1/fhss`:
 
@@ -113,6 +125,34 @@ The versioned application namespace is `/api/v1/fhss`:
 - `GET /api/v1/fhss/nodes/{nodeId}`
 - `GET /api/v1/fhss/nodes/{nodeId}/parameters`
 - `GET /api/v1/fhss/visualization`
+- `GET /api/v1/fhss/status`
+- `POST /api/v1/fhss/config/rebuild`
+- `POST /api/v1/fhss/commands/start`
+- `POST /api/v1/fhss/commands/stop`
+
+Rebuild captures one immutable receiver graph, revision, and strong ETag,
+constructs and validates a replacement executor from exactly that snapshot,
+then atomically publishes one generation snapshot containing the graph manager
+and its configuration identity. Failed construction preserves the prior
+generation. A single owner operation mutex serializes executor and execution
+thread access, while generation checks reject stale completion callbacks.
+Each Start receives a monotonically increasing run epoch. Status reports
+`starting` until the owner confirms that its real execution thread has been
+launched; an immediate completion cannot be overwritten by a late transition
+to `running`. Completion callbacks must match both generation and run epoch.
+For the matching run, operator stop intent deterministically records `stopped`
+and `execution_cancelled`; completion without stop intent records `completed`
+and `execution_completed`. Execution uses a joinable `std::jthread`; stop and shutdown request the real
+executor to stop and wait up to five seconds. A stop timeout returns HTTP 504
+and retains the live owner/thread state rather than detaching it or claiming
+completion. Because graph `Consume()` implementations are cooperative, a
+non-cooperative node can still keep the thread alive and can delay eventual
+process destruction after that timeout. Status identifies the
+active generation and its bound configuration revision/ETag, reports whether
+the current configuration is stale and requires rebuild, and attributes the
+terminal result and timestamps to a generation. Metrics and diagnostics are
+collected from the same immutable generation snapshot and carry its generation,
+revision, and ETag.
 
 The OpenAPI document defines response-specific schemas for every successful
 shape and reusable RFC 9457 responses for malformed input, missing resources,
@@ -154,7 +194,7 @@ Example source-tree launch:
 
 ```sh
 ./build-ninja/ninja-debug/examples/DSP/graphx-dsp-fhss-demo \
-  --dashboard-no-run --dashboard-port 0
+  --dashboard --dashboard-port 0
 ```
 
 The program prints the authoritative loopback URL. `--dashboard-host` accepts
@@ -191,26 +231,31 @@ The contract test fails clearly when authoritative dependencies are absent; it
 does not treat the small pinned-subset audit helper as authoritative. It checks
 OpenAPI semantics, all references, every JSON Schema, and representative
 instances. The external operator uses the same interpreter and validates live
-responses for all 19 operations:
+responses for all 23 operations:
 
 ```sh
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
-  --phase 2 --build-dir build-ninja/ninja-debug \
+  --phase 3 --build-dir build-ninja/ninja-debug \
   --output-dir <operator-output-dir>
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
-  --phase 2 \
+  --phase 3 \
   --output-dir <operator-output-dir>
 ```
 
-The Phase 2 operator independently derives the expected active set, proves
+The Phase 3 operator retains all Phase 2 checks, independently derives the
+expected active set, proves
 validation does not mutate bytes/revision/ETag, exercises two-session 428/412
 concurrency and atomic failure, verifies truth-free receiver export, and hashes
 the inspected documents. It also checks framing, malformed and oversized input, traversal,
 defensive headers, unsupported methods, slow-client isolation, loopback-only
-binding, artifact hashes, and the absence of old generic routes. Cleanup only
-removes files marked as operator-owned.
+binding, artifact hashes, and the absence of old generic routes. It generates
+separate IQ, truth, and SigMF artifacts, removes schedule/truth before replay,
+runs two real receiver generations to natural terminal completion, requires
+generation-attributed nonzero traffic, and verifies an invalid rebuild leaves
+the prior generation active. Cleanup only removes files marked as
+operator-owned.
 
 ## Automated evidence
 
@@ -219,16 +264,16 @@ ports and reuse, idle and total deadlines, cancellation and handler contract
 rejection, connection isolation, framing, exact `Allow` values, content types,
 RFC 9457 errors, JSON and response limits, wrong-type survival, read-only route
 behavior, static containment, events, metrics, configuration concurrency,
-the Phase 2 runtime-control exclusion, and bounded visualization. Later-phase
-runtime lifecycle tests remain regression coverage but are not exposed by the
-Phase 2 production capability.
+the Phase 2 runtime-control exclusion, injected-owner lock discipline, stale
+completion rejection, transactional rebuild, real execution, natural terminal
+completion, and bounded visualization.
 
 Registered CTest lanes cover:
 
 - C++ focused/regression discovery;
 - authoritative OpenAPI and JSON Schema validation;
-- source-tree Phase 1 and Phase 2 external operator execution;
-- installed-tree Phase 1 and Phase 2 packaging/operator execution; and
+- source-tree Phase 1, Phase 2, and Phase 3 external operator execution;
+- installed-tree Phase 1, Phase 2, and Phase 3 packaging/operator execution; and
 - a fresh dashboard-off configure/build.
 
 All operator fixtures and dashboard scenario data are synthetic. Passing these

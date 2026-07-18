@@ -121,6 +121,17 @@ TEST(DspFhssDemoExecutableTest, PrintsHelp) {
   ExpectNotContains(result.output, "--reference-correlator-graph");
 }
 
+TEST(DspFhssDemoExecutableTest, DashboardModesAreMutuallyExclusive) {
+  const std::filesystem::path executable{DSP_FHSS_DEMO_EXECUTABLE_PATH};
+  ASSERT_TRUE(std::filesystem::exists(executable)) << executable;
+
+  const auto result = RunCommand(ShellQuote(executable) +
+                                 " --dashboard --dashboard-no-run 2>&1");
+  EXPECT_NE(result.exit_code, 0) << result.output;
+  ExpectContains(result.output,
+                 "--dashboard and --dashboard-no-run are mutually exclusive");
+}
+
 TEST(DspFhssDevelopmentEnvironmentTest,
      MessageToolCreatesAndValidatesRunnableSchedule) {
   const auto output_dir = TempOutputDir("graphx_dsp_fhss_message_tool_test");

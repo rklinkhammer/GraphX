@@ -390,7 +390,7 @@ public:
      * @return Method-specific result, status, or produced value when the signature provides one.
      */
     void SetExecutionState(graph::ExecutionState state) {
-        current_state_ = state;
+        current_state_.store(state, std::memory_order_release);
     }
 
     /**
@@ -400,7 +400,7 @@ public:
      * @return Method-specific result, status, or produced value when the signature provides one.
      */
     graph::ExecutionState GetExecutionState() const {
-        return current_state_;
+        return current_state_.load(std::memory_order_acquire);
     }   
 
     /// @brief Check if completion has been signaled
@@ -408,7 +408,26 @@ public:
     bool IsCompletionSignaled() const
     {        
         return graph_capability_->IsCompletionSignaled();
-    }   
+    }
+
+    /// @brief Establish a new externally observed execution attempt.
+    /// @details The caller must serialize attempts and invoke this before
+    /// launching the thread that calls Execute(). The returned token lets a
+    /// waiter distinguish this attempt's startup publication from every prior
+    /// run of the same executor.
+    std::uint64_t PrepareExecutionAttempt() noexcept {
+        const auto attempt =
+            execution_attempt_.fetch_add(1, std::memory_order_acq_rel) + 1;
+        startup_complete_attempt_.store(0, std::memory_order_release);
+        return attempt;
+    }
+
+    /// @brief True only after StartExpected has published RUNNING for attempt.
+    bool HasStartedExecution(std::uint64_t attempt) const noexcept {
+        return attempt != 0 &&
+               startup_complete_attempt_.load(std::memory_order_acquire) ==
+                   attempt;
+    }
 
 private:
 
@@ -422,7 +441,9 @@ private:
     std::unique_ptr<ExecutionPolicyChain> policy_chain_;
     std::shared_ptr<graph::GraphManager> graph_manager_;
     std::shared_ptr<capabilities::GraphCapability>  graph_capability_;
-    ExecutionState current_state_ = graph::ExecutionState::STOPPED;
+    std::atomic<ExecutionState> current_state_{graph::ExecutionState::STOPPED};
+    std::atomic<std::uint64_t> execution_attempt_{0};
+    std::atomic<std::uint64_t> startup_complete_attempt_{0};
 
     mutable std::atomic<bool> is_stopped{false};
 

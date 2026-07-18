@@ -67,6 +67,18 @@ bool FacadeTrue(graph::NodeHandle) {
 void FacadeNoop(graph::NodeHandle) {
 }
 
+int facade_stop_calls = 0;
+int facade_join_calls = 0;
+
+void FacadeStop(graph::NodeHandle) {
+    ++facade_stop_calls;
+}
+
+bool FacadeJoin(graph::NodeHandle) {
+    ++facade_join_calls;
+    return true;
+}
+
 graph::NodeFacadeAdapter MakeAdapterWithMetadataService(
     const graph::INodeMetadataService* metadata_service) {
     static int handle_storage = 0;
@@ -74,8 +86,8 @@ graph::NodeFacadeAdapter MakeAdapterWithMetadataService(
         .GetLifecycleState = nullptr,
         .Init = FacadeTrue,
         .Start = FacadeTrue,
-        .Stop = FacadeNoop,
-        .Join = nullptr,
+        .Stop = FacadeStop,
+        .Join = FacadeJoin,
         .JoinWithTimeout = nullptr,
         .Execute = nullptr,
         .GetName = nullptr,
@@ -108,6 +120,21 @@ TEST(NodeFacadeAdapterTest, MetadataServiceCtorInjectsDescriptorProvider) {
 
     const auto descriptor = adapter.GetDescriptor();
     EXPECT_EQ(descriptor.name, "metadata_service_descriptor_provider");
+}
+
+TEST(NodeFacadeAdapterTest, StopRetainsJoinRequiredStateUntilJoinCompletes) {
+    facade_stop_calls = 0;
+    facade_join_calls = 0;
+    auto adapter = MakeAdapterWithMetadataService(nullptr);
+
+    ASSERT_TRUE(adapter.Init());
+    ASSERT_TRUE(adapter.Start());
+    adapter.Stop();
+    EXPECT_EQ(facade_stop_calls, 1);
+    EXPECT_TRUE(adapter.Join());
+    EXPECT_EQ(facade_join_calls, 1);
+    EXPECT_TRUE(adapter.Join());
+    EXPECT_EQ(facade_join_calls, 1);
 }
 
 }  // namespace

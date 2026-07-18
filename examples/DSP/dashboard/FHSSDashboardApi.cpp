@@ -104,12 +104,9 @@ std::optional<nlohmann::json> BuildVisualization(
   const auto pulse_limit = static_cast<std::size_t>(BoundedQuery(
       query, "pulse_limit", 128, 1, 512));
   const auto refresh_ms = BoundedQuery(query, "refresh_ms", 250, 100, 2000);
-  const auto selected_channel = static_cast<std::size_t>(BoundedQuery(
-      query, "selected_channel", 0, 0, 63));
 
   nlohmann::json schedule_messages = nlohmann::json::array();
   nlohmann::json timeline = nlohmann::json::array();
-  nlohmann::json decoder_messages = nlohmann::json::array();
   std::array<std::uint64_t, 64> channel_counts{};
   std::size_t absolute_pulse = 0;
 
@@ -120,8 +117,6 @@ std::optional<nlohmann::json> BuildVisualization(
                             ? message.at("pulses")
                             : nlohmann::json::array();
     std::uint64_t preamble_count = 0;
-    nlohmann::json best_path = nlohmann::json::array();
-    double path_weight = 0.0;
 
     for (std::size_t pulse_index = 0; pulse_index < pulses.size();
          ++pulse_index, ++absolute_pulse) {
@@ -135,10 +130,6 @@ std::optional<nlohmann::json> BuildVisualization(
       if (role == "preamble") {
         ++preamble_count;
       }
-      path_weight += static_cast<double>((channel % 17u) + 1u) / 10.0;
-      if (best_path.size() < 16u) {
-        best_path.push_back(channel);
-      }
       if (absolute_pulse >= pulse_offset && timeline.size() < pulse_limit) {
         timeline.push_back({{"message_index", message_index},
                             {"pulse_index", pulse_index},
@@ -146,9 +137,7 @@ std::optional<nlohmann::json> BuildVisualization(
                             {"expected_sample_start",
                              message.value("transmit_start_sample", std::uint64_t{0}) +
                                  pulse_index},
-                            {"detected_sample_start", nullptr},
-                            {"confidence", channel < 64u ? 0.9 : 0.0},
-                            {"rejected", channel >= 64u}});
+                            {"source", "configured_schedule"}});
       }
     }
 
@@ -159,16 +148,6 @@ std::optional<nlohmann::json> BuildVisualization(
            {"message_id", message.value("message_id", message_index + 1u)},
            {"pulse_count", pulses.size()},
            {"preamble_pulse_count", preamble_count}});
-      decoder_messages.push_back(
-          {{"message_index", message_index},
-           {"message_id", message.value("message_id", message_index + 1u)},
-           {"preamble_symbol_count", preamble_count},
-           {"viterbi",
-            {{"best_path", std::move(best_path)},
-             {"path_margin_db", pulses.empty()
-                                    ? 0.0
-                                    : path_weight / static_cast<double>(pulses.size())},
-             {"decoded_word_count", pulses.size()}}}});
     }
   }
 
@@ -176,15 +155,7 @@ std::optional<nlohmann::json> BuildVisualization(
   for (std::size_t channel = 0; channel < channel_counts.size(); ++channel) {
     if (Cancelled(context)) return std::nullopt;
     channels.push_back({{"channel_index", channel},
-                        {"expected_pulse_count", channel_counts[channel]},
-                        {"detected_pulse_count", 0u},
-                        {"rejected_pulse_count", 0u}});
-  }
-  nlohmann::json spectrum = nlohmann::json::array();
-  for (std::size_t bin = 0; bin < 32u; ++bin) {
-    if (Cancelled(context)) return std::nullopt;
-    spectrum.push_back({{"bin", bin},
-                        {"magnitude", std::abs(std::sin(bin * 0.35))}});
+                        {"expected_pulse_count", channel_counts[channel]}});
   }
 
   nlohmann::json result{
@@ -201,14 +172,6 @@ std::optional<nlohmann::json> BuildVisualization(
        {{"pulse_offset", pulse_offset},
         {"pulse_limit", pulse_limit},
         {"pulses", std::move(timeline)}}},
-      {"decoder",
-       {{"schema", "graphx.dashboard.fhss_decoder.v1"},
-        {"messages", std::move(decoder_messages)}}},
-      {"selected_channel_preview",
-       {{"schema", "graphx.dashboard.fhss_channel_preview.v1"},
-        {"channel_index", selected_channel},
-        {"raw_iq_included", false},
-        {"spectrum_bins", std::move(spectrum)}}},
       {"bounds",
        {{"refresh_interval_ms", refresh_ms},
         {"max_message_limit", 64u},

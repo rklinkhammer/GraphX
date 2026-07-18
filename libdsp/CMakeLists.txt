@@ -46,7 +46,8 @@ if(SOURCES)
 
     if(ENABLE_TSAN)
         target_compile_options(dsp PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
-        target_link_options(dsp PRIVATE -fsanitize=thread)
+        # Consumers of this static library must link the TSAN runtime.
+        target_link_options(dsp PUBLIC -fsanitize=thread)
     endif()
 else()
     # Create empty interface library if no sources (placeholder for future development)

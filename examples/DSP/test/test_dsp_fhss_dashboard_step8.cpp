@@ -178,32 +178,20 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(FhssDashboardArtifactExportTest, DecoderDiagnosticsAreDeterministicAndNoRawIqInJson) {
+TEST_F(FhssDashboardArtifactExportTest, VisualizationDoesNotFabricateReceiverObservations) {
   const auto viz = VisualizationRequest(
-      "?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=64&refresh_ms=250&selected_channel=7");
+      "?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=64&refresh_ms=250");
 
-  ASSERT_TRUE(viz.contains("decoder"));
-  EXPECT_EQ(viz.at("decoder").at("schema").get<std::string>(),
-            "graphx.dashboard.fhss_decoder.v1");
-  ASSERT_TRUE(viz.at("decoder").at("messages").is_array());
-  ASSERT_FALSE(viz.at("decoder").at("messages").empty());
-
-  for (const auto &entry : viz.at("decoder").at("messages")) {
-    ASSERT_TRUE(entry.contains("viterbi"));
-    EXPECT_GT(entry.at("viterbi").at("path_margin_db").get<double>(), 0.0);
-    EXPECT_TRUE(entry.at("viterbi").at("best_path").is_array());
-    EXPECT_TRUE(entry.at("viterbi").at("decoded_word_count").get<std::uint64_t>() >=
-                entry.at("preamble_symbol_count").get<std::uint64_t>());
+  EXPECT_FALSE(viz.contains("decoder"));
+  EXPECT_FALSE(viz.contains("selected_channel_preview"));
+  EXPECT_FALSE(viz.contains("spectrum_bins"));
+  ASSERT_TRUE(viz.contains("timeline"));
+  for (const auto &entry : viz.at("timeline").at("pulses")) {
+    EXPECT_EQ(entry.at("source"), "configured_schedule");
+    EXPECT_FALSE(entry.contains("detected_sample_start"));
+    EXPECT_FALSE(entry.contains("confidence"));
+    EXPECT_FALSE(entry.contains("viterbi"));
   }
-
-  ASSERT_TRUE(viz.contains("selected_channel_preview"));
-  const auto &preview = viz.at("selected_channel_preview");
-  EXPECT_EQ(preview.at("schema").get<std::string>(),
-            "graphx.dashboard.fhss_channel_preview.v1");
-  EXPECT_EQ(preview.at("channel_index").get<std::size_t>(), 7u);
-  EXPECT_FALSE(preview.at("raw_iq_included").get<bool>());
-  ASSERT_TRUE(preview.at("spectrum_bins").is_array());
-  EXPECT_EQ(preview.at("spectrum_bins").size(), 32u);
 
   ASSERT_TRUE(viz.contains("fixture_label"));
   EXPECT_NE(viz.at("fixture_label").get<std::string>().find("Deterministic GraphX CPU FHSS fixture"),

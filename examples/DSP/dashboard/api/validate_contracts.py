@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 try:
-    from jsonschema import Draft202012Validator
+    from jsonschema import Draft202012Validator, FormatChecker
     from openapi_spec_validator import validate as validate_openapi
 except ImportError as error:
     raise SystemExit(
@@ -51,13 +51,17 @@ def main() -> int:
         "problem.schema.json": {"type": "about:blank", "title": "Bad Request", "status": 400,
                                 "detail": "invalid request"},
         "runtime-status.schema.json": {"schema": "graphx.dashboard.runtime_status.v1",
-            "lifecycle_state": "ready", "ready": True, "rebuild_allowed": False,
+            "lifecycle_state": "not_built", "ready": True, "rebuild_allowed": False,
             "rebuild_blocked": False, "active_generation": 0, "rebuild_attempts": 0,
-            "successful_rebuilds": 0, "last_error": None},
-        "metrics.schema.json": {"schema": "graphx.dashboard.metrics.v1", "graph": {},
+            "successful_rebuilds": 0, "last_error": None, "active_config_revision":0,
+            "active_config_etag":"", "config_revision":1, "etag":"\"graphx-config-1\"",
+            "rebuild_required":True,"configuration_stale":True,"stop_requested":False,
+            "started_at":None,"terminal_at":None,"terminal_result":None},
+        "metrics.schema.json": {"schema": "graphx.dashboard.metrics.v1", "active_generation":0,
+                                "active_config_revision":0,"active_config_etag":"","graph": {},
                                 "nodes": [], "edges": []},
-        "edge-metrics.schema.json": {"schema": "graphx.dashboard.edge_metrics.v1", "edges": []},
-        "diagnostics.schema.json": {"schema": "graphx.dashboard.diagnostics.v1", "nodes": []},
+        "edge-metrics.schema.json": {"schema": "graphx.dashboard.edge_metrics.v1", "active_generation":0,"active_config_revision":0,"active_config_etag":"","edges": []},
+        "diagnostics.schema.json": {"schema": "graphx.dashboard.diagnostics.v1", "active_generation":0,"active_config_revision":0,"active_config_etag":"","nodes": []},
         "events.schema.json": {"schema": "graphx.dashboard.events_batch.v1",
             "stream": "/api/v1/fhss/events", "client_id": "validator", "resync_required": False,
             "latest_sequence": 0, "events": [], "counters": {}},
@@ -71,8 +75,8 @@ def main() -> int:
         "node-parameters.schema.json": {"schema": "graphx.dashboard.node_parameters.v1",
             "config_revision": 1, "node_id": "source", "node": {}, "parameters": {}, "ports": {}},
         "visualization.schema.json": {"schema": "graphx.dashboard.fhss_visualization.v1",
-            "fixture_label": "synthetic", "schedule": {}, "heatmap": {}, "timeline": {}, "decoder": {},
-            "selected_channel_preview": {}, "bounds": {}, "config_revision": 1},
+            "fixture_label": "synthetic", "schedule": {}, "heatmap": {}, "timeline": {},
+            "bounds": {}, "config_revision": 1},
         "configuration-provenance.schema.json": {
             "schema": "graphx.dashboard.configuration_provenance.v1",
             "config_revision": 1, "etag": '"graphx-config-1"', "provenance": [{
@@ -93,6 +97,8 @@ def main() -> int:
             "status": "applied", "old_revision": 1, "new_revision": 2,
             "etag": '"graphx-config-2"',
             "validation": {"valid": True, "levels": [], "errors": []}},
+        "rebuild-result.schema.json": {"schema":"graphx.dashboard.rebuild_result.v1","command_id":"r1","status":"succeeded","submitted_revision":1,"etag":"\"graphx-config-1\"","lifecycle_state":"stopped","active_generation":1,"warning":None},
+        "command-result.schema.json": {"schema":"graphx.dashboard.command_result.v1","command_id":"s1","status":"accepted","active_generation":1,"code":"start_accepted","message":"accepted"},
     }
     repository = ROOT.parents[3]
     generator_graph = json.loads((repository / "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json").read_text())
@@ -104,7 +110,7 @@ def main() -> int:
     samples["receiver-graph.schema.json"]["graph"] = receiver_graph
     assert set(samples) == {path.name for path in schemas}, "every schema needs a representative instance"
     for name, sample in samples.items():
-        Draft202012Validator(registry[name]).validate(sample)
+        Draft202012Validator(registry[name], format_checker=FormatChecker()).validate(sample)
         validate_instance(sample, registry[name], registry=registry)
 
     # Receiver-facing contracts reject generator schedule/truth fields even if

@@ -9,6 +9,7 @@
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
 #include "FHSSDashboardApi.hpp"
 #include "FHSSDashboardConfigurationPolicy.hpp"
+#include "FHSSGraphRuntimeOwner.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -48,14 +49,16 @@
 #define DSP_FHSS_DASHBOARD_ASSET_DIRECTORY "examples/DSP/dashboard"
 #endif
 #ifndef DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY
-#define DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY "share/graphx/fhss-dashboard"
+#define DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY                           \
+  "share/graphx/fhss-dashboard"
 #endif
 
 namespace {
 
 std::filesystem::path DefaultDashboardAssets(const char *executable) {
   std::error_code error;
-  const auto executable_path = std::filesystem::weakly_canonical(executable, error);
+  const auto executable_path =
+      std::filesystem::weakly_canonical(executable, error);
   if (!error) {
     const auto adjacent = executable_path.parent_path().parent_path() /
                           "share/graphx/fhss-dashboard";
@@ -63,7 +66,8 @@ std::filesystem::path DefaultDashboardAssets(const char *executable) {
       return adjacent;
     }
   }
-  const std::filesystem::path installed{DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY};
+  const std::filesystem::path installed{
+      DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY};
   if (std::filesystem::is_regular_file(installed / "index.html", error)) {
     return installed;
   }
@@ -72,11 +76,14 @@ std::filesystem::path DefaultDashboardAssets(const char *executable) {
 
 std::filesystem::path DefaultFhssConfig(const char *executable) {
   std::error_code error;
-  const auto executable_path = std::filesystem::weakly_canonical(executable, error);
+  const auto executable_path =
+      std::filesystem::weakly_canonical(executable, error);
   if (!error) {
-    const auto adjacent = executable_path.parent_path().parent_path() /
+    const auto adjacent =
+        executable_path.parent_path().parent_path() /
         "share/graphx/config/fhss_cpsm_channelized_fixture_500msps.json";
-    if (std::filesystem::is_regular_file(adjacent, error)) return adjacent;
+    if (std::filesystem::is_regular_file(adjacent, error))
+      return adjacent;
   }
   return DSP_FHSS_CHANNELIZED_CONFIG_PATH;
 }
@@ -145,7 +152,8 @@ void PrintUsage() {
          "                             [--channel-iq-indices active|all|csv]\n"
          "                             [--executor-timeout-s n]\n"
          "                             [--decoded-pulse-limit n]\n"
-         "                             [--dashboard --dashboard-host loopback --dashboard-port n]\n"
+         "                             [--dashboard --dashboard-host loopback "
+         "--dashboard-port n]\n"
          "                             [--dashboard-assets path]\n"
          "                             [--dashboard-no-run]\n\n"
          "Message JSON may be either a full FHSS source node_config object or "
@@ -240,6 +248,9 @@ CliOptions ParseArgs(int argc, char **argv) {
       throw std::invalid_argument("unknown argument: " + arg);
     }
   }
+  if (options.dashboard && options.dashboard_no_run)
+    throw std::invalid_argument(
+        "--dashboard and --dashboard-no-run are mutually exclusive");
   return options;
 }
 
@@ -687,19 +698,34 @@ std::atomic<bool> g_dashboard_stop_requested{false};
 
 void HandleDashboardSignal(int) { g_dashboard_stop_requested.store(true); }
 
-int RunDashboardNoRunMode(const CliOptions &options,
-                          const nlohmann::json &effective_config) {
+int RunDashboardMode(const CliOptions &options,
+                     const nlohmann::json &effective_config) {
   g_dashboard_stop_requested.store(false);
 
   auto configuration_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
           effective_config,
-          std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+          std::make_shared<
+              dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+  std::shared_ptr<graph::dashboard::IGraphRuntimeOwner> runtime_owner;
+  if (options.dashboard)
+    runtime_owner =
+        std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
+            options.plugin_directory,
+            effective_config.empty()
+                ? std::filesystem::temp_directory_path() /
+                      "graphx-fhss-dashboard-runtime"
+                : DefaultEffectiveConfigPath().parent_path() /
+                      "fhss-dashboard-runtime");
   auto runtime_session =
-      std::make_shared<graph::dashboard::GraphRuntimeSession>();
+      std::make_shared<graph::dashboard::GraphRuntimeSession>(runtime_owner);
   auto snapshot_collector =
       std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+  snapshot_collector->BindRuntimeSession(runtime_session);
   runtime_session->MarkReady();
+  // Dashboard production mode exposes runtime control but deliberately starts
+  // stopped/not-built.  Rebuild and Start are public operator actions, so an
+  // existing file path can never trigger receiver execution during launch.
 
   graph::dashboard::EmbeddedDashboardServer::Options server_options;
   server_options.host = options.dashboard_host;
@@ -708,11 +734,13 @@ int RunDashboardNoRunMode(const CliOptions &options,
   server_options.artifact_root = options.dashboard_assets.parent_path();
   server_options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
-          .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service),
+          .handler =
+              dsp::fhss::dashboard::MakeApiHandler(configuration_service),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
   server_options.enable_configuration_mutation_routes = true;
-  server_options.enable_runtime_control_routes = false;
+  server_options.enable_runtime_control_routes = options.dashboard;
+  server_options.enable_mutating_routes = options.dashboard;
 
   graph::dashboard::EmbeddedDashboardServer server(
       server_options, configuration_service, runtime_session,
@@ -725,8 +753,13 @@ int RunDashboardNoRunMode(const CliOptions &options,
   const bool ipv6 = server.BoundHost().find(':') != std::string::npos;
   std::cout << "Dashboard URL: http://" << (ipv6 ? "[" : "")
             << server.BoundHost() << (ipv6 ? "]" : "") << ':'
-            << server.BoundPort() << '\n' << std::flush;
-  std::cout << "Dashboard no-run mode active. Press Ctrl+C to stop.\n";
+            << server.BoundPort() << '\n'
+            << std::flush;
+  std::cout << (options.dashboard
+                    ? "Dashboard receiver control mode active; runtime is "
+                      "stopped until Rebuild and Start. "
+                                  : "Dashboard no-run mode active. ")
+            << "Press Ctrl+C to stop.\n";
 
   std::signal(SIGINT, HandleDashboardSignal);
   std::signal(SIGTERM, HandleDashboardSignal);
@@ -763,7 +796,7 @@ int main(int argc, char **argv) {
 
     if (options.dashboard || options.dashboard_no_run) {
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
-      return RunDashboardNoRunMode(options, graph_config);
+      return RunDashboardMode(options, graph_config);
 #else
       throw std::runtime_error(
           "dashboard support is not built. Reconfigure with "

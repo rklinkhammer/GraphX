@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import copy
 import hashlib
 import http.client
 import json
@@ -23,11 +24,11 @@ API_DIR = Path(__file__).resolve().parents[1] / "api"
 sys.path.insert(0, str(API_DIR))
 from schema_subset import load_registry, validate_instance, validate_schema  # noqa: E402
 try:
-    from jsonschema import Draft202012Validator
+    from jsonschema import Draft202012Validator, FormatChecker
 except ImportError as error:
     raise SystemExit("install ../api/requirements-contracts.lock for authoritative live validation") from error
 
-PHASE = 2
+PHASE = 3
 OWNED_MARKER = ".graphx-fhss-dashboard-operator"
 
 
@@ -47,10 +48,16 @@ def locate_executable(build_dir: Path) -> Path:
             return candidate
     raise RuntimeError(f"graphx-dsp-fhss-demo not found under {build_dir}")
 
+def locate_generator(build_dir: Path) -> Path:
+    for candidate in (build_dir / "examples/DSP/graphx-dsp-fhss-iq-generator",
+                      build_dir / "bin/graphx-dsp-fhss-iq-generator"):
+        if candidate.is_file() and os.access(candidate, os.X_OK): return candidate
+    raise RuntimeError(f"graphx-dsp-fhss-iq-generator not found under {build_dir}")
+
 
 def request(port: int, method: str, target: str, body: bytes | None = None,
-            headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
-    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            headers: dict[str, str] | None = None, timeout: float = 5) -> tuple[int, dict[str, str], bytes]:
+    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
     connection.request(method, target, body=body, headers=headers or {})
     response = connection.getresponse()
     payload = response.read()
@@ -89,7 +96,8 @@ def raw_request(port: int, wire: bytes) -> tuple[int, dict[str, str], bytes]:
 
 def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, list[str]]:
     executable = locate_executable(args.build_dir.resolve())
-    command = [str(executable), "--dashboard-no-run", "--dashboard-port", "0"]
+    command = [str(executable), "--dashboard" if args.phase >= 3 else "--dashboard-no-run",
+               "--dashboard-port", "0"]
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, bufsize=1)
     deadline = time.monotonic() + 15
@@ -126,8 +134,8 @@ def stop(process: subprocess.Popen[str]) -> None:
 
 
 def exercise(args: argparse.Namespace) -> int:
-    if args.phase not in (1, 2):
-        raise RuntimeError("this operator implements Phase 1 and Phase 2 only")
+    if args.phase not in (1, 2, 3):
+        raise RuntimeError("this operator implements Phases 1 through 3 only")
     phase = args.phase
     output = args.output_dir.resolve()
     output_preexisted = output.exists()
@@ -169,6 +177,8 @@ def exercise(args: argparse.Namespace) -> int:
                 "/api/v1/fhss/config/provenance": "configuration-provenance",
                 "/api/v1/fhss/graph/receiver-minimal": "receiver-graph",
             })
+        if phase >= 3:
+            schema_names["/api/v1/fhss/status"] = "runtime-status"
         schema_root = API_DIR / "schemas"
         live_registry = load_registry(list(schema_root.glob("*.schema.json")))
         live_hashes: dict[str, str] = {}
@@ -186,7 +196,7 @@ def exercise(args: argparse.Namespace) -> int:
             parsed = json.loads(payload)
             schema = json.loads((schema_root / f"{schema_name}.schema.json").read_text())
             Draft202012Validator.check_schema(schema)
-            Draft202012Validator(schema).validate(parsed)
+            Draft202012Validator(schema, format_checker=FormatChecker()).validate(parsed)
             validate_instance(parsed, schema, registry=live_registry)
             return True, parsed
 
@@ -203,6 +213,18 @@ def exercise(args: argparse.Namespace) -> int:
                 required = ("content-security-policy", "x-content-type-options",
                             "referrer-policy", "x-frame-options")
                 check("defensive response headers", all(item in headers for item in required), str(required))
+        if phase >= 3:
+            initial_status_code, _, initial_status_body = request(
+                port, "GET", "/api/v1/fhss/status")
+            persist("initial_runtime_status", initial_status_body)
+            initial_status = json.loads(initial_status_body)
+            check("dashboard starts stopped before public lifecycle commands",
+                  initial_status_code == 200 and
+                  initial_status.get("lifecycle_state") == "not_built" and
+                  initial_status.get("active_generation") == 0 and
+                  initial_status.get("terminal_result") is None and
+                  not initial_status.get("stop_requested"),
+                  json.dumps(initial_status, sort_keys=True))
         status, headers, body = request(port, "PUT", "/healthz")
         problem = json.loads(body)
         persist("PUT /healthz", body)
@@ -342,22 +364,36 @@ def exercise(args: argparse.Namespace) -> int:
             receiver = json.loads(receiver_bytes)["graph"]
             persist("receiver_graph", receiver_bytes)
             persist("authoritative", authoritative_bytes)
-            serialized_receiver = json.dumps(receiver, sort_keys=True)
+            def recursive_keys(value: object) -> list[str]:
+                if isinstance(value, dict):
+                    return [str(key).lower() for key in value] + [
+                        key for child in value.values() for key in recursive_keys(child)]
+                if isinstance(value, list):
+                    return [key for child in value for key in recursive_keys(child)]
+                return []
+            receiver_keys = recursive_keys(receiver)
             source = next((node for node in receiver.get("nodes", []) if node.get("id") == "source"), {})
             minimal_nodes = [node for node in receiver.get("nodes", [])
                              if node.get("id") in ("preamble", "assembler")]
-            forbidden = ("messages", "truth_from_fixture", "truth_path", "generator_metadata")
+            def side_channel_key(key: str) -> bool:
+                return (key == "messages" or "truth" in key or
+                        ("generator" in key and "metadata" in key) or
+                        ("expected" in key and ("value" in key or "word" in key)) or
+                        ("transmitted" in key and "frequency" in key) or
+                        ("burst" in key and "epoch" in key) or
+                        key == "active_frequency_indices")
             check("receiver-minimal truth separation", receiver_status == 200 and
                   source.get("type") == "FHSSBinaryIqFileSourceNode" and
-                  all(token not in serialized_receiver for token in forbidden) and
+                  not any(side_channel_key(key) for key in receiver_keys) and
                   all("active_frequency_indices" not in node.get("node_config", {})
                       for node in minimal_nodes), f"HTTP {receiver_status}; source={source.get('type')}")
-            for target in ("/api/v1/fhss/config/rebuild", "/api/v1/fhss/commands/start",
-                           "/api/v1/fhss/commands/stop", "/api/v1/fhss/operations/op-1"):
-                hidden_status, _, _ = request(port, "POST", target, b"{}",
-                                               {"Content-Type": "application/json"})
-                check(f"Phase3 route hidden {target}", hidden_status in (404, 405),
-                      f"HTTP {hidden_status}")
+            if phase < 3:
+                for target in ("/api/v1/fhss/config/rebuild", "/api/v1/fhss/commands/start",
+                               "/api/v1/fhss/commands/stop", "/api/v1/fhss/operations/op-1"):
+                    hidden_status, _, _ = request(port, "POST", target, b"{}",
+                                                   {"Content-Type": "application/json"})
+                    check(f"Phase3 route hidden {target}", hidden_status in (404, 405),
+                          f"HTTP {hidden_status}")
             phase2_hashes = {
                 "authoritative": hashlib.sha256(authoritative_bytes).hexdigest(),
                 "validation": hashlib.sha256(v_body).hexdigest(),
@@ -365,6 +401,201 @@ def exercise(args: argparse.Namespace) -> int:
                 "receiver_graph": hashlib.sha256(receiver_bytes).hexdigest(),
                 **live_hashes,
             }
+        if phase >= 3:
+            _, current_headers, current_bytes = request(port, "GET", "/api/v1/fhss/config/authoritative")
+            current = json.loads(current_bytes)
+            schedule_path, iq_path = output / "schedule.json", output / "replay.cf32"
+            truth_path, sigmf_path = output / "truth.json", output / "replay.sigmf-meta"
+            generator_schedule = dict(authoritative_doc["scenario"])
+            generator_schedule["active_frequency_indices"] = independently_active
+            schedule_path.write_text(json.dumps(generator_schedule, indent=2))
+            generator_command = [str(locate_generator(args.build_dir.resolve())), "--message-json", str(schedule_path),
+                                 "--iq-output", str(iq_path), "--truth-output", str(truth_path),
+                                 "--sigmf-meta", str(sigmf_path), "--force"]
+            generated = subprocess.run(generator_command, text=True, capture_output=True, timeout=30)
+            check("synthetic IQ generation", generated.returncode == 0 and iq_path.stat().st_size > 0,
+                  f"exit={generated.returncode}; bytes={iq_path.stat().st_size if iq_path.exists() else 0}")
+            for artifact_name, artifact_path in (("generated_iq", iq_path),
+                                                  ("generated_truth", truth_path),
+                                                  ("generated_schedule", schedule_path),
+                                                  ("generated_sigmf", sigmf_path)):
+                if artifact_path.exists():
+                    persist(artifact_name, artifact_path.read_bytes())
+            if truth_path.exists(): truth_path.unlink()
+            if schedule_path.exists(): schedule_path.unlink()
+            replay_patch = json.dumps([{"op":"add","path":"/receiver_input","value":{
+                "file_path":str(iq_path),"sample_format":"cf32_le","first_complex_sample":0,
+                "max_complex_samples":0,"max_read_complex_samples":4194304}}]).encode()
+            p_status, p_headers, p_body = request(port,"PATCH","/api/v1/fhss/config",replay_patch,
+                {"Content-Type":"application/json-patch+json","If-Match":current_headers["etag"]})
+            check("patch receiver path only", p_status == 200, f"HTTP {p_status}")
+            revision = json.loads(p_body).get("new_revision", 0)
+            generations = []
+            for number in (1,2):
+                rebuild_body = json.dumps({"expected_revision":revision,"command_id":f"phase3-rebuild-{number}"}).encode()
+                rebuild_started = time.monotonic()
+                r_status, _, r_body = request(port,"POST","/api/v1/fhss/config/rebuild",rebuild_body,{"Content-Type":"application/json"}, timeout=20)
+                persist(f"generation_{number}_rebuild", r_body)
+                rebuild_elapsed = time.monotonic() - rebuild_started
+                try:
+                    rebuild_schema_ok, rebuild_doc = schema_valid("rebuild-result", r_body)
+                except Exception:
+                    rebuild_schema_ok, rebuild_doc = False, {}
+                check(f"generation {number} rebuild returned", rebuild_elapsed < 20 and rebuild_schema_ok,
+                      f"HTTP {r_status}; seconds={rebuild_elapsed:.3f}; schema={rebuild_schema_ok}")
+                generation = rebuild_doc.get("active_generation",0)
+                generations.append(generation)
+                s_status, _, s_body = request(port,"POST","/api/v1/fhss/commands/start",
+                    json.dumps({"command_id":f"phase3-start-{number}"}).encode(),{"Content-Type":"application/json"})
+                persist(f"generation_{number}_start", s_body)
+                try:
+                    start_schema_ok, _ = schema_valid("command-result", s_body)
+                except Exception:
+                    start_schema_ok = False
+                check(f"generation {number} start returned", start_schema_ok, f"HTTP {s_status}; schema={start_schema_ok}")
+                terminal_doc = {}
+                terminal_deadline = time.monotonic() + 5
+                while time.monotonic() < terminal_deadline:
+                    terminal_status, _, terminal_body = request(port,"GET","/api/v1/fhss/status")
+                    terminal_doc = json.loads(terminal_body)
+                    if terminal_doc.get("lifecycle_state") in ("completed", "failed"):
+                        break
+                    time.sleep(0.05)
+                persist(f"generation_{number}_status", json.dumps(terminal_doc, sort_keys=True).encode())
+                try:
+                    status_schema_ok, _ = schema_valid("runtime-status", json.dumps(terminal_doc).encode())
+                except Exception:
+                    status_schema_ok = False
+                terminal_result = terminal_doc.get("terminal_result") or {}
+                check(f"generation {number} natural terminal result",
+                      terminal_status == 200 and status_schema_ok and
+                      terminal_doc.get("lifecycle_state") == "completed" and
+                      terminal_result.get("generation") == number and
+                      terminal_result.get("code") == "execution_completed" and
+                      not terminal_doc.get("stop_requested"),
+                      json.dumps(terminal_doc, sort_keys=True))
+                m_status, _, m_body = request(port,"GET","/api/v1/fhss/metrics")
+                check(f"generation {number} metrics returned", True, f"HTTP {m_status}")
+                persist(f"generation_{number}_metrics",m_body)
+                metrics_doc = json.loads(m_body)
+                traffic = sum(int(edge.get("messages_enqueued", 0)) + int(edge.get("messages_dequeued", 0))
+                              for edge in metrics_doc.get("edges", []))
+                check(f"generation {number} attributed nonzero traffic",
+                      metrics_doc.get("active_generation") == number and traffic > 0,
+                      f"generation={metrics_doc.get('active_generation')}; traffic={traffic}")
+                stop_started=time.monotonic(); x_status,_,x_body=request(port,"POST","/api/v1/fhss/commands/stop",
+                    json.dumps({"command_id":f"phase3-stop-{number}"}).encode(),{"Content-Type":"application/json"})
+                persist(f"generation_{number}_stop", x_body)
+                try:
+                    stop_schema_ok, stop_doc = schema_valid("command-result", x_body)
+                except Exception:
+                    stop_schema_ok, stop_doc = False, {}
+                check(f"generation {number} stop returned", stop_schema_ok and stop_doc.get("code") == "already_completed",
+                      f"HTTP {x_status}; schema={stop_schema_ok}; code={stop_doc.get('code')}")
+                check(f"real replay generation {number}", r_status==200 and s_status==202 and m_status==200 and x_status==200,
+                      f"rebuild={r_status}; start={s_status}; stop={x_status}")
+                check(f"bounded stop generation {number}", time.monotonic()-stop_started < 5, "under 5 seconds")
+            check("two real generations", generations == [1,2], json.dumps(generations))
+            check("truth isolated before replay", not truth_path.exists() and not schedule_path.exists(), "truth and scenario deleted")
+
+            long_schedule_path, long_iq_path = output / "long-schedule.json", output / "long-replay.cf32"
+            long_truth_path, long_sigmf_path = output / "long-truth.json", output / "long-replay.sigmf-meta"
+            long_schedule = copy.deepcopy(generator_schedule)
+            base_message = long_schedule["messages"][0]
+            stride = (len(base_message["pulses"]) + 1) * 6500
+            long_schedule["messages"] = []
+            # At 500 Msps this is more than 15 million complex samples (over
+            # 120 MB of cf32_le).  The receiver selects a bounded 4,194,304
+            # sample window, large enough to observe traffic and exercise
+            # cooperative Stop instead of racing a four-message fixture to EOF.
+            for index in range(128):
+                message = copy.deepcopy(base_message)
+                message["message_id"] = 1000 + index
+                message["transmit_start_sample"] = index * stride
+                long_schedule["messages"].append(message)
+            long_schedule_path.write_text(json.dumps(long_schedule, indent=2))
+            long_command = [str(locate_generator(args.build_dir.resolve())), "--message-json", str(long_schedule_path),
+                            "--iq-output", str(long_iq_path), "--truth-output", str(long_truth_path),
+                            "--sigmf-meta", str(long_sigmf_path), "--force"]
+            long_generated = subprocess.run(long_command, text=True, capture_output=True, timeout=30)
+            long_bytes = long_iq_path.stat().st_size if long_iq_path.exists() else 0
+            long_samples = long_bytes // 8
+            check("long deterministic IQ generation", long_generated.returncode == 0 and
+                  long_bytes >= 120_000_000 and long_samples >= 15_000_000,
+                  f"exit={long_generated.returncode}; bytes={long_bytes}; samples={long_samples}")
+            for artifact_name, artifact_path in (("long_generated_iq", long_iq_path),
+                                                  ("long_generated_truth", long_truth_path),
+                                                  ("long_generated_schedule", long_schedule_path),
+                                                  ("long_generated_sigmf", long_sigmf_path)):
+                if artifact_path.exists(): persist(artifact_name, artifact_path.read_bytes())
+            long_truth_path.unlink(); long_schedule_path.unlink()
+            _, long_headers, _ = request(port,"GET","/api/v1/fhss/config/authoritative")
+            long_patch = json.dumps([{"op":"replace","path":"/receiver_input","value":{
+                "file_path":str(long_iq_path),"sample_format":"cf32_le",
+                "first_complex_sample":0,"max_complex_samples":4_194_304,
+                "max_read_complex_samples":4_194_304}}]).encode()
+            lp_status, _, lp_body = request(port,"PATCH","/api/v1/fhss/config",long_patch,
+                {"Content-Type":"application/json-patch+json","If-Match":long_headers["etag"]})
+            persist("long_generation_patch", lp_body)
+            long_revision = json.loads(lp_body).get("new_revision",0)
+            lr_status,_,lr_body=request(port,"POST","/api/v1/fhss/config/rebuild",
+                json.dumps({"expected_revision":long_revision,"command_id":"phase3-long-rebuild"}).encode(),
+                {"Content-Type":"application/json"},timeout=20)
+            persist("long_generation_rebuild",lr_body)
+            ls_status,_,ls_body=request(port,"POST","/api/v1/fhss/commands/start",
+                json.dumps({"command_id":"phase3-long-start"}).encode(),{"Content-Type":"application/json"})
+            persist("long_generation_start",ls_body)
+            running_seen = traffic_seen = False; running_doc = {}; running_metrics = {}
+            milestone_deadline=time.monotonic()+5
+            while time.monotonic()<milestone_deadline:
+                _,_,running_body=request(port,"GET","/api/v1/fhss/status"); running_doc=json.loads(running_body)
+                _,_,running_metrics_body=request(port,"GET","/api/v1/fhss/metrics"); running_metrics=json.loads(running_metrics_body)
+                current_running = running_doc.get("lifecycle_state")=="running"
+                current_traffic = sum(int(edge.get("messages_enqueued",0))+int(edge.get("messages_dequeued",0)) for edge in running_metrics.get("edges",[]))>0
+                if current_running and current_traffic:
+                    running_seen = traffic_seen = True
+                    break
+                time.sleep(0.02)
+            persist("long_generation_running_status",json.dumps(running_doc,sort_keys=True).encode())
+            persist("long_generation_running_metrics",json.dumps(running_metrics,sort_keys=True).encode())
+            long_stop_started=time.monotonic()
+            lx_status,_,lx_body=request(port,"POST","/api/v1/fhss/commands/stop",
+                json.dumps({"command_id":"phase3-long-stop"}).encode(),{"Content-Type":"application/json"},timeout=6)
+            long_stop_elapsed=time.monotonic()-long_stop_started
+            persist("long_generation_stop",lx_body)
+            _,_,long_terminal_body=request(port,"GET","/api/v1/fhss/status"); long_terminal=json.loads(long_terminal_body)
+            persist("long_generation_terminal_status",long_terminal_body)
+            check("long replay running traffic before stop", lp_status==200 and lr_status==200 and ls_status==202 and running_seen and traffic_seen,
+                  f"patch={lp_status}; rebuild={lr_status}; start={ls_status}; running={running_seen}; traffic={traffic_seen}")
+            check("bounded real cancellation join", lx_status==200 and long_stop_elapsed<5 and
+                  long_terminal.get("lifecycle_state")=="stopped" and
+                  long_terminal.get("stop_requested") is True and
+                  (long_terminal.get("terminal_result") or {}).get("generation")==3 and
+                  (long_terminal.get("terminal_result") or {}).get("code")=="execution_cancelled",
+                  f"HTTP {lx_status}; seconds={long_stop_elapsed:.3f}; status={json.dumps(long_terminal,sort_keys=True)}")
+            check("long truth isolated before replay", not long_truth_path.exists() and not long_schedule_path.exists(), "long truth and schedule deleted")
+            _, invalid_headers, _ = request(port,"GET","/api/v1/fhss/config/authoritative")
+            invalid_patch = json.dumps([{"op":"replace","path":"/receiver_input/sample_format","value":"unsupported"}]).encode()
+            i_status, _, i_body = request(port,"PATCH","/api/v1/fhss/config",invalid_patch,
+                {"Content-Type":"application/json-patch+json","If-Match":invalid_headers["etag"]})
+            invalid_revision = json.loads(i_body).get("new_revision",0) if i_body else 0
+            bad_status, bad_headers, bad_body = request(port,"POST","/api/v1/fhss/config/rebuild",
+                json.dumps({"expected_revision":invalid_revision,"command_id":"phase3-invalid"}).encode(),
+                {"Content-Type":"application/json"}, timeout=20)
+            status_status, _, status_body = request(port,"GET","/api/v1/fhss/status")
+            status_doc = json.loads(status_body)
+            persist("invalid_rebuild_error",bad_body)
+            persist("invalid_rebuild_status",status_body)
+            try:
+                invalid_problem_ok, _ = schema_valid("problem", bad_body)
+            except Exception:
+                invalid_problem_ok = False
+            check("invalid rebuild problem contract", invalid_problem_ok and
+                  bad_headers.get("content-type", "").startswith("application/problem+json"),
+                  f"HTTP {bad_status}; schema={invalid_problem_ok}")
+            check("invalid rebuild preserves generation 3", i_status==200 and bad_status>=400 and status_status==200 and
+                  status_doc.get("active_generation")==3,
+                  f"patch={i_status}; rebuild={bad_status}; generation={status_doc.get('active_generation')}")
         source_root = Path(__file__).resolve().parents[4]
         revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source_root,
                                   text=True, capture_output=True, check=False).stdout.strip() or "unknown"

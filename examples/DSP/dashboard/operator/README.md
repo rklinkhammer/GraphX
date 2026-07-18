@@ -1,4 +1,6 @@
-# FHSS dashboard Phase 1/2 operator
+# FHSS dashboard Phase 1/2/3 operator
+
+Phase 3 manual browser/API validation is documented in `docs/dsp/fhss_dashboard_phase3_manual_operator_test.md`.
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -37,11 +39,11 @@ execution:
   examples/DSP/dashboard/api/validate_contracts.py
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
-  --phase 2 --build-dir build-ninja/ninja-debug \
+  --phase 3 --build-dir build-ninja/ninja-debug \
   --output-dir /path/to/new/operator-output
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
-  --phase 2 \
+  --phase 3 \
   --output-dir /path/to/new/operator-output
 ```
 
@@ -69,6 +71,18 @@ truth-free binary-IQ receiver projection, and the absence of Phase 3 runtime
 controls. Reports contain SHA-256 hashes of the authoritative, validation,
 applied, and receiver-graph payloads. Use `--phase 1` to retain the Phase 1
 transport/read-only evidence lane.
+
+Phase 3 generates architecture-conformant IQ with the production generator,
+keeps IQ/SigMF separate from truth, removes schedule and truth before receiver
+execution, and runs two transactional runtime generations to natural terminal
+completion. Rebuild is synchronous (HTTP 200 after publication), start is
+accepted asynchronously (HTTP 202), and stop is synchronous (HTTP 200 after a
+real join). The operator also uses a longer third fixture to observe running
+state and nonzero traffic before issuing Stop. Stop is bounded at five seconds;
+a non-cooperative `Consume()` produces HTTP 504 while the runtime retains the
+live thread instead of detaching it. The lane requires generation-attributed
+traffic and safe rollback when a malformed receiver configuration fails to
+rebuild.
 
 The production server applies separate timing limits: activity on a partial
 request resets the idle timer, `read_timeout` is an absolute header/body read

@@ -69,9 +69,11 @@ namespace {
 
 std::optional<std::string> ParseMediaType(std::string_view value) {
   const auto trim = [](std::string_view part) {
-    while (!part.empty() && std::isspace(static_cast<unsigned char>(part.front())))
+    while (!part.empty() &&
+           std::isspace(static_cast<unsigned char>(part.front())))
       part.remove_prefix(1);
-    while (!part.empty() && std::isspace(static_cast<unsigned char>(part.back())))
+    while (!part.empty() &&
+           std::isspace(static_cast<unsigned char>(part.back())))
       part.remove_suffix(1);
     return part;
   };
@@ -195,6 +197,21 @@ RuntimeStatusJson(const GraphRuntimeSession::StatusSnapshot &snapshot) {
       {"active_generation", snapshot.active_generation},
       {"rebuild_attempts", snapshot.rebuild_attempts},
       {"successful_rebuilds", snapshot.successful_rebuilds},
+      {"active_config_revision", snapshot.active_config_revision},
+      {"active_config_etag", snapshot.active_config_etag},
+      {"stop_requested", snapshot.stop_requested},
+      {"started_at", snapshot.started_at.empty()
+                         ? nlohmann::json(nullptr)
+                         : nlohmann::json(snapshot.started_at)},
+      {"terminal_at", snapshot.terminal_at.empty()
+                          ? nlohmann::json(nullptr)
+                          : nlohmann::json(snapshot.terminal_at)},
+      {"terminal_result",
+       snapshot.terminal_generation == 0
+           ? nlohmann::json(nullptr)
+           : nlohmann::json{{"generation", snapshot.terminal_generation},
+                            {"code", snapshot.terminal_result_code},
+                            {"message", snapshot.terminal_result_message}}},
       {"last_error",
        snapshot.last_error_code.empty()
            ? nlohmann::json(nullptr)
@@ -1264,7 +1281,7 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     if (body.is_discarded()) {
       return Response{
           .status_code = 400,
-          .content_type = "application/json",
+          .content_type = "application/problem+json",
           .body = ErrorBody(400, "invalid_json", "request body must be JSON")};
     }
     nlohmann::json result;
@@ -1301,13 +1318,15 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     if (body.is_discarded()) {
       return Response{
           .status_code = 400,
-          .content_type = "application/json",
+          .content_type = "application/problem+json",
           .body = ErrorBody(400, "invalid_json", "request body must be JSON")};
     }
 
-    const auto expected_revision = body.value(
-        "expected_revision", configuration_service_->ConfigRevision());
-    if (expected_revision != configuration_service_->ConfigRevision()) {
+    const auto receiver = configuration_service_->GetReceiverGraphResponse();
+    const auto revision = receiver.at("config_revision").get<std::uint64_t>();
+    const auto etag = receiver.at("etag").get<std::string>();
+    const auto expected_revision = body.value("expected_revision", revision);
+    if (expected_revision != revision) {
       return Response{.status_code = 409,
                       .content_type = "application/problem+json",
                       .body = ErrorBody(
@@ -1315,18 +1334,20 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                           "expected revision does not match current revision")};
     }
 
-    const auto rebuild = runtime_session_->Rebuild();
-    if (rebuild.status_code == 409 || rebuild.status_code == 500 ||
-        rebuild.status_code == 503) {
+    const auto rebuild =
+        runtime_session_->Rebuild({.receiver_graph = receiver.at("graph"),
+                                   .config_revision = revision,
+                                   .config_etag = etag});
+    if (rebuild.status_code >= 400) {
       return Response{.status_code = rebuild.status_code,
-                      .content_type = "application/json",
+                      .content_type = "application/problem+json",
                       .body = ErrorBody(rebuild.status_code, rebuild.code,
                                         rebuild.message)};
     }
 
     const auto status = runtime_session_->SnapshotStatus();
     return Response{
-        .status_code = 202,
+        .status_code = 200,
         .content_type = "application/json",
         .body = JsonResponse(nlohmann::json{
             {"schema", "graphx.dashboard.rebuild_result.v1"},
@@ -1334,7 +1355,8 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
             {"status", rebuild.code == "cleanup_failed"
                            ? "succeeded_with_cleanup_failed"
                            : "succeeded"},
-            {"submitted_revision", configuration_service_->ConfigRevision()},
+            {"submitted_revision", revision},
+            {"etag", etag},
             {"lifecycle_state",
              GraphRuntimeSession::StateToString(status.state)},
             {"active_generation", status.active_generation},
@@ -1345,7 +1367,14 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
   }
 
   if (request.path == "/api/v1/fhss/status" && request.method == "GET") {
-    const auto status = RuntimeStatusJson(runtime_session_->SnapshotStatus());
+    const auto config = configuration_service_->GetConfigResponse();
+    auto status = RuntimeStatusJson(runtime_session_->SnapshotStatus());
+    status["config_revision"] = config.at("config_revision");
+    status["etag"] = config.at("etag");
+    status["rebuild_required"] =
+        status.value("active_config_revision", 0u) !=
+        config.at("config_revision").get<std::uint64_t>();
+    status["configuration_stale"] = status["rebuild_required"];
     return Response{.status_code = 200,
                     .content_type = "application/json",
                     .body = JsonResponse(status)};
@@ -1353,6 +1382,14 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
 
   if (request.path == "/api/v1/fhss/commands/start" &&
       request.method == "POST") {
+    const auto body = request.body.empty()
+                          ? nlohmann::json::object()
+                          : nlohmann::json::parse(request.body, nullptr, false);
+    if (body.is_discarded())
+      return {.status_code = 400,
+              .content_type = "application/problem+json",
+              .body =
+                  ErrorBody(400, "invalid_json", "request body must be JSON")};
     const auto result = runtime_session_->Start();
     PublishEvent("command", nlohmann::json{{"command", "start"},
                                            {"status", result.status_code == 202
@@ -1363,38 +1400,52 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     if (result.status_code != 202) {
       return Response{
           .status_code = result.status_code,
-          .content_type = "application/json",
+          .content_type = "application/problem+json",
           .body = ErrorBody(result.status_code, result.code, result.message)};
     }
     return Response{.status_code = 202,
                     .content_type = "application/json",
                     .body = JsonResponse(nlohmann::json{
                         {"schema", "graphx.dashboard.command_result.v1"},
+                        {"command_id", body.value("command_id", std::string{})},
                         {"status", "accepted"},
+                        {"active_generation",
+                         runtime_session_->SnapshotStatus().active_generation},
                         {"code", result.code},
                         {"message", result.message}})};
   }
 
   if (request.path == "/api/v1/fhss/commands/stop" &&
       request.method == "POST") {
+    const auto body = request.body.empty()
+                          ? nlohmann::json::object()
+                          : nlohmann::json::parse(request.body, nullptr, false);
+    if (body.is_discarded())
+      return {.status_code = 400,
+              .content_type = "application/problem+json",
+              .body =
+                  ErrorBody(400, "invalid_json", "request body must be JSON")};
     const auto result = runtime_session_->Stop();
     PublishEvent("command", nlohmann::json{{"command", "stop"},
-                                           {"status", result.status_code == 202
-                                                          ? "accepted"
+                                           {"status", result.status_code < 400
+                                                          ? "completed"
                                                           : "rejected"},
                                            {"code", result.code},
                                            {"message", result.message}});
-    if (result.status_code != 202) {
+    if (result.status_code >= 400) {
       return Response{
           .status_code = result.status_code,
-          .content_type = "application/json",
+          .content_type = "application/problem+json",
           .body = ErrorBody(result.status_code, result.code, result.message)};
     }
-    return Response{.status_code = 202,
+    return Response{.status_code = result.status_code,
                     .content_type = "application/json",
                     .body = JsonResponse(nlohmann::json{
                         {"schema", "graphx.dashboard.command_result.v1"},
-                        {"status", "accepted"},
+                        {"command_id", body.value("command_id", std::string{})},
+                        {"status", "completed"},
+                        {"active_generation",
+                         runtime_session_->SnapshotStatus().active_generation},
                         {"code", result.code},
                         {"message", result.message}})};
   }
