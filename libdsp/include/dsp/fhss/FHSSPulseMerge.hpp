@@ -67,6 +67,7 @@ struct FHSSLocalPulseDetection {
 struct FHSSPulseCandidateWithEvidence {
   FHSSPulseCandidate candidate{};
   FHSSComplexEvidence complex_evidence{};
+  FHSSSampleTimeMap sample_time_map{};
 };
 
 enum class FHSSPulseMergeRejectReason {
@@ -118,18 +119,55 @@ NormalizeToGlobalStartSample(const FHSSSampleTimeMap &map,
     return std::unexpected(validation.error());
   }
 
-  const auto channel_local_input_offset = static_cast<std::int64_t>(
-      (map.output_start_sample + local_start_offset) * map.decimation_factor);
-  const auto global_offset =
-      channel_local_input_offset - map.group_delay_input_samples;
-  if (global_offset < 0) {
+  if (local_start_offset >
+      std::numeric_limits<std::uint64_t>::max() - map.output_start_sample) {
     return std::unexpected(
         MakeError(FHSSValidationCode::InvalidGlobalTiming,
-                  "sample-time mapping produced a negative global offset"));
+                  "sample-time mapping output offset overflows uint64"));
+  }
+  const auto output_sample = map.output_start_sample + local_start_offset;
+  if (output_sample >
+      std::numeric_limits<std::uint64_t>::max() / map.decimation_factor) {
+    return std::unexpected(
+        MakeError(FHSSValidationCode::InvalidGlobalTiming,
+                  "sample-time mapping decimation product overflows uint64"));
+  }
+  auto global_offset = output_sample * map.decimation_factor;
+  if (map.group_delay_input_samples >= 0) {
+    const auto delay =
+        static_cast<std::uint64_t>(map.group_delay_input_samples);
+    if (global_offset < delay) {
+      // The delay correction is signed relative to the anchor. A mapping may
+      // intentionally anchor after the desired center time to preserve a
+      // non-integral delay/decimation phase. Subtract the deficit from the
+      // anchor instead of rejecting an intermediate negative offset.
+      const auto deficit = delay - global_offset;
+      if (map.input_packet_global_start_sample < deficit) {
+        return std::unexpected(
+            MakeError(FHSSValidationCode::InvalidGlobalTiming,
+                      "sample-time mapping precedes the global sample origin"));
+      }
+      return map.input_packet_global_start_sample - deficit;
+    }
+    global_offset -= delay;
+  } else {
+    const auto advance =
+        static_cast<std::uint64_t>(-(map.group_delay_input_samples + 1)) + 1u;
+    if (global_offset > std::numeric_limits<std::uint64_t>::max() - advance) {
+      return std::unexpected(MakeError(
+          FHSSValidationCode::InvalidGlobalTiming,
+          "sample-time mapping group-delay adjustment overflows uint64"));
+    }
+    global_offset += advance;
+  }
+  if (map.input_packet_global_start_sample >
+      std::numeric_limits<std::uint64_t>::max() - global_offset) {
+    return std::unexpected(
+        MakeError(FHSSValidationCode::InvalidGlobalTiming,
+                  "sample-time mapping global result overflows uint64"));
   }
 
-  return map.input_packet_global_start_sample +
-         static_cast<std::uint64_t>(global_offset);
+  return map.input_packet_global_start_sample + global_offset;
 }
 
 [[nodiscard]] inline bool
@@ -204,7 +242,9 @@ NormalizeLocalDetection(const FHSSLocalPulseDetection &local,
   }
 
   return FHSSPulseCandidateWithEvidence{
-      .candidate = candidate, .complex_evidence = local.complex_evidence};
+      .candidate = candidate,
+      .complex_evidence = local.complex_evidence,
+      .sample_time_map = local.sample_time_map};
 }
 
 [[nodiscard]] inline bool PulsesOverlap(const FHSSDetectedPulse &lhs,

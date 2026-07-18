@@ -1,0 +1,16 @@
+{
+  "name": "accelgraph_phase7_spectrum_cuda_jetson",
+  "host_class": "jetson-cuda",
+  "execution_mode": "imported",
+  "imported_artifact": "verification/accelgraph/phase-7/jetson-cuda-latest.json",
+  "backend": "cuda",
+  "packet_size": 256,
+  "frame_count": 24,
+  "warmup_frame_count": 4,
+  "sample_rate_hz": 48000.0,
+  "tone_frequency_hz": 1500.0,
+  "amplitude": 1.0,
+  "strict_fallback": true,
+  "correctness_family": "phase6b",
+  "note": "Expected import path for Jetson phase-7 output; if unavailable, correctness-only fallback may be imported from a phase-6b artifact path passed via --config override."
+}

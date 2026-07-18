@@ -1,0 +1,130 @@
+{
+  "schema": "graphx.fhss.phase3-validation-profile.v6",
+  "version": 6,
+  "claim_level": "provisional_engineering_characterization_only",
+  "prohibited_claims": [
+    "product qualification",
+    "regulatory conformance",
+    "interoperability conformance",
+    "hardware or OTA qualification",
+    "production RF qualification"
+  ],
+  "waveform": {
+    "sample_rate_hz": 500000000.0,
+    "bit_rate_hz": 5000000.0,
+    "samples_per_symbol": 100,
+    "bits_per_pulse": 32,
+    "modulation": "binary rectangular full-response CPSM h=1/2, MSB first, 0=>+1, 1=>-1",
+    "pulse_samples": 3200,
+    "gap_samples": 3300,
+    "period_samples": 6500,
+    "preamble_pulses": 16,
+    "maximum_message_pulses": 256,
+    "active_frequency_indices": [24, 28, 32, 36],
+    "iq_offset_formula": "-236250000 + 7500000 * frequency_index",
+    "rf_role": "metadata_only",
+    "noise_definition": "Pactive is mean wanted power over active wanted samples after timing/TDL/fading and before blockers/hardware/noise; Eb=Es=Pactive/Rb; complex E|n[k]|^2=N0*Fs; sample_SNR=Pactive/E|n[k]|^2; blocker power and AWGN both reference Pactive independently"
+  },
+  "statistics": {
+    "seed_partitions": {
+      "development": [38001, 38002],
+      "validation": [38011, 38012, 38013, 38014, 38015, 38016, 38017, 38018, 38019, 38020, 38021, 38022, 38023, 38024, 38025],
+      "evaluation": [38101, 38102],
+      "gate_extension": [38103, 38104, 38105, 38106, 38107, 38108, 38109, 38110, 38111, 38112, 38113, 38114, 38115, 38116, 38117, 38118, 38119, 38120, 38121, 38122, 38123, 38124, 38125, 38126, 38127, 38128, 38129, 38130, 38131, 38132, 38133, 38134, 38135, 38136, 38137, 38138, 38139, 38140]
+    },
+    "gate_extension_point_ids": ["clean_60db", "ebn0_30db"],
+    "confidence": "two-sided Wilson score, 95 percent",
+    "stopping_rule": "execute two fresh evaluation seeds at every frozen matrix point and 38 additional pre-frozen seeds only at clean_60db and ebn0_30db; 40 independent messages per gated point; apply gates to declared Wilson bounds",
+    "failure_policy": "retain minimized scenario JSON, seed, profile hash, IQ hash, and full receiver provenance outside the source tree; any nonzero receiver status, missing allocation measurement, or provenance mismatch is machine FAIL"
+  },
+  "matrix": [
+    {"id": "clean_60db", "family": "clean", "eb_n0_db": 60.0},
+    {"id": "ebn0_10db", "family": "eb_n0_curve", "eb_n0_db": 10.0},
+    {"id": "ebn0_15db", "family": "eb_n0_curve", "eb_n0_db": 15.0},
+    {"id": "ebn0_20db", "family": "eb_n0_curve", "eb_n0_db": 20.0},
+    {"id": "ebn0_25db", "family": "eb_n0_curve", "eb_n0_db": 25.0},
+    {"id": "ebn0_30db", "family": "eb_n0_curve", "eb_n0_db": 30.0},
+    {"id": "cfo_neg25khz_30db", "family": "cfo", "eb_n0_db": 30.0, "cfo_hz": -25000.0},
+    {"id": "cfo_pos25khz_30db", "family": "cfo", "eb_n0_db": 30.0, "cfo_hz": 25000.0},
+    {"id": "cfo_neg25khz_20db", "family": "cfo", "eb_n0_db": 20.0, "cfo_hz": -25000.0},
+    {"id": "cfo_pos25khz_20db", "family": "cfo", "eb_n0_db": 20.0, "cfo_hz": 25000.0},
+    {"id": "clock_neg50ppm_30db", "family": "sample_clock", "eb_n0_db": 30.0, "sample_clock_offset_ppm": -50.0},
+    {"id": "clock_pos50ppm_30db", "family": "sample_clock", "eb_n0_db": 30.0, "sample_clock_offset_ppm": 50.0},
+    {"id": "clock_neg50ppm_20db", "family": "sample_clock", "eb_n0_db": 20.0, "sample_clock_offset_ppm": -50.0},
+    {"id": "clock_pos50ppm_20db", "family": "sample_clock", "eb_n0_db": 20.0, "sample_clock_offset_ppm": 50.0},
+    {"id": "timing_quarter_sample", "family": "fractional_timing", "eb_n0_db": 30.0, "fractional_delay_samples": 0.25},
+    {"id": "timing_half_sample", "family": "fractional_timing", "eb_n0_db": 30.0, "fractional_delay_samples": 0.5},
+    {"id": "timing_three_quarter_sample", "family": "fractional_timing", "eb_n0_db": 30.0, "fractional_delay_samples": 0.75},
+    {"id": "tdl_40ns", "family": "multipath", "eb_n0_db": 30.0, "taps": [{"delay_samples": 0.0, "power_linear": 0.8}, {"delay_samples": 20.0, "power_linear": 0.2, "phase_rad": 0.7}]},
+    {"id": "tdl_80ns", "family": "multipath", "eb_n0_db": 30.0, "taps": [{"delay_samples": 0.0, "power_linear": 0.7}, {"delay_samples": 40.0, "power_linear": 0.3, "phase_rad": -0.9}]},
+    {"id": "rayleigh_static", "family": "fading", "eb_n0_db": 30.0, "fading": "rayleigh"},
+    {"id": "rician_6db", "family": "fading", "eb_n0_db": 30.0, "fading": "rician", "k_factor_db": 6.0},
+    {"id": "sum_of_sinusoids_rayleigh_1khz", "family": "fading_doppler", "eb_n0_db": 30.0, "fading": "sum_of_sinusoids_rayleigh", "max_doppler_hz": 1000.0},
+    {"id": "doppler_neg1khz", "family": "doppler", "eb_n0_db": 30.0, "doppler_hz": -1000.0},
+    {"id": "doppler_pos1khz", "family": "doppler", "eb_n0_db": 30.0, "doppler_hz": 1000.0},
+    {"id": "doppler_pos5khz", "family": "doppler", "eb_n0_db": 30.0, "doppler_hz": 5000.0},
+    {"id": "adjacent_blocker_20db", "family": "adjacent_blocker", "eb_n0_db": 30.0, "blockers": [{"frequency_hz": -48750000.0, "sir_db": 20.0}]},
+    {"id": "adjacent_blocker_6db", "family": "adjacent_blocker", "eb_n0_db": 30.0, "blockers": [{"frequency_hz": -48750000.0, "sir_db": 6.0}]},
+    {"id": "alternate_blocker_6db", "family": "alternate_blocker", "eb_n0_db": 30.0, "blockers": [{"frequency_hz": -41250000.0, "sir_db": 6.0}]},
+    {"id": "cochannel_tone_6db", "family": "cochannel_tone", "eb_n0_db": 30.0, "blockers": [{"frequency_hz": -56250000.0, "sir_db": 6.0}]},
+    {"id": "cochannel_fhss_sir_neg6_t0", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": -6.0, "relative_timing_samples": 0, "collision": {"relative_start_samples": 0, "relative_power_db": 6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_0_t0", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 0.0, "relative_timing_samples": 0, "collision": {"relative_start_samples": 0, "relative_power_db": 0.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_6_t0", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 6.0, "relative_timing_samples": 0, "collision": {"relative_start_samples": 0, "relative_power_db": -6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_12_t0", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 12.0, "relative_timing_samples": 0, "collision": {"relative_start_samples": 0, "relative_power_db": -12.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_neg6_t6500", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": -6.0, "relative_timing_samples": 6500, "collision": {"relative_start_samples": 6500, "relative_power_db": 6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_0_t6500", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 0.0, "relative_timing_samples": 6500, "collision": {"relative_start_samples": 6500, "relative_power_db": 0.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_6_t6500", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 6.0, "relative_timing_samples": 6500, "collision": {"relative_start_samples": 6500, "relative_power_db": -6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_12_t6500", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 12.0, "relative_timing_samples": 6500, "collision": {"relative_start_samples": 6500, "relative_power_db": -12.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_neg6_t13000", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": -6.0, "relative_timing_samples": 13000, "collision": {"relative_start_samples": 13000, "relative_power_db": 6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_0_t13000", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 0.0, "relative_timing_samples": 13000, "collision": {"relative_start_samples": 13000, "relative_power_db": 0.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_6_t13000", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 6.0, "relative_timing_samples": 13000, "collision": {"relative_start_samples": 13000, "relative_power_db": -6.0, "same_hops": true}},
+    {"id": "cochannel_fhss_sir_12_t13000", "family": "cochannel_fhss_capture", "eb_n0_db": 30.0, "sir_db": 12.0, "relative_timing_samples": 13000, "collision": {"relative_start_samples": 13000, "relative_power_db": -12.0, "same_hops": true}},
+    {"id": "phase_noise_characterization", "family": "phase_noise", "eb_n0_db": 30.0, "phase_noise_step_std_rad": 0.00001},
+    {"id": "hardware_characterization", "family": "hardware", "eb_n0_db": 30.0, "hardware": {"iq_gain_imbalance_db": 1.0, "iq_phase_imbalance_deg": 3.0, "dc_i": 0.01, "dc_q": -0.01, "clip_magnitude": 1.2, "quantization_bits": 12, "agc_transient_samples": 500}}
+  ],
+  "frozen": {
+    "matching_tolerance_samples": 160.0,
+    "frequency_match": "exact frequency_index",
+    "impairment_order": [
+      "fractional_timing_and_sample_clock",
+      "multipath_and_fading",
+      "doppler_cfo_and_phase",
+      "blockers_and_collisions",
+      "iq_imbalance_and_dc",
+      "agc",
+      "awgn",
+      "clipping",
+      "quantization"
+    ],
+    "burst_epoch_range_samples": [20000, 80000],
+    "receiver_executor_timeout_seconds": 120,
+    "receiver_process_timeout_seconds": 150,
+    "matrix_sha256": "c6f346101d7356f9e05215b6caa382a19f6fa465d3a9652d647d1201069141c9",
+    "seed_partitions_sha256": "f6b5828ee152dff350059ae1e5ca6296488526fd330881e197b77c8369495a78",
+    "gates": [
+      {"id": "clean_detection_probability", "point_id": "clean_60db", "metric": "pd", "statistic": "lower_ci95", "comparison": ">=", "limit": 0.95, "units": "lower Wilson 95% bound for matched truth pulses / truth pulses"},
+      {"id": "clean_conditional_bit_error_rate", "point_id": "clean_60db", "metric": "conditional_ber", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.01, "units": "upper Wilson 95% bound for incorrect bits / decoded associated bits; misses excluded"},
+      {"id": "clean_message_error_rate", "point_id": "clean_60db", "metric": "per", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.1, "units": "upper Wilson 95% bound for failed unique (message_id, transmitter_id) messages / transmitted messages"},
+      {"id": "ebn0_30db_detection_probability", "point_id": "ebn0_30db", "metric": "pd", "statistic": "lower_ci95", "comparison": ">=", "limit": 0.90, "units": "lower Wilson 95% bound for matched truth pulses / truth pulses at active-symbol Eb/N0=30 dB (sample SNR=10 dB)"},
+      {"id": "false_alarm_rate_at_clean", "point_id": "clean_60db", "metric": "false_alarms_per_sample", "statistic": "upper_ci95", "comparison": "<=", "limit": 0.000001, "units": "upper Wilson 95% bound for unmatched detections / searched channel sample"}
+    ]
+  },
+  "freeze": {
+    "status": "frozen_before_held_out_evaluation",
+    "sha256": "228edbd85fe480fe14eb67d18f1c2062029eaf9a3394ec23f31275162d2b6f42"
+  },
+  "engineering_rationale": {
+    "clean_per_limit": "A provisional engineering receiver should completely and correctly deliver at least 90 percent of clean messages; therefore PER <= 0.10 replaces the invalidated v3 value 0.50. With 40 independently seeded clean messages, zero errors gives a two-sided Wilson 95 percent upper bound of approximately 0.0876, sufficient to test rather than merely observe this target.",
+    "ebn0_gate": "Eb/N0=30 dB maps exactly to active-sample SNR=10 dB because Fs/Rb=100. This retains the physical noise point used by the invalidated v3 gate while correcting units and calibration.",
+    "allocation": "Actual per-node allocation high-water is reported. No byte threshold is invented; missing channelizer or detector allocation diagnostics is machine FAIL.",
+    "execution_budget": "The 64-channel CPU receiver creates substantial scheduling oversubscription. v5 observed a successful 26.583-second case and sporadic failures at the 30-second executor budget even when validation reproductions completed in 12.55 to 12.90 seconds. v6 freezes a 120-second executor budget and 150-second process guard; elapsed time remains reported and any timeout or noncompletion remains machine FAIL."
+  },
+  "limitations": [
+    "Engineering simulation only; no hardware, conducted, channel-emulator, OTA, regulatory, interoperability, or product qualification.",
+    "Phase noise is a discrete Wiener engineering model, not a measured oscillator mask.",
+    "Static Rayleigh/Rician coefficients and the finite time-varying sum-of-sinusoids option are engineering models, not a claimed deployment profile.",
+    "Hardware-like impairments are synthetic and have no passing product gate.",
+    "The 500 Msps complex input represents configured IQ offsets; RF frequencies are metadata only.",
+    "CFO diagnostics and decoder confidence are characterized but not qualified or probability-calibrated."
+  ]
+}

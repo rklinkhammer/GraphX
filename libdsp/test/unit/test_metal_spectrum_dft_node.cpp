@@ -401,8 +401,11 @@ TEST(MetalSpectrumDftNodeTest, PluginRegistrationExposesMetalSpectrumDftNode256)
 
     auto node = provider->CreateNodeExpected("MetalSpectrumDftNode<256>");
     ASSERT_TRUE(node);
-    auto wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(
-        std::make_shared<graph::NodeFacadeAdapter>(std::move(node).value()));
-    auto concrete = wrapper->GetNode<NodeType>();
-    ASSERT_NE(concrete, nullptr);
+    auto adapter = std::make_shared<graph::NodeFacadeAdapter>(std::move(node).value());
+    auto wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(adapter);
+    ASSERT_NE(wrapper, nullptr);
+    EXPECT_TRUE(wrapper->GetType() == "MetalSpectrumDftNode" ||
+                wrapper->GetType() == "MetalSpectrumDftNode<256>");
+    EXPECT_NE(adapter->GetConfigurablePtr(), nullptr);
+    EXPECT_NE(adapter->GetDiagnosablePtr(), nullptr);
 }

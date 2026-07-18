@@ -7,6 +7,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
+    test_dsp_fhss_iq_generator.cpp
     test_dsp_fhss_dashboard_step1.cpp
     test_dsp_fhss_dashboard_step2_browser.cpp
     test_dsp_fhss_dashboard_step2.cpp
@@ -19,15 +20,21 @@ add_executable(test_dsp_example_unit
 target_compile_definitions(test_dsp_example_unit PRIVATE
     DSP_SPECTRUM_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_spectrum_demo>"
     DSP_FHSS_DEMO_EXECUTABLE_PATH="$<TARGET_FILE:dsp_fhss_demo>"
+    DSP_FHSS_IQ_GENERATOR_EXECUTABLE_PATH="$<TARGET_FILE:dsp_fhss_iq_generator>"
     DSP_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_fft_spectrum_256.json"
     DSP_METAL_SPECTRUM_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/dsp_sine_metal_dft_spectrum_256.json"
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
+    DSP_FHSS_BINARY_RECEIVER_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
+    DSP_FHSS_BINARY_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_binary_iq_500msps.json"
     DSP_FHSS_DEMO_MESSAGE_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/fixtures/fhss_demo_messages.json"
     DSP_FHSS_MESSAGE_TOOL_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/tools/fhss_message_tool.py"
     DSP_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
     DSP_CPU_VS_METAL_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/examples/DSP/tools/dsp_cpu_vs_metal_performance_report.schema.json"
     DSP_PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
     GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+)
+target_include_directories(test_dsp_example_unit PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
 )
 target_link_libraries(test_dsp_example_unit PRIVATE
     GTest::gtest_main
@@ -39,12 +46,39 @@ target_link_libraries(test_dsp_example_unit PRIVATE
 add_dependencies(test_dsp_example_unit
     dsp_spectrum_demo
     dsp_fhss_demo
+    dsp_fhss_iq_generator
+    dsp_fhss_phase2_characterize
 )
 if(TARGET graphx_dynamic_nodes)
     add_dependencies(test_dsp_example_unit graphx_dynamic_nodes)
 endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
+set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
+    FhssDashboardServerContractTest
+    FhssDashboardServerFailureTest
+    FhssDashboardConfigurationConcurrencyTest
+    FhssDashboardConfigurationTest
+    FhssDashboardConfigurationServiceTest
+    FhssDashboardRebuildControlTest
+    FhssDashboardEventReplayTest
+    FhssDashboardVisualizationTest
+    FhssDashboardArtifactExportTest)
+set(DSP_EXAMPLE_DISCOVERY_UNEXPECTED_SUITES
+    DashboardServerStep1Test
+    DashboardServerStep2Test
+    DashboardServerStep3Test
+    DashboardServerStep6Test
+    DashboardServerStep7Test
+    DashboardServerStep8Test)
+add_test(NAME dsp_example_unit_discovery
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:test_dsp_example_unit>
+        -DEXPECTED_SUITES=${DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES}
+        -DUNEXPECTED_SUITES=${DSP_EXAMPLE_DISCOVERY_UNEXPECTED_SUITES}
+        -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
+set_tests_properties(dsp_example_unit_discovery PROPERTIES
+    LABELS "dsp;fhss;dashboard;discovery;ci-safe;host-any")
 
 add_test(
     NAME fhss_fixture_topology_generator
@@ -53,3 +87,61 @@ add_test(
             ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_fixture_topology_generator.py
 )
+
+add_test(
+    NAME fhss_phase2_candidate_characterization_smoke
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/tools/characterize_fhss_phase2.py
+            --characterizer $<TARGET_FILE:dsp_fhss_phase2_characterize>
+            --trials 2
+            --seed-partition evaluation
+)
+set_tests_properties(fhss_phase2_candidate_characterization_smoke PROPERTIES
+    LABELS "dsp;fhss;phase2;characterization;ci-safe;host-any")
+
+add_test(
+    NAME fhss_phase3_independent_analytical
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase3_independent.py
+)
+set_tests_properties(fhss_phase3_independent_analytical PROPERTIES
+    LABELS "dsp;fhss;phase3;independent;ci-safe;host-any"
+    ENVIRONMENT "GRAPHX_FHSS_CANONICAL_GENERATOR=$<TARGET_FILE:dsp_fhss_iq_generator>")
+
+add_test(
+    NAME fhss_phase3_actual_graph_smoke
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/tools/fhss_phase3_independent.py
+            evaluate
+            --profile ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase3_validation_profile_v6.json
+            --receiver $<TARGET_FILE:dsp_fhss_demo>
+            --graph ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json
+            --plugins ${CMAKE_BINARY_DIR}/plugins
+            --partition validation
+            --limit 1
+            --seed-limit 1
+            --smoke
+            --raw ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_raw.json
+            --report ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_report.json
+)
+set_tests_properties(fhss_phase3_actual_graph_smoke PROPERTIES
+    LABELS "dsp;fhss;phase3;actual-graph;ci-safe;host-any"
+    TIMEOUT 90)
+
+add_test(
+    NAME fhss_phase4_recorded_infrastructure
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase4_recorded.py
+)
+set_tests_properties(fhss_phase4_recorded_infrastructure PROPERTIES
+    LABELS "dsp;fhss;phase4;recorded-iq;ci-safe;host-any"
+    TIMEOUT 30)
+
+add_test(
+    NAME fhss_phase5_qualification
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase5_qualification.py
+)
+set_tests_properties(fhss_phase5_qualification PROPERTIES
+    LABELS "dsp;fhss;phase5;qualification;ci-safe;host-any"
+    TIMEOUT 30)

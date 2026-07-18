@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "graphx.fhss.phase4-capture-session.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["session_id", "capture_class", "partition", "independence_unit", "start_time_utc", "end_time_utc", "equipment_reset", "authorization", "capture_ids"],
+  "properties": {
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+    "capture_class": {"enum": ["conducted", "channel_emulator", "ota", "negative_control", "synthetic_dry_run"]},
+    "partition": {"enum": ["development", "validation", "held_out"]},
+    "independence_unit": {"const": "physical_capture_session"},
+    "start_time_utc": {"type": "string"}, "end_time_utc": {"type": "string"},
+    "equipment_reset": {"type": "boolean"}, "authorization": {"type": "object", "additionalProperties": false,
+      "required": ["status", "scope", "artifact_relative_path", "artifact_sha256", "facility_boundary"],
+      "properties": {"status": {"enum": ["approved", "not_applicable", "blocked"]}, "scope": {"type": "string"},
+        "artifact_relative_path": {"type": ["string", "null"]}, "artifact_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "facility_boundary": {"type": "string"}}},
+    "capture_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "notes": {"type": "string"}
+  }
+}

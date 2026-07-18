@@ -1,0 +1,36 @@
+{
+  "schema": "graphx.fhss.phase4-reference-and-method-manifest.v1",
+  "version": 1,
+  "status": "synthetic_only_infrastructure_physical_methods_unavailable_deferred",
+  "normative_repository_inputs": [
+    {"path": "docs/dsp/fhss_architecture.md", "sha256": "b5f2ed69bc7f7d2354a65b1d15c77da33d27b1194d21bfc0314fa1588fea4cda"},
+    {"path": "docs/dsp/fhss_phase3_characterization.md", "sha256": "6733742c018f964fe272a7140819bfd0e8fb5a5d674ba0fd9968698ae9261c40"},
+    {"path": "docs/dsp/fhss_phase3_reference_manifest_v2.json", "sha256": "9d6ac9ab2361879c96b303f0fc8dbb08ba104f2702f86b8cf71411c0f065dbb9"}
+  ],
+  "planned_method_boundaries": {
+    "conducted": "Independent oscillators, shielded/cabled path, calibrated declared reference plane, measured uncertainty, wanted/noise/blocker sweeps, and overload checks.",
+    "channel_emulator": "Independent emulator normalization mapped to sample SNR, Es/N0, Eb/N0, SIR, tap power/delay, and Doppler before paired analysis.",
+    "ota": "Only explicitly authorized facilities/scenarios; record geometry, antenna configuration, motion, environment, firmware, calibration, and authorization boundary.",
+    "partitioning": "Independent physical capture session; adjacent slices from one recording cannot cross partitions.",
+    "statistics": "Session-clustered confidence intervals; zero observed events receive bounds rather than zero-risk claims."
+  },
+  "equipment_inventory": [],
+  "calibration_records": [],
+  "rf_authorizations": [],
+  "external_dataset_locations": [],
+  "scope": {
+    "phase4_test_data": "synthetic_dry_run_only",
+    "hardware_in_loop": "unavailable_deferred",
+    "conducted": "unavailable_deferred",
+    "channel_emulator": "unavailable_deferred",
+    "ota": "unavailable_deferred",
+    "physical_capture_counts": 0,
+    "hardware_paired_points": 0
+  },
+  "prohibited_inferences": [
+    "Commanded generator level is not measured receiver-input power without a calibrated chain and uncertainty.",
+    "Synthetic IQ is not recorded-IQ or HIL evidence.",
+    "Infrastructure readiness is not validation success.",
+    "No regulatory, certification, interoperability, product, or production-RF claim is supported."
+  ]
+}

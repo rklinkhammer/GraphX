@@ -847,6 +847,44 @@ std::vector<PortMetadataC> NodeFacadeAdapter::GetOutputPortMetadata() const {
     return result;
 }
 
+std::vector<ConfigFieldMetadataC> NodeFacadeAdapter::GetConfigFieldMetadata() const {
+    LOG4CXX_TRACE(logger_, "NodeFacadeAdapter::GetConfigFieldMetadata()");
+
+    std::vector<ConfigFieldMetadataC> result;
+
+    if (!facade_ || !facade_->GetConfigFieldMetadata || !handle_) {
+        LOG4CXX_TRACE(logger_, "GetConfigFieldMetadata not implemented in facade");
+        return result;
+    }
+
+    size_t count = 0;
+    ConfigFieldMetadataC* metadata = facade_->GetConfigFieldMetadata(handle_, &count);
+
+    if (!metadata || count == 0) {
+        if (metadata && facade_->FreeConfigFieldMetadata) {
+            facade_->FreeConfigFieldMetadata(metadata);
+        }
+        return result;
+    }
+
+    try {
+        result.reserve(count);
+        for (size_t i = 0; i < count; ++i) {
+            result.push_back(metadata[i]);
+        }
+        LOG4CXX_TRACE(logger_, "Retrieved " << count << " config field metadata entries");
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Exception while copying config field metadata: " << e.what());
+        result.clear();
+    }
+
+    if (facade_->FreeConfigFieldMetadata) {
+        facade_->FreeConfigFieldMetadata(metadata);
+    }
+
+    return result;
+}
+
 std::expected<RuntimePortHandle, RuntimePortLookupError>
 NodeFacadeAdapter::GetInputPortHandle(std::string_view name_or_id, std::size_t node_index) const {
     return LookupPortHandle(
@@ -973,6 +1011,7 @@ INodeFacade::NodeMetadata NodeFacadeAdapter::GetMetadata() const {
 NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
     std::vector<PortMetadata> input_ports;
     std::vector<PortMetadata> output_ports;
+    std::vector<ConfigFieldMetadata> config_fields;
 
     const auto input_metadata = GetInputPortMetadata();
     input_ports.reserve(input_metadata.size());
@@ -986,10 +1025,16 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
         output_ports.push_back(ToPortMetadata(output_port));
     }
 
+    const auto config_metadata = GetConfigFieldMetadata();
+    config_fields.reserve(config_metadata.size());
+    for (const auto& config_field : config_metadata) {
+        config_fields.push_back(ToConfigFieldMetadata(config_field));
+    }
+
     const INodeDescriptorProvider& descriptor_provider = metadata_service_->DescriptorProvider();
 
     auto* parameterized = static_cast<IParameterized*>(GetParameterizedPtr().get());
-    return descriptor_provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
+    auto descriptor = descriptor_provider.BuildRuntimeDescriptor(RuntimeNodeDescriptorRequest{
         .seed = NodeDescriptorSeed{
             .name = GetName(),
             .type = GetType(),
@@ -1001,6 +1046,12 @@ NodeDescriptor NodeFacadeAdapter::GetDescriptor() const {
         .input_ports = std::move(input_ports),
         .output_ports = std::move(output_ports),
     });
+
+    if (descriptor.config_fields.empty() && !config_fields.empty()) {
+        descriptor.config_fields = std::move(config_fields);
+    }
+
+    return descriptor;
 }
 
 /**

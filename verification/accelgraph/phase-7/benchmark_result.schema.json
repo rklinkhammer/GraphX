@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AccelGraph Phase 7 Spectrum Benchmark Report",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase",
+    "generated_at_utc",
+    "host",
+    "results"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string",
+      "const": "7"
+    },
+    "generated_at_utc": {
+      "type": "string"
+    },
+    "host": {
+      "type": "object",
+      "required": ["hostname", "operating_system", "architecture"],
+      "properties": {
+        "hostname": {"type": "string"},
+        "operating_system": {"type": "string"},
+        "architecture": {"type": "string"}
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "graph_configuration_name",
+          "backend",
+          "execution_mode",
+          "host_class",
+          "packet_size",
+          "frame_count",
+          "warmup_frame_count",
+          "correctness_parity_status",
+          "measurement_origin",
+          "outcome_classification"
+        ],
+        "properties": {
+          "graph_configuration_name": {"type": "string"},
+          "backend": {"type": "string"},
+          "execution_mode": {"type": "string"},
+          "host_class": {"type": "string"},
+          "packet_size": {"type": "integer"},
+          "frame_count": {"type": "integer"},
+          "warmup_frame_count": {"type": "integer"},
+          "total_elapsed_time_ms": {"type": ["number", "null"]},
+          "steady_state_elapsed_time_ms": {"type": ["number", "null"]},
+          "frames_per_second": {"type": ["number", "null"]},
+          "samples_per_second": {"type": ["number", "null"]},
+          "latency_ms": {"type": ["number", "null"]},
+          "cold_frame_ms": {"type": ["number", "null"]},
+          "warm_frame_ms": {"type": ["number", "null"]},
+          "transfer_inclusive_gpu_time_ms": {"type": ["number", "null"]},
+          "compute_only_gpu_time_ms": {"type": ["number", "null"]},
+          "allocation_count": {"type": ["integer", "null"]},
+          "allocation_bytes": {"type": ["integer", "null"]},
+          "graph_overhead_ms": {"type": ["number", "null"]},
+          "cpu_gpu_speed_ratio": {"type": ["number", "null"]},
+          "legacy_reference_baseline_ms": {"type": ["number", "null"]},
+          "correctness_family": {"type": "string"},
+          "correctness_parity_status": {"type": "string"},
+          "selected_backend": {"type": ["string", "null"]},
+          "used_fallback": {"type": ["boolean", "null"]},
+          "fallback_diagnostic": {"type": ["string", "null"]},
+          "measurement_origin": {
+            "type": "object",
+            "required": ["measured_locally", "imported"],
+            "properties": {
+              "measured_locally": {"type": "boolean"},
+              "imported": {"type": "boolean"},
+              "source_artifact": {"type": ["string", "null"]},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "outcome_classification": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

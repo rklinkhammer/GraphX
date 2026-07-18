@@ -1,0 +1,37 @@
+{
+  "active_frequency_indices": [24, 28, 32, 36],
+  "iq_center_frequency_hz": 1240000000.0,
+  "iq_offsets": [
+    {"index": 24, "iq_offset_frequency_hz": -56250000.0},
+    {"index": 28, "iq_offset_frequency_hz": -26250000.0},
+    {"index": 32, "iq_offset_frequency_hz": 3750000.0},
+    {"index": 36, "iq_offset_frequency_hz": 33750000.0}
+  ],
+  "messages": [{
+    "message_id": 1,
+    "transmit_start_sample": 0,
+    "pulses": [
+      {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+      {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+      {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+      {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+      {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+      {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+      {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+      {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+      {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+      {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+      {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+      {"frequency_index": 36, "value": 1650614882, "role": "preamble"},
+      {"frequency_index": 24, "value": 2863311530, "role": "preamble"},
+      {"frequency_index": 28, "value": 2004318071, "role": "preamble"},
+      {"frequency_index": 32, "value": 303174162, "role": "preamble"},
+      {"frequency_index": 36, "value": 1650614882, "role": "preamble"}
+    ]
+  }],
+  "idle_duration_samples": 0,
+  "allow_overlap": false,
+  "enable_noise": false,
+  "enable_doppler": false,
+  "enable_multipath": false
+}

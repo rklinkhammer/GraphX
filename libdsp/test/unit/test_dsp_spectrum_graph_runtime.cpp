@@ -69,8 +69,9 @@ nlohmann::json LoadJson(const std::filesystem::path& path) {
     return json;
 }
 
-std::shared_ptr<dsp::SpectrumSinkNode<float, kFftSize>> ResolveSpectrumSink(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
+std::shared_ptr<graph::NodeFacadeAdapter> ResolveAdapterByTypeToken(
+    const std::shared_ptr<graph::GraphManager>& graph_manager,
+    const std::string& type_token) {
     if (!graph_manager) {
         return nullptr;
     }
@@ -81,30 +82,10 @@ std::shared_ptr<dsp::SpectrumSinkNode<float, kFftSize>> ResolveSpectrumSink(
             continue;
         }
 
-        auto sink = wrapper->GetNode<dsp::SpectrumSinkNode<float, kFftSize>>();
-        if (sink) {
-            return sink;
-        }
-    }
-
-    return nullptr;
-}
-
-std::shared_ptr<dsp::CpuSpectrumDftNode<float, kFftSize>> ResolveCpuSpectrum(
-    const std::shared_ptr<graph::GraphManager>& graph_manager) {
-    if (!graph_manager) {
-        return nullptr;
-    }
-
-    for (const auto& node : graph_manager->GetNodes()) {
-        auto wrapper = std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
-        if (!wrapper) {
-            continue;
-        }
-
-        auto spectrum = wrapper->GetNode<dsp::CpuSpectrumDftNode<float, kFftSize>>();
-        if (spectrum) {
-            return spectrum;
+        const auto runtime_type = wrapper->GetType();
+        if (runtime_type == type_token ||
+            (runtime_type.rfind(type_token + "<", 0) == 0)) {
+            return wrapper->GetAdapter();
         }
     }
 
@@ -172,24 +153,19 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     ASSERT_TRUE(run_result.success) << run_result.message << " " << run_result.error_details;
     ASSERT_TRUE(executor->IsCompletionSignaled());
 
-    auto sink = ResolveSpectrumSink(graph_manager);
-    auto spectrum = ResolveCpuSpectrum(graph_manager);
-    ASSERT_NE(sink, nullptr);
-    ASSERT_NE(spectrum, nullptr);
-    EXPECT_GE(sink->GetFrameCount(), 1u);
+    auto sink_adapter = ResolveAdapterByTypeToken(graph_manager, "SpectrumSinkNode");
+    auto spectrum_adapter = ResolveAdapterByTypeToken(graph_manager, "CpuSpectrumDftNode");
+    ASSERT_NE(sink_adapter, nullptr);
+    ASSERT_NE(spectrum_adapter, nullptr);
 
-    const auto latest = sink->GetLatestSpectrum();
-    ASSERT_TRUE(latest.has_value());
-    ASSERT_TRUE(latest->IsValid());
+    auto* sink_diag_iface =
+        static_cast<graph::IDiagnosable*>(sink_adapter->GetDiagnosablePtr().get());
+    auto* spectrum_diag_iface =
+        static_cast<graph::IDiagnosable*>(spectrum_adapter->GetDiagnosablePtr().get());
+    ASSERT_NE(sink_diag_iface, nullptr);
+    ASSERT_NE(spectrum_diag_iface, nullptr);
 
-    // SineSignalNode uses sin(theta) + j*cos(theta), so the configured negative
-    // complex frequency produces a positive 1 kHz peak in FFTManager's positive bins.
-    EXPECT_NEAR(latest->peak_frequency_hz, kExpectedToneHz, kBinWidthHz);
-    EXPECT_GT(latest->peak_magnitude, 0.0f);
-    EXPECT_DOUBLE_EQ(latest->sample_rate_hz, kSampleRateHz);
-    EXPECT_EQ(latest->magnitudes.size(), kFftSize / 2);
-
-    const auto spectrum_diag = spectrum->GetDiagnostics().Raw();
+    const auto spectrum_diag = spectrum_diag_iface->GetDiagnostics().Raw();
     EXPECT_EQ(spectrum_diag.at("schema").get<std::string>(),
               "graphx.dsp.cpu_spectrum_dft.diagnostics.v1");
     EXPECT_TRUE(spectrum_diag.contains("accumulation_count"));
@@ -200,8 +176,9 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     EXPECT_TRUE(spectrum_diag.contains("packets_processed"));
     EXPECT_GE(spectrum_diag.at("ffts_computed").get<std::uint64_t>(), 1u);
     EXPECT_GE(spectrum_diag.at("packets_processed").get<std::uint64_t>(), 1u);
+    EXPECT_DOUBLE_EQ(spectrum_diag.at("sample_rate_hz").get<double>(), kSampleRateHz);
 
-    const auto sink_diag = sink->GetDiagnostics().Raw();
+    const auto sink_diag = sink_diag_iface->GetDiagnostics().Raw();
     EXPECT_EQ(sink_diag.at("schema").get<std::string>(),
               "graphx.dsp.spectrum_sink.diagnostics.v1");
     EXPECT_TRUE(sink_diag.contains("frame_count"));
@@ -212,4 +189,9 @@ TEST(DspSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndDetectsSineP
     EXPECT_TRUE(sink_diag.contains("sample_rate_hz"));
     EXPECT_TRUE(sink_diag.at("completion_signaled").get<bool>());
     EXPECT_GE(sink_diag.at("frame_count").get<std::size_t>(), 1u);
+    // SineSignalNode uses sin(theta) + j*cos(theta), so the configured negative
+    // complex frequency produces a positive 1 kHz peak in FFTManager's positive bins.
+    EXPECT_NEAR(sink_diag.at("latest_peak_frequency_hz").get<double>(), kExpectedToneHz, kBinWidthHz);
+    EXPECT_GT(sink_diag.at("latest_peak_magnitude").get<double>(), 0.0);
+    EXPECT_DOUBLE_EQ(sink_diag.at("sample_rate_hz").get<double>(), kSampleRateHz);
 }

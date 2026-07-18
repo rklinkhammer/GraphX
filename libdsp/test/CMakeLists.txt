@@ -48,10 +48,16 @@ endif()
 
 add_test(NAME libdsp_unit COMMAND test_libdsp_unit)
 set_tests_properties(libdsp_unit PROPERTIES LABELS "dsp;fhss;unit;ci-safe;host-any")
+set(LIBDSP_DISCOVERY_EXPECTED_SUITES
+    FHSSGraphXExecutorTest
+    FHSSGraphXNodeTest
+    FHSSPacketContractTest
+    DspGpuSpectrumGraphRuntimeTest
+    DspGpuSpectrumParityTest)
 add_test(NAME libdsp_unit_discovery
     COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:test_libdsp_unit>
-        -DEXPECTED_SUITE=FHSSGraphXExecutorTest
+        -DEXPECTED_SUITES=${LIBDSP_DISCOVERY_EXPECTED_SUITES}
         -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake)
 set_tests_properties(libdsp_unit_discovery PROPERTIES
     LABELS "dsp;fhss;unit;ownership;discovery;ci-safe;host-any")

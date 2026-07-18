@@ -1,0 +1,11 @@
+{
+  "links": [
+    {"claim_id":"CLAIM-SOFTWARE-READY","evidence_ids":["EV-ARCH","EV-P4-TOOL","EV-P5-TESTS"],"limitation_ids":["LIM-EXECUTOR-JOIN","LIM-NO-PHYSICAL"],"requirement_id":"REQ-P5-INTEGRITY","test_ids":["P5.HashMismatchFails","P5.PathEscapeFails"]},
+    {"claim_id":"CLAIM-SOFTWARE-READY","evidence_ids":["EV-ARCH","EV-P5-TESTS"],"limitation_ids":[],"requirement_id":"REQ-P5-TRACE","test_ids":["P5.DanglingReferenceFails","P5.DuplicateIdFails"]},
+    {"claim_id":"CLAIM-SYNTHETIC-CHARACTERIZED","evidence_ids":["EV-P3-V5-RAW","EV-P3-V5-REPORT","EV-P3-V6-RAW","EV-P3-V6-REPORT","EV-P3-V7-RAW","EV-P3-V7-REPORT","EV-P3-V7-FREEZE"],"limitation_ids":["LIM-PARTIAL-HOP","LIM-EXECUTOR-JOIN"],"requirement_id":"REQ-P5-SYNTHETIC","test_ids":["P5.HistoricalBindings","fhss_phase3_report_verify"]},
+    {"claim_id":"CLAIM-SOFTWARE-READY","evidence_ids":["EV-P4-TOOL","EV-P4-READINESS"],"limitation_ids":["LIM-NO-PHYSICAL"],"requirement_id":"REQ-P5-NO-PROMOTION","test_ids":["P5.SyntheticPromotionFails"]},
+    {"claim_id":"CLAIM-RECORDED-HIL","evidence_ids":["EV-P4-PROFILE","EV-P4-READINESS","EV-P4-CORRELATION"],"limitation_ids":["LIM-NO-PHYSICAL"],"requirement_id":"REQ-P5-NO-PROMOTION","test_ids":["P5.SyntheticPromotionFails","P5.PhysicalCountsMustBeZero"]},
+    {"claim_id":"CLAIM-PRODUCTION-RF","evidence_ids":["EV-P4-READINESS","EV-P4-CORRELATION"],"limitation_ids":["LIM-NO-PHYSICAL"],"requirement_id":"REQ-P5-RF-BLOCK","test_ids":["P5.ProductionPromotionFails","P5.AmbiguousPassAbsent"]}
+  ],
+  "schema": "graphx.fhss.phase5-traceability.v1"
+}

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -16,12 +17,18 @@
 #endif
 
 #ifndef DSP_FHSS_CHANNELIZED_CONFIG_PATH
-#define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                           \
+#define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                       \
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 #endif
 
+#ifndef DSP_FHSS_BINARY_RECEIVER_CONFIG_PATH
+#define DSP_FHSS_BINARY_RECEIVER_CONFIG_PATH                                   \
+  "libdsp/config/fhss_phase2_binary_iq_receiver.json"
+#endif
+
 #ifndef DSP_FHSS_DEMO_MESSAGE_PATH
-#define DSP_FHSS_DEMO_MESSAGE_PATH "examples/DSP/fixtures/fhss_demo_messages.json"
+#define DSP_FHSS_DEMO_MESSAGE_PATH                                             \
+  "examples/DSP/fixtures/fhss_demo_messages.json"
 #endif
 
 #ifndef DSP_FHSS_MESSAGE_TOOL_PATH
@@ -182,16 +189,14 @@ TEST(DspFhssDevelopmentEnvironmentTest,
       " --message-json " +
       ShellQuote(std::filesystem::path(DSP_FHSS_DEMO_MESSAGE_PATH)) +
       " --channel-iq-dir " + ShellQuote(capture_dir) +
-      " --channel-iq-indices 24 --summary-json " +
-      ShellQuote(summary_path) + " --executor-timeout-s 12 2>&1";
+      " --channel-iq-indices 24 --summary-json " + ShellQuote(summary_path) +
+      " --executor-timeout-s 12 2>&1";
 
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;
 
-  const auto data_path =
-      capture_dir / "channel_24_frequency_24.sigmf-data";
-  const auto metadata_path =
-      capture_dir / "channel_24_frequency_24.sigmf-meta";
+  const auto data_path = capture_dir / "channel_24_frequency_24.sigmf-data";
+  const auto metadata_path = capture_dir / "channel_24_frequency_24.sigmf-meta";
   ASSERT_TRUE(std::filesystem::exists(data_path)) << result.output;
   ASSERT_TRUE(std::filesystem::exists(metadata_path)) << result.output;
   EXPECT_GT(std::filesystem::file_size(data_path), 0u);
@@ -199,19 +204,15 @@ TEST(DspFhssDevelopmentEnvironmentTest,
   const auto metadata = LoadJson(metadata_path);
   EXPECT_EQ(metadata.at("global").at("core:datatype").get<std::string>(),
             "cf32_le");
-  EXPECT_DOUBLE_EQ(
-      metadata.at("global").at("core:sample_rate").get<double>(),
-      500'000'000.0);
+  EXPECT_DOUBLE_EQ(metadata.at("global").at("core:sample_rate").get<double>(),
+                   500'000'000.0);
   EXPECT_EQ(
       metadata.at("global").at("graphx:frequency_index").get<std::uint32_t>(),
       24u);
 
   const auto summary = LoadJson(summary_path);
   EXPECT_TRUE(summary.at("channel_iq_capture").at("enabled").get<bool>());
-  EXPECT_EQ(summary.at("channel_iq_capture")
-                .at("metadata_files")
-                .size(),
-            1u);
+  EXPECT_EQ(summary.at("channel_iq_capture").at("metadata_files").size(), 1u);
 }
 
 TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
@@ -247,6 +248,53 @@ TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
   EXPECT_TRUE(summary.at("fhss_diagnostics").at("preamble_lock").get<bool>());
 }
 
+TEST(DspFhssDemoExecutableTest,
+     BinaryReceiverCompletesWithEmptyDiagnosticsForNoDetectionCapture) {
+  const std::filesystem::path executable{DSP_FHSS_DEMO_EXECUTABLE_PATH};
+  const auto output_dir =
+      TempOutputDir("graphx_dsp_fhss_no_detection_completion_test");
+  const auto iq_path = output_dir / "no_detection.cf32";
+  const auto config_path = output_dir / "receiver.json";
+  const auto summary_path = output_dir / "summary.json";
+
+  constexpr std::size_t kComplexSamples = 20'000;
+  const std::vector<float> zero_iq(kComplexSamples * 2u, 0.0F);
+  {
+    std::ofstream output(iq_path, std::ios::binary);
+    ASSERT_TRUE(output.good());
+    output.write(reinterpret_cast<const char *>(zero_iq.data()),
+                 static_cast<std::streamsize>(zero_iq.size() * sizeof(float)));
+    ASSERT_TRUE(output.good());
+  }
+
+  auto config =
+      LoadJson(std::filesystem::path(DSP_FHSS_BINARY_RECEIVER_CONFIG_PATH));
+  config.at("nodes").at(0).at("node_config")["file_path"] = iq_path.string();
+  {
+    std::ofstream output(config_path);
+    ASSERT_TRUE(output.good());
+    output << config.dump(2) << '\n';
+  }
+
+  const std::string command =
+      ShellQuote(executable) + " --graph-config " + ShellQuote(config_path) +
+      " --plugin-dir " +
+      ShellQuote(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY)) +
+      " --summary-json " + ShellQuote(summary_path) +
+      " --executor-timeout-s 8 2>&1";
+  const auto result = RunCommand(command);
+  EXPECT_EQ(result.exit_code, 0) << result.output;
+  ASSERT_TRUE(std::filesystem::exists(summary_path)) << result.output;
+
+  const auto summary = LoadJson(summary_path);
+  EXPECT_TRUE(summary.at("execution_result").at("success").get<bool>());
+  EXPECT_TRUE(summary.at("completion_signaled").get<bool>());
+  EXPECT_EQ(summary.at("fhss_diagnostics").at("pulse_count").get<std::size_t>(),
+            0u);
+  EXPECT_FALSE(summary.at("fhss_diagnostics").at("preamble_lock").get<bool>());
+  EXPECT_TRUE(summary.at("fhss_diagnostics").at("decoded_pulses").empty());
+}
+
 TEST(DspFhssDemoExecutableTest, AcceptsExternalMessageJsonForInvestigation) {
   const std::filesystem::path executable{DSP_FHSS_DEMO_EXECUTABLE_PATH};
   const auto output_dir = TempOutputDir("graphx_dsp_fhss_demo_message_test");
@@ -277,8 +325,14 @@ TEST(DspFhssDemoExecutableTest, AcceptsExternalMessageJsonForInvestigation) {
   EXPECT_EQ(diagnostics.at("truth_mismatch_count").get<std::size_t>(), 0u);
   ASSERT_TRUE(diagnostics.at("decoded_pulses").is_array());
   ASSERT_GE(diagnostics.at("decoded_pulses").size(), 20u);
-  EXPECT_EQ(diagnostics.at("decoded_pulses").at(16).at("decoded_value").get<std::uint32_t>(),
+  EXPECT_EQ(diagnostics.at("decoded_pulses")
+                .at(16)
+                .at("decoded_value")
+                .get<std::uint32_t>(),
             3735928559u);
-  EXPECT_EQ(diagnostics.at("decoded_pulses").at(17).at("decoded_value").get<std::uint32_t>(),
+  EXPECT_EQ(diagnostics.at("decoded_pulses")
+                .at(17)
+                .at("decoded_value")
+                .get<std::uint32_t>(),
             3405691582u);
 }

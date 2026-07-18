@@ -108,7 +108,7 @@ HttpResponse HttpRequest(std::uint16_t port,
   return parsed;
 }
 
-class DashboardServerStep8Test : public ::testing::Test {
+class FhssDashboardArtifactExportTest : public ::testing::Test {
 protected:
   void SetUp() override {
     const auto timestamp =
@@ -172,7 +172,7 @@ protected:
   std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
 };
 
-TEST_F(DashboardServerStep8Test, DecoderDiagnosticsAreDeterministicAndNoRawIqInJson) {
+TEST_F(FhssDashboardArtifactExportTest, DecoderDiagnosticsAreDeterministicAndNoRawIqInJson) {
   const auto viz = VisualizationRequest(
       "?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=64&refresh_ms=250&selected_channel=7");
 
@@ -204,7 +204,7 @@ TEST_F(DashboardServerStep8Test, DecoderDiagnosticsAreDeterministicAndNoRawIqInJ
             std::string::npos);
 }
 
-TEST_F(DashboardServerStep8Test, ArtifactBundleExportHonorsContainmentAndSigmfOptIn) {
+TEST_F(FhssDashboardArtifactExportTest, ArtifactBundleExportHonorsContainmentAndSigmfOptIn) {
   const auto output_path = artifact_root_ / "bundle" / "dashboard_bundle.json";
   int status_code = 0;
   const auto result = PostJson(
@@ -228,7 +228,7 @@ TEST_F(DashboardServerStep8Test, ArtifactBundleExportHonorsContainmentAndSigmfOp
   EXPECT_FALSE(bundle_json.at("sigmf_capture").at("contains_raw_iq").get<bool>());
 }
 
-TEST_F(DashboardServerStep8Test, ArtifactBundleRejectsPathContainmentViolation) {
+TEST_F(FhssDashboardArtifactExportTest, ArtifactBundleRejectsPathContainmentViolation) {
   const auto outside_root = std::filesystem::temp_directory_path() /
                             "graphx_step8_forbidden" / "bundle.json";
   int status_code = 0;
@@ -242,7 +242,7 @@ TEST_F(DashboardServerStep8Test, ArtifactBundleRejectsPathContainmentViolation) 
   EXPECT_EQ(result.at("code").get<std::string>(), "artifact_path_not_allowed");
 }
 
-TEST_F(DashboardServerStep8Test, FailureInjectionReportsArtifactWriteFailure) {
+TEST_F(FhssDashboardArtifactExportTest, FailureInjectionReportsArtifactWriteFailure) {
   const auto output_path = artifact_root_ / "bundle" / "fail_bundle.json";
   int status_code = 0;
   const auto result = PostJson(

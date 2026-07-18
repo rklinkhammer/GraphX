@@ -1,0 +1,1786 @@
+{
+  "acceptance": {
+    "awgn_10db_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "awgn_10db_detection_probability",
+        "limit": 0.9,
+        "metric": "pd",
+        "point_id": "awgn_10db",
+        "units": "matched truth pulses / truth pulses"
+      },
+      "gate_statistic_value": 1.0,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_bit_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_bit_error_rate",
+        "limit": 0.01,
+        "metric": "ber",
+        "point_id": "clean_30db",
+        "units": "incorrect bits / transmitted bits"
+      },
+      "gate_statistic_value": 0.0,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "clean_detection_probability",
+        "limit": 0.95,
+        "metric": "pd",
+        "point_id": "clean_30db",
+        "units": "matched truth pulses / truth pulses"
+      },
+      "gate_statistic_value": 1.0,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_message_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_message_error_rate",
+        "limit": 0.5,
+        "metric": "per",
+        "point_id": "clean_30db",
+        "units": "failed messages / transmitted messages"
+      },
+      "gate_statistic_value": 0.0,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "false_alarm_rate_at_clean": {
+      "expected": {
+        "comparison": "<=",
+        "id": "false_alarm_rate_at_clean",
+        "limit": 1e-06,
+        "metric": "false_alarms_per_sample",
+        "point_id": "clean_30db",
+        "units": "unmatched detections / searched channel sample"
+      },
+      "gate_statistic_value": 0.0,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    }
+  },
+  "claim_level": "provisional_engineering_characterization_only",
+  "frozen_sha256": "619a2daaf667653fb4c5b8c03200a95fb90da9550d60cfda9bb08dc700f6cffa",
+  "independent_tool_sha256": "9ae6a481f452688d10c95f5c8acd4af18f54e5f98f12113e78a7d1f6b23e5403",
+  "limitations": [
+    "Engineering simulation only; no hardware, conducted, channel-emulator, or OTA evidence.",
+    "Phase noise is a discrete Wiener engineering model, not a measured oscillator mask.",
+    "Rayleigh/Rician fading is constant per bounded capture; time-varying Doppler is separately modeled as phase rotation.",
+    "Hardware-like models are characterized but have no passing product gate.",
+    "The 500 Msps complex input represents configured IQ offsets; RF frequencies are metadata only."
+  ],
+  "matrix_complete": true,
+  "overall_pass": true,
+  "partition": "evaluation",
+  "profile_sha256": "9dddc1ae3693f6e79f2b43011d7c5613744598930620553ee49a75f5f1ec4dc7",
+  "rows": [
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453480.46076009155,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763710765422593,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023628923457740703,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clean_30db",
+      "runtime_seconds": 15.45792541699484,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453691.24265097384,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764017317350984,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023598268264901637,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "awgn_20db",
+      "runtime_seconds": 8.749718165985541,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 454326.7310223182,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9762689037872602,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023731096212739868,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "awgn_10db",
+      "runtime_seconds": 8.749391125020338,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 4.85071250072666,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 454760.6975548223,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9766348646658205,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023365135334179533,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "awgn_5db",
+      "runtime_seconds": 8.77860645801411,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 6.183469424008423,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453753.02759109467,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9768873299286843,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023112670071315646,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "cfo_neg25khz",
+      "runtime_seconds": 8.782610624999506,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 1.7149858514250884,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 452866.8917107177,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763320543230268,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023667945676973126,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "cfo_pos25khz",
+      "runtime_seconds": 8.758260666014394,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 1.7149858514250884,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453764.51017146563,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.976623594994659,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023376405005341033,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "cfo_neg25khz_10db",
+      "runtime_seconds": 8.747739916987484,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 5.423261445466404,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 452621.1286031071,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764842863562971,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023515713643702817,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "cfo_pos25khz_10db",
+      "runtime_seconds": 8.737630000017816,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 4.85071250072666,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 454427.0396304146,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9756775038671738,
+      "false_alarm_ci95": [
+        0.0,
+        2.4810947896455055e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.024322496132826183,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm",
+      "runtime_seconds": 8.74107429102878,
+      "searched_samples": 1548288,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 452654.5837790734,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9750563708018422,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.024943629198157846,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm",
+      "runtime_seconds": 8.740582665981492,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 9.54863710632231,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 454785.30004398566,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9760723622453623,
+      "false_alarm_ci95": [
+        0.0,
+        2.4810947896455055e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023927637754637656,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm_10db",
+      "runtime_seconds": 8.745337333006319,
+      "searched_samples": 1548288,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 451852.2842284169,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9753694412348156,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02463055876518436,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm_10db",
+      "runtime_seconds": 8.742956749978475,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 9.54863710632231,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453447.89905431285,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9760647330491653,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023935266950834713,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_quarter_sample",
+      "runtime_seconds": 8.736916250025388,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 4.102097741686921,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453656.69696174364,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9754082430654293,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.024591756934570684,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_half_sample",
+      "runtime_seconds": 8.730205833009677,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 7.109438630936962,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453698.8387824703,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9749728876944748,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.025027112305525283,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_three_quarter_sample",
+      "runtime_seconds": 8.73344250000082,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 8.25,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 406863.8843558325,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9783891889492811,
+      "false_alarm_ci95": [
+        0.0,
+        2.48047959286015e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02161081105071893,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "tdl_40ns",
+      "runtime_seconds": 8.74989808301325,
+      "searched_samples": 1548672,
+      "timing_rmse_samples": 9.85184366143778,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 502755.9015629581,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9802718283577565,
+      "false_alarm_ci95": [
+        0.0,
+        2.4800696311311857e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.019728171642243497,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "tdl_80ns",
+      "runtime_seconds": 8.734985958988545,
+      "searched_samples": 1548928,
+      "timing_rmse_samples": 17.904977947322852,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453722.09450425045,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763990731756483,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023600926824351692,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rayleigh",
+      "runtime_seconds": 8.739172000001417,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453729.443693991,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764025103010583,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023597489698941737,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rician_6db",
+      "runtime_seconds": 8.746238166000694,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453309.9568666247,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763241782397941,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02367582176020591,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "jakes_rayleigh_1khz",
+      "runtime_seconds": 8.740456792002078,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 2.42535625036333,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453460.60214360413,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764398203888655,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02356017961113452,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_neg1khz",
+      "runtime_seconds": 8.746750916994642,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453817.79111498164,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763733258733561,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02362667412664384,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos1khz",
+      "runtime_seconds": 8.741537875001086,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453506.04105211486,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9763248279928797,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023675172007120354,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos5khz",
+      "runtime_seconds": 8.743106165988138,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453692.9033935679,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764026551779798,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023597344822020302,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_20db",
+      "runtime_seconds": 8.741451374953613,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453726.6041254019,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764125838935205,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023587416106479558,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_6db",
+      "runtime_seconds": 8.728036999993492,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453725.99413567485,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764090559023402,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.023590944097659817,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "alternate_blocker_6db",
+      "runtime_seconds": 8.738701750000473,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.2647058823529412,
+      "ber_ci95": [
+        0.23935202440528525,
+        0.29171542511892057
+      ],
+      "bit_errors": 288,
+      "bits": 1088,
+      "cfo_rmse_hz": 528906.1038120801,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.7117027369069366,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 25,
+      "mean_matched_confidence": 0.023591380740122268,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.7352941176470589,
+      "pd_ci95": [
+        0.5688285871705534,
+        0.8539880932278825
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cochannel_blocker_6db",
+      "runtime_seconds": 8.737547957978677,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.2647058823529412,
+      "wer_ci95": [
+        0.14601190677211745,
+        0.43117141282944665
+      ],
+      "word_errors": 9,
+      "words": 34
+    },
+    {
+      "ber": 0.6617647058823529,
+      "ber_ci95": [
+        0.6416167804115459,
+        0.6813424867183066
+      ],
+      "bit_errors": 1440,
+      "bits": 2176,
+      "cfo_rmse_hz": 433285.84859496314,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 23,
+      "collision_truth_events": 68,
+      "confidence_calibration_absolute_error": 0.3145965158125901,
+      "false_alarm_ci95": [
+        0.0,
+        2.464590873848863e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "28->28": 4,
+        "32->32": 7,
+        "36->36": 5
+      },
+      "matched_events": 23,
+      "mean_matched_confidence": 0.02363877830505693,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.3382352941176471,
+      "pd_ci95": [
+        0.23714253215255424,
+        0.45662760613335107
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "fhss_collision_equal_800",
+      "runtime_seconds": 8.726997875026427,
+      "searched_samples": 1558656,
+      "timing_rmse_samples": 2.0851441405707476,
+      "trials": 2,
+      "truth_events": 68,
+      "wer": 0.6617647058823529,
+      "wer_ci95": [
+        0.543372393866649,
+        0.7628574678474458
+      ],
+      "word_errors": 45,
+      "words": 68
+    },
+    {
+      "ber": 0.7527573529411765,
+      "ber_ci95": [
+        0.7341961844759848,
+        0.77042767041441
+      ],
+      "bit_errors": 1638,
+      "bits": 2176,
+      "cfo_rmse_hz": 248882.7174063161,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "confidence_calibration_absolute_error": 0.4847890777554543,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.015210922244545651,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "fhss_collision_strong_same_hop",
+      "runtime_seconds": 8.748971458000597,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 15.434872662825796,
+      "trials": 2,
+      "truth_events": 68,
+      "wer": 1.0,
+      "wer_ci95": [
+        0.9465286634799296,
+        1.0
+      ],
+      "word_errors": 68,
+      "words": 68
+    },
+    {
+      "ber": 0.6617647058823529,
+      "ber_ci95": [
+        0.6416167804115459,
+        0.6813424867183066
+      ],
+      "bit_errors": 1440,
+      "bits": 2176,
+      "cfo_rmse_hz": 434298.09984096535,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 23,
+      "collision_truth_events": 68,
+      "confidence_calibration_absolute_error": 0.31459086520984475,
+      "false_alarm_ci95": [
+        1.1251515003976427e-07,
+        3.6107683039648723e-06
+      ],
+      "false_alarms_per_sample": 6.373908786815697e-07,
+      "false_detections": 1,
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "28->28": 4,
+        "32->32": 7,
+        "36->36": 5
+      },
+      "matched_events": 23,
+      "mean_matched_confidence": 0.02364442890780232,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.3382352941176471,
+      "pd_ci95": [
+        0.23714253215255424,
+        0.45662760613335107
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "fhss_collision_weak_late",
+      "runtime_seconds": 8.756643208005698,
+      "searched_samples": 1568896,
+      "timing_rmse_samples": 2.0851441405707476,
+      "trials": 2,
+      "truth_events": 68,
+      "wer": 0.6617647058823529,
+      "wer_ci95": [
+        0.543372393866649,
+        0.7628574678474458
+      ],
+      "word_errors": 45,
+      "words": 68
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453692.24691845337,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.976401304755451,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02359869524454903,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "phase_noise_characterization",
+      "runtime_seconds": 8.748283167020418,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 0.0,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    },
+    {
+      "ber": 0.0,
+      "ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "bit_errors": 0,
+      "bits": 1088,
+      "cfo_rmse_hz": 453706.03158823075,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "confidence_calibration_absolute_error": 0.9764092313634514,
+      "false_alarm_ci95": [
+        0.0,
+        2.4808896901469254e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "frequency_index_confusion": {
+        "24->24": 9,
+        "28->28": 9,
+        "32->32": 8,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02359076863654859,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "hardware_characterization",
+      "runtime_seconds": 8.749934874998871,
+      "searched_samples": 1548416,
+      "timing_rmse_samples": 2.42535625036333,
+      "trials": 2,
+      "truth_events": 34,
+      "wer": 0.0,
+      "wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "word_errors": 0,
+      "words": 34
+    }
+  ],
+  "schema": "graphx.fhss.phase3-report.v1"
+}

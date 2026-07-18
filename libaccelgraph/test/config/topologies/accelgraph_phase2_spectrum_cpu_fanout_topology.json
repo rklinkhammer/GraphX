@@ -1,0 +1,62 @@
+{
+  "name": "AccelGraphPhase2SpectrumCpuFanoutTopology",
+  "description": "Synthetic CPU spectrum fan-out topology for Phase 2 graph-flow validation.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "source",
+      "type": "SineWaveSourceNode",
+      "name": "source",
+      "node_config": {
+        "sample_count": 256,
+        "sample_rate_hz": 48000.0,
+        "tone_frequency_hz": 1500.0,
+        "amplitude": 1.0,
+        "phase_radians": 0.0,
+        "packet_number": 7
+      }
+    },
+    {
+      "id": "analysis",
+      "type": "SpectrumAnalysisNode",
+      "name": "analysis",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict"
+      }
+    },
+    {
+      "id": "sink_a",
+      "type": "SpectrumSinkNode",
+      "name": "sink_a",
+      "node_config": {}
+    },
+    {
+      "id": "sink_b",
+      "type": "SpectrumSinkNode",
+      "name": "sink_b",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "analysis",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "analysis",
+      "source_port": 0,
+      "target_node_id": "sink_a",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "analysis",
+      "source_port": 0,
+      "target_node_id": "sink_b",
+      "target_port": 0
+    }
+  ]
+}

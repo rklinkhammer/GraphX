@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
+#include "dsp/fhss/FHSSAcquisitionPulseDetectorNode.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
+#include "dsp/fhss/FHSSProductionCandidateChannelizerNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/NodeFacadeAdapterWrapper.hpp"
 
@@ -14,6 +16,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -21,9 +24,8 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <optional>
-#include <csignal>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -37,7 +39,7 @@
 #endif
 
 #ifndef DSP_FHSS_CHANNELIZED_CONFIG_PATH
-#define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                             \
+#define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                       \
   "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 #endif
 
@@ -68,8 +70,8 @@ std::uint64_t ParseUint64Option(const std::string &name, const char *raw) {
   try {
     return std::stoull(raw);
   } catch (const std::exception &ex) {
-    throw std::invalid_argument(name + " requires a non-negative integer: " +
-                                ex.what());
+    throw std::invalid_argument(
+        name + " requires a non-negative integer: " + ex.what());
   }
 }
 
@@ -81,8 +83,8 @@ int ParsePositiveIntOption(const std::string &name, const char *raw) {
     }
     return value;
   } catch (const std::exception &ex) {
-    throw std::invalid_argument(name + " requires a positive integer: " +
-                                ex.what());
+    throw std::invalid_argument(name +
+                                " requires a positive integer: " + ex.what());
   }
 }
 
@@ -94,15 +96,17 @@ std::uint16_t ParsePortOption(const std::string &name, const char *raw) {
     }
     return static_cast<std::uint16_t>(value);
   } catch (const std::exception &ex) {
-    throw std::invalid_argument(name + " requires a TCP port in [0,65535]: " +
-                                ex.what());
+    throw std::invalid_argument(
+        name + " requires a TCP port in [0,65535]: " + ex.what());
   }
 }
 
 void PrintUsage() {
   std::cout
-      << "Usage: graphx-dsp-fhss-demo [--graph-config path] [--message-json path]\n"
-         "                             [--plugin-dir path] [--summary-json path]\n"
+      << "Usage: graphx-dsp-fhss-demo [--graph-config path] [--message-json "
+         "path]\n"
+         "                             [--plugin-dir path] [--summary-json "
+         "path]\n"
          "                             [--effective-config-json path]\n"
          "                             [--channel-iq-dir path]\n"
          "                             [--channel-iq-indices active|all|csv]\n"
@@ -111,11 +115,15 @@ void PrintUsage() {
          "                             [--dashboard --dashboard-port n]\n"
          "                             [--dashboard-assets path]\n"
          "                             [--dashboard-no-run]\n\n"
-         "Message JSON may be either a full FHSS source node_config object or an\n"
-         "object with a node_config field. It must include messages[]. The demo\n"
-         "patches source/decoder graph node configs and then runs the real GraphX\n"
+         "Message JSON may be either a full FHSS source node_config object or "
+         "an\n"
+         "object with a node_config field. It must include messages[]. The "
+         "demo\n"
+         "patches source/decoder graph node configs and then runs the real "
+         "GraphX\n"
          "FHSS graph through GraphExecutorBuilder. Channel IQ capture writes\n"
-         "SigMF cf32_le data and metadata at the FHSSFixtureFrequencyChannelizerNode output.\n"
+         "SigMF cf32_le data and metadata at the "
+         "FHSSFixtureFrequencyChannelizerNode output.\n"
          "Dashboard mode serves static assets and read-only Step-1 APIs.\n";
 }
 
@@ -217,9 +225,9 @@ void WriteJson(const std::filesystem::path &path, const nlohmann::json &json) {
 }
 
 nlohmann::json SourceConfigFromMessageJson(const nlohmann::json &message_json) {
-  const auto &raw =
-      message_json.contains("node_config") ? message_json.at("node_config")
-                                           : message_json;
+  const auto &raw = message_json.contains("node_config")
+                        ? message_json.at("node_config")
+                        : message_json;
   static const std::set<std::string> allowed_keys{
       "active_frequency_indices",
       "iq_center_frequency_hz",
@@ -233,6 +241,7 @@ nlohmann::json SourceConfigFromMessageJson(const nlohmann::json &message_json) {
       "enable_doppler",
       "enable_multipath",
       "allow_overlap",
+      "realistic",
   };
 
   nlohmann::json filtered = nlohmann::json::object();
@@ -247,7 +256,8 @@ nlohmann::json SourceConfigFromMessageJson(const nlohmann::json &message_json) {
 nlohmann::json DerivePreamblePulses(const nlohmann::json &source_config) {
   const auto &messages = source_config.at("messages");
   if (!messages.is_array() || messages.empty()) {
-    throw std::invalid_argument("message JSON must include at least one message");
+    throw std::invalid_argument(
+        "message JSON must include at least one message");
   }
   const auto &pulses = messages.at(0).at("pulses");
   if (!pulses.is_array() || pulses.size() < 16u) {
@@ -364,8 +374,8 @@ void PatchChannelIqCapture(nlohmann::json &graph_config,
   if (source_it == graph_config.at("nodes").end()) {
     throw std::invalid_argument("FHSS graph has no synthetic IQ source");
   }
-  const auto indices = ParseChannelIqIndices(
-      options.channel_iq_indices, source_it->at("node_config"));
+  const auto indices = ParseChannelIqIndices(options.channel_iq_indices,
+                                             source_it->at("node_config"));
 
   bool patched = false;
   for (auto &node : graph_config.at("nodes")) {
@@ -380,7 +390,8 @@ void PatchChannelIqCapture(nlohmann::json &graph_config,
     patched = true;
   }
   if (!patched) {
-    throw std::invalid_argument("FHSS graph has no FHSSFixtureFrequencyChannelizerNode");
+    throw std::invalid_argument(
+        "FHSS graph has no FHSSFixtureFrequencyChannelizerNode");
   }
 }
 
@@ -435,8 +446,9 @@ nlohmann::json GraphMetricsJson(const graph::GraphMetrics &metrics) {
       {"peak_active_threads", metrics.peak_active_threads.load()}};
 }
 
-nlohmann::json FindDiagnosticsForNodeType(const nlohmann::json &diagnostics_snapshot,
-                                         const std::string &node_type) {
+nlohmann::json
+FindDiagnosticsForNodeType(const nlohmann::json &diagnostics_snapshot,
+                           const std::string &node_type) {
   const auto nodes_it = diagnostics_snapshot.find("nodes");
   if (nodes_it == diagnostics_snapshot.end() || !nodes_it->is_array()) {
     return nlohmann::json::object();
@@ -451,7 +463,43 @@ nlohmann::json FindDiagnosticsForNodeType(const nlohmann::json &diagnostics_snap
   return nlohmann::json::object();
 }
 
-std::size_t TruthMismatchCountFromDiagnostics(const nlohmann::json &diagnostics) {
+nlohmann::json CollectPluginNodeDiagnostics(
+    const std::shared_ptr<graph::GraphManager> &manager) {
+  nlohmann::json nodes = nlohmann::json::array();
+  if (!manager) {
+    return nlohmann::json{{"nodes", std::move(nodes)}};
+  }
+  for (const auto &node : manager->GetNodes()) {
+    auto wrapper =
+        std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
+    if (!wrapper) {
+      continue;
+    }
+    if (auto channelizer =
+            wrapper->GetNode<
+                dsp::fhss::FHSSProductionCandidateChannelizerNode>()) {
+      nodes.push_back({{"name", wrapper->GetName()},
+                       {"diagnostics", channelizer->GetDiagnostics().Raw()}});
+      continue;
+    }
+    if (auto detector =
+            wrapper->GetNode<dsp::fhss::FHSSAcquisitionPulseDetectorNode>()) {
+      nodes.push_back({{"name", wrapper->GetName()},
+                       {"diagnostics", detector->GetDiagnostics().Raw()}});
+      continue;
+    }
+    auto diagnosable = wrapper->TryGetInterface<graph::IDiagnosable>();
+    if (!diagnosable) {
+      continue;
+    }
+    nodes.push_back({{"name", wrapper->GetName()},
+                     {"diagnostics", diagnosable->GetDiagnostics().Raw()}});
+  }
+  return nlohmann::json{{"nodes", std::move(nodes)}};
+}
+
+std::size_t
+TruthMismatchCountFromDiagnostics(const nlohmann::json &diagnostics) {
   if (diagnostics.contains("truth_mismatch_count")) {
     return diagnostics.at("truth_mismatch_count").get<std::size_t>();
   }
@@ -475,7 +523,8 @@ nlohmann::json NormalizeFhssDiagnostics(nlohmann::json diagnostics) {
   if (!diagnostics.is_object()) {
     return nlohmann::json{{"truth_mismatch_count", 0u}};
   }
-  diagnostics["truth_mismatch_count"] = TruthMismatchCountFromDiagnostics(diagnostics);
+  diagnostics["truth_mismatch_count"] =
+      TruthMismatchCountFromDiagnostics(diagnostics);
   return diagnostics;
 }
 
@@ -499,13 +548,16 @@ nlohmann::json BuildSummary(const CliOptions &options,
       {"fhss_graph_role", effective_config.value("fhss_graph_role", "")},
       {"completion_signaled", result.success},
       {"execution_result", ExecutionResultJson(result)},
-      {"graph", {{"node_count", manager.GetNodes().size()},
-                 {"edge_count", manager.GetEdges().size()}}},
-      {"graph_metrics", metrics_snapshot.value("graph", GraphMetricsJson(manager.GetMetrics()))},
+      {"graph",
+       {{"node_count", manager.GetNodes().size()},
+        {"edge_count", manager.GetEdges().size()}}},
+      {"graph_metrics",
+       metrics_snapshot.value("graph", GraphMetricsJson(manager.GetMetrics()))},
       {"topology_activity",
        {{"nodes", metrics_snapshot.value("nodes", nlohmann::json::array())},
         {"edges", metrics_snapshot.value("edges", nlohmann::json::array())}}},
-      {"diagnostics_snapshot", diagnostics_snapshot.value("nodes", nlohmann::json::array())},
+      {"diagnostics_snapshot",
+       diagnostics_snapshot.value("nodes", nlohmann::json::array())},
       {"fhss_diagnostics", normalized_diagnostics}};
   if (!options.channel_iq_directory.empty()) {
     std::vector<std::string> artifact_paths;
@@ -539,12 +591,12 @@ void PrintPulseTable(const nlohmann::json &diagnostics, std::size_t limit) {
     const auto &pulse = pulses.at(i);
     std::cout << "  [" << i << "] start="
               << pulse.at("global_start_sample").get<std::uint64_t>()
-              << " freq_index=" << pulse.at("frequency_index").get<std::uint32_t>()
-              << " value=0x" << std::hex << std::setw(8) << std::setfill('0')
+              << " freq_index="
+              << pulse.at("frequency_index").get<std::uint32_t>() << " value=0x"
+              << std::hex << std::setw(8) << std::setfill('0')
               << pulse.at("decoded_value").get<std::uint32_t>() << std::dec
               << std::setfill(' ')
-              << " confidence=" << pulse.at("confidence").get<double>()
-              << '\n';
+              << " confidence=" << pulse.at("confidence").get<double>() << '\n';
   }
 }
 
@@ -553,16 +605,16 @@ void PrintConsoleSummary(const nlohmann::json &summary) {
   const auto &diagnostics = summary.at("fhss_diagnostics");
   const auto &metrics = summary.at("graph_metrics");
   std::cout << "GraphX DSP FHSS demo runtime\n";
-  std::cout << "Graph role: " << summary.at("fhss_graph_role").get<std::string>()
-            << '\n';
+  std::cout << "Graph role: "
+            << summary.at("fhss_graph_role").get<std::string>() << '\n';
   std::cout << "Canonical FHSS graph: "
             << (summary.at("canonical_fhss_graph").get<bool>() ? "true"
                                                                : "false")
             << '\n';
   std::cout << "Execution success: "
             << (result.at("success").get<bool>() ? "true" : "false") << '\n';
-  std::cout << "Elapsed (ms): " << result.at("elapsed_time_ms").get<std::uint64_t>()
-            << '\n';
+  std::cout << "Elapsed (ms): "
+            << result.at("elapsed_time_ms").get<std::uint64_t>() << '\n';
   std::cout << "Nodes/edges: "
             << summary.at("graph").at("node_count").get<std::size_t>() << '/'
             << summary.at("graph").at("edge_count").get<std::size_t>() << '\n';
@@ -618,9 +670,8 @@ int RunDashboardNoRunMode(const CliOptions &options,
   auto execution = std::make_shared<RuntimeExecutionState>();
 
   const auto start_runtime = [runtime_session, snapshot_collector, execution,
-                              options,
-                              effective_config_path]()
-                                 -> graph::dashboard::GraphRuntimeSession::CommandResult {
+                              options, effective_config_path]()
+      -> graph::dashboard::GraphRuntimeSession::CommandResult {
     std::thread stale_worker;
     {
       std::lock_guard<std::mutex> lock(execution->mutex);
@@ -698,8 +749,9 @@ int RunDashboardNoRunMode(const CliOptions &options,
         }
 
         runtime_session->SetLifecycleState(
-            result.success ? graph::dashboard::GraphRuntimeSession::State::completed
-                           : graph::dashboard::GraphRuntimeSession::State::failed);
+            result.success
+                ? graph::dashboard::GraphRuntimeSession::State::completed
+                : graph::dashboard::GraphRuntimeSession::State::failed);
 
         std::lock_guard<std::mutex> lock(execution->mutex);
         if (execution->executor == executor_to_run) {
@@ -714,8 +766,9 @@ int RunDashboardNoRunMode(const CliOptions &options,
             .message = "runtime start accepted"};
   };
 
-  const auto stop_runtime = [runtime_session, execution]()
-                                -> graph::dashboard::GraphRuntimeSession::CommandResult {
+  const auto stop_runtime =
+      [runtime_session,
+       execution]() -> graph::dashboard::GraphRuntimeSession::CommandResult {
     std::shared_ptr<graph::GraphExecutor> executor;
     bool worker_running = false;
     {
@@ -731,7 +784,8 @@ int RunDashboardNoRunMode(const CliOptions &options,
     }
 
     (void)executor->Stop();
-    runtime_session->SetLifecycleState(graph::dashboard::GraphRuntimeSession::State::stopped);
+    runtime_session->SetLifecycleState(
+        graph::dashboard::GraphRuntimeSession::State::stopped);
     return {.status_code = 202,
             .code = "stop_accepted",
             .message = "runtime stop accepted"};
@@ -745,9 +799,11 @@ int RunDashboardNoRunMode(const CliOptions &options,
       configuration_service, server_options.artifact_root);
 
   graph::dashboard::EmbeddedDashboardServer server(
-      server_options, configuration_service, runtime_session, snapshot_collector);
+      server_options, configuration_service, runtime_session,
+      snapshot_collector);
   if (!server.Start()) {
-    throw std::runtime_error("failed to start dashboard: " + server.LastError());
+    throw std::runtime_error("failed to start dashboard: " +
+                             server.LastError());
   }
 
   std::cout << "Dashboard URL: http://127.0.0.1:" << server.BoundPort() << "\n";
@@ -799,7 +855,8 @@ int main(int argc, char **argv) {
 
     if (options.dashboard || options.dashboard_no_run) {
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
-      return RunDashboardNoRunMode(options, graph_config, effective_config_path);
+      return RunDashboardNoRunMode(options, graph_config,
+                                   effective_config_path);
 #else
       throw std::runtime_error(
           "dashboard support is not built. Reconfigure with "
@@ -841,21 +898,24 @@ int main(int argc, char **argv) {
     snapshot_collector->BindRuntimeSession(runtime_session);
 
     const auto metrics_snapshot = snapshot_collector->GetMetricsSnapshot();
-    const auto diagnostics_snapshot = snapshot_collector->GetDiagnosticsSnapshot();
+    auto diagnostics_snapshot = snapshot_collector->GetDiagnosticsSnapshot();
+    if (!diagnostics_snapshot.contains("nodes") ||
+        diagnostics_snapshot.at("nodes").empty()) {
+      diagnostics_snapshot = CollectPluginNodeDiagnostics(manager);
+    }
     auto diagnostics =
         FindDiagnosticsForNodeType(diagnostics_snapshot, "FHSSMessageSinkNode");
     if (diagnostics.empty()) {
       diagnostics = sink->GetDiagnostics().Raw();
     }
-  #else
+#else
     const auto metrics_snapshot =
-      nlohmann::json{{"graph", GraphMetricsJson(manager->GetMetrics())},
-               {"nodes", nlohmann::json::array()},
-               {"edges", nlohmann::json::array()}};
-    const auto diagnostics_snapshot =
-      nlohmann::json{{"nodes", nlohmann::json::array()}};
+        nlohmann::json{{"graph", GraphMetricsJson(manager->GetMetrics())},
+                       {"nodes", nlohmann::json::array()},
+                       {"edges", nlohmann::json::array()}};
+    const auto diagnostics_snapshot = CollectPluginNodeDiagnostics(manager);
     const auto diagnostics = sink->GetDiagnostics().Raw();
-  #endif
+#endif
 
     auto summary = BuildSummary(options, effective_config_path, graph_config,
                                 result, *manager, metrics_snapshot,

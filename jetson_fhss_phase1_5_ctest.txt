@@ -1,0 +1,17 @@
+Test project /home/rklinkhammer/workspace/GraphX/build-jetson-cuda
+    Start 4: libaccelgraph_smoke
+1/2 Test #4: libaccelgraph_smoke ..............   Passed  643.11 sec
+    Start 5: libaccelgraph_smoke_discovery
+2/2 Test #5: libaccelgraph_smoke_discovery ....   Passed    0.07 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Label Time Summary:
+accelgraph    = 643.18 sec*proc (2 tests)
+discovery     =   0.07 sec*proc (1 test)
+host-any      = 643.18 sec*proc (2 tests)
+ownership     =   0.07 sec*proc (1 test)
+smoke         = 643.18 sec*proc (2 tests)
+unit          = 643.18 sec*proc (2 tests)
+
+Total Test time (real) = 643.19 sec

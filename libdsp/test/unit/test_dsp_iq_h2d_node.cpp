@@ -317,8 +317,11 @@ TEST(DspIqH2DNodeTest, PluginRegistrationExposesDspIqH2DNode256) {
 
     auto node = provider->CreateNodeExpected("DspIqH2DNode<256>");
     ASSERT_TRUE(node);
-    auto wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(
-        std::make_shared<graph::NodeFacadeAdapter>(std::move(node).value()));
-    auto concrete = wrapper->GetNode<NodeType>();
-    ASSERT_NE(concrete, nullptr);
+    auto adapter = std::make_shared<graph::NodeFacadeAdapter>(std::move(node).value());
+    auto wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(adapter);
+    ASSERT_NE(wrapper, nullptr);
+    EXPECT_TRUE(wrapper->GetType() == "DspIqH2DNode" ||
+                wrapper->GetType() == "DspIqH2DNode<256>");
+    EXPECT_NE(adapter->GetConfigurablePtr(), nullptr);
+    EXPECT_NE(adapter->GetDiagnosablePtr(), nullptr);
 }

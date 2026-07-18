@@ -61,7 +61,7 @@ void ExpectPhaseNotGreaterThanTotal(const graph::ExecutionResult& result) {
 
 }  // namespace
 
-TEST(GraphExecutorExecuteTimingTest, ExecuteReturnsTotalAndLifecyclePhaseTimings) {
+TEST(GraphExecutorTimingContractTest, ExecuteReturnsTotalAndLifecyclePhaseTimings) {
     ASSERT_TRUE(std::filesystem::exists(DspSpectrumConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(PluginDirectory()));
 
@@ -77,7 +77,7 @@ TEST(GraphExecutorExecuteTimingTest, ExecuteReturnsTotalAndLifecyclePhaseTimings
     ExpectPhaseNotGreaterThanTotal(result);
 }
 
-TEST(GraphExecutorExecuteTimingTest, StandaloneLifecycleResultsRemainStandalone) {
+TEST(GraphExecutorTimingContractTest, StandaloneLifecycleResultsRemainStandalone) {
     auto executor = BuildManualLifecycleExecutor();
     ASSERT_NE(executor, nullptr);
 
@@ -111,7 +111,7 @@ TEST(GraphExecutorExecuteTimingTest, StandaloneLifecycleResultsRemainStandalone)
     EXPECT_EQ(join_result.join_elapsed_time_ms, 0u);
 }
 
-TEST(GraphExecutorExecuteTimingTest, ExecuteTimingBaselineFieldsRemainDeterministic) {
+TEST(GraphExecutorTimingContractTest, ExecuteTimingBaselineFieldsRemainDeterministic) {
     ASSERT_TRUE(std::filesystem::exists(DspSpectrumConfigPath()));
     ASSERT_TRUE(std::filesystem::exists(PluginDirectory()));
 

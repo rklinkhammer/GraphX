@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"field_failure_count":{"const":0},"records":{"items":{"$ref":"fhss_phase5_minimized_failure_schema_v1.json"},"maxItems":0,"type":"array"},"schema":{"const":"graphx.fhss.phase5-minimized-failure-registry.v1"}},"required":["schema","field_failure_count","records"],"type":"object"}

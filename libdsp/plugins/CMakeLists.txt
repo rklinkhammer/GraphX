@@ -99,6 +99,13 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
+    TARGET_NAME fhss_binary_iq_file_source_node
+    SOURCE_FILE fhss_binary_iq_file_source_node_plugin.cpp
+    DESCRIPTION "FHSS binary IQ file source GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
     TARGET_NAME fhss_downconverter_node
     SOURCE_FILE fhss_downconverter_node_plugin.cpp
     DESCRIPTION "FHSS downconverter GraphX node"
@@ -113,9 +120,23 @@ add_graphx_plugin(
 )
 
 add_graphx_plugin(
+    TARGET_NAME fhss_production_candidate_channelizer_node
+    SOURCE_FILE fhss_production_candidate_channelizer_node_plugin.cpp
+    DESCRIPTION "FHSS deterministic CPU FIR production-candidate channelizer"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
     TARGET_NAME per_channel_pulse_detector_node
     SOURCE_FILE per_channel_pulse_detector_node_plugin.cpp
     DESCRIPTION "FHSS per-channel pulse detector GraphX node"
+    DEPENDENCIES dsp
+)
+
+add_graphx_plugin(
+    TARGET_NAME fhss_acquisition_pulse_detector_node
+    SOURCE_FILE fhss_acquisition_pulse_detector_node_plugin.cpp
+    DESCRIPTION "FHSS bounded-capture evidence-driven acquisition detector"
     DEPENDENCIES dsp
 )
 

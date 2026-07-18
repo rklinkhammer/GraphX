@@ -28,6 +28,52 @@
 
 namespace dsp::fhss {
 
+// Phase 2 filtered channel evidence may be decimated. Restore the canonical
+// 100-sample/symbol evidence grid by complex phase/amplitude interpolation;
+// decimation 1 is returned unchanged.
+[[nodiscard]] inline std::vector<std::complex<double>>
+FHSSExpandDecimatedCpsmEvidence(
+    const std::vector<std::complex<double>> &samples,
+    std::uint32_t decimation_factor) {
+  if (decimation_factor == 0u) {
+    return {};
+  }
+  if (decimation_factor == 1u) {
+    return samples;
+  }
+  if (samples.empty() ||
+      decimation_factor > FHSSProtocolConstants::kSamplesPerSymbol ||
+      FHSSProtocolConstants::kSamplesPerSymbol % decimation_factor != 0u ||
+      samples.size() >
+          std::numeric_limits<std::size_t>::max() / decimation_factor) {
+    return {};
+  }
+  std::vector<std::complex<double>> expanded;
+  expanded.reserve(samples.size() * decimation_factor);
+  double previous_delta = 0.0;
+  for (std::size_t index = 0; index < samples.size(); ++index) {
+    const auto current = samples[index];
+    const double current_amplitude = std::abs(current);
+    double phase_delta = previous_delta;
+    double next_amplitude = current_amplitude;
+    if (index + 1u < samples.size()) {
+      phase_delta = std::arg(samples[index + 1u] * std::conj(current));
+      next_amplitude = std::abs(samples[index + 1u]);
+      previous_delta = phase_delta;
+    }
+    const double current_phase = std::arg(current);
+    for (std::uint32_t sub = 0; sub < decimation_factor; ++sub) {
+      const double fraction =
+          static_cast<double>(sub) / static_cast<double>(decimation_factor);
+      const double amplitude =
+          current_amplitude + fraction * (next_amplitude - current_amplitude);
+      expanded.push_back(
+          std::polar(amplitude, current_phase + fraction * phase_delta));
+    }
+  }
+  return expanded;
+}
+
 struct CPSMDecoderConfig {
   FHSSTimingConfig timing{};
   double modulation_index = 0.5;
@@ -87,14 +133,14 @@ BuildCPSMTrellisTransitions() {
   std::array<CPSMTrellisTransition, 8> transitions{};
   std::size_t out = 0;
   for (std::uint32_t state = 0; state < 4u; ++state) {
-    transitions[out++] = CPSMTrellisTransition{
-        .from_state = state,
-        .to_state = CPSMTransitionState(state, 1.0),
-        .symbol = 1.0};
-    transitions[out++] = CPSMTrellisTransition{
-        .from_state = state,
-        .to_state = CPSMTransitionState(state, -1.0),
-        .symbol = -1.0};
+    transitions[out++] =
+        CPSMTrellisTransition{.from_state = state,
+                              .to_state = CPSMTransitionState(state, 1.0),
+                              .symbol = 1.0};
+    transitions[out++] =
+        CPSMTrellisTransition{.from_state = state,
+                              .to_state = CPSMTransitionState(state, -1.0),
+                              .symbol = -1.0};
   }
   return transitions;
 }
@@ -104,8 +150,8 @@ BuildCPSMTrellisTransitions() {
                                          std::uint32_t sample_in_symbol,
                                          std::uint32_t samples_per_symbol,
                                          double h = 0.5) {
-  const double q = RectangularFullResponsePhasePulse(sample_in_symbol,
-                                                    samples_per_symbol);
+  const double q =
+      RectangularFullResponsePhasePulse(sample_in_symbol, samples_per_symbol);
   return CPSMStatePhaseRad(phase_state) +
          2.0 * std::numbers::pi * h * symbol * q;
 }
@@ -122,15 +168,15 @@ CPSMPredictedSample(std::uint32_t phase_state, double symbol,
 [[nodiscard]] inline FHSSVoidResult
 ValidateCPSMDecoderConfig(const CPSMDecoderConfig &config) {
   if (!NearlyEqual(config.modulation_index, 0.5)) {
-    return std::unexpected(MakeError(
-        FHSSValidationCode::InvalidTiming,
-        "FHSS PR5 CPSM fixture requires modulation index h = 1/2"));
+    return std::unexpected(
+        MakeError(FHSSValidationCode::InvalidTiming,
+                  "FHSS PR5 CPSM fixture requires modulation index h = 1/2"));
   }
   if (config.symbol_count == 0 ||
       config.symbol_count > FHSSProtocolConstants::kBitsPerPulse) {
-    return std::unexpected(MakeError(
-        FHSSValidationCode::InvalidTiming,
-        "FHSS PR5 one-pulse decoder supports 1..32 CPSM symbols"));
+    return std::unexpected(
+        MakeError(FHSSValidationCode::InvalidTiming,
+                  "FHSS PR5 one-pulse decoder supports 1..32 CPSM symbols"));
   }
   if (config.initial_phase_state >= CPSMPhaseStateCount() ||
       config.expected_terminal_phase_state >= CPSMPhaseStateCount()) {
@@ -164,14 +210,40 @@ ValidateCPSMEvidence(const std::vector<std::complex<double>> &samples,
 
 class CPSMBranchMetricKernel {
 public:
-  [[nodiscard]] static CPSMBranchMetric ScoreBranch(
-      const std::vector<std::complex<double>> &samples,
-      std::uint32_t symbol_index, std::uint32_t from_state, double symbol,
-      const CPSMDecoderConfig &config = {}) {
+  [[nodiscard]] static CPSMBranchMetric
+  ScoreBranch(const std::vector<std::complex<double>> &samples,
+              std::uint32_t symbol_index, std::uint32_t from_state,
+              double symbol, const CPSMDecoderConfig &config = {}) {
     const auto timing = DeriveTimingModel(config.timing).value();
     const std::size_t start =
         static_cast<std::size_t>(symbol_index) * timing.samples_per_symbol;
 
+    // A single constant carrier phase is a nuisance parameter shared by the
+    // complete pulse, not an independent phase for every symbol.  Normalize
+    // every observation by one pulse-global reference and every hypothesis by
+    // the configured initial trellis phase.  Constant carrier phase cancels,
+    // while the accumulated CPSM phase state and symbol-boundary continuity
+    // remain in the metric.  A per-symbol anchor would incorrectly erase the
+    // trellis state and admit discontinuous phase resets at every boundary.
+    std::size_t anchor = 0u;
+    while (anchor < samples.size() &&
+           std::abs(samples[anchor]) <=
+               std::numeric_limits<double>::epsilon()) {
+      ++anchor;
+    }
+    if (anchor >= timing.samples_per_symbol || anchor >= samples.size()) {
+      return CPSMBranchMetric{.symbol_index = symbol_index,
+                              .from_state = from_state,
+                              .to_state =
+                                  CPSMTransitionState(from_state, symbol),
+                              .symbol = symbol,
+                              .correlation = -1.0,
+                              .cost = 2.0};
+    }
+    const auto observed_reference = samples[anchor] / std::abs(samples[anchor]);
+    const auto predicted_reference = CPSMPredictedSample(
+        config.initial_phase_state, symbol, static_cast<std::uint32_t>(anchor),
+        timing.samples_per_symbol, config.modulation_index);
     double correlation_sum = 0.0;
     double usable_samples = 0.0;
     for (std::uint32_t i = 0; i < timing.samples_per_symbol; ++i) {
@@ -180,24 +252,24 @@ public:
       if (magnitude <= std::numeric_limits<double>::epsilon()) {
         continue;
       }
-      const auto observed_unit = sample / magnitude;
-      const auto predicted = CPSMPredictedSample(
-          from_state, symbol, i, timing.samples_per_symbol,
-          config.modulation_index);
-      correlation_sum += (observed_unit * std::conj(predicted)).real();
+      const auto observed_relative =
+          sample / magnitude * std::conj(observed_reference);
+      const auto predicted_relative =
+          CPSMPredictedSample(from_state, symbol, i, timing.samples_per_symbol,
+                              config.modulation_index) *
+          std::conj(predicted_reference);
+      correlation_sum +=
+          (observed_relative * std::conj(predicted_relative)).real();
       usable_samples += 1.0;
     }
-
     const double correlation =
         usable_samples == 0.0 ? -1.0 : correlation_sum / usable_samples;
-    const double cost = 1.0 - std::clamp(correlation, -1.0, 1.0);
-    return CPSMBranchMetric{
-        .symbol_index = symbol_index,
-        .from_state = from_state,
-        .to_state = CPSMTransitionState(from_state, symbol),
-        .symbol = symbol,
-        .correlation = correlation,
-        .cost = cost};
+    return CPSMBranchMetric{.symbol_index = symbol_index,
+                            .from_state = from_state,
+                            .to_state = CPSMTransitionState(from_state, symbol),
+                            .symbol = symbol,
+                            .correlation = correlation,
+                            .cost = 1.0 - std::clamp(correlation, -1.0, 1.0)};
   }
 
   [[nodiscard]] static FHSSResult<std::vector<CPSMBranchMetric>>
@@ -212,10 +284,10 @@ public:
     for (std::uint32_t symbol_index = 0; symbol_index < config.symbol_count;
          ++symbol_index) {
       for (std::uint32_t state = 0; state < CPSMPhaseStateCount(); ++state) {
-        metrics.push_back(ScoreBranch(samples, symbol_index, state, 1.0,
-                                      config));
-        metrics.push_back(ScoreBranch(samples, symbol_index, state, -1.0,
-                                      config));
+        metrics.push_back(
+            ScoreBranch(samples, symbol_index, state, 1.0, config));
+        metrics.push_back(
+            ScoreBranch(samples, symbol_index, state, -1.0, config));
       }
     }
     return metrics;
@@ -260,8 +332,7 @@ public:
         for (const double symbol : {1.0, -1.0}) {
           const auto metric = CPSMBranchMetricKernel::ScoreBranch(
               samples, symbol_index, from_state, symbol, config);
-          const double candidate_metric =
-              previous[from_state] + metric.cost;
+          const double candidate_metric = previous[from_state] + metric.cost;
           if (candidate_metric < current[metric.to_state]) {
             current[metric.to_state] = candidate_metric;
             predecessors[symbol_index][metric.to_state] = from_state;
@@ -312,7 +383,8 @@ public:
 
     const double separation = std::isfinite(second_best_metric)
                                   ? second_best_metric - best_metric
-                                  : best_metric == 0.0 ? 1.0 : best_metric;
+                              : best_metric == 0.0 ? 1.0
+                                                   : best_metric;
     const double confidence = std::clamp(
         separation / static_cast<double>(config.symbol_count), 0.0, 1.0);
 

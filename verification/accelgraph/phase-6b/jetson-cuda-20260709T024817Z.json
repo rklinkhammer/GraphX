@@ -1,0 +1,79 @@
+{
+  "phase": "6b",
+  "generated_at_utc": "2026-07-09T02:48:17Z",
+  "verification_role": "verifier",
+  "imported": false,
+  "branch": "codex/gpu-clean-restart",
+  "commit_sha": "5d48c3fd6740f0f68e8b6153af6c0b8dc2bea1b5",
+  "diff_identity": {
+    "type": "working_tree",
+    "value": "uncommitted_changes_present",
+    "working_tree_dirty": true
+  },
+  "host_class": "jetson-cuda",
+  "hostname": "mars",
+  "operating_system": "Ubuntu 24.04.4 LTS",
+  "kernel": "Linux 6.8.12-1021-tegra",
+  "architecture": "aarch64",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "cuda_toolkit": {
+    "nvcc_version": "Build cuda_13.2.r13.2/compiler.37668154_0",
+    "gpu_name": "Orin (nvgpu)"
+  },
+  "cmake_generator": "Ninja",
+  "build_directory": "build-ninja/ninja-debug-linux-host",
+  "enabled_accelerator_build_options": {
+    "ACCELGRAPH_ENABLE_METAL": "OFF",
+    "ACCELGRAPH_ENABLE_CUDA": "ON"
+  },
+  "commands_run": [
+    {
+      "name": "jetson_phase6b_cuda_lane",
+      "command": "cmake --preset ninja-debug-linux-host -DACCELGRAPH_ENABLE_METAL=OFF -DACCELGRAPH_ENABLE_CUDA=ON && cmake --build --preset build-debug-linux-host --target test_libaccelgraph_smoke -- -j$(nproc) && ./build-ninja/ninja-debug-linux-host/libaccelgraph/test/test_libaccelgraph_smoke --gtest_filter=AccelGraphPhase6* --gtest_color=no",
+      "result": "pass",
+      "diagnostic": "Binary exit 0. Phase 6B suite: 2 passed, 0 skipped."
+    },
+    {
+      "name": "constraint_search_nodes",
+      "command": "rg -n \"CudaSpectrumAnalysisNode|Cuda.*Spectrum.*Node\" libaccelgraph/include libaccelgraph/src libaccelgraph/plugins libaccelgraph/test",
+      "result": "pass",
+      "diagnostic": "No matches."
+    },
+    {
+      "name": "constraint_search_graph_api_types",
+      "command": "rg -n \"cudaStream_t|cudaEvent_t|cudaError_t|cuda_runtime_api|CUstream|CUevent|cudaArray\" libaccelgraph/include/accelgraph/Spectrum*.hpp libaccelgraph/test/config/topologies/accelgraph_phase6b_spectrum_*.json",
+      "result": "pass",
+      "diagnostic": "No matches."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "result": "pass",
+      "diagnostic": "No output."
+    }
+  ],
+  "tests": {
+    "passed": [
+      "AccelGraphPhase6BCudaSpectrumTest.CpuCudaParityAndStrictNativeExecutionViaGraphExecutor",
+      "AccelGraphPhase6BCudaSpectrumTest.StrictFallbackPolicyIsEnforced"
+    ],
+    "failed": [],
+    "skipped": []
+  },
+  "phase6b_requirements": {
+    "graph_executor_and_plugins": "pass",
+    "cpu_cuda_parity_peak_and_selected_bins": "pass",
+    "strict_fallback_policy_enforced": "pass",
+    "no_cuda_specific_graph_spectrum_node": "pass",
+    "no_cuda_native_types_in_graph_facing_packets_or_node_apis": "pass"
+  },
+  "host_specific_checks": {
+    "jetson_cuda_lane": "passed",
+    "macos_cpu_lane": "pending_external_verification",
+    "macos_metal_lane": "pending_external_verification"
+  },
+  "overall_status": "complete",
+  "failure_classification": [],
+  "recommended_fix_owner": [],
+  "blockers": []
+}

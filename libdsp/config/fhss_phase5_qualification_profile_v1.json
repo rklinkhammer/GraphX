@@ -1,0 +1,44 @@
+{
+  "allowed_statuses": ["PASS", "FAIL", "BLOCKED", "UNAVAILABLE_DEFERRED", "NOT_APPLICABLE", "NOT_QUALIFIED", "STALE", "UNVERIFIED"],
+  "ci_tiers": {
+    "nightly": ["affected_full_suites", "cross_compiler", "allocation_trends"],
+    "per_commit": ["schemas", "registries", "compact_corpus", "report_verify", "truth_isolation"],
+    "release_candidate": ["declared_regressions", "phase3_frozen_verify", "phase4_infrastructure", "traceability", "limitations"]
+  },
+  "freshness_policy": "file-byte hashes are immutable; a changed or missing artifact is stale and fails closed",
+  "physical_evidence_counts": {
+    "channel_emulator": 0,
+    "conducted": 0,
+    "hwil": 0,
+    "ota": 0,
+    "paired_points": 0,
+    "recorded_field_failures": 0,
+    "searched_seconds": 0
+  },
+  "required_registries": ["requirement_registry", "claim_registry", "evidence_registry", "traceability", "limitation_waiver_registry", "regression_corpus_manifest", "failure_registry", "minimized_failure_registry"],
+  "schema": "graphx.fhss.phase5-qualification-profile.v1",
+  "scope": "synthetic_and_software_only",
+  "trend_policy": {
+    "policies": [
+      {
+        "alert_threshold": null,
+        "baseline_artifact": "libdsp/config/fhss_phase3_characterization_report_v7.json",
+        "baseline_sha256": "e5c5f7b18cc917aab8a3faea794b70a0d407d1c2a5b679b6905f2ef0f91339d1",
+        "confidence": "Wilson 95 percent bounds from frozen Phase 3 v7 report",
+        "decision_status": "UNVERIFIED",
+        "failure_threshold": null,
+        "metric": "clean detection probability",
+        "noise_variance_treatment": "session-independent frozen seeds; no single-run decision",
+        "rebaseline_approval": "new versioned profile plus independent verifier approval",
+        "sample_count": 40,
+        "tolerance": null,
+        "trend_id": "TREND-P3-CLEAN-PD",
+        "units": "probability"
+      }
+    ],
+    "rule": "No trend PASS/FAIL is currently claimed. Null thresholds keep the policy UNVERIFIED until thresholds are frozen before a future run. Frozen held-out seeds are not rerun for a preferred outcome.",
+    "schema": "graphx.fhss.phase5-trend-policy.v1"
+  },
+  "verdict_classes": ["software_engineering_release_readiness", "synthetic_characterization", "recorded_iq_hil_validation", "production_rf_qualification"],
+  "version": 1
+}

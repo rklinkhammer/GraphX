@@ -1,0 +1,20 @@
+{
+  "schema": "graphx.fhss.phase4-correlation-report.v1",
+  "status": "UNAVAILABLE_DEFERRED",
+  "profile_sha256": "d1cee366d7070a55c68e80f462811259db61829a943f1ae280469adc8dcfa1a7",
+  "dataset_manifest_sha256": null,
+  "paired_points": [],
+  "metrics": [],
+  "discrepancies": [
+    {
+      "classification": "insufficient_evidence",
+      "reason": "Hardware testing is unavailable; synthetic dry runs cannot form simulation-to-hardware paired evidence."
+    }
+  ],
+  "limitations": [
+    "No simulation-to-hardware comparison was performed; zero hardware paired points exist.",
+    "Synthetic dry-run fixtures cannot support a hardware-correlation claim.",
+    "No equivalence or agreement claim is made.",
+    "Agreement margins remain provisional and must be approved and frozen before held-out analysis."
+  ]
+}

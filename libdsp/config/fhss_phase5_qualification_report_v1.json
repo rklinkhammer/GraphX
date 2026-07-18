@@ -1,0 +1,42 @@
+{
+  "counts": {
+    "channel_emulator": 0,
+    "claims": 4,
+    "conducted": 0,
+    "evidence": 13,
+    "hwil": 0,
+    "ota": 0,
+    "paired_points": 0,
+    "recorded_field_failures": 0,
+    "regression_entries": 9,
+    "requirements": 5,
+    "searched_seconds": 0,
+    "trace_links": 6
+  },
+  "criteria": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS"
+  },
+  "limitations": [
+    "LIM-EXECUTOR-JOIN",
+    "LIM-NATIVE-METAL",
+    "LIM-NO-PHYSICAL",
+    "LIM-PARTIAL-HOP"
+  ],
+  "raw_sha256": "ad47af0839220e89deaab444de12a4f1dd437588df418a759547fe8685054501",
+  "schema": "graphx.fhss.phase5-qualification-report.v1",
+  "statement": "Synthetic/software qualification only; no recorded, HIL, regulatory, interoperability, or production-RF claim.",
+  "verdicts": {
+    "production_rf_qualification": "NOT_QUALIFIED",
+    "recorded_iq_hil_validation": "UNAVAILABLE_DEFERRED",
+    "software_engineering_release_readiness": "PASS",
+    "synthetic_characterization": "PASS"
+  }
+}

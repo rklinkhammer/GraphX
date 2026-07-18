@@ -1,10 +1,10 @@
 #pragma once
 
-#include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSFixtureUtils.hpp"
+#include "dsp/fhss/FHSSGraphXConfig.hpp"
+#include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
-#include "dsp/fhss/FHSSMessageAssembly.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 
@@ -18,8 +18,7 @@ namespace dsp::fhss {
 class FHSSMessageAssemblerNode
     : public graph::NamedInteriorNode<
           graph::TypeList<FHSSAssembledMessageToken>,
-          graph::TypeList<FHSSAssembledMessageToken>,
-          FHSSMessageAssemblerNode>,
+          graph::TypeList<FHSSAssembledMessageToken>, FHSSMessageAssemblerNode>,
       public graph::IConfigurable,
       public graph::IParameterized {
 public:
@@ -64,7 +63,9 @@ public:
 
     OutputTokenType output{};
     output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
     output.sidecar = FHSSGraphXAssembledMessageFromKernel(assembled);
+    output.sidecar.correlation = input.sidecar.correlation;
     output.sidecar.ordered_pulses = input.sidecar.ordered_pulses;
     output.sidecar.diagnostics.unsupported_overlap_rejected = true;
     output.sidecar.diagnostics.unsupported_impairments_rejected = true;

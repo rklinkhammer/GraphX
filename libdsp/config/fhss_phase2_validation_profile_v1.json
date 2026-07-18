@@ -1,0 +1,158 @@
+{
+  "schema": "graphx.fhss.phase2-validation-profile",
+  "version": 1,
+  "claim_level": "provisional_engineering_characterization_only",
+  "prohibited_claims": [
+    "product qualification",
+    "regulatory conformance",
+    "interoperability conformance",
+    "production RF qualification"
+  ],
+  "rationale": "No approved product-level RF or detector requirements exist. These conservative numeric gates characterize the Phase 2 CPU candidates and are not external conformance limits.",
+  "sampled_band_model": {
+    "input_sample_rate_hz": 500000000.0,
+    "sampled_nyquist_hz": 250000000.0,
+    "guarded_nyquist_margin_hz": 5000000.0,
+    "valid_iq_offset_min_hz": -242499000.0,
+    "valid_iq_offset_max_hz": 242499000.0,
+    "iq_offset_first_hz": -236250000.0,
+    "iq_offset_formula": "-236250000 + 7500000 * frequency_index",
+    "channel_count": 64,
+    "channel_spacing_hz": 7500000.0,
+    "rf_frequency_role": "metadata_only",
+    "rf_table_base_hz": 1000000000.0,
+    "rf_table_spacing_hz": 8000000.0,
+    "representability_statement": "The 500 Msps complex input represents only explicitly configured distinct IQ offsets inside guarded Nyquist. RF table values are semantic metadata and are never interpreted as simultaneous sampled RF carriers."
+  },
+  "channelizer": {
+    "implementation": "FHSSProductionCandidateChannelizerNode",
+    "algorithm": "per-channel complex mix, normalized odd-length Hamming-window FIR, then decimate",
+    "channel_centers_hz": {
+      "formula": "-236250000 + 7500000 * frequency_index",
+      "count": 64
+    },
+    "occupied_bandwidth_hz": 5000000.0,
+    "passband_edge_hz": 2500000.0,
+    "cutoff_frequency_hz": 4000000.0,
+    "transition_band_end_hz": 12000000.0,
+    "decimation_factor": 10,
+    "output_sample_rate_hz": 50000000.0,
+    "fir_tap_count": 241,
+    "group_delay_input_samples": 120,
+    "candidate_max_input_samples_per_token": 4194304,
+    "alias_measurement": "Measure positive and negative isolated tones in every D=10 folding region from the declared 12 MHz stopband edge through 250 MHz input Nyquist, plus simultaneous folding-band multitone and dense stopband vectors. Record input and post-filter/decimated power and compare every candidate sample with an independent FIR/decimation oracle.",
+    "transition_width_definition": "Frequency from the 2.5 MHz passband edge to the first measured candidate-response point at or below the 50 dB stopband requirement.",
+    "equivalent_noise_bandwidth_definition": "500 MHz times actual candidate impulse-response energy divided by squared actual DC gain.",
+    "allocation_high_water_definition": "Observed deterministic runtime allocation counter for the selected input copy, all 64 FIR histories, and all 64 candidate output vectors; not a configured bound or process RSS estimate.",
+    "packet_contract": "globally contiguous tokens; FIR state retained; causal tail is not zero-padded; EOS propagates after final available filtered sample",
+    "requirements": {
+      "maximum_passband_ripple_db": 1.75,
+      "minimum_stopband_attenuation_db": 50.0,
+      "minimum_adjacent_channel_rejection_db": 50.0,
+      "minimum_alternate_channel_rejection_db": 50.0,
+      "maximum_alias_power_dbc": -50.0,
+      "maximum_integrated_alias_power_dbc": -50.0,
+      "maximum_alias_oracle_complex_error": 1e-11,
+      "maximum_transition_width_hz": 9500000.0,
+      "minimum_equivalent_noise_bandwidth_hz": 5000000.0,
+      "maximum_equivalent_noise_bandwidth_hz": 10000000.0,
+      "maximum_runtime_allocation_high_water_bytes": 16777216,
+      "maximum_group_delay_error_input_samples": 0.001,
+      "minimum_supported_near_far_ratio_db": 30.0,
+      "minimum_post_filter_wanted_to_interference_db": 20.0,
+      "maximum_packetized_one_shot_error": 1e-11
+    }
+  },
+  "detector": {
+    "implementation": "FHSSAcquisitionPulseDetectorNode",
+    "search_model": "arbitrary capture epoch with bounded buffering, at least 50 percent background samples, and EOS finalization",
+    "noise_estimator": "with the declared at-least-50-percent-background capture contract, the whole-capture 20th power percentile is conservatively mapped to the noise-only 40th percentile and divided by -ln(0.6)",
+    "threshold_definition": "8-channel-sample moving-average power compared with max(absolute floor, estimated noise power * 8), with 0.5 release hysteresis and window-delay start refinement",
+    "minimum_symbol_coherence": 0.75,
+    "noise_power_quantile": 0.2,
+    "threshold_above_noise_linear": 8.0,
+    "release_threshold_ratio": 0.5,
+    "candidate_min_absolute_power_linear": 1e-10,
+    "smoothing_window_channel_samples": 8,
+    "min_pulse_input_samples": 2400,
+    "max_pulse_input_samples": 4000,
+    "bridge_gap_input_samples": 80,
+    "duplicate_tolerance_input_samples": 160,
+    "candidate_max_buffered_channel_samples": 4194304,
+    "integration_max_buffered_channel_samples": 419431,
+    "nominal_bandwidth_hz": 5000000.0,
+    "integration_absolute_power_floor_linear": 0.05,
+    "integration_operating_point": "unit-amplitude independent clean capture; validates acquisition, frequency identity, timing propagation, EOS, and downstream graph completion but does not qualify payload-word accuracy after causal channel filtering",
+    "probability_of_detection_target": 0.95,
+    "false_alarm_definition": "accepted detections not overlapping a truth pulse divided by searched channel samples; per-second value multiplies by channel sample rate",
+    "maximum_false_alarms_per_searched_sample": 1e-6,
+    "maximum_timing_error_input_samples_p95": 160,
+    "supported_cfo_hz": [-25000.0, 25000.0],
+    "supported_amplitude_linear": [0.1, 2.0],
+    "evaluation_snr_db": [10.0, 15.0, 20.0, 30.0],
+    "maximum_supported_near_far_ratio_db": 30.0,
+    "state_and_eos": "the reusable detector candidate accepts at most 4194304 channel samples; the checked full-graph integration topology deliberately overrides this to 419431 channel samples; detections are emitted on terminal control and state resets after terminal, rejection, failure, cancellation, or reconfiguration",
+    "configured_vs_estimated": "No configured noise-floor value is accepted or exposed as a measurement. noise_floor_db and snr_db in output metadata are calculated from IQ evidence.",
+    "allocation_high_water_definition": "Observed deterministic runtime allocation counter for capture state, kernel power/sorted/smoothed/range work vectors, and emitted pulse metadata/evidence vectors; not a configured bound or process RSS estimate.",
+    "requirements": {
+      "minimum_probability_of_detection_at_10_db": 0.95,
+      "maximum_false_alarms_per_searched_sample": 1e-6,
+      "maximum_timing_error_input_samples_p95": 160,
+      "maximum_duplicate_detections_per_truth_pulse": 0,
+      "maximum_runtime_allocation_high_water_bytes": 1048576
+    }
+  },
+  "statistics": {
+    "development_seeds": [1101, 1102, 1103, 1104],
+    "evaluation_seeds": [91001, 91002, 91003, 91004, 91005, 91006, 91007, 91008],
+    "ci_subset_trials_per_point": 32,
+    "full_trials_per_point": 1000,
+    "confidence_interval": "two-sided Wilson score, 95 percent",
+    "flaky_gate_policy": "gate aggregate held-out confidence bounds; never fail only because a single randomized trial crosses a threshold",
+    "failure_artifacts": "minimized vector plus profile hash, seed, scenario parameters, and SHA-256"
+  },
+  "threshold_freeze": {
+    "status": "frozen_before_evaluation",
+    "workflow": "Select provisional thresholds only with architecture constraints, analytical design bounds, and development_seeds; serialize and hash the threshold set; then run evaluation_seeds without modifying thresholds. Any threshold change creates a new hash and invalidates prior evaluation evidence.",
+    "development_command": "graphx-dsp-fhss-phase2-characterize --profile libdsp/config/fhss_phase2_validation_profile_v1.json --trials 256 --seed-partition development",
+    "evaluation_command": "graphx-dsp-fhss-phase2-characterize --profile libdsp/config/fhss_phase2_validation_profile_v1.json --trials 1000 --seed-partition evaluation",
+    "threshold_set_sha256": "20f45ff5154e014b48d005e0ad43865f40850512f1bc0bbc0c72439191c49ca7"
+  },
+  "threshold_provenance": {
+    "channelizer_filter_shape": {
+      "origin": "architecture occupied bandwidth plus guarded decimated Nyquist",
+      "rationale": "241-tap Hamming FIR provides a reproducible CPU baseline with explicit group delay",
+      "evidence_partition": "analytical design bounds and development vectors only"
+    },
+    "channelizer_selectivity_and_alias": {
+      "origin": "provisional engineering rejection margin",
+      "rationale": "50 dB is below the measured development response while leaving margin for implementation error",
+      "evidence_partition": "development vectors; frozen before evaluation"
+    },
+    "channelizer_near_far": {
+      "origin": "provisional 30 dB blocker operating point",
+      "rationale": "wanted output must remain at least 20 dB above measured adjacent leakage",
+      "evidence_partition": "development near/far sweep; frozen before evaluation"
+    },
+    "detector_thresholds": {
+      "origin": "development_seeds only",
+      "rationale": "8x noise, 0.5 release, and 0.75 coherence reject recorded development CW/chirp/impulse/wrong-rate cases while retaining the declared 10 dB point",
+      "evidence_partition": "development seeds 1101-1104; held-out evaluation seeds prohibited"
+    },
+    "detector_performance": {
+      "origin": "provisional validation objective",
+      "rationale": "95 percent detection, 1e-6 false detections per searched sample, and 160-input-sample p95 timing are engineering gates rather than product requirements",
+      "evidence_partition": "limits frozen before held-out evaluation"
+    }
+  },
+  "unsupported": [
+    "unbounded live streaming acquisition",
+    "captures with less than 50 percent background samples for robust noise estimation",
+    "non-contiguous channel tokens",
+    "overlapping same-channel bursts that cannot be separated by energy",
+    "payload-word accuracy through the causal Phase 2 channel filter; decoder matched-filter/equalization qualification is deferred",
+    "accelerator execution or CPU/accelerator parity",
+    "RF offsets outside guarded Nyquist",
+    "hardware, OTA, regulatory, interoperability, or product qualification"
+  ]
+}

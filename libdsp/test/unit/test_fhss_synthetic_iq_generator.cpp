@@ -10,9 +10,9 @@
 #include <utility>
 #include <vector>
 
+#include "config/JsonView.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
-#include "config/JsonView.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -61,17 +61,23 @@ FHSSSyntheticIqGeneratorConfig ValidGeneratorConfig() {
   message.message_id = 42;
   message.transmit_start_sample = 0;
   for (const auto &pulse : ValidPreamble()) {
-    message.pulses.push_back(FHSSMessagePulseSpec{
-        .frequency_index = pulse.frequency_index,
-        .value = pulse.word_value,
-        .role = FHSSMessagePulseRole::Preamble});
+    message.pulses.push_back(
+        FHSSMessagePulseSpec{.frequency_index = pulse.frequency_index,
+                             .value = pulse.word_value,
+                             .role = FHSSMessagePulseRole::Preamble});
   }
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 1, .value = 0x0102'0304u, .role = FHSSMessagePulseRole::Body});
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 7, .value = 0xA5A5'5A5Au, .role = FHSSMessagePulseRole::Body});
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 12, .value = 0xFFFF'0000u, .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 1,
+                           .value = 0x0102'0304u,
+                           .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 7,
+                           .value = 0xA5A5'5A5Au,
+                           .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 12,
+                           .value = 0xFFFF'0000u,
+                           .role = FHSSMessagePulseRole::Body});
   config.messages.push_back(std::move(message));
   return config;
 }
@@ -149,7 +155,7 @@ TEST(FHSSSyntheticIqGeneratorTest, RejectsPreambleWordMismatch) {
   EXPECT_EQ(fixture.error().code, FHSSValidationCode::PreambleWordMismatch);
 }
 
-TEST(FHSSSyntheticIqGeneratorTest, RejectsUnsupportedImpairmentsAndOverlap) {
+TEST(FHSSSyntheticIqGeneratorTest, RejectsUnsupportedImpairments) {
   auto config = ValidGeneratorConfig();
   config.enable_noise = true;
 
@@ -158,7 +164,7 @@ TEST(FHSSSyntheticIqGeneratorTest, RejectsUnsupportedImpairmentsAndOverlap) {
   EXPECT_EQ(fixture.error().code, FHSSValidationCode::InvalidTiming);
 
   config = ValidGeneratorConfig();
-  config.allow_overlap = true;
+  config.enable_multipath = true;
   fixture = dsp::fhss::GenerateSyntheticIqFixture(config);
   ASSERT_FALSE(fixture.has_value());
   EXPECT_EQ(fixture.error().code, FHSSValidationCode::InvalidTiming);
@@ -218,10 +224,10 @@ TEST(FHSSSyntheticIqGeneratorTest, RectangularFullResponsePhaseIsContinuous) {
 TEST(FHSSSyntheticIqGeneratorTest,
      RejectsMessageLongerThanTwoHundredFiftySixPulses) {
   auto config = ValidGeneratorConfig();
-  config.messages.front().pulses.resize(257, FHSSMessagePulseSpec{
-                                                 .frequency_index = 1,
-                                                 .value = 0x1234'5678u,
-                                                 .role = FHSSMessagePulseRole::Body});
+  config.messages.front().pulses.resize(
+      257, FHSSMessagePulseSpec{.frequency_index = 1,
+                                .value = 0x1234'5678u,
+                                .role = FHSSMessagePulseRole::Body});
   for (std::size_t i = 0; i < 16; ++i) {
     config.messages.front().pulses[i].role = FHSSMessagePulseRole::Preamble;
   }
@@ -277,6 +283,76 @@ TEST(FHSSSyntheticIqGeneratorTest, RejectsOverlappingScheduledMessages) {
 }
 
 TEST(FHSSSyntheticIqGeneratorTest,
+     AllowsOverlappingScheduledMessagesWhenRequestedAndSumsIq) {
+  auto config = ValidGeneratorConfig();
+  auto second = config.messages.front();
+  second.message_id = 43;
+  second.transmit_start_sample = 0;
+  config.messages.push_back(std::move(second));
+  config.allow_overlap = true;
+
+  const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(config);
+
+  ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
+  ASSERT_EQ(fixture->truth_pulses.size(),
+            2u * config.messages.front().pulses.size());
+  EXPECT_EQ(fixture->truth_pulses[0].global_start_sample, 0u);
+  EXPECT_EQ(fixture->truth_pulses[config.messages.front().pulses.size()]
+                .global_start_sample,
+            0u);
+  EXPECT_NEAR(std::abs(fixture->samples.front()), 2.0, 1.0e-12);
+}
+
+TEST(FHSSSyntheticIqGeneratorTest,
+     RealisticMotionAppliesReceiverDelayDopplerAndPathLossMetadata) {
+  auto config = ValidGeneratorConfig();
+  config.realistic.enabled = true;
+  config.realistic.rng_seed = 7;
+  config.realistic.receiver.position_m = {0.0, 0.0, 0.0};
+  config.realistic.reference_range_m = 1'000.0;
+  config.realistic.minimum_range_m = 1.0;
+  config.realistic.transmitter_paths.push_back(
+      dsp::fhss::FHSSRealisticTransmitterPath{
+          .message_id = 42,
+          .waypoints = {
+              dsp::fhss::FHSSMotionWaypoint{.time_seconds = 0.0,
+                                            .position_m = {1'000.0, 0.0, 0.0}},
+              dsp::fhss::FHSSMotionWaypoint{.time_seconds = 0.01,
+                                            .position_m = {2'000.0, 0.0, 0.0}},
+          }});
+
+  const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(config);
+
+  ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
+  ASSERT_FALSE(fixture->truth_pulses.empty());
+  const auto &first = fixture->truth_pulses.front();
+  EXPECT_EQ(first.nominal_global_start_sample, 0u);
+  EXPECT_GT(first.global_start_sample, first.nominal_global_start_sample);
+  EXPECT_NEAR(first.range_m, 1'000.0, 1.0e-6);
+  EXPECT_NEAR(first.amplitude, 1.0, 1.0e-12);
+  EXPECT_LT(first.doppler_hz, 0.0);
+  EXPECT_GT(first.propagation_delay_seconds, 0.0);
+  EXPECT_FALSE(first.dropped);
+}
+
+TEST(FHSSSyntheticIqGeneratorTest,
+     RealisticMissingPulseDropsSamplesButKeepsTruthMetadata) {
+  auto config = ValidGeneratorConfig();
+  config.realistic.enabled = true;
+  config.realistic.missing_pulse_probability = 1.0;
+
+  const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(config);
+
+  ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
+  ASSERT_FALSE(fixture->truth_pulses.empty());
+  EXPECT_TRUE(fixture->truth_pulses.front().dropped);
+  for (const auto sample : fixture->samples) {
+    EXPECT_DOUBLE_EQ(sample.real(), 0.0);
+    EXPECT_DOUBLE_EQ(sample.imag(), 0.0);
+  }
+}
+
+TEST(FHSSSyntheticIqGeneratorTest,
      GraphXConfigParsesMessagesAndDerivesIqOffsetsFromCenter) {
   nlohmann::json json{
       {"active_frequency_indices",
@@ -287,11 +363,27 @@ TEST(FHSSSyntheticIqGeneratorTest,
       {"max_abs_cfo_hz", 1'000.0},
       {"idle_mode", "zero"},
       {"idle_duration_samples", std::uint64_t{0}},
-      {"messages",
-       nlohmann::json::array({nlohmann::json{
-           {"message_id", std::uint64_t{99}},
-           {"transmit_start_sample", std::uint64_t{6'500}},
-           {"pulses", nlohmann::json::array()}}})}};
+      {"allow_overlap", true},
+      {"realistic",
+       {{"enabled", true},
+        {"rng_seed", std::uint64_t{123}},
+        {"missing_pulse_probability", 0.0},
+        {"timing_jitter_stddev_samples", 0.0},
+        {"receiver", {{"position_m", {{"x", 0.0}, {"y", 0.0}, {"z", 0.0}}}}},
+        {"transmitter_paths",
+         nlohmann::json::array(
+             {{{"message_id", std::uint64_t{99}},
+               {"waypoints",
+                nlohmann::json::array(
+                    {{{"time_seconds", 0.0},
+                      {"position_m", {{"x", 1'000.0}, {"y", 0.0}, {"z", 0.0}}}},
+                     {{"time_seconds", 0.01},
+                      {"position_m",
+                       {{"x", 2'000.0}, {"y", 0.0}, {"z", 0.0}}}}})}}})}}},
+      {"messages", nlohmann::json::array({nlohmann::json{
+                       {"message_id", std::uint64_t{99}},
+                       {"transmit_start_sample", std::uint64_t{6'500}},
+                       {"pulses", nlohmann::json::array()}}})}};
   const std::vector<FHSSPreamblePulseSpec> preamble{
       {24, 0xAAAA'AAAAu}, {28, 0x7777'7777u}, {32, 0x1212'1212u},
       {36, 0x6262'6262u}, {24, 0xAAAA'AAAAu}, {28, 0x7777'7777u},
@@ -312,8 +404,8 @@ TEST(FHSSSyntheticIqGeneratorTest,
   body_json["role"] = "body";
   json["messages"][0]["pulses"].push_back(std::move(body_json));
 
-  const auto config = dsp::fhss::FHSSSyntheticIqGeneratorConfigFromJson(
-      graph::JsonView(json));
+  const auto config =
+      dsp::fhss::FHSSSyntheticIqGeneratorConfigFromJson(graph::JsonView(json));
 
   ASSERT_EQ(config.messages.size(), 1u);
   EXPECT_EQ(config.messages.front().message_id, 99u);
@@ -326,12 +418,19 @@ TEST(FHSSSyntheticIqGeneratorTest,
                    16'000'000.0);
   EXPECT_DOUBLE_EQ(config.decode_config.frequency.iq_offset_frequency_hz[36],
                    48'000'000.0);
+  EXPECT_TRUE(config.allow_overlap);
+  EXPECT_TRUE(config.realistic.enabled);
+  EXPECT_EQ(config.realistic.rng_seed, 123u);
+  ASSERT_EQ(config.realistic.transmitter_paths.size(), 1u);
+  EXPECT_EQ(config.realistic.transmitter_paths.front().message_id, 99u);
+  ASSERT_EQ(config.realistic.transmitter_paths.front().waypoints.size(), 2u);
 
   const auto fixture = dsp::fhss::GenerateSyntheticIqFixture(config);
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
   ASSERT_FALSE(fixture->truth_pulses.empty());
   EXPECT_EQ(fixture->truth_pulses.front().message_id, 99u);
-  EXPECT_EQ(fixture->truth_pulses.front().global_start_sample, 6'500u);
+  EXPECT_GT(fixture->truth_pulses.front().global_start_sample, 6'500u);
+  EXPECT_EQ(fixture->truth_pulses.front().nominal_global_start_sample, 6'500u);
 }
 
 } // namespace

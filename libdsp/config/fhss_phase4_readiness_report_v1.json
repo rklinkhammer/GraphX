@@ -1,0 +1,51 @@
+{
+  "claim": "infrastructure readiness only; not recorded-IQ/HIL validation",
+  "counts": {
+    "channel_emulator": {
+      "captures": 0,
+      "searched_seconds": 0.0,
+      "sessions": 0
+    },
+    "conducted": {
+      "captures": 0,
+      "searched_seconds": 0.0,
+      "sessions": 0
+    },
+    "ota": {
+      "captures": 0,
+      "searched_seconds": 0.0,
+      "sessions": 0
+    }
+  },
+  "criteria": {
+    "A": "PASS",
+    "B": "UNAVAILABLE_DEFERRED",
+    "C": "UNAVAILABLE_DEFERRED",
+    "D": "UNAVAILABLE_DEFERRED",
+    "E": "UNAVAILABLE_DEFERRED",
+    "F": "UNAVAILABLE_DEFERRED",
+    "G": "UNAVAILABLE_DEFERRED",
+    "H": "PASS",
+    "I": "PASS"
+  },
+  "failures": [
+    "channel_emulator: insufficient captures",
+    "channel_emulator: insufficient independent sessions",
+    "channel_emulator: insufficient searched exposure",
+    "channel_emulator: missing required scenarios ['adjacent_blocker', 'awgn_ebn0', 'cochannel', 'deterministic_tdl', 'negative_doppler', 'positive_doppler', 'rayleigh', 'rician']",
+    "conducted: insufficient captures",
+    "conducted: insufficient independent sessions",
+    "conducted: insufficient searched exposure",
+    "conducted: missing required scenarios ['adjacent_blocker', 'alternate_blocker', 'cochannel', 'independent_oscillators', 'noise_only', 'overload_check', 'wanted_sweep']",
+    "no independently recorded dataset manifest is available",
+    "ota: insufficient captures",
+    "ota: insufficient independent sessions",
+    "ota: insufficient searched exposure",
+    "ota: missing required scenarios ['indoor_multipath', 'obstructed_los', 'static_los']"
+  ],
+  "held_out_replay_count": 0,
+  "schema": "graphx.fhss.phase4-readiness.v1",
+  "simulation_hardware_paired_point_count": 0,
+  "status": "UNAVAILABLE_DEFERRED",
+  "tool_version": "graphx.fhss.phase4-recorded.v1"
+}

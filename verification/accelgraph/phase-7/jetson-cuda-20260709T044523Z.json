@@ -1,0 +1,87 @@
+{
+  "branch": "HEAD",
+  "commit_sha": "f3b2c611bec624dd721e5f43f36dafd6ea478043",
+  "diff_identity": {
+    "type": "working_tree",
+    "value": "clean",
+    "working_tree_dirty": false
+  },
+  "generated_at_utc": "2026-07-09T04:45:24Z",
+  "host": {
+    "architecture": "aarch64",
+    "hostname": "unknown",
+    "operating_system": "Linux"
+  },
+  "phase": "7",
+  "results": [
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cpu",
+      "cold_frame_ms": 21003.349511,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6",
+      "correctness_parity_status": "pass:cpu-benchmark-family-baseline",
+      "cpu_gpu_speed_ratio": null,
+      "execution_mode": "local",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04761150639400723,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cpu_macos",
+      "graph_overhead_ms": 998.3262069999982,
+      "host_class": "cpu-only",
+      "latency_ms": 21003.326207,
+      "legacy_reference_baseline_ms": 1002.733114,
+      "measurement_origin": {
+        "imported": false,
+        "measured_locally": true,
+        "note": null,
+        "source_artifact": null
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.18854563686585,
+      "selected_backend": "cpu",
+      "steady_state_elapsed_time_ms": 84013.304828,
+      "total_elapsed_time_ms": 105140.482174,
+      "transfer_inclusive_gpu_time_ms": 0.0,
+      "used_fallback": false,
+      "warm_frame_ms": 21003.318439,
+      "warmup_frame_count": 1
+    },
+    {
+      "allocation_bytes": null,
+      "allocation_count": null,
+      "backend": "cuda",
+      "cold_frame_ms": 21003.495417,
+      "compute_only_gpu_time_ms": null,
+      "correctness_family": "phase6b",
+      "correctness_parity_status": "pass",
+      "cpu_gpu_speed_ratio": 0.9999951334611686,
+      "execution_mode": "local",
+      "fallback_diagnostic": null,
+      "frame_count": 4,
+      "frames_per_second": 0.04761127469076254,
+      "graph_configuration_name": "accelgraph_phase7_spectrum_cuda_jetson",
+      "graph_overhead_ms": 998.4284210000005,
+      "host_class": "jetson-cuda",
+      "latency_ms": 21003.428421,
+      "legacy_reference_baseline_ms": 1002.880969,
+      "measurement_origin": {
+        "imported": false,
+        "measured_locally": true,
+        "note": null,
+        "source_artifact": null
+      },
+      "packet_size": 256,
+      "samples_per_second": 12.18848632083521,
+      "selected_backend": "cuda",
+      "steady_state_elapsed_time_ms": 84013.713684,
+      "total_elapsed_time_ms": 105181.648107,
+      "transfer_inclusive_gpu_time_ms": 20005.0,
+      "used_fallback": false,
+      "warm_frame_ms": 21003.406089,
+      "warmup_frame_count": 1
+    }
+  ],
+  "schema": "graphx.accelgraph.phase7.spectrum.benchmark.v1"
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "graphx.fhss.phase3-reference-manifest.v1",
+  "claim": "Engineering references only; none is asserted as a normative product standard for the GraphX fixture waveform.",
+  "researched_on": "2026-07-17",
+  "references": [
+    {
+      "organization": "ITU-R",
+      "title": "Multipath propagation and parameterization of its characteristics",
+      "identifier": "Recommendation ITU-R P.1407-8",
+      "version_date": "09/2021",
+      "sections": ["2.1 power delay profiles", "2.2.3 r.m.s. delay spread", "5 received-signal variation"],
+      "url": "https://www.itu.int/dms_pubrec/itu-r/rec/p/R-REC-P.1407-8-202109-I!!PDF-E.pdf",
+      "adaptation": "The harness represents a channel as a normalized linear transversal filter of delayed complex replicas and reports tap power, mean delay, RMS delay spread, and Doppler separately. No ITU environment distribution or qualification limit is imported."
+    },
+    {
+      "organization": "3GPP",
+      "title": "Study on channel model for frequencies from 0.5 to 100 GHz",
+      "identifier": "3GPP TR 38.901 V19.2.0 (Release 19), archive 38901-j20",
+      "version_date": "2026-01",
+      "sections": ["7.7.2 tapped delay line models", "7.7.3 clustered delay line models"],
+      "url": "https://www.3gpp.org/ftp/Specs/archive/38_series/38.901/38901-j20.zip",
+      "adaptation": "Only the TDL vocabulary—relative delays, normalized tap powers, fading coefficients, and Doppler—is used. GraphX v1 uses small explicit engineering tap sets, not a claimed 3GPP deployment scenario."
+    },
+    {
+      "organization": "ETSI",
+      "title": "Wideband transmission systems; Data transmission equipment operating in the 2,4 GHz ISM band and using wide band modulation techniques; Harmonised Standard for access to radio spectrum",
+      "identifier": "ETSI EN 300 328 V2.2.0 draft",
+      "version_date": "2017-11",
+      "sections": ["4.3.1.12 receiver blocking", "5.4.11 receiver-blocking test method"],
+      "url": "https://www.etsi.org/deliver/etsi_EN/300300_300399/300328/02.02.00_20/en_300328v020200a.pdf",
+      "adaptation": "Motivates calibrated wanted/blocker frequency and level sweeps. Its bands, category limits, companion-device procedure, and regulatory claims are not applied to this unrelated engineering fixture."
+    },
+    {
+      "organization": "Institution of Engineering and Technology",
+      "title": "Jakes fading model revisited",
+      "authors": ["P. Dent", "G. E. Bottomley", "T. Croft"],
+      "identifier": "Electronics Letters, DOI 10.1049/el:19930777",
+      "version_date": "1993-06-24",
+      "sections": ["sum-of-sinusoids Rayleigh fading construction and second-order behavior"],
+      "url": "https://doi.org/10.1049/el:19930777",
+      "adaptation": "Recorded as the peer-reviewed basis for a future time-varying Rayleigh sum-of-sinusoids option. Phase 3 v1 gates use reproducible per-capture Rayleigh/Rician coefficients plus independently measured static Doppler; the limitation is explicit."
+    }
+  ]
+}

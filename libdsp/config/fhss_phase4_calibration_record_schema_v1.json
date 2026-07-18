@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "graphx.fhss.phase4-calibration.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["calibration_id", "method", "date_utc", "reference_plane", "uncertainty_db", "artifact_relative_path", "artifact_sha256", "equipment_ids"],
+  "properties": {
+    "calibration_id": {"type": "string"}, "method": {"type": "string"}, "date_utc": {"type": "string"},
+    "reference_plane": {"type": "string"}, "uncertainty_db": {"type": "number", "minimum": 0}, "artifact_relative_path": {"type": "string"},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "equipment_ids": {"type": "array", "items": {"type": "string"}}, "expires_utc": {"type": "string"}, "notes": {"type": "string"}
+  }
+}

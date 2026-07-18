@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "graphx.fhss.phase4-correlation-report.v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "status", "profile_sha256", "dataset_manifest_sha256", "paired_points", "metrics", "discrepancies", "limitations"],
+  "properties": {
+    "schema": {"const": "graphx.fhss.phase4-correlation-report.v1"}, "status": {"enum": ["PASS", "FAIL", "BLOCKED", "UNAVAILABLE_DEFERRED"]},
+    "profile_sha256": {"type": ["string", "null"]}, "dataset_manifest_sha256": {"type": ["string", "null"]},
+    "paired_points": {"type": "array", "items": {"$ref": "#/$defs/pairedPoint"}}, "metrics": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}, "discrepancies": {"type": "array", "items": {"$ref": "#/$defs/discrepancy"}}, "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "pairedPoint": {"type": "object", "additionalProperties": false,
+      "required": ["pair_id", "scenario_id", "metric", "unit", "reference_plane", "simulation_value", "hardware_value", "residual", "combined_standard_uncertainty", "expanded_uncertainty_k2", "absolute_margin", "pass", "discrepancy_classification", "simulation_artifact_sha256", "hardware_artifact_sha256", "simulation_sample_count", "hardware_sample_count", "hardware_session_count"],
+      "properties": {"pair_id": {"type": "string"}, "scenario_id": {"type": "string"}, "metric": {"type": "string"}, "unit": {"type": "string"}, "reference_plane": {"type": "string"}, "simulation_value": {"type": "number"}, "hardware_value": {"type": "number"}, "residual": {"type": "number"}, "combined_standard_uncertainty": {"type": "number", "minimum": 0}, "expanded_uncertainty_k2": {"type": "number", "minimum": 0}, "absolute_margin": {"type": "number", "minimum": 0}, "pass": {"type": "boolean"}, "discrepancy_classification": {"type": ["string", "null"]}, "simulation_artifact_sha256": {"type": "string"}, "hardware_artifact_sha256": {"type": "string"}, "simulation_sample_count": {"type": "integer", "minimum": 1}, "hardware_sample_count": {"type": "integer", "minimum": 1}, "hardware_session_count": {"type": "integer", "minimum": 1}}},
+    "discrepancy": {"type": "object", "additionalProperties": false,
+      "properties": {"pair_id": {"type": "string"}, "classification": {"type": "string"}, "reason": {"type": "string"}, "residual": {"type": "number"}, "margin": {"type": "number", "minimum": 0}},
+      "oneOf": [
+        {"required": ["classification", "reason"], "properties": {"classification": {"const": "insufficient_evidence"}}},
+        {"required": ["pair_id", "classification", "residual", "margin"], "properties": {"classification": {"enum": ["simulator_model_deficiency", "calibration_reference_plane_uncertainty", "hardware_nonideality", "receiver_defect", "insufficient_evidence", "unsupported_region"]}}}
+      ]}
+  }
+}

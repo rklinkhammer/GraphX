@@ -1,0 +1,5809 @@
+{
+  "acceptance": {
+    "clean_conditional_bit_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_conditional_bit_error_rate",
+        "limit": 0.01,
+        "metric": "conditional_ber",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for incorrect bits / decoded associated bits; misses excluded"
+      },
+      "gate_statistic_value": 0.00017650646959373138,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "clean_detection_probability",
+        "limit": 0.95,
+        "metric": "pd",
+        "point_id": "clean_60db",
+        "statistic": "lower_ci95",
+        "units": "lower Wilson 95% bound for matched truth pulses / truth pulses"
+      },
+      "gate_statistic_value": 0.9943825300862589,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "clean_message_error_rate": {
+      "expected": {
+        "comparison": "<=",
+        "id": "clean_message_error_rate",
+        "limit": 0.1,
+        "metric": "per",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for failed unique (message_id, transmitter_id) messages / transmitted messages"
+      },
+      "gate_statistic_value": 0.08762160119728664,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "ebn0_30db_detection_probability": {
+      "expected": {
+        "comparison": ">=",
+        "id": "ebn0_30db_detection_probability",
+        "limit": 0.9,
+        "metric": "pd",
+        "point_id": "ebn0_30db",
+        "statistic": "lower_ci95",
+        "units": "lower Wilson 95% bound for matched truth pulses / truth pulses at active-symbol Eb/N0=30 dB (sample SNR=10 dB)"
+      },
+      "gate_statistic_value": 0.9943825300862589,
+      "pass": true,
+      "point_estimate": 1.0,
+      "source": "raw held-out actual-graph cases"
+    },
+    "false_alarm_rate_at_clean": {
+      "expected": {
+        "comparison": "<=",
+        "id": "false_alarm_rate_at_clean",
+        "limit": 1e-06,
+        "metric": "false_alarms_per_sample",
+        "point_id": "clean_60db",
+        "statistic": "upper_ci95",
+        "units": "upper Wilson 95% bound for unmatched detections / searched channel sample"
+      },
+      "gate_statistic_value": 8.747675651891092e-08,
+      "pass": true,
+      "point_estimate": 0.0,
+      "source": "raw held-out actual-graph cases"
+    }
+  },
+  "claim_level": "provisional_engineering_characterization_only",
+  "frozen_sha256": "228edbd85fe480fe14eb67d18f1c2062029eaf9a3394ec23f31275162d2b6f42",
+  "independent_tool_sha256": "f3a73c70e140071bbbe3b1d795ae7b8c92969a9fa6d132f0d004071798d0746d",
+  "limitations": [
+    "Engineering simulation only; no hardware, conducted, channel-emulator, OTA, regulatory, interoperability, or product qualification.",
+    "Phase noise is a discrete Wiener engineering model, not a measured oscillator mask.",
+    "Static Rayleigh/Rician coefficients and the finite time-varying sum-of-sinusoids option are engineering models, not a claimed deployment profile.",
+    "Hardware-like impairments are synthetic and have no passing product gate.",
+    "The 500 Msps complex input represents configured IQ offsets; RF frequencies are metadata only.",
+    "CFO diagnostics and decoder confidence are characterized but not qualified or probability-calibrated."
+  ],
+  "machine_acceptance": {
+    "actual_allocation_high_water_available": {
+      "pass": true,
+      "policy": "machine FAIL when either production channelizer or acquisition detector omits allocation diagnostics"
+    },
+    "all_receiver_executions_completed": {
+      "failed_case_count": 1,
+      "failed_cases": [
+        {
+          "failure": {
+            "kind": "timeout",
+            "receiver_summary": null,
+            "return_status": null,
+            "scenario": {
+              "active_frequency_indices": [
+                24,
+                28,
+                32,
+                36
+              ],
+              "allow_overlap": true,
+              "channel": {
+                "awgn": {
+                  "eb_n0_db": 30.0
+                },
+                "blockers": [],
+                "carrier": {
+                  "cfo_hz": 0.0,
+                  "doppler_hz": 0.0,
+                  "initial_phase_rad": -2.161955079975256,
+                  "phase_noise_step_std_rad": 0.0
+                },
+                "fading": {
+                  "k_factor_db": 6.0,
+                  "kind": "none",
+                  "max_doppler_hz": 1000.0
+                },
+                "hardware": {},
+                "multipath": {
+                  "taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ]
+                },
+                "timing": {
+                  "fractional_delay_samples": 0.0,
+                  "sample_clock_offset_ppm": 0.0
+                }
+              },
+              "messages": [
+                {
+                  "initial_phase_rad": 0.9458546216530834,
+                  "message_id": 38101,
+                  "pulses": [
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "body",
+                      "word": 1978670220
+                    }
+                  ],
+                  "transmit_start_sample": 62175,
+                  "transmitter_id": 1
+                },
+                {
+                  "amplitude": 0.251188643150958,
+                  "initial_phase_rad": -0.42763307864705746,
+                  "message_id": 1038101,
+                  "pulses": [
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 24,
+                      "role": "preamble",
+                      "word": 2863311530
+                    },
+                    {
+                      "frequency_index": 28,
+                      "role": "preamble",
+                      "word": 2004318071
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "preamble",
+                      "word": 303174162
+                    },
+                    {
+                      "frequency_index": 36,
+                      "role": "preamble",
+                      "word": 1650614882
+                    },
+                    {
+                      "frequency_index": 32,
+                      "role": "body",
+                      "word": 929767329
+                    }
+                  ],
+                  "transmit_start_sample": 68675,
+                  "transmitter_id": 2
+                }
+              ],
+              "sample_format": "cf32_le",
+              "scenario_id": "cochannel_fhss_sir_12_t6500",
+              "schema": "graphx.fhss.phase3-scenario.v2",
+              "seed": 38101,
+              "tail_samples": 13000
+            },
+            "summary_available": false,
+            "truth_manifest": {
+              "channel": {
+                "bit_energy_j": 2e-07,
+                "cfo_hz": 0.0,
+                "channel_taps": [
+                  {
+                    "delay_samples": 0.0,
+                    "power_linear": 1.0
+                  }
+                ],
+                "complex_noise_variance_w": 0.09999999999999999,
+                "desired_active_power_w": 1.0,
+                "doppler_hz": 0.0,
+                "eb_n0_db": 30.0,
+                "es_n0_db": 30.0,
+                "fading_coefficient": [
+                  1.0,
+                  0.0
+                ],
+                "fading_kind": "none",
+                "fractional_delay_samples": 0.0,
+                "impairment_order": [
+                  "fractional_timing_and_sample_clock",
+                  "multipath_and_fading",
+                  "doppler_cfo_and_phase",
+                  "blockers_and_collisions",
+                  "iq_imbalance_and_dc",
+                  "agc",
+                  "awgn",
+                  "clipping",
+                  "quantization"
+                ],
+                "n0_w_per_hz": 1.9999999999999998e-10,
+                "noise_power_linear": 0.09999999999999999,
+                "sample_clock_offset_ppm": 0.0,
+                "sample_snr_db": 10.0,
+                "seed": 38101,
+                "snr_db": 10.0,
+                "symbol_energy_j": 2e-07
+              },
+              "events": [
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": false,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 62175,
+                  "pulse_ordinal": 0,
+                  "received_end_sample": 65375.0,
+                  "received_start_sample": 62175.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": false,
+                  "transmitter_id": 1,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 68675,
+                  "pulse_ordinal": 1,
+                  "received_end_sample": 71875.0,
+                  "received_start_sample": 68675.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 75175,
+                  "pulse_ordinal": 2,
+                  "received_end_sample": 78375.0,
+                  "received_start_sample": 75175.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 81675,
+                  "pulse_ordinal": 3,
+                  "received_end_sample": 84875.0,
+                  "received_start_sample": 81675.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 88175,
+                  "pulse_ordinal": 4,
+                  "received_end_sample": 91375.0,
+                  "received_start_sample": 88175.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 94675,
+                  "pulse_ordinal": 5,
+                  "received_end_sample": 97875.0,
+                  "received_start_sample": 94675.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 101175,
+                  "pulse_ordinal": 6,
+                  "received_end_sample": 104375.0,
+                  "received_start_sample": 101175.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 107675,
+                  "pulse_ordinal": 7,
+                  "received_end_sample": 110875.0,
+                  "received_start_sample": 107675.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 114175,
+                  "pulse_ordinal": 8,
+                  "received_end_sample": 117375.0,
+                  "received_start_sample": 114175.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 120675,
+                  "pulse_ordinal": 9,
+                  "received_end_sample": 123875.0,
+                  "received_start_sample": 120675.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 127175,
+                  "pulse_ordinal": 10,
+                  "received_end_sample": 130375.0,
+                  "received_start_sample": 127175.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 133675,
+                  "pulse_ordinal": 11,
+                  "received_end_sample": 136875.0,
+                  "received_start_sample": 133675.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 140175,
+                  "pulse_ordinal": 12,
+                  "received_end_sample": 143375.0,
+                  "received_start_sample": 140175.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 146675,
+                  "pulse_ordinal": 13,
+                  "received_end_sample": 149875.0,
+                  "received_start_sample": 146675.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 153175,
+                  "pulse_ordinal": 14,
+                  "received_end_sample": 156375.0,
+                  "received_start_sample": 153175.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 159675,
+                  "pulse_ordinal": 15,
+                  "received_end_sample": 162875.0,
+                  "received_start_sample": 159675.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 1.0,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 38101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 166175,
+                  "pulse_ordinal": 16,
+                  "received_end_sample": 169375.0,
+                  "received_start_sample": 166175.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "body",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 1.0,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 1,
+                  "word": 1978670220
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 68675,
+                  "pulse_ordinal": 0,
+                  "received_end_sample": 71875.0,
+                  "received_start_sample": 68675.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 75175,
+                  "pulse_ordinal": 1,
+                  "received_end_sample": 78375.0,
+                  "received_start_sample": 75175.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 81675,
+                  "pulse_ordinal": 2,
+                  "received_end_sample": 84875.0,
+                  "received_start_sample": 81675.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 88175,
+                  "pulse_ordinal": 3,
+                  "received_end_sample": 91375.0,
+                  "received_start_sample": 88175.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 94675,
+                  "pulse_ordinal": 4,
+                  "received_end_sample": 97875.0,
+                  "received_start_sample": 94675.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 101175,
+                  "pulse_ordinal": 5,
+                  "received_end_sample": 104375.0,
+                  "received_start_sample": 101175.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 107675,
+                  "pulse_ordinal": 6,
+                  "received_end_sample": 110875.0,
+                  "received_start_sample": 107675.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 114175,
+                  "pulse_ordinal": 7,
+                  "received_end_sample": 117375.0,
+                  "received_start_sample": 114175.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 120675,
+                  "pulse_ordinal": 8,
+                  "received_end_sample": 123875.0,
+                  "received_start_sample": 120675.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 127175,
+                  "pulse_ordinal": 9,
+                  "received_end_sample": 130375.0,
+                  "received_start_sample": 127175.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 133675,
+                  "pulse_ordinal": 10,
+                  "received_end_sample": 136875.0,
+                  "received_start_sample": 133675.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 140175,
+                  "pulse_ordinal": 11,
+                  "received_end_sample": 143375.0,
+                  "received_start_sample": 140175.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 24,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -56250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 146675,
+                  "pulse_ordinal": 12,
+                  "received_end_sample": 149875.0,
+                  "received_start_sample": 146675.0,
+                  "rf_frequency_hz": 1192000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2863311530
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 28,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": -26250000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 153175,
+                  "pulse_ordinal": 13,
+                  "received_end_sample": 156375.0,
+                  "received_start_sample": 153175.0,
+                  "rf_frequency_hz": 1224000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 2004318071
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 159675,
+                  "pulse_ordinal": 14,
+                  "received_end_sample": 162875.0,
+                  "received_start_sample": 159675.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 303174162
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": true,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 36,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 33750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 166175,
+                  "pulse_ordinal": 15,
+                  "received_end_sample": 169375.0,
+                  "received_start_sample": 166175.0,
+                  "rf_frequency_hz": 1288000000.0,
+                  "role": "preamble",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": true,
+                  "transmitter_id": 2,
+                  "word": 1650614882
+                },
+                {
+                  "accumulated_clock_drift_samples": 0.0,
+                  "amplitude_linear": 0.251188643150958,
+                  "bit_energy_j": 2e-07,
+                  "cfo_hz": 0.0,
+                  "channel_taps": [
+                    {
+                      "delay_samples": 0.0,
+                      "power_linear": 1.0
+                    }
+                  ],
+                  "collided": false,
+                  "desired_active_power_w": 1.0,
+                  "doppler_hz": 0.0,
+                  "dropped": false,
+                  "eb_n0_db": 30.0,
+                  "es_n0_db": 30.0,
+                  "frequency_index": 32,
+                  "impairment_order": [
+                    "fractional_timing_and_sample_clock",
+                    "multipath_and_fading",
+                    "doppler_cfo_and_phase",
+                    "blockers_and_collisions",
+                    "iq_imbalance_and_dc",
+                    "agc",
+                    "awgn",
+                    "clipping",
+                    "quantization"
+                  ],
+                  "iq_offset_frequency_hz": 3750000.0,
+                  "message_id": 1038101,
+                  "n0_w_per_hz": 1.9999999999999998e-10,
+                  "noise_power_linear": 0.09999999999999999,
+                  "nominal_transmit_start_sample": 172675,
+                  "pulse_ordinal": 16,
+                  "received_end_sample": 175875.0,
+                  "received_start_sample": 172675.0,
+                  "rf_frequency_hz": 1256000000.0,
+                  "role": "body",
+                  "same_hop_overlap": false,
+                  "sample_clock_offset_ppm": 0.0,
+                  "sample_clock_ratio": 1.0,
+                  "sample_snr_db": 10.0,
+                  "signal_power_linear": 0.06309573444801933,
+                  "snr_db": 10.0,
+                  "symbol_energy_j": 2e-07,
+                  "temporal_overlap": false,
+                  "transmitter_id": 2,
+                  "word": 929767329
+                }
+              ],
+              "generator": "graphx.fhss.phase3-independent.v4",
+              "iq_sha256": "ade0c1f7c90c6be5f0e0bd060d81eb3970d72eea0126ef1240f30c004f7188cf",
+              "sample_count": 188876,
+              "sample_format": "cf32_le",
+              "sample_rate_hz": 500000000.0,
+              "scenario_id": "cochannel_fhss_sir_12_t6500",
+              "scenario_sha256": "9d60e866264a9b473bc10005ad445f1109ce7fa6644bcfca2cea711fd86792ba",
+              "schema": "graphx.fhss.phase3-truth.v1",
+              "seed": 38101
+            }
+          },
+          "point_id": "cochannel_fhss_sir_12_t6500",
+          "seed": 38101
+        }
+      ],
+      "pass": false,
+      "policy": "every nonzero status or timeout is retained and is machine FAIL"
+    }
+  },
+  "matrix_complete": true,
+  "overall_pass": false,
+  "partition": "evaluation",
+  "profile_sha256": "75844524a87189c8ab26c58f78d87b23e199a1b492e76148c82f3120a6af5614",
+  "raw_cases_sha256": "05b6b6c9b9a6d8fc77fdee8cc779627aa7e4daa014572d6e3240a4d4d170942c",
+  "rows": [
+    {
+      "allocation_max_node_high_water_bytes": 24062128,
+      "allocation_sum_high_water_bytes": 74968528,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 40,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78850,
+      "burst_epoch_min_samples": 20942,
+      "cfo_rmse_hz": 455371.96653856226,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.00017650646959373138
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.005617469913741177
+      ],
+      "confidence_calibration_absolute_error": 0.9696594579037962,
+      "decoded_bits": 21760,
+      "decoded_words": 680,
+      "eb_n0_db": 60.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        8.747675651891092e-08
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "clean",
+      "frequency_index_confusion": {
+        "24->24": 172,
+        "28->28": 168,
+        "32->32": 174,
+        "36->36": 166
+      },
+      "matched_events": 680,
+      "mean_matched_confidence": 0.030340542096203838,
+      "message_errors": 0,
+      "messages": 40,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.9943825300862589,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.08762160119728664
+      ],
+      "point_id": "clean_60db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 740.0019217520021,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 40.0,
+      "searched_samples": 43914048,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 9.0,
+      "timing_absolute_error_p50_samples": 6.0,
+      "timing_absolute_error_p95_samples": 9.0,
+      "timing_absolute_error_p99_samples": 9.0,
+      "timing_rmse_samples": 6.08481717063052,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 680,
+          "message_capture_probability": 1.0,
+          "messages": 40,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 40,
+          "truth_events": 680
+        }
+      },
+      "trials": 40,
+      "truth_events": 680,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68788320,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 37,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 415106.8308982253,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.03400735294117647,
+      "conditional_ber_ci95": [
+        0.02477175232529679,
+        0.04652198559959502
+      ],
+      "conditional_wer": 0.20588235294117646,
+      "conditional_wer_ci95": [
+        0.10349526899031913,
+        0.36798388051163594
+      ],
+      "confidence_calibration_absolute_error": 0.9749830433672045,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 10.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.025016956632795434,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "ebn0_10db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 25.17927837598836,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": -10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 35.0,
+      "timing_absolute_error_p50_samples": 9.0,
+      "timing_absolute_error_p95_samples": 22.39999999999999,
+      "timing_absolute_error_p99_samples": 31.700000000000017,
+      "timing_rmse_samples": 12.416781812862595,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 7
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68788832,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 14,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 443369.38021814113,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.012867647058823529,
+      "conditional_ber_ci95": [
+        0.007680271042585589,
+        0.021482808050496585
+      ],
+      "conditional_wer": 0.029411764705882353,
+      "conditional_wer_ci95": [
+        0.0052109062762689395,
+        0.1491557329268593
+      ],
+      "confidence_calibration_absolute_error": 0.97190271821787,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 15.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02809728178213004,
+      "message_errors": 1,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.5,
+      "per_ci95": [
+        0.09453120573423074,
+        0.9054687942657693
+      ],
+      "point_id": "ebn0_15db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 26.265495915984502,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": -5.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 25.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 22.39999999999999,
+      "timing_absolute_error_p99_samples": 25.0,
+      "timing_rmse_samples": 9.396494966052972,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.5,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 1,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 1
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68762208,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452097.02713913785,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9707784317147868,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029221568285213134,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "ebn0_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 26.152263708994724,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 15.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 12.399999999999991,
+      "timing_absolute_error_p99_samples": 15.0,
+      "timing_rmse_samples": 6.23557158095202,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68724000,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454107.04224756174,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9703348350170513,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 25.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029665164982948675,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "ebn0_25db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 26.177846959006274,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 5.000000000000001,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.856772106463062,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 24062128,
+      "allocation_sum_high_water_bytes": 74968912,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 40,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 78850,
+      "burst_epoch_min_samples": 20942,
+      "cfo_rmse_hz": 455020.9992331922,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.00017650646959373138
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.005617469913741177
+      ],
+      "confidence_calibration_absolute_error": 0.9697462470163436,
+      "decoded_bits": 21760,
+      "decoded_words": 680,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        8.747675651891092e-08
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "eb_n0_curve",
+      "frequency_index_confusion": {
+        "24->24": 172,
+        "28->28": 168,
+        "32->32": 174,
+        "36->36": 166
+      },
+      "matched_events": 680,
+      "mean_matched_confidence": 0.030253752983656432,
+      "message_errors": 0,
+      "messages": 40,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.9943825300862589,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.08762160119728664
+      ],
+      "point_id": "ebn0_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 436.05093946214765,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 43914048,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 12.0,
+      "timing_absolute_error_p50_samples": 6.0,
+      "timing_absolute_error_p95_samples": 9.0,
+      "timing_absolute_error_p99_samples": 10.0,
+      "timing_rmse_samples": 6.0799816176192705,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 680,
+          "message_capture_probability": 1.0,
+          "messages": 40,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 40,
+          "truth_events": 680
+        }
+      },
+      "trials": 40,
+      "truth_events": 680,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723952,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 135,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452729.7598582361,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.12408088235294118,
+      "conditional_ber_ci95": [
+        0.10580404177142326,
+        0.14500293813248355
+      ],
+      "conditional_wer": 0.7352941176470589,
+      "conditional_wer_ci95": [
+        0.5688285871705534,
+        0.8539880932278825
+      ],
+      "confidence_calibration_absolute_error": 0.9852231131838639,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.014776886816136085,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_neg25khz_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.915684291976504,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 7.099999999999987,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.478707796832895,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 25
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723984,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 82,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452256.2077759256,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.07536764705882353,
+      "conditional_ber_ci95": [
+        0.06113220686791258,
+        0.09259108094530247
+      ],
+      "conditional_wer": 0.2647058823529412,
+      "conditional_wer_ci95": [
+        0.14601190677211745,
+        0.43117141282944665
+      ],
+      "confidence_calibration_absolute_error": 0.9703607657628348,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029639234237165163,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_pos25khz_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.938796875008848,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.856772106463062,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 9
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68763232,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 137,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 445945.4227118328,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.12591911764705882,
+      "conditional_ber_ci95": [
+        0.10751288611663462,
+        0.14695762933786438
+      ],
+      "conditional_wer": 0.6764705882352942,
+      "conditional_wer_ci95": [
+        0.508428945939082,
+        0.808683564359745
+      ],
+      "confidence_calibration_absolute_error": 0.9856225903039438,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.014377409696056116,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_neg25khz_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 19.97050541700446,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 15.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 15.0,
+      "timing_absolute_error_p99_samples": 15.0,
+      "timing_rmse_samples": 7.596438794128547,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 23
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68762208,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 80,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 446443.04560556327,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.07352941176470588,
+      "conditional_ber_ci95": [
+        0.05947577596455878,
+        0.09058397629806414
+      ],
+      "conditional_wer": 0.29411764705882354,
+      "conditional_wer_ci95": [
+        0.1683463067042242,
+        0.4616890979471443
+      ],
+      "confidence_calibration_absolute_error": 0.970228574947011,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cfo",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02977142505298904,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cfo_pos25khz_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.93342308298452,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.64327466553287e-16,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 15.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 13.680000000000007,
+      "timing_rmse_samples": 6.777992067757842,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 10
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22086128,
+      "allocation_sum_high_water_bytes": 68720096,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454278.6184598456,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9694052785592495,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.663922995038905e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.03059472144075049,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.97528070799308,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308672,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.708750000005239,
+      "timing_absolute_error_p50_samples": 5.719449999996868,
+      "timing_absolute_error_p95_samples": 10.172499999995487,
+      "timing_absolute_error_p99_samples": 10.601500000001398,
+      "timing_rmse_samples": 6.357357606844316,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22088480,
+      "allocation_sum_high_water_bytes": 68727664,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452996.22484589607,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9703392755832758,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6637846271300489e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029660724416724137,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm_30db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.89911500000744,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308864,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.591249999997672,
+      "timing_absolute_error_p50_samples": 5.305549999982759,
+      "timing_absolute_error_p95_samples": 8.868749999989085,
+      "timing_absolute_error_p99_samples": 10.162249999996714,
+      "timing_rmse_samples": 5.77032534305802,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22086128,
+      "allocation_sum_high_water_bytes": 68757456,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 450705.477731867,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9698474125713236,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.663922995038905e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.03015258742867639,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_neg50ppm_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.94870949999313,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 0.0,
+      "searched_samples": 2308672,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 14.906950000004144,
+      "timing_absolute_error_p50_samples": 6.369449999998324,
+      "timing_absolute_error_p95_samples": 11.472499999998398,
+      "timing_absolute_error_p99_samples": 13.843294000001631,
+      "timing_rmse_samples": 7.271731841631733,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22088480,
+      "allocation_sum_high_water_bytes": 68764928,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 449871.70375599444,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9711302278602703,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 20.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6637846271300489e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "sample_clock",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.028869772139729796,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "clock_pos50ppm_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.89822295898921,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": -4.821637332766436e-16,
+      "searched_samples": 2308864,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.56624999998894,
+      "timing_absolute_error_p50_samples": 3.680549999990035,
+      "timing_absolute_error_p95_samples": 9.112499999982532,
+      "timing_absolute_error_p99_samples": 11.244499999991824,
+      "timing_rmse_samples": 5.1821647055420135,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087312,
+      "allocation_sum_high_water_bytes": 68723968,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 450343.2388054195,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9701004763127566,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.663830747209297e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02989952368724331,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_quarter_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.9283966239891,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308800,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.75,
+      "timing_absolute_error_p50_samples": 4.75,
+      "timing_absolute_error_p95_samples": 6.849999999999987,
+      "timing_absolute_error_p99_samples": 10.75,
+      "timing_rmse_samples": 4.281028600973479,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087312,
+      "allocation_sum_high_water_bytes": 68724000,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 450399.97941512906,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9701411726594086,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.663830747209297e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.0298588273405914,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_half_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.89538562600501,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.999999999999998,
+      "searched_samples": 2308800,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.5,
+      "timing_absolute_error_p50_samples": 4.5,
+      "timing_absolute_error_p95_samples": 6.599999999999987,
+      "timing_absolute_error_p99_samples": 10.5,
+      "timing_rmse_samples": 4.089081588241315,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087312,
+      "allocation_sum_high_water_bytes": 68723984,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 450457.53764010326,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.970161268078518,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.663830747209297e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fractional_timing",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02983873192148204,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "timing_three_quarter_sample",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.94575937499758,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308800,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 10.25,
+      "timing_absolute_error_p50_samples": 4.25,
+      "timing_absolute_error_p95_samples": 10.25,
+      "timing_absolute_error_p99_samples": 10.25,
+      "timing_rmse_samples": 4.281028600973479,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22089664,
+      "allocation_sum_high_water_bytes": 68731264,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 401782.3622285887,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9729647895024061,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6636923946416016e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "multipath",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.027035210497593914,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "tdl_40ns",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.893353625026066,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308992,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 15.0,
+      "timing_absolute_error_p50_samples": 11.0,
+      "timing_absolute_error_p95_samples": 15.0,
+      "timing_absolute_error_p99_samples": 15.0,
+      "timing_rmse_samples": 9.270446400826026,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22092032,
+      "allocation_sum_high_water_bytes": 68738944,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 66,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 497746.2097539492,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.06066176470588235,
+      "conditional_ber_ci95": [
+        0.04796424022676927,
+        0.07645076318170861
+      ],
+      "conditional_wer": 0.20588235294117646,
+      "conditional_wer_ci95": [
+        0.10349526899031913,
+        0.36798388051163594
+      ],
+      "confidence_calibration_absolute_error": 0.9716695835972445,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6635079603389492e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "multipath",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.028330416402755507,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "tdl_80ns",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.88859816698823,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2309248,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 25.0,
+      "timing_absolute_error_p50_samples": 15.0,
+      "timing_absolute_error_p95_samples": 25.0,
+      "timing_absolute_error_p99_samples": 25.0,
+      "timing_rmse_samples": 17.923038082804126,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 7
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68727520,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 450523.6117599246,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9701965495098036,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02980345049019636,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rayleigh_static",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.912743875029264,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.856772106463062,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723616,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452246.3223651352,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9704945522589725,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029505447741027493,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "rician_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.950428458017996,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68720224,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 7,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 444617.32955567475,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.004426452299149508
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.12455502974186705
+      ],
+      "confidence_calibration_absolute_error": 0.764517428434185,
+      "decoded_bits": 864,
+      "decoded_words": 27,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "fading_doppler",
+      "frequency_index_confusion": {
+        "24->24": 6,
+        "28->28": 7,
+        "32->32": 7,
+        "36->36": 7
+      },
+      "matched_events": 27,
+      "mean_matched_confidence": 0.029600218624638512,
+      "message_errors": 1,
+      "messages": 2,
+      "pd": 0.7941176470588235,
+      "pd_ci95": [
+        0.632016119488364,
+        0.8965047310096808
+      ],
+      "per": 0.5,
+      "per_ci95": [
+        0.09453120573423074,
+        0.9054687942657693
+      ],
+      "point_id": "sum_of_sinusoids_rayleigh_1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.89635687400005,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 9.999999999999998,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 9.199999999999996,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.333333333333333,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 27,
+          "message_capture_probability": 0.5,
+          "messages": 2,
+          "pulse_capture_probability": 0.7941176470588235,
+          "successful_messages": 1,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723824,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 451008.2089862746,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9711986622029422,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.028801337797057895,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_neg1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.891355041007046,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 5.0,
+      "timing_absolute_error_p50_samples": 3.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 5.0,
+      "timing_rmse_samples": 3.605551275463989,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68724064,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 455111.2846998878,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9689594037618743,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.031040596238125745,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos1khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.91530866699759,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.856772106463062,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723888,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452771.03659571824,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9675786199227953,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "doppler",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.03242138007720479,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "doppler_pos5khz",
+      "relative_timing_samples": null,
+      "runtime_seconds": 19.94300304198987,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 7.099999999999987,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.478707796832895,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723936,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454280.7238266884,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9702179824803562,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "adjacent_blocker",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02978201751964383,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_20db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 19.892128041014075,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723936,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454273.1846214278,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9702186995301231,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "adjacent_blocker",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029781300469876947,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "adjacent_blocker_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.929740374005632,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723968,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454280.9686861791,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9702169769012872,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "alternate_blocker",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02978302309871285,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "alternate_blocker_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 19.938381000014488,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68722272,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 8,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 519479.6605416848,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.00459591801789076
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.1287289218592153
+      ],
+      "confidence_calibration_absolute_error": 0.7367809560755145,
+      "decoded_bits": 832,
+      "decoded_words": 26,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_tone",
+      "frequency_index_confusion": {
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 26,
+      "mean_matched_confidence": 0.027924926277426623,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.7647058823529411,
+      "pd_ci95": [
+        0.6000386207746361,
+        0.8756301446736042
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cochannel_tone_6db",
+      "relative_timing_samples": null,
+      "runtime_seconds": 18.934962500003166,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 5.0,
+      "timing_absolute_error_p50_samples": 3.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 5.0,
+      "timing_rmse_samples": 3.605551275463989,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 26,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7647058823529411,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68727856,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 14,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 453171.30724951637,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.012867647058823529,
+      "conditional_ber_ci95": [
+        0.007680271042585589,
+        0.021482808050496585
+      ],
+      "conditional_wer": 0.058823529411764705,
+      "conditional_wer_ci95": [
+        0.016282655210122746,
+        0.19093606904280996
+      ],
+      "confidence_calibration_absolute_error": 0.4702985791340383,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029701420865961732,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 18.893820959026925,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 2
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68724336,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 19,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452082.2154926074,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.017463235294117647,
+      "conditional_ber_ci95": [
+        0.011207926330077682,
+        0.027113991639484858
+      ],
+      "conditional_wer": 0.058823529411764705,
+      "conditional_wer_ci95": [
+        0.016282655210122746,
+        0.19093606904280996
+      ],
+      "confidence_calibration_absolute_error": 0.4719087516709784,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.028091248329021625,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 18.95385637599975,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 15.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 7.099999999999987,
+      "timing_absolute_error_p99_samples": 13.680000000000007,
+      "timing_rmse_samples": 4.734106537234069,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 2
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68724256,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 451868.2310588158,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.47090843596557547,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029091564034424512,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 18.92388508399017,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68724096,
+      "allocation_supported": true,
+      "ambiguous_associations": 32,
+      "association_errors": 34,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 452224.0330395735,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 34,
+      "collision_truth_events": 68,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.4704799169210248,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.0295200830789752,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5,
+      "pd_ci95": [
+        0.38438064984606757,
+        0.6156193501539324
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t0",
+      "relative_timing_samples": 0,
+      "runtime_seconds": 18.89040275098523,
+      "same_hop_overlap_truth_events": 68,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 68,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 2,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.058823529411764705,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 0,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.0,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22856896,
+      "allocation_sum_high_water_bytes": 71169568,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 449424.7780619404,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.4999739088419727,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6060014362030343e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 5,
+        "24->36": 3,
+        "28->24": 4,
+        "28->28": 5,
+        "28->36": 1,
+        "32->28": 3,
+        "32->32": 7,
+        "36->32": 5,
+        "36->36": 3
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.02943785586390966,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 18.91566358297132,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2391936,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 5.0,
+      "timing_absolute_error_p50_samples": 3.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 5.0,
+      "timing_rmse_samples": 3.605551275463989,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22856896,
+      "allocation_sum_high_water_bytes": 71166336,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 438912.022475836,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.49878463322277933,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6060014362030343e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 6,
+        "24->36": 2,
+        "28->24": 4,
+        "28->28": 5,
+        "28->36": 1,
+        "32->28": 5,
+        "32->32": 5,
+        "36->32": 4,
+        "36->36": 4
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.030627131483103056,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 18.912988750002114,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2391936,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 6.5,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.43471156521669,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 18,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5294117647058824,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22856896,
+      "allocation_sum_high_water_bytes": 71165968,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 32,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 432882.2012035048,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 32,
+      "collision_truth_events": 64,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0033235170718080736
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09641862859446367
+      ],
+      "confidence_calibration_absolute_error": 0.4994539326498329,
+      "decoded_bits": 1152,
+      "decoded_words": 36,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6060014362030343e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 7,
+        "24->36": 1,
+        "28->24": 4,
+        "28->28": 5,
+        "28->36": 1,
+        "32->28": 3,
+        "32->32": 7,
+        "36->32": 4,
+        "36->36": 4
+      },
+      "matched_events": 36,
+      "mean_matched_confidence": 0.029957832056049447,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.4124092208872794,
+        0.6432689357880106
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 20.95865000001504,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2391936,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 64,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 6.5,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.43471156521669,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 15,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.4411764705882353,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22437824,
+      "allocation_sum_high_water_bytes": 69840592,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 16,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 58639,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 465487.0868013594,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 16,
+      "collision_truth_events": 32,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0066250157905353045
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.17587922364665765
+      ],
+      "confidence_calibration_absolute_error": 0.49945112497999555,
+      "decoded_bits": 576,
+      "decoded_words": 18,
+      "eb_n0_db": 30.0,
+      "execution_failures": 1,
+      "false_alarm_ci95": [
+        0.0,
+        3.2427120171102144e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 3,
+        "24->36": 1,
+        "28->28": 5,
+        "28->36": 1,
+        "32->28": 1,
+        "32->32": 3,
+        "36->32": 1,
+        "36->36": 3
+      },
+      "matched_events": 18,
+      "mean_matched_confidence": 0.029960639725886813,
+      "message_errors": 2,
+      "messages": 2,
+      "pd": 0.5294117647058824,
+      "pd_ci95": [
+        0.3673671298006892,
+        0.6854849552491152
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t6500",
+      "relative_timing_samples": 6500,
+      "runtime_seconds": 9.473443916998804,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 1184640,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 32,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 1.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.333333333333333,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 13,
+          "message_capture_probability": 0.0,
+          "messages": 1,
+          "pulse_capture_probability": 0.7647058823529411,
+          "successful_messages": 0,
+          "truth_events": 17
+        },
+        "2": {
+          "matched_events": 5,
+          "message_capture_probability": 0.0,
+          "messages": 1,
+          "pulse_capture_probability": 0.29411764705882354,
+          "successful_messages": 0,
+          "truth_events": 17
+        }
+      },
+      "trials": 1,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23626496,
+      "allocation_sum_high_water_bytes": 73603136,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 5,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 485423.94565721514,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.004111842105263158,
+      "conditional_ber_ci95": [
+        0.0017575733303683118,
+        0.00958935927354206
+      ],
+      "conditional_wer": 0.02631578947368421,
+      "conditional_wer_ci95": [
+        0.004660587685768797,
+        0.13494876115952129
+      ],
+      "confidence_calibration_absolute_error": 0.5271167264983977,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5520168825814752e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 4,
+        "24->32": 4,
+        "28->28": 8,
+        "28->32": 1,
+        "28->36": 1,
+        "32->24": 6,
+        "32->32": 4,
+        "36->28": 7,
+        "36->36": 3
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.03170680291336704,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_neg6_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 17.901599707984133,
+      "same_hop_overlap_truth_events": 2,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2475136,
+      "sir_db": -6.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 5.0,
+      "timing_absolute_error_p50_samples": 3.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 5.0,
+      "timing_rmse_samples": 3.605551275463989,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 14,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.4117647058823529,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 24,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.7058823529411765,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 1
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23626496,
+      "allocation_sum_high_water_bytes": 73600064,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 8,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 462919.23704259965,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.006578947368421052,
+      "conditional_ber_ci95": [
+        0.0033373640745216013,
+        0.012928240506483743
+      ],
+      "conditional_wer": 0.02631578947368421,
+      "conditional_wer_ci95": [
+        0.004660587685768797,
+        0.13494876115952129
+      ],
+      "confidence_calibration_absolute_error": 0.5265081414382435,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5520168825814752e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 5,
+        "24->32": 3,
+        "28->28": 8,
+        "28->32": 1,
+        "28->36": 1,
+        "32->24": 6,
+        "32->32": 4,
+        "36->28": 6,
+        "36->36": 4
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.03231538797352123,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_0_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 18.933206790999975,
+      "same_hop_overlap_truth_events": 2,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2475136,
+      "sir_db": 0.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 8.780000000000015,
+      "timing_rmse_samples": 4.019688388027374,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 17,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 1
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23626496,
+      "allocation_sum_high_water_bytes": 73599664,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 464361.32910271495,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.5274508476793641,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5520168825814752e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 5,
+        "24->32": 3,
+        "28->28": 6,
+        "28->32": 1,
+        "28->36": 3,
+        "32->24": 4,
+        "32->32": 6,
+        "36->28": 6,
+        "36->36": 4
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.03137268173240062,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_6_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 16.8562603329774,
+      "same_hop_overlap_truth_events": 2,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2475136,
+      "sir_db": 6.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 4.740641750915831,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 17,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 23626496,
+      "allocation_sum_high_water_bytes": 73599696,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 30,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 448813.8880196095,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 30,
+      "collision_truth_events": 60,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0031491459754187496
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.09180986822558396
+      ],
+      "confidence_calibration_absolute_error": 0.5293761702791628,
+      "decoded_bits": 1216,
+      "decoded_words": 38,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.5520168825814752e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "cochannel_fhss_capture",
+      "frequency_index_confusion": {
+        "24->24": 4,
+        "24->32": 4,
+        "28->28": 4,
+        "28->32": 1,
+        "28->36": 5,
+        "32->24": 3,
+        "32->32": 7,
+        "36->28": 4,
+        "36->36": 6
+      },
+      "matched_events": 38,
+      "mean_matched_confidence": 0.029447359132601915,
+      "message_errors": 4,
+      "messages": 4,
+      "pd": 0.5588235294117647,
+      "pd_ci95": [
+        0.44081865304588186,
+        0.6705376603046981
+      ],
+      "per": 1.0,
+      "per_ci95": [
+        0.5101091635454027,
+        1.0
+      ],
+      "point_id": "cochannel_fhss_sir_12_t13000",
+      "relative_timing_samples": 13000,
+      "runtime_seconds": 12.785066665994236,
+      "same_hop_overlap_truth_events": 2,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2475136,
+      "sir_db": 12.0,
+      "temporal_overlap_truth_events": 60,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 11.0,
+      "timing_absolute_error_p99_samples": 11.0,
+      "timing_rmse_samples": 5.165676192553671,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 17,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.5,
+          "successful_messages": 0,
+          "truth_events": 34
+        },
+        "2": {
+          "matched_events": 21,
+          "message_capture_probability": 0.0,
+          "messages": 2,
+          "pulse_capture_probability": 0.6176470588235294,
+          "successful_messages": 0,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 68,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723968,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 454281.90503269556,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9702154355943475,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "phase_noise",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.02978456440565243,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "phase_noise_characterization",
+      "relative_timing_samples": null,
+      "runtime_seconds": 12.791249458037782,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    },
+    {
+      "allocation_max_node_high_water_bytes": 22087296,
+      "allocation_sum_high_water_bytes": 68723888,
+      "allocation_supported": true,
+      "ambiguous_associations": 0,
+      "association_errors": 0,
+      "attempted_trials": 2,
+      "bit_errors": 0,
+      "burst_epoch_max_samples": 62175,
+      "burst_epoch_min_samples": 58639,
+      "cfo_rmse_hz": 453987.7694276093,
+      "classification": "measured_actual_graph",
+      "collision_matched_events": 0,
+      "collision_truth_events": 0,
+      "conditional_ber": 0.0,
+      "conditional_ber_ci95": [
+        0.0,
+        0.0035183302389371744
+      ],
+      "conditional_wer": 0.0,
+      "conditional_wer_ci95": [
+        0.0,
+        0.10151455415332376
+      ],
+      "confidence_calibration_absolute_error": 0.9703106371294008,
+      "decoded_bits": 1088,
+      "decoded_words": 34,
+      "eb_n0_db": 30.0,
+      "execution_failures": 0,
+      "false_alarm_ci95": [
+        0.0,
+        1.6638768698455114e-06
+      ],
+      "false_alarms_per_sample": 0.0,
+      "false_detections": 0,
+      "family": "hardware",
+      "frequency_index_confusion": {
+        "24->24": 8,
+        "28->28": 9,
+        "32->32": 9,
+        "36->36": 8
+      },
+      "matched_events": 34,
+      "mean_matched_confidence": 0.029689362870599173,
+      "message_errors": 0,
+      "messages": 2,
+      "pd": 1.0,
+      "pd_ci95": [
+        0.8984854458466761,
+        1.0
+      ],
+      "per": 0.0,
+      "per_ci95": [
+        0.0,
+        0.6576197724933469
+      ],
+      "point_id": "hardware_characterization",
+      "relative_timing_samples": null,
+      "runtime_seconds": 12.786868416995276,
+      "same_hop_overlap_truth_events": 0,
+      "sample_snr_db": 10.0,
+      "searched_samples": 2308736,
+      "sir_db": null,
+      "temporal_overlap_truth_events": 0,
+      "timing_absolute_error_max_samples": 11.0,
+      "timing_absolute_error_p50_samples": 5.0,
+      "timing_absolute_error_p95_samples": 5.0,
+      "timing_absolute_error_p99_samples": 9.02000000000001,
+      "timing_rmse_samples": 4.065637928382935,
+      "transmitter_capture": {
+        "1": {
+          "matched_events": 34,
+          "message_capture_probability": 1.0,
+          "messages": 2,
+          "pulse_capture_probability": 1.0,
+          "successful_messages": 2,
+          "truth_events": 34
+        }
+      },
+      "trials": 2,
+      "truth_events": 34,
+      "word_errors": 0
+    }
+  ],
+  "schema": "graphx.fhss.phase3-report.v4"
+}

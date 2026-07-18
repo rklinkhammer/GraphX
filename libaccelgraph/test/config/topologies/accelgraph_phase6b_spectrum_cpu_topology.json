@@ -1,0 +1,50 @@
+{
+  "name": "AccelGraphPhase6BSpectrumCpuTopology",
+  "description": "GraphExecutor CPU spectrum correctness topology with plugin-loaded accelgraph nodes.",
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "sine",
+      "type": "SineWaveSourceNode",
+      "name": "sine",
+      "node_config": {
+        "sample_count": 256,
+        "sample_rate_hz": 48000.0,
+        "tone_frequency_hz": 1000.0,
+        "amplitude": 1.0,
+        "phase_radians": 0.0,
+        "packet_number": 1
+      }
+    },
+    {
+      "id": "spectrum",
+      "type": "SpectrumAnalysisNode",
+      "name": "spectrum",
+      "node_config": {
+        "backend": "cpu",
+        "strict_fallback": true,
+        "fallback_policy": "strict"
+      }
+    },
+    {
+      "id": "sink",
+      "type": "SpectrumSinkNode",
+      "name": "sink",
+      "node_config": {}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "sine",
+      "source_port": 0,
+      "target_node_id": "spectrum",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "spectrum",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

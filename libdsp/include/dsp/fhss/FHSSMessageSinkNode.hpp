@@ -50,7 +50,8 @@ public:
           *last_diagnostics_.global_start_sample;
     }
     if (last_diagnostics_.frequency_index) {
-      diagnostics_cache_["frequency_index"] = *last_diagnostics_.frequency_index;
+      diagnostics_cache_["frequency_index"] =
+          *last_diagnostics_.frequency_index;
     }
     if (last_diagnostics_.confidence) {
       diagnostics_cache_["confidence"] = *last_diagnostics_.confidence;
@@ -76,6 +77,11 @@ public:
             {"rf_frequency_hz", pulse.pulse.frequency.rf_frequency_hz},
             {"iq_offset_frequency_hz",
              pulse.pulse.frequency.iq_offset_frequency_hz},
+            {"estimated_center_frequency_hz",
+             pulse.pulse.frequency.estimated_center_frequency_hz},
+            {"frequency_error_hz", pulse.pulse.frequency.frequency_error_hz},
+            {"cfo_hz", pulse.pulse.cfo_hz},
+            {"snr_db", pulse.pulse.snr_db},
             {"channel_id", pulse.pulse.timing.channel_id},
             {"downconverter_passthrough",
              pulse.pulse.downconverter_passthrough},

@@ -1,0 +1,76 @@
+{
+  "name": "AccelGraphPhase3ATransferCpuTopology",
+  "description": "GraphExecutor CPU transfer topology with plugin-loaded accelgraph transfer nodes.",
+  "accelerator_session": {
+    "session_key": "graph.default",
+    "provider_id": "cpu.default",
+    "backend": "cpu"
+  },
+  "num_threads": 4,
+  "nodes": [
+    {
+      "id": "ingress",
+      "type": "HostIngressNode",
+      "name": "ingress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu",
+        "payload_size": 256,
+        "payload_multiplier": 13,
+        "payload_offset": 5,
+        "debug_label": "phase3a.cpu.ingress"
+      }
+    },
+    {
+      "id": "h2d",
+      "type": "HostToDeviceNode",
+      "name": "h2d",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
+    },
+    {
+      "id": "d2h",
+      "type": "DeviceToHostNode",
+      "name": "d2h",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
+    },
+    {
+      "id": "egress",
+      "type": "HostEgressNode",
+      "name": "egress",
+      "node_config": {
+        "session_key": "graph.default",
+        "provider_id": "cpu.default",
+        "backend": "cpu"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "ingress",
+      "source_port": 0,
+      "target_node_id": "h2d",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "h2d",
+      "source_port": 0,
+      "target_node_id": "d2h",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "d2h",
+      "source_port": 0,
+      "target_node_id": "egress",
+      "target_port": 0
+    }
+  ]
+}

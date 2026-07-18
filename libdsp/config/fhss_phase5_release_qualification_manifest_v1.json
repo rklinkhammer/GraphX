@@ -1,0 +1,10 @@
+{
+  "outputs": ["fhss_phase5_qualification_raw_v1.json", "fhss_phase5_qualification_report_v1.json", "fhss_phase5_qualification_report_v1.md"],
+  "profile": "libdsp/config/fhss_phase5_qualification_profile_v1.json",
+  "prohibited_actions": ["network upload", "commit", "push", "tag", "publish", "release", "RF transmission"],
+  "registries": ["requirement_registry", "claim_registry", "evidence_registry", "traceability", "limitation_waiver_registry", "regression_corpus_manifest", "failure_registry", "minimized_failure_registry"],
+  "release_id": "fhss-phase5-synthetic-software-v1",
+  "required_test_suites": ["fhss_phase5_qualification", "fhss_phase3_report_verify", "fhss_phase4_regressions", "fhss_cpp_regressions", "fhss_truth_isolation", "libdsp_unit_full", "dsp_example_unit_full"],
+  "schema": "graphx.fhss.phase5-release-qualification-manifest.v1",
+  "skip_policy": "skips_are_not_passes"
+}

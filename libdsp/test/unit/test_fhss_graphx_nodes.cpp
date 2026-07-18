@@ -17,11 +17,14 @@
 
 #include "dsp/fhss/CPSMBranchMetricNode.hpp"
 #include "dsp/fhss/CPSMViterbiDecoderNode.hpp"
-#include "dsp/fhss/FHSSFixtureFrequencyChannelizerNode.hpp"
+#include "dsp/fhss/FHSSAcquisitionPulseDetectorNode.hpp"
+#include "dsp/fhss/FHSSBinaryIqFileSourceNode.hpp"
 #include "dsp/fhss/FHSSDownconverterNode.hpp"
+#include "dsp/fhss/FHSSFixtureFrequencyChannelizerNode.hpp"
 #include "dsp/fhss/FHSSMessageAssemblerNode.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
 #include "dsp/fhss/FHSSPreambleDetectorNode.hpp"
+#include "dsp/fhss/FHSSProductionCandidateChannelizerNode.hpp"
 #include "dsp/fhss/FHSSPulseCandidateNode.hpp"
 #include "dsp/fhss/FHSSPulseMergeNode.hpp"
 #include "dsp/fhss/FHSSPulseWordDecoderNode.hpp"
@@ -79,8 +82,8 @@ FHSSFrequencyConfig FullReceiverFrequencyConfig() {
   const double iq_center_hz = 1'252'000'000.0;
   for (std::uint32_t index = 0; index < FHSSProtocolConstants::kFrequencyCount;
        ++index) {
-    config.iq_offset_frequency_hz[index] = RfFrequencyHz(index, config) -
-                                           iq_center_hz;
+    config.iq_offset_frequency_hz[index] =
+        RfFrequencyHz(index, config) - iq_center_hz;
   }
   return config;
 }
@@ -137,19 +140,19 @@ FHSSSyntheticIqGeneratorConfig GeneratorConfig() {
   FHSSScheduledMessageSpec message{};
   message.message_id = 1;
   for (const auto &pulse : Preamble()) {
-    message.pulses.push_back(FHSSMessagePulseSpec{
-        .frequency_index = pulse.frequency_index,
-        .value = pulse.word_value,
-        .role = FHSSMessagePulseRole::Preamble});
+    message.pulses.push_back(
+        FHSSMessagePulseSpec{.frequency_index = pulse.frequency_index,
+                             .value = pulse.word_value,
+                             .role = FHSSMessagePulseRole::Preamble});
   }
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 1,
-      .value = 0x0102'0304u,
-      .role = FHSSMessagePulseRole::Body});
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 7,
-      .value = 0xA5A5'5A5Au,
-      .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 1,
+                           .value = 0x0102'0304u,
+                           .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 7,
+                           .value = 0xA5A5'5A5Au,
+                           .role = FHSSMessagePulseRole::Body});
   config.messages.push_back(std::move(message));
   return config;
 }
@@ -160,15 +163,15 @@ FHSSSyntheticIqGeneratorConfig ChannelizedGeneratorConfig() {
   FHSSScheduledMessageSpec message{};
   message.message_id = 1;
   for (const auto &pulse : ChannelizedPreamble()) {
-    message.pulses.push_back(FHSSMessagePulseSpec{
-        .frequency_index = pulse.frequency_index,
-        .value = pulse.word_value,
-        .role = FHSSMessagePulseRole::Preamble});
+    message.pulses.push_back(
+        FHSSMessagePulseSpec{.frequency_index = pulse.frequency_index,
+                             .value = pulse.word_value,
+                             .role = FHSSMessagePulseRole::Preamble});
   }
-  message.pulses.push_back(FHSSMessagePulseSpec{
-      .frequency_index = 24,
-      .value = 0x0102'0304u,
-      .role = FHSSMessagePulseRole::Body});
+  message.pulses.push_back(
+      FHSSMessagePulseSpec{.frequency_index = 24,
+                           .value = 0x0102'0304u,
+                           .role = FHSSMessagePulseRole::Body});
   config.messages.push_back(std::move(message));
   return config;
 }
@@ -194,9 +197,8 @@ FHSSDownconverterConfig TranslationDownconverterConfig() {
   config.output_reference_frequency_hz = 1'260'000'000.0;
   config.translation_frequency_hz = 8'000'000.0;
   config.passthrough = false;
-  config.phase_convention =
-      FHSSGraphXDownconverterPhaseConvention::
-          OutputTimesExpNegativeJTwoPiTranslationT;
+  config.phase_convention = FHSSGraphXDownconverterPhaseConvention::
+      OutputTimesExpNegativeJTwoPiTranslationT;
   return config;
 }
 
@@ -235,7 +237,8 @@ FHSSGraphXComplexEvidence MergeTestEvidence(std::uint64_t global_start_sample) {
   auto samples = std::make_shared<const std::vector<std::complex<double>>>(
       std::vector<std::complex<double>>(
           FHSSProtocolConstants::kPulseWidthSamples, {1.0, 0.0}));
-  return FHSSGraphXComplexEvidenceFromHostSamples(samples, samples->size(), map);
+  return FHSSGraphXComplexEvidenceFromHostSamples(samples, samples->size(),
+                                                  map);
 }
 
 FHSSGraphXPulseMetadata MergeTestPulse(std::uint32_t frequency_index,
@@ -290,8 +293,8 @@ bool ConsumeReversePortsExceptFirst(
     const std::array<FHSSPerChannelPulseEvidenceToken,
                      FHSSProtocolConstants::kFrequencyCount> &tokens,
     std::index_sequence<Indices...>) {
-  return (merge.template ConsumeInput<
-              FHSSProtocolConstants::kFrequencyCount - Indices>(
+  return (merge.template ConsumeInput<FHSSProtocolConstants::kFrequencyCount -
+                                      Indices>(
               tokens[FHSSProtocolConstants::kFrequencyCount - 1u - Indices]) &&
           ...);
 }
@@ -330,20 +333,20 @@ FHSSGraphXPulseMetadata MetadataFromTruth(const FHSSTruthPulse &truth) {
   return FHSSGraphXPulseMetadataFromDetectedPulse(detected);
 }
 
-FHSSDecodedPulseWordsToken DecodedWordsFromTruth(
-    const std::vector<FHSSTruthPulse> &truth_pulses) {
+FHSSDecodedPulseWordsToken
+DecodedWordsFromTruth(const std::vector<FHSSTruthPulse> &truth_pulses) {
   FHSSDecodedPulseWordsToken token{};
   token.token_id = 99;
   token.sidecar.globally_ordered = true;
   token.sidecar.decoded_pulses.reserve(truth_pulses.size());
   for (const auto &truth : truth_pulses) {
-    token.sidecar.decoded_pulses.push_back(FHSSDecodedPulseWordPacket{
-        .pulse = MetadataFromTruth(truth),
-        .decoded_value = truth.value,
-        .confidence = 1.0,
-        .viterbi_path_metric = 0.0,
-        .status = FHSSGraphXDecodeStatus::Ok,
-        .status_message = "Ok"});
+    token.sidecar.decoded_pulses.push_back(
+        FHSSDecodedPulseWordPacket{.pulse = MetadataFromTruth(truth),
+                                   .decoded_value = truth.value,
+                                   .confidence = 1.0,
+                                   .viterbi_path_metric = 0.0,
+                                   .status = FHSSGraphXDecodeStatus::Ok,
+                                   .status_message = "Ok"});
   }
   return token;
 }
@@ -360,9 +363,15 @@ struct FHSSPluginExpectation {
 const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
   static const std::vector<FHSSPluginExpectation> expectations{
       {"FHSSSyntheticIqSourceNode", "fhss_synthetic_iq_source_node"},
+      {"FHSSBinaryIqFileSourceNode", "fhss_binary_iq_file_source_node"},
       {"FHSSDownconverterNode", "fhss_downconverter_node"},
-      {"FHSSFixtureFrequencyChannelizerNode", "fhss_fixture_frequency_channelizer_node"},
+      {"FHSSFixtureFrequencyChannelizerNode",
+       "fhss_fixture_frequency_channelizer_node"},
+      {"FHSSProductionCandidateChannelizerNode",
+       "fhss_production_candidate_channelizer_node"},
       {"PerChannelPulseDetectorNode", "per_channel_pulse_detector_node"},
+      {"FHSSAcquisitionPulseDetectorNode",
+       "fhss_acquisition_pulse_detector_node"},
       {"FHSSPulseMergeNode", "fhss_pulse_merge_node"},
       {"FHSSPulseCandidateNode", "fhss_pulse_candidate_node"},
       {"CPSMBranchMetricNode", "cpsm_branch_metric_node"},
@@ -376,19 +385,34 @@ const std::vector<FHSSPluginExpectation> &FHSSPluginExpectations() {
 }
 
 TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
-  static_assert(
-      IsControlTokenV<FHSSSyntheticIqSourceNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSSyntheticIqSourceNode::OutputType<0>>);
+  static_assert(IsControlTokenV<FHSSBinaryIqFileSourceNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSDownconverterNode::OutputType<0>>);
-  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::InputType<0>>);
-  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<0>>);
-  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<1>>);
-  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<62>>);
-  static_assert(IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<63>>);
+  static_assert(
+      IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::InputType<0>>);
+  static_assert(
+      IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<0>>);
+  static_assert(
+      IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<1>>);
+  static_assert(
+      IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<62>>);
+  static_assert(
+      IsControlTokenV<FHSSFixtureFrequencyChannelizerNode::OutputType<63>>);
   static_assert(FHSSFixtureFrequencyChannelizerNode::NOutputs ==
+                FHSSProtocolConstants::kFrequencyCount);
+  static_assert(
+      IsControlTokenV<FHSSProductionCandidateChannelizerNode::InputType<0>>);
+  static_assert(
+      IsControlTokenV<FHSSProductionCandidateChannelizerNode::OutputType<0>>);
+  static_assert(FHSSProductionCandidateChannelizerNode::NOutputs ==
                 FHSSProtocolConstants::kFrequencyCount);
   static_assert(IsControlTokenV<PerChannelPulseDetectorNode::InputType<0>>);
   static_assert(IsControlTokenV<PerChannelPulseDetectorNode::OutputType<0>>);
+  static_assert(
+      IsControlTokenV<FHSSAcquisitionPulseDetectorNode::InputType<0>>);
+  static_assert(
+      IsControlTokenV<FHSSAcquisitionPulseDetectorNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSPulseMergeNode::InputType<1>>);
@@ -407,51 +431,60 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
   static_assert(IsControlTokenV<FHSSMessageAssemblerNode::OutputType<0>>);
   static_assert(IsControlTokenV<FHSSMessageSinkNode::InputType<0>>);
 
+  static_assert(
+      std::is_same_v<
+          typename TokenSidecar<FHSSSyntheticIqSourceNode::OutputType<0>>::type,
+          FHSSSyntheticIqOutputPacket>);
+  static_assert(
+      std::is_same_v<typename TokenSidecar<
+                         FHSSBinaryIqFileSourceNode::OutputType<0>>::type,
+                     FHSSSyntheticIqOutputPacket>);
+  static_assert(
+      std::is_same_v<
+          typename TokenSidecar<FHSSDownconverterNode::OutputType<0>>::type,
+          FHSSDownconvertedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<
-                    FHSSSyntheticIqSourceNode::OutputType<0>>::type,
-                FHSSSyntheticIqOutputPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<
-                    FHSSDownconverterNode::OutputType<0>>::type,
-                FHSSDownconvertedIqPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<0>>::type,
-                FHSSChannelizedIqPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<1>>::type,
-                FHSSChannelizedIqPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<62>>::type,
-                FHSSChannelizedIqPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<FHSSFixtureFrequencyChannelizerNode::OutputType<63>>::type,
+                    FHSSFixtureFrequencyChannelizerNode::OutputType<0>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<
-                    PerChannelPulseDetectorNode::InputType<0>>::type,
+                    FHSSFixtureFrequencyChannelizerNode::OutputType<1>>::type,
                 FHSSChannelizedIqPacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<
-                    PerChannelPulseDetectorNode::OutputType<0>>::type,
-                FHSSPerChannelPulseEvidencePacket>);
+                    FHSSFixtureFrequencyChannelizerNode::OutputType<62>>::type,
+                FHSSChannelizedIqPacket>);
+  static_assert(std::is_same_v<
+                typename TokenSidecar<
+                    FHSSFixtureFrequencyChannelizerNode::OutputType<63>>::type,
+                FHSSChannelizedIqPacket>);
+  static_assert(
+      std::is_same_v<typename TokenSidecar<
+                         PerChannelPulseDetectorNode::InputType<0>>::type,
+                     FHSSChannelizedIqPacket>);
+  static_assert(
+      std::is_same_v<typename TokenSidecar<
+                         PerChannelPulseDetectorNode::OutputType<0>>::type,
+                     FHSSPerChannelPulseEvidencePacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<FHSSPulseMergeNode::InputType<1>>::type,
                 FHSSPerChannelPulseEvidencePacket>);
   static_assert(std::is_same_v<
                 typename TokenSidecar<FHSSPulseMergeNode::OutputType<0>>::type,
                 FHSSPulseCandidateEvidencePacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<CPSMViterbiDecoderNode::OutputType<0>>::type,
-                FHSSCpsmSymbolDecisionPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<
-                    FHSSPulseWordDecoderNode::OutputType<0>>::type,
-                FHSSDecodedPulseWordsPacket>);
-  static_assert(std::is_same_v<
-                typename TokenSidecar<
-                    FHSSMessageAssemblerNode::OutputType<0>>::type,
-                FHSSAssembledMessagePacket>);
+  static_assert(
+      std::is_same_v<
+          typename TokenSidecar<CPSMViterbiDecoderNode::OutputType<0>>::type,
+          FHSSCpsmSymbolDecisionPacket>);
+  static_assert(
+      std::is_same_v<
+          typename TokenSidecar<FHSSPulseWordDecoderNode::OutputType<0>>::type,
+          FHSSDecodedPulseWordsPacket>);
+  static_assert(
+      std::is_same_v<
+          typename TokenSidecar<FHSSMessageAssemblerNode::OutputType<0>>::type,
+          FHSSAssembledMessagePacket>);
 
   static_assert(!std::is_same_v<FHSSPulseMergeNode::InputType<0>,
                                 FHSSDetectedPulseEvidencePacket>);
@@ -459,16 +492,14 @@ TEST(FHSSGraphXNodeTest, EveryNodePortUsesAccelControlTokenSidecars) {
                                 FHSSPerChannelPulseEvidencePacket>);
 }
 
-TEST(FHSSGraphXNodeTest,
-     CpuLaneDecodesFromComplexEvidenceWithoutRuntimeTruth) {
+TEST(FHSSGraphXNodeTest, CpuLaneDecodesFromComplexEvidenceWithoutRuntimeTruth) {
   const auto generator_config = ChannelizedGeneratorConfig();
   const auto fixture = GenerateSyntheticIqFixture(generator_config);
   ASSERT_TRUE(fixture.has_value()) << fixture.error().message;
   ASSERT_EQ(fixture->truth_pulses.size(), 17u);
 
   FHSSSyntheticIqSourceNode source(generator_config);
-  auto synthetic =
-      source.Produce(std::integral_constant<std::size_t, 0>{});
+  auto synthetic = source.Produce(std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(synthetic.has_value());
   ASSERT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(synthetic->sidecar.iq));
 
@@ -479,17 +510,16 @@ TEST(FHSSGraphXNodeTest,
   ASSERT_TRUE(downconverted.has_value());
 
   FHSSFixtureFrequencyChannelizerNode channelizer(FullRateChannelizerConfig());
-  ASSERT_TRUE(
-      channelizer.Consume(*downconverted,
-                          std::integral_constant<std::size_t, 0>{}));
+  ASSERT_TRUE(channelizer.Consume(*downconverted,
+                                  std::integral_constant<std::size_t, 0>{}));
   auto channel24 =
       channelizer.Produce(std::integral_constant<std::size_t, 24>{});
   ASSERT_TRUE(channel24.has_value());
 
   PerChannelPulseDetectorNode detector(PerChannelDetectorConfig());
-  auto per_channel = detector.Transfer(
-      *channel24, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
+  auto per_channel =
+      detector.Transfer(*channel24, std::integral_constant<std::size_t, 0>{},
+                        std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(per_channel.has_value());
   ASSERT_FALSE(per_channel->sidecar.detected_pulses.empty());
   ASSERT_EQ(per_channel->sidecar.pulse_evidence.size(),
@@ -502,9 +532,9 @@ TEST(FHSSGraphXNodeTest,
   detected.sidecar.pulse_evidence = per_channel->sidecar.pulse_evidence;
   detected.sidecar.source_iq = per_channel->sidecar.channel_iq;
   FHSSPulseMergeNode merge;
-  auto candidates = merge.Transfer(
-      detected, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
+  auto candidates =
+      merge.Transfer(detected, std::integral_constant<std::size_t, 0>{},
+                     std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(candidates.has_value());
   ASSERT_FALSE(candidates->sidecar.ordered_candidates.empty());
   EXPECT_TRUE(candidates->sidecar.globally_ordered);
@@ -526,9 +556,9 @@ TEST(FHSSGraphXNodeTest,
             candidate_stream->sidecar.ordered_candidates.size());
 
   CPSMViterbiDecoderNode viterbi;
-  auto symbols = viterbi.Transfer(*metrics,
-                                  std::integral_constant<std::size_t, 0>{},
-                                  std::integral_constant<std::size_t, 0>{});
+  auto symbols =
+      viterbi.Transfer(*metrics, std::integral_constant<std::size_t, 0>{},
+                       std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(symbols.has_value());
   EXPECT_EQ(symbols->sidecar.symbols.size(),
             FHSSProtocolConstants::kBitsPerPulse);
@@ -536,28 +566,27 @@ TEST(FHSSGraphXNodeTest,
             candidate_stream->sidecar.ordered_candidates.size());
 
   FHSSPulseWordDecoderNode word_decoder;
-  auto decoded = word_decoder.Transfer(
-      *symbols, std::integral_constant<std::size_t, 0>{},
-                        std::integral_constant<std::size_t, 0>{});
+  auto decoded =
+      word_decoder.Transfer(*symbols, std::integral_constant<std::size_t, 0>{},
+                            std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(decoded.has_value());
   ASSERT_FALSE(decoded->sidecar.decoded_pulses.empty());
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front().status,
             FHSSGraphXDecodeStatus::Ok);
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front().decoded_value,
             fixture->truth_pulses.front().value);
-  EXPECT_EQ(decoded->sidecar.decoded_pulses.front()
-                .pulse.frequency.frequency_index,
-            fixture->truth_pulses.front().frequency_index);
+  EXPECT_EQ(
+      decoded->sidecar.decoded_pulses.front().pulse.frequency.frequency_index,
+      fixture->truth_pulses.front().frequency_index);
 }
 
 TEST(FHSSGraphXNodeTest,
      CanonicalSourceToDetectorPathPreservesEndOfStreamControl) {
   FHSSSyntheticIqSourceNode source(ChannelizedGeneratorConfig());
-  auto synthetic =
-      source.Produce(std::integral_constant<std::size_t, 0>{});
+  auto synthetic = source.Produce(std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(synthetic.has_value());
-  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
-      synthetic->edge_control));
+  EXPECT_TRUE(
+      std::holds_alternative<graph::EdgeEndOfStream>(synthetic->edge_control));
 
   FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
   auto downconverted = downconverter.Transfer(
@@ -567,33 +596,93 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_EQ(downconverted->edge_control, synthetic->edge_control);
 
   FHSSFixtureFrequencyChannelizerNode channelizer(ChannelizerConfig());
-  ASSERT_TRUE(
-      channelizer.Consume(*downconverted,
-                          std::integral_constant<std::size_t, 0>{}));
+  ASSERT_TRUE(channelizer.Consume(*downconverted,
+                                  std::integral_constant<std::size_t, 0>{}));
   auto channel24 =
       channelizer.Produce(std::integral_constant<std::size_t, 24>{});
   ASSERT_TRUE(channel24.has_value());
   EXPECT_EQ(channel24->edge_control, synthetic->edge_control);
 
   PerChannelPulseDetectorNode detector(PerChannelDetectorConfig());
-  auto per_channel = detector.Transfer(
-      *channel24, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
+  auto per_channel =
+      detector.Transfer(*channel24, std::integral_constant<std::size_t, 0>{},
+                        std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(per_channel.has_value());
   EXPECT_EQ(per_channel->edge_control, synthetic->edge_control);
 }
 
 TEST(FHSSGraphXNodeTest,
+     EveryEmptyTerminalShapeReachesSinkWithoutInventingPulseEvidence) {
+  const std::array<graph::EdgeControl, 3> terminal_shapes = {
+      graph::EdgeEndOfStream{}, graph::EdgeCancellation{"test cancellation"},
+      graph::EdgeFailure{"test failure"}};
+  for (std::size_t index = 0; index < terminal_shapes.size(); ++index) {
+    FHSSPulseCandidateToken candidates{};
+    candidates.token_id = 919 + index;
+    candidates.edge_control = terminal_shapes[index];
+    candidates.sidecar.globally_ordered = true;
+    ASSERT_TRUE(candidates.sidecar.ordered_candidates.empty());
+
+    CPSMBranchMetricNode branch_metric;
+    auto metrics = branch_metric.Transfer(
+        candidates, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(metrics.has_value());
+    EXPECT_EQ(metrics->edge_control, candidates.edge_control);
+    EXPECT_TRUE(metrics->sidecar.pulse_metrics.empty());
+
+    CPSMViterbiDecoderNode viterbi;
+    auto symbols =
+        viterbi.Transfer(*metrics, std::integral_constant<std::size_t, 0>{},
+                         std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(symbols.has_value());
+    EXPECT_EQ(symbols->edge_control, candidates.edge_control);
+    EXPECT_TRUE(symbols->sidecar.pulse_decisions.empty());
+
+    FHSSPulseWordDecoderNode word_decoder;
+    auto decoded = word_decoder.Transfer(
+        *symbols, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded->edge_control, candidates.edge_control);
+    EXPECT_TRUE(decoded->sidecar.decoded_pulses.empty());
+
+    FHSSPreambleDetectorNode preamble_detector(Preamble());
+    auto preamble = preamble_detector.Transfer(
+        *decoded, std::integral_constant<std::size_t, 0>{},
+        std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(preamble.has_value());
+    EXPECT_EQ(preamble->edge_control, candidates.edge_control);
+    EXPECT_FALSE(preamble->sidecar.preamble_lock);
+    EXPECT_TRUE(preamble->sidecar.ordered_pulses.empty());
+
+    FHSSMessageAssemblerNode assembler(AssemblerConfig());
+    auto message =
+        assembler.Transfer(*preamble, std::integral_constant<std::size_t, 0>{},
+                           std::integral_constant<std::size_t, 0>{});
+    ASSERT_TRUE(message.has_value());
+    EXPECT_EQ(message->edge_control, candidates.edge_control);
+    EXPECT_FALSE(message->sidecar.preamble_lock);
+    EXPECT_TRUE(message->sidecar.ordered_pulses.empty());
+
+    FHSSMessageSinkNode sink;
+    EXPECT_TRUE(
+        sink.Consume(*message, std::integral_constant<std::size_t, 0>{}));
+    EXPECT_EQ(sink.last_diagnostics().pulse_count, 0u);
+    EXPECT_FALSE(sink.last_diagnostics().preamble_lock);
+  }
+}
+
+TEST(FHSSGraphXNodeTest,
      DownconverterPassthroughPreservesSamplesAndGlobalTiming) {
   auto samples = std::make_shared<const std::vector<std::complex<double>>>(
-      std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0},
-                                        {-1.0, 0.0}});
+      std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0}, {-1.0, 0.0}});
   auto input = SyntheticTokenFromSamples(samples, 42'000);
 
   FHSSDownconverterNode downconverter(PassthroughDownconverterConfig());
-  auto output = downconverter.Transfer(input,
-                                       std::integral_constant<std::size_t, 0>{},
-                                       std::integral_constant<std::size_t, 0>{});
+  auto output =
+      downconverter.Transfer(input, std::integral_constant<std::size_t, 0>{},
+                             std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(output.has_value());
   EXPECT_EQ(output->token_id, input.token_id);
   EXPECT_EQ(output->sidecar.iq.host_complex64_samples, samples);
@@ -613,9 +702,9 @@ TEST(FHSSGraphXNodeTest,
   auto input = SyntheticTokenFromSamples(samples, 0);
 
   FHSSDownconverterNode downconverter(TranslationDownconverterConfig());
-  auto output = downconverter.Transfer(input,
-                                       std::integral_constant<std::size_t, 0>{},
-                                       std::integral_constant<std::size_t, 0>{});
+  auto output =
+      downconverter.Transfer(input, std::integral_constant<std::size_t, 0>{},
+                             std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(output.has_value());
   ASSERT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(output->sidecar.iq));
   ASSERT_EQ(output->sidecar.iq.host_complex64_samples->size(), 4u);
@@ -625,11 +714,9 @@ TEST(FHSSGraphXNodeTest,
       -kTwoPi * 8'000'000.0 / FHSSProtocolConstants::kSampleRateHz;
   for (std::size_t i = 0; i < output->sidecar.iq.host_complex64_samples->size();
        ++i) {
-    const auto expected =
-        std::complex<double>(std::cos(radians_per_sample *
-                                      static_cast<double>(i)),
-                             std::sin(radians_per_sample *
-                                      static_cast<double>(i)));
+    const auto expected = std::complex<double>(
+        std::cos(radians_per_sample * static_cast<double>(i)),
+        std::sin(radians_per_sample * static_cast<double>(i)));
     const auto actual = output->sidecar.iq.host_complex64_samples->at(i);
     EXPECT_NEAR(actual.real(), expected.real(), 1.0e-12);
     EXPECT_NEAR(actual.imag(), expected.imag(), 1.0e-12);
@@ -639,8 +726,7 @@ TEST(FHSSGraphXNodeTest,
                    8'000'000.0);
 }
 
-TEST(FHSSGraphXNodeTest,
-     DownconverterRejectsImplicitFrequencyFrameMismatch) {
+TEST(FHSSGraphXNodeTest, DownconverterRejectsImplicitFrequencyFrameMismatch) {
   auto bad = TranslationDownconverterConfig();
   bad.translation_frequency_hz = 1'000'000'000.0;
   FHSSDownconverterNode downconverter(bad);
@@ -648,9 +734,9 @@ TEST(FHSSGraphXNodeTest,
       std::vector<std::complex<double>>(4, {1.0, 0.0}));
   auto input = SyntheticTokenFromSamples(samples);
 
-  auto output = downconverter.Transfer(input,
-                                       std::integral_constant<std::size_t, 0>{},
-                                       std::integral_constant<std::size_t, 0>{});
+  auto output =
+      downconverter.Transfer(input, std::integral_constant<std::size_t, 0>{},
+                             std::integral_constant<std::size_t, 0>{});
   EXPECT_FALSE(output.has_value());
 }
 
@@ -669,9 +755,8 @@ TEST(FHSSGraphXNodeTest,
   EXPECT_EQ(channelizer.GetOutputPortCount(),
             static_cast<int>(FHSSProtocolConstants::kFrequencyCount));
 
-  ASSERT_TRUE(
-      channelizer.Consume(*downconverted,
-                          std::integral_constant<std::size_t, 0>{}));
+  ASSERT_TRUE(channelizer.Consume(*downconverted,
+                                  std::integral_constant<std::size_t, 0>{}));
   auto channel0 = channelizer.Produce(std::integral_constant<std::size_t, 0>{});
   auto channel1 = channelizer.Produce(std::integral_constant<std::size_t, 1>{});
   auto channel24 =
@@ -737,13 +822,12 @@ TEST(FHSSGraphXNodeTest, PerChannelPulseDetectorUsesSingleChannelMetadata) {
   auto fixture_samples = std::make_shared<std::vector<std::complex<double>>>();
   fixture_samples->reserve(FHSSProtocolConstants::kPulseWidthSamples);
   constexpr double kTwoPi = 6.283185307179586476925286766559;
-  const auto frequency = FullReceiverFrequencyConfig().iq_offset_frequency_hz[24];
+  const auto frequency =
+      FullReceiverFrequencyConfig().iq_offset_frequency_hz[24];
   for (std::uint64_t n = 0; n < FHSSProtocolConstants::kPulseWidthSamples;
        ++n) {
-    const double phase =
-        kTwoPi * frequency *
-        static_cast<double>(20'000u + n) /
-        FHSSProtocolConstants::kSampleRateHz;
+    const double phase = kTwoPi * frequency * static_cast<double>(20'000u + n) /
+                         FHSSProtocolConstants::kSampleRateHz;
     fixture_samples->push_back(
         std::complex<double>(std::cos(phase), std::sin(phase)));
   }
@@ -758,24 +842,23 @@ TEST(FHSSGraphXNodeTest, PerChannelPulseDetectorUsesSingleChannelMetadata) {
   ASSERT_TRUE(downconverted.has_value());
 
   FHSSFixtureFrequencyChannelizerNode channelizer(ChannelizerConfig());
-  ASSERT_TRUE(
-      channelizer.Consume(*downconverted,
-                          std::integral_constant<std::size_t, 0>{}));
+  ASSERT_TRUE(channelizer.Consume(*downconverted,
+                                  std::integral_constant<std::size_t, 0>{}));
   auto channel24 =
       channelizer.Produce(std::integral_constant<std::size_t, 24>{});
   ASSERT_TRUE(channel24.has_value());
 
   PerChannelPulseDetectorNode detector(PerChannelDetectorConfig());
-  auto per_channel = detector.Transfer(
-      *channel24, std::integral_constant<std::size_t, 0>{},
-      std::integral_constant<std::size_t, 0>{});
+  auto per_channel =
+      detector.Transfer(*channel24, std::integral_constant<std::size_t, 0>{},
+                        std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(per_channel.has_value());
   ASSERT_EQ(per_channel->sidecar.detected_pulses.size(), 1u);
   ASSERT_EQ(per_channel->sidecar.pulse_evidence.size(), 1u);
   EXPECT_EQ(per_channel->sidecar.channel.frequency_index, 24u);
   EXPECT_EQ(per_channel->sidecar.channel.channel_id, 24u);
-  EXPECT_TRUE(FHSSGraphXEvidenceHasHostComplexIq(
-      per_channel->sidecar.channel_iq));
+  EXPECT_TRUE(
+      FHSSGraphXEvidenceHasHostComplexIq(per_channel->sidecar.channel_iq));
 
   const auto &pulse = per_channel->sidecar.detected_pulses.front();
   EXPECT_EQ(pulse.frequency.frequency_index, 24u);
@@ -816,8 +899,8 @@ TEST(FHSSGraphXNodeTest,
   ASSERT_TRUE(merge.ConsumeInput<1>(tokens[0]));
   auto candidates = merge.ProduceOutput<1>();
   ASSERT_TRUE(candidates.has_value());
-  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
-      candidates->edge_control));
+  EXPECT_TRUE(
+      std::holds_alternative<graph::EdgeEndOfStream>(candidates->edge_control));
   ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 72u);
   for (std::size_t pulse_index = 0; pulse_index < 72u; ++pulse_index) {
     EXPECT_EQ(candidates->sidecar.ordered_candidates[pulse_index]
@@ -825,6 +908,72 @@ TEST(FHSSGraphXNodeTest,
               pulse_index * FHSSProtocolConstants::kPulsePeriodSamples);
   }
   EXPECT_EQ(merge.GetOutputQueueMetrics(1)->current_size.load(), 0u);
+}
+
+TEST(FHSSGraphXNodeTest,
+     MixedEmptyAndNonEmpty64PortTerminalBatchReachesMessageSink) {
+  auto tokens = MergeTokensFor72Pulses();
+  tokens[24].sidecar.detected_pulses.resize(9u);
+  tokens[24].sidecar.pulse_evidence.resize(9u);
+  tokens[28].sidecar.detected_pulses.resize(9u);
+  tokens[28].sidecar.pulse_evidence.resize(9u);
+  tokens[32].sidecar.detected_pulses.resize(8u);
+  tokens[32].sidecar.pulse_evidence.resize(8u);
+  tokens[36].sidecar.detected_pulses.resize(8u);
+  tokens[36].sidecar.pulse_evidence.resize(8u);
+
+  FHSSPulseMergeNode merge;
+  ASSERT_TRUE(ConsumeReversePortsExceptFirst(
+      merge, tokens,
+      std::make_index_sequence<FHSSProtocolConstants::kFrequencyCount - 1>{}));
+  ASSERT_TRUE(merge.ConsumeInput<1>(tokens[0]));
+  auto candidates = merge.ProduceOutput<1>();
+  ASSERT_TRUE(candidates.has_value());
+  ASSERT_EQ(candidates->sidecar.ordered_candidates.size(), 34u);
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      candidates->edge_control));
+
+  CPSMBranchMetricNode branch_metric;
+  auto metrics = branch_metric.Transfer(
+      *candidates, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(metrics.has_value());
+  ASSERT_EQ(metrics->sidecar.pulse_metrics.size(), 34u);
+
+  CPSMViterbiDecoderNode viterbi;
+  auto symbols =
+      viterbi.Transfer(*metrics, std::integral_constant<std::size_t, 0>{},
+                       std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(symbols.has_value());
+  ASSERT_EQ(symbols->sidecar.pulse_decisions.size(), 34u);
+
+  FHSSPulseWordDecoderNode word_decoder;
+  auto words = word_decoder.Transfer(
+      *symbols, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(words.has_value());
+  ASSERT_EQ(words->sidecar.decoded_pulses.size(), 34u);
+
+  FHSSPreambleDetectorNode preamble_detector(Preamble());
+  auto preamble = preamble_detector.Transfer(
+      *words, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(preamble.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      preamble->edge_control));
+
+  FHSSMessageAssemblerNode assembler(AssemblerConfig());
+  auto message = assembler.Transfer(
+      *preamble, std::integral_constant<std::size_t, 0>{},
+      std::integral_constant<std::size_t, 0>{});
+  ASSERT_TRUE(message.has_value());
+  EXPECT_TRUE(std::holds_alternative<graph::EdgeEndOfStream>(
+      message->edge_control));
+
+  FHSSMessageSinkNode sink;
+  EXPECT_TRUE(
+      sink.Consume(*message, std::integral_constant<std::size_t, 0>{}));
+  EXPECT_EQ(sink.last_diagnostics().pulse_count, 34u);
 }
 
 TEST(FHSSGraphXNodeTest,
@@ -880,9 +1029,9 @@ TEST(FHSSGraphXNodeTest,
             (std::vector<std::uint32_t>{1, 7, 12, 62}));
 
   FHSSMessageAssemblerNode assembler(AssemblerConfig());
-  auto message = assembler.Transfer(*preamble,
-                                    std::integral_constant<std::size_t, 0>{},
-                                    std::integral_constant<std::size_t, 0>{});
+  auto message =
+      assembler.Transfer(*preamble, std::integral_constant<std::size_t, 0>{},
+                         std::integral_constant<std::size_t, 0>{});
   ASSERT_TRUE(message.has_value());
   EXPECT_EQ(message->sidecar.status, FHSSGraphXDecodeStatus::Ok);
   EXPECT_TRUE(message->sidecar.preamble_lock);
