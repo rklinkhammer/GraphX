@@ -46,7 +46,7 @@ def main() -> int:
         "graph.schema.json": {"schema": "graphx.dashboard.graph.v1", "owner": "receiver", "config_revision": 1,
                               "graph": {"nodes": [], "edges": []}},
         "config.schema.json": {"schema": "graphx.dashboard.config.v1", "owner": "receiver",
-                               "config_revision": 1, "authoritative": {},
+                               "config_revision": 1, "etag": '"graphx-config-1"',
                                "effective": {"nodes": [], "edges": []}, "derived_paths": []},
         "problem.schema.json": {"type": "about:blank", "title": "Bad Request", "status": 400,
                                 "detail": "invalid request"},
@@ -62,7 +62,8 @@ def main() -> int:
             "stream": "/api/v1/fhss/events", "client_id": "validator", "resync_required": False,
             "latest_sequence": 0, "events": [], "counters": {}},
         "scenario.schema.json": {"schema": "graphx.dashboard.scenario.v1", "owner": "receiver",
-            "config_revision": 1, "scenario": {}, "derived_paths": [], "validation": {}},
+            "config_revision": 1, "scenario": {}, "derived_paths": [],
+            "validation": {"valid": True, "levels": [], "errors": []}},
         "derived-paths.schema.json": {"schema": "graphx.dashboard.derived_paths.v1",
                                       "config_revision": 1, "paths": []},
         "value.schema.json": {"schema": "graphx.dashboard.value.v1", "pointer": "/fhss/scenario", "value": {}},
@@ -72,11 +73,84 @@ def main() -> int:
         "visualization.schema.json": {"schema": "graphx.dashboard.fhss_visualization.v1",
             "fixture_label": "synthetic", "schedule": {}, "heatmap": {}, "timeline": {}, "decoder": {},
             "selected_channel_preview": {}, "bounds": {}, "config_revision": 1},
+        "configuration-provenance.schema.json": {
+            "schema": "graphx.dashboard.configuration_provenance.v1",
+            "config_revision": 1, "etag": '"graphx-config-1"', "provenance": [{
+                "architecture_version": "docs/dsp/fhss_architecture.md",
+                "rule_id": "sample-v1", "rule": "sample rule",
+                "source_pointers": ["/messages/0"],
+                "target_pointer": "/derived", "units": "complex_samples",
+                "classification": {"source": "authoritative", "target": "generated",
+                                   "mutability": "read-only"},
+                "warnings": []}]},
+        "receiver-graph.schema.json": {"schema": "graphx.dashboard.receiver_graph.v1",
+            "config_revision": 1, "etag": '"graphx-config-1"',
+            "graph": {"nodes": [], "edges": []}},
+        "config-validation.schema.json": {"schema": "graphx.dashboard.config_validation.v1",
+            "status": "validated", "config_revision": 1, "etag": '"graphx-config-1"',
+            "validation": {"valid": True, "levels": [], "errors": []}},
+        "config-result.schema.json": {"schema": "graphx.dashboard.config_result.v1",
+            "status": "applied", "old_revision": 1, "new_revision": 2,
+            "etag": '"graphx-config-2"',
+            "validation": {"valid": True, "levels": [], "errors": []}},
     }
+    repository = ROOT.parents[3]
+    generator_graph = json.loads((repository / "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json").read_text())
+    generator_scenario = next(node["node_config"] for node in generator_graph["nodes"]
+                              if node.get("id") == "source")
+    generator_scenario.pop("active_frequency_indices", None)
+    receiver_graph = json.loads((repository / "libdsp/config/fhss_phase2_binary_iq_receiver.json").read_text())
+    samples["scenario.schema.json"]["scenario"] = generator_scenario
+    samples["receiver-graph.schema.json"]["graph"] = receiver_graph
     assert set(samples) == {path.name for path in schemas}, "every schema needs a representative instance"
     for name, sample in samples.items():
         Draft202012Validator(registry[name]).validate(sample)
         validate_instance(sample, registry[name], registry=registry)
+
+    # Receiver-facing contracts reject generator schedule/truth fields even if
+    # future code accidentally serializes them into a node configuration.
+    receiver_leaks = ("messages", "truth_from_fixture", "truth_path", "truth_file",
+                      "generator_metadata", "transmitted_active_frequency_indices",
+                      "transmitted_pulse_frequency_indices", "active_frequency_indices")
+    for field in receiver_leaks:
+        leaked = json.loads(json.dumps(samples["receiver-graph.schema.json"]))
+        leaked["graph"]["nodes"] = [{"id": "assembler", "type": "FHSSAssemblerNode",
+                                        "node_config": {field: []}}]
+        assert not Draft202012Validator(registry["receiver-graph.schema.json"]).is_valid(leaked), field
+        try:
+            validate_instance(leaked, registry["receiver-graph.schema.json"], registry=registry)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"offline validator accepted receiver leak: {field}")
+    for field in ("messages", "truth_from_fixture", "active_frequency_indices"):
+        leaked = json.loads(json.dumps(samples["receiver-graph.schema.json"]))
+        leaked["graph"]["nodes"][0]["node_config"]["nested"] = {
+            "deeper": [{"configuration": {field: []}}]}
+        assert not Draft202012Validator(registry["receiver-graph.schema.json"]).is_valid(leaked), f"nested {field}"
+        try:
+            validate_instance(leaked, registry["receiver-graph.schema.json"], registry=registry)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"offline validator accepted nested receiver leak: {field}")
+
+    for field in ("active_frequency_indices", "preamble_pulses", "truth_from_fixture",
+                  "truth_path", "generator_metadata", "transmitted_active_frequency_indices",
+                  "transmitted_pulse_frequency_indices"):
+        leaked = json.loads(json.dumps(samples["scenario.schema.json"]))
+        leaked["scenario"][field] = []
+        assert not Draft202012Validator(registry["scenario.schema.json"]).is_valid(leaked), field
+    for mutation in ("missing_messages", "missing_preamble"):
+        invalid = json.loads(json.dumps(samples["scenario.schema.json"]))
+        if mutation == "missing_messages": invalid["scenario"].pop("messages")
+        else: invalid["scenario"]["messages"][0]["pulses"] = invalid["scenario"]["messages"][0]["pulses"][:15]
+        assert not Draft202012Validator(registry["scenario.schema.json"]).is_valid(invalid), mutation
+    for mutation in ("missing_source", "missing_topology"):
+        invalid = json.loads(json.dumps(samples["receiver-graph.schema.json"]))
+        if mutation == "missing_source": invalid["graph"]["nodes"] = [n for n in invalid["graph"]["nodes"] if n.get("id") != "source"]
+        else: invalid["graph"]["edges"] = []
+        assert not Draft202012Validator(registry["receiver-graph.schema.json"]).is_valid(invalid), mutation
 
     document = json.loads((ROOT / "openapi.json").read_text(encoding="utf-8"))
     validate_openapi(document, base_uri=(ROOT / "openapi.json").resolve().as_uri())

@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:graphx:dashboard:configuration-provenance:v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","config_revision","etag","provenance"],
+  "properties":{
+    "schema":{"const":"graphx.dashboard.configuration_provenance.v1"},
+    "config_revision":{"type":"integer","minimum":0},"etag":{"type":"string"},
+    "provenance":{"type":"array","items":{"type":"object","additionalProperties":false,
+      "required":["architecture_version","rule_id","rule","source_pointers","target_pointer","units","classification","warnings"],
+      "properties":{"architecture_version":{"type":"string"},"rule":{"type":"string"},
+        "rule_id":{"type":"string"},
+        "source_pointers":{"type":"array","items":{"type":"string"}},
+        "target_pointer":{"type":"string"},
+        "units":{"enum":["frequency_index","frequency_index+uint32_word","complex_samples"]},
+        "classification":{"type":"object","additionalProperties":false,
+          "required":["source","target","mutability"],
+          "properties":{"source":{"enum":["authoritative","architecture"]},"target":{"const":"generated"},"mutability":{"const":"read-only"}}},
+        "warnings":{"type":"array","items":{"type":"string"}}}}}
+  }
+}

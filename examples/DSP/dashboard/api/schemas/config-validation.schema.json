@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:graphx:dashboard:config-validation:v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","status","config_revision","etag","validation"],
+  "properties":{"schema":{"const":"graphx.dashboard.config_validation.v1"},
+    "status":{"enum":["validated","invalid"]},"config_revision":{"type":"integer","minimum":0},
+    "etag":{"type":"string"},"validation":{"type":"object","additionalProperties":false,
+      "required":["valid","levels","errors"],"properties":{
+        "valid":{"type":"boolean"},"levels":{"type":"array","items":{"type":"string"}},
+        "errors":{"type":"array","items":{"type":"object","required":["level","node_id","pointer","code","message"],
+          "properties":{"level":{"type":"string"},"node_id":{"type":"string"},"pointer":{"type":"string"},
+            "code":{"type":"string"},"message":{"type":"string"},"generated_target_pointer":{"type":"string"},
+            "authoritative_pointer":{"type":"string"},"details":{},"retriable":{"type":"boolean"}}}}
+      }}}
+}

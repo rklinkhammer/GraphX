@@ -1,4 +1,4 @@
-# FHSS dashboard Phase 1 operator
+# FHSS dashboard Phase 1/2 operator
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -37,10 +37,11 @@ execution:
   examples/DSP/dashboard/api/validate_contracts.py
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
-  --phase 1 --build-dir build-ninja/ninja-debug \
+  --phase 2 --build-dir build-ninja/ninja-debug \
   --output-dir /path/to/new/operator-output
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
+  --phase 2 \
   --output-dir /path/to/new/operator-output
 ```
 
@@ -61,6 +62,13 @@ standards validator.
 `serve` keeps the dashboard available for manual browser inspection. `report`
 prints the machine-readable report. `cleanup` deletes only artifacts carrying
 the operator ownership marker.
+
+Phase 2 validates strong-ETag JSON Patch concurrency, validation-only
+immutability, atomic patch failure, independent preamble active-set derivation,
+truth-free binary-IQ receiver projection, and the absence of Phase 3 runtime
+controls. Reports contain SHA-256 hashes of the authoritative, validation,
+applied, and receiver-graph payloads. Use `--phase 1` to retain the Phase 1
+transport/read-only evidence lane.
 
 The production server applies separate timing limits: activity on a partial
 request resets the idle timer, `read_timeout` is an absolute header/body read

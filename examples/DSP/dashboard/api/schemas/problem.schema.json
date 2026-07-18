@@ -3,9 +3,15 @@
   "$id": "urn:graphx:dashboard:problem:v1",
   "type": "object",
   "required": ["type", "title", "status", "detail"],
+  "additionalProperties": false,
   "properties": {
     "type": {"type": "string"}, "title": {"type": "string"},
     "status": {"type": "integer", "minimum": 400, "maximum": 599},
-    "detail": {"type": "string"}, "code": {"type": "string"}
+    "detail": {"type": "string"}, "code": {"type": "string"},
+    "schema": {"const": "graphx.dashboard.error.v1"},
+    "message": {"type": "string"}, "details": {},
+    "request_id": {"type": "string"}, "retriable": {"type": "boolean"},
+    "pointer": {"type": "string"}, "revision": {"type": "integer", "minimum": 0},
+    "command_id": {"type": "string"}
   }
 }

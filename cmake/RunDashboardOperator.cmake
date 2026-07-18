@@ -2,8 +2,11 @@ if(NOT DEFINED CONTRACT_PYTHON OR NOT DEFINED SOURCE_DIR OR NOT DEFINED BUILD_DI
   message(FATAL_ERROR "CONTRACT_PYTHON, SOURCE_DIR, and BUILD_DIR are required")
 endif()
 set(operator "${SOURCE_DIR}/examples/DSP/dashboard/operator/fhss_dashboard_operator.py")
+if(NOT DEFINED PHASE)
+  set(PHASE 1)
+endif()
 set(operator_build "${BUILD_DIR}")
-set(output "${BUILD_DIR}/fhss-dashboard-operator-ctest")
+set(output "${BUILD_DIR}/fhss-dashboard-phase${PHASE}-operator-ctest")
 if(INSTALLED_TREE)
   set(prefix "${BUILD_DIR}/fhss-dashboard-installed-ctest")
   file(REMOVE_RECURSE "${prefix}")
@@ -14,16 +17,16 @@ if(INSTALLED_TREE)
   endif()
   set(operator "${prefix}/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py")
   set(operator_build "${prefix}")
-  set(output "${BUILD_DIR}/fhss-dashboard-installed-operator-ctest")
+  set(output "${BUILD_DIR}/fhss-dashboard-installed-phase${PHASE}-operator-ctest")
 endif()
 file(REMOVE_RECURSE "${output}")
-execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" exercise --phase 1
+execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" exercise --phase "${PHASE}"
                         --build-dir "${operator_build}" --output-dir "${output}"
                 RESULT_VARIABLE exercise_result)
 if(NOT exercise_result EQUAL 0)
   message(FATAL_ERROR "dashboard operator exercise failed: ${exercise_result}")
 endif()
-execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" verify --output-dir "${output}"
+execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" verify --phase "${PHASE}" --output-dir "${output}"
                 RESULT_VARIABLE verify_result)
 if(NOT verify_result EQUAL 0)
   message(FATAL_ERROR "dashboard operator verify failed: ${verify_result}")

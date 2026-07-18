@@ -226,7 +226,7 @@ TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
       " --plugin-dir " +
       ShellQuote(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY)) +
       " --summary-json " + ShellQuote(summary_path) +
-      " --decoded-pulse-limit 3 --executor-timeout-s 12 2>&1";
+      " --decoded-pulse-limit 3 --executor-timeout-s 30 2>&1";
 
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;

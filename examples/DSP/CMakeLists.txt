@@ -5,10 +5,22 @@ project(graphx_dsp_example LANGUAGES CXX)
 find_package(log4cxx REQUIRED)
 
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-    add_library(dsp_fhss_dashboard_api STATIC dashboard/FHSSDashboardApi.cpp)
+    file(READ "${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
+        GRAPHX_FHSS_RECEIVER_TEMPLATE_JSON)
+    configure_file(
+        dashboard/FHSSReceiverTemplate.hpp.in
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/FHSSReceiverTemplate.hpp"
+        @ONLY)
+    add_library(dsp_fhss_dashboard_api STATIC
+        dashboard/FHSSDashboardApi.cpp
+        dashboard/FHSSDashboardConfigurationPolicy.cpp)
     target_include_directories(dsp_fhss_dashboard_api PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/dashboard)
+        ${CMAKE_CURRENT_SOURCE_DIR}/dashboard
+        ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_link_libraries(dsp_fhss_dashboard_api PUBLIC dsp)
+    install(FILES
+        "${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
+        DESTINATION share/graphx/config)
 endif()
 
 add_executable(dsp_spectrum_demo

@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:graphx:dashboard:config-result:v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","status","old_revision","new_revision","etag","validation"],
+  "properties":{"schema":{"const":"graphx.dashboard.config_result.v1"},
+    "status":{"const":"applied"},"old_revision":{"type":"integer","minimum":0},
+    "new_revision":{"type":"integer","minimum":1},"etag":{"type":"string"},
+    "rebuild_required":{"type":"boolean"},
+    "regenerated_targets":{"type":"array","items":{"type":"string"}},
+    "validation":{"type":"object","required":["valid","levels","errors"],"properties":{
+      "valid":{"type":"boolean"},"levels":{"type":"array","items":{"type":"string"}},
+      "errors":{"type":"array","items":{"type":"object","required":["level","node_id","pointer","code","message"]}}
+    }}}
+}

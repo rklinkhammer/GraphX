@@ -8,6 +8,7 @@
 
 #ifdef GRAPHX_BUILD_WEB_DASHBOARD
 #include "FHSSDashboardApi.hpp"
+#include "FHSSDashboardConfigurationPolicy.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -692,7 +693,8 @@ int RunDashboardNoRunMode(const CliOptions &options,
 
   auto configuration_service =
       std::make_shared<graph::dashboard::GraphConfigurationService>(
-          effective_config);
+          effective_config,
+          std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
   auto runtime_session =
       std::make_shared<graph::dashboard::GraphRuntimeSession>();
   auto snapshot_collector =
@@ -709,6 +711,8 @@ int RunDashboardNoRunMode(const CliOptions &options,
           .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
+  server_options.enable_configuration_mutation_routes = true;
+  server_options.enable_runtime_control_routes = false;
 
   graph::dashboard::EmbeddedDashboardServer server(
       server_options, configuration_service, runtime_session,

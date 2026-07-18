@@ -7,6 +7,7 @@
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
+#include "FHSSDashboardConfigurationPolicy.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -134,7 +135,8 @@ protected:
     auto config =
         LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
     configuration_service_ =
-        std::make_shared<graph::dashboard::GraphConfigurationService>(config);
+        std::make_shared<graph::dashboard::GraphConfigurationService>(
+            config, std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
     runtime_session_ =
         std::make_shared<graph::dashboard::GraphRuntimeSession>();
     snapshot_collector_ =

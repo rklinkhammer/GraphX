@@ -7,6 +7,7 @@
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
+#include "FHSSDashboardConfigurationPolicy.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -118,7 +119,8 @@ protected:
   void SetUp() override {
     config_ = LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
     configuration_service_ =
-        std::make_shared<graph::dashboard::GraphConfigurationService>(config_);
+        std::make_shared<graph::dashboard::GraphConfigurationService>(
+            config_, std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
     runtime_session_ = std::make_shared<graph::dashboard::GraphRuntimeSession>();
     snapshot_collector_ = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
@@ -244,7 +246,8 @@ TEST(FhssDashboardVisualizationCancellationTest,
       }
     }
   }
-  auto service = std::make_shared<graph::dashboard::GraphConfigurationService>(config);
+  auto service = std::make_shared<graph::dashboard::GraphConfigurationService>(
+      config, std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
   auto runtime = std::make_shared<graph::dashboard::GraphRuntimeSession>();
   auto snapshots = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
   graph::dashboard::EmbeddedDashboardServer::Options options;

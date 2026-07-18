@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:graphx:dashboard:config:v1",
-  "type": "object", "required": ["schema", "owner", "config_revision", "authoritative", "effective", "derived_paths"], "additionalProperties": false,
-  "properties": {"schema": {"const": "graphx.dashboard.config.v1"}, "owner": {"type": "string"}, "config_revision":{"type":"integer","minimum":0}, "authoritative":{"type":"object"}, "effective": {"type": "object", "required": ["nodes", "edges"]}, "derived_paths":{"type":"array","items":{"type":"string"}}}
+  "type": "object", "required": ["schema", "owner", "config_revision", "etag", "effective", "derived_paths"], "additionalProperties": false,
+  "properties": {"schema": {"const": "graphx.dashboard.config.v1"}, "owner": {"type": "string"}, "config_revision":{"type":"integer","minimum":0}, "etag":{"type":"string"}, "effective": {"type": "object", "required": ["nodes", "edges"],"properties":{"nodes":{"type":"array","items":{"type":"object","properties":{"node_config":{"type":"object","not":{"anyOf":[{"required":["messages"]},{"required":["truth_from_fixture"]},{"required":["truth_path"]},{"required":["truth_file"]},{"required":["generator_metadata"]},{"required":["transmitted_active_frequency_indices"]},{"required":["transmitted_pulse_frequency_indices"]}]}}}}},"edges":{"type":"array"}}}, "derived_paths":{"type":"array","items":{"type":"string"}}}
 }

@@ -15,8 +15,8 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <string>
 #include <stop_token>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -32,12 +32,14 @@ public:
     std::string path;
     std::string query;
     std::string body;
+    std::unordered_map<std::string, std::string> headers;
   };
 
   struct ApiResponse {
     int status_code = 200;
     std::string content_type = "application/json";
     std::string body;
+    std::unordered_map<std::string, std::string> headers;
   };
 
   struct ApiContext {
@@ -61,6 +63,8 @@ public:
     std::filesystem::path artifact_root;
     std::optional<ApiHandlerRegistration> application_api_handler;
     bool enable_mutating_routes = false;
+    bool enable_configuration_mutation_routes = false;
+    bool enable_runtime_control_routes = true;
     std::size_t max_header_bytes = 16 * 1024;
     std::size_t max_body_bytes = 1024 * 1024;
     std::size_t max_response_bytes = 4 * 1024 * 1024;
@@ -75,10 +79,11 @@ public:
     std::chrono::milliseconds total_request_timeout{15000};
   };
 
-  EmbeddedDashboardServer(Options options,
-                          std::shared_ptr<GraphConfigurationService> configuration_service,
-                          std::shared_ptr<GraphRuntimeSession> runtime_session,
-                          std::shared_ptr<GraphSnapshotCollector> snapshot_collector);
+  EmbeddedDashboardServer(
+      Options options,
+      std::shared_ptr<GraphConfigurationService> configuration_service,
+      std::shared_ptr<GraphRuntimeSession> runtime_session,
+      std::shared_ptr<GraphSnapshotCollector> snapshot_collector);
   ~EmbeddedDashboardServer();
 
   EmbeddedDashboardServer(const EmbeddedDashboardServer &) = delete;
@@ -92,9 +97,9 @@ public:
   [[nodiscard]] const std::string &BoundHost() const;
   [[nodiscard]] const std::string &LastError() const;
 
-  void PublishEventForTesting(std::string event_type,
-                              nlohmann::json payload,
-                              std::optional<std::uint64_t> revision = std::nullopt);
+  void
+  PublishEventForTesting(std::string event_type, nlohmann::json payload,
+                         std::optional<std::uint64_t> revision = std::nullopt);
   void ExpireRetainedEventsForTesting();
   void SetEventQueueDepthForTesting(std::size_t depth);
   void SetEventRetentionForTesting(std::chrono::milliseconds retention);
@@ -107,6 +112,7 @@ private:
     std::string query;
     std::string body;
     std::chrono::steady_clock::time_point deadline;
+    std::unordered_map<std::string, std::string> headers;
   };
 
   struct Response {
@@ -114,6 +120,7 @@ private:
     std::string content_type = "application/json";
     std::string body;
     std::string allow;
+    std::unordered_map<std::string, std::string> headers;
   };
 
   bool ValidateStartup();
@@ -122,7 +129,8 @@ private:
   static std::string GuessContentType(const std::filesystem::path &path);
 
   static std::string GetPathWithoutQuery(const std::string &target);
-  static std::string GetQueryValue(const std::string &query, const std::string &key);
+  static std::string GetQueryValue(const std::string &query,
+                                   const std::string &key);
   Response HandleRequest(const Request &request) const;
   Response HandleApiRequest(const Request &request) const;
   Response HandleStaticAsset(const Request &request) const;
@@ -141,15 +149,17 @@ private:
     std::uint64_t dropped_events = 0;
   };
 
-  [[nodiscard]] nlohmann::json PollEvents(const std::string &client_id,
-                                          std::optional<std::uint64_t> last_sequence,
-                                          bool clear_client) const;
-  void PublishEvent(std::string event_type,
-                    nlohmann::json payload,
+  [[nodiscard]] nlohmann::json
+  PollEvents(const std::string &client_id,
+             std::optional<std::uint64_t> last_sequence,
+             bool clear_client) const;
+  void PublishEvent(std::string event_type, nlohmann::json payload,
                     std::optional<std::uint64_t> revision = std::nullopt) const;
-  void TrimRetainedEventsLocked(std::chrono::system_clock::time_point now) const;
+  void
+  TrimRetainedEventsLocked(std::chrono::system_clock::time_point now) const;
   [[nodiscard]] std::string NowIso8601() const;
-  [[nodiscard]] nlohmann::json EventEnvelopeJson(const EventEnvelope &event) const;
+  [[nodiscard]] nlohmann::json
+  EventEnvelopeJson(const EventEnvelope &event) const;
 
   Options options_;
   std::shared_ptr<GraphConfigurationService> configuration_service_;
@@ -165,14 +175,17 @@ private:
   std::string last_error_;
 
   mutable std::mutex event_mutex_;
-  mutable std::deque<std::pair<EventEnvelope, std::chrono::system_clock::time_point>> retained_events_;
+  mutable std::deque<
+      std::pair<EventEnvelope, std::chrono::system_clock::time_point>>
+      retained_events_;
   mutable std::unordered_map<std::string, ClientState> clients_;
   mutable std::uint64_t next_event_sequence_ = 1;
   mutable std::uint64_t dropped_events_total_ = 0;
   mutable std::uint64_t coalesced_events_total_ = 0;
   mutable std::uint64_t reconnects_total_ = 0;
   mutable std::size_t per_client_queue_depth_ = 128;
-  mutable std::chrono::milliseconds event_retention_window_{std::chrono::seconds(120)};
+  mutable std::chrono::milliseconds event_retention_window_{
+      std::chrono::seconds(120)};
 };
 
 } // namespace graph::dashboard

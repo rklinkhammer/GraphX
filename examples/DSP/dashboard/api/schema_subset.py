@@ -15,10 +15,11 @@ from pathlib import Path
 from typing import Any
 
 DIALECT = "https://json-schema.org/draft/2020-12/schema"
-ANNOTATIONS = {"$schema", "$id", "title", "description", "default"}
+ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description", "default"}
 ASSERTIONS = {
     "$ref", "type", "const", "enum", "minimum", "maximum", "required",
     "properties", "additionalProperties", "items", "minItems",
+    "anyOf", "not", "contains",
 }
 ALLOWED = ANNOTATIONS | ASSERTIONS
 TYPES = {"object", "array", "string", "integer", "number", "boolean", "null"}
@@ -60,6 +61,12 @@ def validate_schema(schema: Any, location: str = "$") -> None:
             _fail(location, "properties must be an object")
         for key, child in properties.items():
             validate_schema(child, f"{location}.properties[{key!r}]")
+    definitions = schema.get("$defs")
+    if definitions is not None:
+        if not isinstance(definitions, dict):
+            _fail(location, "$defs must be an object")
+        for key, child in definitions.items():
+            validate_schema(child, f"{location}.$defs[{key!r}]")
     additional = schema.get("additionalProperties")
     if additional is not None and not isinstance(additional, (bool, dict)):
         _fail(location, "additionalProperties must be boolean or schema")
@@ -67,6 +74,16 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         validate_schema(additional, f"{location}.additionalProperties")
     if "items" in schema:
         validate_schema(schema["items"], f"{location}.items")
+    if "anyOf" in schema:
+        alternatives = schema["anyOf"]
+        if not isinstance(alternatives, list) or not alternatives:
+            _fail(location, "anyOf must be a nonempty array")
+        for index, child in enumerate(alternatives):
+            validate_schema(child, f"{location}.anyOf[{index}]")
+    if "not" in schema:
+        validate_schema(schema["not"], f"{location}.not")
+    if "contains" in schema:
+        validate_schema(schema["contains"], f"{location}.contains")
     if "minItems" in schema and (isinstance(schema["minItems"], bool)
                                   or not isinstance(schema["minItems"], int)
                                   or schema["minItems"] < 0):
@@ -79,7 +96,23 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
         if registry is None or schema["$ref"] not in registry:
             _fail(location, f"unresolved reference {schema['$ref']}")
         validate_instance(value, registry[schema["$ref"]], registry=registry, location=location)
-        return
+    if "anyOf" in schema:
+        matches = 0
+        for child in schema["anyOf"]:
+            try:
+                validate_instance(value, child, registry=registry, location=location)
+                matches += 1
+            except ValueError:
+                pass
+        if matches == 0:
+            _fail(location, "does not match any anyOf alternative")
+    if "not" in schema:
+        try:
+            validate_instance(value, schema["not"], registry=registry, location=location)
+        except ValueError:
+            pass
+        else:
+            _fail(location, "matches forbidden not schema")
     expected = schema.get("type")
     matches = {
         "object": lambda item: isinstance(item, dict),
@@ -122,6 +155,17 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
         if "items" in schema:
             for index, item in enumerate(value):
                 validate_instance(item, schema["items"], registry=registry, location=f"{location}[{index}]")
+        if "contains" in schema:
+            if not any(_instance_matches(item, schema["contains"], registry) for item in value):
+                _fail(location, "does not contain a required matching item")
+
+
+def _instance_matches(value: Any, schema: Mapping[str, Any], registry: Mapping[str, Mapping[str, Any]] | None) -> bool:
+    try:
+        validate_instance(value, schema, registry=registry)
+        return True
+    except ValueError:
+        return False
 
 
 def load_registry(paths: list[Path]) -> dict[str, Mapping[str, Any]]:
@@ -135,6 +179,8 @@ def load_registry(paths: list[Path]) -> dict[str, Mapping[str, Any]]:
             if schema_id in registry:
                 _fail(str(path), f"duplicate $id {schema_id}")
             registry[schema_id] = schema
+            for name, definition in schema.get("$defs", {}).items():
+                registry[f"{schema_id}#/$defs/{name}"] = definition
         registry[path.name] = schema
         registry[f"schemas/{path.name}"] = schema
     return registry

@@ -107,7 +107,18 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
             -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
             -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase2_external_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=2 -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase2_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=2 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
     set_tests_properties(fhss_dashboard_external_operator fhss_dashboard_installed_tree_operator
+        fhss_dashboard_phase2_external_operator fhss_dashboard_phase2_installed_tree_operator
         PROPERTIES LABELS "dsp;fhss;dashboard;operator;ci-safe;host-any" TIMEOUT 60 RUN_SERIAL TRUE)
 endif()
 

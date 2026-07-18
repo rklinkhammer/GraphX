@@ -2,5 +2,5 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:graphx:dashboard:graph:v1",
   "type": "object", "required": ["schema", "owner", "config_revision", "graph"], "additionalProperties": false,
-  "properties": {"schema": {"const": "graphx.dashboard.graph.v1"}, "owner":{"type":"string"}, "config_revision": {"type": "integer","minimum":0}, "graph": {"type": "object", "required": ["nodes", "edges"]}}
+  "properties": {"schema": {"const": "graphx.dashboard.graph.v1"}, "owner":{"type":"string"}, "config_revision": {"type": "integer","minimum":0}, "graph": {"type": "object", "required": ["nodes", "edges"],"properties":{"nodes":{"type":"array","items":{"type":"object","properties":{"node_config":{"type":"object","not":{"anyOf":[{"required":["messages"]},{"required":["truth_from_fixture"]},{"required":["truth_path"]},{"required":["truth_file"]},{"required":["generator_metadata"]},{"required":["transmitted_active_frequency_indices"]},{"required":["transmitted_pulse_frequency_indices"]}]}}}}},"edges":{"type":"array"}}}}
 }

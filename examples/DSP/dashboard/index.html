@@ -365,11 +365,28 @@
           <h2>Nodes</h2>
           <div id="nodes"></div>
         </section>
+        <section class="card">
+          <h2>Phase 2 Authoritative Configuration</h2>
+          <div class="subtle">Synthetic FHSS configuration only. Validation does not mutate the active document.</div>
+          <div id="config-identity" class="subtle"></div>
+          <label for="config-patch">RFC 6902 JSON Patch</label>
+          <textarea id="config-patch" rows="8">[{"op":"replace","path":"/iq_center_frequency_hz","value":1240000000.0}]</textarea>
+          <div class="controls-row">
+            <button id="config-validate" type="button">Validate</button>
+            <button id="config-apply" type="button">Apply with If-Match</button>
+          </div>
+          <pre id="config-status"></pre>
+        </section>
       </div>
       <div class="stack">
         <section class="card">
           <h2>Edges</h2>
           <pre id="edges"></pre>
+        </section>
+        <section class="card">
+          <h2>Effective / Provenance</h2>
+          <pre id="config-effective"></pre>
+          <pre id="config-provenance"></pre>
         </section>
       </div>
     </div>
@@ -660,6 +677,44 @@
       return response.json();
     }
 
+    let configurationEtag = '';
+    async function refreshConfiguration() {
+      const [effectiveResponse, provenance] = await Promise.all([
+        fetch('/api/v1/fhss/config/effective'),
+        fetchJson('/api/v1/fhss/config/provenance')
+      ]);
+      const effective = await effectiveResponse.json();
+      configurationEtag = effectiveResponse.headers.get('ETag') || effective.etag || '';
+      document.getElementById('config-identity').textContent =
+        `revision=${effective.config_revision} etag=${configurationEtag}`;
+      document.getElementById('config-effective').textContent =
+        `Effective\n${JSON.stringify(effective.effective || effective, null, 2)}`;
+      document.getElementById('config-provenance').textContent =
+        `Provenance\n${JSON.stringify(provenance.provenance || [], null, 2)}`;
+    }
+
+    async function submitConfiguration(validateOnly) {
+      const status = document.getElementById('config-status');
+      let patch;
+      try {
+        patch = JSON.parse(document.getElementById('config-patch').value);
+      } catch (error) {
+        status.textContent = `Invalid JSON: ${error}`;
+        return;
+      }
+      const response = await fetch(validateOnly ? '/api/v1/fhss/config/validate' : '/api/v1/fhss/config', {
+        method: validateOnly ? 'POST' : 'PATCH',
+        headers: {'Content-Type': 'application/json-patch+json', 'If-Match': configurationEtag},
+        body: JSON.stringify(patch)
+      });
+      const result = await response.json();
+      status.textContent = JSON.stringify(result, null, 2);
+      if (response.status === 412) {
+        status.textContent = `Stale editor ETag; refresh and retry.\n${status.textContent}`;
+      }
+      await refreshConfiguration();
+    }
+
     async function refreshDashboard() {
       const [graphData, metricsData, diagnosticsData, visualizationData] = await Promise.all([
         fetchJson('/api/v1/fhss/graph'),
@@ -705,6 +760,7 @@
       }
 
       document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
+      await refreshConfiguration();
 
       const bounds = visualizationData.bounds || {};
       const refreshMs = Math.max(100, Number(bounds.refresh_interval_ms || 250));
@@ -725,6 +781,16 @@
 
     document.getElementById('tab-graph').addEventListener('click', () => {
       activateTab('panel-graph');
+    });
+    document.getElementById('config-validate').addEventListener('click', () => {
+      submitConfiguration(true).catch((error) => {
+        document.getElementById('config-status').textContent = `Validation failed: ${error}`;
+      });
+    });
+    document.getElementById('config-apply').addEventListener('click', () => {
+      submitConfiguration(false).catch((error) => {
+        document.getElementById('config-status').textContent = `Apply failed: ${error}`;
+      });
     });
   </script>
 </body>
