@@ -405,6 +405,21 @@
           </div>
           <pre class="command-result" id="runtime-status">Runtime controls unavailable.</pre>
         </section>
+        <section class="card" id="job-controls">
+          <h2>Phase 5 FHSS Message Jobs</h2>
+          <div class="subtle">Synthetic software evidence only. Step generates and replays one complete architecture-defined FHSS protocol message; it never steps a node, edge, pulse, or buffer.</div>
+          <div class="command-bar" role="group" aria-label="FHSS message job controls">
+            <button class="command-btn primary" id="job-step" type="button">Step one complete message</button>
+            <button class="command-btn" id="job-continue" type="button">Continue complete messages</button>
+            <button class="command-btn" id="job-cancel" type="button" disabled>Cancel active job</button>
+            <button class="command-btn" id="job-reset" type="button">Reset message cursor</button>
+          </div>
+          <div id="job-identity" class="subtle">No FHSS job selected.</div>
+          <pre id="job-state">Job controller unavailable.</pre>
+          <pre id="job-lifecycle">Graph lifecycle unavailable.</pre>
+          <pre id="job-receiver-result">Receiver message result unavailable.</pre>
+          <pre id="job-comparison">Evaluator comparison unavailable.</pre>
+        </section>
       </div>
       <div class="stack">
         <section class="card">
@@ -787,6 +802,67 @@
       await refreshRuntimeStatus();
     }
 
+    let selectedJobId = null;
+    function jobIsTerminal(state) {
+      return ['completed', 'cancelled', 'timed_out', 'failed',
+        'abandoned_on_restart'].includes(state);
+    }
+
+    function renderJob(job) {
+      selectedJobId = job?.job_id || selectedJobId;
+      const state = job?.state || 'unavailable';
+      document.getElementById('job-identity').textContent =
+        `controller epoch=${job?.controller_epoch ?? 'unavailable'} job=${job?.job_id || 'unavailable'} scenario=${job?.scenario_correlation_id || 'unavailable'} cursor=${job?.message_cursor ?? 'unavailable'} count=${job?.message_count ?? 'unavailable'} generation=${job?.graph_generation ?? 'unavailable'} run=${job?.run_epoch ?? 'unavailable'}`;
+      document.getElementById('job-state').textContent =
+        `Job state (synthetic-only)\n${JSON.stringify({
+          state, operation: job?.operation, idempotency: job?.idempotency,
+          artifacts: job?.artifacts, terminal: job?.terminal
+        }, null, 2)}`;
+      document.getElementById('job-lifecycle').textContent =
+        `Graph execution lifecycle\n${JSON.stringify(job?.graph_lifecycle ?? {
+          availability: 'receiver replay not reached'
+        }, null, 2)}`;
+      document.getElementById('job-receiver-result').textContent =
+        `Receiver message terminal result\n${JSON.stringify(job?.receiver_message_result ?? {
+          availability: 'receiver replay not reached'
+        }, null, 2)}`;
+      document.getElementById('job-comparison').textContent =
+        `Evaluator comparison (separate from receiver)\n${JSON.stringify(job?.comparison ?? {
+          availability: 'evaluation not reached'
+        }, null, 2)}`;
+      const active = Boolean(job?.job_id) && !jobIsTerminal(state);
+      document.getElementById('job-step').disabled = active;
+      document.getElementById('job-continue').disabled = active;
+      document.getElementById('job-cancel').disabled = !active;
+      document.getElementById('job-reset').disabled = active;
+    }
+
+    async function refreshJobs() {
+      const response = await fetch('/api/v1/fhss/jobs');
+      const host = document.getElementById('job-controls');
+      if (response.status === 404) {
+        host.hidden = true;
+        return;
+      }
+      host.hidden = false;
+      const history = await response.json();
+      const entries = Array.isArray(history.entries) ? history.entries : [];
+      const selected = entries.find((job) => job.job_id === selectedJobId) ||
+        entries[0];
+      renderJob(selected || {controller_epoch: history.controller_epoch});
+    }
+
+    async function submitJob(path, body, key) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Idempotency-Key': key},
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      renderJob(result);
+      await refreshJobs();
+    }
+
     async function submitConfiguration(validateOnly) {
       const status = document.getElementById('config-status');
       let patch;
@@ -890,6 +966,7 @@
       document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
       await refreshConfiguration();
       await refreshRuntimeStatus();
+      await refreshJobs();
 
       const bounds = visualizationData.bounds || {};
       const refreshMs = Math.max(100, Number(bounds.refresh_interval_ms || 250));
@@ -957,6 +1034,38 @@
     document.getElementById('runtime-stop').addEventListener('click', () => {
       submitRuntimeCommand('/api/v1/fhss/commands/stop', {command_id: `dashboard-stop-${Date.now()}`}).catch((error) => {
         document.getElementById('runtime-status').textContent = `Stop failed: ${error}`;
+      });
+    });
+    document.getElementById('job-step').addEventListener('click', () => {
+      const token = `ui-step-${Date.now()}`;
+      submitJob('/api/v1/fhss/commands/step', {request_id: token}, token)
+        .catch((error) => { document.getElementById('job-state').textContent = `Step failed: ${error}`; });
+    });
+    document.getElementById('job-continue').addEventListener('click', () => {
+      const token = `ui-continue-${Date.now()}`;
+      submitJob('/api/v1/fhss/commands/continue', {
+        request_id: token, message_count: 2
+      }, token).catch((error) => {
+        document.getElementById('job-state').textContent = `Continue failed: ${error}`;
+      });
+    });
+    document.getElementById('job-cancel').addEventListener('click', () => {
+      if (!selectedJobId) return;
+      fetch(`/api/v1/fhss/jobs/${selectedJobId}/cancel`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+      }).then((response) => response.json()).then(renderJob).catch((error) => {
+        document.getElementById('job-state').textContent = `Cancel failed: ${error}`;
+      });
+    });
+    document.getElementById('job-reset').addEventListener('click', () => {
+      fetch('/api/v1/fhss/commands/reset', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+      }).then((response) => response.json()).then((result) => {
+        document.getElementById('job-state').textContent = JSON.stringify(result, null, 2);
+        selectedJobId = null;
+        return refreshJobs();
+      }).catch((error) => {
+        document.getElementById('job-state').textContent = `Reset failed: ${error}`;
       });
     });
     document.getElementById('show-expected').addEventListener('change', () => {

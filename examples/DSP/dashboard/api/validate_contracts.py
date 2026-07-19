@@ -210,7 +210,33 @@ def main() -> int:
         "fhss-observation-history.schema.json": {
             "schema":"graphx.dashboard.fhss_observation_history.v1","semantic_class":"observed",
             "retention":{"max_entries":1,"max_age_seconds":3600,"max_bytes":1048576,
-                "policy":"active_generation_current_run_only"},"entries":[]},
+            "policy":"active_generation_current_run_only"},"entries":[]},
+        "fhss-job-request.schema.json": {
+            "operation":"step", "request_id":"validator-step", "message_count":1,
+            "sample_format":"cf32_le", "timeout_ms":30000},
+        "fhss-job.schema.json": {
+            "schema":"graphx.dashboard.fhss_job.v1", "controller_epoch":1,
+            "job_id":"j-" + "1" * 24, "request_id":"validator-step",
+            "idempotency_key_digest":"2" * 64,
+            "scenario_correlation_id":"s-" + "3" * 24, "job_sequence":1,
+            "operation":"step", "state":"queued", "message_cursor":0,
+            "message_count":1, "sample_format":"cf32_le", "config_revision":1,
+            "config_etag":"\"graphx-config-1\"", "graph_generation":0,
+            "run_epoch":0, "created_at":"2026-01-01T00:00:00Z",
+            "started_at":None, "terminal_at":None,
+            "terminal":{"code":None,"detail":None},
+            "work":{"generator_invoked":False,"receiver_replay_invoked":False},
+            "artifacts":{}, "graph_lifecycle":None,
+            "receiver_message_result":None,"receiver_observation":None,
+            "comparison":None},
+        "fhss-job-history.schema.json": {
+            "schema":"graphx.dashboard.fhss_job_history.v1","controller_epoch":1,
+            "entries":[],"bounds":{"max_entries":32,"max_metadata_bytes":2097152,
+                "original_count":0,"returned_count":0,"truncated":False}},
+        "fhss-job-reset.schema.json": {
+            "schema":"graphx.dashboard.fhss_job_reset.v1","controller_epoch":2,
+            "message_cursor":0,"retained_job_count":1,
+            "idempotency_entries_retained":0,"status":"reset_completed"},
     }
     repository = ROOT.parents[3]
     generator_graph = json.loads((repository / "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json").read_text())
@@ -302,6 +328,14 @@ def main() -> int:
         "state":"available", "reason":"generation_not_available"}
     assert_contract_rejects("fhss-receiver-observation.schema.json",
                             inconsistent_availability, "availability inconsistency")
+    unknown_job_field = copy.deepcopy(samples["fhss-job-request.schema.json"])
+    unknown_job_field["node_step"] = True
+    assert_contract_rejects("fhss-job-request.schema.json", unknown_job_field,
+                            "arbitrary node stepping field")
+    illegal_job_state = copy.deepcopy(samples["fhss-job.schema.json"])
+    illegal_job_state["state"] = "paused_mid_pulse"
+    assert_contract_rejects("fhss-job.schema.json", illegal_job_state,
+                            "illegal job state")
 
     # Receiver-facing contracts reject generator schedule/truth fields even if
     # future code accidentally serializes them into a node configuration.

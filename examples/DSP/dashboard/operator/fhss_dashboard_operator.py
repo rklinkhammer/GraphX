@@ -33,7 +33,7 @@ try:
 except ImportError as error:
     raise SystemExit("install ../api/requirements-contracts.lock for authoritative live validation") from error
 
-PHASE = 4
+PHASE = 5
 OWNED_MARKER = ".graphx-fhss-dashboard-operator"
 MIN_SCREENSHOT_WIDTH = 640
 MIN_SCREENSHOT_HEIGHT = 360
@@ -280,29 +280,33 @@ def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, l
     executable = locate_executable(args.build_dir.resolve())
     command = [str(executable), "--dashboard" if args.phase >= 3 else "--dashboard-no-run",
                "--dashboard-port", str(getattr(args, "port", 0))]
+    if args.phase >= 5:
+        command.extend(["--dashboard-artifact-root",
+                        str(args.output_dir.resolve() / "phase5-job-artifacts")])
     case = getattr(args, "case", None)
     if case:
         output = args.output_dir.resolve()
-        if not (output / OWNED_MARKER).is_file() or not (output / "phase4-report.json").is_file():
-            raise RuntimeError("serve --case requires a completed owned Phase 4 output directory")
-        report = json.loads((output / "phase4-report.json").read_text(encoding="utf-8"))
-        if (report.get("phase") != 4 or report.get("result") != "PARTIAL" or
+        report_path = output / f"phase{args.phase}-report.json"
+        if not (output / OWNED_MARKER).is_file() or not report_path.is_file():
+            raise RuntimeError("serve --case requires a completed owned output directory")
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if (report.get("phase") != args.phase or report.get("result") != "PARTIAL" or
                 report.get("evidence_status") != "partial_pre_browser"):
-            raise RuntimeError(
-                "serve --case requires a partial pre-browser Phase 4 report")
-        case_config = output / "phase4-cases" / f"{case}-config.json"
-        if not case_config.is_file():
-            raise RuntimeError(f"Phase 4 case config is missing: {case_config}")
-        case_document = json.loads(case_config.read_text(encoding="utf-8"))
-        receiver_input = receiver_input_from_case_document(case_document)
-        iq_path = Path(str(receiver_input.get("file_path", "")))
-        if not iq_path.is_file():
-            raise RuntimeError(f"Phase 4 case IQ is missing: {iq_path}")
-        for forbidden in output.glob("*-truth.json"):
-            raise RuntimeError(f"live truth artifact must be absent before serve: {forbidden}")
-        for forbidden in output.glob("*schedule.json"):
-            raise RuntimeError(f"live schedule artifact must be absent before serve: {forbidden}")
-        command.extend(["--graph-config", str(case_config)])
+            raise RuntimeError("serve --case requires a partial pre-browser report")
+        if args.phase == 4:
+            case_config = output / "phase4-cases" / f"{case}-config.json"
+            if not case_config.is_file():
+                raise RuntimeError(f"Phase 4 case config is missing: {case_config}")
+            case_document = json.loads(case_config.read_text(encoding="utf-8"))
+            receiver_input = receiver_input_from_case_document(case_document)
+            iq_path = Path(str(receiver_input.get("file_path", "")))
+            if not iq_path.is_file():
+                raise RuntimeError(f"Phase 4 case IQ is missing: {iq_path}")
+            for forbidden in output.glob("*-truth.json"):
+                raise RuntimeError(f"live truth artifact must be absent before serve: {forbidden}")
+            for forbidden in output.glob("*schedule.json"):
+                raise RuntimeError(f"live schedule artifact must be absent before serve: {forbidden}")
+            command.extend(["--graph-config", str(case_config)])
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, bufsize=1)
     deadline = time.monotonic() + 15
@@ -649,6 +653,105 @@ def start_served_case(port: int, case: str, output: Path, url: str) -> None:
     print(f"Phase 4 {case} state: {terminal.get('lifecycle_state')}", flush=True)
 
 
+def start_served_phase5_case(port: int, case: str, output: Path,
+                             url: str) -> None:
+    def submit(target: str, body: dict[str, object], key: str) -> dict[str, object]:
+        status, _, response = request(
+            port, "POST", target, json.dumps(body).encode(),
+            {"Content-Type": "application/json", "Idempotency-Key": key})
+        if status != 202:
+            raise RuntimeError(
+                f"Phase 5 served job submission failed: HTTP {status}; "
+                f"{response.decode(errors='replace')}")
+        return json.loads(response)
+
+    def wait_terminal(job_id: str) -> dict[str, object]:
+        deadline = time.monotonic() + 75
+        latest: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            status, _, body = request(port, "GET", f"/api/v1/fhss/jobs/{job_id}")
+            if status != 200:
+                raise RuntimeError(f"Phase 5 served job lookup failed: HTTP {status}")
+            latest = json.loads(body)
+            if latest.get("state") in (
+                    "completed", "cancelled", "timed_out", "failed"):
+                return latest
+            time.sleep(0.02)
+        raise RuntimeError(f"Phase 5 served job did not terminate: {job_id}")
+
+    token = str(time.time_ns())
+    if case == "step":
+        job = submit("/api/v1/fhss/commands/step",
+                     {"request_id": f"screenshot-step-{token}",
+                      "timeout_ms": 60000}, f"screenshot-step-{token}")
+        terminal = wait_terminal(str(job["job_id"]))
+        if terminal.get("state") != "completed":
+            raise RuntimeError("Phase 5 Step screenshot case did not complete")
+    elif case == "continue":
+        job = submit("/api/v1/fhss/commands/continue",
+                     {"request_id": f"screenshot-continue-{token}",
+                      "message_count": 2, "timeout_ms": 60000},
+                     f"screenshot-continue-{token}")
+        terminal = wait_terminal(str(job["job_id"]))
+        if terminal.get("state") != "completed":
+            raise RuntimeError("Phase 5 Continue screenshot case did not complete")
+    elif case == "cancelled":
+        blocker = submit("/api/v1/fhss/commands/step",
+                         {"request_id": f"screenshot-blocker-{token}",
+                          "timeout_ms": 60000}, f"screenshot-blocker-{token}")
+        job = submit("/api/v1/fhss/commands/step",
+                     {"request_id": f"screenshot-cancel-{token}",
+                      "timeout_ms": 60000}, f"screenshot-cancel-{token}")
+        status, _, body = request(
+            port, "POST", f"/api/v1/fhss/jobs/{job['job_id']}/cancel", b"{}",
+            {"Content-Type": "application/json"})
+        if status != 202:
+            raise RuntimeError(f"Phase 5 queued cancellation failed: HTTP {status}")
+        terminal = json.loads(body)
+        if (terminal.get("state") != "cancelled" or
+                terminal.get("work", {}).get("generator_invoked") is not False):
+            raise RuntimeError("Phase 5 screenshot cancellation performed work")
+        wait_terminal(str(blocker["job_id"]))
+    else:
+        raise RuntimeError(f"unsupported Phase 5 screenshot case: {case}")
+
+    job_bytes = (json.dumps(terminal, sort_keys=True) + "\n").encode()
+    artifacts = terminal.get("artifacts", {})
+    job_root = output / "phase5-job-artifacts" / "fhss-jobs" / str(terminal["job_id"])
+    iq_reference = artifacts.get("iq", {}) if isinstance(artifacts, dict) else {}
+    receiver_reference = (artifacts.get("receiver_config", {})
+                          if isinstance(artifacts, dict) else {})
+    iq_path = job_root / str(iq_reference.get("relative_path", "missing"))
+    receiver_path = job_root / str(receiver_reference.get(
+        "relative_path", "missing"))
+    state = {
+        "schema": "graphx.dashboard.phase5.served_state.v1",
+        "case": case,
+        "url": url,
+        "controller_epoch": terminal.get("controller_epoch"),
+        "job_id": terminal.get("job_id"),
+        "job_state": terminal.get("state"),
+        "job_sha256": hashlib.sha256(job_bytes).hexdigest(),
+        "generation": terminal.get("graph_generation", 0),
+        "run_epoch": terminal.get("run_epoch", 0),
+        "observation_id": (terminal.get("receiver_observation") or {}).get(
+            "observation_id"),
+        "observation_sha256": (terminal.get("receiver_observation") or {}).get(
+            "observation_sha256"),
+        "iq_path": str(iq_path) if iq_path.is_file() else None,
+        "iq_sha256": sha256(iq_path) if iq_path.is_file() else None,
+        "receiver_config_path": (str(receiver_path)
+                                 if receiver_path.is_file() else None),
+        "config_sha256": (sha256(receiver_path)
+                          if receiver_path.is_file() else None),
+        "truth_withheld_during_replay": case != "cancelled",
+        "synthetic_data_only": True,
+        "hwil_available": False,
+    }
+    state_path = output / f"phase5-{case}-served-state.json"
+    state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+
+
 def stop(process: subprocess.Popen[str]) -> None:
     if process.poll() is None:
         process.send_signal(signal.SIGTERM)
@@ -660,8 +763,8 @@ def stop(process: subprocess.Popen[str]) -> None:
 
 
 def exercise(args: argparse.Namespace) -> int:
-    if args.phase not in (1, 2, 3, 4):
-        raise RuntimeError("this operator implements Phases 1 through 4 only")
+    if args.phase not in (1, 2, 3, 4, 5):
+        raise RuntimeError("this operator implements Phases 1 through 5 only")
     phase = args.phase
     output = args.output_dir.resolve()
     output_preexisted = output.exists()
@@ -740,6 +843,8 @@ def exercise(args: argparse.Namespace) -> int:
                 "/api/v1/fhss/observation-provenance": "fhss-observation-provenance",
                 "/api/v1/fhss/observation-history": "fhss-observation-history",
             })
+        if phase >= 5:
+            schema_names["/api/v1/fhss/jobs"] = "fhss-job-history"
         schema_root = API_DIR / "schemas"
         live_registry = load_registry(list(schema_root.glob("*.schema.json")))
         authoritative_registry = Registry()
@@ -792,6 +897,240 @@ def exercise(args: argparse.Namespace) -> int:
                   initial_status.get("terminal_result") is None and
                   not initial_status.get("stop_requested"),
                   json.dumps(initial_status, sort_keys=True))
+        if phase >= 5:
+            def submit_job(target: str, payload: dict[str, object], key: str
+                           ) -> tuple[int, dict[str, str], bytes, dict[str, object]]:
+                job_status, job_headers, job_body = request(
+                    port, "POST", target, json.dumps(payload).encode(),
+                    {"Content-Type": "application/json", "Idempotency-Key": key})
+                return job_status, job_headers, job_body, json.loads(job_body)
+
+            def wait_job(job_id: str, timeout_seconds: float = 45.0
+                         ) -> dict[str, object]:
+                deadline = time.monotonic() + timeout_seconds
+                latest: dict[str, object] = {}
+                while time.monotonic() < deadline:
+                    status_code, _, job_body = request(
+                        port, "GET", f"/api/v1/fhss/jobs/{job_id}")
+                    if status_code != 200:
+                        raise RuntimeError(f"job lookup failed: HTTP {status_code}")
+                    latest = json.loads(job_body)
+                    if latest.get("state") in (
+                            "completed", "cancelled", "timed_out", "failed",
+                            "abandoned_on_restart"):
+                        return latest
+                    time.sleep(0.02)
+                raise RuntimeError(f"job did not terminate: {job_id}; state={latest.get('state')}")
+
+            step_key = "phase5-step-key"
+            step_request = {"request_id": "phase5-step", "timeout_ms": 60000}
+            step_status, _, step_body, step_job = submit_job(
+                "/api/v1/fhss/commands/step", step_request, step_key)
+            persist("phase5_step_submit", step_body)
+            duplicate_status, _, duplicate_body, duplicate_job = submit_job(
+                "/api/v1/fhss/commands/step", step_request, step_key)
+            persist("phase5_step_duplicate", duplicate_body)
+            conflict_status, conflict_headers, conflict_body, conflict_doc = submit_job(
+                "/api/v1/fhss/commands/continue",
+                {"request_id": "phase5-step", "message_count": 2}, step_key)
+            persist("phase5_idempotency_conflict", conflict_body)
+            check("Phase5 idempotent duplicate reuses one job",
+                  step_status == 202 and duplicate_status == 200 and
+                  step_job.get("job_id") == duplicate_job.get("job_id") and
+                  duplicate_job.get("idempotency", {}).get("reused") is True,
+                  f"create={step_status}; duplicate={duplicate_status}; ids={step_job.get('job_id')}/{duplicate_job.get('job_id')}")
+            check("Phase5 idempotency conflict is RFC 9457",
+                  conflict_status == 409 and
+                  conflict_headers.get("content-type", "").startswith(
+                      "application/problem+json") and
+                  conflict_doc.get("code") ==
+                      "idempotency_key_reused_with_different_payload",
+                  f"HTTP {conflict_status}; code={conflict_doc.get('code')}")
+
+            queued_status, _, queued_body, queued_job = submit_job(
+                "/api/v1/fhss/commands/step",
+                {"request_id": "phase5-queued-cancel", "timeout_ms": 60000},
+                "phase5-queued-key")
+            queued_id = str(queued_job.get("job_id", ""))
+            queued_cancel_status, _, queued_cancel_body = request(
+                port, "POST", f"/api/v1/fhss/jobs/{queued_id}/cancel", b"{}",
+                {"Content-Type": "application/json"})
+            queued_cancelled = json.loads(queued_cancel_body)
+            persist("phase5_queued_cancel", queued_cancel_body)
+            check("Phase5 queued cancel creates no work",
+                  queued_status == 202 and queued_cancel_status == 202 and
+                  queued_cancelled.get("state") == "cancelled" and
+                  queued_cancelled.get("work", {}).get("generator_invoked") is False and
+                  queued_cancelled.get("work", {}).get("receiver_replay_invoked") is False and
+                  queued_cancelled.get("artifacts") == {},
+                  json.dumps(queued_cancelled.get("work", {}), sort_keys=True))
+
+            step_terminal = wait_job(str(step_job["job_id"]), 70)
+            persist("phase5_step_terminal",
+                    json.dumps(step_terminal, sort_keys=True).encode())
+            step_schema_ok = False
+            try:
+                step_schema_ok, _ = schema_valid(
+                    "fhss-job", json.dumps(step_terminal).encode())
+            except Exception as error:
+                checks.append({"name": "Phase5 terminal job schema", "pass": False,
+                               "evidence": str(error)})
+            check("Phase5 Step is one complete receiver message",
+                  step_schema_ok and step_terminal.get("state") == "completed" and
+                  int(step_terminal.get("message_count", 0)) == 1 and
+                  step_terminal.get("receiver_message_result", {}).get("accepted") is True and
+                  step_terminal.get("graph_lifecycle", {}).get("terminal_code") ==
+                      "execution_completed" and
+                  step_terminal.get("comparison", {}).get("evaluation_state") ==
+                      "evaluated",
+                  f"state={step_terminal.get('state')}; schema={step_schema_ok}")
+            job_root = (output / "phase5-job-artifacts" / "fhss-jobs" /
+                        str(step_terminal["job_id"]))
+            manifest_path = job_root / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            truth_path = job_root / "truth.withheld.json"
+            truth_document = json.loads(truth_path.read_text(encoding="utf-8"))
+            sigmf_path = job_root / "iq.sigmf-meta"
+            receiver_config_path = job_root / "receiver-minimal.json"
+            iq_reference = manifest["artifacts"]["iq"]
+            iq_file = job_root / iq_reference["relative_path"]
+            artifact_checks = all(path.is_file() for path in (
+                manifest_path, truth_path, sigmf_path, receiver_config_path, iq_file))
+            hash_checks = (
+                sha256(iq_file) == iq_reference["sha256"] and
+                sha256(truth_path) == manifest["artifacts"]["truth"]["sha256"] and
+                sha256(sigmf_path) == manifest["artifacts"]["sigmf"]["sha256"] and
+                sha256(receiver_config_path) ==
+                    manifest["artifacts"]["receiver_config"]["sha256"])
+            receiver_document = json.loads(
+                receiver_config_path.read_text(encoding="utf-8"))
+            receiver_text = json.dumps(receiver_document, sort_keys=True)
+            forbidden_receiver_keys = (
+                "messages", "truth", "truth_sha256", "expected_words",
+                "scenario_correlation_id", "job_id", "generator_metadata")
+            receiver_isolated = all(
+                f'"{key}"' not in receiver_text for key in forbidden_receiver_keys)
+            check("Phase5 separate atomic artifacts and hashes",
+                  artifact_checks and hash_checks and receiver_isolated and
+                  manifest.get("receiver_truth_access") ==
+                      "withheld_before_replay",
+                  f"files={artifact_checks}; hashes={hash_checks}; isolated={receiver_isolated}")
+            oracle_pulses = truth_document.get("truth_pulses", [])
+            independent_timing = (
+                len(oracle_pulses) == 18 and all(
+                    int(oracle_pulses[index]["received_global_start_sample"]) ==
+                    (index + 1) * 6500 for index in range(len(oracle_pulses))))
+            check("Phase5 independent one-message timing oracle",
+                  independent_timing,
+                  f"pulse_count={len(oracle_pulses)}; slot=6500 input samples")
+
+            continue_status, _, continue_body, continue_job = submit_job(
+                "/api/v1/fhss/commands/continue",
+                {"request_id": "phase5-continue", "message_count": 2,
+                 "timeout_ms": 60000}, "phase5-continue-key")
+            persist("phase5_continue_submit", continue_body)
+            continue_terminal = wait_job(str(continue_job["job_id"]), 70)
+            persist("phase5_continue_terminal",
+                    json.dumps(continue_terminal, sort_keys=True).encode())
+            check("Phase5 Continue uses bounded complete messages",
+                  continue_status == 202 and
+                  continue_terminal.get("state") == "completed" and
+                  int(continue_terminal.get("message_count", 0)) == 2 and
+                  continue_terminal.get("receiver_message_result", {}).get(
+                      "accepted") is True,
+                  f"HTTP {continue_status}; state={continue_terminal.get('state')}")
+
+            reset_status, _, reset_body = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            reset_doc = json.loads(reset_body)
+            repeated_reset_status, _, repeated_reset_body = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            repeated_reset = json.loads(repeated_reset_body)
+            persist("phase5_reset", reset_body)
+            check("Phase5 Reset is deterministic and retains jobs",
+                  reset_status == repeated_reset_status == 200 and
+                  reset_doc.get("status") == "reset_completed" and
+                  repeated_reset.get("status") == "already_reset" and
+                  reset_doc.get("controller_epoch") ==
+                      repeated_reset.get("controller_epoch") and
+                  int(reset_doc.get("retained_job_count", 0)) >= 2,
+                  json.dumps(reset_doc, sort_keys=True))
+
+            timeout_status, _, timeout_body, timeout_job = submit_job(
+                "/api/v1/fhss/commands/continue",
+                {"request_id": "phase5-timeout", "message_count": 4,
+                 "timeout_ms": 100}, "phase5-timeout-key")
+            persist("phase5_timeout_submit", timeout_body)
+            timeout_terminal = wait_job(str(timeout_job["job_id"]), 30)
+            check("Phase5 deterministic timeout is terminal",
+                  timeout_status == 202 and
+                  timeout_terminal.get("state") == "timed_out" and
+                  timeout_terminal.get("terminal", {}).get("code") == "job_timeout",
+                  json.dumps(timeout_terminal.get("terminal", {}), sort_keys=True))
+            request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                    {"Content-Type": "application/json"})
+            active_status, _, active_body, active_job = submit_job(
+                "/api/v1/fhss/commands/step",
+                {"request_id": "phase5-active-cancel", "timeout_ms": 60000},
+                "phase5-active-key")
+            active_id = str(active_job["job_id"])
+            active_seen = False
+            active_deadline = time.monotonic() + 5
+            while time.monotonic() < active_deadline:
+                _, _, active_state_body = request(
+                    port, "GET", f"/api/v1/fhss/jobs/{active_id}")
+                active_state = json.loads(active_state_body)
+                if active_state.get("state") != "queued":
+                    active_seen = True
+                    break
+                time.sleep(0.01)
+            cancel_started = time.monotonic()
+            active_cancel_status, _, active_cancel_body = request(
+                port, "POST", f"/api/v1/fhss/jobs/{active_id}/cancel", b"{}",
+                {"Content-Type": "application/json"}, timeout=8)
+            active_terminal = wait_job(active_id, 10)
+            active_cancel_elapsed = time.monotonic() - cancel_started
+            persist("phase5_active_cancel", active_cancel_body)
+            check("Phase5 active cancellation is bounded",
+                  active_status == 202 and active_seen and
+                  active_cancel_status in (200, 202) and
+                  active_terminal.get("state") == "cancelled" and
+                  active_cancel_elapsed < 8,
+                  f"state={active_terminal.get('state')}; seconds={active_cancel_elapsed:.3f}")
+
+            # Preserve truth evidence externally, then remove it before a
+            # dashboard-free public receiver replay.
+            persist("phase5_step_truth", truth_path.read_bytes())
+            persist("phase5_step_sigmf", sigmf_path.read_bytes())
+            persist("phase5_step_iq", iq_file.read_bytes())
+            truth_path.unlink()
+            offline_summary = output / "phase5-offline-summary.json"
+            offline_command = [str(locate_executable(args.build_dir.resolve())),
+                               "--graph-config", str(receiver_config_path),
+                               "--summary-json", str(offline_summary)]
+            offline = subprocess.run(offline_command, text=True,
+                                     capture_output=True, timeout=90)
+            check("Phase5 offline receiver replay needs no dashboard or truth",
+                  offline.returncode == 0 and offline_summary.is_file() and
+                  not truth_path.exists(),
+                  f"exit={offline.returncode}; truth_present={truth_path.exists()}")
+            phase5_screenshot_manifest = {
+                "schema": "graphx.dashboard.phase5.screenshot_manifest.v1",
+                "dashboard_url": url,
+                "capture_required": True,
+                "synthetic_data_only": True,
+                "required_cases": ["step", "continue", "cancelled"],
+                "captured_files": {},
+                "reason_not_automated": (
+                    "genuine browser capture is an explicit operator action"),
+            }
+            phase5_screenshot_bytes = (
+                json.dumps(phase5_screenshot_manifest, indent=2) + "\n").encode()
+            (output / "phase5-screenshot-manifest.json").write_bytes(
+                phase5_screenshot_bytes)
+            persist("phase5_screenshot_manifest", phase5_screenshot_bytes)
         status, headers, body = request(port, "PUT", "/healthz")
         problem = json.loads(body)
         persist("PUT /healthz", body)
@@ -1068,8 +1407,13 @@ def exercise(args: argparse.Namespace) -> int:
                 {"Content-Type":"application/json-patch+json","If-Match":current_headers["etag"]})
             check("patch receiver path only", p_status == 200, f"HTTP {p_status}")
             revision = json.loads(p_body).get("new_revision", 0)
+            _, _, generation_base_body = request(
+                port, "GET", "/api/v1/fhss/status")
+            generation_base = int(
+                json.loads(generation_base_body).get("active_generation", 0))
             generations = []
             for number in (1,2):
+                expected_generation = generation_base + number
                 rebuild_body = json.dumps({"expected_revision":revision,"command_id":f"phase3-rebuild-{number}"}).encode()
                 rebuild_started = time.monotonic()
                 r_status, _, r_body = request(port,"POST","/api/v1/fhss/config/rebuild",rebuild_body,{"Content-Type":"application/json"}, timeout=20)
@@ -1108,7 +1452,7 @@ def exercise(args: argparse.Namespace) -> int:
                 check(f"generation {number} natural terminal result",
                       terminal_status == 200 and status_schema_ok and
                       terminal_doc.get("lifecycle_state") == "completed" and
-                      terminal_result.get("generation") == number and
+                      terminal_result.get("generation") == expected_generation and
                       terminal_result.get("code") == "execution_completed" and
                       not terminal_doc.get("stop_requested"),
                       json.dumps(terminal_doc, sort_keys=True))
@@ -1159,7 +1503,7 @@ def exercise(args: argparse.Namespace) -> int:
                         item.get("reset") == "new_graph_generation"
                         for item in metric_definitions))
                 check(f"generation {number} attributed nonzero traffic",
-                      metrics_doc.get("active_generation") == number and
+                      metrics_doc.get("active_generation") == expected_generation and
                       int(metrics_doc.get("active_run_epoch", 0)) >= 1 and
                       int(metrics_doc.get("active_config_revision", 0)) >= 1 and
                       bool(metrics_doc.get("active_config_etag")) and
@@ -1197,7 +1541,9 @@ def exercise(args: argparse.Namespace) -> int:
                 check(f"real replay generation {number}", r_status==200 and s_status==202 and m_status==200 and x_status==200,
                       f"rebuild={r_status}; start={s_status}; stop={x_status}")
                 check(f"bounded stop generation {number}", time.monotonic()-stop_started < 5, "under 5 seconds")
-            check("two real generations", generations == [1,2], json.dumps(generations))
+            check("two real generations",
+                  generations == [generation_base + 1, generation_base + 2],
+                  json.dumps(generations))
             check("truth isolated before replay", not truth_path.exists() and not schedule_path.exists(), "truth and scenario deleted")
 
             if phase >= 4:
@@ -1261,9 +1607,9 @@ def exercise(args: argparse.Namespace) -> int:
                       "messages" not in observed_doc and "truth_sha256" not in observed_doc,
                       "expected, observed, and comparison are distinct documents")
                 check("Phase4 run attribution",
-                      observed_doc.get("generation") == 2 and
+                      observed_doc.get("generation") == generation_base + 2 and
                       int(observed_doc.get("run_epoch", 0)) >= 1 and
-                      comparison_doc.get("generation") == 2,
+                      comparison_doc.get("generation") == generation_base + 2,
                       f"generation={observed_doc.get('generation')}; run={observed_doc.get('run_epoch')}")
                 clean_matches = comparison_doc.get("matches", [])
                 clean_comparison_summary = {
@@ -1480,7 +1826,7 @@ def exercise(args: argparse.Namespace) -> int:
             check("bounded real cancellation join", lx_status==200 and long_stop_elapsed<5 and
                   long_terminal.get("lifecycle_state")=="stopped" and
                   long_terminal.get("stop_requested") is True and
-                  (long_terminal.get("terminal_result") or {}).get("generation")==3 and
+                  (long_terminal.get("terminal_result") or {}).get("generation")==generation_base+3 and
                   (long_terminal.get("terminal_result") or {}).get("code")=="execution_cancelled",
                   f"HTTP {lx_status}; seconds={long_stop_elapsed:.3f}; status={json.dumps(long_terminal,sort_keys=True)}")
             check("long truth isolated before replay", not long_truth_path.exists() and not long_schedule_path.exists(), "long truth and schedule deleted")
@@ -1853,7 +2199,7 @@ def exercise(args: argparse.Namespace) -> int:
         schema_hashes = {f"schema:{path.name}": sha256(path)
                          for path in sorted((API_DIR / "schemas").glob("*.json"))}
         checks_pass = all(item["pass"] for item in checks)
-        evidence_status = "partial_pre_browser" if phase == 4 else "complete"
+        evidence_status = "partial_pre_browser" if phase >= 4 else "complete"
         report = {
             "schema": "graphx.fhss.dashboard.operator_report.v1", "phase": phase,
             "source_revision": revision, "compiler": compiler[0] if compiler else "unknown",
@@ -1870,7 +2216,7 @@ def exercise(args: argparse.Namespace) -> int:
                                 **phase2_hashes},
             "checks": checks,
             "evidence_status": evidence_status,
-            "result": ("PARTIAL" if phase == 4 else "PASS")
+            "result": ("PARTIAL" if phase >= 4 else "PASS")
                       if checks_pass else "FAIL"
         }
         report_path = output / f"phase{phase}-report.json"
@@ -1890,7 +2236,7 @@ def exercise(args: argparse.Namespace) -> int:
             "input_hashes": {"openapi": sha256(API_DIR / "openapi.json")},
             "artifact_hashes": {"dashboard_index": sha256(Path(__file__).resolve().parents[1] / "index.html")},
             "checks": checks,
-            "evidence_status": "partial_pre_browser" if phase == 4 else "complete",
+            "evidence_status": "partial_pre_browser" if phase >= 4 else "complete",
             "result": "FAIL"
         }
         report_path = output / f"phase{phase}-report.json"
@@ -1923,21 +2269,21 @@ def verify(args: argparse.Namespace) -> int:
         for key, digest in report.get("artifact_hashes", {}).items():
             if key == "dashboard_index":
                 continue
-            if key == "phase4_screenshot_manifest_current":
+            if key == f"phase{args.phase}_screenshot_manifest_current":
                 manifest_path = (args.output_dir.resolve() /
-                                 "phase4-screenshot-manifest.json")
+                                 f"phase{args.phase}-screenshot-manifest.json")
                 hashes_valid = (hashes_valid and manifest_path.is_file() and
                                 sha256(manifest_path) == digest)
                 continue
-            if key.startswith("phase4_screenshot:"):
+            if key.startswith(f"phase{args.phase}_screenshot:"):
                 case = key.split(":", 1)[1]
                 screenshot = args.output_dir.resolve() / "screenshots" / f"{case}.png"
                 hashes_valid = (hashes_valid and is_valid_png(screenshot) and
                                 sha256(screenshot) == digest)
                 continue
-            if key.startswith("phase4_served_state:"):
+            if key.startswith(f"phase{args.phase}_served_state:"):
                 case = key.split(":", 1)[1]
-                served_state = args.output_dir.resolve() / f"phase4-{case}-served-state.json"
+                served_state = args.output_dir.resolve() / f"phase{args.phase}-{case}-served-state.json"
                 hashes_valid = (hashes_valid and served_state.is_file() and
                                 sha256(served_state) == digest)
                 continue
@@ -1950,9 +2296,12 @@ def verify(args: argparse.Namespace) -> int:
     if require_screenshots and args.phase >= 4:
         try:
             manifest = json.loads((args.output_dir.resolve() /
-                                   "phase4-screenshot-manifest.json").read_text(encoding="utf-8"))
+                                   f"phase{args.phase}-screenshot-manifest.json").read_text(encoding="utf-8"))
             captures = manifest.get("captured_files", {})
-            screenshots_valid = set(captures) == {"clean", "impaired", "negative"}
+            required_cases = ({"clean", "impaired", "negative"}
+                              if args.phase == 4 else
+                              {"step", "continue", "cancelled"})
+            screenshots_valid = set(captures) == required_cases
             for case, record in captures.items():
                 screenshot = args.output_dir.resolve() / record["relative_path"]
                 state_path = args.output_dir.resolve() / record["served_state"]
@@ -1982,16 +2331,24 @@ def verify(args: argparse.Namespace) -> int:
                                          capture_age_seconds) <= 5.0 and
                                      int(record.get("screenshot_mtime_ns", -1)) ==
                                          screenshot.stat().st_mtime_ns and
-                                     state.get("truth_files_present") is False and
-                                     len(str(state.get("config_sha256", ""))) == 64 and
-                                     len(str(state.get("iq_sha256", ""))) == 64 and
-                                     str(state.get("observation_id", "")).startswith("observation-g") and
-                                     len(str(state.get("observation_sha256", ""))) == 64 and
+                                     ((args.phase == 4 and
+                                       state.get("truth_files_present") is False and
+                                       len(str(state.get("config_sha256", ""))) == 64 and
+                                       len(str(state.get("iq_sha256", ""))) == 64 and
+                                       str(state.get("observation_id", "")).startswith("observation-g") and
+                                       len(str(state.get("observation_sha256", ""))) == 64) or
+                                      (args.phase == 5 and
+                                       state.get("synthetic_data_only") is True and
+                                       state.get("hwil_available") is False and
+                                       len(str(state.get("job_id", ""))) == 26 and
+                                       len(str(state.get("job_sha256", ""))) == 64 and
+                                       (case == "cancelled" or
+                                        state.get("truth_withheld_during_replay") is True))) and
                                      record.get("served_state_sha256") == sha256(state_path) and
                                      report.get("artifact_hashes", {}).get(
-                                         f"phase4_served_state:{case}") == sha256(state_path) and
+                                         f"phase{args.phase}_served_state:{case}") == sha256(state_path) and
                                      report.get("artifact_hashes", {}).get(
-                                         f"phase4_screenshot:{case}") == record["sha256"])
+                                         f"phase{args.phase}_screenshot:{case}") == record["sha256"])
         except (OSError, KeyError, TypeError, ValueError,
                 json.JSONDecodeError):
             screenshots_valid = False
@@ -2030,23 +2387,37 @@ def record_screenshot(args: argparse.Namespace) -> int:
     if capture_age_seconds < -5.0 or capture_age_seconds > 3600.0:
         raise RuntimeError("screenshot capture timestamp is stale or in the future")
     output = args.output_dir.resolve()
-    manifest_path = output / "phase4-screenshot-manifest.json"
-    report_path = output / "phase4-report.json"
+    manifest_path = output / f"phase{args.phase}-screenshot-manifest.json"
+    report_path = output / f"phase{args.phase}-report.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    state_path = output / f"phase4-{args.case}-served-state.json"
+    state_path = output / f"phase{args.phase}-{args.case}-served-state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    case_config = output / "phase4-cases" / f"{args.case}-config.json"
-    iq_path = Path(str(state.get("iq_path", "")))
     generation = int(state.get(
         "generation", state.get("terminal", {}).get("active_generation", -1)))
     run_epoch = int(state.get("run_epoch", -1))
-    if (state.get("case") != args.case or state.get("truth_files_present") is not False or
-            not str(state.get("url", "")).startswith("http://127.0.0.1:") or
-            generation < 1 or run_epoch < 1 or
-            not case_config.is_file() or sha256(case_config) != state.get("config_sha256") or
-            not iq_path.is_file() or sha256(iq_path) != state.get("iq_sha256") or
-            not str(state.get("observation_id", "")).startswith("observation-g") or
-            len(str(state.get("observation_sha256", ""))) != 64):
+    common_valid = (state.get("case") == args.case and
+                    str(state.get("url", "")).startswith("http://127.0.0.1:"))
+    if args.phase == 4:
+        case_config = output / "phase4-cases" / f"{args.case}-config.json"
+        iq_path = Path(str(state.get("iq_path", "")))
+        state_valid = (common_valid and
+                       state.get("truth_files_present") is False and
+                       generation >= 1 and run_epoch >= 1 and
+                       case_config.is_file() and
+                       sha256(case_config) == state.get("config_sha256") and
+                       iq_path.is_file() and sha256(iq_path) == state.get("iq_sha256") and
+                       str(state.get("observation_id", "")).startswith("observation-g") and
+                       len(str(state.get("observation_sha256", ""))) == 64)
+    else:
+        state_valid = (common_valid and state.get("synthetic_data_only") is True and
+                       state.get("hwil_available") is False and
+                       re.fullmatch(r"j-[0-9a-f]{24}", str(state.get("job_id", ""))) is not None and
+                       len(str(state.get("job_sha256", ""))) == 64 and
+                       state.get("job_state") in ("completed", "cancelled") and
+                       (args.case == "cancelled" or
+                        (generation >= 1 and run_epoch >= 1 and
+                         state.get("truth_withheld_during_replay") is True)))
+    if not state_valid:
         raise RuntimeError("served-state evidence does not identify the requested case")
     screenshots = output / "screenshots"
     screenshots.mkdir(exist_ok=True)
@@ -2058,7 +2429,7 @@ def record_screenshot(args: argparse.Namespace) -> int:
         "case": args.case,
         "relative_path": str(destination.relative_to(output)),
         "sha256": digest,
-        "served_state": f"phase4-{args.case}-served-state.json",
+        "served_state": f"phase{args.phase}-{args.case}-served-state.json",
         "served_state_sha256": state_digest,
         "served_url": state["url"],
         "generation": generation,
@@ -2073,19 +2444,24 @@ def record_screenshot(args: argparse.Namespace) -> int:
     }
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report.setdefault("artifact_hashes", {})[f"phase4_screenshot:{args.case}"] = digest
-    report["artifact_hashes"][f"phase4_served_state:{args.case}"] = state_digest
-    report["artifact_hashes"]["phase4_screenshot_manifest_current"] = sha256(
+    report.setdefault("artifact_hashes", {})[f"phase{args.phase}_screenshot:{args.case}"] = digest
+    report["artifact_hashes"][f"phase{args.phase}_served_state:{args.case}"] = state_digest
+    report["artifact_hashes"][f"phase{args.phase}_screenshot_manifest_current"] = sha256(
         manifest_path)
     captured_cases = set(manifest.get("captured_files", {}))
-    final_capture_set = captured_cases == {"clean", "impaired", "negative"}
+    required_cases = ({"clean", "impaired", "negative"}
+                      if args.phase == 4 else
+                      {"step", "continue", "cancelled"})
+    final_capture_set = captured_cases == required_cases
+    check_name = f"Phase{args.phase} bound browser screenshots"
     report["checks"] = [
         item for item in report.get("checks", [])
-        if item.get("name") != "Phase4 bound browser screenshots"]
+        if item.get("name") != check_name]
     report["checks"].append({
-        "name": "Phase4 bound browser screenshots",
+        "name": check_name,
         "pass": final_capture_set,
-        "evidence": ("clean, impaired, and negative browser captures bound"
+        "evidence": (", ".join(sorted(required_cases)) +
+                     " browser captures bound"
                      if final_capture_set else
                      "interactive browser capture remains pending"),
     })
@@ -2118,11 +2494,15 @@ def cleanup(args: argparse.Namespace) -> int:
         "long-schedule.json", "long-truth.json", "impaired-cfo-awgn.cf32",
         "impaired-scenario.json", "impaired-truth.json", "impaired-metadata.json",
         "negative-no-message.cf32", "malformed-iq.cf32",
+        "phase5-offline-summary.json", "phase5-screenshot-manifest.json",
+        "phase5-step-served-state.json", "phase5-continue-served-state.json",
+        "phase5-cancelled-served-state.json",
     }
     exact_files.update(f"phase4-cases/{case}-config.json"
                        for case in ("clean", "impaired", "negative", "malformed"))
     exact_files.update(f"screenshots/{case}.png"
-                       for case in ("clean", "impaired", "negative"))
+                       for case in ("clean", "impaired", "negative",
+                                    "step", "continue", "cancelled"))
     for relative in sorted(exact_files):
         tracked = output / relative
         if tracked.is_file() or tracked.is_symlink():
@@ -2138,6 +2518,23 @@ def cleanup(args: argparse.Namespace) -> int:
     for directory in (output / "screenshots", output / "phase4-cases"):
         if directory.is_dir():
             directory.rmdir()
+    phase5_jobs = output / "phase5-job-artifacts" / "fhss-jobs"
+    if phase5_jobs.is_dir():
+        allowed_job_files = {
+            "iq.cf32", "iq.cf64", "iq.sigmf-meta", "truth.withheld.json",
+            "receiver-minimal.json", "manifest.json",
+        }
+        for job_directory in phase5_jobs.iterdir():
+            if (not job_directory.is_dir() or
+                    re.fullmatch(r"j-[0-9a-f]{24}", job_directory.name) is None):
+                raise RuntimeError(f"refusing unowned Phase5 job entry: {job_directory}")
+            for artifact in job_directory.iterdir():
+                if not artifact.is_file() or artifact.name not in allowed_job_files:
+                    raise RuntimeError(f"refusing unowned Phase5 artifact: {artifact}")
+                artifact.unlink()
+            job_directory.rmdir()
+        phase5_jobs.rmdir()
+        (output / "phase5-job-artifacts").rmdir()
     marker.unlink()
     if created_dir:
         output.rmdir()
@@ -2154,13 +2551,15 @@ def main() -> int:
         item.add_argument("--build-dir", type=Path, default=Path("build-ninja/ninja-debug"))
         item.add_argument("--output-dir", type=Path, required=True)
         if name == "serve":
-            item.add_argument("--case", choices=("clean", "impaired", "negative"))
+            item.add_argument("--case", choices=("clean", "impaired", "negative",
+                                                   "step", "continue", "cancelled"))
             item.add_argument("--port", type=int, default=0)
             item.add_argument("--exit-after-case", action="store_true")
         elif name == "verify":
             item.add_argument("--require-screenshots", action="store_true")
         elif name == "record-screenshot":
-            item.add_argument("--case", choices=("clean", "impaired", "negative"),
+            item.add_argument("--case", choices=("clean", "impaired", "negative",
+                                                   "step", "continue", "cancelled"),
                               required=True)
             item.add_argument("--path", type=Path, required=True)
     args = parser.parse_args()
@@ -2174,8 +2573,14 @@ def main() -> int:
     process, url, _, _ = launch(args)
     print(url, flush=True)
     if args.case:
-        start_served_case(int(url.rsplit(":", 1)[1]), args.case,
-                          args.output_dir.resolve(), url)
+        if args.phase == 4:
+            start_served_case(int(url.rsplit(":", 1)[1]), args.case,
+                              args.output_dir.resolve(), url)
+        elif args.phase == 5:
+            start_served_phase5_case(int(url.rsplit(":", 1)[1]), args.case,
+                                     args.output_dir.resolve(), url)
+        else:
+            raise RuntimeError("serve --case is supported for phases 4 and 5")
         if args.exit_after_case:
             stop(process)
             return 0

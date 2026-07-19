@@ -1,32 +1,22 @@
 // SPDX-License-Identifier: MIT
-
 #include <gtest/gtest.h>
 
-#include "dsp/fhss/FHSSGraphXConfig.hpp"
-#include "dsp/fhss/FHSSSyntheticIqSourceNode.hpp"
-#include "graph/dashboard/EmbeddedDashboardServer.hpp"
-#include "graph/dashboard/FHSSScenarioController.hpp"
+#include "FHSSDashboardApi.hpp"
+#include "FHSSDashboardConfigurationPolicy.hpp"
+#include "FHSSIqArtifactGenerator.hpp"
+#include "FHSSJobController.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
-#include "graph/dashboard/GraphSnapshotCollector.hpp"
-#include "FHSSDashboardConfigurationPolicy.hpp"
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include <array>
-#include <chrono>
+#include <barrier>
+#include <condition_variable>
 #include <filesystem>
 #include <fstream>
-#include <future>
-#include <memory>
-#include <sstream>
-#include <string>
+#include <mutex>
+#include <set>
 #include <thread>
-
-#include <nlohmann/json.hpp>
 
 #ifndef DSP_FHSS_CHANNELIZED_CONFIG_PATH
 #define DSP_FHSS_CHANNELIZED_CONFIG_PATH                                       \
@@ -35,349 +25,372 @@
 
 namespace {
 
-struct HttpResponse {
-  int status_code = 0;
-  std::string body;
-};
-
-std::filesystem::path MakeTempAssetDirectory(const std::string &name) {
-  const auto dir = std::filesystem::temp_directory_path() / name;
-  std::error_code error;
-  std::filesystem::remove_all(dir, error);
-  std::filesystem::create_directories(dir, error);
-
-  std::ofstream index(dir / "index.html", std::ios::trunc);
-  index << "<html><body>GraphX Dashboard Runtime Control Test</body></html>";
-  return dir;
-}
-
-nlohmann::json LoadJsonFile(const std::filesystem::path &path) {
+nlohmann::json LoadJson(const std::filesystem::path &path) {
   std::ifstream input(path);
-  if (!input.good()) {
-    throw std::runtime_error("failed to open JSON file: " + path.string());
-  }
-  nlohmann::json json;
-  input >> json;
-  return json;
+  nlohmann::json document;
+  input >> document;
+  return document;
 }
 
-HttpResponse HttpRequest(std::uint16_t port, const std::string &method,
-                         const std::string &target,
-                         const std::string &body = {}) {
-  const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-  if (fd < 0) {
-    return {};
+bool ContainsKey(const nlohmann::json &value, std::string_view key) {
+  if (value.is_object()) {
+    for (const auto &[name, child] : value.items())
+      if (name == key || ContainsKey(child, key))
+        return true;
+  } else if (value.is_array()) {
+    for (const auto &child : value)
+      if (ContainsKey(child, key))
+        return true;
   }
+  return false;
+}
 
-  sockaddr_in addr{};
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+std::filesystem::path UniqueTemp(std::string_view label) {
+  return std::filesystem::temp_directory_path() /
+         (std::string(label) + "-" +
+          std::to_string(
+              std::chrono::steady_clock::now().time_since_epoch().count()));
+}
 
-  if (::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
-    ::close(fd);
-    return {};
-  }
-
-  std::ostringstream request;
-  request << method << ' ' << target << " HTTP/1.1\r\n";
-  request << "Host: localhost\r\n";
-  request << "Connection: close\r\n";
-  request << "Content-Type: application/json\r\n";
-  request << "Content-Length: " << body.size() << "\r\n\r\n";
-  request << body;
-  const auto wire = request.str();
-  ::send(fd, wire.c_str(), wire.size(), 0);
-
-  std::string response;
-  std::array<char, 4096> buffer{};
-  for (;;) {
-    const auto read = ::recv(fd, buffer.data(), buffer.size(), 0);
-    if (read <= 0) {
-      break;
+class BlockingRuntimeOwner final : public graph::dashboard::IGraphRuntimeOwner {
+public:
+  Result Rebuild(std::uint64_t, const BuildSnapshot &snapshot) override {
+    {
+      std::lock_guard lock(mutex_);
+      receiver_graph_ = snapshot.receiver_graph;
+      rebuild_entered_ = true;
     }
-    response.append(buffer.data(), static_cast<std::size_t>(read));
+    cv_.notify_all();
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return release_rebuild_; });
+    manager_ = std::make_shared<graph::GraphManager>();
+    return {200, "rebuild_succeeded", "rebuilt", manager_, false};
   }
-  ::shutdown(fd, SHUT_RDWR);
-  ::close(fd);
-
-  HttpResponse parsed;
-  const auto first_line_end = response.find("\r\n");
-  if (first_line_end == std::string::npos) {
-    return parsed;
+  Result Start(std::uint64_t generation, std::uint64_t run_epoch) override {
+    ++start_count_;
+    if (callback_)
+      callback_(generation, run_epoch, true, "completed");
+    return {202, "start_accepted", "started", manager_, false};
   }
-  {
-    std::istringstream status_line(response.substr(0, first_line_end));
-    std::string http;
-    status_line >> http >> parsed.status_code;
+  Result Stop(std::uint64_t) override {
+    return {200, "stop_completed", "stopped", manager_, false};
   }
-  const auto body_pos = response.find("\r\n\r\n");
-  if (body_pos != std::string::npos) {
-    parsed.body = response.substr(body_pos + 4);
+  Result Shutdown(std::uint64_t) override {
+    Release();
+    return {.status_code = 200,
+            .code = "shutdown_complete",
+            .message = "shutdown",
+            .graph_manager = manager_,
+            .cleanup_failed = false};
   }
-  return parsed;
-}
-
-nlohmann::json CommandRequestJson(const std::string &command_id) {
-  return nlohmann::json{{"command_id", command_id}};
-}
-
-dsp::fhss::FHSSSyntheticIqGeneratorConfig
-LoadSourceConfig(const nlohmann::json &graph_config) {
-  for (const auto &node : graph_config.at("nodes")) {
-    if (node.at("type") == "FHSSSyntheticIqSourceNode") {
-      return dsp::fhss::FHSSSyntheticIqGeneratorConfigFromJson(
-          graph::JsonView(node.at("node_config")));
+  void SetCompletionCallback(CompletionCallback callback) override {
+    callback_ = std::move(callback);
+  }
+  void WaitForRebuild() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return rebuild_entered_; });
+  }
+  void Release() {
+    {
+      std::lock_guard lock(mutex_);
+      release_rebuild_ = true;
     }
+    cv_.notify_all();
   }
-  throw std::runtime_error("FHSSSyntheticIqSourceNode not found");
-}
-
-nlohmann::json LoadSourceNodeConfigJson(const nlohmann::json &graph_config) {
-  for (const auto &node : graph_config.at("nodes")) {
-    if (node.at("type") == "FHSSSyntheticIqSourceNode") {
-      return node.at("node_config");
-    }
+  [[nodiscard]] nlohmann::json ReceiverGraph() const {
+    std::lock_guard lock(mutex_);
+    return receiver_graph_;
   }
-  throw std::runtime_error("FHSSSyntheticIqSourceNode not found");
-}
+  [[nodiscard]] std::uint64_t StartCount() const { return start_count_; }
 
-class FhssDashboardMessageControlTest : public ::testing::Test {
-protected:
-  void SetUp() override {
-    assets_ = MakeTempAssetDirectory("graphx_dashboard_step5_assets");
-    config_ =
-        LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
-    configuration_service_ =
-        std::make_shared<graph::dashboard::GraphConfigurationService>(
-            config_, std::make_shared<dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
-    runtime_session_ =
-        std::make_shared<graph::dashboard::GraphRuntimeSession>();
-    snapshot_collector_ =
-        std::make_shared<graph::dashboard::GraphSnapshotCollector>();
-    source_ = std::make_shared<dsp::fhss::FHSSSyntheticIqSourceNode>(
-        LoadSourceConfig(config_));
-    controller_ = std::make_shared<dsp::fhss::FHSSScenarioController>(
-        configuration_service_, runtime_session_);
-    controller_->BindInjectionSource(source_);
-
-    graph::dashboard::EmbeddedDashboardServer::Options options;
-    options.enable_mutating_routes = true;
-    options.port = 0;
-    options.asset_directory = assets_;
-
-    server_ = std::make_unique<graph::dashboard::EmbeddedDashboardServer>(
-        options, configuration_service_, runtime_session_, snapshot_collector_,
-        controller_);
-    ASSERT_TRUE(server_->Start()) << server_->LastError();
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-
-  void TearDown() override {
-    if (server_) {
-      server_->Stop();
-    }
-    std::error_code error;
-    std::filesystem::remove_all(assets_, error);
-  }
-
-  std::filesystem::path assets_;
-  nlohmann::json config_;
-  std::shared_ptr<graph::dashboard::GraphConfigurationService>
-      configuration_service_;
-  std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session_;
-  std::shared_ptr<graph::dashboard::GraphSnapshotCollector> snapshot_collector_;
-  std::shared_ptr<dsp::fhss::FHSSSyntheticIqSourceNode> source_;
-  std::shared_ptr<dsp::fhss::FHSSScenarioController> controller_;
-  std::unique_ptr<graph::dashboard::EmbeddedDashboardServer> server_;
+private:
+  mutable std::mutex mutex_;
+  std::condition_variable cv_;
+  bool rebuild_entered_ = false;
+  bool release_rebuild_ = false;
+  nlohmann::json receiver_graph_;
+  std::shared_ptr<graph::GraphManager> manager_;
+  CompletionCallback callback_;
+  std::atomic<std::uint64_t> start_count_{0};
 };
 
-TEST(FhssDashboardMessageSourceTest,
-     ExactlyOneMessagePerStepBlocksBetweenRequests) {
-  const auto config =
-      LoadJsonFile(std::filesystem::path(DSP_FHSS_CHANNELIZED_CONFIG_PATH));
-  dsp::fhss::FHSSSyntheticIqSourceNode source(LoadSourceConfig(config));
-  const auto source_messages = LoadSourceNodeConfigJson(config).at("messages");
-  ASSERT_GE(source_messages.size(), 1u);
+struct ControllerFixture {
+  std::filesystem::path root = UniqueTemp("graphx-dashboard-phase5");
+  std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration =
+      std::make_shared<graph::dashboard::GraphConfigurationService>(
+          LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH),
+          std::make_shared<
+              dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+  std::shared_ptr<BlockingRuntimeOwner> owner =
+      std::make_shared<BlockingRuntimeOwner>();
+  std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime =
+      std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  std::unique_ptr<dsp::fhss::dashboard::FHSSJobController> controller;
 
-  auto &queue = source.GetMessageInjectionQueue();
+  ControllerFixture() {
+    runtime->MarkReady();
+    controller = std::make_unique<dsp::fhss::dashboard::FHSSJobController>(
+        configuration, runtime, root);
+  }
+  ~ControllerFixture() {
+    controller.reset();
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+  }
+};
 
-  auto first_future = std::async(std::launch::async, [&source]() {
-    return source.Produce(std::integral_constant<std::size_t, 0>{});
-  });
-  EXPECT_EQ(first_future.wait_for(std::chrono::milliseconds(20)),
-            std::future_status::timeout);
-
-  ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
-      .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
-      .correlation = {.scenario_id = "scenario-a",
-                      .message_id = 1,
-                      .release_sequence = 1},
-      .scheduled_message = source_messages.at(0),
-      .end_of_stream_after_produce = false}));
-  const auto first_token = first_future.get();
-  ASSERT_TRUE(first_token.has_value());
-  EXPECT_EQ(first_token->sidecar.correlation.message_id, 1u);
-  EXPECT_EQ(first_token->sidecar.correlation.release_sequence, 1u);
-
-  auto second_future = std::async(std::launch::async, [&source]() {
-    return source.Produce(std::integral_constant<std::size_t, 0>{});
-  });
-  EXPECT_EQ(second_future.wait_for(std::chrono::milliseconds(20)),
-            std::future_status::timeout);
-
-  ASSERT_TRUE(queue.Enqueue(dsp::fhss::FHSSMessageInjectionRequest{
-      .kind = dsp::fhss::FHSSMessageInjectionKind::ScheduledMessage,
-      .correlation = {.scenario_id = "scenario-a",
-                      .message_id = 2,
-                      .release_sequence = 2},
-      .scheduled_message = source_messages.at(0),
-      .end_of_stream_after_produce = true}));
-  const auto second_token = second_future.get();
-  ASSERT_TRUE(second_token.has_value());
-  EXPECT_EQ(second_token->sidecar.correlation.message_id, 2u);
-  EXPECT_EQ(second_token->sidecar.correlation.release_sequence, 2u);
+TEST(FhssDashboardJobControllerTest, StateTableRejectsIllegalTransitions) {
+  using Controller = dsp::fhss::dashboard::FHSSJobController;
+  const std::array states{
+      "queued",    "generating", "generated",           "replay_pending",
+      "running",   "cancelling", "completed",           "cancelled",
+      "timed_out", "failed",     "abandoned_on_restart"};
+  const std::set<std::pair<std::string_view, std::string_view>> legal{
+      {"queued", "generating"},
+      {"queued", "cancelled"},
+      {"queued", "failed"},
+      {"generating", "generated"},
+      {"generating", "cancelling"},
+      {"generating", "cancelled"},
+      {"generating", "timed_out"},
+      {"generating", "failed"},
+      {"generated", "replay_pending"},
+      {"generated", "cancelling"},
+      {"generated", "cancelled"},
+      {"generated", "timed_out"},
+      {"generated", "failed"},
+      {"replay_pending", "running"},
+      {"replay_pending", "cancelling"},
+      {"replay_pending", "cancelled"},
+      {"replay_pending", "timed_out"},
+      {"replay_pending", "failed"},
+      {"running", "cancelling"},
+      {"running", "completed"},
+      {"running", "timed_out"},
+      {"running", "failed"},
+      {"cancelling", "cancelled"},
+      {"cancelling", "failed"}};
+  for (const auto from : states)
+    for (const auto to : states)
+      EXPECT_EQ(Controller::IsLegalTransition(from, to),
+                legal.contains({from, to}))
+          << from << " -> " << to;
+  for (const auto terminal : {"completed", "cancelled", "timed_out", "failed",
+                              "abandoned_on_restart"})
+    EXPECT_TRUE(Controller::IsTerminal(terminal));
 }
 
-TEST_F(FhssDashboardMessageControlTest,
-       RejectsDuplicateOrConcurrentStepRequests) {
-  controller_->SetAutoCompleteForTesting(false);
+TEST(FhssDashboardJobControllerTest,
+     CanonicalArtifactGeneratorUsesCompleteMessageAndByteEncoding) {
+  auto graph = LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH);
+  auto source = std::ranges::find_if(graph.at("nodes"), [](const auto &node) {
+    return node.value("id", std::string{}) == "source";
+  });
+  ASSERT_NE(source, graph.at("nodes").end());
+  auto input = source->at("node_config");
+  input["messages"] = nlohmann::json::array({input.at("messages").at(0)});
+  const auto cf32 = graphx::examples::fhss::GenerateIqArtifacts(
+      input, "cf32_le", 4'194'304, 64u * 1024u * 1024u);
+  const auto cf64 = graphx::examples::fhss::GenerateIqArtifacts(
+      input, "cf64_le", 4'194'304, 64u * 1024u * 1024u);
+  EXPECT_EQ(cf32.fixture.truth_pulses.size(), 18u);
+  EXPECT_EQ(cf32.fixture.truth_pulses.at(1).global_start_sample -
+                cf32.fixture.truth_pulses.at(0).global_start_sample,
+            6'500u);
+  EXPECT_EQ(cf32.iq_bytes.size(), cf32.fixture.samples.size() * 8u);
+  EXPECT_EQ(cf64.iq_bytes.size(), cf64.fixture.samples.size() * 16u);
+  EXPECT_EQ(cf32.truth.at("iq_sha256"), cf32.iq_sha256);
+  EXPECT_EQ(cf32.sigmf.at("global").at("core:datatype"), "cf32_le");
+}
 
-  const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-1").dump());
-  EXPECT_EQ(first.status_code, 202) << first.body;
-  const auto first_json = nlohmann::json::parse(first.body);
-  EXPECT_EQ(first_json.at("status").get<std::string>(), "running");
-
+TEST(FhssDashboardJobControllerTest,
+     DuplicateConflictQueuedCancelAndTruthIsolationUseProductionController) {
+  ControllerFixture fixture;
+  const nlohmann::json first_request{{"operation", "step"},
+                                     {"request_id", "request-1"},
+                                     {"timeout_ms", 30'000}};
+  const auto first = fixture.controller->Submit(first_request, "stable-key");
+  ASSERT_EQ(first.status_code, 202);
+  const auto job_id = first.document.at("job_id").get<std::string>();
   const auto duplicate =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-2").dump());
-  EXPECT_EQ(duplicate.status_code, 409) << duplicate.body;
-  const auto duplicate_json = nlohmann::json::parse(duplicate.body);
-  EXPECT_EQ(duplicate_json.at("code").get<std::string>(), "message_in_flight");
+      fixture.controller->Submit(first_request, "stable-key");
+  ASSERT_EQ(duplicate.status_code, 200);
+  EXPECT_EQ(duplicate.document.at("job_id"), job_id);
+  EXPECT_TRUE(duplicate.document.at("idempotency").at("reused"));
+  auto conflict_request = first_request;
+  conflict_request["sample_format"] = "cf64_le";
+  const auto conflict =
+      fixture.controller->Submit(conflict_request, "stable-key");
+  ASSERT_EQ(conflict.status_code, 409);
+  EXPECT_EQ(conflict.document.at("code"),
+            "idempotency_key_reused_with_different_payload");
 
-  const auto correlation = controller_->ActiveCorrelationForTesting();
-  ASSERT_TRUE(correlation.has_value());
-  controller_->PublishTerminalResultForTesting(
-      dsp::fhss::FHSSMessageTerminalResult{
-          .correlation = *correlation,
-          .status = dsp::fhss::FHSSMessageTerminalStatus::Completed,
-          .code = "message_completed",
-          .message = "completed"});
+  fixture.owner->WaitForRebuild();
+  const auto withheld_truth =
+      fixture.root / "fhss-jobs" / job_id / "truth.withheld.json";
+  EXPECT_FALSE(std::filesystem::exists(withheld_truth));
+  const auto queued = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "request-2"}}, "queued-key");
+  ASSERT_EQ(queued.status_code, 202);
+  const auto cancelled = fixture.controller->Cancel(
+      queued.document.at("job_id").get<std::string>());
+  ASSERT_EQ(cancelled.status_code, 202);
+  EXPECT_EQ(cancelled.document.at("state"), "cancelled");
+  EXPECT_FALSE(cancelled.document.at("work").at("generator_invoked"));
+  EXPECT_FALSE(cancelled.document.at("work").at("receiver_replay_invoked"));
+  const auto repeated_cancel = fixture.controller->Cancel(
+      queued.document.at("job_id").get<std::string>());
+  EXPECT_EQ(repeated_cancel.status_code, 200);
+  EXPECT_EQ(repeated_cancel.document.at("terminal"),
+            cancelled.document.at("terminal"));
+  fixture.owner->Release();
 
-  const auto operation = HttpRequest(
-      server_->BoundPort(), "GET",
-      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
-  EXPECT_EQ(operation.status_code, 200) << operation.body;
-  const auto operation_json = nlohmann::json::parse(operation.body);
-  EXPECT_TRUE(operation_json.at("terminal").get<bool>());
-  EXPECT_EQ(operation_json.at("status").get<std::string>(), "succeeded");
+  const auto receiver_graph = fixture.owner->ReceiverGraph();
+  for (const auto forbidden :
+       {"messages", "truth", "expected_words", "scenario_correlation_id",
+        "job_id", "active_frequency_indices"})
+    EXPECT_FALSE(ContainsKey(receiver_graph, forbidden)) << forbidden;
+  for (int attempt = 0; attempt < 200; ++attempt) {
+    if (std::filesystem::exists(withheld_truth))
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  EXPECT_TRUE(std::filesystem::is_regular_file(withheld_truth));
 }
 
-TEST_F(FhssDashboardMessageControlTest,
-       ContinueProcessesMessagesSequentiallyAndCompletes) {
-  controller_->SetAutoCompleteForTesting(true);
-
-  const auto response =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/continue",
-                  CommandRequestJson("cmd-step5-continue").dump());
-  EXPECT_EQ(response.status_code, 202) << response.body;
-
-  const auto response_json = nlohmann::json::parse(response.body);
-  EXPECT_TRUE(response_json.at("terminal").get<bool>());
-  EXPECT_EQ(response_json.at("status").get<std::string>(), "succeeded");
-  ASSERT_TRUE(response_json.contains("result"));
-  EXPECT_EQ(response_json.at("result").at("command").get<std::string>(),
-            "continue");
-  EXPECT_GT(response_json.at("result").at("message_count").get<std::uint64_t>(),
-            0u);
+TEST(FhssDashboardJobControllerTest,
+     ConcurrentIdempotentSubmissionsCreateExactlyOneJob) {
+  ControllerFixture fixture;
+  constexpr std::size_t thread_count = 8;
+  std::barrier gate(static_cast<std::ptrdiff_t>(thread_count));
+  std::array<dsp::fhss::dashboard::FHSSJobController::Result, thread_count>
+      results;
+  std::array<std::jthread, thread_count> threads;
+  for (std::size_t index = 0; index < thread_count; ++index)
+    threads[index] = std::jthread([&, index] {
+      gate.arrive_and_wait();
+      results[index] = fixture.controller->Submit(
+          {{"operation", "step"}, {"request_id", "concurrent-request"}},
+          "concurrent-key");
+    });
+  for (auto &thread : threads)
+    thread.join();
+  const auto job_id = results.front().document.at("job_id");
+  EXPECT_EQ(std::ranges::count_if(
+                results,
+                [](const auto &result) { return result.status_code == 202; }),
+            1);
+  for (const auto &result : results) {
+    EXPECT_TRUE(result.status_code == 200 || result.status_code == 202);
+    EXPECT_EQ(result.document.at("job_id"), job_id);
+  }
+  EXPECT_EQ(fixture.controller->List().document.at("entries").size(), 1u);
+  fixture.owner->Release();
 }
 
-TEST_F(FhssDashboardMessageControlTest,
-       ResetRetainsTerminalRecordsAndRestartsScenarioCursor) {
-  controller_->SetAutoCompleteForTesting(true);
-
-  const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-reset-1").dump());
-  EXPECT_EQ(first.status_code, 202) << first.body;
-  const auto first_json = nlohmann::json::parse(first.body);
-  EXPECT_TRUE(first_json.at("terminal").get<bool>());
-  const auto first_correlation = first_json.at("result").at("correlation");
-
-  const auto reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/reset",
-                  CommandRequestJson("cmd-step5-reset").dump());
-  EXPECT_EQ(reset.status_code, 202) << reset.body;
-
-  const auto retained = HttpRequest(
-      server_->BoundPort(), "GET",
-      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
-  EXPECT_EQ(retained.status_code, 200) << retained.body;
-  const auto retained_json = nlohmann::json::parse(retained.body);
-  EXPECT_TRUE(retained_json.at("terminal").get<bool>());
-
-  const auto after_reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-reset-2").dump());
-  EXPECT_EQ(after_reset.status_code, 202) << after_reset.body;
-  const auto after_reset_json = nlohmann::json::parse(after_reset.body);
-  const auto after_reset_correlation =
-      after_reset_json.at("result").at("correlation");
-  EXPECT_EQ(after_reset_correlation.at("message_id").get<std::uint64_t>(),
-            first_correlation.at("message_id").get<std::uint64_t>());
-  EXPECT_NE(after_reset_correlation.at("scenario_id").get<std::string>(),
-            first_correlation.at("scenario_id").get<std::string>());
+TEST(FhssDashboardJobControllerTest,
+     ResetRejectsActiveThenAdvancesEpochAndRetainsHistory) {
+  ControllerFixture fixture;
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "reset-1"}}, "reset-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  fixture.owner->WaitForRebuild();
+  EXPECT_EQ(fixture.controller->Reset().status_code, 409);
+  fixture.owner->Release();
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  for (std::size_t attempt = 0; attempt < 10'000; ++attempt) {
+    if (dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+            fixture.controller->Get(job_id)
+                .document.at("state")
+                .get<std::string>()))
+      break;
+    std::this_thread::yield();
+  }
+  const auto before_epoch =
+      fixture.controller->Get(job_id).document.at("controller_epoch");
+  const auto reset = fixture.controller->Reset();
+  ASSERT_EQ(reset.status_code, 200);
+  EXPECT_NE(reset.document.at("controller_epoch"), before_epoch);
+  EXPECT_EQ(fixture.controller->Get(job_id).status_code, 200);
 }
 
-TEST_F(FhssDashboardMessageControlTest,
-       FailureInjectionTimeoutRaceAndQueueDisableAreStable) {
-  controller_->SetAutoCompleteForTesting(false);
+TEST(FhssDashboardJobControllerTest,
+     RestartDoesNotResumeJobsAndRetainsCommittedReplayArtifacts) {
+  ControllerFixture fixture;
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "restart-job"}}, "restart-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  fixture.owner->WaitForRebuild();
+  fixture.owner->Release();
+  nlohmann::json terminal;
+  for (int attempt = 0; attempt < 200; ++attempt) {
+    terminal = fixture.controller->Get(job_id).document;
+    if (dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+            terminal.at("state").get<std::string>()))
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  ASSERT_TRUE(dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+      terminal.at("state").get<std::string>()));
+  const auto committed = fixture.root / "fhss-jobs" / job_id / "manifest.json";
+  ASSERT_TRUE(std::filesystem::is_regular_file(committed));
+  const auto old_epoch = terminal.at("controller_epoch").get<std::uint64_t>();
 
-  const auto first =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-race").dump());
-  EXPECT_EQ(first.status_code, 202) << first.body;
-  const auto first_json = nlohmann::json::parse(first.body);
-  const auto correlation = controller_->ActiveCorrelationForTesting();
-  ASSERT_TRUE(correlation.has_value());
+  fixture.controller.reset();
+  fixture.controller =
+      std::make_unique<dsp::fhss::dashboard::FHSSJobController>(
+          fixture.configuration, fixture.runtime, fixture.root);
+  const auto restarted = fixture.controller->List().document;
+  EXPECT_TRUE(restarted.at("entries").empty());
+  EXPECT_NE(restarted.at("controller_epoch").get<std::uint64_t>(), old_epoch);
+  EXPECT_TRUE(std::filesystem::is_regular_file(committed));
+}
 
-  controller_->PublishTerminalResultForTesting(
-      dsp::fhss::FHSSMessageTerminalResult{
-          .correlation = *correlation,
-          .status = dsp::fhss::FHSSMessageTerminalStatus::TimedOut,
-          .code = "step_timeout",
-          .message = "timed out"});
-  controller_->PublishTerminalResultForTesting(
-      dsp::fhss::FHSSMessageTerminalResult{
-          .correlation = *correlation,
-          .status = dsp::fhss::FHSSMessageTerminalStatus::Cancelled,
-          .code = "cancelled_late",
-          .message = "cancelled late"});
-
-  const auto operation = HttpRequest(
-      server_->BoundPort(), "GET",
-      "/api/v1/fhss/operations/" + first_json.at("operation_id").get<std::string>());
-  EXPECT_EQ(operation.status_code, 200) << operation.body;
-  const auto operation_json = nlohmann::json::parse(operation.body);
-  EXPECT_EQ(
-      operation_json.at("result").at("terminal_status").get<std::string>(),
-      "timed_out");
-
-  const auto reset =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/reset",
-                  CommandRequestJson("cmd-step5-race-reset").dump());
-  EXPECT_EQ(reset.status_code, 202) << reset.body;
-
-  source_->DisableMessageInjectionQueue();
-  const auto disabled =
-      HttpRequest(server_->BoundPort(), "POST", "/api/v1/fhss/commands/step-message",
-                  CommandRequestJson("cmd-step5-disabled").dump());
-  EXPECT_EQ(disabled.status_code, 202) << disabled.body;
-  const auto disabled_json = nlohmann::json::parse(disabled.body);
-  EXPECT_TRUE(disabled_json.at("terminal").get<bool>());
-  EXPECT_EQ(disabled_json.at("status").get<std::string>(), "failed");
+TEST(FhssDashboardJobControllerTest,
+     ProductionApiRoutesExposeStrictJobResourcesAndRfc9457Conflicts) {
+  ControllerFixture fixture;
+  auto shared_controller =
+      std::shared_ptr<dsp::fhss::dashboard::FHSSJobController>(
+          fixture.controller.release());
+  const auto handler = dsp::fhss::dashboard::MakeApiHandler(
+      fixture.configuration, fixture.runtime, shared_controller);
+  const graph::dashboard::EmbeddedDashboardServer::ApiContext context{
+      .deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5)};
+  const auto request = [&](std::string method, std::string path,
+                           nlohmann::json body, std::string key) {
+    return handler({.method = std::move(method),
+                    .path = std::move(path),
+                    .body = body.dump(),
+                    .headers = {{"idempotency-key", std::move(key)}}},
+                   context);
+  };
+  const auto created = request("POST", "/api/v1/fhss/commands/step",
+                               {{"request_id", "api-step"}}, "api-key");
+  ASSERT_TRUE(created);
+  ASSERT_EQ(created->status_code, 202);
+  const auto created_json = nlohmann::json::parse(created->body);
+  const auto duplicate = request("POST", "/api/v1/fhss/commands/step",
+                                 {{"request_id", "api-step"}}, "api-key");
+  ASSERT_TRUE(duplicate);
+  EXPECT_EQ(duplicate->status_code, 200);
+  EXPECT_EQ(nlohmann::json::parse(duplicate->body).at("job_id"),
+            created_json.at("job_id"));
+  const auto conflict =
+      request("POST", "/api/v1/fhss/commands/continue",
+              {{"request_id", "api-step"}, {"message_count", 2}}, "api-key");
+  ASSERT_TRUE(conflict);
+  EXPECT_EQ(conflict->status_code, 409);
+  EXPECT_EQ(conflict->content_type, "application/problem+json");
+  EXPECT_EQ(nlohmann::json::parse(conflict->body).at("status"), 409);
+  const auto history =
+      handler({.method = "GET", .path = "/api/v1/fhss/jobs"}, context);
+  ASSERT_TRUE(history);
+  EXPECT_EQ(history->status_code, 200);
+  EXPECT_EQ(nlohmann::json::parse(history->body).at("entries").size(), 1u);
+  (void)shared_controller->Cancel(created_json.at("job_id").get<std::string>());
+  fixture.owner->Release();
+  shared_controller->Shutdown();
 }
 
 } // namespace

@@ -1,7 +1,9 @@
-# FHSS dashboard Phase 1/2/3/4 operator
+# FHSS dashboard Phase 1/2/3/4/5 operator
 
 Phase 4 manual browser/API validation is documented in
 `docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
+Phase 5 message-job validation is documented in
+`docs/dsp/fhss_dashboard_phase5_manual_operator_test.md`.
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -46,6 +48,34 @@ execution:
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
   --phase 4 \
   --output-dir /path/to/new/operator-output
+```
+
+## Phase 1 walking-skeleton workflow
+
+From the repository root, run the documented Phase 1 exercise with explicit
+build and operator-owned output directories:
+
+```sh
+.venv-dashboard-contracts/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
+  --phase 1 --build-dir build-ninja/ninja-debug \
+  --output-dir /path/to/new/phase1-operator-output
+.venv-dashboard-contracts/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
+  --phase 1 --output-dir /path/to/new/phase1-operator-output
+.venv-dashboard-contracts/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py report \
+  --phase 1 --output-dir /path/to/new/phase1-operator-output
+```
+
+For interactive inspection, replace `exercise` with `serve` and keep the same
+arguments. When finished, terminate the server and remove only operator-owned
+artifacts with:
+
+```sh
+.venv-dashboard-contracts/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py cleanup \
+  --phase 1 --output-dir /path/to/new/phase1-operator-output
 ```
 
 Configure the CTest contract and operator lanes with the same interpreter:
@@ -134,6 +164,16 @@ separate from `receiver_message_result` (terminal receiver message status,
 accepted flag, and decoded-pulse count). In the negative case the assembler is
 truthfully available with its missing-preamble rejection, while the receiver
 message result is not accepted and contains zero decoded pulses.
+
+Phase 5 adds production FHSS job resources and complete-message Step,
+Continue, Cancel, and Reset controls. It generates IQ with the canonical
+architecture parser/generator, writes IQ, truth, SigMF metadata, receiver
+configuration, and hashes separately, and gives receiver execution only the IQ
+path and receiver-minimal graph. The operator validates idempotency conflict,
+queued and active cancellation, timeout, reset, and dashboard-free replay after
+truth deletion. Use `exercise --phase 5` and `verify --phase 5`; the Phase 5
+manual procedure contains the browser checklist. All evidence is synthetic and
+there is no HWIL lane.
 
 The production server applies separate timing limits: activity on a partial
 request resets the idle timer, `read_timeout` is an absolute header/body read

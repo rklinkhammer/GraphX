@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:fhss-job-request:v1","type":"object","additionalProperties":false,
+  "required":["request_id"],
+  "properties":{
+    "operation":{"enum":["step","continue"]},
+    "request_id":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[A-Za-z0-9._:-]+$"},
+    "message_count":{"type":"integer","minimum":1,"maximum":4},
+    "sample_format":{"enum":["cf32_le","cf64_le"]},
+    "timeout_ms":{"type":"integer","minimum":100,"maximum":120000}
+  }
+}

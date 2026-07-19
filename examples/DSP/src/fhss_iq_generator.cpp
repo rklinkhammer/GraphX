@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+#include "FHSSIqArtifactGenerator.hpp"
 #include "FHSSIqOutputTransaction.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 
@@ -392,7 +393,8 @@ int Run(const Options &options) {
     }
   }
 
-  const auto iq_bytes = EncodeIq(fixture->samples, options.sample_format);
+  const auto iq_bytes =
+      graphx::examples::fhss::EncodeIq(fixture->samples, options.sample_format);
   const auto input_hash = HashBytes(input_bytes);
   const auto iq_hash = HashBytes(iq_bytes);
   const auto truth =

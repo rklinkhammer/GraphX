@@ -21,7 +21,7 @@ ASSERTIONS = {
     "$ref", "type", "const", "enum", "minimum", "maximum",
     "exclusiveMinimum", "pattern", "required",
     "properties", "additionalProperties", "items", "minItems", "maxItems",
-    "anyOf", "not", "contains",
+    "minLength", "maxLength", "maxProperties", "anyOf", "not", "contains",
 }
 ALLOWED = ANNOTATIONS | ASSERTIONS
 TYPES = {"object", "array", "string", "integer", "number", "boolean", "null"}
@@ -99,7 +99,8 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         validate_schema(schema["not"], f"{location}.not")
     if "contains" in schema:
         validate_schema(schema["contains"], f"{location}.contains")
-    for keyword in ("minItems", "maxItems"):
+    for keyword in ("minItems", "maxItems", "minLength", "maxLength",
+                    "maxProperties"):
         if keyword in schema and (isinstance(schema[keyword], bool)
                                   or not isinstance(schema[keyword], int)
                                   or schema[keyword] < 0):
@@ -160,7 +161,14 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
     if isinstance(value, str) and "pattern" in schema:
         if re.search(schema["pattern"], value) is None:
             _fail(location, "does not match pattern")
+    if isinstance(value, str):
+        if len(value) < schema.get("minLength", 0):
+            _fail(location, "is shorter than minLength")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            _fail(location, "is longer than maxLength")
     if isinstance(value, dict):
+        if "maxProperties" in schema and len(value) > schema["maxProperties"]:
+            _fail(location, "has too many properties")
         properties = schema.get("properties", {})
         missing = set(schema.get("required", [])) - set(value)
         if missing:

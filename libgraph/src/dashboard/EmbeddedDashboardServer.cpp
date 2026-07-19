@@ -50,6 +50,8 @@ struct EmbeddedDashboardServer::ServerState {
   std::mutex workers_mutex;
   std::vector<Worker> workers;
   std::atomic<std::size_t> active_connections{0};
+  std::mutex streams_mutex;
+  std::vector<std::weak_ptr<beast::tcp_stream>> active_streams;
   struct HandlerJob {
     ApiHandler handler;
     ApiRequest request;
@@ -316,8 +318,7 @@ std::optional<std::string> AllowedMethodsFor(const std::string &path) {
       path == "/api/v1/fhss/visualization" ||
       path == "/api/v1/fhss/expected-truth" ||
       path == "/api/v1/fhss/observations" ||
-      path == "/api/v1/fhss/comparison" ||
-      path == "/api/v1/fhss/spectrum" ||
+      path == "/api/v1/fhss/comparison" || path == "/api/v1/fhss/spectrum" ||
       path == "/api/v1/fhss/observation-provenance" ||
       path == "/api/v1/fhss/observation-history" ||
       StartsWith(path, "/api/v1/fhss/nodes/"))
@@ -528,6 +529,19 @@ void EmbeddedDashboardServer::Stop() {
 
   if (server_state_) {
     {
+      std::scoped_lock lock(server_state_->streams_mutex);
+      for (const auto &weak_stream : server_state_->active_streams) {
+        if (const auto stream = weak_stream.lock()) {
+          asio::post(stream->get_executor(), [stream] {
+            boost::system::error_code ignored;
+            stream->socket().cancel(ignored);
+            stream->socket().close(ignored);
+          });
+        }
+      }
+      server_state_->active_streams.clear();
+    }
+    {
       std::scoped_lock lock(server_state_->handler_mutex);
       server_state_->handler_stopping = true;
       for (const auto &job : server_state_->handler_queue)
@@ -709,7 +723,12 @@ void EmbeddedDashboardServer::RunLoop() {
           const auto protocol = socket.local_endpoint().protocol();
           tcp::socket request_socket(request_context, protocol,
                                      socket.release());
-          beast::tcp_stream stream(std::move(request_socket));
+          auto stream =
+              std::make_shared<beast::tcp_stream>(std::move(request_socket));
+          {
+            std::scoped_lock lock(server_state_->streams_mutex);
+            server_state_->active_streams.push_back(stream);
+          }
           beast::flat_buffer buffer(options_.max_header_bytes +
                                     options_.max_body_bytes);
           http::request_parser<http::string_body> parser;
@@ -729,7 +748,7 @@ void EmbeddedDashboardServer::RunLoop() {
               return;
             timeout_kind = kind;
             boost::system::error_code ignored;
-            stream.socket().cancel(ignored);
+            stream->socket().cancel(ignored);
           };
           std::function<void()> arm_idle_timer;
           arm_idle_timer = [&] {
@@ -766,7 +785,7 @@ void EmbeddedDashboardServer::RunLoop() {
               return;
             }
             arm_idle_timer();
-            stream.async_read_some(
+            stream->async_read_some(
                 buffer.prepare(std::min<std::size_t>(4096, available)),
                 [&](boost::system::error_code error, std::size_t bytes) {
                   if (error) {
@@ -842,7 +861,10 @@ void EmbeddedDashboardServer::RunLoop() {
             if (query != std::string::npos)
               request.query = request.target.substr(query + 1);
             request.body = wire_request.body();
+            std::size_t host_count = 0;
             for (const auto &field : wire_request) {
+              if (field.name() == http::field::host)
+                ++host_count;
               auto name = std::string(field.name_string());
               std::transform(name.begin(), name.end(), name.begin(),
                              [](unsigned char value) {
@@ -851,59 +873,72 @@ void EmbeddedDashboardServer::RunLoop() {
               request.headers[std::move(name)] = std::string(field.value());
             }
             request.deadline = request_deadline;
-            try {
-              if (!request.body.empty() && request.method != "GET") {
-                if (const auto json_error =
-                        ValidateJsonStructure(request.body, options_)) {
-                  response = {.status_code = 400,
-                              .content_type = "application/problem+json",
-                              .body =
-                                  ErrorBody(400, "invalid_json", *json_error)};
-                } else {
-                  response = HandleRequest(request);
-                }
-              } else {
-                response = HandleRequest(request);
-              }
-            } catch (const nlohmann::json::exception &) {
+            if (wire_request.version() == 11 && host_count != 1) {
               response = {.status_code = 400,
                           .content_type = "application/problem+json",
                           .body = ErrorBody(
-                              400, "invalid_request",
-                              "request JSON has an invalid type or value")};
-            } catch (const std::invalid_argument &) {
-              response = {.status_code = 400,
-                          .content_type = "application/problem+json",
-                          .body = ErrorBody(400, "invalid_request",
-                                            "request value is invalid")};
-            } catch (const std::exception &) {
-              response = {.status_code = 500,
-                          .content_type = "application/problem+json",
-                          .body = ErrorBody(500, "internal_error",
-                                            "request processing failed")};
-            }
+                              400, "invalid_host_header",
+                              "HTTP/1.1 requires exactly one Host header")};
+            } else
+              try {
+                const bool globally_unsupported =
+                    request.method != "GET" && request.method != "POST" &&
+                    request.method != "PATCH" && request.method != "DELETE";
+                if (globally_unsupported) {
+                  response = HandleRequest(request);
+                } else if (!request.body.empty() && request.method != "GET") {
+                  if (const auto json_error =
+                          ValidateJsonStructure(request.body, options_)) {
+                    response = {
+                        .status_code = 400,
+                        .content_type = "application/problem+json",
+                        .body = ErrorBody(400, "invalid_json", *json_error)};
+                  } else {
+                    response = HandleRequest(request);
+                  }
+                } else {
+                  response = HandleRequest(request);
+                }
+              } catch (const nlohmann::json::exception &) {
+                response = {.status_code = 400,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(
+                                400, "invalid_request",
+                                "request JSON has an invalid type or value")};
+              } catch (const std::invalid_argument &) {
+                response = {.status_code = 400,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(400, "invalid_request",
+                                              "request value is invalid")};
+              } catch (const std::exception &) {
+                response = {.status_code = 500,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(500, "internal_error",
+                                              "request processing failed")};
+              }
           }
           if (response.status_code >= 400) {
             const auto existing =
                 nlohmann::json::parse(response.body, nullptr, false);
-            if (existing.is_discarded() || !existing.contains("type") ||
-                !existing.contains("title") || !existing.contains("status") ||
-                !existing.contains("detail")) {
-              if (existing.is_object()) {
-                auto normalized = existing;
-                const auto code =
-                    normalized.value("code", std::string{"request_failed"});
-                const auto detail =
-                    normalized.value("message", std::string{"request failed"});
+            if (existing.is_object()) {
+              auto normalized = existing;
+              const auto code =
+                  normalized.value("code", std::string{"request_failed"});
+              const auto detail =
+                  normalized.value("message", std::string{"request failed"});
+              if (!normalized.contains("type"))
                 normalized["type"] = "urn:graphx:dashboard:problem:" + code;
+              if (!normalized.contains("title"))
                 normalized["title"] = code;
-                normalized["status"] = response.status_code;
+              if (!normalized.contains("detail"))
                 normalized["detail"] = detail;
-                response.body = normalized.dump();
-              } else {
-                response.body = ErrorBody(response.status_code,
-                                          "request_failed", "request failed");
-              }
+              // The wire status is authoritative. RFC 9457 requires this
+              // advisory member to agree with the actual HTTP status code.
+              normalized["status"] = response.status_code;
+              response.body = normalized.dump();
+            } else {
+              response.body = ErrorBody(response.status_code, "request_failed",
+                                        "request failed");
             }
             response.content_type = "application/problem+json";
           }
@@ -923,7 +958,7 @@ void EmbeddedDashboardServer::RunLoop() {
               "Content-Security-Policy",
               "default-src 'self'; "
               "script-src 'self' "
-              "'sha256-DyfQ+FQ06dJ27XrR1/iOV/cYA6sEh2qln8pUXroP1lo='; "
+              "'sha256-/8UdK1o8D35dK8FKJc5X8QWuOJCUZwlDYIFGDODRhC8='; "
               "style-src 'self' "
               "'sha256-+m6+B7a/b89ToglVQS8/9TMxEsvCSOF4c+lt3EadRrQ='; "
               "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
@@ -939,13 +974,31 @@ void EmbeddedDashboardServer::RunLoop() {
           wire_response.keep_alive(false);
           wire_response.body() = std::move(response.body);
           wire_response.prepare_payload();
-          stream.expires_at(
-              std::min(request_deadline, std::chrono::steady_clock::now() +
-                                             options_.write_timeout));
+          const auto write_started = std::chrono::steady_clock::now();
+          // Once a read or handler deadline has expired, retain only the
+          // bounded write budget needed to return its terminal 408 problem.
+          // Otherwise the total-request deadline remains authoritative.
+          stream->expires_at(
+              request_deadline <= write_started
+                  ? write_started + options_.write_timeout
+                  : std::min(request_deadline,
+                             write_started + options_.write_timeout));
           boost::system::error_code write_error;
-          http::write(stream, wire_response, write_error);
+          request_context.restart();
+          http::async_write(*stream, wire_response,
+                            [&](boost::system::error_code error, std::size_t) {
+                              write_error = error;
+                            });
+          request_context.run();
           boost::system::error_code ignored;
-          stream.socket().shutdown(tcp::socket::shutdown_both, ignored);
+          stream->socket().shutdown(tcp::socket::shutdown_both, ignored);
+          stream->socket().close(ignored);
+          {
+            std::scoped_lock lock(server_state_->streams_mutex);
+            std::erase_if(
+                server_state_->active_streams,
+                [](const auto &candidate) { return candidate.expired(); });
+          }
           server_state_->active_connections.fetch_sub(1);
           done->store(true);
         }),

@@ -10,6 +10,7 @@
 #include "FHSSDashboardApi.hpp"
 #include "FHSSDashboardConfigurationPolicy.hpp"
 #include "FHSSGraphRuntimeOwner.hpp"
+#include "FHSSJobController.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -96,6 +97,9 @@ struct CliOptions {
   std::filesystem::path effective_config_path;
   std::filesystem::path channel_iq_directory;
   std::filesystem::path dashboard_assets;
+  std::filesystem::path dashboard_artifact_root =
+      std::filesystem::temp_directory_path() /
+      "graphx-fhss-dashboard-artifacts";
   std::string channel_iq_indices = "active";
   int executor_timeout_s = 12;
   std::uint16_t dashboard_port = 0;
@@ -155,6 +159,7 @@ void PrintUsage() {
          "                             [--dashboard --dashboard-host loopback "
          "--dashboard-port n]\n"
          "                             [--dashboard-assets path]\n"
+         "                             [--dashboard-artifact-root path]\n"
          "                             [--dashboard-no-run]\n\n"
          "Message JSON may be either a full FHSS source node_config object or "
          "an\n"
@@ -242,6 +247,12 @@ CliOptions ParseArgs(int argc, char **argv) {
         throw std::invalid_argument("--dashboard-assets requires a path");
       }
       options.dashboard_assets = argv[++i];
+    } else if (arg == "--dashboard-artifact-root") {
+      if (i + 1 >= argc) {
+        throw std::invalid_argument(
+            "--dashboard-artifact-root requires a path");
+      }
+      options.dashboard_artifact_root = argv[++i];
     } else if (arg == "--print-effective-config") {
       options.print_effective_config = true;
     } else {
@@ -723,6 +734,11 @@ int RunDashboardMode(const CliOptions &options,
       std::make_shared<graph::dashboard::GraphSnapshotCollector>();
   snapshot_collector->BindRuntimeSession(runtime_session);
   runtime_session->MarkReady();
+  std::shared_ptr<dsp::fhss::dashboard::FHSSJobController> job_controller;
+  if (options.dashboard)
+    job_controller = std::make_shared<dsp::fhss::dashboard::FHSSJobController>(
+        configuration_service, runtime_session,
+        options.dashboard_artifact_root);
   // Dashboard production mode exposes runtime control but deliberately starts
   // stopped/not-built.  Rebuild and Start are public operator actions, so an
   // existing file path can never trigger receiver execution during launch.
@@ -731,12 +747,11 @@ int RunDashboardMode(const CliOptions &options,
   server_options.host = options.dashboard_host;
   server_options.port = options.dashboard_port;
   server_options.asset_directory = options.dashboard_assets;
-  server_options.artifact_root = options.dashboard_assets.parent_path();
+  server_options.artifact_root = options.dashboard_artifact_root;
   server_options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
-          .handler =
-              dsp::fhss::dashboard::MakeApiHandler(configuration_service,
-                                                    runtime_session),
+          .handler = dsp::fhss::dashboard::MakeApiHandler(
+              configuration_service, runtime_session, job_controller),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
   server_options.enable_configuration_mutation_routes = true;
@@ -759,7 +774,7 @@ int RunDashboardMode(const CliOptions &options,
   std::cout << (options.dashboard
                     ? "Dashboard receiver control mode active; runtime is "
                       "stopped until Rebuild and Start. "
-                                  : "Dashboard no-run mode active. ")
+                    : "Dashboard no-run mode active. ")
             << "Press Ctrl+C to stop.\n";
 
   std::signal(SIGINT, HandleDashboardSignal);
@@ -768,6 +783,8 @@ int RunDashboardMode(const CliOptions &options,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  if (job_controller)
+    job_controller->Shutdown();
   runtime_session->MarkShuttingDown();
   runtime_session->MarkDead();
 

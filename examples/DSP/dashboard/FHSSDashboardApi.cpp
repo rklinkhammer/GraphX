@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "FHSSDashboardApi.hpp"
+#include "FHSSJobController.hpp"
 #include "FHSSObservationService.hpp"
 
 #include "graph/dashboard/GraphConfigurationService.hpp"
@@ -33,16 +34,17 @@ ApiResponse JsonResponse(int status, const nlohmann::json &body) {
 }
 
 ApiResponse ErrorResponse(int status, std::string code, std::string message) {
-  const auto body = nlohmann::json{{"type", "urn:graphx:dashboard:problem:" + code},
-                       {"title", code},
-                       {"detail", message},
-                       {"schema", "graphx.dashboard.error.v1"},
-                       {"status", status},
-                       {"code", std::move(code)},
-                       {"message", message},
-                       {"details", nullptr},
-                       {"request_id", "fhss-dashboard"},
-                       {"retriable", false}};
+  const auto body =
+      nlohmann::json{{"type", "urn:graphx:dashboard:problem:" + code},
+                     {"title", code},
+                     {"detail", message},
+                     {"schema", "graphx.dashboard.error.v1"},
+                     {"status", status},
+                     {"code", std::move(code)},
+                     {"message", message},
+                     {"details", nullptr},
+                     {"request_id", "fhss-dashboard"},
+                     {"retriable", false}};
   return {.status_code = status,
           .content_type = "application/problem+json",
           .body = body.dump()};
@@ -52,12 +54,12 @@ std::string QueryValue(const std::string &query, std::string_view name) {
   std::size_t offset = 0;
   while (offset <= query.size()) {
     const auto end = query.find('&', offset);
-    const auto item = query.substr(offset, end == std::string::npos
-                                               ? std::string::npos
-                                               : end - offset);
+    const auto item = query.substr(
+        offset, end == std::string::npos ? std::string::npos : end - offset);
     const auto equals = item.find('=');
     if (item.substr(0, equals) == name) {
-      return equals == std::string::npos ? std::string{} : item.substr(equals + 1);
+      return equals == std::string::npos ? std::string{}
+                                         : item.substr(equals + 1);
     }
     if (end == std::string::npos) {
       break;
@@ -80,16 +82,15 @@ std::optional<std::uint64_t> ParseUnsigned(const std::string &value) {
   return parsed;
 }
 
-std::uint64_t BoundedQuery(const std::string &query,
-                           std::string_view name,
-                           std::uint64_t fallback,
-                           std::uint64_t minimum,
+std::uint64_t BoundedQuery(const std::string &query, std::string_view name,
+                           std::uint64_t fallback, std::uint64_t minimum,
                            std::uint64_t maximum) {
   const auto value = ParseUnsigned(QueryValue(query, name)).value_or(fallback);
   return std::clamp(value, minimum, maximum);
 }
 
-bool Cancelled(const graph::dashboard::EmbeddedDashboardServer::ApiContext &context) {
+bool Cancelled(
+    const graph::dashboard::EmbeddedDashboardServer::ApiContext &context) {
   return context.stop_token.stop_requested() ||
          std::chrono::steady_clock::now() >= context.deadline;
 }
@@ -97,17 +98,18 @@ bool Cancelled(const graph::dashboard::EmbeddedDashboardServer::ApiContext &cont
 std::optional<nlohmann::json> BuildVisualization(
     const nlohmann::json &scenario, const std::string &query,
     const graph::dashboard::EmbeddedDashboardServer::ApiContext &context) {
-  const auto messages = scenario.contains("messages") && scenario.at("messages").is_array()
-                            ? scenario.at("messages")
-                            : nlohmann::json::array();
-  const auto message_offset = static_cast<std::size_t>(BoundedQuery(
-      query, "message_offset", 0, 0, messages.size()));
-  const auto message_limit = static_cast<std::size_t>(BoundedQuery(
-      query, "message_limit", 16, 1, 64));
+  const auto messages =
+      scenario.contains("messages") && scenario.at("messages").is_array()
+          ? scenario.at("messages")
+          : nlohmann::json::array();
+  const auto message_offset = static_cast<std::size_t>(
+      BoundedQuery(query, "message_offset", 0, 0, messages.size()));
+  const auto message_limit =
+      static_cast<std::size_t>(BoundedQuery(query, "message_limit", 16, 1, 64));
   const auto pulse_offset = static_cast<std::size_t>(BoundedQuery(
       query, "pulse_offset", 0, 0, std::numeric_limits<std::uint64_t>::max()));
-  const auto pulse_limit = static_cast<std::size_t>(BoundedQuery(
-      query, "pulse_limit", 128, 1, 512));
+  const auto pulse_limit =
+      static_cast<std::size_t>(BoundedQuery(query, "pulse_limit", 128, 1, 512));
   const auto refresh_ms = BoundedQuery(query, "refresh_ms", 250, 100, 2000);
 
   nlohmann::json schedule_messages = nlohmann::json::array();
@@ -115,17 +117,21 @@ std::optional<nlohmann::json> BuildVisualization(
   std::array<std::uint64_t, 64> channel_counts{};
   std::size_t absolute_pulse = 0;
 
-  for (std::size_t message_index = 0; message_index < messages.size(); ++message_index) {
-    if (Cancelled(context)) return std::nullopt;
+  for (std::size_t message_index = 0; message_index < messages.size();
+       ++message_index) {
+    if (Cancelled(context))
+      return std::nullopt;
     const auto &message = messages.at(message_index);
-    const auto pulses = message.contains("pulses") && message.at("pulses").is_array()
-                            ? message.at("pulses")
-                            : nlohmann::json::array();
+    const auto pulses =
+        message.contains("pulses") && message.at("pulses").is_array()
+            ? message.at("pulses")
+            : nlohmann::json::array();
     std::uint64_t preamble_count = 0;
 
     for (std::size_t pulse_index = 0; pulse_index < pulses.size();
          ++pulse_index, ++absolute_pulse) {
-      if (Cancelled(context)) return std::nullopt;
+      if (Cancelled(context))
+        return std::nullopt;
       const auto &pulse = pulses.at(pulse_index);
       const auto channel = pulse.value("frequency_index", std::uint64_t{0});
       const auto role = pulse.value("role", std::string{"body"});
@@ -136,16 +142,16 @@ std::optional<nlohmann::json> BuildVisualization(
         ++preamble_count;
       }
       if (absolute_pulse >= pulse_offset && timeline.size() < pulse_limit) {
-        timeline.push_back({{"absolute_pulse_index", absolute_pulse},
-                            {"message_index", message_index},
-                            {"message_id",
-                             message.value("message_id", message_index + 1u)},
-                            {"pulse_index", pulse_index},
-                            {"frequency_index", channel},
-                            {"expected_sample_start",
-                             message.value("transmit_start_sample", std::uint64_t{0}) +
-                                 pulse_index * kPulsePeriodSamples},
-                            {"source", "configured_schedule"}});
+        timeline.push_back(
+            {{"absolute_pulse_index", absolute_pulse},
+             {"message_index", message_index},
+             {"message_id", message.value("message_id", message_index + 1u)},
+             {"pulse_index", pulse_index},
+             {"frequency_index", channel},
+             {"expected_sample_start",
+              message.value("transmit_start_sample", std::uint64_t{0}) +
+                  pulse_index * kPulsePeriodSamples},
+             {"source", "configured_schedule"}});
       }
     }
 
@@ -164,7 +170,8 @@ std::optional<nlohmann::json> BuildVisualization(
 
   nlohmann::json channels = nlohmann::json::array();
   for (std::size_t channel = 0; channel < channel_counts.size(); ++channel) {
-    if (Cancelled(context)) return std::nullopt;
+    if (Cancelled(context))
+      return std::nullopt;
     channels.push_back({{"channel_index", channel},
                         {"expected_pulse_count", channel_counts[channel]}});
   }
@@ -197,26 +204,98 @@ std::optional<nlohmann::json> BuildVisualization(
 graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
     std::shared_ptr<graph::dashboard::GraphConfigurationService>
         configuration_service,
-    std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session) {
+    std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session,
+    std::shared_ptr<FHSSJobController> job_controller) {
   auto observation_service = std::make_shared<FHSSObservationService>(
       configuration_service, std::move(runtime_session));
   return [service = std::move(configuration_service),
-          observation_service = std::move(observation_service)](const ApiRequest &request,
-                                           const graph::dashboard::EmbeddedDashboardServer::ApiContext &context)
-             -> std::optional<ApiResponse> {
+          observation_service = std::move(observation_service),
+          job_controller = std::move(job_controller)](
+             const ApiRequest &request,
+             const graph::dashboard::EmbeddedDashboardServer::ApiContext
+                 &context) -> std::optional<ApiResponse> {
     if (context.stop_token.stop_requested() ||
         std::chrono::steady_clock::now() >= context.deadline) {
-      return ErrorResponse(408, "request_timeout", "application handler deadline exceeded");
+      return ErrorResponse(408, "request_timeout",
+                           "application handler deadline exceeded");
     }
     if (!service) {
       return std::nullopt;
     }
+    const auto job_response = [](FHSSJobController::Result result) {
+      return ApiResponse{.status_code = result.status_code,
+                         .content_type = result.status_code >= 400
+                                             ? "application/problem+json"
+                                             : "application/json",
+                         .body = result.document.dump()};
+    };
+    const auto parse_body = [&]() -> std::optional<nlohmann::json> {
+      try {
+        return nlohmann::json::parse(request.body);
+      } catch (...) {
+        return std::nullopt;
+      }
+    };
+    if (job_controller && request.method == "GET" &&
+        request.path == "/api/v1/fhss/jobs")
+      return job_response(job_controller->List());
+    if (job_controller && request.method == "POST" &&
+        request.path == "/api/v1/fhss/jobs") {
+      const auto body = parse_body();
+      if (!body)
+        return ErrorResponse(400, "invalid_json",
+                             "job request is not valid JSON");
+      const auto key = request.headers.contains("idempotency-key")
+                           ? request.headers.at("idempotency-key")
+                           : std::string{};
+      return job_response(job_controller->Submit(*body, key));
+    }
+    constexpr std::string_view jobs_prefix = "/api/v1/fhss/jobs/";
+    if (job_controller && request.path.starts_with(jobs_prefix)) {
+      const auto suffix = request.path.substr(jobs_prefix.size());
+      constexpr std::string_view cancel_suffix = "/cancel";
+      if (request.method == "POST" && suffix.ends_with(cancel_suffix)) {
+        const auto body = parse_body();
+        if (!body || !body->is_object() || !body->empty())
+          return ErrorResponse(400, "invalid_cancel_request",
+                               "cancel body must be an empty object");
+        const auto job_id =
+            suffix.substr(0, suffix.size() - cancel_suffix.size());
+        return job_response(job_controller->Cancel(job_id));
+      }
+      if (request.method == "GET" && suffix.find('/') == std::string::npos)
+        return job_response(job_controller->Get(suffix));
+    }
+    if (job_controller && request.method == "POST" &&
+        (request.path == "/api/v1/fhss/commands/step" ||
+         request.path == "/api/v1/fhss/commands/continue")) {
+      auto body = parse_body();
+      if (!body || !body->is_object())
+        return ErrorResponse(400, "invalid_json",
+                             "command request is not valid JSON");
+      (*body)["operation"] =
+          request.path.ends_with("/step") ? "step" : "continue";
+      const auto key = request.headers.contains("idempotency-key")
+                           ? request.headers.at("idempotency-key")
+                           : std::string{};
+      return job_response(job_controller->Submit(*body, key));
+    }
+    if (job_controller && request.method == "POST" &&
+        request.path == "/api/v1/fhss/commands/reset") {
+      const auto body = parse_body();
+      if (!body || !body->is_object() || !body->empty())
+        return ErrorResponse(400, "invalid_reset_request",
+                             "reset body must be an empty object");
+      return job_response(job_controller->Reset());
+    }
     const auto scenario = service->GetScenarioResponse().value(
         "scenario", nlohmann::json::object());
-    if (request.method == "GET" && request.path == "/api/v1/fhss/visualization") {
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/visualization") {
       auto visualization = BuildVisualization(scenario, request.query, context);
       if (!visualization) {
-        return ErrorResponse(408, "request_timeout", "application handler deadline exceeded");
+        return ErrorResponse(408, "request_timeout",
+                             "application handler deadline exceeded");
       }
       (*visualization)["config_revision"] = service->ConfigRevision();
       return JsonResponse(200, *visualization);
@@ -230,8 +309,7 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
       return JsonResponse(200,
                           observation_service->ReceiverObservation().document);
     }
-    if (request.method == "GET" &&
-        request.path == "/api/v1/fhss/comparison") {
+    if (request.method == "GET" && request.path == "/api/v1/fhss/comparison") {
       return JsonResponse(200, observation_service->Comparison().document);
     }
     if (request.method == "GET" &&
@@ -242,19 +320,16 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
         request.path == "/api/v1/fhss/observation-history") {
       return JsonResponse(200, observation_service->History());
     }
-    if (request.method == "GET" &&
-        request.path == "/api/v1/fhss/spectrum") {
+    if (request.method == "GET" && request.path == "/api/v1/fhss/spectrum") {
       const auto channel_text = QueryValue(request.query, "channel");
       const auto fft_text = QueryValue(request.query, "fft_size");
-      const auto channel = channel_text.empty()
-                               ? std::optional<std::uint64_t>{}
-                               : ParseUnsigned(channel_text);
-      const auto fft_size = fft_text.empty()
-                                ? std::optional<std::uint64_t>(128)
-                                : ParseUnsigned(fft_text);
+      const auto channel = channel_text.empty() ? std::optional<std::uint64_t>{}
+                                                : ParseUnsigned(channel_text);
+      const auto fft_size = fft_text.empty() ? std::optional<std::uint64_t>(128)
+                                             : ParseUnsigned(fft_text);
       if ((!channel_text.empty() && !channel) || !fft_size ||
-          (channel && *channel > 63) || *fft_size > 256 ||
-          *fft_size < 16 || !std::has_single_bit(*fft_size)) {
+          (channel && *channel > 63) || *fft_size > 256 || *fft_size < 16 ||
+          !std::has_single_bit(*fft_size)) {
         return ErrorResponse(400, "invalid_spectrum_request",
                              "channel or fft_size is invalid");
       }

@@ -307,3 +307,37 @@ Registered CTest lanes cover:
 All operator fixtures and dashboard scenario data are synthetic. Passing these
 lanes demonstrates software-contract behavior only, not RF performance or
 hardware qualification.
+
+## FHSS message jobs and controls
+
+Dashboard Phase 5 adds an FHSS-specific application controller above the
+existing single graph-runtime owner. It deliberately does not add generic node
+stepping. The public controls are:
+
+- **Step**: generate and replay exactly one complete architecture-conformant
+  FHSS message;
+- **Continue**: generate and replay a bounded count of complete messages;
+- **Cancel**: cooperatively terminate queued or active work; and
+- **Reset**: advance the controller epoch only when no job is active.
+
+The controller exposes `/api/v1/fhss/jobs` resources and command endpoints
+defined in `examples/DSP/dashboard/api/openapi.json`. Requests use opaque job
+IDs and optional idempotency keys. Responses keep controller state, graph
+lifecycle, receiver result, and expected-versus-observed comparison distinct.
+The browser polls these bounded resources and never submits work as a side
+effect of refresh.
+
+Generation reuses the canonical FHSS IQ parser/generator and atomically writes
+raw IQ, truth, SigMF metadata, receiver-minimal configuration, and a manifest
+under the configured artifact root. Receiver execution is given only the IQ
+path and receiver configuration. Recursive receiver-configuration checks reject
+generator messages, schedules, truth, and active-frequency fields. Queue size,
+message count, pulse count, sample count, IQ bytes, metadata bytes, history,
+timeouts, and idempotency storage all have explicit bounds.
+
+The external Phase 5 operator exercises duplicate idempotency, conflict,
+queued and active cancellation, completion, timeout, reset, artifact hashes,
+truth separation, and replay of the captured IQ after deleting truth and
+stopping the dashboard. See
+`docs/dsp/fhss_dashboard_phase5_manual_operator_test.md` for the runnable
+workflow. This is synthetic software validation only; no HWIL is available.

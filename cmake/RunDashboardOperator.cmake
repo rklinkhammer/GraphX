@@ -36,6 +36,16 @@ if(PHASE EQUAL 4)
       message(FATAL_ERROR "dashboard operator exercise-to-serve ${case} failed: ${serve_result}")
     endif()
   endforeach()
+elseif(PHASE EQUAL 5)
+  foreach(case IN ITEMS step continue cancelled)
+    execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" serve --phase "${PHASE}"
+                            --build-dir "${operator_build}" --output-dir "${output}"
+                            --case "${case}" --exit-after-case
+                    RESULT_VARIABLE serve_result TIMEOUT 90)
+    if(NOT serve_result EQUAL 0)
+      message(FATAL_ERROR "dashboard operator exercise-to-serve ${case} failed: ${serve_result}")
+    endif()
+  endforeach()
 endif()
 execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" verify --phase "${PHASE}" --output-dir "${output}"
                 RESULT_VARIABLE verify_result)
@@ -44,4 +54,6 @@ if(NOT verify_result EQUAL 0)
 endif()
 if(PHASE EQUAL 4)
   message(STATUS "Phase 4 automation evidence is PARTIAL/pre-browser; final PASS requires clean, impaired, and negative record-screenshot artifacts followed by verify --require-screenshots")
+elseif(PHASE EQUAL 5)
+  message(STATUS "Phase 5 operator workflow passed; browser screenshot evidence remains a manual verification artifact")
 endif()

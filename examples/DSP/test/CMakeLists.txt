@@ -18,6 +18,7 @@ target_sources(test_dsp_example_unit PRIVATE
     test_dsp_fhss_dashboard_step2.cpp
     test_dsp_fhss_dashboard_step3.cpp
     test_dsp_fhss_dashboard_step4.cpp
+    test_dsp_fhss_dashboard_step5.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
 )
@@ -44,6 +45,7 @@ target_include_directories(test_dsp_example_unit PRIVATE
 )
 target_link_libraries(test_dsp_example_unit PRIVATE
     graphx_project_options
+    dsp
     GTest::gtest_main
     Threads::Threads
     log4cxx
@@ -73,6 +75,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     FhssDashboardRebuildControlTest
     FhssDashboardEventReplayTest
     FhssDashboardObservationTest
+    FhssDashboardJobControllerTest
     FhssDashboardVisualizationTest
     FhssDashboardVisualizationCancellationTest)
 else()
@@ -105,6 +108,19 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase4_operator.py)
     set_tests_properties(fhss_dashboard_phase4_evidence_smoke PROPERTIES
         LABELS "dsp;fhss;dashboard;phase4;evidence;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase5_external_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=5 -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase5_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=5 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    set_tests_properties(fhss_dashboard_phase5_external_operator
+        fhss_dashboard_phase5_installed_tree_operator PROPERTIES
+        TIMEOUT 600 LABELS "dsp;fhss;dashboard;phase5;operator;host-any")
     add_test(NAME fhss_dashboard_external_operator
         COMMAND ${CMAKE_COMMAND}
             -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}

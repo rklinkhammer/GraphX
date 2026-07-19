@@ -1214,7 +1214,8 @@ Dashboard schedule/timeline rows use the configured message start and this
 architecture's 6,500-sample pulse period; they do not infer words or substitute
 pulse ordinal values for sample time. Receiver spectrum selection is bounded to
 logical channels 0–63 and defaults to the first receiver-observed channel, or
-explicitly to reserved channel 0 when no channel was observed. The channelizer
+is unavailable when no channel was observed. Reserved channel 0 is never used
+as a synthetic fallback. The channelizer
 captures a deterministic bounded highest-energy receiver window for spectrum
 display and advances the capture's global sample anchor by the selected window
 offset. This selection is receiver-derived and does not consult generator
@@ -1227,6 +1228,56 @@ sidecar result with status, accepted flag, and decoded-pulse count. An empty
 terminal token truthfully reaches the assembler and reports
 `MissingPreamble`/not accepted with zero decoded pulses; it is not hidden and is
 not a fabricated message completion.
+
+### Dashboard message-job control
+
+The dashboard's message controls are an FHSS application service, not a graph
+node and not a generic `libgraph` facility. `FHSSJobController` is the sole
+producer of work for these controls and serializes each job through the same
+`GraphRuntimeSession` that owns graph rebuild, start, stop, and observation.
+There is no arbitrary node stepping. **Step** means one complete FHSS message;
+**Continue** means a bounded sequence of complete messages.
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> generating
+    queued --> cancelled
+    generating --> generated
+    generating --> cancelled
+    generating --> failed
+    generated --> replay_pending
+    replay_pending --> running
+    replay_pending --> cancelled
+    running --> completed
+    running --> cancelling
+    running --> timed_out
+    running --> failed
+    cancelling --> cancelled
+```
+
+Each job invokes the same `FHSSSyntheticIqGeneratorConfigFromJson` and
+`GenerateSyntheticIqFixture` implementation as the command-line IQ generator.
+The controller writes raw little-endian `cf32` or `cf64` IQ, truth, SigMF
+metadata, a receiver-minimal graph, and a hash manifest as separate bounded
+files. Only the IQ path and receiver-minimal graph cross into receiver
+execution. That graph is recursively checked for message, schedule, truth, and
+active-frequency keys. The receiver derives the active set from the decoded
+preamble; generator truth remains an evaluator artifact.
+
+Job and controller identifiers are opaque. An idempotency key repeats the
+original response only for the same canonical request; reuse with different
+content is a conflict. Cancellation is cooperative and terminal, queued
+cancellation creates no IQ artifacts, and timeouts stop the owned runtime
+before reporting `timed_out`. Reset is rejected while work is active, advances
+the controller epoch after terminal work, and is idempotent within that epoch.
+The in-memory history is bounded by job count and serialized bytes. On process
+restart, unfinished in-memory work is not resumed and therefore cannot be
+mistaken for a completed replay; previously committed artifacts remain
+available for explicit offline replay.
+
+The dashboard Phase 5 evidence remains entirely synthetic. It contains no
+HWIL, conducted-RF, OTA, or production-RF qualification.
 
 ## Architectural Limits
 

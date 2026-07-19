@@ -487,6 +487,27 @@ Acceptance:
 - no hidden test controller or unwired test file remains; and
 - operator artifacts can be replayed without the dashboard.
 
+Implemented Phase 5 semantics:
+
+- one application-owned worker serializes generation and receiver replay
+  through the existing runtime owner;
+- Step is exactly one complete message and Continue is bounded to four complete
+  messages per job;
+- job history is bounded to 32 entries/2 MiB, idempotency history to 64 keys,
+  generated IQ to 4,194,304 samples/64 MiB, metadata to 1 MiB, and timeouts to
+  100–120,000 ms;
+- queued cancellation produces no artifacts, active cancellation is
+  cooperative, and timeout stops the owned replay before becoming terminal;
+- reset is rejected during active work and otherwise advances an opaque
+  controller epoch idempotently; and
+- in-memory jobs are not restored after a process restart. Committed artifacts
+  remain separate and replayable, while interrupted temporary artifacts are
+  never published as completed jobs.
+
+All Phase 5 inputs and evidence are synthetic. No hardware-in-the-loop facility
+is available, so HWIL, conducted-RF, OTA, and production-RF claims remain out
+of scope.
+
 ### Phase 6 — Bounded WebSocket streaming and replay
 
 Goal: add live updates without sacrificing deterministic recovery or allowing a

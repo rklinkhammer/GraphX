@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:fhss-job-reset:v1","type":"object","additionalProperties":false,
+  "required":["schema","controller_epoch","message_cursor","retained_job_count","idempotency_entries_retained","status"],
+  "properties":{"schema":{"const":"graphx.dashboard.fhss_job_reset.v1"},"controller_epoch":{"type":"integer","minimum":1},"message_cursor":{"const":0},"retained_job_count":{"type":"integer","minimum":0,"maximum":32},"idempotency_entries_retained":{"const":0},"status":{"enum":["reset_completed","already_reset"]}}
+}

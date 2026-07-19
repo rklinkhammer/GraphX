@@ -8,6 +8,7 @@
     "type": {"type": "string"}, "title": {"type": "string"},
     "status": {"type": "integer", "minimum": 400, "maximum": 599},
     "detail": {"type": "string"}, "code": {"type": "string"},
+    "instance": {"type": "string"},
     "schema": {"const": "graphx.dashboard.error.v1"},
     "message": {"type": "string"}, "details": {},
     "request_id": {"type": "string"}, "retriable": {"type": "boolean"},
