@@ -64,7 +64,7 @@
     "FHSSSpectrum":{"description":"Bounded spectrum calculated from captured receiver channel samples","content":{"application/json":{"schema":{"$ref":"schemas/fhss-receiver-spectrum.schema.json"}}}},
     "FHSSObservationProvenance":{"description":"Field-level receiver observation provenance","content":{"application/json":{"schema":{"$ref":"schemas/fhss-observation-provenance.schema.json"}}}},
     "FHSSObservationHistory":{"description":"Bounded active-run observation history","content":{"application/json":{"schema":{"$ref":"schemas/fhss-observation-history.schema.json"}}}},
-    "FHSSJob":{"description":"Synthetic FHSS job state with separate lifecycle, receiver, comparison, and artifact references","content":{"application/json":{"schema":{"$ref":"schemas/fhss-job.schema.json"}}}},
+    "FHSSJob":{"description":"Synthetic FHSS job state with separate generation result, lifecycle, receiver, comparison, and artifact references","content":{"application/json":{"schema":{"$ref":"schemas/fhss-job.schema.json"}}}},
     "FHSSJobHistory":{"description":"Bounded FHSS job history","content":{"application/json":{"schema":{"$ref":"schemas/fhss-job-history.schema.json"}}}},
     "FHSSJobReset":{"description":"Message cursor and controller reset result","content":{"application/json":{"schema":{"$ref":"schemas/fhss-job-reset.schema.json"}}}},
     "Problem400":{"description":"Malformed request","content":{"application/problem+json":{"schema":{"$ref":"schemas/problem.schema.json"}}}},

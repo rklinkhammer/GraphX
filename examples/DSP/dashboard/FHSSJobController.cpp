@@ -18,6 +18,7 @@
 #include <span>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 namespace dsp::fhss::dashboard {
 namespace {
@@ -134,6 +135,7 @@ struct FHSSJobController::Job {
   std::size_t message_count = 0;
   std::chrono::milliseconds timeout{30'000};
   nlohmann::json generator_input;
+  nlohmann::json receiver_graph;
   std::uint64_t config_revision = 0;
   std::string config_etag;
   std::string state = "queued";
@@ -147,6 +149,9 @@ struct FHSSJobController::Job {
   std::uint64_t graph_generation = 0;
   std::uint64_t run_epoch = 0;
   nlohmann::json artifacts = nlohmann::json::object();
+  nlohmann::json generation_result{
+      {"availability", {{"state", "pending"}, {"reason", nullptr}}},
+      {"terminal", nullptr}};
   nlohmann::json graph_lifecycle = nullptr;
   nlohmann::json receiver_result = nullptr;
   nlohmann::json receiver_observation = nullptr;
@@ -166,44 +171,129 @@ FHSSJobController::FHSSJobController(
     std::shared_ptr<graph::dashboard::GraphConfigurationService>
         configuration_service,
     std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session,
-    std::filesystem::path artifact_root)
+    std::filesystem::path artifact_root, std::shared_ptr<TestHooks> test_hooks)
     : configuration_service_(std::move(configuration_service)),
       runtime_session_(std::move(runtime_session)),
       observation_service_(std::make_shared<FHSSObservationService>(
           configuration_service_, runtime_session_)),
       artifact_root_(std::filesystem::absolute(std::move(artifact_root)) /
-                     "fhss-jobs") {
+                     "fhss-jobs"),
+      test_hooks_(std::move(test_hooks)) {
   if (!configuration_service_ || !runtime_session_)
     throw std::invalid_argument(
         "FHSS job controller dependencies are required");
   std::filesystem::create_directories(artifact_root_);
+  artifact_root_ = std::filesystem::weakly_canonical(artifact_root_);
   controller_epoch_ = static_cast<std::uint64_t>(
       std::chrono::system_clock::now().time_since_epoch().count());
   if (controller_epoch_ == 0)
     controller_epoch_ = 1;
-  for (const auto &entry :
-       std::filesystem::directory_iterator(artifact_root_)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".tmp") {
-      std::error_code ignored;
-      std::filesystem::remove(entry.path(), ignored);
-    } else if (entry.is_directory() &&
-               entry.path().filename().string().starts_with("j-") &&
-               entry.path().filename().string().size() == 26) {
-      for (const auto &artifact :
-           std::filesystem::directory_iterator(entry.path())) {
-        if (artifact.is_regular_file() &&
-            artifact.path().extension() == ".tmp") {
-          std::error_code ignored;
-          std::filesystem::remove(artifact.path(), ignored);
-        }
-      }
-    }
-  }
+  ReconcileArtifactsAtStartup();
   worker_ =
       std::jthread([this](std::stop_token stop_token) { Worker(stop_token); });
 }
 
 FHSSJobController::~FHSSJobController() { Shutdown(); }
+
+void FHSSJobController::ReconcileArtifactsAtStartup() {
+  std::vector<RetainedArtifact> candidates;
+  for (const auto &entry :
+       std::filesystem::directory_iterator(artifact_root_)) {
+    std::error_code error;
+    const auto status = entry.symlink_status(error);
+    if (error)
+      continue;
+    const auto name = entry.path().filename().string();
+    if (entry.path().extension() == ".tmp") {
+      if (std::filesystem::is_regular_file(status) ||
+          std::filesystem::is_symlink(status))
+        (void)std::filesystem::remove(entry.path(), error);
+      continue;
+    }
+    if (!name.starts_with("j-") || name.size() != 26)
+      continue;
+    if (std::filesystem::is_symlink(status) ||
+        !std::filesystem::is_directory(status)) {
+      (void)std::filesystem::remove(entry.path(), error);
+      continue;
+    }
+
+    bool valid = true;
+    bool manifest_found = false;
+    std::uintmax_t bytes = 0;
+    std::filesystem::recursive_directory_iterator iterator(
+        entry.path(), std::filesystem::directory_options::none, error);
+    const std::filesystem::recursive_directory_iterator end;
+    while (!error && iterator != end) {
+      const auto child_status = iterator->symlink_status(error);
+      if (error || std::filesystem::is_symlink(child_status) ||
+          (!std::filesystem::is_directory(child_status) &&
+           !std::filesystem::is_regular_file(child_status)) ||
+          iterator->path().extension() == ".tmp") {
+        valid = false;
+        break;
+      }
+      if (std::filesystem::is_regular_file(child_status)) {
+        if (iterator->path().filename() == "manifest.json")
+          manifest_found = true;
+        const auto size = iterator->file_size(error);
+        if (error || size > kMaxRetainedArtifactBytes -
+                                std::min<std::uintmax_t>(
+                                    bytes, kMaxRetainedArtifactBytes)) {
+          valid = false;
+          break;
+        }
+        bytes += size;
+      }
+      iterator.increment(error);
+    }
+    valid = valid && !error && manifest_found;
+    if (!valid) {
+      error.clear();
+      (void)std::filesystem::remove_all(entry.path(), error);
+      continue;
+    }
+    const auto modified = std::filesystem::last_write_time(entry.path(), error);
+    if (error) {
+      error.clear();
+      (void)std::filesystem::remove_all(entry.path(), error);
+      continue;
+    }
+    candidates.push_back({entry.path(), bytes, modified});
+  }
+
+  std::ranges::sort(candidates, {}, &RetainedArtifact::modified_at);
+  retained_artifacts_.assign(candidates.begin(), candidates.end());
+  for (const auto &candidate : retained_artifacts_)
+    retained_artifact_bytes_ += candidate.bytes;
+  const auto cutoff =
+      std::filesystem::file_time_type::clock::now() -
+      std::chrono::duration_cast<std::filesystem::file_time_type::duration>(
+          kMaxRetentionAge);
+  while (!retained_artifacts_.empty() &&
+         retained_artifacts_.front().modified_at < cutoff)
+    RemoveOldestRetainedUnlocked();
+  while (retained_artifacts_.size() > kMaxJobs ||
+         retained_artifact_bytes_ > kMaxRetainedArtifactBytes)
+    RemoveOldestRetainedUnlocked();
+}
+
+void FHSSJobController::RemoveOldestRetainedUnlocked() {
+  if (retained_artifacts_.empty())
+    return;
+  const auto artifact = std::move(retained_artifacts_.front());
+  retained_artifacts_.pop_front();
+  retained_artifact_bytes_ -= artifact.bytes;
+  std::error_code error;
+  const auto status = std::filesystem::symlink_status(artifact.path, error);
+  if (error)
+    return;
+  if (std::filesystem::is_symlink(status) ||
+      !std::filesystem::is_directory(status))
+    (void)std::filesystem::remove(artifact.path, error);
+  else
+    (void)std::filesystem::remove_all(artifact.path, error);
+}
 
 bool FHSSJobController::IsTerminal(std::string_view state) {
   return state == "completed" || state == "cancelled" || state == "timed_out" ||
@@ -350,12 +440,30 @@ FHSSJobController::Submit(const nlohmann::json &raw_request,
     idempotency_.erase(existing);
   }
   PurgeUnlocked();
-  if (jobs_.size() >= kMaxJobs)
-    return {429,
-            Problem(429, "job_history_full",
-                    "bounded job history has no terminal eviction candidate")};
+  if (retained_artifacts_.size() + jobs_.size() >= kMaxJobs ||
+      retained_artifact_bytes_ +
+              (jobs_.size() + 1) * static_cast<std::uintmax_t>(kMaxIqBytes) >
+          kMaxRetainedArtifactBytes)
+    return {429, Problem(429, "job_history_full",
+                         "bounded job and artifact retention has no terminal "
+                         "eviction candidate")};
 
-  const auto scenario_response = configuration_service_->GetScenarioResponse();
+  nlohmann::json scenario_response;
+  nlohmann::json receiver_response;
+  constexpr std::size_t kSnapshotAttempts = 8;
+  for (std::size_t attempt = 0; attempt < kSnapshotAttempts; ++attempt) {
+    scenario_response = configuration_service_->GetScenarioResponse();
+    receiver_response = configuration_service_->GetReceiverGraphResponse();
+    if (scenario_response.at("config_revision") ==
+            receiver_response.at("config_revision") &&
+        scenario_response.at("etag") == receiver_response.at("etag"))
+      break;
+    if (attempt + 1 == kSnapshotAttempts)
+      return {409,
+              Problem(409, "configuration_changed_during_submission",
+                      "configuration changed while capturing the job; retry "
+                      "the submission")};
+  }
   auto scenario = scenario_response.at("scenario");
   if (!scenario.is_object() || !scenario.contains("messages") ||
       !scenario.at("messages").is_array() || scenario.at("messages").empty())
@@ -381,9 +489,7 @@ FHSSJobController::Submit(const nlohmann::json &raw_request,
                          "selected messages exceed the pulse quota")};
   scenario["messages"] = std::move(selected);
   scenario.erase("receiver_input");
-  const auto receiver_response =
-      configuration_service_->GetReceiverGraphResponse();
-  const auto &receiver_graph = receiver_response.at("graph");
+  auto receiver_graph = receiver_response.at("graph");
   const auto channelizer =
       std::ranges::find_if(receiver_graph.at("nodes"), [](const auto &node) {
         return node.value("id", std::string{}) == "channelizer";
@@ -426,6 +532,7 @@ FHSSJobController::Submit(const nlohmann::json &raw_request,
   job->message_count = count;
   job->timeout = std::chrono::milliseconds(timeout_ms);
   job->generator_input = std::move(scenario);
+  job->receiver_graph = std::move(receiver_graph);
   job->config_revision =
       scenario_response.at("config_revision").get<std::uint64_t>();
   job->config_etag = scenario_response.at("etag").get<std::string>();
@@ -622,8 +729,7 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
     const auto sigmf = job->directory / "iq.sigmf-meta";
     const auto receiver = job->directory / "receiver-minimal.json";
     const auto manifest = job->directory / "manifest.json";
-    auto receiver_response = configuration_service_->GetReceiverGraphResponse();
-    auto receiver_graph = receiver_response.at("graph");
+    auto receiver_graph = job->receiver_graph;
     auto source =
         std::ranges::find_if(receiver_graph.at("nodes"), [](const auto &node) {
           return node.value("id", std::string{}) == "source";
@@ -700,6 +806,8 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
                                          std::filesystem::perms::owner_write,
                                      std::filesystem::perm_options::replace);
       }
+      if (test_hooks_ && test_hooks_->after_artifact_commit)
+        test_hooks_->after_artifact_commit();
     } catch (...) {
       for (const auto &[temporary_path, unused] : files) {
         (void)unused;
@@ -717,14 +825,29 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
       job->artifacts = manifest_document.at("artifacts");
       job->artifacts["manifest"] = {{"relative_path", "manifest.json"},
                                     {"sha256", HashFile(manifest)}};
-      Transition(job, "generated");
-      if (job->cancel_requested) {
-        Transition(job, "cancelling");
+      if (job->cancel_requested || stop_token.stop_requested()) {
+        if (job->state != "cancelling")
+          Transition(job, "cancelling");
         truth_guard.Restore();
         Terminal(job, "cancelled", "cancelled_before_replay",
                  "job cancelled after generation and before replay");
         return;
       }
+      if (std::chrono::steady_clock::now() >= deadline) {
+        truth_guard.Restore();
+        Terminal(job, "timed_out", "job_timeout",
+                 "job exceeded its artifact publication deadline");
+        return;
+      }
+      job->generation_result = {
+          {"availability", {{"state", "available"}, {"reason", nullptr}}},
+          {"terminal",
+           {{"status", "succeeded"},
+            {"code", "generation_completed"},
+            {"detail", "IQ and metadata artifacts published atomically"},
+            {"timestamp", NowRfc3339()},
+            {"sample_count", bundle.fixture.samples.size()}}}};
+      Transition(job, "generated");
       Transition(job, "replay_pending");
     }
     auto rebuild =
@@ -736,20 +859,54 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
       Terminal(job, "failed", "receiver_build_failed", rebuild.message);
       return;
     }
+    {
+      std::lock_guard lock(mutex_);
+      if (job->cancel_requested || stop_token.stop_requested()) {
+        if (job->state != "cancelling")
+          Transition(job, "cancelling");
+        truth_guard.Restore();
+        Terminal(job, "cancelled", "cancelled_before_receiver_start",
+                 "job cancelled while the receiver graph was rebuilding");
+        return;
+      }
+      if (std::chrono::steady_clock::now() >= deadline) {
+        truth_guard.Restore();
+        Terminal(
+            job, "timed_out", "job_timeout",
+            "job deadline expired while the receiver graph was rebuilding");
+        return;
+      }
+    }
     auto start = runtime_session_->Start();
     if (start.status_code >= 400) {
       truth_guard.Restore();
       Terminal(job, "failed", "receiver_start_failed", start.message);
       return;
     }
+    bool cancel_after_start = false;
     {
       std::lock_guard lock(mutex_);
       job->replay_invoked = true;
       const auto identity = runtime_session_->SnapshotGeneration();
       job->graph_generation = identity.generation;
       job->run_epoch = identity.run_epoch;
-      Transition(job, "running");
+      cancel_after_start = job->cancel_requested || stop_token.stop_requested();
+      if (!cancel_after_start)
+        Transition(job, "running");
+      else if (job->state != "cancelling")
+        Transition(job, "cancelling");
     }
+    if (cancel_after_start) {
+      if (runtime_session_->GetState() ==
+          graph::dashboard::GraphRuntimeSession::State::running)
+        (void)runtime_session_->Stop();
+      truth_guard.Restore();
+      Terminal(job, "cancelled", "cancelled_during_receiver_start",
+               "job cancellation took precedence over receiver start");
+      return;
+    }
+    if (test_hooks_ && test_hooks_->after_running)
+      test_hooks_->after_running();
     for (;;) {
       bool cancel = false;
       {
@@ -864,6 +1021,28 @@ void FHSSJobController::Terminal(const std::shared_ptr<Job> &job,
   std::lock_guard lock(mutex_);
   if (IsTerminal(job->state))
     return;
+  if (job->cancel_requested && state != "cancelled") {
+    state = "cancelled";
+    code = "cancelled_with_terminal_precedence";
+    detail =
+        "accepted cancellation took precedence over concurrent terminal work";
+  }
+  if (job->generation_result.at("terminal").is_null()) {
+    if (!job->generator_invoked) {
+      job->generation_result = {
+          {"availability", {{"state", "unavailable"}, {"reason", code}}},
+          {"terminal", nullptr}};
+    } else {
+      job->generation_result = {
+          {"availability", {{"state", "available"}, {"reason", nullptr}}},
+          {"terminal",
+           {{"status", state},
+            {"code", code},
+            {"detail", detail},
+            {"timestamp", NowRfc3339()},
+            {"sample_count", nullptr}}}};
+    }
+  }
   if (!IsLegalTransition(job->state, state)) {
     if (job->state == "cancelling" && state == "cancelled") {
       // explicitly legal; retained for clarity at the terminal-write seam
@@ -914,6 +1093,7 @@ nlohmann::json FHSSJobController::JobJson(const Job &job) const {
        {{"generator_invoked", job.generator_invoked},
         {"receiver_replay_invoked", job.replay_invoked}}},
       {"artifacts", job.artifacts},
+      {"generation_result", job.generation_result},
       {"graph_lifecycle", job.graph_lifecycle},
       {"receiver_message_result", job.receiver_result},
       {"receiver_observation", job.receiver_observation},
@@ -934,7 +1114,18 @@ void FHSSJobController::PurgeUnlocked() {
       ++iterator;
     }
   }
-  while (jobs_.size() >= kMaxJobs) {
+  while (retained_artifacts_.size() + jobs_.size() >= kMaxJobs &&
+         !retained_artifacts_.empty())
+    RemoveOldestRetainedUnlocked();
+  while (retained_artifact_bytes_ +
+                 (jobs_.size() + 1) * static_cast<std::uintmax_t>(kMaxIqBytes) >
+             kMaxRetainedArtifactBytes &&
+         !retained_artifacts_.empty())
+    RemoveOldestRetainedUnlocked();
+  while (retained_artifacts_.size() + jobs_.size() >= kMaxJobs ||
+         retained_artifact_bytes_ +
+                 (jobs_.size() + 1) * static_cast<std::uintmax_t>(kMaxIqBytes) >
+             kMaxRetainedArtifactBytes) {
     const auto found = std::ranges::find_if(
         jobs_, [](const auto &job) { return IsTerminal(job->state); });
     if (found == jobs_.end())

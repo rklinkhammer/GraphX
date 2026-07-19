@@ -958,7 +958,7 @@ void EmbeddedDashboardServer::RunLoop() {
               "Content-Security-Policy",
               "default-src 'self'; "
               "script-src 'self' "
-              "'sha256-/8UdK1o8D35dK8FKJc5X8QWuOJCUZwlDYIFGDODRhC8='; "
+              "'sha256-ti5K18eEA9ifnUyzdmeuATYKehuae5GBGVv8vq6GddM='; "
               "style-src 'self' "
               "'sha256-+m6+B7a/b89ToglVQS8/9TMxEsvCSOF4c+lt3EadRrQ='; "
               "img-src 'self' data:; connect-src 'self'; object-src 'none'; "

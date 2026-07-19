@@ -155,7 +155,12 @@ Repeat with `continue` and `cancelled`. Then require strict certification:
 The final report must be `PASS` / `final_verified`. A partial pre-browser
 report is not final evidence. On restart, the controller epoch changes,
 in-memory jobs and idempotency entries are not restored, committed artifacts
-remain explicitly replayable, and incomplete `.tmp` files are removed. The
+remain explicitly replayable only within the one-hour, 32-directory, and
+512 MiB startup-retention bounds. Oldest, expired, incomplete, over-limit, and
+symlinked job entries are removed without following links outside the artifact
+root. A timeout or cancellation accepted while `Rebuild` is in progress takes
+precedence before receiver `Start`; a non-cooperative `Rebuild` can delay that
+terminal response until it returns, but cannot cause a post-deadline Start. The
 generic GraphX limitation remains: a non-cooperative node can prevent a bounded
 executor join even though this FHSS path cooperates.
 

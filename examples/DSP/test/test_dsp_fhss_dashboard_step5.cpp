@@ -52,12 +52,30 @@ std::filesystem::path UniqueTemp(std::string_view label) {
               std::chrono::steady_clock::now().time_since_epoch().count()));
 }
 
+std::string RetainedJobName(std::size_t index) {
+  const auto digits = std::to_string(index);
+  return "j-" + std::string(24 - digits.size(), '0') + digits;
+}
+
+void SeedRetainedArtifact(const std::filesystem::path &root, std::size_t index,
+                          std::uintmax_t payload_bytes = 1) {
+  const auto directory = root / "fhss-jobs" / RetainedJobName(index);
+  std::filesystem::create_directories(directory);
+  std::ofstream(directory / "manifest.json") << "{}\n";
+  std::ofstream payload(directory / "iq.cf32", std::ios::binary);
+  if (payload_bytes != 0) {
+    payload.seekp(static_cast<std::streamoff>(payload_bytes - 1));
+    payload.put('\0');
+  }
+}
+
 class BlockingRuntimeOwner final : public graph::dashboard::IGraphRuntimeOwner {
 public:
   Result Rebuild(std::uint64_t, const BuildSnapshot &snapshot) override {
     {
       std::lock_guard lock(mutex_);
       receiver_graph_ = snapshot.receiver_graph;
+      rebuild_snapshots_.push_back(snapshot);
       rebuild_entered_ = true;
     }
     cv_.notify_all();
@@ -68,7 +86,14 @@ public:
   }
   Result Start(std::uint64_t generation, std::uint64_t run_epoch) override {
     ++start_count_;
-    if (callback_)
+    {
+      std::lock_guard lock(mutex_);
+      start_entered_ = true;
+      started_generation_ = generation;
+      started_run_epoch_ = run_epoch;
+    }
+    cv_.notify_all();
+    if (auto_complete_ && callback_)
       callback_(generation, run_epoch, true, "completed");
     return {202, "start_accepted", "started", manager_, false};
   }
@@ -86,9 +111,11 @@ public:
   void SetCompletionCallback(CompletionCallback callback) override {
     callback_ = std::move(callback);
   }
-  void WaitForRebuild() {
+  void WaitForRebuild() { WaitForRebuildCount(1); }
+  void WaitForRebuildCount(std::size_t count) {
     std::unique_lock lock(mutex_);
-    cv_.wait(lock, [this] { return rebuild_entered_; });
+    cv_.wait(lock,
+             [this, count] { return rebuild_snapshots_.size() >= count; });
   }
   void Release() {
     {
@@ -102,16 +129,61 @@ public:
     return receiver_graph_;
   }
   [[nodiscard]] std::uint64_t StartCount() const { return start_count_; }
+  void SetAutoComplete(bool value) { auto_complete_ = value; }
+  void WaitForStart() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return start_entered_; });
+  }
+  void Complete() {
+    if (callback_)
+      callback_(started_generation_, started_run_epoch_, true, "completed");
+  }
+  [[nodiscard]] std::vector<BuildSnapshot> RebuildSnapshots() const {
+    std::lock_guard lock(mutex_);
+    return rebuild_snapshots_;
+  }
 
 private:
   mutable std::mutex mutex_;
   std::condition_variable cv_;
   bool rebuild_entered_ = false;
   bool release_rebuild_ = false;
+  bool start_entered_ = false;
+  bool auto_complete_ = true;
+  std::uint64_t started_generation_ = 0;
+  std::uint64_t started_run_epoch_ = 0;
   nlohmann::json receiver_graph_;
+  std::vector<BuildSnapshot> rebuild_snapshots_;
   std::shared_ptr<graph::GraphManager> manager_;
   CompletionCallback callback_;
   std::atomic<std::uint64_t> start_count_{0};
+};
+
+class BlockingHook {
+public:
+  void Enter() {
+    std::unique_lock lock(mutex_);
+    entered_ = true;
+    cv_.notify_all();
+    cv_.wait(lock, [this] { return released_; });
+  }
+  void Wait() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return entered_; });
+  }
+  void Release() {
+    {
+      std::lock_guard lock(mutex_);
+      released_ = true;
+    }
+    cv_.notify_all();
+  }
+
+private:
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  bool entered_ = false;
+  bool released_ = false;
 };
 
 struct ControllerFixture {
@@ -126,11 +198,15 @@ struct ControllerFixture {
   std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime =
       std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
   std::unique_ptr<dsp::fhss::dashboard::FHSSJobController> controller;
+  std::shared_ptr<dsp::fhss::dashboard::FHSSJobController::TestHooks> hooks;
 
-  ControllerFixture() {
+  explicit ControllerFixture(
+      std::shared_ptr<dsp::fhss::dashboard::FHSSJobController::TestHooks>
+          test_hooks = nullptr)
+      : hooks(std::move(test_hooks)) {
     runtime->MarkReady();
     controller = std::make_unique<dsp::fhss::dashboard::FHSSJobController>(
-        configuration, runtime, root);
+        configuration, runtime, root, hooks);
   }
   ~ControllerFixture() {
     controller.reset();
@@ -138,6 +214,20 @@ struct ControllerFixture {
     std::filesystem::remove_all(root, ignored);
   }
 };
+
+nlohmann::json
+WaitForTerminal(dsp::fhss::dashboard::FHSSJobController &controller,
+                const std::string &job_id) {
+  nlohmann::json latest;
+  for (std::size_t attempt = 0; attempt < 100'000; ++attempt) {
+    latest = controller.Get(job_id).document;
+    if (dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+            latest.at("state").get<std::string>()))
+      return latest;
+    std::this_thread::yield();
+  }
+  return latest;
+}
 
 TEST(FhssDashboardJobControllerTest, StateTableRejectsIllegalTransitions) {
   using Controller = dsp::fhss::dashboard::FHSSJobController;
@@ -178,6 +268,56 @@ TEST(FhssDashboardJobControllerTest, StateTableRejectsIllegalTransitions) {
   for (const auto terminal : {"completed", "cancelled", "timed_out", "failed",
                               "abandoned_on_restart"})
     EXPECT_TRUE(Controller::IsTerminal(terminal));
+}
+
+TEST(FhssDashboardJobControllerTest,
+     MalformedOverflowAndUnsupportedRequestsFailWithoutMutation) {
+  ControllerFixture fixture;
+  const auto before = fixture.controller->List().document;
+  const std::array requests{
+      std::pair{nlohmann::json::array(), std::string{"key-1"}},
+      std::pair{nlohmann::json{{"request_id", "r"}, {"unknown", true}},
+                std::string{"key-2"}},
+      std::pair{nlohmann::json{{"request_id", "bad request"}},
+                std::string{"key-3"}},
+      std::pair{nlohmann::json{{"request_id", "r"}, {"operation", "pulse"}},
+                std::string{"key-4"}},
+      std::pair{nlohmann::json{{"request_id", "r"}, {"message_count", 0}},
+                std::string{"key-5"}},
+      std::pair{nlohmann::json{{"request_id", "r"},
+                               {"operation", "step"},
+                               {"message_count", 2}},
+                std::string{"key-6"}},
+      std::pair{
+          nlohmann::json{{"request_id", "r"}, {"sample_format", "cf16_le"}},
+          std::string{"key-7"}},
+      std::pair{nlohmann::json{{"request_id", "r"}, {"timeout_ms", 99}},
+                std::string{"key-8"}}};
+  for (const auto &[request, key] : requests)
+    EXPECT_GE(fixture.controller->Submit(request, key).status_code, 400);
+  EXPECT_GE(
+      fixture.controller->Submit({{"request_id", "r"}}, std::string(65, 'x'))
+          .status_code,
+      400);
+  EXPECT_EQ(fixture.controller->List().document, before);
+  EXPECT_EQ(fixture.controller->Get("j-does-not-exist").status_code, 404);
+}
+
+TEST(FhssDashboardJobControllerTest, GetAndListAreReadOnlySnapshots) {
+  ControllerFixture fixture;
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "get-read-only"}},
+      "get-read-only-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  fixture.owner->WaitForRebuildCount(1);
+  const auto first_get = fixture.controller->Get(job_id).document;
+  const auto second_get = fixture.controller->Get(job_id).document;
+  const auto first_list = fixture.controller->List().document;
+  const auto second_list = fixture.controller->List().document;
+  EXPECT_EQ(first_get, second_get);
+  EXPECT_EQ(first_list, second_list);
+  fixture.owner->Release();
 }
 
 TEST(FhssDashboardJobControllerTest,
@@ -238,6 +378,11 @@ TEST(FhssDashboardJobControllerTest,
   EXPECT_EQ(cancelled.document.at("state"), "cancelled");
   EXPECT_FALSE(cancelled.document.at("work").at("generator_invoked"));
   EXPECT_FALSE(cancelled.document.at("work").at("receiver_replay_invoked"));
+  EXPECT_EQ(
+      cancelled.document.at("generation_result").at("availability").at("state"),
+      "unavailable");
+  EXPECT_TRUE(
+      cancelled.document.at("generation_result").at("terminal").is_null());
   const auto repeated_cancel = fixture.controller->Cancel(
       queued.document.at("job_id").get<std::string>());
   EXPECT_EQ(repeated_cancel.status_code, 200);
@@ -286,6 +431,271 @@ TEST(FhssDashboardJobControllerTest,
   }
   EXPECT_EQ(fixture.controller->List().document.at("entries").size(), 1u);
   fixture.owner->Release();
+}
+
+TEST(FhssDashboardJobControllerTest,
+     QueuedJobReplaysTheExactConfigurationSnapshotCapturedAtSubmission) {
+  ControllerFixture fixture;
+  const auto blocker = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "snapshot-blocker"}},
+      "snapshot-blocker-key");
+  ASSERT_EQ(blocker.status_code, 202);
+  fixture.owner->WaitForRebuildCount(1);
+
+  const auto queued = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "snapshot-under-test"}},
+      "snapshot-under-test-key");
+  ASSERT_EQ(queued.status_code, 202);
+  EXPECT_EQ(
+      queued.document.at("generation_result").at("availability").at("state"),
+      "pending");
+  EXPECT_TRUE(queued.document.at("generation_result").at("terminal").is_null());
+  const auto captured_revision =
+      queued.document.at("config_revision").get<std::uint64_t>();
+  const auto captured_etag =
+      queued.document.at("config_etag").get<std::string>();
+  auto expected_graph =
+      fixture.configuration->GetReceiverGraphResponse().at("graph");
+  auto expected_source =
+      std::ranges::find_if(expected_graph.at("nodes"), [](const auto &node) {
+        return node.value("id", std::string{}) == "source";
+      });
+  ASSERT_NE(expected_source, expected_graph.at("nodes").end());
+  const auto queued_job_id = queued.document.at("job_id").get<std::string>();
+  (*expected_source)["node_config"]["file_path"] =
+      (std::filesystem::weakly_canonical(fixture.root) / "fhss-jobs" /
+       queued_job_id / "iq.cf32")
+          .string();
+  (*expected_source)["node_config"]["sample_format"] = "cf32_le";
+  (*expected_source)["node_config"]["max_read_complex_samples"] =
+      dsp::fhss::dashboard::FHSSJobController::kMaxIqSamples;
+
+  const auto patch = fixture.configuration->ApplyJsonPatch(
+      nlohmann::json::array({{{"op", "replace"},
+                              {"path", "/iq_center_frequency_hz"},
+                              {"value", 1'240'000'001.0}}}),
+      fixture.configuration->ETag(), false);
+  ASSERT_EQ(patch.at("status"), "applied");
+  ASSERT_GT(fixture.configuration->ConfigRevision(), captured_revision);
+
+  fixture.owner->Release();
+  fixture.owner->WaitForRebuildCount(2);
+  const auto snapshots = fixture.owner->RebuildSnapshots();
+  ASSERT_EQ(snapshots.size(), 2u);
+  const auto &queued_snapshot = snapshots.at(1);
+  const auto actual_source = std::ranges::find_if(
+      queued_snapshot.receiver_graph.at("nodes"), [](const auto &node) {
+        return node.value("id", std::string{}) == "source";
+      });
+  ASSERT_NE(actual_source, queued_snapshot.receiver_graph.at("nodes").end());
+  EXPECT_EQ(actual_source->at("node_config").at("file_path"),
+            expected_source->at("node_config").at("file_path"))
+      << "queued job " << queued_job_id;
+  EXPECT_EQ(queued_snapshot.config_revision, captured_revision);
+  EXPECT_EQ(queued_snapshot.config_etag, captured_etag);
+  EXPECT_EQ(queued_snapshot.receiver_graph, expected_graph)
+      << nlohmann::json::diff(expected_graph, queued_snapshot.receiver_graph)
+             .dump(2);
+  EXPECT_NE(queued_snapshot.receiver_graph,
+            fixture.configuration->GetReceiverGraphResponse().at("graph"));
+}
+
+TEST(FhssDashboardJobControllerTest,
+     CancelDuringBlockedRebuildNeverStartsReceiverAndIsWriteOnce) {
+  ControllerFixture fixture;
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "cancel-rebuild"}},
+      "cancel-rebuild-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  fixture.owner->WaitForRebuildCount(1);
+
+  const auto accepted = fixture.controller->Cancel(job_id);
+  ASSERT_EQ(accepted.status_code, 202);
+  EXPECT_EQ(accepted.document.at("state"), "cancelling");
+  fixture.owner->Release();
+
+  nlohmann::json terminal;
+  for (std::size_t attempt = 0; attempt < 10'000; ++attempt) {
+    terminal = fixture.controller->Get(job_id).document;
+    if (dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+            terminal.at("state").get<std::string>()))
+      break;
+    std::this_thread::yield();
+  }
+  ASSERT_EQ(terminal.at("state"), "cancelled");
+  EXPECT_EQ(terminal.at("generation_result").at("terminal").at("status"),
+            "succeeded");
+  EXPECT_EQ(terminal.at("terminal").at("code"),
+            "cancelled_before_receiver_start");
+  EXPECT_EQ(fixture.owner->StartCount(), 0u);
+  const auto repeated = fixture.controller->Cancel(job_id);
+  EXPECT_EQ(repeated.status_code, 200);
+  EXPECT_EQ(repeated.document.at("terminal"), terminal.at("terminal"));
+}
+
+TEST(FhssDashboardJobControllerTest,
+     CancelAtArtifactCommitSeamHasGenerationAndTerminalPrecedence) {
+  auto barrier = std::make_shared<BlockingHook>();
+  auto hooks =
+      std::make_shared<dsp::fhss::dashboard::FHSSJobController::TestHooks>();
+  hooks->after_artifact_commit = [barrier] { barrier->Enter(); };
+  ControllerFixture fixture(hooks);
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "cancel-artifact-commit"}},
+      "cancel-artifact-commit-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  barrier->Wait();
+  const auto accepted = fixture.controller->Cancel(job_id);
+  ASSERT_EQ(accepted.status_code, 202);
+  barrier->Release();
+  const auto terminal = WaitForTerminal(*fixture.controller, job_id);
+  ASSERT_EQ(terminal.at("state"), "cancelled");
+  EXPECT_NE(terminal.at("terminal").at("code"), "illegal_state_transition");
+  EXPECT_EQ(terminal.at("generation_result").at("terminal").at("status"),
+            "cancelled");
+  EXPECT_EQ(fixture.owner->StartCount(), 0u);
+}
+
+TEST(FhssDashboardJobControllerTest,
+     AcceptedRunningCancellationWinsConcurrentCompletion) {
+  auto barrier = std::make_shared<BlockingHook>();
+  auto hooks =
+      std::make_shared<dsp::fhss::dashboard::FHSSJobController::TestHooks>();
+  hooks->after_running = [barrier] { barrier->Enter(); };
+  ControllerFixture fixture(hooks);
+  fixture.owner->SetAutoComplete(false);
+  const auto submitted = fixture.controller->Submit(
+      {{"operation", "step"}, {"request_id", "cancel-completion-race"}},
+      "cancel-completion-race-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  fixture.owner->WaitForRebuildCount(1);
+  fixture.owner->Release();
+  fixture.owner->WaitForStart();
+  barrier->Wait();
+  const auto accepted = fixture.controller->Cancel(job_id);
+  ASSERT_EQ(accepted.status_code, 202);
+  fixture.owner->Complete();
+  barrier->Release();
+  const auto terminal = WaitForTerminal(*fixture.controller, job_id);
+  ASSERT_EQ(terminal.at("state"), "cancelled");
+  EXPECT_NE(terminal.at("terminal").at("code"), "illegal_state_transition");
+  EXPECT_EQ(fixture.owner->StartCount(), 1u);
+  const auto repeated = fixture.controller->Cancel(job_id);
+  EXPECT_EQ(repeated.status_code, 200);
+  EXPECT_EQ(repeated.document.at("terminal"), terminal.at("terminal"));
+}
+
+TEST(FhssDashboardJobControllerTest,
+     TimeoutDuringBlockedRebuildNeverStartsReceiver) {
+  ControllerFixture fixture;
+  const auto submitted =
+      fixture.controller->Submit({{"operation", "step"},
+                                  {"request_id", "timeout-rebuild"},
+                                  {"timeout_ms", 2'000}},
+                                 "timeout-rebuild-key");
+  ASSERT_EQ(submitted.status_code, 202);
+  const auto job_id = submitted.document.at("job_id").get<std::string>();
+  fixture.owner->WaitForRebuildCount(1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(2'100));
+  fixture.owner->Release();
+
+  nlohmann::json terminal;
+  for (std::size_t attempt = 0; attempt < 10'000; ++attempt) {
+    terminal = fixture.controller->Get(job_id).document;
+    if (dsp::fhss::dashboard::FHSSJobController::IsTerminal(
+            terminal.at("state").get<std::string>()))
+      break;
+    std::this_thread::yield();
+  }
+  ASSERT_EQ(terminal.at("state"), "timed_out");
+  EXPECT_EQ(terminal.at("terminal").at("code"), "job_timeout");
+  EXPECT_EQ(fixture.owner->StartCount(), 0u);
+}
+
+TEST(FhssDashboardJobControllerTest, StartupRetentionIsCountAgeAndSymlinkSafe) {
+  const auto root = UniqueTemp("graphx-dashboard-retention");
+  const auto artifact_root = root / "fhss-jobs";
+  std::filesystem::create_directories(artifact_root);
+  for (std::size_t index = 0;
+       index < dsp::fhss::dashboard::FHSSJobController::kMaxJobs + 3; ++index)
+    SeedRetainedArtifact(root, index);
+  const auto expired = artifact_root / RetainedJobName(0);
+  std::filesystem::last_write_time(
+      expired,
+      std::filesystem::file_time_type::clock::now() - std::chrono::hours(2));
+  const auto incomplete = artifact_root / RetainedJobName(100);
+  std::filesystem::create_directories(incomplete);
+  std::ofstream(incomplete / "partial.tmp") << "partial";
+
+  const auto outside = UniqueTemp("graphx-dashboard-outside");
+  std::filesystem::create_directories(outside);
+  const auto sentinel = outside / "sentinel.tmp";
+  std::ofstream(sentinel) << "must survive";
+  const auto link = artifact_root / RetainedJobName(101);
+  std::filesystem::create_directory_symlink(outside, link);
+
+  auto configuration =
+      std::make_shared<graph::dashboard::GraphConfigurationService>(
+          LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH),
+          std::make_shared<
+              dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+  auto owner = std::make_shared<BlockingRuntimeOwner>();
+  auto runtime = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  runtime->MarkReady();
+  {
+    dsp::fhss::dashboard::FHSSJobController controller(configuration, runtime,
+                                                       root);
+    std::size_t retained = 0;
+    for (const auto &entry : std::filesystem::directory_iterator(artifact_root))
+      if (entry.path().filename().string().starts_with("j-") &&
+          entry.symlink_status().type() ==
+              std::filesystem::file_type::directory)
+        ++retained;
+    EXPECT_LE(retained, dsp::fhss::dashboard::FHSSJobController::kMaxJobs);
+    EXPECT_FALSE(std::filesystem::exists(expired));
+    EXPECT_FALSE(std::filesystem::exists(incomplete));
+    EXPECT_FALSE(std::filesystem::exists(link));
+    EXPECT_TRUE(std::filesystem::is_regular_file(sentinel));
+  }
+  std::error_code ignored;
+  std::filesystem::remove_all(root, ignored);
+  std::filesystem::remove_all(outside, ignored);
+}
+
+TEST(FhssDashboardJobControllerTest, StartupRetentionIsByteBounded) {
+  const auto root = UniqueTemp("graphx-dashboard-retention-bytes");
+  for (std::size_t index = 0; index < 9; ++index)
+    SeedRetainedArtifact(root, index,
+                         dsp::fhss::dashboard::FHSSJobController::kMaxIqBytes);
+  auto configuration =
+      std::make_shared<graph::dashboard::GraphConfigurationService>(
+          LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH),
+          std::make_shared<
+              dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+  auto owner = std::make_shared<BlockingRuntimeOwner>();
+  auto runtime = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  runtime->MarkReady();
+  {
+    dsp::fhss::dashboard::FHSSJobController controller(configuration, runtime,
+                                                       root);
+    std::uintmax_t retained_bytes = 0;
+    for (const auto &entry :
+         std::filesystem::directory_iterator(root / "fhss-jobs"))
+      if (entry.symlink_status().type() ==
+          std::filesystem::file_type::directory)
+        for (const auto &artifact :
+             std::filesystem::directory_iterator(entry.path()))
+          if (artifact.is_regular_file())
+            retained_bytes += artifact.file_size();
+    EXPECT_LE(
+        retained_bytes,
+        dsp::fhss::dashboard::FHSSJobController::kMaxRetainedArtifactBytes);
+  }
+  std::error_code ignored;
+  std::filesystem::remove_all(root, ignored);
 }
 
 TEST(FhssDashboardJobControllerTest,

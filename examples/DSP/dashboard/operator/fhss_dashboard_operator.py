@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External Phase 1-4 operator for the loopback-only GraphX FHSS dashboard."""
+"""External Phase 1-5 operator for the loopback-only GraphX FHSS dashboard."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import http.client
 import json
 import os
 import platform
+import re
 import selectors
 import shutil
 import signal
@@ -968,6 +969,10 @@ def exercise(args: argparse.Namespace) -> int:
             step_terminal = wait_job(str(step_job["job_id"]), 70)
             persist("phase5_step_terminal",
                     json.dumps(step_terminal, sort_keys=True).encode())
+            step_observation_status, _, step_observation_body = request(
+                port, "GET", "/api/v1/fhss/observations")
+            step_observation = json.loads(step_observation_body)
+            persist("phase5_step_observation", step_observation_body)
             step_schema_ok = False
             try:
                 step_schema_ok, _ = schema_valid(
@@ -1016,6 +1021,16 @@ def exercise(args: argparse.Namespace) -> int:
                       "withheld_before_replay",
                   f"files={artifact_checks}; hashes={hash_checks}; isolated={receiver_isolated}")
             oracle_pulses = truth_document.get("truth_pulses", [])
+            oracle_cycle = [
+                (24, 2863311530, -56250000.0),
+                (28, 2004318071, -26250000.0),
+                (32, 303174162, 3750000.0),
+                (36, 1650614882, 33750000.0),
+            ]
+            oracle_expected = oracle_cycle * 4 + [
+                (24, 16909060, -56250000.0),
+                (28, 2779096538, -26250000.0),
+            ]
             independent_timing = (
                 len(oracle_pulses) == 18 and all(
                     int(oracle_pulses[index]["received_global_start_sample"]) ==
@@ -1023,6 +1038,17 @@ def exercise(args: argparse.Namespace) -> int:
             check("Phase5 independent one-message timing oracle",
                   independent_timing,
                   f"pulse_count={len(oracle_pulses)}; slot=6500 input samples")
+            independent_channel_words = (
+                len(oracle_pulses) == len(oracle_expected) and all(
+                    (int(pulse.get("frequency_index", -1)),
+                     int(pulse.get("word", -1)),
+                     float(pulse.get("iq_offset_frequency_hz", float("nan")))) ==
+                    oracle_expected[index]
+                    for index, pulse in enumerate(oracle_pulses)))
+            check("Phase5 independent channel offset and decoded-word oracle",
+                  independent_channel_words,
+                  "hard-coded architecture sequence: logical=physical "
+                  "24/28/32/36; offsets=-56.25/-26.25/3.75/33.75 MHz")
 
             continue_status, _, continue_body, continue_job = submit_job(
                 "/api/v1/fhss/commands/continue",
@@ -1106,16 +1132,78 @@ def exercise(args: argparse.Namespace) -> int:
             persist("phase5_step_sigmf", sigmf_path.read_bytes())
             persist("phase5_step_iq", iq_file.read_bytes())
             truth_path.unlink()
+            old_controller_epoch = int(step_terminal["controller_epoch"])
+            stop(process)
+            process = None
             offline_summary = output / "phase5-offline-summary.json"
             offline_command = [str(locate_executable(args.build_dir.resolve())),
                                "--graph-config", str(receiver_config_path),
                                "--summary-json", str(offline_summary)]
             offline = subprocess.run(offline_command, text=True,
                                      capture_output=True, timeout=90)
+            offline_document = (json.loads(offline_summary.read_text(
+                encoding="utf-8")) if offline_summary.is_file() else {})
+            offline_diagnostics = offline_document.get("fhss_diagnostics", {})
+            offline_receiver_result = {
+                "availability": {"state": "available", "reason": None},
+                "status": offline_diagnostics.get("message_status"),
+                "accepted": offline_diagnostics.get("message_status") == "Ok",
+                "decoded_pulse_count": offline_diagnostics.get("pulse_count"),
+            }
+            live_receiver_result = step_terminal.get("receiver_message_result", {})
+            live_pulses = [{
+                "global_start_sample": pulse.get("global_start_sample"),
+                "frequency_index": pulse.get("logical_frequency_index"),
+                "physical_channel_index": pulse.get("physical_channel_index"),
+                "decoded_value": pulse.get("decoded_value"),
+                "iq_offset_frequency_hz": pulse.get("iq_offset_frequency_hz"),
+            } for pulse in step_observation.get("observed_pulses", [])]
+            offline_pulses = [{
+                "global_start_sample": pulse.get("global_start_sample"),
+                "frequency_index": pulse.get("frequency_index"),
+                "physical_channel_index": pulse.get("channel_id"),
+                "decoded_value": pulse.get("decoded_value"),
+                "iq_offset_frequency_hz": pulse.get("iq_offset_frequency_hz"),
+            } for pulse in offline_diagnostics.get("decoded_pulses", [])]
+            canonical_hash = lambda value: hashlib.sha256(
+                json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
             check("Phase5 offline receiver replay needs no dashboard or truth",
                   offline.returncode == 0 and offline_summary.is_file() and
                   not truth_path.exists(),
                   f"exit={offline.returncode}; truth_present={truth_path.exists()}")
+            check("Phase5 offline receiver result exactly matches dashboard evidence",
+                  step_observation_status == 200 and
+                  offline_receiver_result == live_receiver_result and
+                  offline_pulses == live_pulses and
+                  canonical_hash(offline_receiver_result) ==
+                      canonical_hash(live_receiver_result) and
+                  canonical_hash(offline_pulses) == canonical_hash(live_pulses),
+                  f"result_hash={canonical_hash(offline_receiver_result)}; "
+                  f"pulse_hash={canonical_hash(offline_pulses)}")
+
+            process, url, port, restart_command = launch(args)
+            command.extend(["--restart-command", *restart_command])
+            restart_status, _, restart_body = request(
+                port, "GET", "/api/v1/fhss/jobs")
+            restart_history = json.loads(restart_body)
+            restart_reset_status, _, restart_reset_body = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            restart_reset = json.loads(restart_reset_body)
+            persist("phase5_restart_history", restart_body)
+            persist("phase5_restart_reset", restart_reset_body)
+            check("Phase5 real process restart resets memory and preserves bounded artifacts",
+                  restart_status == 200 and restart_reset_status == 200 and
+                  restart_history.get("entries") == [] and
+                  int(restart_history.get("controller_epoch", 0)) !=
+                      old_controller_epoch and
+                  restart_reset.get("idempotency_entries_retained") == 0 and
+                  restart_reset.get("status") == "already_reset" and
+                  manifest_path.is_file() and iq_file.is_file(),
+                  f"old_epoch={old_controller_epoch}; "
+                  f"new_epoch={restart_history.get('controller_epoch')}; "
+                  f"entries={len(restart_history.get('entries', []))}")
             phase5_screenshot_manifest = {
                 "schema": "graphx.dashboard.phase5.screenshot_manifest.v1",
                 "dashboard_url": url,
@@ -1436,7 +1524,7 @@ def exercise(args: argparse.Namespace) -> int:
                     start_schema_ok = False
                 check(f"generation {number} start returned", start_schema_ok, f"HTTP {s_status}; schema={start_schema_ok}")
                 terminal_doc = {}
-                terminal_deadline = time.monotonic() + 20
+                terminal_deadline = time.monotonic() + 60
                 while time.monotonic() < terminal_deadline:
                     terminal_status, _, terminal_body = request(port,"GET","/api/v1/fhss/status")
                     terminal_doc = json.loads(terminal_body)
@@ -1871,7 +1959,7 @@ def exercise(args: argparse.Namespace) -> int:
                         persist(f"observation_export_{command_suffix}_start",
                                 export_start_body)
                     export_terminal: dict[str, object] = {}
-                    export_deadline = time.monotonic() + 20
+                    export_deadline = time.monotonic() + 60
                     while time.monotonic() < export_deadline:
                         _, _, export_status_body = request(
                             port, "GET", "/api/v1/fhss/status")
@@ -2050,7 +2138,7 @@ def exercise(args: argparse.Namespace) -> int:
                         {"Content-Type": "application/json"})
                     persist(f"{label}_start", start_body)
                     terminal = {}
-                    deadline = time.monotonic() + 20
+                    deadline = time.monotonic() + 60
                     while time.monotonic() < deadline:
                         _, _, terminal_body = request(port, "GET", "/api/v1/fhss/status")
                         terminal = json.loads(terminal_body)

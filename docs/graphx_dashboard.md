@@ -333,7 +333,12 @@ under the configured artifact root. Receiver execution is given only the IQ
 path and receiver configuration. Recursive receiver-configuration checks reject
 generator messages, schedules, truth, and active-frequency fields. Queue size,
 message count, pulse count, sample count, IQ bytes, metadata bytes, history,
-timeouts, and idempotency storage all have explicit bounds.
+timeouts, and idempotency storage all have explicit bounds. Startup reconciles
+committed job directories without following symlinks and retains only the
+newest evidence within one hour, 32 directories, and 512 MiB; incomplete and
+over-limit entries are removed. A cancellation or timeout blocked inside a
+non-cooperative receiver rebuild is applied before receiver Start when rebuild
+returns.
 
 The external Phase 5 operator exercises duplicate idempotency, conflict,
 queued and active cancellation, completion, timeout, reset, artifact hashes,

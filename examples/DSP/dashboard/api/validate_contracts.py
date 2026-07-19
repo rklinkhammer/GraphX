@@ -226,7 +226,10 @@ def main() -> int:
             "started_at":None, "terminal_at":None,
             "terminal":{"code":None,"detail":None},
             "work":{"generator_invoked":False,"receiver_replay_invoked":False},
-            "artifacts":{}, "graph_lifecycle":None,
+            "artifacts":{},
+            "generation_result":{"availability":{"state":"pending","reason":None},
+                                 "terminal":None},
+            "graph_lifecycle":None,
             "receiver_message_result":None,"receiver_observation":None,
             "comparison":None},
         "fhss-job-history.schema.json": {

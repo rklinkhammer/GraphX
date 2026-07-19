@@ -120,7 +120,7 @@ def main() -> int:
         trivial.write_bytes(PNG_1X1)
         try:
             operator.record_screenshot(argparse.Namespace(
-                output_dir=output, case="clean", path=trivial))
+                output_dir=output, case="clean", path=trivial, phase=4))
             raise AssertionError("trivial screenshot was accepted")
         except RuntimeError:
             pass
@@ -128,14 +128,15 @@ def main() -> int:
         uniform.write_bytes(png(800, 450, varied=False))
         try:
             operator.record_screenshot(argparse.Namespace(
-                output_dir=output, case="clean", path=uniform))
+                output_dir=output, case="clean", path=uniform, phase=4))
             raise AssertionError("uniform screenshot was accepted")
         except RuntimeError:
             pass
         screenshot_source.write_bytes(png(800, 450))
         for case in ("clean", "impaired", "negative"):
             assert operator.record_screenshot(argparse.Namespace(
-                output_dir=output, case=case, path=screenshot_source)) == 0
+                output_dir=output, case=case, path=screenshot_source,
+                phase=4)) == 0
         unverified_report = json.loads(
             (output / "phase4-report.json").read_text(encoding="utf-8"))
         assert unverified_report["result"] == "PARTIAL"
@@ -159,7 +160,8 @@ def main() -> int:
         clean.write_bytes(clean.read_bytes() + b"tamper")
         assert operator.verify(verify_args) == 1
         assert operator.record_screenshot(argparse.Namespace(
-            output_dir=output, case="clean", path=screenshot_source)) == 0
+            output_dir=output, case="clean", path=screenshot_source,
+            phase=4)) == 0
         assert operator.verify(verify_args) == 0
         assert operator.cleanup(argparse.Namespace(output_dir=output, phase=4)) == 0
         assert output.is_dir() and not any(output.iterdir())

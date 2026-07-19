@@ -416,6 +416,7 @@
           </div>
           <div id="job-identity" class="subtle">No FHSS job selected.</div>
           <pre id="job-state">Job controller unavailable.</pre>
+          <pre id="job-generation-result">Generation result unavailable.</pre>
           <pre id="job-lifecycle">Graph lifecycle unavailable.</pre>
           <pre id="job-receiver-result">Receiver message result unavailable.</pre>
           <pre id="job-comparison">Evaluator comparison unavailable.</pre>
@@ -817,6 +818,11 @@
         `Job state (synthetic-only)\n${JSON.stringify({
           state, operation: job?.operation, idempotency: job?.idempotency,
           artifacts: job?.artifacts, terminal: job?.terminal
+        }, null, 2)}`;
+      document.getElementById('job-generation-result').textContent =
+        `IQ generation terminal result\n${JSON.stringify(job?.generation_result ?? {
+          availability: {state: 'unavailable', reason: 'job not submitted'},
+          terminal: null
         }, null, 2)}`;
       document.getElementById('job-lifecycle').textContent =
         `Graph execution lifecycle\n${JSON.stringify(job?.graph_lifecycle ?? {

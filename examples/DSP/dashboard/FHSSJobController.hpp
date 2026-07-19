@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -32,6 +33,7 @@ public:
   static constexpr std::size_t kMaxPulsesPerJob = 512;
   static constexpr std::size_t kMaxIqSamples = 4'194'304;
   static constexpr std::size_t kMaxIqBytes = 64u * 1024u * 1024u;
+  static constexpr std::size_t kMaxRetainedArtifactBytes = 512u * 1024u * 1024u;
   static constexpr std::size_t kMaxMetadataBytes = 1u * 1024u * 1024u;
   static constexpr std::size_t kMaxHistoryBytes = 2u * 1024u * 1024u;
   static constexpr std::chrono::hours kMaxRetentionAge{1};
@@ -43,11 +45,17 @@ public:
     nlohmann::json document;
   };
 
+  struct TestHooks {
+    std::function<void()> after_artifact_commit;
+    std::function<void()> after_running;
+  };
+
   FHSSJobController(
       std::shared_ptr<graph::dashboard::GraphConfigurationService>
           configuration_service,
       std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session,
-      std::filesystem::path artifact_root);
+      std::filesystem::path artifact_root,
+      std::shared_ptr<TestHooks> test_hooks = nullptr);
   ~FHSSJobController();
 
   FHSSJobController(const FHSSJobController &) = delete;
@@ -68,6 +76,11 @@ public:
 private:
   struct Job;
   struct IdempotencyRecord;
+  struct RetainedArtifact {
+    std::filesystem::path path;
+    std::uintmax_t bytes = 0;
+    std::filesystem::file_time_type modified_at{};
+  };
 
   void Worker(std::stop_token stop_token);
   void Process(const std::shared_ptr<Job> &job, std::stop_token stop_token);
@@ -79,17 +92,22 @@ private:
   [[nodiscard]] static std::string Canonical(const nlohmann::json &request);
   [[nodiscard]] static std::string Digest(std::string_view value);
   void PurgeUnlocked();
+  void ReconcileArtifactsAtStartup();
+  void RemoveOldestRetainedUnlocked();
 
   std::shared_ptr<graph::dashboard::GraphConfigurationService>
       configuration_service_;
   std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session_;
   std::shared_ptr<FHSSObservationService> observation_service_;
   std::filesystem::path artifact_root_;
+  std::shared_ptr<TestHooks> test_hooks_;
   mutable std::recursive_mutex mutex_;
   std::condition_variable_any cv_;
   std::deque<std::shared_ptr<Job>> queue_;
   std::deque<std::shared_ptr<Job>> jobs_;
   std::unordered_map<std::string, IdempotencyRecord> idempotency_;
+  std::deque<RetainedArtifact> retained_artifacts_;
+  std::uintmax_t retained_artifact_bytes_ = 0;
   std::jthread worker_;
   std::uint64_t controller_epoch_ = 0;
   std::uint64_t next_job_sequence_ = 1;
