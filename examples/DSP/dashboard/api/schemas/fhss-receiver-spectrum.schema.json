@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:fhss-receiver-spectrum:v1","type":"object","additionalProperties":false,
+  "required":["schema","semantic_class","generation","run_epoch","config_revision","config_etag","channel_index","availability","bins"],
+  "properties":{
+    "schema":{"const":"graphx.dashboard.fhss_receiver_spectrum.v1"},"semantic_class":{"enum":["observed","unavailable"]},"generation":{"type":"integer","minimum":0},"run_epoch":{"type":"integer","minimum":0},"config_revision":{"type":"integer","minimum":0},"config_etag":{"type":"string"},"channel_index":{"type":["integer","null"],"minimum":0,"maximum":63},"availability":{"$ref":"urn:graphx:dashboard:fhss-receiver-observation:v1#/$defs/availability"},
+    "source":{"type":"object","additionalProperties":false,"required":["node_id","node_class","source_schema","field"],"properties":{"node_id":{"type":"string"},"node_class":{"type":"string"},"source_schema":{"type":"string"},"field":{"const":"sample_captures.samples"}}},
+    "logical_frequency_index":{"type":"integer","minimum":0,"maximum":63},"rf_frequency_hz":{"type":"number"},"iq_offset_frequency_hz":{"type":"number"},"sample_rate_hz":{"type":"number","exclusiveMinimum":0},"global_start_sample":{"type":"integer","minimum":0},"input_sample_interval":{"type":"integer","minimum":1},"captured_sample_count":{"type":"integer","minimum":16,"maximum":256},"original_sample_count":{"type":"integer","minimum":0},"capture_truncated":{"type":"boolean"},"fft_size":{"enum":[16,32,64,128,256]},
+    "window":{"type":"object","additionalProperties":false,"required":["name","version","coherent_gain","noise_gain"],"properties":{"name":{"const":"symmetric_hamming"},"version":{"const":"graphx-1"},"coherent_gain":{"type":"number","exclusiveMinimum":0},"noise_gain":{"type":"number","exclusiveMinimum":0}}},
+    "ordering":{"const":"two_sided_fftshift_negative_to_positive"},
+    "scaling":{"type":"object","additionalProperties":false,"required":["quantity","linear_reference","decibel_definition","units","calibrated_power"],"properties":{"quantity":{"const":"complex_magnitude"},"linear_reference":{"const":"1 complex sample unit"},"decibel_definition":{"const":"20*log10(magnitude/1_complex_unit)"},"units":{"const":"dB re 1 complex-unit"},"calibrated_power":{"const":false}}},
+    "averaging":{"const":"single_frame_none"},
+    "bounds":{"type":"object","additionalProperties":false,"required":["max_fft_size","max_channels_per_response","max_response_bytes"],"properties":{"max_fft_size":{"const":256},"max_channels_per_response":{"const":1},"max_response_bytes":{"const":1048576}}},
+    "bins":{"type":"array","maxItems":256,"items":{"type":"object","additionalProperties":false,"required":["bin","baseband_frequency_hz","magnitude_linear_re_1_complex_unit","magnitude_db_re_1_complex_unit"],"properties":{"bin":{"type":"integer","minimum":-128,"maximum":127},"baseband_frequency_hz":{"type":"number"},"magnitude_linear_re_1_complex_unit":{"type":"number","minimum":0},"magnitude_db_re_1_complex_unit":{"type":"number"}}}}
+  },
+  "anyOf":[
+    {"type":"object","required":["source","logical_frequency_index","rf_frequency_hz","iq_offset_frequency_hz","sample_rate_hz","global_start_sample","input_sample_interval","captured_sample_count","original_sample_count","capture_truncated","fft_size","window","ordering","scaling","averaging","bounds"],"properties":{"semantic_class":{"const":"observed"},"availability":{"$ref":"urn:graphx:dashboard:fhss-receiver-observation:v1#/$defs/available"}}},
+    {"type":"object","properties":{"semantic_class":{"const":"unavailable"},"availability":{"$ref":"urn:graphx:dashboard:fhss-receiver-observation:v1#/$defs/unavailable"},"bins":{"type":"array","maxItems":0,"items":{"type":"object"}}}}
+  ]
+}

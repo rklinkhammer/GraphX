@@ -10,6 +10,7 @@
 #include "dsp/fhss/FHSSFixtureFrequencyChannelizerNode.hpp"
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
+#include "dsp/fhss/FHSSReceiverObservationSource.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
 #include "graph/TypedFixedFanNode.hpp"
@@ -21,6 +22,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -316,7 +318,7 @@ class FHSSProductionCandidateChannelizerNode
                                       FHSSChannelizerOutputList>,
       public graph::IConfigurable,
       public graph::IParameterized,
-      public graph::IDiagnosable {
+      public IFHSSReceiverObservationSource {
 public:
   using Base =
       graph::TypedFixedFanNode<FHSSProductionCandidateChannelizerNode,
@@ -399,13 +401,32 @@ public:
     return "FHSSProductionCandidateChannelizerNode";
   }
   [[nodiscard]] std::size_t AllocationHighWaterBytes() const noexcept {
+    const std::lock_guard lock(diagnostics_mutex_);
     return allocation_high_water_bytes_;
   }
   [[nodiscard]] graph::JsonView GetDiagnostics() const override {
-    diagnostics_cache_ = {
+    thread_local nlohmann::json diagnostics_snapshot;
+    const auto typed = SnapshotReceiverObservation();
+    diagnostics_snapshot = {
         {"schema", "graphx.fhss.production_channelizer.diagnostics.v1"},
-        {"allocation_high_water_bytes", allocation_high_water_bytes_}};
-    return graph::JsonView(diagnostics_cache_);
+        {"allocation_high_water_bytes", typed->allocation_high_water_bytes},
+        {"bounded_sample_capture_count", typed->sample_captures.size()},
+        {"capture_limit_samples_per_channel", kDiagnosticCaptureSamples}};
+    return graph::JsonView(diagnostics_snapshot);
+  }
+  [[nodiscard]] std::shared_ptr<const FHSSReceiverNodeObservationSnapshot>
+  SnapshotReceiverObservation() const override {
+    const std::lock_guard lock(diagnostics_mutex_);
+    auto snapshot = std::make_shared<FHSSReceiverNodeObservationSnapshot>();
+    snapshot->source_schema =
+        "graphx.fhss.production_channelizer.observation.v1";
+    snapshot->source_kind = "production_channelizer";
+    snapshot->allocation_high_water_bytes = allocation_high_water_bytes_;
+    for (const auto &capture : diagnostic_captures_) {
+      if (capture)
+        snapshot->sample_captures.push_back(*capture);
+    }
+    return snapshot;
   }
   [[nodiscard]] std::vector<graph::PortMetadata>
   GetInputPortMetadata() const override {
@@ -456,7 +477,7 @@ public:
                                         input.sidecar.iq.sample_count));
     allocation_cycle_bytes_ =
         selected.capacity() * sizeof(std::complex<double>);
-    return EnqueueAllOutputs<0>(input, selected);
+    return EnqueueAllOutputs(input, selected);
   }
 
   template <std::size_t Port> std::optional<OutputTokenType> ProduceOutput() {
@@ -479,89 +500,138 @@ private:
   }
 
   template <std::size_t Port>
-  bool EnqueueAllOutputs(const InputTokenType &input,
-                         const std::vector<std::complex<double>> &selected) {
-    if constexpr (Port < kOutputPortCount) {
-      const auto global_start =
-          input.sidecar.iq.sample_time_map.input_packet_global_start_sample;
-      auto kernel_output = kernels_[Port].Process(selected, global_start);
-      if (!kernel_output) {
+  bool EnqueueOutputForPort(const InputTokenType &input,
+                            const std::vector<std::complex<double>> &selected) {
+    static_assert(Port < kOutputPortCount);
+    const auto global_start =
+        input.sidecar.iq.sample_time_map.input_packet_global_start_sample;
+    auto kernel_output = kernels_[Port].Process(selected, global_start);
+    if (!kernel_output) {
+      return false;
+    }
+    OutputTokenType output{};
+    output.token_id = input.token_id;
+    output.edge_control = input.edge_control;
+    output.sidecar.correlation = input.sidecar.correlation;
+    const auto map = BuildFrequencyMap(config_.frequency);
+    if (!map) {
+      return false;
+    }
+    const auto &entry = (*map)[Port];
+    auto &channel = output.sidecar.channel;
+    channel.channel_id = Port;
+    channel.frequency_index = entry.index;
+    channel.rf_frequency_hz = entry.rf_frequency_hz;
+    channel.iq_offset_frequency_hz = entry.iq_offset_frequency_hz;
+    channel.downconverter_passthrough = input.sidecar.downconverter.passthrough;
+    channel.downconverter_translation_frequency_hz =
+        input.sidecar.downconverter.translation_frequency_hz;
+    channel.channel_sample_rate_hz =
+        config_.frequency.sample_rate_hz / config_.decimation_factor;
+    channel.decimation_factor = config_.decimation_factor;
+    channel.filter_group_delay_input_samples =
+        static_cast<std::int64_t>((config_.fir_tap_count - 1u) / 2u);
+    const auto group_delay =
+        static_cast<std::uint64_t>(channel.filter_group_delay_input_samples);
+    std::uint64_t first_causal = global_start;
+    if (kernel_output->has_output) {
+      first_causal = kernel_output->first_causal_input_global_sample;
+      if (first_causal < group_delay) {
         return false;
       }
-      OutputTokenType output{};
-      output.token_id = input.token_id;
-      output.edge_control = input.edge_control;
-      output.sidecar.correlation = input.sidecar.correlation;
-      const auto map = BuildFrequencyMap(config_.frequency);
-      if (!map) {
+      channel.input_global_start_sample = first_causal - group_delay;
+    } else {
+      if (global_start >
+          std::numeric_limits<std::uint64_t>::max() - group_delay) {
         return false;
       }
-      const auto &entry = (*map)[Port];
-      auto &channel = output.sidecar.channel;
-      channel.channel_id = Port;
-      channel.frequency_index = entry.index;
-      channel.rf_frequency_hz = entry.rf_frequency_hz;
-      channel.iq_offset_frequency_hz = entry.iq_offset_frequency_hz;
-      channel.downconverter_passthrough =
-          input.sidecar.downconverter.passthrough;
-      channel.downconverter_translation_frequency_hz =
-          input.sidecar.downconverter.translation_frequency_hz;
-      channel.channel_sample_rate_hz =
-          config_.frequency.sample_rate_hz / config_.decimation_factor;
-      channel.decimation_factor = config_.decimation_factor;
-      channel.filter_group_delay_input_samples =
-          static_cast<std::int64_t>((config_.fir_tap_count - 1u) / 2u);
-      const auto group_delay =
-          static_cast<std::uint64_t>(channel.filter_group_delay_input_samples);
-      std::uint64_t first_causal = global_start;
-      if (kernel_output->has_output) {
-        first_causal = kernel_output->first_causal_input_global_sample;
-        if (first_causal < group_delay) {
-          return false;
+      channel.input_global_start_sample = global_start;
+      first_causal = global_start + group_delay;
+    }
+    channel.channel_global_start_sample = first_causal;
+    channel.sample_time_map = input.sidecar.iq.sample_time_map;
+    // NormalizeToGlobalStartSample applies output_start * decimation before
+    // subtracting group delay. Preserve any non-integral delay/decimation
+    // phase in the anchor so channel sample zero maps to the FIR center time.
+    const auto delay_remainder = group_delay % config_.decimation_factor;
+    if (channel.input_global_start_sample >
+        std::numeric_limits<std::uint64_t>::max() - delay_remainder) {
+      return false;
+    }
+    channel.sample_time_map.input_packet_global_start_sample =
+        channel.input_global_start_sample + delay_remainder;
+    channel.sample_time_map.output_start_sample =
+        group_delay / config_.decimation_factor;
+    channel.sample_time_map.decimation_factor = config_.decimation_factor;
+    channel.sample_time_map.group_delay_input_samples =
+        channel.filter_group_delay_input_samples;
+    channel.sample_time_map.input_sample_rate_hz =
+        config_.frequency.sample_rate_hz;
+    channel.sample_time_map.output_sample_rate_hz =
+        channel.channel_sample_rate_hz;
+    output.sidecar.receiver_guard_or_metadata_channel =
+        IsReservedFrequencyIndex(entry.index);
+    FHSSReceiverSampleCapture capture{
+        .logical_frequency_index = channel.frequency_index,
+        .physical_channel_index = static_cast<std::uint32_t>(Port),
+        .rf_frequency_hz = channel.rf_frequency_hz,
+        .iq_offset_frequency_hz = channel.iq_offset_frequency_hz,
+        .sample_rate_hz = channel.channel_sample_rate_hz,
+        .global_start_sample = channel.channel_global_start_sample,
+        .input_sample_interval = channel.decimation_factor,
+        .original_sample_count = kernel_output->samples.size(),
+        .truncated = kernel_output->samples.size() > kDiagnosticCaptureSamples};
+    const auto capture_count =
+        std::min(kernel_output->samples.size(), kDiagnosticCaptureSamples);
+    std::size_t capture_start = 0;
+    if (capture_count != 0 && kernel_output->samples.size() > capture_count) {
+      double window_energy = 0.0;
+      for (std::size_t index = 0; index < capture_count; ++index)
+        window_energy += std::norm(kernel_output->samples[index]);
+      double best_energy = window_energy;
+      for (std::size_t start = 1;
+           start + capture_count <= kernel_output->samples.size(); ++start) {
+        window_energy -= std::norm(kernel_output->samples[start - 1]);
+        window_energy +=
+            std::norm(kernel_output->samples[start + capture_count - 1]);
+        if (window_energy > best_energy) {
+          best_energy = window_energy;
+          capture_start = start;
         }
-        channel.input_global_start_sample = first_causal - group_delay;
-      } else {
-        if (global_start >
-            std::numeric_limits<std::uint64_t>::max() - group_delay) {
-          return false;
-        }
-        channel.input_global_start_sample = global_start;
-        first_causal = global_start + group_delay;
       }
-      channel.channel_global_start_sample = first_causal;
-      channel.sample_time_map = input.sidecar.iq.sample_time_map;
-      // NormalizeToGlobalStartSample applies output_start * decimation before
-      // subtracting group delay. Preserve any non-integral delay/decimation
-      // phase in the anchor so channel sample zero maps to the FIR center time.
-      const auto delay_remainder = group_delay % config_.decimation_factor;
-      if (channel.input_global_start_sample >
-          std::numeric_limits<std::uint64_t>::max() - delay_remainder) {
-        return false;
-      }
-      channel.sample_time_map.input_packet_global_start_sample =
-          channel.input_global_start_sample + delay_remainder;
-      channel.sample_time_map.output_start_sample =
-          group_delay / config_.decimation_factor;
-      channel.sample_time_map.decimation_factor = config_.decimation_factor;
-      channel.sample_time_map.group_delay_input_samples =
-          channel.filter_group_delay_input_samples;
-      channel.sample_time_map.input_sample_rate_hz =
-          config_.frequency.sample_rate_hz;
-      channel.sample_time_map.output_sample_rate_hz =
-          channel.channel_sample_rate_hz;
-      output.sidecar.receiver_guard_or_metadata_channel =
-          IsReservedFrequencyIndex(entry.index);
-      auto samples = std::make_shared<const std::vector<std::complex<double>>>(
-          std::move(kernel_output->samples));
-      allocation_cycle_bytes_ += kernels_[Port].AllocationHighWaterBytes();
+    }
+    capture.global_start_sample +=
+        capture_start * channel.sample_time_map.decimation_factor;
+    capture.samples.assign(kernel_output->samples.begin() +
+                               static_cast<std::ptrdiff_t>(capture_start),
+                           kernel_output->samples.begin() +
+                               static_cast<std::ptrdiff_t>(capture_start) +
+                               static_cast<std::ptrdiff_t>(capture_count));
+    auto samples = std::make_shared<const std::vector<std::complex<double>>>(
+        std::move(kernel_output->samples));
+    allocation_cycle_bytes_ += kernels_[Port].AllocationHighWaterBytes();
+    {
+      const std::lock_guard lock(diagnostics_mutex_);
       allocation_high_water_bytes_ =
           std::max(allocation_high_water_bytes_, allocation_cycle_bytes_);
-      output.sidecar.iq = FHSSGraphXComplexEvidenceFromHostSamples(
-          samples, samples->size(), channel.sample_time_map);
-      if (!Base::template EnqueueOutput<Port>(output)) {
-        return false;
-      }
-      return EnqueueAllOutputs<Port + 1>(input, selected);
+      diagnostic_captures_[Port] = std::move(capture);
+    }
+    output.sidecar.iq = FHSSGraphXComplexEvidenceFromHostSamples(
+        samples, samples->size(), channel.sample_time_map);
+    if (!Base::template EnqueueOutput<Port>(output)) {
+      return false;
+    }
+    return true;
+  }
+
+  template <std::size_t... Ports>
+  bool EnqueueAllOutputsImpl(const InputTokenType &input,
+                             const std::vector<std::complex<double>> &selected,
+                             std::index_sequence<Ports...>) {
+    bool success = true;
+    ((success = success && EnqueueOutputForPort<Ports>(input, selected)), ...);
+    if (!success) {
+      return false;
     }
     if (graph::IsTerminalEdgeControl(input.edge_control)) {
       for (auto &kernel : kernels_) {
@@ -572,12 +642,21 @@ private:
     return true;
   }
 
+  bool EnqueueAllOutputs(const InputTokenType &input,
+                         const std::vector<std::complex<double>> &selected) {
+    return EnqueueAllOutputsImpl(input, selected,
+                                 std::make_index_sequence<kOutputPortCount>{});
+  }
+
   FHSSProductionChannelizerConfig config_{};
   std::array<FHSSFirChannelizerKernel, kOutputPortCount> kernels_{};
   bool initialized_ = false;
   std::size_t allocation_cycle_bytes_ = 0u;
   std::size_t allocation_high_water_bytes_ = 0u;
-  mutable nlohmann::json diagnostics_cache_ = nlohmann::json::object();
+  static constexpr std::size_t kDiagnosticCaptureSamples = 256u;
+  mutable std::mutex diagnostics_mutex_;
+  std::array<std::optional<FHSSReceiverSampleCapture>, kOutputPortCount>
+      diagnostic_captures_{};
 };
 
 } // namespace dsp::fhss

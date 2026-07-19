@@ -210,6 +210,7 @@ struct FHSSCpsmPulseSymbolDecision {
   std::vector<double> symbols;
   std::vector<std::uint32_t> phase_states;
   double best_path_metric = 0.0;
+  double second_best_path_metric = 0.0;
   double confidence = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
@@ -273,6 +274,7 @@ struct FHSSCpsmSymbolDecisionPacket {
   std::vector<std::uint32_t> phase_states;
   std::vector<FHSSCpsmPulseSymbolDecision> pulse_decisions;
   double best_path_metric = 0.0;
+  double second_best_path_metric = 0.0;
   double confidence = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
@@ -284,6 +286,7 @@ struct FHSSDecodedPulseWordPacket {
   std::uint32_t decoded_value = 0;
   double confidence = 0.0;
   double viterbi_path_metric = 0.0;
+  double viterbi_second_best_path_metric = 0.0;
   FHSSGraphXDecodeStatus status = FHSSGraphXDecodeStatus::Ok;
   std::string status_message;
 };

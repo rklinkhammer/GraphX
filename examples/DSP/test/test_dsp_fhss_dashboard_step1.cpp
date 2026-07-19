@@ -327,6 +327,41 @@ TEST_F(FhssDashboardServerContractTest,
   EXPECT_TRUE(metrics_json.at("edges").is_array());
   EXPECT_EQ(metrics_json.at("nodes").size(), 0u);
   EXPECT_EQ(metrics_json.at("edges").size(), 0u);
+  EXPECT_EQ(metrics_json.at("active_run_epoch"), 0u);
+  ASSERT_EQ(metrics_json.at("metric_definitions").size(), 19u);
+  const std::map<std::pair<std::string, std::string>, std::string>
+      expected_units{
+          {{"graph", "total_items_processed"}, "item"},
+          {{"graph", "total_items_rejected"}, "item"},
+          {{"graph", "total_messages_processed"}, "message"},
+          {{"graph", "graph_total_enqueued"}, "message"},
+          {{"graph", "graph_total_dequeued"}, "message"},
+          {{"graph", "backpressure_events"}, "event"},
+          {{"graph", "peak_queue_depth"}, "message"},
+          {{"graph", "peak_active_threads"}, "thread"},
+          {{"node", "inbound_messages"}, "message"},
+          {{"node", "outbound_messages"}, "message"},
+          {{"node", "rejected_messages"}, "message"},
+          {{"node", "backpressure_events"}, "event"},
+          {{"node", "peak_queue_depth"}, "message"},
+          {{"edge", "messages_enqueued"}, "message"},
+          {{"edge", "messages_dequeued"}, "message"},
+          {{"edge", "messages_rejected"}, "message"},
+          {{"edge", "backpressure_events"}, "event"},
+          {{"edge", "current_queue_depth"}, "message"},
+          {{"edge", "peak_queue_depth"}, "message"},
+      };
+  for (const auto &definition : metrics_json.at("metric_definitions")) {
+    EXPECT_TRUE(definition.at("kind") == "counter" ||
+                definition.at("kind") == "gauge");
+    EXPECT_EQ(definition.at("reset"), "new_graph_generation");
+    const auto key = std::pair{
+        definition.at("scope").get<std::string>(),
+        definition.at("name").get<std::string>()};
+    ASSERT_TRUE(expected_units.contains(key));
+    EXPECT_EQ(definition.at("unit"), expected_units.at(key));
+    EXPECT_TRUE(definition.contains("monotonic"));
+  }
 
   const auto edge_metrics =
       HttpGet(server_->BoundPort(), "/api/v1/fhss/metrics/edges");
@@ -336,6 +371,18 @@ TEST_F(FhssDashboardServerContractTest,
             "graphx.dashboard.edge_metrics.v1");
   EXPECT_TRUE(edge_metrics_json.at("edges").is_array());
   EXPECT_EQ(edge_metrics_json.at("edges").size(), 0u);
+  EXPECT_EQ(edge_metrics_json.at("active_run_epoch"), 0u);
+
+  const auto diagnostics =
+      HttpGet(server_->BoundPort(), "/api/v1/fhss/diagnostics");
+  EXPECT_EQ(diagnostics.status_code, 200);
+  const auto diagnostics_json = nlohmann::json::parse(diagnostics.body);
+  EXPECT_EQ(diagnostics_json.at("schema"),
+            "graphx.dashboard.diagnostics.v1");
+  EXPECT_EQ(diagnostics_json.at("active_generation"), 0u);
+  EXPECT_EQ(diagnostics_json.at("active_run_epoch"), 0u);
+  EXPECT_EQ(diagnostics_json.at("active_config_revision"), 0u);
+  EXPECT_EQ(diagnostics_json.at("active_config_etag"), "");
 }
 
 TEST_F(FhssDashboardServerContractTest, CleanShutdownStopsServer) {

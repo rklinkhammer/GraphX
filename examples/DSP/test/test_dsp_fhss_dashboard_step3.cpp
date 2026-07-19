@@ -602,8 +602,7 @@ public:
       invocation = start_invocations_++;
     }
     if (completion_)
-      completion_(generation, run_epoch, true,
-                  "immediate execution completed");
+      completion_(generation, run_epoch, true, "immediate execution completed");
     if (invocation == 2) {
       std::unique_lock lock(mutex_);
       stale_start_waiting_ = true;
@@ -653,10 +652,8 @@ private:
 TEST(GraphRuntimeSessionOwnerTest,
      ImmediateCompletionPublishesReplacementManagerAndRejectsStaleResult) {
   auto owner = std::make_shared<ImmediateCompletionRuntimeOwner>();
-  auto session =
-      std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
-  auto collector =
-      std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  auto collector = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
   collector->BindRuntimeSession(session);
   session->MarkReady();
   ASSERT_EQ(session
@@ -689,10 +686,16 @@ TEST(GraphRuntimeSessionOwnerTest,
   EXPECT_EQ(completed.terminal_generation, run2.generation);
   auto collected = collector->GetMetricsSnapshot();
   EXPECT_EQ(collected.at("active_generation"), run2.generation);
+  EXPECT_EQ(collected.at("active_run_epoch"), run2.run_epoch);
   EXPECT_EQ(collected.at("active_config_revision"), run2.config_revision);
   EXPECT_EQ(collected.at("active_config_etag"), run2.config_etag);
   EXPECT_EQ(collected.at("graph").at("peak_active_threads"), 22u);
   EXPECT_NE(collected.at("graph").at("peak_active_threads"), 11u);
+  auto diagnostics = collector->GetDiagnosticsSnapshot();
+  EXPECT_EQ(diagnostics.at("active_generation"), run2.generation);
+  EXPECT_EQ(diagnostics.at("active_run_epoch"), run2.run_epoch);
+  EXPECT_EQ(diagnostics.at("active_config_revision"), run2.config_revision);
+  EXPECT_EQ(diagnostics.at("active_config_etag"), run2.config_etag);
 
   // A third Start completes immediately but delays its return. A fourth run
   // supersedes it and publishes manager4. The late manager3 result must not
@@ -712,6 +715,12 @@ TEST(GraphRuntimeSessionOwnerTest,
   EXPECT_NE(current.graph_manager, owner->Manager(2));
   collected = collector->GetMetricsSnapshot();
   EXPECT_EQ(collected.at("graph").at("peak_active_threads"), 44u);
+  diagnostics = collector->GetDiagnosticsSnapshot();
+  EXPECT_EQ(diagnostics.at("active_generation"), current.generation);
+  EXPECT_EQ(diagnostics.at("active_run_epoch"), current.run_epoch);
+  EXPECT_NE(diagnostics.at("active_run_epoch"), run2.run_epoch);
+  EXPECT_EQ(diagnostics.at("active_config_revision"), current.config_revision);
+  EXPECT_EQ(diagnostics.at("active_config_etag"), current.config_etag);
 }
 
 class LiveThreadRuntimeOwner final
@@ -874,6 +883,7 @@ TEST(FHSSGraphRuntimeOwnerConcurrencyTest,
   const auto runtime_directory = fixture.directory / "restart-runtime";
   auto owner = std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
       std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY), runtime_directory);
+  owner->SetExecutorTimeoutForTesting(std::chrono::seconds(60));
   graph::dashboard::GraphRuntimeSession session(owner);
   session.MarkReady();
   ASSERT_EQ(session.Rebuild(fixture.snapshot).status_code, 200);
@@ -881,7 +891,7 @@ TEST(FHSSGraphRuntimeOwnerConcurrencyTest,
   // Complete attempt one so its published startup milestone is deliberately
   // stale when the same executor and generation are started again.
   ASSERT_EQ(session.Start().status_code, 202);
-  for (int attempt = 0; attempt < 30'000; ++attempt) {
+  for (int attempt = 0; attempt < 60'000; ++attempt) {
     if (session.GetState() ==
         graph::dashboard::GraphRuntimeSession::State::completed)
       break;
@@ -988,6 +998,68 @@ TEST(FHSSGraphRuntimeOwnerConcurrencyTest,
   }
   const auto terminal = session.SnapshotStatus();
   EXPECT_EQ(terminal.terminal_generation, 1u);
+  EXPECT_EQ(owner->Shutdown(0).status_code, 200);
+}
+
+TEST(FHSSGraphRuntimeOwnerTest,
+     MalformedIqAlignmentCompletesAcceptedRunWithStableTerminalFailure) {
+  auto fixture = MakeProductionReceiverFixture();
+  {
+    std::ofstream malformed(fixture.iq_path,
+                            std::ios::binary | std::ios::trunc);
+    malformed << "malformed";
+  }
+  auto owner = std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
+      std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY),
+      fixture.directory / "malformed-runtime");
+  graph::dashboard::GraphRuntimeSession session(owner);
+  session.MarkReady();
+  ASSERT_EQ(session.Rebuild(fixture.snapshot).status_code, 200);
+  ASSERT_EQ(session.Start().status_code, 202);
+  for (int attempt = 0; attempt < 5'000; ++attempt) {
+    if (session.GetState() ==
+        graph::dashboard::GraphRuntimeSession::State::failed)
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  const auto terminal = session.SnapshotStatus();
+  EXPECT_EQ(terminal.state,
+            graph::dashboard::GraphRuntimeSession::State::failed);
+  EXPECT_EQ(terminal.terminal_result_code, "execution_failed");
+  EXPECT_EQ(terminal.terminal_result_message,
+            "receiver_input_preflight_failed: IQ byte length is not aligned "
+            "to cf32_le complex samples");
+  EXPECT_EQ(terminal.terminal_generation, 1u);
+  EXPECT_EQ(terminal.active_run_epoch, 1u);
+  EXPECT_EQ(owner->Shutdown(0).status_code, 200);
+}
+
+TEST(FHSSGraphRuntimeOwnerTest,
+     ExecutorTimeoutWithoutCompletionSignalIsTerminalFailure) {
+  auto fixture = MakeProductionReceiverFixture();
+  auto owner = std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
+      std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY),
+      fixture.directory / "timeout-runtime");
+  owner->SetExecutorTimeoutForTesting(std::chrono::seconds(1));
+  graph::dashboard::GraphRuntimeSession session(owner);
+  session.MarkReady();
+  ASSERT_EQ(session.Rebuild(fixture.snapshot).status_code, 200);
+  ASSERT_EQ(session.Start().status_code, 202);
+  for (int attempt = 0; attempt < 5'000; ++attempt) {
+    if (session.GetState() ==
+        graph::dashboard::GraphRuntimeSession::State::failed)
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  const auto terminal = session.SnapshotStatus();
+  EXPECT_EQ(terminal.state,
+            graph::dashboard::GraphRuntimeSession::State::failed);
+  EXPECT_EQ(terminal.terminal_result_code, "execution_failed");
+  EXPECT_EQ(terminal.terminal_result_message,
+            "receiver_execution_incomplete: executor stopped before graph "
+            "completion signal");
+  EXPECT_EQ(terminal.terminal_generation, 1u);
+  EXPECT_EQ(terminal.active_run_epoch, 1u);
   EXPECT_EQ(owner->Shutdown(0).status_code, 200);
 }
 

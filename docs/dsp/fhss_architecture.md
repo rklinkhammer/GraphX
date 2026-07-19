@@ -947,7 +947,10 @@ The Viterbi state machine:
 
 It assembles each 32-symbol pulse MSB-first into a `uint32_t`, preserves pulse
 metadata and Viterbi confidence, and reports invalid symbol count, invalid
-symbol decisions, low confidence, and non-finite metrics.
+symbol decisions, low confidence, and non-finite best-path, second-best-path,
+or confidence metrics. Both raw path metrics are preserved through the pulse
+word packet and terminal receiver observation; the dashboard does not derive
+or label an opaque “Viterbi margin.”
 
 ### Preamble Detector
 
@@ -970,7 +973,8 @@ requires payload frequencies to stay inside the locked active frequency set.
 `FHSSMessageSinkNode` stores the last assembled message and exposes diagnostics
 through `IDiagnosable`. Diagnostics include pulse counts, rejected count,
 preamble lock, active frequency indices, decoded pulses, sample-time mapping,
-confidence, Viterbi metric, decoded value, and unsupported-feature flags.
+confidence, best and second-best Viterbi metrics, decoded value, and
+unsupported-feature flags.
 
 ## Configuration Flow
 
@@ -1005,6 +1009,104 @@ syntax. That produces one node per detector and one explicit edge from each
 channelizer output port into the corresponding detector.
 
 ## Runtime Integration
+
+### Dashboard observation boundary
+
+The reproducible external checklist is
+[FHSS dashboard Phase 4 manual operator test](fhss_dashboard_phase4_manual_operator_test.md).
+
+Phase 4 observes receiver state through the typed
+`IFHSSReceiverObservationSource` interface implemented by acquisition,
+channelizer, and terminal message-sink nodes. Snapshot copies are immutable and
+mutex-protected. Expected schedule-derived truth is built independently from
+the authoritative configuration with `DeriveTimingModel`; it is never passed
+to the receiver graph. Evaluation joins separate expected and observed
+documents after execution using exact logical channel and a documented
+plus/minus 64-sample timing tolerance. Equal-distance assignments are reported
+ambiguous rather than selected arbitrarily.
+
+Dashboard metrics have generation-reset, monotonic counter definitions with
+stable semantic units: processed/rejected item counters use `item`; enqueued,
+dequeued, processed, inbound, outbound, and rejected message counters use
+`message`; backpressure occurrences use `event`; queue-depth gauges use
+`message`; and active-thread gauges use `thread`. Metrics and diagnostics are
+both attributed using one atomic runtime snapshot containing generation, run
+epoch, configuration revision, and ETag. A new run or replacement generation
+therefore cannot inherit the previous run's diagnostic identity.
+
+The observable traceability contract is below. `sink` means node ID `sink`,
+class `FHSSMessageSinkNode`, schema
+`graphx.fhss.message_sink.observation.v1`. `channelizer` means node ID
+`channelizer`, class `FHSSProductionCandidateChannelizerNode`, schema
+`graphx.fhss.production_channelizer.observation.v1`. `detector_*` means the 64
+node IDs `detector_0` through `detector_63`, class
+`FHSSAcquisitionPulseDetectorNode`, schema
+`graphx.fhss.acquisition_detector.observation.v1`. All rows are bound to the
+observation envelope's generation, run epoch, configuration revision, and
+ETag; a mismatch makes comparison indeterminate.
+
+| Observed API field | Exact source member | Node/schema | Time domain | Unit / transformation | Stable unavailable reason |
+|---|---|---|---|---|---|
+| `generation` | `GraphRuntimeSession::GenerationSnapshot::generation` | runtime session / `graphx.dashboard.runtime_status.v1` | generation transition | generation ID; copied | `generation_not_available` |
+| `run_epoch` | `GenerationSnapshot::run_epoch` | runtime session | run transition | run ID; copied | `generation_not_available` |
+| `config_revision` | `GenerationSnapshot::config_revision` | runtime session | generation transition | revision; copied | `generation_not_available` |
+| `config_etag` | `GenerationSnapshot::config_etag` | runtime session | generation transition | opaque ETag; copied | `generation_not_available` |
+| `observation_id` | generation and run epoch | observation service | snapshot | `observation-gN-rM`; formatted | `generation_not_available` |
+| `availability` | typed-source discovery | all receiver sources | snapshot | state/reason; no truth fallback | `source_not_diagnosable`, `observation_export_disabled`, or `generation_not_available` |
+| `timing_basis.unit/global` | receiver packet timing contract | `sink` | global input-sample domain | `input_samples`, `true`; declared contract | `generation_not_available` |
+| `sample_rate.global_input_sample_rate_hz` | `sample_captures[].sample_rate_hz * input_sample_interval` | `channelizer` | every 1 input sample; wall clock unavailable (`not_carried_by_receiver_product`) | Hz; exact rate conversion | `no_receiver_samples` or `invalid_capture` |
+| `sample_rate.receiver_capture_sample_rate_hz` | `sample_captures[].sample_rate_hz` | `channelizer` | every `input_sample_interval` input samples; wall clock unavailable | Hz; copied | `no_receiver_samples` or `invalid_capture` |
+| `sample_rate.input_samples_per_capture_sample` | `sample_captures[].input_sample_interval` | `channelizer` | capture cadence; wall clock unavailable | input samples/capture sample; copied | `no_receiver_samples` or `invalid_capture` |
+| `observed_pulses[].global_start_sample` | `decoded_pulses[].global_start_sample` | `sink` | per-pulse half-open `[start,start+duration)`; wall clock unavailable | input sample; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].duration_samples` | `decoded_pulses[].duration_samples` | `sink` | same per-pulse interval | input samples; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].logical_frequency_index` | `decoded_pulses[].logical_frequency_index` | `sink` | same per-pulse interval | logical index; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].physical_channel_index` | `decoded_pulses[].physical_channel_index` | `sink` | same per-pulse interval | physical receiver channel; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].rf_frequency_hz` | `decoded_pulses[].rf_frequency_hz` | `sink` | same per-pulse interval | Hz; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].iq_offset_frequency_hz` | `decoded_pulses[].iq_offset_frequency_hz` | `sink` | same per-pulse interval | Hz; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].estimated_center_frequency_hz` | `decoded_pulses[].estimated_center_frequency_hz` | `sink` | same per-pulse interval | Hz; copied detector estimate | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].detector_frequency_error_hz_unqualified` | `decoded_pulses[].detector_frequency_error_hz_unqualified` | `sink` | same per-pulse interval | Hz; raw detector error, not qualified CFO | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].confidence_score_uncalibrated` | `decoded_pulses[].confidence_score_uncalibrated` | `sink` | same per-pulse interval | uncalibrated score; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].viterbi_path_metric` | `decoded_pulses[].viterbi_path_metric` | `sink` | same per-pulse interval | raw best-path metric; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].viterbi_second_best_path_metric` | `decoded_pulses[].viterbi_second_best_path_metric` | `sink` | same per-pulse interval | raw second-best-path metric; copied | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].decoded_value` | `decoded_pulses[].decoded_value` | `sink` | same per-pulse interval | `uint32`; copied MSB-first decode | `decoder_or_assembler_not_reached` |
+| `observed_pulses[].source_node_id` | graph node identity | `sink` | snapshot | node ID; attached by observation service | `decoder_or_assembler_not_reached` |
+| `detected_count` | `detected_pulse_count` | `sink`, else sum of distinct `detector_*` | snapshot; interval unavailable (`not_carried_by_receiver_product`) | pulse count; source kinds never added | `source_not_diagnosable` or `no_candidate_detected` |
+| `rejected_count` | `rejected_count` | `sink`, else distinct detector sum | snapshot; interval unavailable | pulse count | `source_not_diagnosable` or `no_candidate_detected` |
+| `rejection_reason_codes[]` | `rejection_reason_codes` | `sink` | snapshot; interval unavailable | stable code; copied | `decoder_or_assembler_not_reached` |
+| `preamble.locked` | `preamble_lock` | `sink` from assembler sidecar | snapshot; interval unavailable | boolean; copied | `decoder_or_assembler_not_reached` |
+| `receiver_derived_active_frequencies.indices[]` | `receiver_derived_active_frequencies` | `sink` from locked preamble | snapshot; interval unavailable | logical index; copied and de-duplicated by receiver | `no_preamble_lock` |
+| `assembler.status` | `assembler_status` | `sink` | snapshot; interval unavailable | status text; copied | `decoder_or_assembler_not_reached` |
+| `receiver_message_result.status` | `receiver_message_status` | `sink` | terminal receiver message snapshot; interval unavailable | status text; copied | `receiver_message_result_unavailable` |
+| `receiver_message_result.accepted` | `receiver_message_accepted` | `sink` | terminal receiver message snapshot | boolean; accepted assembler output only | `decoder_or_assembler_not_reached` |
+| `receiver_message_result.decoded_pulse_count` | `decoded_pulses.size()` | `sink` | terminal receiver message snapshot | pulse count; counted | `decoder_or_assembler_not_reached` |
+| `terminal_result.code/message/terminal_at` | runtime terminal result | runtime session / runtime-status schema | exact lifecycle wall-clock timestamp; sample interval unavailable | lifecycle result; copied separately from receiver message result | `generation_not_available` |
+| `sources[]` | discovered typed source metadata | `sink`, `channelizer`, `detector_*` and schemas above | snapshot | identity records; copied | `source_not_diagnosable` or `observation_export_disabled` |
+| `provenance[]` | `FHSSObservationProvenance` records | observation service | explicit available interval or `not_carried_by_receiver_product`; same for wall clock | field-specific unit/transformation | source field's reason |
+| `truncation.*` | source pulse count and service bounds | observation service | snapshot | counts/bytes; bounded to 512 pulses and 1 MiB | `response_size_limit` |
+| `observation_sha256` | canonical observation JSON before hash field | observation service | snapshot | SHA-256; computed | `generation_not_available` |
+| spectrum `channel_index` | request physical channel or first observed pulse's `physical_channel_index` | `channelizer` capture | selected capture | physical channel index; no logical fallback | `no_candidate_detected` |
+| spectrum `logical_frequency_index` | `sample_captures[].logical_frequency_index` | `channelizer` | selected capture | logical frequency index; copied | `no_receiver_samples` |
+| spectrum `rf_frequency_hz` | `sample_captures[].rf_frequency_hz` | `channelizer` | selected capture | Hz; copied | `no_receiver_samples` |
+| spectrum `iq_offset_frequency_hz` | `sample_captures[].iq_offset_frequency_hz` | `channelizer` | selected capture | Hz; copied | `no_receiver_samples` |
+| spectrum `sample_rate_hz` | `sample_captures[].sample_rate_hz` | `channelizer` | every `input_sample_interval` global samples | 50 MHz capture Hz; copied, distinct from 500 MHz global input rate | `invalid_capture` |
+| spectrum `global_start_sample` | `sample_captures[].global_start_sample` | `channelizer` | capture half-open interval | global input sample; copied | `no_receiver_samples` |
+| spectrum `input_sample_interval` | `sample_captures[].input_sample_interval` | `channelizer` | capture cadence | input samples/capture sample; copied | `invalid_capture` |
+| spectrum `captured_sample_count/original_sample_count/capture_truncated` | corresponding capture members | `channelizer` | capture interval | samples/boolean; copied | `no_receiver_samples` |
+| spectrum `bins[].bin/baseband_frequency_hz` | selected capture samples | observation service DFT | one bounded frame | bin/Hz; symmetric-Hamming FFT-shift transform | `short_receiver_capture` or `invalid_spectrum_request` |
+| spectrum `bins[].magnitude_linear_re_1_complex_unit` | selected capture samples | observation service DFT | one bounded frame | magnitude re 1 complex unit; window/coherent-gain corrected | `invalid_capture` |
+| spectrum `bins[].magnitude_db_re_1_complex_unit` | linear magnitude | observation service DFT | one bounded frame | `20*log10(linear)`; not calibrated power | `invalid_capture` |
+
+Every record also identifies generation, run epoch, configuration revision and
+ETag, source node/class/schema, packet field, sample interval, capture time,
+unit, and transformation. If the matching receiver source or runtime generation
+is absent, the field is unavailable; generator truth is not a fallback.
+Receiver packets currently provide sample-domain timing but no wall-clock
+capture timestamp, so receiver provenance reports `capture_time: null` rather
+than substituting graph lifecycle time. Decoded-pulse fields identify their
+exact per-pulse half-open interval as `[global_start_sample,
+global_start_sample + duration_samples)`; channel captures identify their exact
+cadence as `every N input samples`. Other sample intervals are `null` unless
+the typed source supplies an exact cadence.
 
 The demo executable is `examples/DSP/src/fhss_demo.cpp`.
 
@@ -1094,6 +1196,37 @@ The test suite covers the implementation in layers:
   hybrid pipeline execution, and evidence artifacts.
 - Demo/dashboard: CLI behavior, external message JSON, deterministic dashboard
   APIs, rebuild controls, event replay, visualization, and artifact export.
+
+Phase 4 dashboard validation gives the generator the production receiver's
+explicit 64-channel IQ map, whose adjacent offsets are separated by 7.5 MHz,
+and shifts every message start by one 6,500-sample pulse slot. This is a causal
+channel-filter warm-up for the first decoded word, not receiver truth: receiver
+execution receives only raw IQ and its minimal receiver configuration, with no
+message definitions, generator schedule, truth, or active-frequency set.
+
+Dashboard receiver processing is bounded at 30 seconds independently of the
+five-second Stop/join bound. A lower-level successful Execute return is not a
+successful receiver terminal result unless the graph also published its
+completion signal; a timeout or other stop without that signal is reported as
+`execution_failed`.
+
+Dashboard schedule/timeline rows use the configured message start and this
+architecture's 6,500-sample pulse period; they do not infer words or substitute
+pulse ordinal values for sample time. Receiver spectrum selection is bounded to
+logical channels 0–63 and defaults to the first receiver-observed channel, or
+explicitly to reserved channel 0 when no channel was observed. The channelizer
+captures a deterministic bounded highest-energy receiver window for spectrum
+display and advances the capture's global sample anchor by the selected window
+offset. This selection is receiver-derived and does not consult generator
+truth.
+
+Receiver observation distinguishes graph execution lifecycle from terminal
+message semantics. `terminal_result` is the generation/run result reported by
+`GraphRuntimeSession`; `receiver_message_result` is the terminal message-sink
+sidecar result with status, accepted flag, and decoded-pulse count. An empty
+terminal token truthfully reaches the assembler and reports
+`MissingPreamble`/not accepted with zero decoded pulses; it is not hidden and is
+not a fabricated message completion.
 
 ## Architectural Limits
 

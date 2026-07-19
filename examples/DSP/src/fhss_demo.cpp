@@ -735,7 +735,8 @@ int RunDashboardMode(const CliOptions &options,
   server_options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
           .handler =
-              dsp::fhss::dashboard::MakeApiHandler(configuration_service),
+              dsp::fhss::dashboard::MakeApiHandler(configuration_service,
+                                                    runtime_session),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
   server_options.enable_configuration_mutation_routes = true;

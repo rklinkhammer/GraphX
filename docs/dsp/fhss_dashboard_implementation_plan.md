@@ -417,6 +417,39 @@ Acceptance:
 - browser refresh does not change decoder or receiver results; and
 - bounded snapshot/retention load tests pass.
 
+Phase 4 implementation note: validation is synthetic-data-only because no
+HWIL, conducted-RF, channel-emulator, independently recorded, or OTA test path
+is available. The operator therefore binds clean, independently impaired, and
+negative synthetic IQ to separate receiver served-state evidence and records a
+malformed-IQ failure. This phase cannot confer production-RF qualification.
+The clean generator uses the receiver's explicit 64-channel, 7.5 MHz-spaced IQ
+offset map and shifts all message starts by one 6,500-sample pulse slot so the
+causal channel filter is warm before the first decoded word. Neither the map nor
+the schedule is passed to receiver execution as truth. Receiver execution has a
+30-second processing bound while Stop retains its independent five-second join
+bound; reaching the processing bound without an executor completion signal is
+an `execution_failed` result, never a successful completion.
+Schedule/timeline rendering uses the configured message start and the normative
+6,500-sample pulse period, with complete non-null display fields. The spectrum
+selector is bounded to physical receiver channels 0–63 and defaults only from
+a receiver-observed pulse's physical channel. When no receiver channel is
+observed, the selector is disabled and the API omits the channel:
+`channel_index` is null, availability is
+`unavailable/no_candidate_detected`, and bins are empty. It never falls back to
+reserved channel 0. Its bounded receiver capture selects a deterministic highest-energy
+window and preserves the corresponding global sample-time anchor.
+Graph execution lifecycle (`terminal_result`) and terminal receiver-message
+semantics (`receiver_message_result`) are separate fields. A negative replay
+may truthfully reach the assembler and report missing preamble, but it must have
+`accepted: false`, zero decoded pulses, zero detections, and no lock.
+Unavailable receiver counts are represented as `null`, never a numeric zero.
+Decoder observations carry the receiver's raw best-path and second-best-path
+metrics end to end; no inferred margin is used. Receiver provenance leaves
+wall-clock capture time and cadence unavailable unless those values are carried
+exactly by the typed receiver product. Invalid spectrum captures, including a
+zero input-sample interval or non-finite samples, remain unavailable through
+the public spectrum route and never acquire an `observed` label.
+
 ### Phase 5 — FHSS job generation and message-oriented control
 
 Goal: let an operator request synthetic FHSS work without introducing an

@@ -42,6 +42,7 @@ public:
     bool rebuild_allowed = false;
     bool rebuild_blocked = false;
     std::uint64_t active_generation = 0;
+    std::uint64_t active_run_epoch = 0;
     std::uint64_t rebuild_attempts = 0;
     std::uint64_t successful_rebuilds = 0;
     std::string last_error_code;
@@ -58,6 +59,7 @@ public:
 
   struct GenerationSnapshot {
     std::uint64_t generation = 0;
+    std::uint64_t run_epoch = 0;
     std::uint64_t config_revision = 0;
     std::string config_etag;
     std::shared_ptr<graph::GraphManager> graph_manager;

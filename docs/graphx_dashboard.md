@@ -1,18 +1,20 @@
 # GraphX FHSS dashboard architecture
 
-The complete live replay checklist is in [FHSS dashboard Phase 3 manual operator test](dsp/fhss_dashboard_phase3_manual_operator_test.md).
+The current observation checklist is in [FHSS dashboard Phase 4 manual operator test](dsp/fhss_dashboard_phase4_manual_operator_test.md).
 
 ## Scope and evidence boundary
 
 The first GraphX dashboard is an FHSS-specific operator view, authoritative
-configuration editor, and Phase 3 live receiver controller for synthetic-IQ
-evaluation. It visualizes the configured synthetic scenario and
-receiver/runtime observations, but it is not a production RF monitor. There is
+configuration editor, live receiver controller, and truthful Phase 4
+observation/evaluation surface for synthetic-IQ evaluation. It visualizes the
+configured synthetic scenario and receiver/runtime observations, but it is not
+a production RF monitor. Expected truth, receiver observations, and evaluator
+comparison are separate typed documents and independent UI layers. There is
 no hardware-in-the-loop (HWIL), conducted-RF, or over-the-air evidence in this
 validation program. The configured schedule view is explicitly labelled as a
-configured expectation. Phase 3 does not expose decoder confidence, detected
-pulses, or spectrum previews because no receiver node currently produces those
-observations through the dashboard snapshot contract.
+configured expectation. Missing receiver diagnostics remain unavailable and
+never fall back to expected truth. Spectrum is calculated only from a bounded
+typed receiver sample capture and is labelled non-calibrated.
 
 Phase 3 adds transactional receiver rebuild and bounded start/stop execution to
 the Phase 2 validation, atomic apply, and configuration/graph inspection
@@ -201,6 +203,32 @@ The program prints the authoritative loopback URL. `--dashboard-host` accepts
 only `127.0.0.1` or `::1`-equivalent loopback addresses.
 
 ## Authoritative contract validation and operator workflow
+
+Phase 4 adds strict Draft 2020-12 schemas and OpenAPI routes for expected truth,
+receiver observation, evaluator comparison, selected-channel spectrum,
+field-level provenance, and one-entry current-run history. Receiver nodes expose
+immutable typed snapshots through `IFHSSReceiverObservationSource`; the
+dashboard does not scrape generic diagnostic JSON for IQ samples. Terminal sink
+counts supersede upstream acquisition counts, so different source kinds are not
+summed into a fictitious total. Every observation is attributed to generation,
+run epoch, configuration revision/ETag, node class, packet field, sampling
+interval, unit, and transformation.
+
+Pulse `global_start_sample` values retain the receiver's complete unsigned
+64-bit input-sample domain. The evaluator computes only a bounded signed timing
+delta after matching, so values above `INT64_MAX` are neither rejected nor
+converted through a signed absolute index. Expected-truth responses expose at
+most 512 pulse records; when a schedule is larger,
+`expected_receiver_message.decoded_pulse_count` describes that bounded returned
+set and equals `bounds.returned_pulse_count`, while the full scheduled count is
+reported separately as `bounds.original_pulse_count`.
+
+The receiver sample capture is bounded to 256 complex samples per channel.
+Spectrum supports power-of-two sizes 16 through 256, applies a symmetric
+Hamming window, FFT shift, and coherent-gain correction, and reports linear and
+dB magnitude relative to one complex unit. It is explicitly not calibrated RF
+power. Observation history retains only the active generation/current run, at
+most one entry, one hour, and 1 MiB.
 
 Validation uses the pinned dependencies in
 `examples/DSP/dashboard/api/requirements-contracts.lock`:

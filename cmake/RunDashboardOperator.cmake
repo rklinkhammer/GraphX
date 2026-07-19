@@ -26,8 +26,22 @@ execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" exercise --phase "${P
 if(NOT exercise_result EQUAL 0)
   message(FATAL_ERROR "dashboard operator exercise failed: ${exercise_result}")
 endif()
+if(PHASE EQUAL 4)
+  foreach(case IN ITEMS clean impaired negative)
+    execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" serve --phase "${PHASE}"
+                            --build-dir "${operator_build}" --output-dir "${output}"
+                            --case "${case}" --exit-after-case
+                    RESULT_VARIABLE serve_result TIMEOUT 90)
+    if(NOT serve_result EQUAL 0)
+      message(FATAL_ERROR "dashboard operator exercise-to-serve ${case} failed: ${serve_result}")
+    endif()
+  endforeach()
+endif()
 execute_process(COMMAND "${CONTRACT_PYTHON}" "${operator}" verify --phase "${PHASE}" --output-dir "${output}"
                 RESULT_VARIABLE verify_result)
 if(NOT verify_result EQUAL 0)
   message(FATAL_ERROR "dashboard operator verify failed: ${verify_result}")
+endif()
+if(PHASE EQUAL 4)
+  message(STATUS "Phase 4 automation evidence is PARTIAL/pre-browser; final PASS requires clean, impaired, and negative record-screenshot artifacts followed by verify --require-screenshots")
 endif()

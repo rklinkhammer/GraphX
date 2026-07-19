@@ -12,6 +12,7 @@
 #include "dsp/fhss/FHSSPacketConversions.hpp"
 #include "dsp/fhss/FHSSPorts.hpp"
 #include "dsp/fhss/FHSSPulseMerge.hpp"
+#include "dsp/fhss/FHSSReceiverObservationSource.hpp"
 #include "graph/EdgeControl.hpp"
 #include "graph/IConfigurable.hpp"
 #include "graph/NamedNodes.hpp"
@@ -22,6 +23,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <optional>
 #include <string>
@@ -437,7 +439,7 @@ class FHSSAcquisitionPulseDetectorNode
           FHSSAcquisitionPulseDetectorNode>,
       public graph::IConfigurable,
       public graph::IParameterized,
-      public graph::IDiagnosable {
+      public IFHSSReceiverObservationSource {
 public:
   using InputTokenType = FHSSChannelizedIqToken;
   using OutputTokenType = FHSSPerChannelPulseEvidenceToken;
@@ -520,17 +522,32 @@ public:
   }
 
   [[nodiscard]] std::size_t LastDetectedPulseCount() const noexcept {
+    const std::lock_guard lock(diagnostics_mutex_);
     return last_detected_pulse_count_;
   }
   [[nodiscard]] std::size_t AllocationHighWaterBytes() const noexcept {
+    const std::lock_guard lock(diagnostics_mutex_);
     return allocation_high_water_bytes_;
   }
   [[nodiscard]] graph::JsonView GetDiagnostics() const override {
-    diagnostics_cache_ = {
+    thread_local nlohmann::json diagnostics_snapshot;
+    const std::lock_guard lock(diagnostics_mutex_);
+    diagnostics_snapshot = {
         {"schema", "graphx.fhss.acquisition_detector.diagnostics.v1"},
         {"allocation_high_water_bytes", allocation_high_water_bytes_},
         {"last_detected_pulse_count", last_detected_pulse_count_}};
-    return graph::JsonView(diagnostics_cache_);
+    return graph::JsonView(diagnostics_snapshot);
+  }
+  [[nodiscard]] std::shared_ptr<const FHSSReceiverNodeObservationSnapshot>
+  SnapshotReceiverObservation() const override {
+    const std::lock_guard lock(diagnostics_mutex_);
+    auto snapshot = std::make_shared<FHSSReceiverNodeObservationSnapshot>();
+    snapshot->source_schema =
+        "graphx.fhss.acquisition_detector.observation.v1";
+    snapshot->source_kind = "acquisition_detector";
+    snapshot->allocation_high_water_bytes = allocation_high_water_bytes_;
+    snapshot->detected_pulse_count = last_detected_pulse_count_;
+    return snapshot;
   }
 
   std::optional<OutputTokenType>
@@ -587,9 +604,12 @@ public:
           buffered_samples_.end(),
           source.begin() + static_cast<std::ptrdiff_t>(offset),
           source.begin() + static_cast<std::ptrdiff_t>(offset + count));
-      allocation_high_water_bytes_ =
-          std::max(allocation_high_water_bytes_,
-                   buffered_samples_.capacity() * sizeof(std::complex<double>));
+      {
+        const std::lock_guard lock(diagnostics_mutex_);
+        allocation_high_water_bytes_ = std::max(
+            allocation_high_water_bytes_,
+            buffered_samples_.capacity() * sizeof(std::complex<double>));
+      }
     }
 
     OutputTokenType output{};
@@ -691,22 +711,28 @@ public:
       evidence.sample_count = duration_channel;
       output.sidecar.pulse_evidence.push_back(std::move(evidence));
     }
-    last_detected_pulse_count_ = output.sidecar.detected_pulses.size();
-    allocation_high_water_bytes_ =
-        std::max(allocation_high_water_bytes_,
+    {
+      const std::lock_guard lock(diagnostics_mutex_);
+      last_detected_pulse_count_ = output.sidecar.detected_pulses.size();
+      allocation_high_water_bytes_ = std::max(
+          allocation_high_water_bytes_,
                  buffered_samples_.capacity() * sizeof(std::complex<double>) +
                      kernel_.AllocationHighWaterBytes() +
                      output.sidecar.detected_pulses.capacity() *
                          sizeof(FHSSGraphXPulseMetadata) +
                      output.sidecar.pulse_evidence.capacity() *
-                         sizeof(FHSSGraphXComplexEvidence));
+              sizeof(FHSSGraphXComplexEvidence));
+    }
     Reset();
     return output;
   }
 
 private:
   [[nodiscard]] std::optional<OutputTokenType> RejectInput() {
-    last_detected_pulse_count_ = 0u;
+    {
+      const std::lock_guard lock(diagnostics_mutex_);
+      last_detected_pulse_count_ = 0u;
+    }
     Reset();
     return std::nullopt;
   }
@@ -724,7 +750,7 @@ private:
   std::uint64_t next_input_global_sample_ = 0;
   std::size_t last_detected_pulse_count_ = 0;
   std::size_t allocation_high_water_bytes_ = 0u;
-  mutable nlohmann::json diagnostics_cache_ = nlohmann::json::object();
+  mutable std::mutex diagnostics_mutex_;
 };
 
 } // namespace dsp::fhss

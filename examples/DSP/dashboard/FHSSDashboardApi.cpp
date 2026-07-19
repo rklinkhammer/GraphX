@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 
 #include "FHSSDashboardApi.hpp"
+#include "FHSSObservationService.hpp"
 
 #include "graph/dashboard/GraphConfigurationService.hpp"
+#include "graph/dashboard/GraphRuntimeSession.hpp"
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <charconv>
 #include <cmath>
 #include <cstdint>
@@ -17,6 +20,8 @@
 
 namespace dsp::fhss::dashboard {
 namespace {
+
+constexpr std::uint64_t kPulsePeriodSamples = 6'500;
 
 using ApiRequest = graph::dashboard::EmbeddedDashboardServer::ApiRequest;
 using ApiResponse = graph::dashboard::EmbeddedDashboardServer::ApiResponse;
@@ -131,12 +136,15 @@ std::optional<nlohmann::json> BuildVisualization(
         ++preamble_count;
       }
       if (absolute_pulse >= pulse_offset && timeline.size() < pulse_limit) {
-        timeline.push_back({{"message_index", message_index},
+        timeline.push_back({{"absolute_pulse_index", absolute_pulse},
+                            {"message_index", message_index},
+                            {"message_id",
+                             message.value("message_id", message_index + 1u)},
                             {"pulse_index", pulse_index},
                             {"frequency_index", channel},
                             {"expected_sample_start",
                              message.value("transmit_start_sample", std::uint64_t{0}) +
-                                 pulse_index},
+                                 pulse_index * kPulsePeriodSamples},
                             {"source", "configured_schedule"}});
       }
     }
@@ -146,8 +154,11 @@ std::optional<nlohmann::json> BuildVisualization(
       schedule_messages.push_back(
           {{"message_index", message_index},
            {"message_id", message.value("message_id", message_index + 1u)},
+           {"transmit_start_sample",
+            message.value("transmit_start_sample", std::uint64_t{0})},
            {"pulse_count", pulses.size()},
-           {"preamble_pulse_count", preamble_count}});
+           {"preamble_pulse_count", preamble_count},
+           {"body_pulse_count", pulses.size() - preamble_count}});
     }
   }
 
@@ -171,6 +182,7 @@ std::optional<nlohmann::json> BuildVisualization(
       {"timeline",
        {{"pulse_offset", pulse_offset},
         {"pulse_limit", pulse_limit},
+        {"total_pulse_count", absolute_pulse},
         {"pulses", std::move(timeline)}}},
       {"bounds",
        {{"refresh_interval_ms", refresh_ms},
@@ -183,8 +195,13 @@ std::optional<nlohmann::json> BuildVisualization(
 } // namespace
 
 graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
-    std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration_service) {
-  return [service = std::move(configuration_service)](const ApiRequest &request,
+    std::shared_ptr<graph::dashboard::GraphConfigurationService>
+        configuration_service,
+    std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session) {
+  auto observation_service = std::make_shared<FHSSObservationService>(
+      configuration_service, std::move(runtime_session));
+  return [service = std::move(configuration_service),
+          observation_service = std::move(observation_service)](const ApiRequest &request,
                                            const graph::dashboard::EmbeddedDashboardServer::ApiContext &context)
              -> std::optional<ApiResponse> {
     if (context.stop_token.stop_requested() ||
@@ -203,6 +220,50 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
       }
       (*visualization)["config_revision"] = service->ConfigRevision();
       return JsonResponse(200, *visualization);
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/expected-truth") {
+      return JsonResponse(200, observation_service->ExpectedTruth().document);
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/observations") {
+      return JsonResponse(200,
+                          observation_service->ReceiverObservation().document);
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/comparison") {
+      return JsonResponse(200, observation_service->Comparison().document);
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/observation-provenance") {
+      return JsonResponse(200, observation_service->Provenance());
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/observation-history") {
+      return JsonResponse(200, observation_service->History());
+    }
+    if (request.method == "GET" &&
+        request.path == "/api/v1/fhss/spectrum") {
+      const auto channel_text = QueryValue(request.query, "channel");
+      const auto fft_text = QueryValue(request.query, "fft_size");
+      const auto channel = channel_text.empty()
+                               ? std::optional<std::uint64_t>{}
+                               : ParseUnsigned(channel_text);
+      const auto fft_size = fft_text.empty()
+                                ? std::optional<std::uint64_t>(128)
+                                : ParseUnsigned(fft_text);
+      if ((!channel_text.empty() && !channel) || !fft_size ||
+          (channel && *channel > 63) || *fft_size > 256 ||
+          *fft_size < 16 || !std::has_single_bit(*fft_size)) {
+        return ErrorResponse(400, "invalid_spectrum_request",
+                             "channel or fft_size is invalid");
+      }
+      return JsonResponse(
+          200, observation_service->Spectrum(
+                   channel ? std::optional<std::uint32_t>(
+                                 static_cast<std::uint32_t>(*channel))
+                           : std::nullopt,
+                   static_cast<std::size_t>(*fft_size)));
     }
     return std::nullopt;
   };

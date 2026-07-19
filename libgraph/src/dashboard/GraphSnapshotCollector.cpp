@@ -48,6 +48,47 @@ nlohmann::json GraphMetricsJson(const graph::GraphMetrics &metrics) {
       {"peak_active_threads", metrics.peak_active_threads.load()}};
 }
 
+nlohmann::json MetricDefinitionsJson() {
+  const auto counter = [](std::string name, std::string scope,
+                          std::string unit) {
+    return nlohmann::json{{"name", std::move(name)},
+                          {"scope", std::move(scope)},
+                          {"kind", "counter"},
+                          {"unit", std::move(unit)},
+                          {"monotonic", true},
+                          {"reset", "new_graph_generation"}};
+  };
+  const auto gauge = [](std::string name, std::string scope,
+                        std::string unit) {
+    return nlohmann::json{{"name", std::move(name)},
+                          {"scope", std::move(scope)},
+                          {"kind", "gauge"},
+                          {"unit", std::move(unit)},
+                          {"monotonic", false},
+                          {"reset", "new_graph_generation"}};
+  };
+  return nlohmann::json::array(
+      {counter("total_items_processed", "graph", "item"),
+       counter("total_items_rejected", "graph", "item"),
+       counter("total_messages_processed", "graph", "message"),
+       counter("graph_total_enqueued", "graph", "message"),
+       counter("graph_total_dequeued", "graph", "message"),
+       counter("backpressure_events", "graph", "event"),
+       gauge("peak_queue_depth", "graph", "message"),
+       gauge("peak_active_threads", "graph", "thread"),
+       counter("inbound_messages", "node", "message"),
+       counter("outbound_messages", "node", "message"),
+       counter("rejected_messages", "node", "message"),
+       counter("backpressure_events", "node", "event"),
+       gauge("peak_queue_depth", "node", "message"),
+       counter("messages_enqueued", "edge", "message"),
+       counter("messages_dequeued", "edge", "message"),
+       counter("messages_rejected", "edge", "message"),
+       counter("backpressure_events", "edge", "event"),
+       gauge("current_queue_depth", "edge", "message"),
+       gauge("peak_queue_depth", "edge", "message")});
+}
+
 std::shared_ptr<graph::NodeFacadeAdapterWrapper>
 TryGetWrapper(const std::shared_ptr<graph::INode> &node) {
   return std::dynamic_pointer_cast<graph::NodeFacadeAdapterWrapper>(node);
@@ -142,8 +183,10 @@ bool GraphSnapshotCollector::ConsumeCollectionInterruption() const {
 nlohmann::json GraphSnapshotCollector::GetMetricsSnapshot() const {
   nlohmann::json snapshot{{"schema", "graphx.dashboard.metrics.v1"},
                           {"active_generation", 0},
+                          {"active_run_epoch", 0},
                           {"active_config_revision", 0},
                           {"active_config_etag", ""},
+                          {"metric_definitions", MetricDefinitionsJson()},
                           {"graph", DefaultGraphMetricsJson()},
                           {"nodes", nlohmann::json::array()},
                           {"edges", nlohmann::json::array()}};
@@ -158,6 +201,7 @@ nlohmann::json GraphSnapshotCollector::GetMetricsSnapshot() const {
   }
   const auto generation = runtime_session->SnapshotGeneration();
   snapshot["active_generation"] = generation.generation;
+  snapshot["active_run_epoch"] = generation.run_epoch;
   snapshot["active_config_revision"] = generation.config_revision;
   snapshot["active_config_etag"] = generation.config_etag;
 
@@ -275,6 +319,7 @@ nlohmann::json GraphSnapshotCollector::GetEdgeMetricsSnapshot() const {
   return nlohmann::json{
       {"schema", "graphx.dashboard.edge_metrics.v1"},
       {"active_generation", metrics_snapshot.value("active_generation", 0u)},
+      {"active_run_epoch", metrics_snapshot.value("active_run_epoch", 0u)},
       {"active_config_revision",
        metrics_snapshot.value("active_config_revision", 0u)},
       {"active_config_etag",
@@ -285,6 +330,7 @@ nlohmann::json GraphSnapshotCollector::GetEdgeMetricsSnapshot() const {
 nlohmann::json GraphSnapshotCollector::GetDiagnosticsSnapshot() const {
   nlohmann::json snapshot{{"schema", "graphx.dashboard.diagnostics.v1"},
                           {"active_generation", 0},
+                          {"active_run_epoch", 0},
                           {"active_config_revision", 0},
                           {"active_config_etag", ""},
                           {"nodes", nlohmann::json::array()}};
@@ -299,6 +345,7 @@ nlohmann::json GraphSnapshotCollector::GetDiagnosticsSnapshot() const {
   }
   const auto generation = runtime_session->SnapshotGeneration();
   snapshot["active_generation"] = generation.generation;
+  snapshot["active_run_epoch"] = generation.run_epoch;
   snapshot["active_config_revision"] = generation.config_revision;
   snapshot["active_config_etag"] = generation.config_etag;
 

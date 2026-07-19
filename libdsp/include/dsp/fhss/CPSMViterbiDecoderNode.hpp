@@ -74,6 +74,7 @@ public:
       decision.symbols = std::move(decoded->symbols);
       decision.phase_states = std::move(decoded->phase_states);
       decision.best_path_metric = decoded->best_path_metric;
+      decision.second_best_path_metric = decoded->second_best_path_metric;
       decision.confidence = decoded->confidence;
       decision.status = FHSSGraphXDecodeStatus::Ok;
       decision.status_message = "Ok";
@@ -82,6 +83,8 @@ public:
         output.sidecar.symbols = decision.symbols;
         output.sidecar.phase_states = decision.phase_states;
         output.sidecar.best_path_metric = decision.best_path_metric;
+        output.sidecar.second_best_path_metric =
+            decision.second_best_path_metric;
         output.sidecar.confidence = decision.confidence;
         output.sidecar.status = decision.status;
         output.sidecar.status_message = decision.status_message;

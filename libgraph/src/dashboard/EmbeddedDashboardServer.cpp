@@ -195,6 +195,7 @@ RuntimeStatusJson(const GraphRuntimeSession::StatusSnapshot &snapshot) {
       {"rebuild_allowed", snapshot.rebuild_allowed},
       {"rebuild_blocked", snapshot.rebuild_blocked},
       {"active_generation", snapshot.active_generation},
+      {"active_run_epoch", snapshot.active_run_epoch},
       {"rebuild_attempts", snapshot.rebuild_attempts},
       {"successful_rebuilds", snapshot.successful_rebuilds},
       {"active_config_revision", snapshot.active_config_revision},
@@ -313,6 +314,12 @@ std::optional<std::string> AllowedMethodsFor(const std::string &path) {
       path == "/api/v1/fhss/metrics/edges" ||
       path == "/api/v1/fhss/diagnostics" || path == "/api/v1/fhss/status" ||
       path == "/api/v1/fhss/visualization" ||
+      path == "/api/v1/fhss/expected-truth" ||
+      path == "/api/v1/fhss/observations" ||
+      path == "/api/v1/fhss/comparison" ||
+      path == "/api/v1/fhss/spectrum" ||
+      path == "/api/v1/fhss/observation-provenance" ||
+      path == "/api/v1/fhss/observation-history" ||
       StartsWith(path, "/api/v1/fhss/nodes/"))
     return "GET";
   if (path == "/api/v1/fhss/config")
@@ -916,9 +923,9 @@ void EmbeddedDashboardServer::RunLoop() {
               "Content-Security-Policy",
               "default-src 'self'; "
               "script-src 'self' "
-              "'sha256-Ki2k3u89A7Kt5/vk4qqZ6kI5L/I7BqD/qdTu4Is9sgo='; "
+              "'sha256-DyfQ+FQ06dJ27XrR1/iOV/cYA6sEh2qln8pUXroP1lo='; "
               "style-src 'self' "
-              "'sha256-jQHa+rRNVQ/8YXMcwyAcWI7ncLkCpER9euD0l5x6S3Q='; "
+              "'sha256-+m6+B7a/b89ToglVQS8/9TMxEsvCSOF4c+lt3EadRrQ='; "
               "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
               "base-uri 'none'; frame-ancestors 'none'");
           wire_response.set("X-Content-Type-Options", "nosniff");

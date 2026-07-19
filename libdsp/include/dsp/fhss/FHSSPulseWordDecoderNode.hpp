@@ -52,6 +52,8 @@ public:
                   .symbols = input.sidecar.symbols,
                   .phase_states = input.sidecar.phase_states,
                   .best_path_metric = input.sidecar.best_path_metric,
+                  .second_best_path_metric =
+                      input.sidecar.second_best_path_metric,
                   .confidence = input.sidecar.confidence,
                   .status = input.sidecar.status,
                   .status_message = input.sidecar.status_message}}
@@ -62,6 +64,7 @@ public:
       viterbi.symbols = decision.symbols;
       viterbi.phase_states = decision.phase_states;
       viterbi.best_path_metric = decision.best_path_metric;
+      viterbi.second_best_path_metric = decision.second_best_path_metric;
       viterbi.confidence = decision.confidence;
 
       FHSSPulseCandidate candidate{};

@@ -5,10 +5,39 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <optional>
 
 namespace dsp::fhss::dashboard {
 namespace {
 constexpr auto kStopTimeout = std::chrono::seconds(5);
+
+template <typename InputSnapshot>
+std::optional<std::string>
+ValidateReceiverInputAttempt(const InputSnapshot &input) {
+  std::error_code error;
+  if (!std::filesystem::is_regular_file(input.path, error) || error)
+    return "receiver_input_preflight_failed: IQ path is not a regular file";
+  const auto byte_size = std::filesystem::file_size(input.path, error);
+  if (error)
+    return "receiver_input_preflight_failed: IQ byte length is unavailable";
+  if (byte_size != input.byte_size)
+    return "receiver_input_preflight_failed: IQ path changed after rebuild";
+  const std::uint64_t bytes_per_sample =
+      input.sample_format == "cf32_le" ? 8u : 16u;
+  if (byte_size % bytes_per_sample != 0u)
+    return "receiver_input_preflight_failed: IQ byte length is not aligned to " +
+           input.sample_format + " complex samples";
+  const auto total = static_cast<std::uint64_t>(byte_size / bytes_per_sample);
+  if (input.first_complex_sample > total)
+    return "receiver_input_preflight_failed: first_complex_sample exceeds IQ length";
+  const auto available = total - input.first_complex_sample;
+  const auto selected = input.max_complex_samples == 0u
+                            ? available
+                            : std::min(input.max_complex_samples, available);
+  if (selected > input.max_read_complex_samples)
+    return "receiver_input_preflight_failed: IQ selection exceeds max_read_complex_samples";
+  return std::nullopt;
+}
 }
 
 FHSSGraphRuntimeOwner::FHSSGraphRuntimeOwner(
@@ -54,6 +83,11 @@ FHSSGraphRuntimeOwner::Rebuild(std::uint64_t generation,
         !std::filesystem::is_regular_file(iq_path))
       return {400, "receiver_input_invalid",
               "binary IQ path or sample format is invalid"};
+    std::error_code size_error;
+    const auto input_byte_size = std::filesystem::file_size(iq_path, size_error);
+    if (size_error)
+      return {400, "receiver_input_invalid",
+              "binary IQ byte length is unavailable"};
     {
       std::ofstream stream(path);
       if (!stream)
@@ -64,7 +98,7 @@ FHSSGraphRuntimeOwner::Rebuild(std::uint64_t generation,
     auto candidate = graph::GraphExecutorBuilder()
                          .WithJsonConfig(path.string())
                          .WithPluginDirectory(plugin_directory_.string())
-                         .WithExecutorTimeout(std::chrono::seconds(3))
+                         .WithExecutorTimeout(executor_timeout_)
                          .Build();
     if (!candidate)
       return {500, "executor_construction_failed",
@@ -76,6 +110,17 @@ FHSSGraphRuntimeOwner::Rebuild(std::uint64_t generation,
     manager->EnableMetrics(true);
     executor_ = std::move(candidate);
     receiver_config_path_ = path;
+    receiver_input_snapshot_ = {
+        .path = std::filesystem::absolute(iq_path).lexically_normal(),
+        .sample_format = format,
+        .byte_size = input_byte_size,
+        .first_complex_sample =
+            source_config.value("first_complex_sample", std::uint64_t{0}),
+        .max_complex_samples =
+            source_config.value("max_complex_samples", std::uint64_t{0}),
+        .max_read_complex_samples = source_config.value(
+            "max_read_complex_samples", std::uint64_t{4'194'304}),
+    };
     executor_used_ = false;
     generation_ = generation;
     return {200, "rebuild_succeeded", "receiver generation built", manager,
@@ -107,7 +152,7 @@ FHSSGraphRuntimeOwner::Start(std::uint64_t generation,
     auto candidate = graph::GraphExecutorBuilder()
                          .WithJsonConfig(receiver_config_path_.string())
                          .WithPluginDirectory(plugin_directory_.string())
-                         .WithExecutorTimeout(std::chrono::seconds(3))
+                         .WithExecutorTimeout(executor_timeout_)
                          .Build();
     if (!candidate)
       return {500, "executor_construction_failed",
@@ -130,11 +175,22 @@ FHSSGraphRuntimeOwner::Start(std::uint64_t generation,
   const auto execution_attempt = executor->PrepareExecutionAttempt();
   executor_used_ = true;
   const auto before_execute = before_execute_hook_;
+  const auto receiver_input = receiver_input_snapshot_;
   execution_thread_ = std::jthread(
-      [this, executor, generation, run_epoch, before_execute](std::stop_token) {
+      [this, executor, generation, run_epoch, before_execute,
+       receiver_input](std::stop_token) {
         if (before_execute)
           before_execute();
-        const auto result = executor->Execute();
+        const auto preflight_error = ValidateReceiverInputAttempt(receiver_input);
+        auto result = preflight_error
+                          ? graph::ExecutionResult{.success = false,
+                                                   .message = *preflight_error}
+                          : executor->Execute();
+        if (result.success && !executor->IsCompletionSignaled()) {
+          result = {.success = false,
+                    .message = "receiver_execution_incomplete: executor "
+                               "stopped before graph completion signal"};
+        }
         {
           const std::lock_guard completion_lock(completion_mutex_);
           execution_finished_ = true;
@@ -215,6 +271,12 @@ void FHSSGraphRuntimeOwner::SetBeforeExecuteHookForTesting(
     std::function<void()> hook) {
   const std::lock_guard operation_lock(operation_mutex_);
   before_execute_hook_ = std::move(hook);
+}
+
+void FHSSGraphRuntimeOwner::SetExecutorTimeoutForTesting(
+    std::chrono::seconds timeout) {
+  const std::lock_guard operation_lock(operation_mutex_);
+  executor_timeout_ = timeout;
 }
 
 void FHSSGraphRuntimeOwner::SetAfterStartupHookForTesting(

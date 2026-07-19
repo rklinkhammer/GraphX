@@ -1,6 +1,7 @@
-# FHSS dashboard Phase 1/2/3 operator
+# FHSS dashboard Phase 1/2/3/4 operator
 
-Phase 3 manual browser/API validation is documented in `docs/dsp/fhss_dashboard_phase3_manual_operator_test.md`.
+Phase 4 manual browser/API validation is documented in
+`docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -39,11 +40,11 @@ execution:
   examples/DSP/dashboard/api/validate_contracts.py
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
-  --phase 3 --build-dir build-ninja/ninja-debug \
+  --phase 4 --build-dir build-ninja/ninja-debug \
   --output-dir /path/to/new/operator-output
 .venv-dashboard-contracts/bin/python \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
-  --phase 3 \
+  --phase 4 \
   --output-dir /path/to/new/operator-output
 ```
 
@@ -63,7 +64,20 @@ standards validator.
 
 `serve` keeps the dashboard available for manual browser inspection. `report`
 prints the machine-readable report. `cleanup` deletes only artifacts carrying
-the operator ownership marker.
+the operator ownership marker. In Phase 4, `serve --case
+clean|impaired|negative` loads a stable receiver-only case and persists its
+served-state identity. `record-screenshot --case CASE --path FILE.png` binds a
+complete PNG to that state; `verify --require-screenshots` requires all three
+case hashes.
+
+For Phase 4, `exercise` and the source/installed CTest lanes deliberately
+produce `PARTIAL` / `partial_pre_browser`, not a completed pass. After genuine
+clean, impaired, and negative browser captures are recorded, the report remains
+`PARTIAL` / `captures_complete_unverified`. Only a successful
+`verify --require-screenshots` promotes it to `PASS` / `final_verified` after
+reverifying non-uniform image content and the
+served URL, case, generation, run epoch, observation identity, state hash,
+configuration hash, and IQ hash bindings.
 
 Phase 2 validates strong-ETag JSON Patch concurrency, validation-only
 immutability, atomic patch failure, independent preamble active-set derivation,
@@ -83,6 +97,43 @@ a non-cooperative `Consume()` produces HTTP 504 while the runtime retains the
 live thread instead of detaching it. The lane requires generation-attributed
 traffic and safe rollback when a malformed receiver configuration fails to
 rebuild.
+
+Phase 4 adds separate expected-truth, receiver-observation, evaluator-
+comparison, receiver-spectrum, provenance, and bounded-history contracts. The
+clean case requires full independent timing/channel/decoded-value agreement and
+terminal preamble/message assembly. The impaired case records seed 404, 750 Hz
+CFO, 18 dB Eb/N0, and a deterministic receiver-measured delta from the clean
+baseline. The negative case must complete with zero detections, no preamble
+lock, and no message completion; malformed IQ must fail without a fabricated
+pulse. Live receiver cases contain IQ and receiver configuration only—truth and
+schedule files are removed before execution. This remains synthetic software
+evidence: HWIL and production-RF qualification are unavailable.
+
+For the clean replay, the operator copies the receiver's explicit 64-channel,
+7.5 MHz-spaced IQ offset map into the generator-only schedule and adds one
+6,500-sample pulse slot before every message. This causal warm-up makes the
+first word independently decodable without exposing the map, message schedule,
+or truth to the receiver. Runtime processing is bounded at 30 seconds, while
+Stop keeps its separate five-second join bound. A processing timeout without a
+graph completion signal is reported as `execution_failed` rather than
+`execution_completed`.
+
+The Overview schedule and timeline use the visualization contract's configured
+message start plus the architecture's 6,500-sample pulse period; they never
+derive decoder-like values. The receiver spectrum selector is bounded to
+physical channels 0–63. It defaults to the first receiver-observed physical
+channel. With no observed channel it is disabled, requests omit the channel,
+and the API returns null `channel_index`, `no_candidate_detected`, and empty
+bins; channel 0 is never a fallback.
+Spectrum samples come from a bounded highest-energy receiver window, with
+the capture's global sample anchor adjusted to that window; generator truth is
+not consulted.
+
+The observation contract keeps `terminal_result` (graph execution lifecycle)
+separate from `receiver_message_result` (terminal receiver message status,
+accepted flag, and decoded-pulse count). In the negative case the assembler is
+truthfully available with its missing-preamble rejection, while the receiver
+message result is not accepted and contains zero decoded pulses.
 
 The production server applies separate timing limits: activity on a partial
 request resets the idle timer, `read_timeout` is an absolute header/body read

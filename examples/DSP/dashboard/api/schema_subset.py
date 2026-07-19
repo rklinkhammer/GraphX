@@ -12,13 +12,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from math import isfinite
 from pathlib import Path
+import re
 from typing import Any
 
 DIALECT = "https://json-schema.org/draft/2020-12/schema"
 ANNOTATIONS = {"$schema", "$id", "$defs", "title", "description", "default", "format"}
 ASSERTIONS = {
-    "$ref", "type", "const", "enum", "minimum", "maximum", "required",
-    "properties", "additionalProperties", "items", "minItems",
+    "$ref", "type", "const", "enum", "minimum", "maximum",
+    "exclusiveMinimum", "pattern", "required",
+    "properties", "additionalProperties", "items", "minItems", "maxItems",
     "anyOf", "not", "contains",
 }
 ALLOWED = ANNOTATIONS | ASSERTIONS
@@ -40,16 +42,29 @@ def validate_schema(schema: Any, location: str = "$") -> None:
     for keyword in ("$schema", "$id", "title", "description", "$ref", "format"):
         if keyword in schema and not isinstance(schema[keyword], str):
             _fail(location, f"{keyword} must be a string")
-    if "type" in schema and schema["type"] not in TYPES:
-        _fail(location, "type is unsupported")
+    if "type" in schema:
+        declared = schema["type"]
+        valid = (declared in TYPES if isinstance(declared, str)
+                 else isinstance(declared, list) and bool(declared)
+                 and len(declared) == len(set(declared))
+                 and all(item in TYPES for item in declared))
+        if not valid:
+            _fail(location, "type is unsupported")
     if "enum" in schema and (not isinstance(schema["enum"], list) or not schema["enum"]):
         _fail(location, "enum must be a nonempty array")
-    for keyword in ("minimum", "maximum"):
+    for keyword in ("minimum", "maximum", "exclusiveMinimum"):
         value = schema.get(keyword)
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value)):
             _fail(location, f"{keyword} must be a finite number")
     if "minimum" in schema and "maximum" in schema and schema["minimum"] > schema["maximum"]:
         _fail(location, "minimum exceeds maximum")
+    if "pattern" in schema:
+        if not isinstance(schema["pattern"], str):
+            _fail(location, "pattern must be a string")
+        try:
+            re.compile(schema["pattern"])
+        except re.error as error:
+            _fail(location, f"invalid pattern: {error}")
     if "required" in schema:
         required = schema["required"]
         if (not isinstance(required, list) or not all(isinstance(item, str) for item in required)
@@ -84,10 +99,14 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         validate_schema(schema["not"], f"{location}.not")
     if "contains" in schema:
         validate_schema(schema["contains"], f"{location}.contains")
-    if "minItems" in schema and (isinstance(schema["minItems"], bool)
-                                  or not isinstance(schema["minItems"], int)
-                                  or schema["minItems"] < 0):
-        _fail(location, "minItems must be a nonnegative integer")
+    for keyword in ("minItems", "maxItems"):
+        if keyword in schema and (isinstance(schema[keyword], bool)
+                                  or not isinstance(schema[keyword], int)
+                                  or schema[keyword] < 0):
+            _fail(location, f"{keyword} must be a nonnegative integer")
+    if ("minItems" in schema and "maxItems" in schema
+            and schema["minItems"] > schema["maxItems"]):
+        _fail(location, "minItems exceeds maxItems")
 
 
 def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mapping[str, Mapping[str, Any]] | None = None,
@@ -123,8 +142,10 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
         "boolean": lambda item: isinstance(item, bool),
         "null": lambda item: item is None,
     }
-    if expected is not None and not matches[expected](value):
-        _fail(location, f"expected {expected}")
+    if expected is not None:
+        alternatives = [expected] if isinstance(expected, str) else expected
+        if not any(matches[item](value) for item in alternatives):
+            _fail(location, f"expected {expected}")
     if "const" in schema and value != schema["const"]:
         _fail(location, "does not equal const")
     if "enum" in schema and value not in schema["enum"]:
@@ -134,6 +155,11 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
             _fail(location, "is below minimum")
         if "maximum" in schema and value > schema["maximum"]:
             _fail(location, "is above maximum")
+        if "exclusiveMinimum" in schema and value <= schema["exclusiveMinimum"]:
+            _fail(location, "is not above exclusiveMinimum")
+    if isinstance(value, str) and "pattern" in schema:
+        if re.search(schema["pattern"], value) is None:
+            _fail(location, "does not match pattern")
     if isinstance(value, dict):
         properties = schema.get("properties", {})
         missing = set(schema.get("required", [])) - set(value)
@@ -152,6 +178,8 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             _fail(location, "has too few items")
+        if "maxItems" in schema and len(value) > schema["maxItems"]:
+            _fail(location, "has too many items")
         if "items" in schema:
             for index, item in enumerate(value):
                 validate_instance(item, schema["items"], registry=registry, location=f"{location}[{index}]")

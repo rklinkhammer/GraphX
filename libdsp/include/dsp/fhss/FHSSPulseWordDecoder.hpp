@@ -38,6 +38,7 @@ struct FHSSDecodedPulseWord {
   std::uint32_t decoded_value = 0;
   double confidence = 0.0;
   double viterbi_path_metric = 0.0;
+  double viterbi_second_best_path_metric = 0.0;
   FHSSPulseWordDecodeStatus status = FHSSPulseWordDecodeStatus::Ok;
   std::string status_message;
 };
@@ -101,6 +102,8 @@ public:
     decoded.candidate = candidate;
     decoded.confidence = viterbi_result.confidence;
     decoded.viterbi_path_metric = viterbi_result.best_path_metric;
+    decoded.viterbi_second_best_path_metric =
+        viterbi_result.second_best_path_metric;
 
     if (viterbi_result.symbols.size() !=
         FHSSProtocolConstants::kBitsPerPulse) {
@@ -111,11 +114,12 @@ public:
     }
 
     if (!std::isfinite(viterbi_result.best_path_metric) ||
+        !std::isfinite(viterbi_result.second_best_path_metric) ||
         !std::isfinite(viterbi_result.confidence)) {
       decoded.status = FHSSPulseWordDecodeStatus::InvalidPathMetric;
       decoded.status_message =
-          "FHSS pulse word decode received non-finite Viterbi metric or "
-          "confidence";
+          "FHSS pulse word decode received non-finite Viterbi best-path, "
+          "second-best-path, or confidence metric";
       return decoded;
     }
 

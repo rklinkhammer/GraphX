@@ -13,6 +13,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         @ONLY)
     add_library(dsp_fhss_dashboard_api STATIC
         dashboard/FHSSDashboardApi.cpp
+        dashboard/FHSSObservationService.cpp
         dashboard/FHSSGraphRuntimeOwner.cpp
         dashboard/FHSSDashboardConfigurationPolicy.cpp)
     target_include_directories(dsp_fhss_dashboard_api PUBLIC
@@ -108,6 +109,8 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     install(DIRECTORY dashboard/operator/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    install(FILES tools/fhss_phase3_independent.py
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator)
     install(FILES
         ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/config)

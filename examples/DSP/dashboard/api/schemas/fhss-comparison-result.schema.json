@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:fhss-comparison-result:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "semantic_class", "evaluation_state", "expected_truth_sha256", "receiver_observation_sha256", "generation", "run_epoch", "config_identity", "algorithm", "availability", "matches", "missed_expected_indices", "unexpected_observed_indices", "ambiguous", "terminal_result_agrees", "execution_lifecycle", "comparison_sha256"],
+  "properties": {
+    "schema": {"const": "graphx.dashboard.fhss_comparison_result.v1"},
+    "semantic_class": {"const": "comparison"},
+    "evaluation_state": {"enum": ["evaluated", "indeterminate"]},
+    "expected_truth_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "receiver_observation_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "generation": {"type": ["integer", "null"], "minimum": 0},
+    "run_epoch": {"type": ["integer", "null"], "minimum": 0},
+    "config_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["expected_config_revision", "expected_config_etag", "observed_config_revision", "observed_config_etag", "agrees"],
+      "properties": {
+        "expected_config_revision": {"type": ["integer", "null"], "minimum": 0},
+        "expected_config_etag": {"type": ["string", "null"]},
+        "observed_config_revision": {"type": ["integer", "null"], "minimum": 0},
+        "observed_config_etag": {"type": ["string", "null"]},
+        "agrees": {"type": ["boolean", "null"]}
+      }
+    },
+    "algorithm": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "timing_tolerance_samples", "channel_rule", "tie_rule", "duplicate_rule"],
+      "properties": {
+        "name": {"const": "bounded_one_to_one_timing_channel_match"},
+        "version": {"const": "1.1.0"},
+        "timing_tolerance_samples": {"const": 64},
+        "channel_rule": {"const": "logical_frequency_index_exact"},
+        "tie_rule": {"const": "equal_distance_is_ambiguous_no_assignment"},
+        "duplicate_rule": {"const": "each_expected_and_observed_used_at_most_once"}
+      }
+    },
+    "availability": {
+      "anyOf": [
+        {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "available"}, "reason": {"type": "null"}}},
+        {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "unavailable"}, "reason": {"enum": ["configuration_identity_mismatch", "expected_document_malformed", "observed_document_malformed", "receiver_observation_unavailable", "receiver_execution_not_completed", "receiver_message_result_unavailable"]}}}
+      ]
+    },
+    "matches": {"type": "array", "maxItems": 512, "items": {"type": "object", "additionalProperties": false, "required": ["expected_index", "observed_index", "timing_delta_samples", "channel_delta", "decoded_value_agrees"], "properties": {"expected_index": {"type": "integer", "minimum": 0}, "observed_index": {"type": "integer", "minimum": 0}, "timing_delta_samples": {"type": "integer", "minimum": -64, "maximum": 64}, "channel_delta": {"const": 0}, "decoded_value_agrees": {"type": "boolean"}}}},
+    "missed_expected_indices": {"type": "array", "maxItems": 512, "items": {"type": "integer", "minimum": 0}},
+    "unexpected_observed_indices": {"type": "array", "maxItems": 512, "items": {"type": "integer", "minimum": 0}},
+    "ambiguous": {"type": "array", "maxItems": 512, "items": {"type": "object", "additionalProperties": false, "required": ["observed_index", "candidate_expected_indices", "reason"], "properties": {"observed_index": {"type": "integer", "minimum": 0}, "candidate_expected_indices": {"type": "array", "minItems": 2, "maxItems": 512, "items": {"type": "integer", "minimum": 0}}, "reason": {"const": "equal_distance_candidates"}}}},
+    "terminal_result_agrees": {"type": ["boolean", "null"]},
+    "execution_lifecycle": {"type": "object", "additionalProperties": false, "required": ["completed", "observed_code", "correlated_separately_from_receiver_message"], "properties": {"completed": {"type": ["boolean", "null"]}, "observed_code": {"type": ["string", "null"]}, "correlated_separately_from_receiver_message": {"const": true}}},
+    "comparison_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

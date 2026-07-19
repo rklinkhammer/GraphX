@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -131,7 +132,8 @@ protected:
     options.artifact_root = options.asset_directory.parent_path();
     options.application_api_handler =
         graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
-            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_),
+            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_,
+                                                             runtime_session_),
             .cooperative_cancellation = true,
             .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
 
@@ -181,6 +183,16 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   const auto &schedule = viz.at("schedule");
   EXPECT_EQ(schedule.at("message_count_total").get<std::size_t>(), messages.size());
   EXPECT_LE(schedule.at("messages").size(), 3u);
+  ASSERT_FALSE(schedule.at("messages").empty());
+  const auto &rendered_message = schedule.at("messages").front();
+  const auto &source_message = messages.front();
+  EXPECT_EQ(rendered_message.at("transmit_start_sample"),
+            source_message.at("transmit_start_sample"));
+  EXPECT_EQ(rendered_message.at("pulse_count").get<std::size_t>(),
+            source_message.at("pulses").size());
+  EXPECT_EQ(rendered_message.at("body_pulse_count").get<std::size_t>(),
+            rendered_message.at("pulse_count").get<std::size_t>() -
+                rendered_message.at("preamble_pulse_count").get<std::size_t>());
 
   std::array<std::uint64_t, 64> expected_counts{};
   for (const auto &message : messages) {
@@ -206,7 +218,14 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
 
   const auto &timeline = viz.at("timeline");
   EXPECT_LE(timeline.at("pulses").size(), 32u);
+  EXPECT_EQ(timeline.at("total_pulse_count").get<std::size_t>(),
+            std::accumulate(messages.begin(), messages.end(), std::size_t{0},
+                            [](std::size_t total, const auto &message) {
+                              return total + message.at("pulses").size();
+                            }));
   for (const auto &pulse : timeline.at("pulses")) {
+    EXPECT_TRUE(pulse.contains("absolute_pulse_index"));
+    EXPECT_TRUE(pulse.contains("message_id"));
     EXPECT_TRUE(pulse.contains("expected_sample_start"));
     EXPECT_TRUE(pulse.contains("source"));
     EXPECT_EQ(pulse.at("source"), "configured_schedule");
@@ -214,6 +233,13 @@ TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
     EXPECT_FALSE(pulse.contains("confidence"));
     EXPECT_FALSE(pulse.contains("rejected"));
   }
+  ASSERT_GE(timeline.at("pulses").size(), 2u);
+  EXPECT_EQ(timeline.at("pulses").at(0).at("expected_sample_start"),
+            source_message.at("transmit_start_sample"));
+  EXPECT_EQ(timeline.at("pulses").at(1).at("expected_sample_start")
+                .get<std::uint64_t>(),
+            source_message.at("transmit_start_sample").get<std::uint64_t>() +
+                6'500u);
 }
 
 TEST_F(FhssDashboardVisualizationTest, SnapshotSizeAndRefreshRateAreBounded) {
@@ -259,7 +285,7 @@ TEST(FhssDashboardVisualizationCancellationTest,
   options.total_request_timeout = std::chrono::milliseconds(5);
   options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
-          .handler = dsp::fhss::dashboard::MakeApiHandler(service),
+          .handler = dsp::fhss::dashboard::MakeApiHandler(service, runtime),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(1)};
   graph::dashboard::EmbeddedDashboardServer server(options, service, runtime, snapshots);

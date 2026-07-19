@@ -280,6 +280,21 @@
       max-height: 180px;
       overflow: auto;
     }
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 8px 0;
+    }
+    .legend-item {
+      border-left: 5px solid var(--border);
+      padding-left: 7px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .legend-expected { border-left-color: #7c3aed; }
+    .legend-observed { border-left-color: #0284c7; }
+    .legend-comparison { border-left-color: #b45309; }
     @media (max-width: 900px) {
       .layout {
         grid-template-columns: 1fr;
@@ -313,6 +328,24 @@
           <div id="schedule-meta" class="subtle"></div>
           <div id="schedule" class="schedule-list"></div>
         </section>
+        <section class="card">
+          <h2>FHSS Expected / Observed Evaluation</h2>
+          <div class="subtle">Synthetic evaluator truth and receiver observations are separate API objects. Comparison is evaluator-only.</div>
+          <div class="legend-row" aria-label="FHSS evidence legend">
+            <span class="legend-item legend-expected">Synthetic truth</span>
+            <span class="legend-item legend-observed">Receiver observed</span>
+            <span class="legend-item legend-comparison">Evaluator comparison</span>
+          </div>
+          <div class="controls-row">
+            <label><input id="show-expected" type="checkbox" checked> Expected overlay</label>
+            <label><input id="show-observed" type="checkbox" checked> Observed overlay</label>
+          </div>
+          <div id="observation-identity" class="subtle"></div>
+          <pre id="receiver-message-result">Receiver message result unavailable.</pre>
+          <pre id="receiver-decoder-details">Receiver decoder evidence unavailable.</pre>
+          <div id="observation-overlay"></div>
+          <pre id="comparison-result"></pre>
+        </section>
       </div>
       <div class="stack">
         <section class="card">
@@ -326,9 +359,19 @@
         </section>
         <section class="card">
           <h2>Synthetic Schedule Expectations</h2>
-          <div class="subtle">This panel contains configured schedule expectations only; receiver observations are unavailable.</div>
+          <div class="subtle">This panel contains configured schedule expectations only. Receiver observations are shown separately above when available.</div>
           <div id="timeline-meta" class="subtle"></div>
           <div id="timeline"></div>
+        </section>
+        <section class="card">
+          <h2>Receiver Sample Spectrum</h2>
+          <div class="subtle">Selected-channel, single-frame symmetric-Hamming DFT. Magnitude is dB re 1 complex-unit; it is not dBm, dBFS, or calibrated power.</div>
+          <div class="controls-row">
+            <label for="spectrum-channel">Physical receiver channel</label>
+            <select id="spectrum-channel" aria-label="Receiver spectrum physical channel"></select>
+            <span id="spectrum-channel-identity" class="subtle"></span>
+          </div>
+          <pre id="receiver-spectrum">Receiver sample capture unavailable.</pre>
         </section>
       </div>
     </div>
@@ -381,6 +424,7 @@
       nodes: new Set(),
       diagnostics: new Set()
     };
+    let latestObservationData = null;
     function detailsKey(prefix, name, type, index) {
       const safeName = typeof name === 'string' && name.length ? name : `item_${index}`;
       const safeType = typeof type === 'string' ? type : 'unknown';
@@ -419,6 +463,9 @@
     }
 
     function formatValue(value) {
+      if (value === undefined || value === null) {
+        return 'unavailable';
+      }
       if (typeof value === 'number') {
         return value.toLocaleString();
       }
@@ -604,7 +651,7 @@
          pulse.frequency_index, pulse.expected_sample_start, pulse.source]
           .forEach((value) => {
             const cell = document.createElement('td');
-            cell.textContent = String(value);
+            cell.textContent = String(value ?? 'unavailable');
             row.appendChild(cell);
           });
         body.appendChild(row);
@@ -612,6 +659,84 @@
 
       table.appendChild(body);
       host.appendChild(table);
+    }
+
+    function renderObservationWorkbench(expected, observed, comparison, spectrum) {
+      const host = document.getElementById('observation-overlay');
+      host.textContent = '';
+      const availability = observed.availability || {};
+      document.getElementById('observation-identity').textContent =
+        `snapshot=${observed.observation_id || 'unavailable'} hash=${observed.observation_sha256 || 'unavailable'} generation=${observed.generation ?? 'unavailable'} run=${observed.run_epoch ?? 'unavailable'} revision=${observed.config_revision ?? 'unavailable'} etag=${observed.config_etag || 'unavailable'} correlation=${comparison.config_identity?.agrees === true && comparison.evaluation_state === 'evaluated' ? 'current' : `stale/indeterminate (${comparison.availability?.reason || 'identity unavailable'})`} availability=${availability.state || 'unavailable'}${availability.reason ? ` (${availability.reason})` : ''}`;
+      document.getElementById('receiver-message-result').textContent =
+        `Receiver message result\n${JSON.stringify(observed.receiver_message_result || {
+          availability: {state: 'unavailable', reason: 'decoder_or_assembler_not_reached'}
+        }, null, 2)}`;
+      document.getElementById('receiver-decoder-details').textContent =
+        `Receiver decoder evidence (confidence score is uncalibrated)\n${JSON.stringify({
+          sample_rate: observed.sample_rate || {availability: {state: 'unavailable', reason: 'no_receiver_samples'}},
+          preamble: observed.preamble || {availability: {state: 'unavailable', reason: 'decoder_not_reached'}},
+          assembler: observed.assembler || {availability: {state: 'unavailable', reason: 'decoder_or_assembler_not_reached'}},
+          decoded_pulses: (observed.observed_pulses || []).slice(0, 128).map((pulse) => ({
+            observed_index: pulse.observed_index,
+            confidence_score_uncalibrated: pulse.confidence_score_uncalibrated,
+            viterbi_best_path_metric: pulse.viterbi_path_metric,
+            viterbi_second_best_path_metric: pulse.viterbi_second_best_path_metric,
+            source_node_id: pulse.source_node_id
+          })),
+          sources: observed.sources || [],
+          provenance: observed.provenance || []
+        }, null, 2)}`;
+
+      const rows = [];
+      if (document.getElementById('show-expected').checked) {
+        (Array.isArray(expected.pulses) ? expected.pulses : []).slice(0, 128).forEach((pulse) => {
+          rows.push(['Synthetic truth', pulse.expected_index, pulse.global_start_sample,
+            pulse.logical_frequency_index, null, pulse.transmitted_word,
+            null, null, null, null]);
+        });
+      }
+      if (document.getElementById('show-observed').checked) {
+        (Array.isArray(observed.observed_pulses) ? observed.observed_pulses : []).slice(0, 128).forEach((pulse) => {
+          rows.push(['Receiver observed', pulse.observed_index, pulse.global_start_sample,
+            pulse.logical_frequency_index, pulse.physical_channel_index,
+            pulse.decoded_value, pulse.confidence_score_uncalibrated,
+            pulse.viterbi_path_metric, pulse.viterbi_second_best_path_metric,
+            pulse.source_node_id]);
+        });
+      }
+      if (!rows.length) {
+        host.textContent = availability.reason || 'No selected FHSS evidence is available.';
+      } else {
+        const table = document.createElement('table');
+        table.className = 'timeline-table';
+        const header = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['evidence', 'index', 'input sample', 'logical frequency',
+         'physical channel', 'word', 'confidence (uncalibrated)',
+         'Viterbi best', 'Viterbi second-best', 'source'].forEach((label) => {
+          const cell = document.createElement('th');
+          cell.textContent = label;
+          headerRow.appendChild(cell);
+        });
+        header.appendChild(headerRow);
+        table.appendChild(header);
+        const body = document.createElement('tbody');
+        rows.forEach((values) => {
+          const row = document.createElement('tr');
+          values.forEach((value) => {
+            const cell = document.createElement('td');
+            cell.textContent = String(value ?? 'unavailable');
+            row.appendChild(cell);
+          });
+          body.appendChild(row);
+        });
+        table.appendChild(body);
+        host.appendChild(table);
+      }
+      document.getElementById('comparison-result').textContent =
+        `Evaluator comparison\n${JSON.stringify(comparison, null, 2)}`;
+      document.getElementById('receiver-spectrum').textContent =
+        JSON.stringify(spectrum, null, 2);
     }
 
     async function fetchJson(path) {
@@ -685,12 +810,44 @@
     }
 
     async function refreshDashboard() {
-      const [graphData, metricsData, diagnosticsData, visualizationData] = await Promise.all([
+      const [graphData, metricsData, diagnosticsData, visualizationData,
+        expectedData, observedData, comparisonData] = await Promise.all([
         fetchJson('/api/v1/fhss/graph'),
         fetchJson('/api/v1/fhss/metrics'),
         fetchJson('/api/v1/fhss/diagnostics'),
-        fetchJson('/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250')
+        fetchJson('/api/v1/fhss/visualization?message_limit=16&pulse_limit=128&refresh_ms=250'),
+        fetchJson('/api/v1/fhss/expected-truth'),
+        fetchJson('/api/v1/fhss/observations'),
+        fetchJson('/api/v1/fhss/comparison')
       ]);
+
+      const receiverPulse = (Array.isArray(observedData.observed_pulses)
+        ? observedData.observed_pulses : []).find((pulse) =>
+          Number.isInteger(pulse.physical_channel_index) &&
+          pulse.physical_channel_index >= 0 && pulse.physical_channel_index <= 63);
+      const spectrumChannelElement = document.getElementById('spectrum-channel');
+      if (!receiverPulse) {
+        selectedSpectrumChannel = null;
+        spectrumChannelElement.value = '';
+        spectrumChannelElement.disabled = true;
+      } else {
+        spectrumChannelElement.disabled = false;
+        if (selectedSpectrumChannel === null) {
+          selectedSpectrumChannel = receiverPulse.physical_channel_index;
+          spectrumChannelElement.value = String(selectedSpectrumChannel);
+        }
+      }
+      const spectrumChannelQuery = selectedSpectrumChannel === null
+        ? '' : `&channel=${selectedSpectrumChannel}`;
+      const spectrumData = await fetchJson(
+        `/api/v1/fhss/spectrum?fft_size=128${spectrumChannelQuery}`);
+      document.getElementById('spectrum-channel-identity').textContent =
+        spectrumData.availability?.state === 'available'
+          ? `physical=${formatValue(spectrumData.channel_index)} ` +
+            `logical=${formatValue(spectrumData.logical_frequency_index)} ` +
+            `RF=${formatValue(spectrumData.rf_frequency_hz)} Hz ` +
+            `IQ offset=${formatValue(spectrumData.iq_offset_frequency_hz)} Hz`
+          : `unavailable: ${formatValue(spectrumData.availability?.reason)}`;
 
       const graph = graphData.graph || {};
       const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
@@ -708,6 +865,10 @@
       renderSchedule(visualizationData.schedule || {});
       renderHeatmap(visualizationData.heatmap || {});
       renderTimeline(visualizationData.timeline || {});
+      renderObservationWorkbench(expectedData, observedData, comparisonData,
+        spectrumData);
+      latestObservationData = [expectedData, observedData, comparisonData,
+        spectrumData];
 
       const nodesHost = document.getElementById('nodes');
       nodesHost.textContent = '';
@@ -738,6 +899,28 @@
         });
       }, refreshMs);
     }
+
+    let selectedSpectrumChannel = null;
+    const spectrumChannelSelect = document.getElementById('spectrum-channel');
+    const unavailableSpectrumChannel = document.createElement('option');
+    unavailableSpectrumChannel.value = '';
+    unavailableSpectrumChannel.textContent = 'Unavailable — no observed physical channel';
+    unavailableSpectrumChannel.disabled = true;
+    unavailableSpectrumChannel.selected = true;
+    spectrumChannelSelect.appendChild(unavailableSpectrumChannel);
+    spectrumChannelSelect.disabled = true;
+    for (let channel = 0; channel < 64; channel += 1) {
+      const option = document.createElement('option');
+      option.value = String(channel);
+      option.textContent = String(channel);
+      spectrumChannelSelect.appendChild(option);
+    }
+    spectrumChannelSelect.addEventListener('change', () => {
+      selectedSpectrumChannel = Number(spectrumChannelSelect.value);
+      refreshDashboard().catch((err) => {
+        document.getElementById('meta').textContent = `failed: ${err}`;
+      });
+    });
 
     refreshDashboard().catch((err) => {
       document.getElementById('meta').textContent = `failed: ${err}`;
@@ -775,6 +958,12 @@
       submitRuntimeCommand('/api/v1/fhss/commands/stop', {command_id: `dashboard-stop-${Date.now()}`}).catch((error) => {
         document.getElementById('runtime-status').textContent = `Stop failed: ${error}`;
       });
+    });
+    document.getElementById('show-expected').addEventListener('change', () => {
+      if (latestObservationData) renderObservationWorkbench(...latestObservationData);
+    });
+    document.getElementById('show-observed').addEventListener('change', () => {
+      if (latestObservationData) renderObservationWorkbench(...latestObservationData);
     });
   </script>
 </body>

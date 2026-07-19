@@ -161,6 +161,7 @@ TEST(FHSSPulseWordDecoderTest, PreservesPulseMetadataAndConfidence) {
   EXPECT_EQ(decoded.decoded_value, 0xDEAD'BEEFu);
   EXPECT_DOUBLE_EQ(decoded.confidence, 0.82);
   EXPECT_DOUBLE_EQ(decoded.viterbi_path_metric, 1.25);
+  EXPECT_DOUBLE_EQ(decoded.viterbi_second_best_path_metric, 2.25);
   EXPECT_EQ(decoded.candidate.detected_pulse.global_start_sample,
             candidate.detected_pulse.global_start_sample);
   EXPECT_EQ(decoded.candidate.detected_pulse.frequency_index,
@@ -193,6 +194,14 @@ TEST(FHSSPulseWordDecoderTest, ReportsInvalidViterbiOutput) {
 
   EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::InvalidPathMetric);
   EXPECT_FALSE(decoded.status_message.empty());
+
+  auto invalid_second_metric =
+      ViterbiForSymbols(SymbolsForWord(0x1234'5678u));
+  invalid_second_metric.second_best_path_metric =
+      std::numeric_limits<double>::quiet_NaN();
+  decoded = FHSSPulseWordDecoderKernel::Decode(Candidate(),
+                                                invalid_second_metric);
+  EXPECT_EQ(decoded.status, FHSSPulseWordDecodeStatus::InvalidPathMetric);
 }
 
 TEST(FHSSPulseWordDecoderTest, ReportsLowConfidenceButPreservesValue) {

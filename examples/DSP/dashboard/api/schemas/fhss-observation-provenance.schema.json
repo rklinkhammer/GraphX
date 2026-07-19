@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:fhss-observation-provenance:v1","type":"object","additionalProperties":false,
+  "required":["schema","semantic_class","generation","run_epoch","config_revision","config_etag","observation_id","records"],
+  "properties":{"schema":{"const":"graphx.dashboard.fhss_observation_provenance.v1"},"semantic_class":{"const":"observed"},"generation":{"type":"integer","minimum":0},"run_epoch":{"type":"integer","minimum":0},"config_revision":{"type":"integer","minimum":0},"config_etag":{"type":"string"},"observation_id":{"type":"string","pattern":"^observation-g[0-9]+-r[0-9]+$"},"records":{"type":"array","maxItems":256,"items":{"$ref":"urn:graphx:dashboard:fhss-receiver-observation:v1#/$defs/provenance"}}}
+}

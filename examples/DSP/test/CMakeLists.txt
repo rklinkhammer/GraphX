@@ -17,6 +17,7 @@ target_sources(test_dsp_example_unit PRIVATE
     test_dsp_fhss_dashboard_step2_browser.cpp
     test_dsp_fhss_dashboard_step2.cpp
     test_dsp_fhss_dashboard_step3.cpp
+    test_dsp_fhss_dashboard_step4.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
 )
@@ -71,6 +72,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     FhssDashboardConfigurationServiceTest
     FhssDashboardRebuildControlTest
     FhssDashboardEventReplayTest
+    FhssDashboardObservationTest
     FhssDashboardVisualizationTest
     FhssDashboardVisualizationCancellationTest)
 else()
@@ -98,6 +100,11 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
                 ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/api/validate_contracts.py)
     set_tests_properties(fhss_dashboard_api_contracts PROPERTIES
         LABELS "dsp;fhss;dashboard;contracts;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase4_evidence_smoke
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase4_operator.py)
+    set_tests_properties(fhss_dashboard_phase4_evidence_smoke PROPERTIES
+        LABELS "dsp;fhss;dashboard;phase4;evidence;ci-safe;host-any")
     add_test(NAME fhss_dashboard_external_operator
         COMMAND ${CMAKE_COMMAND}
             -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
@@ -126,10 +133,23 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         COMMAND ${CMAKE_COMMAND} -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
             -DPHASE=3 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase4_external_operator
+        COMMAND ${CMAKE_COMMAND} -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=4 -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase4_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND} -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=4 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
     set_tests_properties(fhss_dashboard_external_operator fhss_dashboard_installed_tree_operator
         fhss_dashboard_phase2_external_operator fhss_dashboard_phase2_installed_tree_operator
         fhss_dashboard_phase3_external_operator fhss_dashboard_phase3_installed_tree_operator
+        fhss_dashboard_phase4_external_operator fhss_dashboard_phase4_installed_tree_operator
         PROPERTIES LABELS "dsp;fhss;dashboard;operator;ci-safe;host-any" TIMEOUT 180 RUN_SERIAL TRUE)
+    set_tests_properties(fhss_dashboard_phase4_external_operator
+        fhss_dashboard_phase4_installed_tree_operator
+        PROPERTIES LABELS "dsp;fhss;dashboard;operator;phase4;pre-browser-partial;ci-safe;host-any"
+        TIMEOUT 360)
 endif()
 
 add_test(NAME fhss_dashboard_off_build

@@ -564,6 +564,10 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFromComplexEvidenceWithoutRuntimeTruth) {
             FHSSProtocolConstants::kBitsPerPulse);
   EXPECT_EQ(symbols->sidecar.pulse_decisions.size(),
             candidate_stream->sidecar.ordered_candidates.size());
+  EXPECT_TRUE(std::isfinite(symbols->sidecar.best_path_metric));
+  EXPECT_TRUE(std::isfinite(symbols->sidecar.second_best_path_metric));
+  EXPECT_GE(symbols->sidecar.second_best_path_metric,
+            symbols->sidecar.best_path_metric);
 
   FHSSPulseWordDecoderNode word_decoder;
   auto decoded =
@@ -575,6 +579,13 @@ TEST(FHSSGraphXNodeTest, CpuLaneDecodesFromComplexEvidenceWithoutRuntimeTruth) {
             FHSSGraphXDecodeStatus::Ok);
   EXPECT_EQ(decoded->sidecar.decoded_pulses.front().decoded_value,
             fixture->truth_pulses.front().value);
+  EXPECT_DOUBLE_EQ(
+      decoded->sidecar.decoded_pulses.front().viterbi_path_metric,
+      symbols->sidecar.pulse_decisions.front().best_path_metric);
+  EXPECT_DOUBLE_EQ(
+      decoded->sidecar.decoded_pulses.front()
+          .viterbi_second_best_path_metric,
+      symbols->sidecar.pulse_decisions.front().second_best_path_metric);
   EXPECT_EQ(
       decoded->sidecar.decoded_pulses.front().pulse.frequency.frequency_index,
       fixture->truth_pulses.front().frequency_index);

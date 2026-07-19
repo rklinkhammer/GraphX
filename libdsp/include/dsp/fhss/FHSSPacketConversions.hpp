@@ -202,6 +202,8 @@ FHSSDecodedPulseWordFromGraphX(const FHSSDecodedPulseWordPacket &packet) {
   decoded.decoded_value = packet.decoded_value;
   decoded.confidence = packet.confidence;
   decoded.viterbi_path_metric = packet.viterbi_path_metric;
+  decoded.viterbi_second_best_path_metric =
+      packet.viterbi_second_best_path_metric;
   decoded.status = packet.status == FHSSGraphXDecodeStatus::Ok
                        ? FHSSPulseWordDecodeStatus::Ok
                        : FHSSPulseWordDecodeStatus::InvalidPathMetric;
@@ -218,6 +220,8 @@ FHSSGraphXDecodedPulseWordFromKernel(const FHSSDecodedPulseWord &decoded) {
       .decoded_value = decoded.decoded_value,
       .confidence = decoded.confidence,
       .viterbi_path_metric = decoded.viterbi_path_metric,
+      .viterbi_second_best_path_metric =
+          decoded.viterbi_second_best_path_metric,
       .status = decoded.status == FHSSPulseWordDecodeStatus::Ok
                     ? FHSSGraphXDecodeStatus::Ok
                     : FHSSGraphXDecodeStatus::InvalidEvidence,

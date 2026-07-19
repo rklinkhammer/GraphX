@@ -98,6 +98,7 @@ GraphRuntimeSession::SnapshotStatus() const {
           .rebuild_allowed = IsRebuildAllowedState(state_) && !rebuild_blocked_,
           .rebuild_blocked = rebuild_blocked_,
           .active_generation = active_generation_,
+          .active_run_epoch = active_run_epoch_,
           .rebuild_attempts = rebuild_attempts_,
           .successful_rebuilds = successful_rebuilds_,
           .last_error_code = last_error_code_,
@@ -186,7 +187,7 @@ GraphRuntimeSession::Rebuild(IGraphRuntimeOwner::BuildSnapshot snapshot) {
       active_generation_ = generation;
       ++successful_rebuilds_;
       active_graph_manager_ = std::move(result.graph_manager);
-      active_snapshot_ = {generation, snapshot.config_revision,
+      active_snapshot_ = {generation, 0, snapshot.config_revision,
                           std::move(snapshot.config_etag),
                           active_graph_manager_};
       state_ = result.cleanup_failed ? State::cleanup_failed : State::stopped;
@@ -220,6 +221,7 @@ GraphRuntimeSession::CommandResult GraphRuntimeSession::Start() {
     previous = state_;
     state_ = State::starting;
     run_epoch = ++active_run_epoch_;
+    active_snapshot_.run_epoch = run_epoch;
     stop_requested_ = false;
     started_at_ = NowIso();
     terminal_at_.clear();

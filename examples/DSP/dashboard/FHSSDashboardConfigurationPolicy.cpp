@@ -211,6 +211,18 @@ nlohmann::json FHSSDashboardConfigurationPolicy::Validate(
                            "structure"));
     return {{"valid", false}, {"levels", levels}, {"errors", errors}};
   }
+  if (authoritative.contains("receiver_input") &&
+      authoritative.at("receiver_input").is_object() &&
+      authoritative.at("receiver_input").contains(
+          "dashboard_observation_enabled") &&
+      !authoritative.at("receiver_input")
+           .at("dashboard_observation_enabled")
+           .is_boolean()) {
+    errors.push_back(Error(
+        "/receiver_input/dashboard_observation_enabled",
+        "invalid_dashboard_observation_flag",
+        "dashboard_observation_enabled must be boolean", "structure"));
+  }
   if (!authoritative.at("messages").is_array() ||
       authoritative.at("messages").empty()) {
     errors.push_back(Error("/messages", "missing_messages",

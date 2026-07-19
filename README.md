@@ -298,7 +298,8 @@ cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_uni
 ## DSP FHSS Demo
 
 The FHSS lane is a deterministic CPU fixture and decoder. It is not a
-production RF receiver.
+production RF receiver. Dashboard validation uses synthetic IQ only; HWIL,
+conducted-RF, independently recorded, and OTA evidence are unavailable.
 
 Canonical channelized graph:
 
@@ -363,9 +364,28 @@ Then open http://127.0.0.1:8080/ in your browser.
 Notes:
 
 - `--dashboard-no-run` keeps runtime stopped so you can inspect/edit first.
-- Omit `--dashboard-no-run` to run the FHSS graph while serving dashboard APIs.
+- Omit `--dashboard-no-run` to enable receiver lifecycle routes. The dashboard
+  still starts in `not_built`; use Rebuild and Start to execute the receiver.
 - `--dashboard-port 0` requests an ephemeral test port.
 - `--dashboard-assets PATH` overrides the default `examples/DSP/dashboard` asset directory.
+
+Run the Phase 4 synthetic observation workflow and verify its hashed evidence:
+
+```bash
+/private/tmp/graphx-dashboard-contracts-venv/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
+  --phase 4 --build-dir build-ninja/ninja-debug \
+  --output-dir /private/tmp/graphx-dashboard-phase4
+/private/tmp/graphx-dashboard-contracts-venv/bin/python \
+  examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
+  --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4
+```
+
+The Phase 4 dashboard keeps [expected truth, receiver observations, and
+evaluator comparison](docs/graphx_dashboard.md) separate. The complete clean,
+impaired, negative, malformed-IQ, installed-tree, screenshot, and cleanup
+procedure is the [FHSS dashboard Phase 4 manual operator
+test](docs/dsp/fhss_dashboard_phase4_manual_operator_test.md).
 
 Run with an external message schedule and write investigation artifacts:
 

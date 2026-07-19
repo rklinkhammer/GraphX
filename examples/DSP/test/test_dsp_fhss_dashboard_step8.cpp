@@ -134,7 +134,8 @@ protected:
     options.artifact_root = artifact_root_;
     options.application_api_handler =
         graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
-            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_),
+            .handler = dsp::fhss::dashboard::MakeApiHandler(configuration_service_,
+                                                             runtime_session_),
             .cooperative_cancellation = true,
             .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
 
