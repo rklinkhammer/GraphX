@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:websocket-hello:v1",
+  "type": "object",
+  "required": ["schema", "api_version", "publisher_epoch", "latest_sequence", "oldest_available_sequence", "heartbeat_interval_ms", "limits"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "graphx.dashboard.websocket_hello.v1"},
+    "api_version": {"const": "v1"},
+    "publisher_epoch": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "latest_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "oldest_available_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "heartbeat_interval_ms": {"type": "integer", "minimum": 1, "maximum": 3600000},
+    "limits": {"type": "object", "required": ["frame_bytes", "message_bytes", "fragments_per_message", "commands_per_second", "events_per_second", "replay_events", "replay_bytes", "queue_events", "queue_bytes", "idle_timeout_ms", "max_lifetime_ms"], "additionalProperties": false,
+      "properties": {"frame_bytes": {"type": "integer", "minimum": 125, "maximum": 262144}, "message_bytes": {"type": "integer", "minimum": 125, "maximum": 262144}, "fragments_per_message": {"type": "integer", "minimum": 1, "maximum": 1024}, "commands_per_second": {"type": "integer", "minimum": 1, "maximum": 65536}, "events_per_second": {"type": "integer", "minimum": 1, "maximum": 65536}, "replay_events": {"type": "integer", "minimum": 1, "maximum": 4096}, "replay_bytes": {"type": "integer", "minimum": 125, "maximum": 8388608}, "queue_events": {"type": "integer", "minimum": 1, "maximum": 4096}, "queue_bytes": {"type": "integer", "minimum": 125, "maximum": 8388608}, "idle_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 3600000}, "max_lifetime_ms": {"type": "integer", "minimum": 1, "maximum": 86400000}}}
+  }
+}

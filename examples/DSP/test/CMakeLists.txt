@@ -66,6 +66,16 @@ endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
 if(GRAPHX_BUILD_WEB_DASHBOARD)
+  find_program(GRAPHX_NODE_EXECUTABLE NAMES node NO_CACHE)
+  if(GRAPHX_NODE_EXECUTABLE)
+    add_test(NAME fhss_dashboard_transport_state_behavior
+      COMMAND ${GRAPHX_NODE_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_transport_state.js
+        ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/fhss_transport_state.js)
+    set_tests_properties(fhss_dashboard_transport_state_behavior PROPERTIES
+      LABELS "dsp;fhss;dashboard;browser;behavior;ci-safe;host-any"
+      TIMEOUT 30)
+  endif()
   set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
     FhssDashboardServerContractTest
     FhssDashboardServerFailureTest

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:websocket-subscribe:v1",
+  "type": "object",
+  "required": ["action", "client_id"],
+  "additionalProperties": false,
+  "properties": {
+    "action": {"const": "subscribe"},
+    "client_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$"},
+    "publisher_epoch": {"type": "string", "maxLength": 32, "pattern": "^$|^[0-9a-f]{32}$"},
+    "last_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+  }
+}

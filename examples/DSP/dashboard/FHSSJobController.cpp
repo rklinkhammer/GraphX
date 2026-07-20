@@ -300,6 +300,11 @@ bool FHSSJobController::IsTerminal(std::string_view state) {
          state == "failed" || state == "abandoned_on_restart";
 }
 
+void FHSSJobController::SetEventSink(EventSink sink) {
+  std::scoped_lock lock(mutex_);
+  event_sink_ = std::move(sink);
+}
+
 bool FHSSJobController::IsLegalTransition(std::string_view from,
                                           std::string_view to) {
   if (from == "queued")
@@ -981,6 +986,19 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
           {"availability",
            comparison.value("availability", nlohmann::json::object())}};
     }
+    if (event_sink_) {
+      const nlohmann::json event_context{
+          {"controller_epoch", controller_epoch_},
+          {"job_id", job->job_id},
+          {"correlation_id", job->scenario_correlation_id}};
+      auto observation_context = event_context;
+      observation_context["semantic_class"] = "receiver_observation";
+      event_sink_("receiver_observation", observation,
+                  std::move(observation_context));
+      auto comparison_context = event_context;
+      comparison_context["semantic_class"] = "comparison";
+      event_sink_("comparison", comparison, std::move(comparison_context));
+    }
     truth_guard.Restore();
     if (status.state !=
         graph::dashboard::GraphRuntimeSession::State::completed) {
@@ -1013,6 +1031,12 @@ void FHSSJobController::Transition(const std::shared_ptr<Job> &job,
     throw std::logic_error("illegal FHSS job transition " + job->state +
                            " -> " + state);
   job->state = std::move(state);
+  if (event_sink_)
+    event_sink_("job_state", JobJson(*job),
+                {{"controller_epoch", controller_epoch_},
+                 {"job_id", job->job_id},
+                 {"correlation_id", job->scenario_correlation_id},
+                 {"semantic_class", "job_lifecycle"}});
 }
 
 void FHSSJobController::Terminal(const std::shared_ptr<Job> &job,
@@ -1056,6 +1080,12 @@ void FHSSJobController::Terminal(const std::shared_ptr<Job> &job,
   job->terminal_code = std::move(code);
   job->terminal_detail = std::move(detail);
   job->terminal_at = NowRfc3339();
+  if (event_sink_)
+    event_sink_("job_terminal", JobJson(*job),
+                {{"controller_epoch", controller_epoch_},
+                 {"job_id", job->job_id},
+                 {"correlation_id", job->scenario_correlation_id},
+                 {"semantic_class", "receiver_result"}});
   cv_.notify_all();
 }
 

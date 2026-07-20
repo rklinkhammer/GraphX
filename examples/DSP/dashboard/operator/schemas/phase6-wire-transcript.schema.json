@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graphx.local/schemas/phase6-wire-transcript.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "captured_at", "limits", "redaction_policy", "records", "lossless_streams", "proof"],
+  "properties": {
+    "schema": {"const": "graphx.dashboard.phase6-wire-transcript.v1"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_records", "max_encoded_bytes", "max_payload_bytes", "max_streams", "max_chunks_per_stream", "max_chunk_uncompressed_bytes", "max_chunk_encoded_bytes"],
+      "properties": {
+        "max_records": {"const": 1024},
+        "max_encoded_bytes": {"const": 16777216},
+        "max_payload_bytes": {"const": 262144},
+        "max_streams": {"const": 128},
+        "max_chunks_per_stream": {"const": 64},
+        "max_chunk_uncompressed_bytes": {"const": 524288},
+        "max_chunk_encoded_bytes": {"const": 524288}
+      }
+    },
+    "redaction_policy": {"const": "synthetic loopback protocol evidence only; no cookies, authorization headers, IQ, truth, or user data"},
+    "records": {
+      "type": "array", "minItems": 1, "maxItems": 1024,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["index", "scenario", "transport", "direction", "kind", "client_id", "payload"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "scenario": {"type": "string", "minLength": 1, "maxLength": 64},
+          "transport": {"enum": ["websocket", "http", "browser", "process"]},
+          "direction": {"enum": ["client_to_server", "server_to_client", "operator", "internal"]},
+          "kind": {"type": "string", "minLength": 1, "maxLength": 64},
+          "client_id": {"type": ["string", "null"], "maxLength": 64},
+          "payload": {"type": ["object", "array", "string", "integer", "boolean", "null"]},
+          "http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+          "close_code": {"type": "integer", "minimum": 1000, "maximum": 4999},
+          "frame_hex": {"type": "string", "pattern": "^[0-9a-f]*$", "maxLength": 1048576}
+        }
+      }
+    },
+    "lossless_streams": {
+      "type": "array", "minItems": 4, "maxItems": 128,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["stream_id", "scenario", "transport", "direction", "client_id", "expected_document_count", "recorded_document_count", "expected_frame_count", "recorded_frame_count", "first_sequence", "last_sequence", "type_counts", "chunk_count", "terminal_chain_sha256", "chunks"],
+        "properties": {
+          "stream_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "scenario": {"type": "string", "minLength": 1, "maxLength": 64},
+          "transport": {"const": "websocket"},
+          "direction": {"enum": ["client_to_server", "server_to_client"]},
+          "client_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "expected_document_count": {"type": "integer", "minimum": 1, "maximum": 100000},
+          "recorded_document_count": {"type": "integer", "minimum": 1, "maximum": 100000},
+          "expected_frame_count": {"type": "integer", "minimum": 0, "maximum": 100000},
+          "recorded_frame_count": {"type": "integer", "minimum": 0, "maximum": 100000},
+          "first_sequence": {"type": ["integer", "null"], "minimum": 0, "maximum": 18446744073709551615},
+          "last_sequence": {"type": ["integer", "null"], "minimum": 0, "maximum": 18446744073709551615},
+          "type_counts": {"type": "object", "maxProperties": 32, "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 100000}},
+          "chunk_count": {"type": "integer", "minimum": 1, "maximum": 64},
+          "terminal_chain_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "chunks": {
+            "type": "array", "minItems": 1, "maxItems": 64,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["index", "document_count", "uncompressed_bytes", "encoded_bytes", "sha256", "previous_sha256", "data_base64"],
+              "properties": {
+                "index": {"type": "integer", "minimum": 0, "maximum": 63},
+                "document_count": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "uncompressed_bytes": {"type": "integer", "minimum": 1, "maximum": 524288},
+                "encoded_bytes": {"type": "integer", "minimum": 1, "maximum": 524288},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "previous_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+                "data_base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$", "maxLength": 699052}
+              }
+            }
+          }
+        }
+      }
+    },
+    "proof": {
+      "type": "object", "additionalProperties": false,
+      "required": ["two_client_sequence", "resume_from_sequence", "replayed_sequences", "replay_contiguous", "old_publisher_epoch", "new_publisher_epoch", "publisher_epoch_changed", "negative_close_codes", "required_scenarios", "lossless_stream_ids", "lossless_streams_complete"],
+      "properties": {
+        "two_client_sequence": {"type": "integer", "minimum": 1},
+        "resume_from_sequence": {"type": "integer", "minimum": 1},
+        "replayed_sequences": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+        "replay_contiguous": {"const": true},
+        "old_publisher_epoch": {"type": "string", "minLength": 1},
+        "new_publisher_epoch": {"type": "string", "minLength": 1},
+        "publisher_epoch_changed": {"const": true},
+        "negative_close_codes": {
+          "type": "object", "additionalProperties": false,
+          "required": ["unmasked", "oversized", "fragments", "utf8", "continuation", "control", "malformed_resume"],
+          "properties": {
+            "unmasked": {"const": 1002}, "oversized": {"const": 1009},
+            "fragments": {"const": 1009}, "utf8": {"const": 1007},
+            "continuation": {"const": 1002}, "control": {"const": 1002},
+            "malformed_resume": {"const": 1008}
+          }
+        },
+        "required_scenarios": {"type": "array", "minItems": 10, "uniqueItems": true, "items": {"type": "string"}},
+        "lossless_stream_ids": {"type": "array", "minItems": 4, "maxItems": 128, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+        "lossless_streams_complete": {"const": true}
+      }
+    }
+  }
+}

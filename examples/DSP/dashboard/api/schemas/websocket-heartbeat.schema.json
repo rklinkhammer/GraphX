@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:websocket-heartbeat:v1",
+  "type": "object",
+  "required": ["schema", "publisher_epoch", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "graphx.dashboard.websocket_heartbeat.v1"},
+    "publisher_epoch": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "timestamp": {"type": "string", "format": "date-time"}
+  }
+}

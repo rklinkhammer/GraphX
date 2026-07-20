@@ -67,12 +67,16 @@ std::filesystem::path DefaultDashboardAssets(const char *executable) {
       return adjacent;
     }
   }
+  const std::filesystem::path source_assets{DSP_FHSS_DASHBOARD_ASSET_DIRECTORY};
+  if (std::filesystem::is_regular_file(source_assets / "index.html", error)) {
+    return source_assets;
+  }
   const std::filesystem::path installed{
       DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY};
   if (std::filesystem::is_regular_file(installed / "index.html", error)) {
     return installed;
   }
-  return DSP_FHSS_DASHBOARD_ASSET_DIRECTORY;
+  return source_assets;
 }
 
 std::filesystem::path DefaultFhssConfig(const char *executable) {
@@ -100,11 +104,14 @@ struct CliOptions {
   std::filesystem::path dashboard_artifact_root =
       std::filesystem::temp_directory_path() /
       "graphx-fhss-dashboard-artifacts";
+  std::filesystem::path dashboard_websocket_gate_file;
   std::string channel_iq_indices = "active";
   int executor_timeout_s = 12;
   std::uint16_t dashboard_port = 0;
   std::string dashboard_host = "127.0.0.1";
   std::size_t decoded_pulse_limit = 8;
+  int dashboard_websocket_idle_ms = 30000;
+  int dashboard_websocket_heartbeat_ms = 10000;
   bool print_effective_config = false;
   bool dashboard = false;
   bool dashboard_no_run = false;
@@ -242,6 +249,23 @@ CliOptions ParseArgs(int argc, char **argv) {
         throw std::invalid_argument("--dashboard-host requires an address");
       }
       options.dashboard_host = argv[++i];
+    } else if (arg == "--dashboard-websocket-idle-ms") {
+      if (i + 1 >= argc)
+        throw std::invalid_argument(
+            "--dashboard-websocket-idle-ms requires a value");
+      options.dashboard_websocket_idle_ms =
+          ParsePositiveIntOption(arg, argv[++i]);
+    } else if (arg == "--dashboard-websocket-heartbeat-ms") {
+      if (i + 1 >= argc)
+        throw std::invalid_argument(
+            "--dashboard-websocket-heartbeat-ms requires a value");
+      options.dashboard_websocket_heartbeat_ms =
+          ParsePositiveIntOption(arg, argv[++i]);
+    } else if (arg == "--dashboard-websocket-gate-file") {
+      if (i + 1 >= argc)
+        throw std::invalid_argument(
+            "--dashboard-websocket-gate-file requires a path");
+      options.dashboard_websocket_gate_file = argv[++i];
     } else if (arg == "--dashboard-assets") {
       if (i + 1 >= argc) {
         throw std::invalid_argument("--dashboard-assets requires a path");
@@ -754,13 +778,33 @@ int RunDashboardMode(const CliOptions &options,
               configuration_service, runtime_session, job_controller),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
+  if (!options.dashboard_websocket_gate_file.empty()) {
+    const auto gate_file = options.dashboard_websocket_gate_file;
+    server_options.websocket_availability_probe = [gate_file] {
+      std::error_code error;
+      const auto disabled = std::filesystem::exists(gate_file, error);
+      return !error && !disabled;
+    };
+  }
   server_options.enable_configuration_mutation_routes = true;
   server_options.enable_runtime_control_routes = options.dashboard;
   server_options.enable_mutating_routes = options.dashboard;
+  server_options.websocket_idle_timeout =
+      std::chrono::milliseconds(options.dashboard_websocket_idle_ms);
+  server_options.websocket_heartbeat_interval =
+      std::chrono::milliseconds(options.dashboard_websocket_heartbeat_ms);
 
   graph::dashboard::EmbeddedDashboardServer server(
       server_options, configuration_service, runtime_session,
       snapshot_collector);
+  if (job_controller) {
+    job_controller->SetEventSink([&server](std::string event_type,
+                                           nlohmann::json payload,
+                                           nlohmann::json context) {
+      server.PublishEvent(std::move(event_type), std::move(payload),
+                          std::move(context));
+    });
+  }
   if (!server.Start()) {
     throw std::runtime_error("failed to start dashboard: " +
                              server.LastError());

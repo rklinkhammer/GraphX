@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:websocket-resync-required:v1",
+  "type": "object",
+  "required": ["schema", "publisher_epoch", "latest_sequence", "snapshot_url", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "graphx.dashboard.websocket_resync_required.v1"},
+    "publisher_epoch": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "latest_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "snapshot_url": {"const": "/api/v1/fhss/snapshot"},
+    "reason": {"enum": ["publisher_epoch_changed", "retention_gap", "sequence_ahead", "sequence_gap", "replay_limit", "queue_overflow", "client_limit", "resync_required"]}
+  }
+}

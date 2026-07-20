@@ -107,8 +107,55 @@ def main() -> int:
         "edge-metrics.schema.json": {"schema": "graphx.dashboard.edge_metrics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","edges": []},
         "diagnostics.schema.json": {"schema": "graphx.dashboard.diagnostics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","nodes": []},
         "events.schema.json": {"schema": "graphx.dashboard.events_batch.v1",
-            "stream": "/api/v1/fhss/events", "client_id": "validator", "resync_required": False,
-            "latest_sequence": 0, "events": [], "counters": {}},
+            "stream": "/api/v1/fhss/events", "publisher_epoch": "a" * 32,
+            "client_id": "validator", "resync_required": False,
+            "reason": "none", "latest_sequence": 0,
+            "oldest_available_sequence": 1, "newest_available_sequence": 0,
+            "truncated": False, "events": [], "counters": {
+                "dropped_events": 0, "dropped_events_total": 0,
+                "coalesced_events_total": 0, "reconnects_total": 0}},
+        "event.schema.json": {"schema": "graphx.dashboard.event.v1", "api_version": "v1",
+            "publisher_epoch": "a" * 32, "sequence": 1, "event_type": "status",
+            "timestamp": "2026-07-19T00:00:00.000Z", "generation": 1, "run_epoch": 2,
+            "config_revision": 3, "config_etag": '"graphx-config-3"',
+            "controller_epoch": None, "job_id": None, "correlation_id": None,
+            "semantic_class": "runtime", "payload": {}},
+        "websocket-hello.schema.json": {"schema": "graphx.dashboard.websocket_hello.v1",
+            "api_version": "v1", "publisher_epoch": "a" * 32,
+            "latest_sequence": 0, "oldest_available_sequence": 1,
+            "heartbeat_interval_ms": 10000, "limits": {"frame_bytes": 65536,
+                "message_bytes": 262144, "fragments_per_message": 32,
+                "commands_per_second": 16, "events_per_second": 256,
+                "replay_events": 256, "replay_bytes": 2097152,
+                "queue_events": 128, "queue_bytes": 2097152,
+                "idle_timeout_ms": 30000, "max_lifetime_ms": 3600000}},
+        "websocket-heartbeat.schema.json": {
+            "schema": "graphx.dashboard.websocket_heartbeat.v1",
+            "publisher_epoch": "a" * 32,
+            "timestamp": "2026-07-19T00:00:00.000Z"},
+        "websocket-subscribe.schema.json": {
+            "action": "subscribe", "client_id": "validator",
+            "publisher_epoch": "a" * 32, "last_sequence": 0},
+        "websocket-heartbeat-ack.schema.json": {
+            "action": "heartbeat_ack", "publisher_epoch": "a" * 32},
+        "websocket-resync-required.schema.json": {
+            "schema": "graphx.dashboard.websocket_resync_required.v1",
+            "publisher_epoch": "a" * 32, "latest_sequence": 0,
+            "snapshot_url": "/api/v1/fhss/snapshot", "reason": "retention_gap"},
+        "fhss-snapshot.schema.json": {"schema": "graphx.dashboard.fhss_snapshot.v1",
+            "publisher_epoch": "a" * 32, "latest_sequence": 1,
+            "captured_at": "2026-07-19T00:00:00.000Z", "config_revision": 1,
+            "config_etag": '"graphx-config-1"', "generation": 1, "run_epoch": 1,
+            "configuration": {}, "graph": {}, "runtime": {}, "metrics": {},
+            "transport": {"active_websocket_clients": 0, "pongs_received": 0,
+                "idle_closes": 0, "protocol_failures": 0,
+                "rejected_upgrades": 0, "replayed_events": 0,
+                "resync_requests": 0, "queue_overflows": 0,
+                "close_reasons": {"normal": 0, "protocol": 0,
+                    "unsupported_data": 0, "invalid_utf8": 0, "too_big": 0,
+                    "policy": 0, "going_away": 0, "internal": 0},
+                "dropped_events_total": 0, "coalesced_events_total": 0},
+            "diagnostics": {}},
         "scenario.schema.json": {"schema": "graphx.dashboard.scenario.v1", "owner": "receiver",
             "config_revision": 1, "scenario": {}, "derived_paths": [],
             "validation": {"valid": True, "levels": [], "errors": []}},
@@ -263,6 +310,89 @@ def main() -> int:
         else:
             raise AssertionError(f"offline validator accepted {label}")
 
+    # Independent Phase6 adversarial corpus. These values are constructed here,
+    # not by the production server/generator, and both authoritative Draft
+    # 2020-12 and the offline validator must reject every case.
+    phase6_negatives = []
+    def phase6_negative(schema_name: str, label: str, mutate) -> None:
+        value = copy.deepcopy(samples[schema_name])
+        mutate(value)
+        phase6_negatives.append((schema_name, value, label))
+
+    for schema_name in (
+            "event.schema.json", "events.schema.json",
+            "websocket-hello.schema.json", "websocket-heartbeat.schema.json",
+            "websocket-heartbeat-ack.schema.json",
+            "websocket-subscribe.schema.json",
+            "websocket-resync-required.schema.json",
+            "fhss-snapshot.schema.json"):
+        phase6_negative(schema_name, f"{schema_name} unknown field",
+                        lambda value: value.update(unknown=True))
+    for schema_name, pointer in (
+            ("event.schema.json", "sequence"),
+            ("events.schema.json", "latest_sequence"),
+            ("websocket-hello.schema.json", "latest_sequence"),
+            ("websocket-subscribe.schema.json", "last_sequence"),
+            ("websocket-resync-required.schema.json", "latest_sequence"),
+            ("fhss-snapshot.schema.json", "latest_sequence")):
+        phase6_negative(schema_name, f"{schema_name} negative sequence",
+                        lambda value, key=pointer: value.update({key: -1}))
+        phase6_negative(schema_name, f"{schema_name} uint64 overflow sequence",
+                        lambda value, key=pointer: value.update({key: 1 << 64}))
+        phase6_negative(schema_name, f"{schema_name} non-finite sequence",
+                        lambda value, key=pointer: value.update({key: float("inf")}))
+    for schema_name in (
+            "event.schema.json", "events.schema.json",
+            "websocket-hello.schema.json", "websocket-heartbeat.schema.json",
+            "websocket-heartbeat-ack.schema.json",
+            "websocket-subscribe.schema.json",
+            "websocket-resync-required.schema.json",
+            "fhss-snapshot.schema.json"):
+        phase6_negative(schema_name, f"{schema_name} malformed publisher epoch",
+                        lambda value: value.update(publisher_epoch="not-an-epoch"))
+    phase6_negative("websocket-subscribe.schema.json", "empty client id",
+                    lambda value: value.update(client_id=""))
+    phase6_negative("websocket-subscribe.schema.json", "oversized client id",
+                    lambda value: value.update(client_id="a" * 65))
+    phase6_negative("websocket-subscribe.schema.json", "invalid client id alphabet",
+                    lambda value: value.update(client_id="bad/client"))
+    phase6_negative("websocket-heartbeat-ack.schema.json", "wrong heartbeat action",
+                    lambda value: value.update(action="subscribe"))
+    phase6_negative("websocket-resync-required.schema.json", "invalid resync reason",
+                    lambda value: value.update(reason="attacker_reason"))
+    phase6_negative("events.schema.json", "invalid batch reason",
+                    lambda value: value.update(reason="attacker_reason"))
+    phase6_negative("events.schema.json", "oversized event batch",
+                    lambda value: value.update(events=[copy.deepcopy(
+                        samples["event.schema.json"]) for _ in range(257)]))
+    phase6_negative("events.schema.json", "uint64 counter overflow",
+                    lambda value: value["counters"].update(
+                        dropped_events_total=1 << 64))
+    phase6_negative("events.schema.json", "negative counter",
+                    lambda value: value["counters"].update(dropped_events=-1))
+    phase6_negative("events.schema.json", "non-finite counter",
+                    lambda value: value["counters"].update(
+                        reconnects_total=float("nan")))
+    phase6_negative("event.schema.json", "oversized event type",
+                    lambda value: value.update(event_type="x" * 65))
+    phase6_negative("event.schema.json", "invalid event payload type",
+                    lambda value: value.update(payload=[]))
+    phase6_negative("event.schema.json", "oversized event payload members",
+                    lambda value: value.update(payload={
+                        str(index): index for index in range(1025)}))
+    phase6_negative("event.schema.json", "oversized semantic class",
+                    lambda value: value.update(semantic_class="x" * 65))
+    phase6_negative("websocket-hello.schema.json", "unsafe hello message limit",
+                    lambda value: value["limits"].update(
+                        message_bytes=262145))
+    phase6_negative("websocket-hello.schema.json", "unsafe hello client count",
+                    lambda value: value["limits"].update(queue_events=4097))
+    phase6_negative("fhss-snapshot.schema.json", "unsafe active client count",
+                    lambda value: value["transport"].update(
+                        active_websocket_clients=9))
+    for schema_name, value, label in phase6_negatives:
+        assert_contract_rejects(schema_name, value, label)
+
     masquerading_expected = copy.deepcopy(samples["fhss-expected-truth.schema.json"])
     masquerading_expected["semantic_class"] = "observed"
     assert_contract_rejects("fhss-expected-truth.schema.json", masquerading_expected,
@@ -402,10 +532,13 @@ def main() -> int:
             operation_ids.add(operation_id)
             responses = operation.get("responses")
             assert isinstance(responses, dict) and responses, f"{method} {route}: responses"
-            for response in responses.values():
+            for response_code, response in responses.items():
                 if "$ref" not in response:
                     assert response.get("description"), f"{method} {route}: description"
                     content = response.get("content")
+                    if response_code in {"101", "204"}:
+                        assert content is None, f"{method} {route}: bodyless response"
+                        continue
                     assert isinstance(content, dict) and content, f"{method} {route}: response content"
                     for media in content.values():
                         response_schema = media.get("schema")

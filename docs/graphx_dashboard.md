@@ -346,3 +346,55 @@ truth separation, and replay of the captured IQ after deleting truth and
 stopping the dashboard. See
 `docs/dsp/fhss_dashboard_phase5_manual_operator_test.md` for the runnable
 workflow. This is synthetic software validation only; no HWIL is available.
+
+## Bounded event streaming and recovery
+
+Dashboard Phase 6 keeps `/api/v1/fhss/events` as a documented polling fallback
+and adds `/api/v1/fhss/events/stream` as the primary RFC 6455 transport. The
+same maintained Boost.Beast listener performs the HTTP upgrade, validates the
+single exact loopback page origin and bound authority, rejects unsupported
+subprotocols, declines extension offers without negotiating them, applies the
+configured client/message limits, and
+owns ping, close, masking, fragmentation, UTF-8, and protocol failure behavior.
+
+The production publisher accepts events from configuration/runtime operations
+and the application-owned FHSS job controller. Event envelopes identify the
+publisher process epoch, monotonic sequence, RFC 3339 timestamp, graph
+generation/run epoch, configuration revision/ETag, controller/job/correlation
+identity, semantic class, and payload. These fields provide traceability; they
+do not place synthetic schedule/truth into receiver execution.
+
+Graph and job threads capture the current generation/run/configuration identity
+when committing to an event-and-byte-bounded publisher ingress. Repetitive
+metrics/diagnostics coalesce deterministically; terminal, configuration, and
+job transitions already admitted to the ingress preserve FIFO order. Admission
+never blocks: coalescible entries are evicted first; if only critical entries
+remain at the configured byte/event bound, the newest critical event is
+rejected and clients are marked for coherent resynchronization. Producers never
+bypass the ingress for synchronous publication. Snapshot collection,
+serialization, sequence assignment/retention commit, and client fan-out occur
+outside graph and job critical sections. Global retention is bounded
+independently by age (120 seconds), count (4,096), and encoded bytes (8 MiB).
+Frame, reassembled-message, fragment, command/event-rate, replay, queue,
+connection-lifetime, idle, close, client-count, and stale-client-state limits
+are enforced. Overflow discards the affected client's queue and requires an
+explicit resync without blocking the graph or another client. A resume is valid
+only when publisher epoch and retained sequence range are contiguous.
+
+The browser uses the native WebSocket API, stores a coherent epoch/sequence
+tuple in session storage, ignores exact duplicates, validates heartbeat and
+event envelopes, and treats epoch, sequence, or schema discontinuity as a
+mandatory coherent-snapshot resync. Resync always uses the fixed same-origin
+snapshot route and replaces the local/display model atomically. Reconnect uses
+capped exponential delay and a finite attempt budget, reset only after a stable
+connection; HTTP event polling is the bounded fallback. The
+external operator uses the pinned
+maintained Python `websockets` client for protocol coverage and WebDriver BiDi
+with maintained Firefox for page behavior. It creates a genuine WebSocket-only
+outage while HTTP stays healthy, observes bounded polling and coherent recovery
+in the rendered page, and binds the screenshot and console stream to Firefox
+browser/session/context identity and the served-state hash. Hand-authored
+console JSON is not valid browser evidence. See
+`docs/dsp/fhss_dashboard_phase6_manual_operator_test.md`. This remains
+synthetic-only software validation; HWIL and production-RF qualification are
+unavailable.

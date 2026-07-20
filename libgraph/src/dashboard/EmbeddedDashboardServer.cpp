@@ -5,6 +5,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/beast/websocket.hpp>
 
 #include <algorithm>
 #include <array>
@@ -21,8 +22,10 @@
 #include <fstream>
 #include <future>
 #include <iomanip>
+#include <limits>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -30,6 +33,7 @@
 
 #if !defined(_WIN32)
 #include <fcntl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
@@ -38,6 +42,7 @@ namespace graph::dashboard {
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
+namespace websocket = beast::websocket;
 using tcp = asio::ip::tcp;
 
 struct EmbeddedDashboardServer::ServerState {
@@ -50,8 +55,24 @@ struct EmbeddedDashboardServer::ServerState {
   std::mutex workers_mutex;
   std::vector<Worker> workers;
   std::atomic<std::size_t> active_connections{0};
+  std::atomic<std::size_t> active_websocket_clients{0};
+  std::atomic<std::uint64_t> websocket_pongs_received{0};
+  std::atomic<std::uint64_t> websocket_idle_closes{0};
+  std::atomic<std::uint64_t> websocket_protocol_failures{0};
+  std::atomic<std::uint64_t> websocket_rejected_upgrades{0};
+  std::atomic<std::uint64_t> websocket_replayed_events{0};
+  std::atomic<std::uint64_t> websocket_resync_requests{0};
+  std::atomic<std::uint64_t> websocket_queue_overflows{0};
+  std::atomic<std::uint64_t> websocket_close_normal{0};
+  std::atomic<std::uint64_t> websocket_close_protocol{0};
+  std::atomic<std::uint64_t> websocket_close_unsupported{0};
+  std::atomic<std::uint64_t> websocket_close_invalid_utf8{0};
+  std::atomic<std::uint64_t> websocket_close_too_big{0};
+  std::atomic<std::uint64_t> websocket_close_policy{0};
+  std::atomic<std::uint64_t> websocket_close_going_away{0};
+  std::atomic<std::uint64_t> websocket_close_internal{0};
   std::mutex streams_mutex;
-  std::vector<std::weak_ptr<beast::tcp_stream>> active_streams;
+  std::unordered_set<tcp::socket::native_handle_type> active_socket_handles;
   struct HandlerJob {
     ApiHandler handler;
     ApiRequest request;
@@ -68,6 +89,21 @@ struct EmbeddedDashboardServer::ServerState {
 };
 
 namespace {
+
+bool IsValidWebSocketKey(std::string_view value) {
+  // RFC 6455 requires a base64-encoded 16-byte nonce. A canonical encoding is
+  // therefore 24 characters, has two padding characters, and has only two
+  // significant bits in its final base64 digit.
+  if (value.size() != 24 || !value.ends_with("=="))
+    return false;
+  for (const auto character : value.substr(0, 21)) {
+    const auto byte = static_cast<unsigned char>(character);
+    if (!std::isalnum(byte) && character != '+' && character != '/')
+      return false;
+  }
+  return value[21] == 'A' || value[21] == 'Q' || value[21] == 'g' ||
+         value[21] == 'w';
+}
 
 std::optional<std::string> ParseMediaType(std::string_view value) {
   const auto trim = [](std::string_view part) {
@@ -306,7 +342,8 @@ bool IsContainedPath(const std::filesystem::path &root,
 
 std::optional<std::string> AllowedMethodsFor(const std::string &path) {
   if (path == "/healthz" || path == "/readyz" || path == "/api/v1/version" ||
-      path == "/api/v1/fhss/events" || path == "/api/v1/fhss/graph" ||
+      path == "/api/v1/fhss/events" || path == "/api/v1/fhss/events/stream" ||
+      path == "/api/v1/fhss/snapshot" || path == "/api/v1/fhss/graph" ||
       path == "/api/v1/fhss/config/authoritative" ||
       path == "/api/v1/fhss/config/effective" ||
       path == "/api/v1/fhss/config/provenance" ||
@@ -420,6 +457,14 @@ EmbeddedDashboardServer::EmbeddedDashboardServer(
       configuration_service_(std::move(configuration_service)),
       runtime_session_(std::move(runtime_session)),
       snapshot_collector_(std::move(snapshot_collector)) {
+  std::array<std::uint64_t, 2> epoch{};
+  std::random_device random;
+  for (auto &part : epoch)
+    part = (static_cast<std::uint64_t>(random()) << 32U) ^ random();
+  std::ostringstream encoded_epoch;
+  encoded_epoch << std::hex << std::setfill('0') << std::setw(16) << epoch[0]
+                << std::setw(16) << epoch[1];
+  publisher_epoch_ = encoded_epoch.str();
   if (snapshot_collector_ && runtime_session_) {
     snapshot_collector_->BindRuntimeSession(runtime_session_);
   }
@@ -436,6 +481,15 @@ bool EmbeddedDashboardServer::Start() {
     return false;
   }
 
+  {
+    std::scoped_lock lock(event_mutex_);
+    per_client_queue_depth_ = options_.max_websocket_queue_events;
+    per_client_queue_bytes_ = options_.max_websocket_queue_bytes;
+    max_retained_event_bytes_ = options_.max_retained_event_bytes;
+    max_retained_events_ = options_.max_retained_events;
+    event_retention_window_ = options_.event_retention_window;
+  }
+
   try {
     server_state_ = std::make_unique<ServerState>();
     const auto address = asio::ip::make_address(options_.host);
@@ -450,6 +504,7 @@ bool EmbeddedDashboardServer::Start() {
     server_state_->acceptor->bind(endpoint);
     server_state_->acceptor->listen(static_cast<int>(
         std::min<std::size_t>(options_.max_concurrent_connections, 128)));
+    server_state_->acceptor->non_blocking(true);
     const auto local = server_state_->acceptor->local_endpoint();
     bound_port_ = local.port();
     bound_host_ = local.address().to_string();
@@ -503,7 +558,98 @@ bool EmbeddedDashboardServer::Start() {
   }
 
   runtime_session_->MarkReady();
+  {
+    std::scoped_lock lock(publisher_mutex_);
+    publisher_stopping_ = false;
+    publisher_paused_for_testing_ = false;
+    pending_events_.clear();
+    pending_event_bytes_ = 0;
+  }
+  publisher_worker_ = std::jthread([this](std::stop_token stop) {
+    std::deque<std::chrono::steady_clock::time_point> publication_times;
+    for (;;) {
+      PendingEvent event;
+      {
+        std::unique_lock lock(publisher_mutex_);
+        publisher_cv_.wait(lock, [&] {
+          return stop.stop_requested() || publisher_stopping_ ||
+                 (!publisher_paused_for_testing_ && !pending_events_.empty());
+        });
+        if ((stop.stop_requested() || publisher_stopping_) &&
+            pending_events_.empty())
+          return;
+        event = std::move(pending_events_.front());
+        pending_event_bytes_ -= event.encoded_bytes;
+        pending_events_.pop_front();
+        publisher_cv_.notify_all();
+      }
+      const auto now = std::chrono::steady_clock::now();
+      while (!publication_times.empty() &&
+             now - publication_times.front() >= std::chrono::seconds(1))
+        publication_times.pop_front();
+      if (publication_times.size() >=
+          options_.max_websocket_events_per_second) {
+        if (event.coalescible) {
+          std::scoped_lock lock(event_mutex_);
+          ++coalesced_events_total_;
+          server_state_->websocket_queue_overflows.fetch_add(1);
+          for (auto &[id, client] : clients_) {
+            (void)id;
+            client.resync_required = true;
+            ++client.dropped_events;
+            ++dropped_events_total_;
+          }
+          continue;
+        }
+        const auto delay =
+            std::chrono::seconds(1) - (now - publication_times.front());
+        if (delay > std::chrono::steady_clock::duration::zero())
+          std::this_thread::sleep_for(delay);
+        publication_times.clear();
+      }
+      publication_times.push_back(std::chrono::steady_clock::now());
+      PublishEventImpl(std::move(event.event_type), std::move(event.payload),
+                       std::move(event.context), std::move(event.timestamp),
+                       event.generation, event.run_epoch, event.config_revision,
+                       std::move(event.config_etag));
+    }
+  });
   running_.store(true);
+  if (options_.application_api_handler)
+    snapshot_worker_ = std::jthread([this](std::stop_token stop) {
+      std::string previous_runtime;
+      std::string previous_metrics;
+      std::string previous_diagnostics;
+      while (!stop.stop_requested() && running_.load()) {
+        try {
+          auto runtime = RuntimeStatusJson(runtime_session_->SnapshotStatus());
+          auto metrics = snapshot_collector_->GetMetricsSnapshot();
+          auto diagnostics = snapshot_collector_->GetDiagnosticsSnapshot();
+          const auto runtime_key = runtime.dump();
+          const auto metrics_key = metrics.dump();
+          const auto diagnostics_key = diagnostics.dump();
+          if (runtime_key != previous_runtime) {
+            PublishEvent("runtime_status", std::move(runtime),
+                         {{"semantic_class", "runtime"}});
+            previous_runtime = runtime_key;
+          }
+          if (metrics_key != previous_metrics) {
+            PublishEvent("metrics", std::move(metrics),
+                         {{"semantic_class", "metrics"}});
+            previous_metrics = metrics_key;
+          }
+          if (diagnostics_key != previous_diagnostics) {
+            PublishEvent("diagnostics", std::move(diagnostics),
+                         {{"semantic_class", "diagnostics"}});
+            previous_diagnostics = diagnostics_key;
+          }
+        } catch (const std::exception &) {
+          // Snapshot endpoints retain their own truthful unavailable state. A
+          // transient collection failure must not terminate transport service.
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+    });
   server_thread_ = std::thread([this] { RunLoop(); });
   return true;
 }
@@ -517,29 +663,26 @@ void EmbeddedDashboardServer::Stop() {
     runtime_session_->MarkShuttingDown();
   }
 
-  if (server_state_ && server_state_->acceptor) {
-    boost::system::error_code ignored;
-    server_state_->acceptor->cancel(ignored);
-    server_state_->acceptor->close(ignored);
-  }
-
   if (server_thread_.joinable()) {
     server_thread_.join();
+  }
+
+  if (server_state_ && server_state_->acceptor) {
+    boost::system::error_code ignored;
+    server_state_->acceptor->close(ignored);
   }
 
   if (server_state_) {
     {
       std::scoped_lock lock(server_state_->streams_mutex);
-      for (const auto &weak_stream : server_state_->active_streams) {
-        if (const auto stream = weak_stream.lock()) {
-          asio::post(stream->get_executor(), [stream] {
-            boost::system::error_code ignored;
-            stream->socket().cancel(ignored);
-            stream->socket().close(ignored);
-          });
-        }
+      for (const auto handle : server_state_->active_socket_handles) {
+#if defined(_WIN32)
+        ::shutdown(handle, SD_BOTH);
+#else
+        ::shutdown(handle, SHUT_RDWR);
+#endif
       }
-      server_state_->active_streams.clear();
+      server_state_->active_socket_handles.clear();
     }
     {
       std::scoped_lock lock(server_state_->handler_mutex);
@@ -560,6 +703,17 @@ void EmbeddedDashboardServer::Stop() {
       }
     }
     server_state_->workers.clear();
+    snapshot_worker_.request_stop();
+    if (snapshot_worker_.joinable())
+      snapshot_worker_.join();
+    {
+      std::scoped_lock publisher_lock(publisher_mutex_);
+      publisher_stopping_ = true;
+    }
+    publisher_worker_.request_stop();
+    publisher_cv_.notify_all();
+    if (publisher_worker_.joinable())
+      publisher_worker_.join();
     server_state_.reset();
   }
 
@@ -571,6 +725,7 @@ void EmbeddedDashboardServer::Stop() {
     std::scoped_lock lock(event_mutex_);
     clients_.clear();
     retained_events_.clear();
+    retained_event_bytes_ = 0;
   }
 }
 
@@ -586,15 +741,127 @@ const std::string &EmbeddedDashboardServer::LastError() const {
   return last_error_;
 }
 
-void EmbeddedDashboardServer::PublishEventForTesting(
-    std::string event_type, nlohmann::json payload,
-    std::optional<std::uint64_t> revision) {
-  PublishEvent(std::move(event_type), std::move(payload), revision);
+void EmbeddedDashboardServer::PublishEvent(std::string event_type,
+                                           nlohmann::json payload,
+                                           nlohmann::json context) const {
+  PendingEvent pending{.event_type = std::move(event_type),
+                       .payload = std::move(payload),
+                       .context = context.is_object()
+                                      ? std::move(context)
+                                      : nlohmann::json::object(),
+                       .timestamp = NowIso8601()};
+  if (runtime_session_) {
+    const auto status = runtime_session_->SnapshotStatus();
+    pending.generation = status.active_generation;
+    pending.run_epoch = status.active_run_epoch;
+  }
+  if (configuration_service_) {
+    pending.config_revision = configuration_service_->ConfigRevision();
+    pending.config_etag = configuration_service_->ETag();
+  }
+  pending.coalescible =
+      pending.event_type == "metrics" || pending.event_type == "diagnostics";
+  const auto payload_bytes = pending.payload.dump().size();
+  const auto context_bytes = pending.context.dump().size();
+  const auto checked_add = [&](std::size_t value) {
+    if (value > std::numeric_limits<std::size_t>::max() - pending.encoded_bytes)
+      return false;
+    pending.encoded_bytes += value;
+    return true;
+  };
+  if (!checked_add(payload_bytes) || !checked_add(context_bytes) ||
+      !checked_add(pending.event_type.size()) ||
+      !checked_add(pending.timestamp.size()) ||
+      !checked_add(pending.config_etag.size())) {
+    if (server_state_)
+      server_state_->websocket_queue_overflows.fetch_add(1);
+    return;
+  }
+
+  {
+    std::scoped_lock lock(publisher_mutex_);
+    if (publisher_stopping_ || !server_state_)
+      return;
+    const auto record_rejection = [&](bool critical) {
+      server_state_->websocket_queue_overflows.fetch_add(1);
+      std::scoped_lock event_lock(event_mutex_);
+      if (!critical) {
+        ++coalesced_events_total_;
+        return;
+      }
+      for (auto &[id, client] : clients_) {
+        (void)id;
+        client.resync_required = true;
+        ++client.dropped_events;
+        ++dropped_events_total_;
+      }
+    };
+    const auto fits = [&] {
+      return pending_events_.size() < options_.max_publisher_ingress_events &&
+             pending.encoded_bytes <=
+                 options_.max_publisher_ingress_bytes -
+                     std::min(pending_event_bytes_,
+                              options_.max_publisher_ingress_bytes);
+    };
+    if (pending.encoded_bytes > options_.max_publisher_ingress_bytes) {
+      record_rejection(!pending.coalescible);
+      return;
+    }
+    if (!fits()) {
+      const auto replace = std::ranges::find_if(
+          pending_events_, [&](const PendingEvent &queued) {
+            return pending.coalescible &&
+                   queued.event_type == pending.event_type;
+          });
+      if (replace != pending_events_.end()) {
+        const auto bytes_without_replaced =
+            pending_event_bytes_ - replace->encoded_bytes;
+        if (pending.encoded_bytes <=
+            options_.max_publisher_ingress_bytes - bytes_without_replaced) {
+          pending_event_bytes_ = bytes_without_replaced;
+          *replace = std::move(pending);
+          pending_event_bytes_ += replace->encoded_bytes;
+          std::scoped_lock event_lock(event_mutex_);
+          ++coalesced_events_total_;
+          server_state_->websocket_queue_overflows.fetch_add(1);
+        } else {
+          record_rejection(false);
+        }
+        return;
+      }
+      if (!pending.coalescible) {
+        while (!fits()) {
+          const auto disposable = std::ranges::find_if(
+              pending_events_,
+              [](const PendingEvent &queued) { return queued.coalescible; });
+          if (disposable == pending_events_.end())
+            break;
+          pending_event_bytes_ -= disposable->encoded_bytes;
+          pending_events_.erase(disposable);
+          server_state_->websocket_queue_overflows.fetch_add(1);
+          std::scoped_lock event_lock(event_mutex_);
+          ++coalesced_events_total_;
+        }
+      }
+      if (!fits()) {
+        // Admission is deliberately non-blocking. Already accepted critical
+        // transitions retain FIFO order; when they alone consume the bounded
+        // queue, reject the newest transition and force clients to obtain a
+        // coherent snapshot rather than publishing out of order.
+        record_rejection(!pending.coalescible);
+        return;
+      }
+    }
+    pending_event_bytes_ += pending.encoded_bytes;
+    pending_events_.push_back(std::move(pending));
+  }
+  publisher_cv_.notify_one();
 }
 
 void EmbeddedDashboardServer::ExpireRetainedEventsForTesting() {
   std::scoped_lock lock(event_mutex_);
   retained_events_.clear();
+  retained_event_bytes_ = 0;
 }
 
 void EmbeddedDashboardServer::SetEventQueueDepthForTesting(std::size_t depth) {
@@ -606,6 +873,14 @@ void EmbeddedDashboardServer::SetEventRetentionForTesting(
     std::chrono::milliseconds retention) {
   std::scoped_lock lock(event_mutex_);
   event_retention_window_ = retention;
+}
+
+void EmbeddedDashboardServer::SetPublisherPausedForTesting(bool paused) {
+  {
+    std::scoped_lock lock(publisher_mutex_);
+    publisher_paused_for_testing_ = paused;
+  }
+  publisher_cv_.notify_all();
 }
 
 bool EmbeddedDashboardServer::ValidateStartup() {
@@ -640,6 +915,31 @@ bool EmbeddedDashboardServer::ValidateStartup() {
       !std::isfinite(options_.max_json_number_magnitude) ||
       options_.max_json_number_magnitude <= 0.0 ||
       options_.max_concurrent_connections > 128 ||
+      options_.max_websocket_clients == 0 ||
+      options_.max_websocket_frame_bytes < 125 ||
+      options_.max_websocket_message_bytes <
+          options_.max_websocket_frame_bytes ||
+      options_.max_websocket_fragments_per_message == 0 ||
+      options_.max_websocket_commands_per_second == 0 ||
+      options_.max_websocket_events_per_second == 0 ||
+      options_.max_websocket_replay_events == 0 ||
+      options_.max_websocket_replay_bytes <
+          options_.max_websocket_frame_bytes ||
+      options_.max_websocket_queue_events == 0 ||
+      options_.max_websocket_queue_bytes <
+          options_.max_websocket_message_bytes ||
+      options_.max_publisher_ingress_events == 0 ||
+      options_.max_publisher_ingress_bytes <
+          options_.max_websocket_message_bytes ||
+      options_.max_retained_events == 0 ||
+      options_.max_retained_event_bytes <
+          options_.max_websocket_message_bytes ||
+      options_.websocket_idle_timeout.count() <= 0 ||
+      options_.websocket_heartbeat_interval.count() <= 0 ||
+      options_.websocket_max_lifetime.count() <= 0 ||
+      options_.websocket_close_timeout.count() <= 0 ||
+      options_.websocket_client_state_ttl.count() <= 0 ||
+      options_.event_retention_window.count() <= 0 ||
       options_.idle_timeout.count() <= 0 ||
       options_.read_timeout.count() <= 0 ||
       options_.write_timeout.count() <= 0 ||
@@ -692,6 +992,10 @@ void EmbeddedDashboardServer::RunLoop() {
     if (accept_error) {
       if (!running_.load())
         return;
+      if (accept_error == asio::error::would_block ||
+          accept_error == asio::error::try_again) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      }
       continue;
     }
     if (server_state_->active_connections.load() >=
@@ -725,10 +1029,17 @@ void EmbeddedDashboardServer::RunLoop() {
                                      socket.release());
           auto stream =
               std::make_shared<beast::tcp_stream>(std::move(request_socket));
+          const auto native_socket = stream->socket().native_handle();
           {
             std::scoped_lock lock(server_state_->streams_mutex);
-            server_state_->active_streams.push_back(stream);
+            server_state_->active_socket_handles.insert(native_socket);
           }
+          const auto socket_registration =
+              std::unique_ptr<void, std::function<void(void *)>>(
+                  reinterpret_cast<void *>(1), [this, native_socket](void *) {
+                    std::scoped_lock lock(server_state_->streams_mutex);
+                    server_state_->active_socket_handles.erase(native_socket);
+                  });
           beast::flat_buffer buffer(options_.max_header_bytes +
                                     options_.max_body_bytes);
           http::request_parser<http::string_body> parser;
@@ -862,6 +1173,9 @@ void EmbeddedDashboardServer::RunLoop() {
               request.query = request.target.substr(query + 1);
             request.body = wire_request.body();
             std::size_t host_count = 0;
+            std::size_t origin_count = 0;
+            std::size_t subprotocol_count = 0;
+            std::size_t websocket_key_count = 0;
             for (const auto &field : wire_request) {
               if (field.name() == http::field::host)
                 ++host_count;
@@ -870,7 +1184,16 @@ void EmbeddedDashboardServer::RunLoop() {
                              [](unsigned char value) {
                                return static_cast<char>(std::tolower(value));
                              });
-              request.headers[std::move(name)] = std::string(field.value());
+              if (name == "origin")
+                ++origin_count;
+              else if (name == "sec-websocket-protocol")
+                ++subprotocol_count;
+              else if (name == "sec-websocket-key")
+                ++websocket_key_count;
+              // Preserve the first value. Duplicate security-sensitive fields
+              // are rejected below and must never be merged or overwritten.
+              request.headers.try_emplace(std::move(name),
+                                          std::string(field.value()));
             }
             request.deadline = request_deadline;
             if (wire_request.version() == 11 && host_count != 1) {
@@ -879,6 +1202,485 @@ void EmbeddedDashboardServer::RunLoop() {
                           .body = ErrorBody(
                               400, "invalid_host_header",
                               "HTTP/1.1 requires exactly one Host header")};
+            } else if (websocket::is_upgrade(wire_request) &&
+                       request.path == "/api/v1/fhss/events/stream") {
+              const auto origin = request.headers.contains("origin")
+                                      ? request.headers.at("origin")
+                                      : std::string{};
+              const auto host = request.headers.contains("host")
+                                    ? request.headers.at("host")
+                                    : std::string{};
+              const auto expected_authority =
+                  (bound_host_.find(':') == std::string::npos
+                       ? bound_host_
+                       : "[" + bound_host_ + "]") +
+                  ":" + std::to_string(bound_port_);
+              const auto expected_origin = "http://" + expected_authority;
+              bool websocket_available = true;
+              try {
+                websocket_available = !options_.websocket_availability_probe ||
+                                      options_.websocket_availability_probe();
+              } catch (...) {
+                websocket_available = false;
+              }
+              const auto websocket_key =
+                  request.headers.contains("sec-websocket-key")
+                      ? request.headers.at("sec-websocket-key")
+                      : std::string{};
+              if (websocket_key_count != 1 ||
+                  !IsValidWebSocketKey(websocket_key)) {
+                server_state_->websocket_rejected_upgrades.fetch_add(1);
+                response = {.status_code = 400,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(400, "invalid_websocket_key",
+                                              "Sec-WebSocket-Key must encode "
+                                              "exactly 16 bytes")};
+              } else if (origin_count != 1 || host != expected_authority ||
+                         origin != expected_origin) {
+                server_state_->websocket_rejected_upgrades.fetch_add(1);
+                response = {.status_code = 403,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(403, "websocket_origin_rejected",
+                                              "WebSocket Origin must match the "
+                                              "local dashboard origin")};
+              } else if (subprotocol_count != 0) {
+                server_state_->websocket_rejected_upgrades.fetch_add(1);
+                response = {.status_code = 400,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(
+                                400, "websocket_negotiation_unsupported",
+                                "WebSocket subprotocols are not supported")};
+              } else if (!websocket_available) {
+                server_state_->websocket_rejected_upgrades.fetch_add(1);
+                response = {.status_code = 503,
+                            .content_type = "application/problem+json",
+                            .body = ErrorBody(
+                                503, "websocket_temporarily_unavailable",
+                                "WebSocket event transport is temporarily "
+                                "unavailable")};
+              } else if (server_state_->active_websocket_clients.fetch_add(1) >=
+                         options_.max_websocket_clients) {
+                server_state_->active_websocket_clients.fetch_sub(1);
+                server_state_->websocket_rejected_upgrades.fetch_add(1);
+                response = {.status_code = 503,
+                            .content_type = "application/problem+json",
+                            .body =
+                                ErrorBody(503, "websocket_client_limit",
+                                          "WebSocket client limit reached")};
+              } else {
+                auto websocket_stream =
+                    std::make_shared<websocket::stream<beast::tcp_stream>>(
+                        std::move(*stream));
+                websocket_stream->read_message_max(
+                    options_.max_websocket_message_bytes);
+                websocket_stream->set_option(
+                    websocket::stream_base::timeout::suggested(
+                        beast::role_type::server));
+                websocket_stream->set_option(websocket::stream_base::decorator(
+                    [](websocket::response_type &upgrade_response) {
+                      upgrade_response.set(http::field::server,
+                                           "GraphX-FHSS-Dashboard");
+                    }));
+                boost::system::error_code websocket_error;
+                websocket::close_reason requested_close;
+                requested_close.code = websocket::close_code::normal;
+                requested_close.reason = "normal closure";
+                bool event_client_reserved = false;
+                const auto reject_websocket = [&](websocket::close_code code,
+                                                  std::string_view reason) {
+                  requested_close.code = code;
+                  requested_close.reason = reason;
+                  websocket_error = websocket::error::bad_data_frame;
+                  server_state_->websocket_protocol_failures.fetch_add(1);
+                };
+                websocket_stream->accept(wire_request, websocket_error);
+                if (websocket_error)
+                  server_state_->websocket_rejected_upgrades.fetch_add(1);
+                const auto send_json = [&](const nlohmann::json &document) {
+                  const auto encoded = document.dump();
+                  if (encoded.size() > options_.max_websocket_message_bytes)
+                    return false;
+                  websocket_stream->text(true);
+                  websocket_stream->write(asio::buffer(encoded),
+                                          websocket_error);
+                  return !websocket_error;
+                };
+
+                std::string websocket_client_id;
+                std::optional<std::uint64_t> websocket_last_sequence;
+                bool subscribed = false;
+                if (!websocket_error) {
+                  std::uint64_t hello_latest_sequence = 0;
+                  std::uint64_t hello_oldest_sequence = 0;
+                  {
+                    std::scoped_lock lock(event_mutex_);
+                    hello_latest_sequence = next_event_sequence_ - 1;
+                    hello_oldest_sequence =
+                        retained_events_.empty()
+                            ? next_event_sequence_
+                            : retained_events_.front().first.sequence;
+                  }
+                  subscribed = send_json(
+                      {{"schema", "graphx.dashboard.websocket_hello.v1"},
+                       {"api_version", "v1"},
+                       {"publisher_epoch", publisher_epoch_},
+                       {"latest_sequence", hello_latest_sequence},
+                       {"oldest_available_sequence", hello_oldest_sequence},
+                       {"heartbeat_interval_ms",
+                        options_.websocket_heartbeat_interval.count()},
+                       {"limits",
+                        {{"frame_bytes", options_.max_websocket_frame_bytes},
+                         {"message_bytes",
+                          options_.max_websocket_message_bytes},
+                         {"fragments_per_message",
+                          options_.max_websocket_fragments_per_message},
+                         {"commands_per_second",
+                          options_.max_websocket_commands_per_second},
+                         {"events_per_second",
+                          options_.max_websocket_events_per_second},
+                         {"replay_events",
+                          options_.max_websocket_replay_events},
+                         {"replay_bytes", options_.max_websocket_replay_bytes},
+                         {"queue_events", options_.max_websocket_queue_events},
+                         {"queue_bytes", options_.max_websocket_queue_bytes},
+                         {"idle_timeout_ms",
+                          options_.websocket_idle_timeout.count()},
+                         {"max_lifetime_ms",
+                          options_.websocket_max_lifetime.count()}}}});
+                }
+                beast::flat_buffer websocket_buffer(
+                    options_.max_websocket_message_bytes);
+                std::size_t websocket_read_operations = 0;
+                bool websocket_read_in_progress = false;
+                const auto read_message_bounded = [&](bool nonblocking_probe) {
+                  if (!websocket_read_in_progress) {
+                    websocket_buffer.clear();
+                    websocket_read_operations = 0;
+                  }
+                  websocket_stream->next_layer().expires_after(std::min(
+                      options_.read_timeout, options_.websocket_idle_timeout));
+                  do {
+                    const auto bytes = websocket_stream->read_some(
+                        websocket_buffer,
+                        options_.max_websocket_frame_bytes + 1,
+                        websocket_error);
+                    if (nonblocking_probe &&
+                        (websocket_error == asio::error::would_block ||
+                         websocket_error == asio::error::try_again)) {
+                      websocket_error.clear();
+                      websocket_read_in_progress = websocket_buffer.size() != 0;
+                      websocket_stream->next_layer().expires_never();
+                      return false;
+                    }
+                    if (websocket_error)
+                      return false;
+                    if (bytes > options_.max_websocket_frame_bytes ||
+                        ++websocket_read_operations >
+                            options_.max_websocket_fragments_per_message ||
+                        websocket_buffer.size() >
+                            options_.max_websocket_message_bytes) {
+                      reject_websocket(websocket::close_code::too_big,
+                                       "frame or message limit exceeded");
+                      return false;
+                    }
+                  } while (!websocket_stream->is_message_done());
+                  websocket_read_in_progress = false;
+                  websocket_stream->next_layer().expires_never();
+                  if (!websocket_stream->got_text()) {
+                    reject_websocket(websocket::close_code::unknown_data,
+                                     "text commands required");
+                    return false;
+                  }
+                  return true;
+                };
+                if (subscribed) {
+                  if (read_message_bounded(false)) {
+                    try {
+                      const auto subscription = nlohmann::json::parse(
+                          beast::buffers_to_string(websocket_buffer.data()),
+                          nullptr, false);
+                      const auto subscription_fields_valid =
+                          subscription.is_object() &&
+                          std::ranges::all_of(
+                              subscription.items(), [](const auto &item) {
+                                return item.key() == "action" ||
+                                       item.key() == "client_id" ||
+                                       item.key() == "publisher_epoch" ||
+                                       item.key() == "last_sequence";
+                              });
+                      if (subscription_fields_valid &&
+                          subscription.size() >= 2 &&
+                          subscription.size() <= 4 &&
+                          subscription.contains("action") &&
+                          subscription.at("action").is_string() &&
+                          subscription.at("action").get<std::string>() ==
+                              "subscribe" &&
+                          subscription.contains("client_id") &&
+                          subscription.at("client_id").is_string() &&
+                          (!subscription.contains("last_sequence") ||
+                           subscription.at("last_sequence")
+                               .is_number_unsigned()) &&
+                          (!subscription.contains("publisher_epoch") ||
+                           subscription.at("publisher_epoch").is_string())) {
+                        websocket_client_id =
+                            subscription.at("client_id").get<std::string>();
+                        subscribed =
+                            !websocket_client_id.empty() &&
+                            websocket_client_id.size() <= 64 &&
+                            std::ranges::all_of(
+                                websocket_client_id, [](unsigned char value) {
+                                  return std::isalnum(value) || value == '.' ||
+                                         value == '_' || value == '-';
+                                });
+                        if (subscribed) {
+                          subscribed = ReserveEventClient(websocket_client_id);
+                          event_client_reserved = subscribed;
+                        }
+                        if (subscription.contains("last_sequence"))
+                          websocket_last_sequence =
+                              subscription.at("last_sequence")
+                                  .get<std::uint64_t>();
+                        if (subscription.contains("publisher_epoch") &&
+                            subscription.at("publisher_epoch").is_string() &&
+                            !subscription.at("publisher_epoch")
+                                 .get<std::string>()
+                                 .empty() &&
+                            subscription.at("publisher_epoch")
+                                    .get<std::string>() != publisher_epoch_) {
+                          websocket_last_sequence =
+                              std::numeric_limits<std::uint64_t>::max();
+                        }
+                      } else {
+                        subscribed = false;
+                      }
+                    } catch (const nlohmann::json::exception &) {
+                      subscribed = false;
+                    } catch (const std::exception &) {
+                      subscribed = false;
+                    }
+                  } else {
+                    subscribed = false;
+                  }
+                }
+
+                if (!subscribed && !websocket_error) {
+                  reject_websocket(websocket::close_code::policy_error,
+                                   "invalid subscribe command");
+                }
+                if (subscribed) {
+                  websocket_stream->next_layer().expires_never();
+                  const auto connected_at = std::chrono::steady_clock::now();
+                  auto heartbeat_at = std::chrono::steady_clock::now() +
+                                      options_.websocket_heartbeat_interval;
+                  auto last_client_activity = std::chrono::steady_clock::now();
+                  std::deque<std::chrono::steady_clock::time_point>
+                      client_command_times;
+                  std::deque<std::chrono::steady_clock::time_point>
+                      delivered_event_times;
+                  websocket_stream->control_callback(
+                      [&](websocket::frame_type kind, beast::string_view) {
+                        if (kind == websocket::frame_type::pong) {
+                          last_client_activity =
+                              std::chrono::steady_clock::now();
+                          server_state_->websocket_pongs_received.fetch_add(1);
+                        } else if (kind == websocket::frame_type::close) {
+                          last_client_activity =
+                              std::chrono::steady_clock::now();
+                        }
+                      });
+                  while (running_.load() && !websocket_error) {
+                    bool websocket_still_available = true;
+                    try {
+                      websocket_still_available =
+                          !options_.websocket_availability_probe ||
+                          options_.websocket_availability_probe();
+                    } catch (...) {
+                      websocket_still_available = false;
+                    }
+                    if (!websocket_still_available) {
+                      websocket_error = beast::error::timeout;
+                      requested_close.code = websocket::close_code::going_away;
+                      requested_close.reason =
+                          "WebSocket event transport temporarily unavailable";
+                      break;
+                    }
+                    auto batch = PollEvents(websocket_client_id,
+                                            websocket_last_sequence, false);
+                    if (batch.value("resync_required", false)) {
+                      send_json(
+                          {{"schema",
+                            "graphx.dashboard.websocket_resync_required.v1"},
+                           {"publisher_epoch", publisher_epoch_},
+                           {"latest_sequence",
+                            batch.value("latest_sequence", 0u)},
+                           {"snapshot_url", "/api/v1/fhss/snapshot"},
+                           {"reason",
+                            batch.value("reason", "resync_required")}});
+                      break;
+                    }
+                    for (const auto &event : batch.at("events")) {
+                      const auto delivery_now =
+                          std::chrono::steady_clock::now();
+                      while (!delivered_event_times.empty() &&
+                             delivery_now - delivered_event_times.front() >=
+                                 std::chrono::seconds(1))
+                        delivered_event_times.pop_front();
+                      if (delivered_event_times.size() >=
+                          options_.max_websocket_events_per_second)
+                        break;
+                      if (!send_json(event))
+                        break;
+                      delivered_event_times.push_back(delivery_now);
+                      websocket_last_sequence =
+                          event.at("sequence").get<std::uint64_t>();
+                    }
+                    if (websocket_error)
+                      break;
+                    if (std::chrono::steady_clock::now() >= heartbeat_at) {
+                      send_json({{"schema",
+                                  "graphx.dashboard.websocket_heartbeat.v1"},
+                                 {"publisher_epoch", publisher_epoch_},
+                                 {"timestamp", NowIso8601()}});
+                      websocket_stream->ping({}, websocket_error);
+                      heartbeat_at = std::chrono::steady_clock::now() +
+                                     options_.websocket_heartbeat_interval;
+                    }
+                    if (websocket_error)
+                      break;
+                    boost::system::error_code read_nonblocking_error;
+                    const auto readable_bytes =
+                        websocket_stream->next_layer().socket().available(
+                            read_nonblocking_error);
+                    const auto client_message_ready =
+                        !read_nonblocking_error && readable_bytes != 0 &&
+                        read_message_bounded(false);
+                    if (!client_message_ready && websocket_error)
+                      read_nonblocking_error = websocket_error;
+                    if (!read_nonblocking_error && client_message_ready) {
+                      const auto command_now = std::chrono::steady_clock::now();
+                      while (!client_command_times.empty() &&
+                             command_now - client_command_times.front() >=
+                                 std::chrono::seconds(1))
+                        client_command_times.pop_front();
+                      if (client_command_times.size() >=
+                          options_.max_websocket_commands_per_second) {
+                        reject_websocket(websocket::close_code::policy_error,
+                                         "command rate limit exceeded");
+                        break;
+                      }
+                      client_command_times.push_back(command_now);
+                      bool heartbeat_valid = false;
+                      try {
+                        const auto client_message = nlohmann::json::parse(
+                            beast::buffers_to_string(websocket_buffer.data()),
+                            nullptr, false);
+                        heartbeat_valid =
+                            client_message.is_object() &&
+                            client_message.size() == 2 &&
+                            client_message.contains("action") &&
+                            client_message.at("action").is_string() &&
+                            client_message.at("action").get<std::string>() ==
+                                "heartbeat_ack" &&
+                            client_message.contains("publisher_epoch") &&
+                            client_message.at("publisher_epoch").is_string() &&
+                            client_message.at("publisher_epoch")
+                                    .get<std::string>() == publisher_epoch_;
+                      } catch (const nlohmann::json::exception &) {
+                        heartbeat_valid = false;
+                      } catch (const std::exception &) {
+                        heartbeat_valid = false;
+                      }
+                      if (heartbeat_valid) {
+                        last_client_activity = std::chrono::steady_clock::now();
+                        server_state_->websocket_pongs_received.fetch_add(1);
+                      } else {
+                        reject_websocket(websocket::close_code::policy_error,
+                                         "invalid heartbeat acknowledgement");
+                        break;
+                      }
+                    }
+                    if (read_nonblocking_error) {
+                      websocket_error = read_nonblocking_error;
+                      if (websocket_error != websocket::error::closed) {
+                        const auto peer_reason = websocket_stream->reason();
+                        if (peer_reason.code != websocket::close_code::none) {
+                          requested_close = peer_reason;
+                        } else if (requested_close.code ==
+                                   websocket::close_code::normal) {
+                          requested_close.code =
+                              websocket::close_code::protocol_error;
+                          requested_close.reason = "invalid WebSocket frame";
+                        }
+                        server_state_->websocket_protocol_failures.fetch_add(1);
+                      }
+                      break;
+                    }
+                    if (std::chrono::steady_clock::now() -
+                            last_client_activity >
+                        options_.websocket_idle_timeout) {
+                      websocket_error = beast::error::timeout;
+                      requested_close.code =
+                          websocket::close_code::policy_error;
+                      requested_close.reason = "client idle timeout";
+                      server_state_->websocket_idle_closes.fetch_add(1);
+                      break;
+                    }
+                    if (std::chrono::steady_clock::now() - connected_at >
+                        options_.websocket_max_lifetime) {
+                      websocket_error = beast::error::timeout;
+                      requested_close.code = websocket::close_code::going_away;
+                      requested_close.reason = "connection lifetime reached";
+                      break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                  }
+                }
+                boost::system::error_code close_error;
+                websocket_stream->next_layer().socket().non_blocking(
+                    false, close_error);
+                websocket_stream->next_layer().expires_after(std::min(
+                    options_.write_timeout, options_.websocket_close_timeout));
+                if (!running_.load() &&
+                    requested_close.code == websocket::close_code::normal) {
+                  requested_close.code = websocket::close_code::going_away;
+                  requested_close.reason = "server shutting down";
+                }
+                if (websocket_stream->is_open() &&
+                    websocket_error != websocket::error::closed)
+                  websocket_stream->close(requested_close, close_error);
+                switch (requested_close.code) {
+                case websocket::close_code::normal:
+                  server_state_->websocket_close_normal.fetch_add(1);
+                  break;
+                case websocket::close_code::protocol_error:
+                  server_state_->websocket_close_protocol.fetch_add(1);
+                  break;
+                case websocket::close_code::unknown_data:
+                  server_state_->websocket_close_unsupported.fetch_add(1);
+                  break;
+                case websocket::close_code::bad_payload:
+                  server_state_->websocket_close_invalid_utf8.fetch_add(1);
+                  break;
+                case websocket::close_code::too_big:
+                  server_state_->websocket_close_too_big.fetch_add(1);
+                  break;
+                case websocket::close_code::policy_error:
+                  server_state_->websocket_close_policy.fetch_add(1);
+                  break;
+                case websocket::close_code::going_away:
+                  server_state_->websocket_close_going_away.fetch_add(1);
+                  break;
+                default:
+                  server_state_->websocket_close_internal.fetch_add(1);
+                  break;
+                }
+                if (event_client_reserved)
+                  (void)PollEvents(websocket_client_id, std::nullopt, true);
+                server_state_->active_websocket_clients.fetch_sub(1);
+                server_state_->active_connections.fetch_sub(1);
+                done->store(true);
+                return;
+              }
             } else
               try {
                 const bool globally_unsupported =
@@ -958,7 +1760,7 @@ void EmbeddedDashboardServer::RunLoop() {
               "Content-Security-Policy",
               "default-src 'self'; "
               "script-src 'self' "
-              "'sha256-ti5K18eEA9ifnUyzdmeuATYKehuae5GBGVv8vq6GddM='; "
+              "'sha256-HlXyBMO9cCMPT5G8bUGT9XKwc15nG8bVUQtlWs4T7zc='; "
               "style-src 'self' "
               "'sha256-+m6+B7a/b89ToglVQS8/9TMxEsvCSOF4c+lt3EadRrQ='; "
               "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
@@ -993,12 +1795,6 @@ void EmbeddedDashboardServer::RunLoop() {
           boost::system::error_code ignored;
           stream->socket().shutdown(tcp::socket::shutdown_both, ignored);
           stream->socket().close(ignored);
-          {
-            std::scoped_lock lock(server_state_->streams_mutex);
-            std::erase_if(
-                server_state_->active_streams,
-                [](const auto &candidate) { return candidate.expired(); });
-          }
           server_state_->active_connections.fetch_sub(1);
           done->store(true);
         }),
@@ -1108,6 +1904,8 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
       request.path == "/api/v1/fhss/commands/start" ||
       request.path == "/api/v1/fhss/commands/stop" ||
       request.path == "/api/v1/fhss/events" ||
+      request.path == "/api/v1/fhss/events/stream" ||
+      request.path == "/api/v1/fhss/snapshot" ||
       StartsWith(request.path, "/api/v1/fhss/operations/");
   if (runtime_control_path && !options_.enable_runtime_control_routes) {
     return Response{.status_code = 404,
@@ -1145,10 +1943,28 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
 
   if (request.path == "/api/v1/fhss/events" && request.method == "GET") {
     const auto client_id = GetQueryValue(request.query, "client_id");
+    if (client_id.size() > 64 ||
+        !std::ranges::all_of(client_id, [](unsigned char value) {
+          return std::isalnum(value) || value == '.' || value == '_' ||
+                 value == '-';
+        })) {
+      return Response{
+          .status_code = 400,
+          .content_type = "application/problem+json",
+          .body = ErrorBody(400, "invalid_client_id",
+                            "client_id must be 1-64 safe identifier bytes")};
+    }
     const auto last_sequence_raw =
         GetQueryValue(request.query, "last_sequence");
     const auto disconnect =
         ParseBool(GetQueryValue(request.query, "disconnect"));
+    const auto effective_id = client_id.empty() ? "default" : client_id;
+    if (!disconnect && !ReserveEventClient(effective_id)) {
+      return Response{.status_code = 429,
+                      .content_type = "application/problem+json",
+                      .body = ErrorBody(429, "event_client_limit",
+                                        "event client limit reached")};
+    }
 
     std::optional<std::uint64_t> last_sequence;
     if (!last_sequence_raw.empty()) {
@@ -1162,11 +1978,101 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
       }
     }
 
-    const auto events = PollEvents(client_id.empty() ? "default" : client_id,
-                                   last_sequence, disconnect);
+    const auto events = PollEvents(effective_id, last_sequence, disconnect);
     return Response{.status_code = 200,
                     .content_type = "application/json",
                     .body = JsonResponse(events)};
+  }
+
+  if (request.path == "/api/v1/fhss/events/stream") {
+    return Response{.status_code = 426,
+                    .content_type = "application/problem+json",
+                    .body = ErrorBody(426, "websocket_upgrade_required",
+                                      "RFC 6455 WebSocket upgrade required"),
+                    .headers = {{"Upgrade", "websocket"}}};
+  }
+
+  if (request.path == "/api/v1/fhss/snapshot") {
+    for (int attempt = 0; attempt < 3; ++attempt) {
+      const auto config_before = configuration_service_->GetConfigResponse();
+      const auto graph_snapshot = configuration_service_->GetGraphResponse();
+      const auto runtime_before = runtime_session_->SnapshotStatus();
+      const auto metrics = snapshot_collector_->GetMetricsSnapshot();
+      const auto diagnostics = snapshot_collector_->GetDiagnosticsSnapshot();
+      const auto runtime_after = runtime_session_->SnapshotStatus();
+      const auto config_after = configuration_service_->GetConfigResponse();
+      if (config_before.value("config_revision", 0u) !=
+              config_after.value("config_revision", 0u) ||
+          config_before.value("etag", std::string{}) !=
+              config_after.value("etag", std::string{}) ||
+          runtime_before.active_generation != runtime_after.active_generation ||
+          runtime_before.active_run_epoch != runtime_after.active_run_epoch ||
+          runtime_before.state != runtime_after.state) {
+        continue;
+      }
+      std::uint64_t latest_sequence = 0;
+      std::uint64_t dropped_events = 0;
+      std::uint64_t coalesced_events = 0;
+      {
+        std::scoped_lock lock(event_mutex_);
+        latest_sequence = next_event_sequence_ - 1;
+        dropped_events = dropped_events_total_;
+        coalesced_events = coalesced_events_total_;
+      }
+      return Response{
+          .status_code = 200,
+          .content_type = "application/json",
+          .body = JsonResponse(
+              {{"schema", "graphx.dashboard.fhss_snapshot.v1"},
+               {"publisher_epoch", publisher_epoch_},
+               {"latest_sequence", latest_sequence},
+               {"captured_at", NowIso8601()},
+               {"config_revision", config_after.value("config_revision", 0u)},
+               {"config_etag", config_after.value("etag", std::string{})},
+               {"generation", runtime_after.active_generation},
+               {"run_epoch", runtime_after.active_run_epoch},
+               {"configuration", config_after},
+               {"graph", graph_snapshot},
+               {"runtime", RuntimeStatusJson(runtime_after)},
+               {"metrics", metrics},
+               {"transport",
+                {{"active_websocket_clients",
+                  server_state_->active_websocket_clients.load()},
+                 {"pongs_received",
+                  server_state_->websocket_pongs_received.load()},
+                 {"idle_closes", server_state_->websocket_idle_closes.load()},
+                 {"protocol_failures",
+                  server_state_->websocket_protocol_failures.load()},
+                 {"rejected_upgrades",
+                  server_state_->websocket_rejected_upgrades.load()},
+                 {"replayed_events",
+                  server_state_->websocket_replayed_events.load()},
+                 {"resync_requests",
+                  server_state_->websocket_resync_requests.load()},
+                 {"queue_overflows",
+                  server_state_->websocket_queue_overflows.load()},
+                 {"close_reasons",
+                  {{"normal", server_state_->websocket_close_normal.load()},
+                   {"protocol", server_state_->websocket_close_protocol.load()},
+                   {"unsupported_data",
+                    server_state_->websocket_close_unsupported.load()},
+                   {"invalid_utf8",
+                    server_state_->websocket_close_invalid_utf8.load()},
+                   {"too_big", server_state_->websocket_close_too_big.load()},
+                   {"policy", server_state_->websocket_close_policy.load()},
+                   {"going_away",
+                    server_state_->websocket_close_going_away.load()},
+                   {"internal",
+                    server_state_->websocket_close_internal.load()}}},
+                 {"dropped_events_total", dropped_events},
+                 {"coalesced_events_total", coalesced_events}}},
+               {"diagnostics", diagnostics}})};
+    }
+    return Response{
+        .status_code = 503,
+        .content_type = "application/problem+json",
+        .body = ErrorBody(503, "snapshot_changed_during_capture",
+                          "dashboard state changed during snapshot capture")};
   }
 
   if (request.path == "/api/v1/fhss/graph") {
@@ -1219,6 +2125,9 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
           result.value("schema", std::string{}) == "graphx.dashboard.error.v1"
               ? result.value("status", 500)
               : 200;
+      if (status == 200)
+        PublishEvent("configuration_changed", result,
+                     {{"semantic_class", "configuration"}});
       return Response{.status_code = status,
                       .content_type = "application/json",
                       .body = JsonResponse(result),
@@ -1406,6 +2315,8 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     }
 
     const auto status = runtime_session_->SnapshotStatus();
+    PublishEvent("runtime_rebuilt", RuntimeStatusJson(status),
+                 {{"semantic_class", "runtime"}});
     return Response{
         .status_code = 200,
         .content_type = "application/json",
@@ -1638,6 +2549,30 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
     }
     const auto application_response = future.get();
     if (application_response) {
+      if (request.method != "GET") {
+        const auto payload =
+            nlohmann::json::parse(application_response->body, nullptr, false);
+        nlohmann::json context = nlohmann::json::object();
+        if (payload.is_object()) {
+          for (const auto *field :
+               {"controller_epoch", "job_id", "scenario_correlation_id",
+                "semantic_class"}) {
+            if (payload.contains(field))
+              context[field == std::string_view{"scenario_correlation_id"}
+                          ? "correlation_id"
+                          : field] = payload.at(field);
+          }
+        }
+        PublishEvent(request.path.starts_with("/api/v1/fhss/jobs") ||
+                             request.path.starts_with("/api/v1/fhss/commands/")
+                         ? "job_control"
+                         : "application_change",
+                     payload.is_object()
+                         ? payload
+                         : nlohmann::json{{"http_status",
+                                           application_response->status_code}},
+                     std::move(context));
+      }
       return Response{.status_code = application_response->status_code,
                       .content_type = application_response->content_type,
                       .body = application_response->body,
@@ -1718,13 +2653,20 @@ std::string EmbeddedDashboardServer::NowIso8601() const {
 nlohmann::json
 EmbeddedDashboardServer::EventEnvelopeJson(const EventEnvelope &event) const {
   nlohmann::json json{{"schema", "graphx.dashboard.event.v1"},
+                      {"api_version", "v1"},
+                      {"publisher_epoch", event.publisher_epoch},
                       {"event_type", event.event_type},
                       {"sequence", event.sequence},
                       {"timestamp", event.timestamp},
+                      {"generation", event.generation},
+                      {"run_epoch", event.run_epoch},
+                      {"config_revision", event.config_revision},
+                      {"config_etag", event.config_etag},
                       {"payload", event.payload}};
-  if (event.revision.has_value()) {
-    json["revision"] = *event.revision;
-  }
+  for (const auto *field :
+       {"controller_epoch", "job_id", "correlation_id", "semantic_class"})
+    json[field] = event.context.contains(field) ? event.context.at(field)
+                                                : nlohmann::json(nullptr);
   return json;
 }
 
@@ -1736,46 +2678,102 @@ void EmbeddedDashboardServer::TrimRetainedEventsLocked(
     if (!expired) {
       break;
     }
+    retained_event_bytes_ -= retained_events_.front().first.encoded_bytes;
     retained_events_.pop_front();
   }
 
-  constexpr std::size_t kMaxRetainedEvents = 4096;
-  while (retained_events_.size() > kMaxRetainedEvents) {
+  while (retained_events_.size() > max_retained_events_ ||
+         retained_event_bytes_ > max_retained_event_bytes_) {
+    retained_event_bytes_ -= retained_events_.front().first.encoded_bytes;
     retained_events_.pop_front();
   }
 }
 
-void EmbeddedDashboardServer::PublishEvent(
-    std::string event_type, nlohmann::json payload,
-    std::optional<std::uint64_t> revision) const {
+void EmbeddedDashboardServer::PublishEventImpl(
+    std::string event_type, nlohmann::json payload, nlohmann::json context,
+    std::string timestamp, std::uint64_t generation, std::uint64_t run_epoch,
+    std::uint64_t config_revision, std::string config_etag) const {
   const auto now = std::chrono::system_clock::now();
-  std::scoped_lock lock(event_mutex_);
-  TrimRetainedEventsLocked(now);
-
   EventEnvelope envelope;
-  envelope.sequence = next_event_sequence_++;
   envelope.event_type = std::move(event_type);
-  envelope.timestamp = NowIso8601();
-  envelope.revision = revision;
+  envelope.timestamp = std::move(timestamp);
+  envelope.publisher_epoch = publisher_epoch_;
+  envelope.generation = generation;
+  envelope.run_epoch = run_epoch;
+  envelope.config_revision = config_revision;
+  envelope.config_etag = std::move(config_etag);
+  envelope.context =
+      context.is_object() ? std::move(context) : nlohmann::json::object();
   envelope.payload = std::move(payload);
+  std::scoped_lock lock(event_mutex_);
+  if (next_event_sequence_ == std::numeric_limits<std::uint64_t>::max()) {
+    for (auto &[id, client] : clients_) {
+      (void)id;
+      client.resync_required = true;
+    }
+    return;
+  }
+  envelope.sequence = next_event_sequence_;
+  envelope.encoded_bytes = EventEnvelopeJson(envelope).dump().size();
+  ++next_event_sequence_;
+  TrimRetainedEventsLocked(now);
+  if (envelope.encoded_bytes > max_retained_event_bytes_) {
+    ++coalesced_events_total_;
+    for (auto &[id, client] : clients_) {
+      (void)id;
+      client.resync_required = true;
+      ++client.dropped_events;
+      ++dropped_events_total_;
+    }
+    return;
+  }
 
   retained_events_.emplace_back(envelope, now);
+  if (envelope.encoded_bytes >
+      std::numeric_limits<std::size_t>::max() - retained_event_bytes_) {
+    retained_events_.pop_back();
+    return;
+  }
+  retained_event_bytes_ += envelope.encoded_bytes;
+  TrimRetainedEventsLocked(now);
 
   for (auto &[client_id, client] : clients_) {
     if (client.resync_required) {
       (void)client_id;
       continue;
     }
-    if (client.queue.size() >= per_client_queue_depth_) {
+    if (client.queue.size() >= per_client_queue_depth_ ||
+        envelope.encoded_bytes >
+            per_client_queue_bytes_ -
+                std::min(per_client_queue_bytes_, client.queued_bytes)) {
       dropped_events_total_ += client.queue.size();
       client.dropped_events += client.queue.size();
       client.queue.clear();
+      client.queued_bytes = 0;
       client.resync_required = true;
       ++coalesced_events_total_;
+      server_state_->websocket_queue_overflows.fetch_add(1);
       continue;
     }
     client.queue.push_back(envelope);
+    client.queued_bytes += envelope.encoded_bytes;
   }
+}
+
+bool EmbeddedDashboardServer::ReserveEventClient(
+    const std::string &client_id) const {
+  std::scoped_lock lock(event_mutex_);
+  const auto now = std::chrono::steady_clock::now();
+  std::erase_if(clients_, [&](const auto &entry) {
+    return entry.second.last_activity + options_.websocket_client_state_ttl <
+           now;
+  });
+  if (clients_.contains(client_id))
+    return true;
+  if (clients_.size() >= options_.max_websocket_clients)
+    return false;
+  clients_.try_emplace(client_id);
+  return true;
 }
 
 nlohmann::json
@@ -1784,21 +2782,79 @@ EmbeddedDashboardServer::PollEvents(const std::string &client_id,
                                     bool clear_client) const {
   std::vector<EventEnvelope> outbound;
   bool resync_required = false;
+  bool truncated = false;
+  std::string resync_reason = "none";
   std::uint64_t latest_sequence = 0;
+  std::uint64_t oldest_available_sequence = 0;
+  std::uint64_t newest_available_sequence = 0;
   std::uint64_t dropped_events = 0;
   std::uint64_t delivered_through = last_sequence.value_or(0);
+  std::size_t outbound_bytes = 0;
+  std::uint64_t dropped_total = 0;
+  std::uint64_t coalesced_total = 0;
+  std::uint64_t reconnects_total = 0;
 
   {
     std::scoped_lock lock(event_mutex_);
     const auto now = std::chrono::system_clock::now();
     TrimRetainedEventsLocked(now);
 
+    const auto steady_now = std::chrono::steady_clock::now();
+    std::erase_if(clients_, [&](const auto &entry) {
+      return entry.second.last_activity + options_.websocket_client_state_ttl <
+             steady_now;
+    });
+
     if (clear_client) {
       clients_.erase(client_id);
       ++reconnects_total_;
+      return nlohmann::json{
+          {"schema", "graphx.dashboard.events_batch.v1"},
+          {"stream", "/api/v1/fhss/events"},
+          {"publisher_epoch", publisher_epoch_},
+          {"client_id", client_id},
+          {"resync_required", false},
+          {"reason", "none"},
+          {"latest_sequence", next_event_sequence_ - 1},
+          {"oldest_available_sequence",
+           retained_events_.empty() ? next_event_sequence_
+                                    : retained_events_.front().first.sequence},
+          {"newest_available_sequence", next_event_sequence_ - 1},
+          {"truncated", false},
+          {"events", nlohmann::json::array()},
+          {"counters",
+           {{"dropped_events", 0},
+            {"dropped_events_total", dropped_events_total_},
+            {"coalesced_events_total", coalesced_events_total_},
+            {"reconnects_total", reconnects_total_}}}};
     }
 
-    auto &client = clients_[client_id];
+    auto [client_entry, inserted] = clients_.try_emplace(client_id);
+    if (inserted && clients_.size() > options_.max_websocket_clients) {
+      clients_.erase(client_entry);
+      server_state_->websocket_resync_requests.fetch_add(1);
+      return nlohmann::json{
+          {"schema", "graphx.dashboard.events_batch.v1"},
+          {"stream", "/api/v1/fhss/events"},
+          {"publisher_epoch", publisher_epoch_},
+          {"client_id", client_id},
+          {"resync_required", true},
+          {"reason", "client_limit"},
+          {"latest_sequence", next_event_sequence_ - 1},
+          {"oldest_available_sequence",
+           retained_events_.empty() ? next_event_sequence_
+                                    : retained_events_.front().first.sequence},
+          {"newest_available_sequence", next_event_sequence_ - 1},
+          {"truncated", false},
+          {"events", nlohmann::json::array()},
+          {"counters",
+           {{"dropped_events", 0},
+            {"dropped_events_total", dropped_events_total_},
+            {"coalesced_events_total", coalesced_events_total_},
+            {"reconnects_total", reconnects_total_}}}};
+    }
+    auto &client = client_entry->second;
+    client.last_activity = steady_now;
     if (client.queue.empty() && !clear_client) {
       ++reconnects_total_;
     }
@@ -1806,29 +2862,66 @@ EmbeddedDashboardServer::PollEvents(const std::string &client_id,
     dropped_events = client.dropped_events;
     client.dropped_events = 0;
 
-    if (!retained_events_.empty()) {
+    latest_sequence = next_event_sequence_ - 1;
+    oldest_available_sequence = retained_events_.empty()
+                                    ? next_event_sequence_
+                                    : retained_events_.front().first.sequence;
+    newest_available_sequence = retained_events_.empty()
+                                    ? next_event_sequence_ - 1
+                                    : retained_events_.back().first.sequence;
+    if (retained_events_.empty() && last_sequence.has_value() &&
+        *last_sequence != next_event_sequence_ - 1) {
+      client.resync_required = true;
+      resync_required = true;
+      resync_reason = "retention_gap";
+    } else if (!retained_events_.empty()) {
       latest_sequence = retained_events_.back().first.sequence;
       if (last_sequence.has_value()) {
-        const auto expected_first = *last_sequence + 1;
-        const auto first_available = retained_events_.front().first.sequence;
-        if (expected_first < first_available ||
-            *last_sequence > latest_sequence) {
+        if (*last_sequence == std::numeric_limits<std::uint64_t>::max()) {
           client.resync_required = true;
           resync_required = true;
-        } else if (expected_first <= latest_sequence) {
-          std::uint64_t expected = expected_first;
-          for (const auto &[event, _time_point] : retained_events_) {
-            if (event.sequence <= *last_sequence) {
-              continue;
+          resync_reason = "publisher_epoch_changed";
+        } else {
+          const auto expected_first = *last_sequence + 1;
+          const auto first_available = retained_events_.front().first.sequence;
+          if (expected_first < first_available ||
+              *last_sequence > latest_sequence) {
+            client.resync_required = true;
+            resync_required = true;
+            resync_reason = *last_sequence > latest_sequence ? "sequence_ahead"
+                                                             : "retention_gap";
+          } else if (expected_first <= latest_sequence) {
+            std::uint64_t expected = expected_first;
+            for (const auto &[event, _time_point] : retained_events_) {
+              if (event.sequence <= *last_sequence) {
+                continue;
+              }
+              if (event.sequence != expected) {
+                client.resync_required = true;
+                resync_required = true;
+                resync_reason = "sequence_gap";
+                break;
+              }
+              if (outbound.size() >= options_.max_websocket_replay_events ||
+                  event.encoded_bytes >
+                      options_.max_websocket_replay_bytes - outbound_bytes) {
+                client.resync_required = true;
+                resync_required = true;
+                truncated = true;
+                resync_reason = "replay_limit";
+                break;
+              }
+              outbound.push_back(event);
+              server_state_->websocket_replayed_events.fetch_add(1);
+              outbound_bytes += event.encoded_bytes;
+              delivered_through = event.sequence;
+              if (expected == std::numeric_limits<std::uint64_t>::max()) {
+                client.resync_required = true;
+                resync_required = true;
+                break;
+              }
+              ++expected;
             }
-            if (event.sequence != expected) {
-              client.resync_required = true;
-              resync_required = true;
-              break;
-            }
-            outbound.push_back(event);
-            delivered_through = event.sequence;
-            ++expected;
           }
         }
       }
@@ -1836,19 +2929,39 @@ EmbeddedDashboardServer::PollEvents(const std::string &client_id,
 
     if (client.resync_required) {
       resync_required = true;
+      if (resync_reason == "none")
+        resync_reason = "queue_overflow";
       outbound.clear();
       client.queue.clear();
+      client.queued_bytes = 0;
     } else {
       while (!client.queue.empty()) {
         if (client.queue.front().sequence > delivered_through) {
+          if (outbound.size() >= options_.max_websocket_replay_events ||
+              client.queue.front().encoded_bytes >
+                  options_.max_websocket_replay_bytes - outbound_bytes) {
+            client.resync_required = true;
+            resync_required = true;
+            truncated = true;
+            resync_reason = "replay_limit";
+            outbound.clear();
+            break;
+          }
           outbound.push_back(client.queue.front());
+          outbound_bytes += client.queue.front().encoded_bytes;
         }
+        client.queued_bytes -= client.queue.front().encoded_bytes;
         client.queue.pop_front();
       }
       if (!outbound.empty()) {
         latest_sequence = std::max(latest_sequence, outbound.back().sequence);
       }
     }
+    dropped_total = dropped_events_total_;
+    coalesced_total = coalesced_events_total_;
+    reconnects_total = reconnects_total_;
+    if (resync_required)
+      server_state_->websocket_resync_requests.fetch_add(1);
   }
 
   nlohmann::json events = nlohmann::json::array();
@@ -1859,15 +2972,19 @@ EmbeddedDashboardServer::PollEvents(const std::string &client_id,
   return nlohmann::json{
       {"schema", "graphx.dashboard.events_batch.v1"},
       {"stream", "/api/v1/fhss/events"},
+      {"publisher_epoch", publisher_epoch_},
       {"client_id", client_id},
       {"resync_required", resync_required},
+      {"reason", resync_reason},
       {"latest_sequence", latest_sequence},
+      {"oldest_available_sequence", oldest_available_sequence},
+      {"newest_available_sequence", newest_available_sequence},
+      {"truncated", truncated},
       {"events", std::move(events)},
-      {"counters",
-       nlohmann::json{{"dropped_events", dropped_events},
-                      {"dropped_events_total", dropped_events_total_},
-                      {"coalesced_events_total", coalesced_events_total_},
-                      {"reconnects_total", reconnects_total_}}}};
+      {"counters", nlohmann::json{{"dropped_events", dropped_events},
+                                  {"dropped_events_total", dropped_total},
+                                  {"coalesced_events_total", coalesced_total},
+                                  {"reconnects_total", reconnects_total}}}};
 }
 
 } // namespace graph::dashboard

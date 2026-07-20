@@ -21,6 +21,7 @@ ASSERTIONS = {
     "$ref", "type", "const", "enum", "minimum", "maximum",
     "exclusiveMinimum", "pattern", "required",
     "properties", "additionalProperties", "items", "minItems", "maxItems",
+    "uniqueItems",
     "minLength", "maxLength", "maxProperties", "anyOf", "not", "contains",
 }
 ALLOWED = ANNOTATIONS | ASSERTIONS
@@ -99,6 +100,8 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         validate_schema(schema["not"], f"{location}.not")
     if "contains" in schema:
         validate_schema(schema["contains"], f"{location}.contains")
+    if "uniqueItems" in schema and not isinstance(schema["uniqueItems"], bool):
+        _fail(location, "uniqueItems must be boolean")
     for keyword in ("minItems", "maxItems", "minLength", "maxLength",
                     "maxProperties"):
         if keyword in schema and (isinstance(schema[keyword], bool)
@@ -184,6 +187,10 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
             for key in extras:
                 validate_instance(value[key], additional, registry=registry, location=f"{location}.{key}")
     if isinstance(value, list):
+        if schema.get("uniqueItems") is True:
+            for index, item in enumerate(value):
+                if any(item == previous for previous in value[:index]):
+                    _fail(location, "contains duplicate items")
         if len(value) < schema.get("minItems", 0):
             _fail(location, "has too few items")
         if "maxItems" in schema and len(value) > schema["maxItems"]:

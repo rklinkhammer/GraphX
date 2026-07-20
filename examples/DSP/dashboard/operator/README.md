@@ -1,9 +1,11 @@
-# FHSS dashboard Phase 1/2/3/4/5 operator
+# FHSS dashboard Phase 1/2/3/4/5/6 operator
 
 Phase 4 manual browser/API validation is documented in
 `docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
 Phase 5 message-job validation is documented in
 `docs/dsp/fhss_dashboard_phase5_manual_operator_test.md`.
+Phase 6 bounded streaming validation is documented in
+`docs/dsp/fhss_dashboard_phase6_manual_operator_test.md`.
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -92,13 +94,21 @@ instance validation. Missing authoritative dependencies are a hard failure;
 the repository's small pinned-subset audit helper is not an authoritative
 standards validator.
 
-`serve` keeps the dashboard available for manual browser inspection. `report`
+`serve` keeps the dashboard available for browser inspection. `report`
 prints the machine-readable report. `cleanup` deletes only artifacts carrying
 the operator ownership marker. In Phase 4, `serve --case
 clean|impaired|negative` loads a stable receiver-only case and persists its
 served-state identity. `record-screenshot --case CASE --path FILE.png` binds a
 complete PNG to that state; `verify --require-screenshots` requires all three
 case hashes.
+For Phase 6, use `serve --case live|replay|resync` followed by
+`capture-browser --case CASE` from another terminal. The capture command drives
+maintained Firefox through WebDriver BiDi and binds the screenshot and actual
+console stream to browser/session/context identity, capture time, rendered
+state, served-state hash, and screenshot hash. `GRAPHX_FIREFOX_BINARY` may name
+the Firefox executable when it is not discoverable. Hand-authored console JSON
+is rejected; `record-screenshot` accepts Phase 6 input only when its console
+document already has valid direct BiDi provenance.
 
 For Phase 4, `exercise` and the source/installed CTest lanes deliberately
 produce `PARTIAL` / `partial_pre_browser`, not a completed pass. After genuine
@@ -174,6 +184,20 @@ queued and active cancellation, timeout, reset, and dashboard-free replay after
 truth deletion. Use `exercise --phase 5` and `verify --phase 5`; the Phase 5
 manual procedure contains the browser checklist. All evidence is synthetic and
 there is no HWIL lane.
+
+Phase 6 adds the maintained `websockets` client, the production RFC 6455
+`/api/v1/fhss/events/stream` endpoint, publisher-epoch/sequence resume,
+contiguous replay, explicit resync, two-client isolation, origin rejection, and
+an exercised rejected-WebSocket → bounded-polling → coherent-WebSocket restore,
+plus the malformed frame/resume matrix and schema-compatible
+`/api/v1/fhss/events` fallback. Run `exercise
+--phase 6`; genuine `live`, `replay`, and `resync` browser screenshots are
+required before `verify --phase 6 --require-screenshots` can promote the report
+to `PASS / final_verified`. The automated exercise also drives Firefox through
+WebDriver BiDi, creates a genuine WebSocket-only outage while HTTP remains
+healthy, observes polling and coherent restoration in the rendered page, and
+tests malformed/duplicate/gap/epoch envelopes, retry exhaustion, and atomic
+snapshot replacement using the production browser transport state machine.
 
 The production server applies separate timing limits: activity on a partial
 request resets the idle timer, `read_timeout` is an absolute header/body read

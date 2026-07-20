@@ -50,6 +50,9 @@ public:
     std::function<void()> after_running;
   };
 
+  using EventSink = std::function<void(std::string, nlohmann::json,
+                                       nlohmann::json)>;
+
   FHSSJobController(
       std::shared_ptr<graph::dashboard::GraphConfigurationService>
           configuration_service,
@@ -67,6 +70,7 @@ public:
   [[nodiscard]] Result List() const;
   [[nodiscard]] Result Cancel(std::string_view job_id);
   [[nodiscard]] Result Reset();
+  void SetEventSink(EventSink sink);
   void Shutdown();
 
   [[nodiscard]] static bool IsTerminal(std::string_view state);
@@ -114,6 +118,7 @@ private:
   std::size_t message_cursor_ = 0;
   std::weak_ptr<Job> active_job_;
   bool shutting_down_ = false;
+  EventSink event_sink_;
 };
 
 } // namespace dsp::fhss::dashboard

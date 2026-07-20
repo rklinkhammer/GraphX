@@ -1,1 +1,31 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:events:v1","type":"object","required":["schema","stream","client_id","resync_required","latest_sequence","events","counters"],"additionalProperties":false,"properties":{"schema":{"const":"graphx.dashboard.events_batch.v1"},"stream":{"const":"/api/v1/fhss/events"},"client_id":{"type":"string"},"resync_required":{"type":"boolean"},"latest_sequence":{"type":"integer","minimum":0},"events":{"type":"array","items":{"type":"object"}},"counters":{"type":"object"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:events:v1",
+  "type": "object",
+  "required": ["schema", "stream", "publisher_epoch", "client_id", "resync_required", "reason", "latest_sequence", "oldest_available_sequence", "newest_available_sequence", "truncated", "events", "counters"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "graphx.dashboard.events_batch.v1"},
+    "stream": {"const": "/api/v1/fhss/events"},
+    "publisher_epoch": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "client_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$"},
+    "resync_required": {"type": "boolean"},
+    "reason": {"enum": ["none", "publisher_epoch_changed", "retention_gap", "sequence_ahead", "sequence_gap", "replay_limit", "queue_overflow", "client_limit"]},
+    "latest_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "oldest_available_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "newest_available_sequence": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "truncated": {"type": "boolean"},
+    "events": {"type": "array", "maxItems": 256, "items": {"$ref": "event.schema.json"}},
+    "counters": {
+      "type": "object",
+      "required": ["dropped_events", "dropped_events_total", "coalesced_events_total", "reconnects_total"],
+      "additionalProperties": false,
+      "properties": {
+        "dropped_events": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+        "dropped_events_total": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+        "coalesced_events_total": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+        "reconnects_total": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+      }
+    }
+  }
+}

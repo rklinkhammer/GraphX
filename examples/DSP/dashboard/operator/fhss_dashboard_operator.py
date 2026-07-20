@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External Phase 1-5 operator for the loopback-only GraphX FHSS dashboard."""
+"""External Phase 1-6 operator for the loopback-only GraphX FHSS dashboard."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import zlib
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,7 +35,7 @@ try:
 except ImportError as error:
     raise SystemExit("install ../api/requirements-contracts.lock for authoritative live validation") from error
 
-PHASE = 5
+PHASE = 6
 OWNED_MARKER = ".graphx-fhss-dashboard-operator"
 MIN_SCREENSHOT_WIDTH = 640
 MIN_SCREENSHOT_HEIGHT = 360
@@ -54,6 +55,164 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(65536), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def masked_websocket_text_frame(payload: bytes, mask: bytes) -> bytes:
+    """Encode one RFC 6455 FIN/text client frame with canonical length form."""
+    if len(mask) != 4:
+        raise ValueError("WebSocket mask must contain exactly four bytes")
+    length = len(payload)
+    if length <= 125:
+        header = bytes([0x81, 0x80 | length])
+    elif length <= 0xffff:
+        header = bytes([0x81, 0x80 | 126]) + length.to_bytes(2, "big")
+    else:
+        header = bytes([0x81, 0x80 | 127]) + length.to_bytes(8, "big")
+    masked = bytes(value ^ mask[index % 4]
+                   for index, value in enumerate(payload))
+    return header + mask + masked
+
+
+def phase6_document_type(document: object) -> str:
+    if not isinstance(document, dict):
+        return "non_object"
+    if isinstance(document.get("frame_type"), str):
+        return f"frame:{document['frame_type']}"
+    if isinstance(document.get("schema"), str):
+        return str(document["schema"])
+    if isinstance(document.get("action"), str):
+        return f"action:{document['action']}"
+    return "object"
+
+
+def phase6_document_is_frame(document: object) -> bool:
+    return not (isinstance(document, dict) and
+                document.get("frame_type") in
+                ("http_handshake", "transport_eof"))
+
+
+def build_phase6_lossless_stream(
+        stream_id: str, scenario: str, direction: str, client_id: str,
+        documents: list[object], expected_document_count: int,
+        expected_frame_count: int) -> dict[str, object]:
+    """Encode every ordered protocol document into bounded chained chunks."""
+    max_raw = 524288
+    if not documents or expected_document_count <= 0:
+        raise RuntimeError(f"empty Phase6 lossless stream: {stream_id}")
+    chunks: list[dict[str, object]] = []
+    pending: list[bytes] = []
+    pending_bytes = 0
+    previous: str | None = None
+
+    def commit_chunk() -> None:
+        nonlocal pending, pending_bytes, previous
+        raw = b"".join(pending)
+        compressed = zlib.compress(raw, level=9)
+        if not raw or len(raw) > max_raw or len(compressed) > 524288:
+            raise RuntimeError(f"Phase6 lossless chunk bound exceeded: {stream_id}")
+        chained = hashlib.sha256(
+            (previous or "").encode("ascii") + raw).hexdigest()
+        chunks.append({
+            "index": len(chunks), "document_count": len(pending),
+            "uncompressed_bytes": len(raw), "encoded_bytes": len(compressed),
+            "sha256": chained, "previous_sha256": previous,
+            "data_base64": base64.b64encode(compressed).decode("ascii"),
+        })
+        previous = chained
+        pending = []
+        pending_bytes = 0
+
+    type_counts: dict[str, int] = {}
+    sequences: list[int] = []
+    for document in documents:
+        line = (json.dumps(document, sort_keys=True,
+                           separators=(",", ":")) + "\n").encode()
+        if len(line) > max_raw:
+            raise RuntimeError(
+                f"Phase6 protocol document exceeds chunk bound: {stream_id}")
+        if pending and pending_bytes + len(line) > max_raw:
+            commit_chunk()
+        pending.append(line)
+        pending_bytes += len(line)
+        kind = phase6_document_type(document)
+        type_counts[kind] = type_counts.get(kind, 0) + 1
+        if (isinstance(document, dict) and
+                isinstance(document.get("sequence"), int) and
+                not isinstance(document.get("sequence"), bool)):
+            sequences.append(int(document["sequence"]))
+    if pending:
+        commit_chunk()
+    if len(chunks) > 64:
+        raise RuntimeError(f"Phase6 lossless chunk count exceeded: {stream_id}")
+    return {
+        "stream_id": stream_id, "scenario": scenario,
+        "transport": "websocket", "direction": direction,
+        "client_id": client_id,
+        "expected_document_count": expected_document_count,
+        "recorded_document_count": len(documents),
+        "expected_frame_count": expected_frame_count,
+        "recorded_frame_count": sum(phase6_document_is_frame(document)
+                                    for document in documents),
+        "first_sequence": sequences[0] if sequences else None,
+        "last_sequence": sequences[-1] if sequences else None,
+        "type_counts": type_counts, "chunk_count": len(chunks),
+        "terminal_chain_sha256": previous, "chunks": chunks,
+    }
+
+
+def decode_phase6_lossless_stream(
+        stream: dict[str, object]) -> list[object] | None:
+    """Boundedly reconstruct and authenticate one lossless protocol stream."""
+    try:
+        chunks = list(stream["chunks"])
+        if (not chunks or len(chunks) > 64 or
+                int(stream["chunk_count"]) != len(chunks) or
+                [chunk.get("index") for chunk in chunks] !=
+                list(range(len(chunks)))):
+            return None
+        documents: list[object] = []
+        previous: str | None = None
+        for chunk in chunks:
+            if chunk.get("previous_sha256") != previous:
+                return None
+            compressed = base64.b64decode(
+                str(chunk["data_base64"]), validate=True)
+            if (len(compressed) != int(chunk["encoded_bytes"]) or
+                len(compressed) > 524288):
+                return None
+            inflater = zlib.decompressobj()
+            raw = inflater.decompress(compressed, 524289)
+            if (len(raw) > 524288 or inflater.unconsumed_tail or
+                    not inflater.eof or inflater.unused_data):
+                return None
+            raw += inflater.flush(max(1, 524289 - len(raw)))
+            if (len(raw) != int(chunk["uncompressed_bytes"]) or
+                    not raw or len(raw) > 524288):
+                return None
+            chained = hashlib.sha256(
+                (previous or "").encode("ascii") + raw).hexdigest()
+            if chunk.get("sha256") != chained:
+                return None
+            lines = raw.splitlines(keepends=True)
+            if len(lines) != int(chunk["document_count"]):
+                return None
+            for line in lines:
+                if not line.endswith(b"\n"):
+                    return None
+                document = json.loads(line)
+                canonical = (json.dumps(
+                    document, sort_keys=True,
+                    separators=(",", ":")) + "\n").encode()
+                if canonical != line:
+                    return None
+                documents.append(document)
+            previous = chained
+        if stream.get("terminal_chain_sha256") != previous:
+            return None
+        return documents
+    except (KeyError, TypeError, ValueError, zlib.error,
+            json.JSONDecodeError, base64.binascii.Error):
+        return None
 
 
 def is_valid_png(path: Path) -> bool:
@@ -223,6 +382,669 @@ def request(port: int, method: str, target: str, body: bytes | None = None,
     return result
 
 
+def locate_firefox() -> Path:
+    configured = os.environ.get("GRAPHX_FIREFOX_BINARY", "")
+    candidates = [Path(configured)] if configured else []
+    discovered = shutil.which("firefox")
+    if discovered:
+        candidates.append(Path(discovered))
+    candidates.append(Path("/Applications/Firefox.app/Contents/MacOS/firefox"))
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate.resolve()
+    raise RuntimeError(
+        "Phase6 browser qualification requires maintained Firefox; set "
+        "GRAPHX_FIREFOX_BINARY")
+
+
+class FirefoxBidiSession:
+    """Small dependency-bounded WebDriver BiDi client for evidence capture."""
+
+    def __init__(self, output: Path):
+        from websockets.sync.client import connect as websocket_connect
+
+        self._messages: list[dict[str, object]] = []
+        self._next_id = 0
+        self._process: subprocess.Popen[str] | None = None
+        self._socket = None
+        self.context = ""
+        self.session_id = ""
+        self.capabilities: dict[str, object] = {}
+        self._profile: Path | None = None
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        port = int(probe.getsockname()[1])
+        probe.close()
+        profile = output / "phase6-firefox-profile"
+        if profile.exists():
+            shutil.rmtree(profile)
+        profile.mkdir(parents=True)
+        self._profile = profile
+        command = [str(locate_firefox()), "--headless", "--no-remote",
+                   "--profile", str(profile), "--remote-debugging-port",
+                   str(port), "about:blank"]
+        self._process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1)
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            if self._process.poll() is not None:
+                break
+            try:
+                self._socket = websocket_connect(
+                    f"ws://127.0.0.1:{port}/session", open_timeout=1,
+                    close_timeout=1, compression=None)
+                break
+            except Exception:
+                time.sleep(0.1)
+        if self._socket is None:
+            self.close()
+            raise RuntimeError("Firefox did not expose its WebDriver BiDi session")
+        created = self.call("session.new", {"capabilities": {}})
+        self.session_id = str(created["sessionId"])
+        self.capabilities = dict(created["capabilities"])
+        self.call("session.subscribe", {"events": ["log.entryAdded"]})
+        self.context = str(self.call(
+            "browsingContext.create", {"type": "tab"})["context"])
+        try:
+            self.call("browsingContext.setViewport", {
+                "context": self.context,
+                "viewport": {"width": 1440, "height": 1000},
+                "devicePixelRatio": 1})
+        except RuntimeError:
+            pass
+
+    def call(self, method: str, params: dict[str, object]) -> dict[str, object]:
+        if self._socket is None:
+            raise RuntimeError("Firefox BiDi session is closed")
+        self._next_id += 1
+        identifier = self._next_id
+        self._socket.send(json.dumps(
+            {"id": identifier, "method": method, "params": params}))
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            response = json.loads(self._socket.recv(timeout=5))
+            if response.get("type") == "event":
+                if response.get("method") == "log.entryAdded":
+                    entry = dict(response.get("params", {}).get("entry", {}))
+                    self._messages.append({
+                        "level": str(entry.get("level", "info")),
+                        "text": str(entry.get("text", "")),
+                        "timestamp": entry.get("timestamp"),
+                        "source": entry.get("source", {}),
+                    })
+                continue
+            if response.get("id") != identifier:
+                continue
+            if response.get("type") != "success":
+                raise RuntimeError(
+                    f"Firefox BiDi {method} failed: {json.dumps(response)}")
+            return dict(response.get("result", {}))
+        raise RuntimeError(f"Firefox BiDi {method} timed out")
+
+    def navigate(self, url: str) -> None:
+        self.call("browsingContext.navigate", {
+            "context": self.context, "url": url, "wait": "complete"})
+
+    def evaluate(self, expression: str) -> object:
+        response = self.call("script.evaluate", {
+            "expression": expression, "target": {"context": self.context},
+            "awaitPromise": True, "resultOwnership": "none"})
+        if response.get("type") != "success":
+            raise RuntimeError(f"Firefox script evaluation failed: {response}")
+        remote = dict(response.get("result", {}))
+        return remote.get("value")
+
+    def wait_for(self, expression: str, timeout: float = 10) -> object:
+        deadline = time.monotonic() + timeout
+        last: object = None
+        while time.monotonic() < deadline:
+            last = self.evaluate(expression)
+            if last:
+                return last
+            time.sleep(0.1)
+        raise RuntimeError(
+            f"Firefox browser condition timed out: {expression}; last={last}")
+
+    def screenshot(self, destination: Path) -> None:
+        encoded = self.call("browsingContext.captureScreenshot", {
+            "context": self.context, "origin": "viewport"})["data"]
+        destination.write_bytes(base64.b64decode(str(encoded), validate=True))
+
+    @property
+    def messages(self) -> list[dict[str, object]]:
+        # Drain queued log events with a harmless evaluation before copying.
+        self.evaluate("true")
+        return copy.deepcopy(self._messages)
+
+    def close(self) -> None:
+        if self._socket is not None:
+            try:
+                self.call("session.end", {})
+            except Exception:
+                pass
+            try:
+                self._socket.close()
+            except Exception:
+                pass
+            self._socket = None
+        if self._process is not None:
+            stop(self._process)
+            self._process = None
+        if self._profile is not None and self._profile.is_dir():
+            shutil.rmtree(self._profile)
+        self._profile = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+def browser_console_document(browser: FirefoxBidiSession, url: str,
+                             state_path: Path, screenshot_path: Path,
+                             observed_states: list[str]) -> dict[str, object]:
+    return {
+        "schema": "graphx.dashboard.browser_console.v1",
+        "url": url,
+        "captured_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "acquisition": {
+            "mechanism": "webdriver_bidi",
+            "session_id": browser.session_id,
+            "context_id": browser.context,
+        },
+        "browser": {
+            "name": browser.capabilities.get("browserName"),
+            "version": browser.capabilities.get("browserVersion"),
+            "user_agent": browser.capabilities.get("userAgent"),
+            "headless": browser.capabilities.get("moz:headless") is True,
+        },
+        "served_state_sha256": sha256(state_path),
+        "screenshot_sha256": sha256(screenshot_path),
+        "observed_states": observed_states,
+        "messages": browser.messages,
+    }
+
+
+def validate_browser_console(console: dict[str, object], state: dict[str, object],
+                             state_path: Path, screenshot_path: Path) -> bool:
+    try:
+        captured = datetime.fromisoformat(
+            str(console["captured_at"]).replace("Z", "+00:00"))
+        acquisition = dict(console["acquisition"])
+        browser = dict(console["browser"])
+        messages = list(console["messages"])
+        observed_states = list(console["observed_states"])
+        now = datetime.now(timezone.utc)
+        expected_state = {
+            "live": "live WebSocket sequence",
+            "replay": "live — replayed through sequence",
+            "resync": "resync snapshot at sequence",
+        }[str(state["case"])]
+        return (
+            console.get("schema") == "graphx.dashboard.browser_console.v1" and
+            console.get("url") == state.get("url") and
+            captured.tzinfo is not None and
+            -5 <= (now - captured).total_seconds() <= 3600 and
+            acquisition.get("mechanism") == "webdriver_bidi" and
+            re.fullmatch(r"[0-9a-f-]{36}",
+                         str(acquisition.get("session_id", ""))) is not None and
+            re.fullmatch(r"[0-9a-f-]{36}",
+                         str(acquisition.get("context_id", ""))) is not None and
+            str(browser.get("name", "")).lower() == "firefox" and
+            bool(browser.get("version")) and
+            "Firefox/" in str(browser.get("user_agent", "")) and
+            browser.get("headless") is True and
+            console.get("served_state_sha256") == sha256(state_path) and
+            console.get("screenshot_sha256") == sha256(screenshot_path) and
+            any(expected_state in str(item) for item in observed_states) and
+            all(isinstance(message, dict) and
+                str(message.get("level", "")).lower() not in
+                ("warning", "warn", "error") for message in messages))
+    except (KeyError, TypeError, ValueError, OSError):
+        return False
+
+
+def validate_phase6_wire_transcript(document: dict[str, object]) -> bool:
+    """Independently validate bounded Phase6 wire evidence and its proof."""
+    try:
+        schema_path = (Path(__file__).resolve().parent / "schemas" /
+                       "phase6-wire-transcript.schema.json")
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        validate_schema(schema, schema_path.name)
+        validate_instance(document, schema)
+        encoded = json.dumps(document, sort_keys=True,
+                             separators=(",", ":")).encode()
+        limits = dict(document["limits"])
+        records = list(document["records"])
+        streams = list(document["lossless_streams"])
+        proof = dict(document["proof"])
+        if (len(encoded) > int(limits["max_encoded_bytes"]) or
+                len(records) > int(limits["max_records"]) or
+                len(streams) > int(limits["max_streams"]) or
+                [record.get("index") for record in records] !=
+                list(range(len(records)))):
+            return False
+        for record in records:
+            payload_size = len(json.dumps(
+                record.get("payload"), sort_keys=True,
+                separators=(",", ":")).encode())
+            if payload_size > int(limits["max_payload_bytes"]):
+                return False
+        scenarios = {str(record.get("scenario")) for record in records}
+        required = set(proof["required_scenarios"])
+        if not required.issubset(scenarios):
+            return False
+        stream_ids = [str(stream["stream_id"]) for stream in streams]
+        if (not streams or len(stream_ids) != len(set(stream_ids)) or
+                stream_ids != sorted(stream_ids) or
+                stream_ids != list(proof["lossless_stream_ids"]) or
+                proof.get("lossless_streams_complete") is not True):
+            return False
+        required_stream_scenarios = {
+            "two_client", "within_retention_replay", "heartbeat",
+            "stalled_websocket", "slow_client_overflow", "cross_origin",
+            "forged_host", "missing_origin", "duplicate_origin",
+            "extension_offer", "subprotocol_offer", "bad_version",
+            "invalid_key", "duplicate_key", "unmasked", "oversized",
+            "fragments", "utf8", "continuation", "control",
+            "malformed_resume", "sequence_ahead", "idle_no_pong",
+            "bounded_shutdown", "publisher_restart"}
+        if not required_stream_scenarios.issubset(
+                {str(stream["scenario"]) for stream in streams}):
+            return False
+        stream_directions = {
+            scenario: {str(stream["direction"]) for stream in streams
+                       if stream.get("scenario") == scenario}
+            for scenario in required_stream_scenarios}
+        if any(directions != {"client_to_server", "server_to_client"}
+               for directions in stream_directions.values()):
+            return False
+        direct_stream_ids = {
+            f"{record['scenario']}|{record.get('client_id') or 'none'}|"
+            f"{record['direction']}"
+            for record in records if record.get("transport") == "websocket"}
+        if not direct_stream_ids.issubset(set(stream_ids)):
+            return False
+        decoded_by_id: dict[str, list[object]] = {}
+        for stream in streams:
+            decoded = decode_phase6_lossless_stream(stream)
+            if decoded is None:
+                return False
+            decoded_by_id[str(stream["stream_id"])] = decoded
+            recorded_frames = sum(phase6_document_is_frame(item)
+                                  for item in decoded)
+            if (int(stream["expected_document_count"]) != len(decoded) or
+                    int(stream["recorded_document_count"]) != len(decoded) or
+                    int(stream["expected_frame_count"]) != recorded_frames or
+                    int(stream["recorded_frame_count"]) != recorded_frames):
+                return False
+            type_counts: dict[str, int] = {}
+            sequences: list[int] = []
+            for item in decoded:
+                kind = phase6_document_type(item)
+                type_counts[kind] = type_counts.get(kind, 0) + 1
+                if (isinstance(item, dict) and
+                        isinstance(item.get("sequence"), int) and
+                        not isinstance(item.get("sequence"), bool)):
+                    sequences.append(int(item["sequence"]))
+            if (type_counts != dict(stream["type_counts"]) or
+                    stream.get("first_sequence") !=
+                        (sequences[0] if sequences else None) or
+                    stream.get("last_sequence") !=
+                        (sequences[-1] if sequences else None) or
+                    any(current <= previous for previous, current in
+                        zip(sequences, sequences[1:]))):
+                return False
+        required_high_volume = {
+            "stalled_websocket|phase6-stalled-ws|server_to_client",
+            "stalled_websocket|phase6-stalled-ws|client_to_server",
+            "slow_client_overflow|phase6-healthy|server_to_client",
+            "slow_client_overflow|phase6-healthy|client_to_server",
+        }
+        if not required_high_volume.issubset(decoded_by_id):
+            return False
+        healthy_received = decoded_by_id[
+            "slow_client_overflow|phase6-healthy|server_to_client"]
+        stalled_received = decoded_by_id[
+            "stalled_websocket|phase6-stalled-ws|server_to_client"]
+        if (len(healthy_received) < 1000 or
+                not any(isinstance(item, dict) and
+                        item.get("schema") ==
+                        "graphx.dashboard.websocket_resync_required.v1"
+                        for item in stalled_received) or
+                not any(isinstance(item, dict) and
+                        item.get("frame_type") == "close" and
+                        item.get("close_code") == 1000
+                        for item in stalled_received)):
+            return False
+        replayed = [int(value) for value in proof["replayed_sequences"]]
+        resume = int(proof["resume_from_sequence"])
+        if replayed != list(range(resume + 1, resume + 1 + len(replayed))):
+            return False
+        two_client_events = [
+            record for record in records
+            if record.get("scenario") == "two_client" and
+            record.get("kind") == "event"]
+        if (len(two_client_events) != 2 or
+                {record.get("client_id") for record in two_client_events} !=
+                {"phase6-first", "phase6-second"} or
+                {int(record["payload"]["sequence"])
+                 for record in two_client_events} !=
+                {int(proof["two_client_sequence"])}):
+            return False
+        event_records = [record for record in records
+                         if record.get("kind") == "event"]
+        required_event_identity = {
+            "sequence", "publisher_epoch", "generation", "run_epoch",
+            "config_revision", "config_etag", "controller_epoch", "job_id",
+            "correlation_id"}
+        if (not event_records or any(
+                not isinstance(record.get("payload"), dict) or
+                not required_event_identity.issubset(record["payload"])
+                for record in event_records)):
+            return False
+        per_client_sequences: dict[str, list[int]] = {}
+        for record in event_records:
+            client_id = str(record.get("client_id", ""))
+            per_client_sequences.setdefault(client_id, []).append(
+                int(record["payload"]["sequence"]))
+        if any(any(current <= previous for previous, current in
+                   zip(sequences, sequences[1:]))
+               for sequences in per_client_sequences.values()):
+            return False
+        terminal_records = [record for record in records
+                            if record.get("kind") == "job_terminal"]
+        if (len(terminal_records) != 1 or
+                not {"job_id", "controller_epoch", "run_epoch",
+                     "config_revision", "config_etag",
+                     "scenario_correlation_id"}.issubset(
+                         terminal_records[0]["payload"])):
+            return False
+        required_close_codes = dict(proof["negative_close_codes"])
+        observed_close_codes = {
+            str(record["scenario"]): int(record["close_code"])
+            for record in records if record.get("kind") == "close" and
+            "close_code" in record}
+        return (all(observed_close_codes.get(name) == int(code)
+                    for name, code in required_close_codes.items()) and
+                proof["old_publisher_epoch"] != proof["new_publisher_epoch"] and
+                proof["publisher_epoch_changed"] is True and
+                proof["replay_contiguous"] is True)
+    except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError):
+        return False
+
+
+def validate_phase6_wire_transcript_negative_corpus(
+        document: dict[str, object]) -> bool:
+    """Prove duplicate, gap/order, and transcript-content tampering fail."""
+    mutations: list[dict[str, object]] = []
+
+    duplicate = copy.deepcopy(document)
+    duplicate_record = copy.deepcopy(next(
+        record for record in duplicate["records"]
+        if record.get("scenario") == "two_client" and
+        record.get("client_id") == "phase6-first" and
+        record.get("kind") == "event"))
+    duplicate_record["index"] = len(duplicate["records"])
+    duplicate["records"].append(duplicate_record)
+    mutations.append(duplicate)
+
+    gap = copy.deepcopy(document)
+    gap["proof"]["replayed_sequences"][0] += 1
+    mutations.append(gap)
+
+    reordered = copy.deepcopy(document)
+    reordered["records"][0], reordered["records"][1] = (
+        reordered["records"][1], reordered["records"][0])
+    mutations.append(reordered)
+
+    payload_tamper = copy.deepcopy(document)
+    event = next(record for record in payload_tamper["records"]
+                 if record.get("kind") == "event")
+    event["payload"]["sequence"] = (1 << 64)
+    mutations.append(payload_tamper)
+
+    omission = copy.deepcopy(document)
+    high_stream = next(
+        stream for stream in omission["lossless_streams"]
+        if stream["stream_id"] ==
+        "slow_client_overflow|phase6-healthy|server_to_client")
+    high_stream["expected_document_count"] += 1
+    mutations.append(omission)
+
+    duplicate_chunk = copy.deepcopy(document)
+    high_stream = next(
+        stream for stream in duplicate_chunk["lossless_streams"]
+        if stream["stream_id"] ==
+        "slow_client_overflow|phase6-healthy|server_to_client")
+    duplicate = copy.deepcopy(high_stream["chunks"][-1])
+    duplicate["index"] = len(high_stream["chunks"])
+    high_stream["chunks"].append(duplicate)
+    high_stream["chunk_count"] += 1
+    mutations.append(duplicate_chunk)
+
+    reordered_chunk = copy.deepcopy(document)
+    high_stream = next(
+        stream for stream in reordered_chunk["lossless_streams"]
+        if stream["stream_id"] ==
+        "slow_client_overflow|phase6-healthy|server_to_client")
+    if len(high_stream["chunks"]) < 2:
+        return False
+    high_stream["chunks"][0], high_stream["chunks"][1] = (
+        high_stream["chunks"][1], high_stream["chunks"][0])
+    mutations.append(reordered_chunk)
+
+    chunk_tamper = copy.deepcopy(document)
+    high_stream = next(
+        stream for stream in chunk_tamper["lossless_streams"]
+        if stream["stream_id"] ==
+        "slow_client_overflow|phase6-healthy|server_to_client")
+    encoded = str(high_stream["chunks"][0]["data_base64"])
+    high_stream["chunks"][0]["data_base64"] = (
+        ("A" if encoded[0] != "A" else "B") + encoded[1:])
+    mutations.append(chunk_tamper)
+
+    inventory_tamper = copy.deepcopy(document)
+    inventory_tamper["proof"]["lossless_stream_ids"].pop()
+    mutations.append(inventory_tamper)
+
+    return all(not validate_phase6_wire_transcript(item) for item in mutations)
+
+
+def qualify_browser_websocket_outage(url: str, port: int,
+                                     output: Path) -> dict[str, object]:
+    """Drive the production page through real WS loss, polling, and restore."""
+    gate = output / "phase6-websocket-disabled.flag"
+    gate.unlink(missing_ok=True)
+    transitions: list[dict[str, object]] = []
+    try:
+        with FirefoxBidiSession(output) as browser:
+            browser.navigate(url + "/?transport_test=1")
+            browser.wait_for(
+                "document.getElementById('event-transport').textContent.length > 0")
+            live_deadline = time.monotonic() + 10
+            live = ""
+            while time.monotonic() < live_deadline:
+                request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                        {"Content-Type": "application/json"})
+                value = browser.evaluate(
+                    "document.getElementById('event-transport').textContent")
+                if "live WebSocket sequence" in str(value):
+                    live = str(value)
+                    break
+                time.sleep(0.1)
+            if not live:
+                raise RuntimeError(
+                    "Firefox did not reach live WebSocket after bounded resets")
+            transitions.append({"state": "live", "dom": live,
+                                "at": datetime.now(timezone.utc).isoformat()})
+
+            gate.write_text("websocket-disabled\n", encoding="utf-8")
+            fallback = str(browser.wait_for(
+                "document.getElementById('event-transport').textContent.includes("
+                "'bounded polling fallback') && "
+                "document.getElementById('event-transport').textContent", 10))
+            transitions.append({"state": "websocket_unavailable", "dom": fallback,
+                                "at": datetime.now(timezone.utc).isoformat()})
+            reset_status, _, _ = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            polling = str(browser.wait_for(
+                "document.getElementById('event-transport').textContent.includes("
+                "'bounded polling sequence') && "
+                "document.getElementById('event-transport').textContent", 10))
+            health_status, _, _ = request(port, "GET", "/healthz")
+            snapshot_status, _, snapshot_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            outage_snapshot = json.loads(snapshot_body)
+            transitions.append({"state": "polling", "dom": polling,
+                                "at": datetime.now(timezone.utc).isoformat()})
+
+            gate.unlink(missing_ok=True)
+            browser.wait_for(
+                "document.getElementById('event-transport').textContent.includes("
+                "'WebSocket connected') || "
+                "document.getElementById('event-transport').textContent.includes("
+                "'live WebSocket sequence')", 15)
+            request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                    {"Content-Type": "application/json"})
+            restored = str(browser.wait_for(
+                "document.getElementById('event-transport').textContent.includes("
+                "'live WebSocket sequence') && "
+                "document.getElementById('event-transport').textContent", 10))
+            coherent = browser.evaluate("""
+              (async () => {
+                const snapshot = await fetch('/api/v1/fhss/snapshot',
+                  {cache: 'no-store'}).then((response) => response.json());
+                const identity = document.getElementById('config-identity').textContent;
+                return JSON.stringify({
+                  snapshot_revision: snapshot.config_revision,
+                  snapshot_etag: snapshot.config_etag,
+                  snapshot_sequence: snapshot.latest_sequence,
+                  publisher_epoch: snapshot.publisher_epoch,
+                  identity,
+                  agrees: identity.includes(`revision=${snapshot.config_revision}`) &&
+                    identity.includes(`etag=${snapshot.config_etag}`)
+                });
+              })()
+            """)
+            reconnect_before_stable = int(browser.evaluate(
+                "window.__graphxDashboardTransportTest.state().reconnect_attempt"))
+            time.sleep(5.2)
+            reconnect_after_stable = int(browser.evaluate(
+                "window.__graphxDashboardTransportTest.state().reconnect_attempt"))
+            behavioral = browser.evaluate("""
+              (() => {
+                const hooks = window.__graphxDashboardTransportTest;
+                const contract = hooks.contract;
+                const limits = {frame_bytes:65536,message_bytes:262144,
+                  fragments_per_message:32,commands_per_second:16,
+                  events_per_second:256,replay_events:256,replay_bytes:2097152,
+                  queue_events:128,queue_bytes:2097152,idle_timeout_ms:1200,
+                  max_lifetime_ms:3600000};
+                const hello = {schema:'graphx.dashboard.websocket_hello.v1',
+                  api_version:'v1',publisher_epoch:'epoch-a',latest_sequence:9,
+                  oldest_available_sequence:1,heartbeat_interval_ms:200,limits};
+                const heartbeat = {schema:'graphx.dashboard.websocket_heartbeat.v1',
+                  publisher_epoch:'epoch-a',timestamp:'2026-07-20T01:02:03Z'};
+                const counters = {dropped_events:0,dropped_events_total:0,
+                  coalesced_events_total:0,reconnects_total:0};
+                const event = {schema:'graphx.dashboard.event.v1',api_version:'v1',
+                  publisher_epoch:'epoch-a',sequence:8,event_type:'metrics',
+                  timestamp:'2026-07-20T01:02:03Z',payload:{ok:true}};
+                const batch = {schema:'graphx.dashboard.events_batch.v1',
+                  stream:'/api/v1/fhss/events',client_id:'fhss-browser-poll',
+                  publisher_epoch:'epoch-a',latest_sequence:8,
+                  oldest_available_sequence:1,newest_available_sequence:8,
+                  events:[event],resync_required:false,reason:'none',
+                  truncated:false,counters};
+                const resync = {schema:'graphx.dashboard.websocket_resync_required.v1',
+                  publisher_epoch:'epoch-a',snapshot_url:'/api/v1/fhss/snapshot',
+                  reason:'retention_gap',latest_sequence:8};
+                let attempt = 0;
+                for (let index=0; index<12; ++index)
+                  attempt = contract.nextReconnect(attempt).attempt;
+                const fake = {schema:'graphx.dashboard.fhss_snapshot.v1',
+                  publisher_epoch:'atomic-epoch',latest_sequence:77,
+                  captured_at:'2026-07-20T01:02:03Z',config_revision:4242,
+                  config_etag:'atomic-etag',generation:77,run_epoch:88,
+                  configuration:{atomic_sentinel:true},
+                  graph:{graph:{nodes:[],edges:[]}},
+                  runtime:{rebuild_allowed:false,atomic_runtime:true},
+                  metrics:{graph:{},nodes:[],edges:[]},diagnostics:{nodes:[]}};
+                hooks.renderCoherentSnapshotForTesting(fake);
+                const atomic = {
+                  identity:document.getElementById('config-identity').textContent,
+                  config:document.getElementById('config-effective').textContent,
+                  runtime:document.getElementById('runtime-status').textContent,
+                  meta:document.getElementById('meta').textContent};
+                return JSON.stringify({
+                  malformed_hello:!contract.validateHello({...hello,
+                    heartbeat_interval_ms:'200'}),
+                  malformed_heartbeat:!contract.validateHeartbeat({...heartbeat,
+                    timestamp:'now'},'epoch-a'),
+                  malformed_batch:!contract.validateBatch({...batch,
+                    latest_sequence:9},'fhss-browser-poll'),
+                  malformed_resync:!contract.validateResync({...resync,
+                    snapshot_url:'https://attacker.invalid'},
+                    '/api/v1/fhss/snapshot'),
+                  duplicate:contract.classifyEvent(event,'epoch-a',8)==='duplicate',
+                  gap:contract.classifyEvent({...event,sequence:10},
+                    'epoch-a',7)==='resync',
+                  epoch:contract.classifyEvent({...event,publisher_epoch:'epoch-b'},
+                    'epoch-a',7)==='resync',
+                  retry_exhausted:!contract.nextReconnect(attempt).allowed,
+                  atomic_replacement:atomic.identity.includes('revision=4242') &&
+                    atomic.identity.includes('etag=atomic-etag') &&
+                    atomic.config.includes('atomic_sentinel') &&
+                    atomic.runtime.includes('atomic_runtime') &&
+                    atomic.meta.includes('generation=77 run=88')});
+              })()
+            """)
+            transitions.append({"state": "websocket_restored", "dom": restored,
+                                "at": datetime.now(timezone.utc).isoformat()})
+            messages = browser.messages
+            result = {
+                "schema": "graphx.dashboard.browser_transport_qualification.v1",
+                "url": url,
+                "captured_at": datetime.now(timezone.utc).isoformat().replace(
+                    "+00:00", "Z"),
+                "acquisition": {"mechanism": "webdriver_bidi",
+                                "session_id": browser.session_id,
+                                "context_id": browser.context},
+                "browser": {"name": browser.capabilities.get("browserName"),
+                            "version": browser.capabilities.get("browserVersion"),
+                            "user_agent": browser.capabilities.get("userAgent"),
+                            "headless": browser.capabilities.get("moz:headless") is True},
+                "transitions": transitions,
+                "outage_http": {"reset_status": reset_status,
+                                "health_status": health_status,
+                                "snapshot_status": snapshot_status,
+                                "snapshot_sequence": outage_snapshot.get(
+                                    "latest_sequence")},
+                "coherent_return": json.loads(str(coherent)),
+                "behavioral": json.loads(str(behavioral)),
+                "stable_reconnect_reset": {
+                    "before": reconnect_before_stable,
+                    "after": reconnect_after_stable},
+                "messages": messages,
+            }
+            if (reset_status != 200 or health_status != 200 or
+                    snapshot_status != 200 or
+                    not result["coherent_return"].get("agrees") or
+                    not all(result["behavioral"].values()) or
+                    reconnect_before_stable <= 0 or reconnect_after_stable != 0 or
+                    any(str(message.get("level", "")).lower() in
+                        ("warning", "warn", "error") for message in messages)):
+                raise RuntimeError(
+                    "headless browser outage qualification was not clean/coherent")
+            return result
+    finally:
+        gate.unlink(missing_ok=True)
+
+
 def raw_request(port: int, wire: bytes) -> tuple[int, dict[str, str], bytes]:
     """Exchange one close-delimited request, tolerating an early defensive close."""
     chunks: list[bytes] = []
@@ -284,6 +1106,12 @@ def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, l
     if args.phase >= 5:
         command.extend(["--dashboard-artifact-root",
                         str(args.output_dir.resolve() / "phase5-job-artifacts")])
+    if args.phase >= 6:
+        websocket_gate = args.output_dir.resolve() / "phase6-websocket-disabled.flag"
+        websocket_gate.unlink(missing_ok=True)
+        command.extend(["--dashboard-websocket-heartbeat-ms", "200",
+                        "--dashboard-websocket-idle-ms", "1200",
+                        "--dashboard-websocket-gate-file", str(websocket_gate)])
     case = getattr(args, "case", None)
     if case:
         output = args.output_dir.resolve()
@@ -294,6 +1122,7 @@ def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, l
         if (report.get("phase") != args.phase or report.get("result") != "PARTIAL" or
                 report.get("evidence_status") != "partial_pre_browser"):
             raise RuntimeError("serve --case requires a partial pre-browser report")
+        (output / "screenshots").mkdir(exist_ok=True)
         if args.phase == 4:
             case_config = output / "phase4-cases" / f"{case}-config.json"
             if not case_config.is_file():
@@ -325,7 +1154,17 @@ def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, l
         captured.append(line.rstrip())
         if line.startswith("Dashboard URL:"):
             url = line.split(": ", 1)[1].strip()
-            return process, url, int(url.rsplit(":", 1)[1]), command
+            port = int(url.rsplit(":", 1)[1])
+            ready_deadline = time.monotonic() + 3
+            while time.monotonic() < ready_deadline:
+                if process.poll() is not None:
+                    break
+                try:
+                    if request(port, "GET", "/healthz", timeout=0.5)[0] == 200:
+                        return process, url, port, command
+                except OSError:
+                    time.sleep(0.02)
+            break
         if process.poll() is not None:
             break
     process.terminate()
@@ -763,9 +1602,90 @@ def stop(process: subprocess.Popen[str]) -> None:
             process.wait(timeout=3)
 
 
+def start_served_phase6_case(port: int, case: str, output: Path,
+                             url: str) -> None:
+    from websockets.sync.client import connect as websocket_connect
+    websocket_url = f"ws://127.0.0.1:{port}/api/v1/fhss/events/stream"
+
+    def connect(client_id: str, epoch: str = "", sequence: int = 0):
+        client = websocket_connect(websocket_url, origin=url, open_timeout=5,
+                                   close_timeout=2, max_size=256 * 1024,
+                                   compression=None)
+        hello = json.loads(client.recv(timeout=5))
+        client.send(json.dumps({"action": "subscribe", "client_id": client_id,
+                                "publisher_epoch": epoch,
+                                "last_sequence": sequence}))
+        return client, hello
+
+    client, hello = connect(f"phase6-{case}")
+    event: dict[str, object]
+    if case == "resync":
+        client.close()
+        # Drive the public production publisher beyond the bounded 4096-event
+        # retention window. A fresh browser (empty epoch, last_sequence=0)
+        # must then receive resync_required; the condition remains true for
+        # the subsequent manual browser capture.
+        for _ in range(4100):
+            reset_code, _, _ = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            if reset_code != 200:
+                raise RuntimeError(
+                    f"failed to prepare resync retention gap: HTTP {reset_code}")
+        client, hello = connect("phase6-resync-expired", "", 0)
+        event = json.loads(client.recv(timeout=5))
+        if event.get("schema") != \
+                "graphx.dashboard.websocket_resync_required.v1":
+            raise RuntimeError("fresh browser did not receive resync_required")
+        transport_state = "resync_required"
+    else:
+        request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+        event = json.loads(client.recv(timeout=5))
+        if case == "replay":
+            sequence = int(event.get("sequence", 0))
+            client.close()
+            request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                    {"Content-Type": "application/json"})
+            client, hello = connect("phase6-replay-resume",
+                                    hello["publisher_epoch"], sequence)
+            event = json.loads(client.recv(timeout=5))
+            transport_state = "contiguous_replay"
+        else:
+            transport_state = "live"
+    client.close()
+    status_code, _, status_body = request(port, "GET", "/api/v1/fhss/status")
+    status = json.loads(status_body) if status_code == 200 else {}
+    sequence = int(event.get("sequence", event.get("latest_sequence", 0)))
+    state = {
+        "schema": "graphx.dashboard.phase6.served_state.v1", "case": case,
+        "url": url, "transport_state": transport_state,
+        "publisher_epoch": event.get("publisher_epoch", hello.get("publisher_epoch")),
+        "sequence": sequence,
+        "generation": int(status.get("active_generation", 0)),
+        "run_epoch": int(status.get("active_run_epoch", 0)),
+        "observation_id": f"event-{case}-{sequence}",
+        "observation_sha256": hashlib.sha256(
+            json.dumps(event, sort_keys=True).encode()).hexdigest(),
+        "synthetic_data_only": True, "hwil_available": False,
+    }
+    (output / f"phase6-{case}-served-state.json").write_text(
+        json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    if case == "live":
+        def publish_live_events() -> None:
+            while True:
+                time.sleep(1)
+                try:
+                    request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                            {"Content-Type": "application/json"})
+                except OSError:
+                    return
+        threading.Thread(target=publish_live_events, daemon=True).start()
+
+
 def exercise(args: argparse.Namespace) -> int:
-    if args.phase not in (1, 2, 3, 4, 5):
-        raise RuntimeError("this operator implements Phases 1 through 5 only")
+    if args.phase not in (1, 2, 3, 4, 5, 6):
+        raise RuntimeError("this operator implements Phases 1 through 6 only")
     phase = args.phase
     output = args.output_dir.resolve()
     output_preexisted = output.exists()
@@ -775,9 +1695,41 @@ def exercise(args: argparse.Namespace) -> int:
     (output / OWNED_MARKER).write_text(
         f"phase={phase}\ncreated_dir={0 if output_preexisted else 1}\n", encoding="utf-8")
     checks: list[dict[str, object]] = []
+    phase6_records: list[dict[str, object]] = []
+    phase6_lossless_overrides: dict[str, dict[str, object]] = {}
+
+    def transcript(scenario: str, transport: str, direction: str, kind: str,
+                   payload: object, client_id: str | None = None,
+                   **fields: object) -> None:
+        if phase < 6:
+            return
+        if len(phase6_records) >= 1024:
+            raise RuntimeError("Phase6 wire transcript record bound exceeded")
+        if len(json.dumps(payload, sort_keys=True,
+                          separators=(",", ":")).encode()) > 262144:
+            raise RuntimeError("Phase6 wire transcript payload bound exceeded")
+        phase6_records.append({
+            "index": len(phase6_records), "scenario": scenario,
+            "transport": transport, "direction": direction, "kind": kind,
+            "client_id": client_id, "payload": copy.deepcopy(payload),
+            **fields,
+        })
 
     def check(name: str, condition: bool, evidence: str) -> None:
         checks.append({"name": name, "pass": bool(condition), "evidence": evidence})
+
+    def stream_id(scenario: str, client_id: str | None,
+                  direction: str) -> str:
+        return f"{scenario}|{client_id or 'none'}|{direction}"
+
+    def record_lossless_override(
+            scenario: str, direction: str, client_id: str,
+            documents: list[object], expected_documents: int,
+            expected_frames: int) -> None:
+        identifier = stream_id(scenario, client_id, direction)
+        phase6_lossless_overrides[identifier] = build_phase6_lossless_stream(
+            identifier, scenario, direction, client_id, documents,
+            expected_documents, expected_frames)
 
     process = None
     command: list[str] = []
@@ -799,6 +1751,16 @@ def exercise(args: argparse.Namespace) -> int:
               bool(inline_script) and
               f"'{inline_script_csp}'" in content_security_policy,
               f"computed={inline_script_csp}; csp={content_security_policy}")
+        transport_status, transport_headers, transport_script = request(
+            port, "GET", "/fhss_transport_state.js")
+        check("production browser transport module is served and CSP-authorized",
+              transport_status == 200 and
+              "javascript" in transport_headers.get("content-type", "") and
+              b"validateHello" in transport_script and
+              b"validateBatch" in transport_script and
+              "script-src 'self'" in content_security_policy,
+              f"HTTP {transport_status}; bytes={len(transport_script)}; "
+              f"type={transport_headers.get('content-type')}")
         dashboard_contract_tokens = (
             b'id="observation-identity"', b'id="receiver-message-result"',
             b'id="receiver-decoder-details"', b'id="comparison-result"',
@@ -813,7 +1775,18 @@ def exercise(args: argparse.Namespace) -> int:
         check("Phase4 DOM exposes receiver evidence and stale/unavailable state",
               all(token in page for token in dashboard_contract_tokens),
               ", ".join(token.decode(errors="replace")
-                         for token in dashboard_contract_tokens))
+                        for token in dashboard_contract_tokens))
+        check("event payload cannot shadow browser document",
+              b"let eventDocument;" in page and
+              b"let document;" not in page and
+              b"Event transport: live \xe2\x80\x94 replayed through sequence" in page and
+              b"transportContract.classifyEvent" in page and
+              b"transportContract.validateBatch" in page and
+              b"value.sequence === sequence" in transport_script and
+              b"graphx.dashboard.events_batch.v1" in transport_script and
+              b"coherentResyncRequired" in page and
+              b"maxReconnectDelayMs" in page,
+              "strict envelope/duplicate/gap/resync/event-poll/backoff browser state machine")
         schema_names = {
             "/healthz": "health", "/readyz": "readiness", "/api/v1/version": "version",
             "/api/v1/fhss/graph": "graph", "/api/v1/fhss/config": "config",
@@ -846,6 +1819,8 @@ def exercise(args: argparse.Namespace) -> int:
             })
         if phase >= 5:
             schema_names["/api/v1/fhss/jobs"] = "fhss-job-history"
+        if phase >= 6:
+            schema_names["/api/v1/fhss/snapshot"] = "fhss-snapshot"
         schema_root = API_DIR / "schemas"
         live_registry = load_registry(list(schema_root.glob("*.schema.json")))
         authoritative_registry = Registry()
@@ -1219,6 +2194,1224 @@ def exercise(args: argparse.Namespace) -> int:
             (output / "phase5-screenshot-manifest.json").write_bytes(
                 phase5_screenshot_bytes)
             persist("phase5_screenshot_manifest", phase5_screenshot_bytes)
+        if phase >= 6:
+            try:
+                from websockets.sync.client import connect as websocket_connect
+            except ImportError as error:
+                raise RuntimeError(
+                    "Phase 6 requires the pinned maintained websockets client") from error
+
+            websocket_url = f"ws://127.0.0.1:{port}/api/v1/fhss/events/stream"
+
+            def open_event_client(client_id: str, publisher_epoch: str = "",
+                                  last_sequence: int = 0,
+                                  scenario: str = "connection"):
+                client = websocket_connect(websocket_url, origin=url,
+                                           open_timeout=5, close_timeout=2,
+                                           max_size=256 * 1024,
+                                           compression=None)
+                transcript(scenario, "websocket", "client_to_server",
+                           "handshake_request",
+                           {"url": websocket_url, "origin": url,
+                            "compression": None}, client_id)
+                transcript(scenario, "websocket", "server_to_client",
+                           "handshake_response",
+                           {"http_status": 101,
+                            "negotiated_extensions": []}, client_id,
+                           http_status=101)
+                hello = json.loads(client.recv(timeout=5))
+                subscribe_command = {"action": "subscribe",
+                                     "client_id": client_id,
+                                     "publisher_epoch": publisher_epoch,
+                                     "last_sequence": last_sequence}
+                transcript(scenario, "websocket", "server_to_client", "hello",
+                           hello, client_id)
+                transcript(scenario, "websocket", "client_to_server",
+                           "subscribe", subscribe_command, client_id)
+                client.send(json.dumps(subscribe_command))
+                return client, hello
+
+            def close_event_client(client, scenario: str | None = None,
+                                   client_id: str | None = None) -> bool:
+                try:
+                    client.close()
+                    if scenario is not None:
+                        transcript(scenario, "websocket", "client_to_server",
+                                   "close", {"frame_type": "close",
+                                             "close_code": 1000,
+                                             "initiator": "operator"},
+                                   client_id, close_code=1000)
+                    return True
+                except Exception:
+                    # Exact graceful/error close semantics are asserted by the
+                    # raw protocol matrix and C++ behavioral lane. Cleanup must
+                    # tolerate a peer that has already completed its close.
+                    return False
+
+            first, first_hello = open_event_client(
+                "phase6-first", scenario="two_client")
+            second, second_hello = open_event_client(
+                "phase6-second", scenario="two_client")
+            check("WebSocket maintained-client hello",
+                  first_hello.get("schema") == "graphx.dashboard.websocket_hello.v1" and
+                  first_hello.get("publisher_epoch") == second_hello.get("publisher_epoch") and
+                  first_hello.get("limits", {}).get("queue_bytes", 0) > 0,
+                  json.dumps(first_hello, sort_keys=True))
+            reset_status, _, reset_event_body = request(
+                port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                {"Content-Type": "application/json"})
+            first_event = json.loads(first.recv(timeout=5))
+            second_event = json.loads(second.recv(timeout=5))
+            transcript("two_client", "websocket", "server_to_client", "event",
+                       first_event, "phase6-first")
+            transcript("two_client", "websocket", "server_to_client", "event",
+                       second_event, "phase6-second")
+            persist("phase6_first_event", json.dumps(first_event).encode())
+            check("two independent live clients",
+                  reset_status == 200 and
+                  first_event.get("schema") == "graphx.dashboard.event.v1" and
+                  second_event.get("sequence") == first_event.get("sequence") and
+                  first_event.get("publisher_epoch") == first_hello.get("publisher_epoch"),
+                  f"HTTP {reset_status}; sequence={first_event.get('sequence')}")
+
+            resume_sequence = int(first_event.get("sequence", 0))
+            close_event_client(first, "two_client", "phase6-first")
+            request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                    {"Content-Type": "application/json"})
+            replay, replay_hello = open_event_client(
+                "phase6-replay", first_hello["publisher_epoch"], resume_sequence,
+                "within_retention_replay")
+            replay_event = json.loads(replay.recv(timeout=5))
+            transcript("within_retention_replay", "websocket", "server_to_client",
+                       "event", replay_event, "phase6-replay")
+            check("contiguous replay after reconnect",
+                  replay_hello.get("publisher_epoch") == first_hello.get("publisher_epoch") and
+                  replay_event.get("sequence") == resume_sequence + 1,
+                  json.dumps(replay_event, sort_keys=True))
+            close_event_client(replay, "within_retention_replay",
+                               "phase6-replay")
+            close_event_client(second, "two_client", "phase6-second")
+
+            heartbeat, _ = open_event_client(
+                "phase6-heartbeat", first_hello["publisher_epoch"],
+                int(replay_event.get("sequence", 0)), "heartbeat")
+            heartbeat_deadline = time.monotonic() + 1.5
+            while time.monotonic() < heartbeat_deadline:
+                heartbeat_message = json.loads(heartbeat.recv(timeout=1))
+                if heartbeat_message.get("schema") == \
+                        "graphx.dashboard.websocket_heartbeat.v1":
+                    heartbeat_ack = {
+                        "action": "heartbeat_ack",
+                        "publisher_epoch": heartbeat_message["publisher_epoch"],
+                    }
+                    transcript("heartbeat", "websocket", "server_to_client",
+                               "heartbeat", heartbeat_message, "phase6-heartbeat")
+                    transcript("heartbeat", "websocket", "client_to_server",
+                               "heartbeat_ack", heartbeat_ack, "phase6-heartbeat")
+                    heartbeat.send(json.dumps(heartbeat_ack))
+            request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                    {"Content-Type": "application/json"})
+            while True:
+                heartbeat_event = json.loads(heartbeat.recv(timeout=5))
+                if heartbeat_event.get("schema") == \
+                        "graphx.dashboard.websocket_heartbeat.v1":
+                    heartbeat_ack = {
+                        "action": "heartbeat_ack",
+                        "publisher_epoch": heartbeat_event["publisher_epoch"],
+                    }
+                    transcript("heartbeat", "websocket", "server_to_client",
+                               "heartbeat", heartbeat_event, "phase6-heartbeat")
+                    transcript("heartbeat", "websocket", "client_to_server",
+                               "heartbeat_ack", heartbeat_ack, "phase6-heartbeat")
+                    heartbeat.send(json.dumps(heartbeat_ack))
+                    continue
+                break
+            transcript("heartbeat", "websocket", "server_to_client", "event",
+                       heartbeat_event, "phase6-heartbeat")
+            heartbeat_snapshot_status, _, heartbeat_snapshot_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            heartbeat_snapshot = json.loads(heartbeat_snapshot_body)
+            transcript("heartbeat", "http", "server_to_client",
+                       "metric_snapshot", heartbeat_snapshot, None,
+                       http_status=heartbeat_snapshot_status)
+            check("ping/pong keeps maintained client alive",
+                  heartbeat_event.get("schema") == "graphx.dashboard.event.v1" and
+                  heartbeat_snapshot_status == 200 and
+                  int(heartbeat_snapshot.get("transport", {}).get(
+                      "pongs_received", 0)) > 0,
+                  f"event={heartbeat_event.get('sequence')}; "
+                  f"pongs={heartbeat_snapshot.get('transport', {}).get('pongs_received')}")
+            heartbeat_sequence = int(heartbeat_event.get("sequence", 0))
+
+            # A production RFC6455 client that deliberately stops reading.
+            # Its tiny receive buffer stalls only that session's synchronous
+            # writer. The publisher then overflows that client's bounded app
+            # queue while a maintained client drains concurrently.
+            _, _, before_stall_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            before_stall_snapshot = json.loads(before_stall_body)
+            before_stall_overflows = int(before_stall_snapshot.get(
+                "transport", {}).get("queue_overflows", 0))
+            stalled_websocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            stalled_websocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+            stalled_websocket.settimeout(5)
+            stalled_websocket.connect(("127.0.0.1", port))
+            stalled_websocket.sendall((
+                "GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                f"Origin: {url}\r\n\r\n").encode())
+            stalled_handshake = b""
+            while b"\r\n\r\n" not in stalled_handshake:
+                stalled_handshake += stalled_websocket.recv(4096)
+            stalled_wire = stalled_handshake.split(b"\r\n\r\n", 1)[1]
+            stalled_received_documents: list[object] = [{
+                "frame_type": "http_handshake", "http_status": 101,
+                "headers": stalled_handshake.split(
+                    b"\r\n\r\n", 1)[0].decode("iso-8859-1"),
+            }]
+            stalled_received_expected = 1
+            stalled_received_frames_expected = 0
+            stalled_command = json.dumps({
+                "action": "subscribe", "client_id": "phase6-stalled-ws",
+                "publisher_epoch": first_hello["publisher_epoch"],
+                "last_sequence": heartbeat_sequence}).encode()
+            stalled_mask = b"\x12\x34\x56\x78"
+            stalled_websocket.sendall(masked_websocket_text_frame(
+                stalled_command, stalled_mask))
+            stalled_sent_documents: list[object] = [{
+                "frame_type": "http_handshake", "method": "GET",
+                "url": websocket_url, "origin": url,
+            }, json.loads(stalled_command)]
+            stalled_sent_expected = 2
+            stalled_sent_frames_expected = 1
+            transcript("stalled_websocket", "websocket", "server_to_client",
+                       "handshake_response",
+                       stalled_handshake.split(b"\r\n\r\n", 1)[0].decode(
+                           "iso-8859-1"), "phase6-stalled-ws", http_status=101)
+            transcript("stalled_websocket", "websocket", "client_to_server",
+                       "subscribe", json.loads(stalled_command),
+                       "phase6-stalled-ws")
+            stalled_keepalive = json.dumps({
+                "action": "heartbeat_ack",
+                "publisher_epoch": first_hello["publisher_epoch"],
+            }).encode()
+            stalled_keepalive_frame = masked_websocket_text_frame(
+                stalled_keepalive, b"\x31\x41\x59\x26")
+            stalled_keepalive_stop = threading.Event()
+            stalled_keepalive_errors: list[str] = []
+
+            def keep_stalled_websocket_subscribed() -> None:
+                nonlocal stalled_sent_expected, stalled_sent_frames_expected
+                try:
+                    while not stalled_keepalive_stop.wait(0.2):
+                        # Sending a valid bounded acknowledgement does not read
+                        # or drain any server bytes; receive backpressure remains.
+                        stalled_websocket.sendall(stalled_keepalive_frame)
+                        stalled_sent_expected += 1
+                        stalled_sent_frames_expected += 1
+                        stalled_sent_documents.append(
+                            json.loads(stalled_keepalive))
+                except (BrokenPipeError, ConnectionResetError, OSError) as error:
+                    if not stalled_keepalive_stop.is_set():
+                        stalled_keepalive_errors.append(
+                            f"{type(error).__name__}: {error}")
+
+            stalled_keepalive_thread = threading.Thread(
+                target=keep_stalled_websocket_subscribed,
+                name="phase6-stalled-websocket-keepalive", daemon=True)
+            stalled_keepalive_thread.start()
+            transcript("stalled_websocket", "websocket", "client_to_server",
+                       "heartbeat_ack", json.loads(stalled_keepalive),
+                       "phase6-stalled-ws")
+
+            healthy, healthy_hello = open_event_client(
+                "phase6-healthy", first_hello["publisher_epoch"],
+                heartbeat_sequence, "slow_client_overflow")
+            healthy_messages: list[dict[str, object]] = []
+            healthy_received_documents: list[object] = [{
+                "frame_type": "http_handshake", "http_status": 101,
+                "negotiated_extensions": [],
+            }, healthy_hello]
+            healthy_received_expected = 2
+            healthy_received_frames_expected = 1
+            healthy_sent_documents: list[object] = [{
+                "frame_type": "http_handshake", "method": "GET",
+                "url": websocket_url, "origin": url,
+            }, {
+                "action": "subscribe", "client_id": "phase6-healthy",
+                "publisher_epoch": first_hello["publisher_epoch"],
+                "last_sequence": heartbeat_sequence,
+            }]
+            healthy_sent_expected = 2
+            healthy_sent_frames_expected = 1
+            healthy_errors: list[str] = []
+            healthy_stop = threading.Event()
+
+            def drain_healthy_websocket() -> None:
+                nonlocal healthy_received_expected, healthy_received_frames_expected
+                nonlocal healthy_sent_expected, healthy_sent_frames_expected
+                try:
+                    while not healthy_stop.is_set():
+                        try:
+                            message = json.loads(healthy.recv(timeout=0.25))
+                        except TimeoutError:
+                            continue
+                        healthy_received_expected += 1
+                        healthy_received_frames_expected += 1
+                        healthy_received_documents.append(message)
+                        if message.get("schema") == \
+                                "graphx.dashboard.websocket_heartbeat.v1":
+                            acknowledgement = {
+                                "action": "heartbeat_ack",
+                                "publisher_epoch": message["publisher_epoch"],
+                            }
+                            healthy.send(json.dumps(acknowledgement))
+                            healthy_sent_expected += 1
+                            healthy_sent_frames_expected += 1
+                            healthy_sent_documents.append(acknowledgement)
+                        else:
+                            healthy_messages.append(message)
+                except Exception as error:  # recorded below, never hidden
+                    if not healthy_stop.is_set():
+                        healthy_errors.append(
+                            f"{type(error).__name__}: {error}")
+
+            healthy_thread = threading.Thread(
+                target=drain_healthy_websocket,
+                name="phase6-maintained-websocket", daemon=True)
+            healthy_thread.start()
+            # Keep publication below the 256 events/s ingress budget so this
+            # does not manufacture a global publisher overflow. The aggregate
+            # payload is intentionally larger than ordinary TCP buffering.
+            for _ in range(1600):
+                request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                        {"Content-Type": "application/json"})
+                time.sleep(0.0045)
+
+            stall_deadline = time.monotonic() + 5
+            after_stall_snapshot = before_stall_snapshot
+            while time.monotonic() < stall_deadline:
+                _, _, after_stall_body = request(
+                    port, "GET", "/api/v1/fhss/snapshot")
+                after_stall_snapshot = json.loads(after_stall_body)
+                if int(after_stall_snapshot.get("transport", {}).get(
+                        "queue_overflows", 0)) > before_stall_overflows:
+                    break
+                time.sleep(0.02)
+            after_stall_overflows = int(after_stall_snapshot.get(
+                "transport", {}).get("queue_overflows", 0))
+
+            # Release the socket only after overflow is observed. The stalled
+            # session must then emit an explicit resync and bounded close.
+            stalled_websocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF,
+                                         256 * 1024)
+            stalled_websocket.settimeout(0.25)
+            stalled_resync: dict[str, object] | None = None
+            stalled_close_code: int | None = None
+            stalled_close_hex = ""
+            drain_deadline = time.monotonic() + 3
+            while time.monotonic() < drain_deadline and stalled_close_code is None:
+                cursor = 0
+                while cursor + 2 <= len(stalled_wire):
+                    opcode = stalled_wire[cursor] & 0x0f
+                    length = stalled_wire[cursor + 1] & 0x7f
+                    header = 2
+                    if length == 126:
+                        if cursor + 4 > len(stalled_wire):
+                            break
+                        length = int.from_bytes(
+                            stalled_wire[cursor + 2:cursor + 4], "big")
+                        header = 4
+                    elif length == 127:
+                        if cursor + 10 > len(stalled_wire):
+                            break
+                        length = int.from_bytes(
+                            stalled_wire[cursor + 2:cursor + 10], "big")
+                        header = 10
+                    frame_end = cursor + header + length
+                    if frame_end > len(stalled_wire):
+                        break
+                    frame = stalled_wire[cursor:frame_end]
+                    payload = stalled_wire[cursor + header:frame_end]
+                    if opcode == 0x1:
+                        parsed = json.loads(payload.decode("utf-8"))
+                        stalled_received_frames_expected += 1
+                        stalled_received_expected += 1
+                        stalled_received_documents.append(parsed)
+                        if parsed.get("schema") == \
+                                "graphx.dashboard.websocket_resync_required.v1":
+                            stalled_resync = parsed
+                    elif opcode == 0x8:
+                        stalled_close_code = (
+                            int.from_bytes(payload[:2], "big")
+                            if len(payload) >= 2 else 1005)
+                        stalled_close_hex = frame.hex()
+                        stalled_received_frames_expected += 1
+                        stalled_received_expected += 1
+                        stalled_received_documents.append({
+                            "frame_type": "close",
+                            "close_code": stalled_close_code,
+                            "frame_hex": stalled_close_hex,
+                        })
+                    cursor = frame_end
+                stalled_wire = stalled_wire[cursor:]
+                if stalled_close_code is None:
+                    try:
+                        chunk = stalled_websocket.recv(65536)
+                        if not chunk:
+                            break
+                        stalled_wire += chunk
+                    except socket.timeout:
+                        continue
+                    except (ConnectionResetError, OSError):
+                        break
+            stalled_keepalive_stop.set()
+            stalled_keepalive_thread.join(timeout=1)
+
+            healthy_deadline = time.monotonic() + 5
+            while (time.monotonic() < healthy_deadline and
+                   not any(message.get("schema") ==
+                           "graphx.dashboard.event.v1"
+                           for message in healthy_messages)):
+                time.sleep(0.02)
+            healthy_event = next(
+                (message for message in healthy_messages
+                 if message.get("schema") == "graphx.dashboard.event.v1"), {})
+
+            # Exercise the schema-compatible HTTP queue independently after
+            # the raw WebSocket proof so its counters cannot satisfy that proof.
+            slow_status, _, _ = request(
+                port, "GET", "/api/v1/fhss/events?client_id=phase6-slow-public")
+            for _ in range(160):
+                request(port, "POST", "/api/v1/fhss/commands/reset", b"{}",
+                        {"Content-Type": "application/json"})
+            slow_after_status, _, slow_after_body = request(
+                port, "GET", "/api/v1/fhss/events?client_id=phase6-slow-public")
+            slow_after = json.loads(slow_after_body)
+            transcript("slow_client_overflow", "http", "server_to_client",
+                       "poll_overflow", slow_after, "phase6-slow-public",
+                       http_status=slow_after_status)
+            transcript("slow_client_overflow", "websocket", "server_to_client",
+                       "event", healthy_event, "phase6-healthy")
+            if stalled_resync is not None:
+                transcript("stalled_websocket", "websocket", "server_to_client",
+                           "resync_required", stalled_resync,
+                           "phase6-stalled-ws")
+            transcript("stalled_websocket", "websocket", "server_to_client",
+                       "close", {"reason": "bounded stalled-client recovery"},
+                       "phase6-stalled-ws", close_code=stalled_close_code,
+                       frame_hex=stalled_close_hex)
+            overflow_job_status, _, _, overflow_job = submit_job(
+                "/api/v1/fhss/commands/step",
+                {"request_id": "phase6-after-overflow", "timeout_ms": 60000},
+                "phase6-after-overflow")
+            overflow_terminal = wait_job(str(overflow_job.get("job_id")))
+            transcript("stalled_websocket", "http", "server_to_client",
+                       "job_terminal", overflow_terminal, None,
+                       http_status=200)
+            transcript("stalled_websocket", "http", "server_to_client",
+                       "metric_snapshot", after_stall_snapshot)
+            check("slow consumer overflow isolates healthy client and job",
+                  slow_status == slow_after_status == 200 and
+                  slow_after.get("resync_required") is True and
+                  int(slow_after.get("counters", {}).get("dropped_events", 0)) > 0 and
+                  after_stall_overflows > before_stall_overflows and
+                  stalled_resync is not None and
+                  stalled_close_code == 1000 and
+                  not stalled_keepalive_errors and
+                  healthy_event.get("schema") == "graphx.dashboard.event.v1" and
+                  not healthy_errors and
+                  overflow_job_status == 202 and
+                  overflow_terminal.get("state") == "completed",
+                  f"dropped={slow_after.get('counters', {}).get('dropped_events')}; "
+                  f"ws_overflows={before_stall_overflows}->{after_stall_overflows}; "
+                  f"stalled_resync={stalled_resync is not None}; "
+                  f"stalled_close={stalled_close_code}; "
+                  f"stalled_keepalive_errors={stalled_keepalive_errors}; "
+                  f"healthy={healthy_event.get('sequence')}; "
+                  f"healthy_errors={healthy_errors}; "
+                  f"job={overflow_terminal.get('state')}")
+            persist("phase6_slow_overflow", slow_after_body)
+            healthy_stop.set()
+            healthy_thread.join(timeout=2)
+            healthy_close_sent = close_event_client(healthy)
+            if healthy_close_sent:
+                healthy_sent_expected += 1
+                healthy_sent_frames_expected += 1
+                healthy_sent_documents.append({
+                    "frame_type": "close", "close_code": 1000,
+                    "initiator": "operator",
+                })
+            record_lossless_override(
+                "stalled_websocket", "server_to_client", "phase6-stalled-ws",
+                stalled_received_documents, stalled_received_expected,
+                stalled_received_frames_expected)
+            record_lossless_override(
+                "stalled_websocket", "client_to_server", "phase6-stalled-ws",
+                stalled_sent_documents, stalled_sent_expected,
+                stalled_sent_frames_expected)
+            record_lossless_override(
+                "slow_client_overflow", "server_to_client", "phase6-healthy",
+                healthy_received_documents, healthy_received_expected,
+                healthy_received_frames_expected)
+            record_lossless_override(
+                "slow_client_overflow", "client_to_server", "phase6-healthy",
+                healthy_sent_documents, healthy_sent_expected,
+                healthy_sent_frames_expected)
+            close_event_client(heartbeat, "heartbeat", "phase6-heartbeat")
+
+            browser_transport = qualify_browser_websocket_outage(url, port, output)
+            transcript("websocket_outage", "browser", "operator",
+                       "outage_poll_restore", browser_transport)
+            transition_states = [item.get("state")
+                                 for item in browser_transport["transitions"]]
+            restored_event = {
+                "sequence": browser_transport["coherent_return"][
+                    "snapshot_sequence"]}
+            check("actual browser WebSocket outage polls and coherently restores",
+                  transition_states == ["live", "websocket_unavailable",
+                                        "polling", "websocket_restored"] and
+                  browser_transport["outage_http"]["health_status"] == 200 and
+                  browser_transport["outage_http"]["snapshot_status"] == 200 and
+                  browser_transport["coherent_return"]["agrees"] is True and
+                  browser_transport["acquisition"]["mechanism"] ==
+                      "webdriver_bidi",
+                  json.dumps(browser_transport, sort_keys=True))
+            persist("phase6_transport_restore",
+                    json.dumps(browser_transport, sort_keys=True).encode())
+
+            negative = socket.create_connection(("127.0.0.1", port), timeout=5)
+            bad_upgrade = (
+                f"GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                "Origin: https://attacker.invalid\r\n\r\n").encode()
+            negative.sendall(bad_upgrade)
+            transcript("cross_origin", "websocket", "client_to_server",
+                       "handshake_request",
+                       bad_upgrade.decode("iso-8859-1"), None)
+            negative_response = negative.recv(4096)
+            negative.close()
+            transcript("cross_origin", "websocket", "server_to_client",
+                       "handshake_response",
+                       negative_response.decode("iso-8859-1", errors="replace"),
+                       None, http_status=403)
+            check("cross-origin upgrade rejected",
+                  b" 403 " in negative_response,
+                  negative_response.split(b"\r\n", 1)[0].decode(errors="replace"))
+
+            def raw_upgrade_status(scenario_name: str, host: str,
+                                   origins: list[str],
+                                   extra: str = "",
+                                   key: str = "dGhlIHNhbXBsZSBub25jZQ==") -> bytes:
+                probe = socket.create_connection(("127.0.0.1", port), timeout=5)
+                headers = "".join(f"Origin: {origin}\r\n" for origin in origins)
+                request_bytes = (
+                    "GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                    f"Host: {host}\r\nUpgrade: websocket\r\n"
+                    "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                    f"Sec-WebSocket-Key: {key}\r\n"
+                    f"{headers}{extra}\r\n").encode()
+                probe.sendall(request_bytes)
+                transcript(scenario_name, "websocket", "client_to_server",
+                           "handshake_request",
+                           request_bytes.decode("iso-8859-1"), None)
+                response = probe.recv(4096)
+                probe.close()
+                return response
+
+            forged_host_status = raw_upgrade_status(
+                "forged_host", "attacker.invalid",
+                ["http://attacker.invalid"])
+            missing_origin_status = raw_upgrade_status(
+                "missing_origin", f"127.0.0.1:{port}", [])
+            duplicate_origin_status = raw_upgrade_status(
+                "duplicate_origin", f"127.0.0.1:{port}", [url, url])
+            extension_status = raw_upgrade_status(
+                "extension_offer", f"127.0.0.1:{port}", [url],
+                "Sec-WebSocket-Extensions: permessage-deflate\r\n")
+            subprotocol_status = raw_upgrade_status(
+                "subprotocol_offer", f"127.0.0.1:{port}", [url],
+                "Sec-WebSocket-Protocol: graphx.v1\r\n")
+            for negative_name, response, status_code in (
+                    ("forged_host", forged_host_status, 403),
+                    ("missing_origin", missing_origin_status, 403),
+                    ("duplicate_origin", duplicate_origin_status, 403),
+                    ("extension_offer", extension_status, 101),
+                    ("subprotocol_offer", subprotocol_status, 400)):
+                transcript(negative_name, "websocket", "server_to_client",
+                           "handshake_response",
+                           response.decode("iso-8859-1", errors="replace"),
+                           None, http_status=status_code)
+            check("strict bound-origin and negotiation policy",
+                  b" 403 " in forged_host_status and
+                  b" 403 " in missing_origin_status and
+                  b" 403 " in duplicate_origin_status and
+                  b" 101 " in extension_status and
+                  b"sec-websocket-extensions:" not in extension_status.lower() and
+                  b" 400 " in subprotocol_status,
+                  "; ".join(x.split(b"\r\n", 1)[0].decode(errors="replace") for x in
+                            (forged_host_status, missing_origin_status,
+                             duplicate_origin_status,
+                             extension_status, subprotocol_status)))
+
+            bad_version = socket.create_connection(("127.0.0.1", port), timeout=5)
+            bad_version_request = (
+                f"GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Version: 12\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                f"Origin: {url}\r\n\r\n").encode()
+            bad_version.sendall(bad_version_request)
+            transcript("bad_version", "websocket", "client_to_server",
+                       "handshake_request",
+                       bad_version_request.decode("iso-8859-1"), None)
+            bad_version_response = bad_version.recv(4096)
+            bad_version.close()
+            bad_version_http = (426 if b" 426 " in bad_version_response else 400)
+            transcript("bad_version", "websocket", "server_to_client",
+                       "handshake_response",
+                       bad_version_response.decode("iso-8859-1", errors="replace"),
+                       None, http_status=bad_version_http)
+            check("unsupported WebSocket version rejected",
+                  b" 400 " in bad_version_response or b" 426 " in bad_version_response,
+                  bad_version_response.split(b"\r\n", 1)[0].decode(errors="replace"))
+
+            invalid_key = raw_upgrade_status(
+                "invalid_key", f"127.0.0.1:{port}", [url], key="invalid-key")
+            duplicate_key = raw_upgrade_status(
+                "duplicate_key", f"127.0.0.1:{port}", [url],
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n")
+            transcript("invalid_key", "websocket", "server_to_client",
+                       "handshake_response",
+                       invalid_key.decode("iso-8859-1", errors="replace"),
+                       None, http_status=400)
+            transcript("duplicate_key", "websocket", "server_to_client",
+                       "handshake_response",
+                       duplicate_key.decode("iso-8859-1", errors="replace"),
+                       None, http_status=400)
+
+            def masked_frame(opcode: int, payload: bytes, fin: bool = True,
+                             masked: bool = True) -> bytes:
+                first = (0x80 if fin else 0) | opcode
+                mask_bit = 0x80 if masked else 0
+                if len(payload) <= 125:
+                    header = bytes((first, mask_bit | len(payload)))
+                elif len(payload) <= 0xffff:
+                    header = bytes((first, mask_bit | 126)) + len(payload).to_bytes(2, "big")
+                else:
+                    header = bytes((first, mask_bit | 127)) + len(payload).to_bytes(8, "big")
+                mask = b"\x12\x34\x56\x78"
+                encoded = bytes(value ^ mask[index % 4]
+                                for index, value in enumerate(payload)) if masked else payload
+                return header + (mask if masked else b"") + encoded
+
+            def raw_close_code(scenario_name: str,
+                               frames: list[bytes]) -> tuple[int | None, str]:
+                probe = socket.create_connection(("127.0.0.1", port), timeout=5)
+                probe.sendall((
+                    "GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                    f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                    "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                    f"Origin: {url}\r\n\r\n").encode())
+                buffered = b""
+                while b"\r\n\r\n" not in buffered:
+                    buffered += probe.recv(4096)
+                handshake, buffered = buffered.split(b"\r\n\r\n", 1)
+                received_documents: list[object] = [{
+                    "frame_type": "http_handshake", "http_status": 101,
+                    "headers": handshake.decode("iso-8859-1"),
+                }]
+                received_expected = 1
+                received_frames_expected = 0
+                sent_documents: list[object] = [{
+                    "frame_type": "http_handshake", "method": "GET",
+                    "url": websocket_url, "origin": url,
+                }] + [{
+                    "frame_type": "raw_client_frame",
+                    "bytes": len(frame),
+                    "sha256": hashlib.sha256(frame).hexdigest(),
+                    "data_base64": base64.b64encode(frame).decode("ascii"),
+                } for frame in frames]
+                for frame in frames:
+                    probe.sendall(frame)
+                probe.settimeout(4)
+
+                def finish(code: int | None, frame_hex: str) -> tuple[int | None, str]:
+                    record_lossless_override(
+                        scenario_name, "client_to_server", "operator-negative",
+                        sent_documents, len(sent_documents), len(frames))
+                    record_lossless_override(
+                        scenario_name, "server_to_client", "operator-negative",
+                        received_documents, received_expected,
+                        received_frames_expected)
+                    return code, frame_hex
+
+                try:
+                    while True:
+                        cursor = 0
+                        while cursor + 2 <= len(buffered):
+                            opcode = buffered[cursor] & 0x0f
+                            length = buffered[cursor + 1] & 0x7f
+                            header = 2
+                            if length == 126:
+                                if cursor + 4 > len(buffered): break
+                                length = int.from_bytes(buffered[cursor + 2:cursor + 4], "big")
+                                header = 4
+                            elif length == 127:
+                                if cursor + 10 > len(buffered): break
+                                length = int.from_bytes(buffered[cursor + 2:cursor + 10], "big")
+                                header = 10
+                            if cursor + header + length > len(buffered): break
+                            frame_end = cursor + header + length
+                            payload = buffered[cursor + header:frame_end]
+                            if opcode == 1:
+                                parsed = json.loads(payload.decode("utf-8"))
+                                received_expected += 1
+                                received_frames_expected += 1
+                                received_documents.append(parsed)
+                            if opcode == 8:
+                                frame = buffered[cursor:cursor + header + length]
+                                code = (int.from_bytes(payload[:2], "big")
+                                        if length >= 2 else None)
+                                received_expected += 1
+                                received_frames_expected += 1
+                                received_documents.append({
+                                    "frame_type": "close", "close_code": code,
+                                    "frame_hex": frame.hex(),
+                                })
+                                return finish(code, frame.hex())
+                            cursor += header + length
+                        buffered = buffered[cursor:] + probe.recv(4096)
+                except (socket.timeout, OSError):
+                    return finish(None, "")
+                finally:
+                    probe.close()
+
+            subscribe = json.dumps({"action": "subscribe",
+                                    "client_id": "operator-negative",
+                                    "last_sequence": 0}).encode()
+            negative_results = {
+                "unmasked": raw_close_code(
+                    "unmasked", [masked_frame(1, subscribe, masked=False)]),
+                "oversized": raw_close_code(
+                    "oversized", [masked_frame(1, b"x" * (257 * 1024))]),
+                "fragments": raw_close_code(
+                    "fragments",
+                    [masked_frame(1, b"{", fin=False)] +
+                    [masked_frame(0, b" ", fin=False) for _ in range(32)] +
+                    [masked_frame(0, b"}", fin=True)]),
+                "utf8": raw_close_code(
+                    "utf8", [masked_frame(1, b"\xc3\x28")]),
+                "continuation": raw_close_code(
+                    "continuation", [masked_frame(0, b"{}")]),
+                "control": raw_close_code(
+                    "control", [masked_frame(9, b"x", fin=False)]),
+            }
+            negative_codes = {name: result[0]
+                              for name, result in negative_results.items()}
+            for negative_name, (close_code, frame_hex) in negative_results.items():
+                transcript(negative_name, "websocket", "server_to_client",
+                           "close", {"reason": "protocol_negative"},
+                           "operator-negative", close_code=close_code,
+                           frame_hex=frame_hex)
+            malformed_resume, _ = open_event_client(
+                "phase6-malformed-resume", first_hello["publisher_epoch"],
+                int(restored_event.get("sequence", 0)), "malformed_resume")
+            time.sleep(0.1)
+            malformed_command = {"action": "heartbeat_ack",
+                                 "publisher_epoch": 7}
+            transcript("malformed_resume", "websocket", "client_to_server",
+                       "heartbeat_ack", malformed_command,
+                       "phase6-malformed-resume")
+            malformed_resume.send(json.dumps(malformed_command))
+            malformed_resume_code = None
+            malformed_deadline = time.monotonic() + 3
+            while time.monotonic() < malformed_deadline and \
+                    malformed_resume_code is None:
+                try:
+                    malformed_observed = json.loads(
+                        malformed_resume.recv(timeout=1))
+                    malformed_kind = (
+                        "heartbeat" if malformed_observed.get("schema") ==
+                        "graphx.dashboard.websocket_heartbeat.v1" else
+                        "event")
+                    transcript("malformed_resume", "websocket",
+                               "server_to_client", malformed_kind,
+                               malformed_observed,
+                               "phase6-malformed-resume")
+                except Exception as error:
+                    received_close = getattr(error, "rcvd", None)
+                    malformed_resume_code = getattr(received_close, "code", None)
+            close_event_client(malformed_resume)
+            transcript("malformed_resume", "websocket", "server_to_client",
+                       "close", {"reason": "malformed_resume"},
+                       "phase6-malformed-resume",
+                       close_code=malformed_resume_code, frame_hex="")
+            ahead, ahead_hello = open_event_client(
+                "phase6-sequence-ahead", first_hello["publisher_epoch"],
+                (1 << 64) - 2, "sequence_ahead")
+            ahead_message = json.loads(ahead.recv(timeout=5))
+            transcript("sequence_ahead", "websocket", "server_to_client",
+                       "resync_required", ahead_message,
+                       "phase6-sequence-ahead")
+            close_event_client(ahead, "sequence_ahead",
+                               "phase6-sequence-ahead")
+            check("complete malformed protocol and resume matrix",
+                  b" 101 " not in invalid_key and
+                  b" 400 " in duplicate_key and
+                  negative_codes == {"unmasked": 1002, "oversized": 1009,
+                                     "fragments": 1009, "utf8": 1007,
+                                     "continuation": 1002, "control": 1002} and
+                  malformed_resume_code == 1008 and
+                  ahead_message.get("schema") ==
+                      "graphx.dashboard.websocket_resync_required.v1" and
+                  ahead_message.get("reason") == "sequence_ahead" and
+                  ahead_message.get("publisher_epoch") ==
+                      ahead_hello.get("publisher_epoch"),
+                  json.dumps({"invalid_key_status":
+                                  invalid_key.split(b"\r\n", 1)[0].decode(
+                                      errors="replace"),
+                              "duplicate_key_status":
+                                  duplicate_key.split(b"\r\n", 1)[0].decode(
+                                      errors="replace"),
+                              "codes": negative_codes,
+                              "malformed_resume": malformed_resume_code,
+                              "ahead": ahead_message}, sort_keys=True))
+
+            _, _, pre_idle_snapshot_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            pre_idle_closes = int(json.loads(pre_idle_snapshot_body).get(
+                "transport", {}).get("idle_closes", 0))
+            idle_socket = socket.create_connection(("127.0.0.1", port), timeout=5)
+            idle_socket.sendall((
+                f"GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                f"Origin: {url}\r\n\r\n").encode())
+            wire = b""
+            while b"\r\n\r\n" not in wire:
+                wire += idle_socket.recv(4096)
+            idle_handshake, idle_buffered = wire.split(b"\r\n\r\n", 1)
+            idle_received_documents: list[object] = [{
+                "frame_type": "http_handshake", "http_status": 101,
+                "headers": idle_handshake.decode("iso-8859-1"),
+            }]
+            idle_received_expected = 1
+            idle_received_frames_expected = 0
+            transcript("idle_no_pong", "websocket", "server_to_client",
+                       "handshake_response",
+                       wire.split(b"\r\n\r\n", 1)[0].decode("iso-8859-1"),
+                       "no-pong", http_status=101)
+            subscribe_bytes = json.dumps(
+                {"action": "subscribe", "client_id": "no-pong",
+                 "publisher_epoch": first_hello["publisher_epoch"],
+                 "last_sequence": int(restored_event.get("sequence", 0))}).encode()
+            mask = b"\x12\x34\x56\x78"
+            idle_socket.sendall(masked_websocket_text_frame(
+                subscribe_bytes, mask))
+            idle_sent_documents: list[object] = [{
+                "frame_type": "http_handshake", "method": "GET",
+                "url": websocket_url, "origin": url,
+            }, json.loads(subscribe_bytes)]
+            transcript("idle_no_pong", "websocket", "client_to_server",
+                       "subscribe", json.loads(subscribe_bytes), "no-pong")
+            idle_socket.settimeout(4)
+            idle_started = time.monotonic()
+            close_seen = False
+            idle_close_code: int | None = None
+            idle_close_hex = ""
+            buffered = idle_buffered
+            while time.monotonic() - idle_started < 3.5 and not close_seen:
+                if buffered:
+                    cursor = 0
+                    while cursor + 2 <= len(buffered):
+                        opcode = buffered[cursor] & 0x0f
+                        length = buffered[cursor + 1] & 0x7f
+                        header = 2
+                        if length == 126 and cursor + 4 <= len(buffered):
+                            length = int.from_bytes(buffered[cursor + 2:cursor + 4], "big")
+                            header = 4
+                        elif length == 127 and cursor + 10 <= len(buffered):
+                            length = int.from_bytes(buffered[cursor + 2:cursor + 10], "big")
+                            header = 10
+                        if cursor + header + length > len(buffered):
+                            break
+                        frame_end = cursor + header + length
+                        frame = buffered[cursor:frame_end]
+                        frame_payload = buffered[cursor + header:frame_end]
+                        if opcode == 0x1:
+                            idle_received_expected += 1
+                            idle_received_frames_expected += 1
+                            idle_received_documents.append(
+                                json.loads(frame_payload.decode("utf-8")))
+                        elif opcode in (0x9, 0xA):
+                            idle_received_expected += 1
+                            idle_received_frames_expected += 1
+                            idle_received_documents.append({
+                                "frame_type": "ping" if opcode == 0x9 else "pong",
+                                "frame_hex": frame.hex(),
+                            })
+                        if opcode == 0x8:
+                            close_seen = True
+                            close_payload = frame_payload
+                            idle_close_code = (
+                                int.from_bytes(close_payload[:2], "big")
+                                if len(close_payload) >= 2 else 1005)
+                            idle_close_hex = frame.hex()
+                            idle_received_expected += 1
+                            idle_received_frames_expected += 1
+                            idle_received_documents.append({
+                                "frame_type": "close",
+                                "close_code": idle_close_code,
+                                "frame_hex": idle_close_hex,
+                            })
+                            break
+                        cursor += header + length
+                    buffered = buffered[cursor:]
+                if not close_seen:
+                    try:
+                        buffered += idle_socket.recv(4096)
+                    except socket.timeout:
+                        break
+            idle_socket.close()
+            _, _, post_idle_snapshot_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            post_idle_closes = int(json.loads(post_idle_snapshot_body).get(
+                "transport", {}).get("idle_closes", 0))
+            transcript("idle_no_pong", "websocket", "server_to_client",
+                       "close", {"reason": "client idle timeout"}, "no-pong",
+                       close_code=idle_close_code, frame_hex=idle_close_hex)
+            transcript("idle_no_pong", "http", "server_to_client",
+                       "metric_snapshot", json.loads(post_idle_snapshot_body),
+                       None, http_status=200)
+            record_lossless_override(
+                "idle_no_pong", "server_to_client", "no-pong",
+                idle_received_documents, idle_received_expected,
+                idle_received_frames_expected)
+            record_lossless_override(
+                "idle_no_pong", "client_to_server", "no-pong",
+                idle_sent_documents, len(idle_sent_documents),
+                1)
+            check("missing pong closes idle client within configured bound",
+                  post_idle_closes > pre_idle_closes and
+                  idle_close_code == 1008 and
+                  time.monotonic() - idle_started < 3.5,
+                  f"close_seen={close_seen}; idle_closes={pre_idle_closes}->"
+                  f"{post_idle_closes}; close_code={idle_close_code}; "
+                  f"elapsed={time.monotonic() - idle_started:.3f}s")
+
+            old_epoch = first_hello["publisher_epoch"]
+            old_sequence = int(healthy_event.get("sequence", heartbeat_sequence))
+            shutdown_stalled = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            shutdown_stalled.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+            shutdown_stalled.settimeout(5)
+            shutdown_stalled.connect(("127.0.0.1", port))
+            shutdown_stalled.sendall((
+                "GET /api/v1/fhss/events/stream HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                f"Origin: {url}\r\n\r\n").encode())
+            shutdown_stalled_handshake = b""
+            while b"\r\n\r\n" not in shutdown_stalled_handshake:
+                shutdown_stalled_handshake += shutdown_stalled.recv(4096)
+            shutdown_headers, shutdown_wire = shutdown_stalled_handshake.split(
+                b"\r\n\r\n", 1)
+            shutdown_stalled_received: list[object] = [{
+                "frame_type": "http_handshake", "http_status": 101,
+                "headers": shutdown_headers.decode("iso-8859-1"),
+            }]
+            shutdown_stalled_received_expected = 1
+            shutdown_stalled_received_frames = 0
+            shutdown_stalled_command = json.dumps({
+                "action": "subscribe",
+                "client_id": "phase6-shutdown-stalled",
+                "publisher_epoch": old_epoch,
+                "last_sequence": old_sequence}).encode()
+            shutdown_mask = b"\x89\xab\xcd\xef"
+            shutdown_stalled.sendall(masked_websocket_text_frame(
+                shutdown_stalled_command, shutdown_mask))
+            shutdown_stalled_sent: list[object] = [{
+                "frame_type": "http_handshake", "method": "GET",
+                "url": websocket_url, "origin": url,
+            }, json.loads(shutdown_stalled_command)]
+            transcript("bounded_shutdown", "websocket", "server_to_client",
+                       "handshake_response",
+                       shutdown_stalled_handshake.split(b"\r\n\r\n", 1)[0].decode(
+                           "iso-8859-1"), "phase6-shutdown-stalled",
+                       http_status=101)
+            transcript("bounded_shutdown", "websocket", "client_to_server",
+                       "subscribe", json.loads(shutdown_stalled_command),
+                       "phase6-shutdown-stalled")
+            shutdown_healthy, shutdown_hello = open_event_client(
+                "phase6-shutdown-healthy", old_epoch, old_sequence,
+                "bounded_shutdown")
+            _, _, pre_shutdown_body = request(
+                port, "GET", "/api/v1/fhss/snapshot")
+            pre_shutdown_snapshot = json.loads(pre_shutdown_body)
+            transcript("bounded_shutdown", "http", "server_to_client",
+                       "metric_snapshot", pre_shutdown_snapshot)
+            shutdown_started = time.monotonic()
+            stop(process)
+            shutdown_elapsed_ms = int(
+                (time.monotonic() - shutdown_started) * 1000)
+            # The peer may have queued hello/event frames before shutdown. Drain
+            # those bounded bytes until EOF/reset instead of mistaking the first
+            # buffered byte for a still-open connection.
+            stalled_closed = False
+            close_deadline = time.monotonic() + 1.0
+            while time.monotonic() < close_deadline and not stalled_closed:
+                try:
+                    shutdown_stalled.settimeout(
+                        min(0.1, close_deadline - time.monotonic()))
+                    shutdown_chunk = shutdown_stalled.recv(4096)
+                    stalled_closed = shutdown_chunk == b""
+                    shutdown_wire += shutdown_chunk
+                except socket.timeout:
+                    continue
+                except (ConnectionResetError, OSError):
+                    stalled_closed = True
+            shutdown_stalled.close()
+            stalled_websocket.close()
+            close_event_client(shutdown_healthy)
+            cursor = 0
+            while cursor + 2 <= len(shutdown_wire):
+                opcode = shutdown_wire[cursor] & 0x0f
+                length = shutdown_wire[cursor + 1] & 0x7f
+                header = 2
+                if length == 126:
+                    if cursor + 4 > len(shutdown_wire):
+                        break
+                    length = int.from_bytes(
+                        shutdown_wire[cursor + 2:cursor + 4], "big")
+                    header = 4
+                elif length == 127:
+                    if cursor + 10 > len(shutdown_wire):
+                        break
+                    length = int.from_bytes(
+                        shutdown_wire[cursor + 2:cursor + 10], "big")
+                    header = 10
+                frame_end = cursor + header + length
+                if frame_end > len(shutdown_wire):
+                    break
+                frame = shutdown_wire[cursor:frame_end]
+                payload = shutdown_wire[cursor + header:frame_end]
+                if opcode == 0x1:
+                    shutdown_stalled_received.append(
+                        json.loads(payload.decode("utf-8")))
+                elif opcode == 0x8:
+                    shutdown_stalled_received.append({
+                        "frame_type": "close",
+                        "close_code": (int.from_bytes(payload[:2], "big")
+                                       if len(payload) >= 2 else 1005),
+                        "frame_hex": frame.hex(),
+                    })
+                else:
+                    shutdown_stalled_received.append({
+                        "frame_type": f"opcode_{opcode}",
+                        "frame_hex": frame.hex(),
+                    })
+                shutdown_stalled_received_expected += 1
+                shutdown_stalled_received_frames += 1
+                cursor = frame_end
+            shutdown_stalled_received.append({
+                "frame_type": "transport_eof",
+                "buffered_unparsed_bytes": len(shutdown_wire) - cursor,
+                "socket_closed": stalled_closed,
+            })
+            shutdown_stalled_received_expected += 1
+            record_lossless_override(
+                "bounded_shutdown", "server_to_client",
+                "phase6-shutdown-stalled", shutdown_stalled_received,
+                shutdown_stalled_received_expected,
+                shutdown_stalled_received_frames)
+            record_lossless_override(
+                "bounded_shutdown", "client_to_server",
+                "phase6-shutdown-stalled", shutdown_stalled_sent,
+                len(shutdown_stalled_sent), 1)
+            transcript("bounded_shutdown", "websocket", "server_to_client",
+                       "transport_eof", {
+                           "frame_type": "transport_eof",
+                           "client_id": "phase6-shutdown-healthy",
+                           "process_exit": process.returncode,
+                       }, "phase6-shutdown-healthy")
+            transcript("bounded_shutdown", "process", "operator",
+                       "shutdown", {
+                           "elapsed_ms": shutdown_elapsed_ms,
+                           "active_clients_before": pre_shutdown_snapshot.get(
+                               "transport", {}).get("active_websocket_clients"),
+                           "healthy_client": "phase6-shutdown-healthy",
+                           "stalled_client": "phase6-stalled-ws",
+                           "stalled_socket_closed": stalled_closed,
+                           "process_exit": process.returncode})
+            process, url, port, restarted_command = launch(args)
+            websocket_url = (
+                f"ws://127.0.0.1:{port}/api/v1/fhss/events/stream")
+            command.extend(["--operator-restart--", *restarted_command])
+            restarted, restarted_hello = open_event_client(
+                "phase6-old-epoch", old_epoch, old_sequence,
+                "publisher_restart")
+            restart_resync = json.loads(restarted.recv(timeout=5))
+            transcript("publisher_restart", "websocket", "server_to_client",
+                       "resync_required", restart_resync, "phase6-old-epoch")
+            snapshot_status, _, snapshot_body = request(
+                port, "GET", str(restart_resync.get("snapshot_url", "")))
+            snapshot = json.loads(snapshot_body)
+            transcript("publisher_restart", "http", "server_to_client",
+                       "coherent_snapshot", snapshot, None,
+                       http_status=snapshot_status)
+            check("bounded shutdown with healthy and stalled WebSockets",
+                  shutdown_elapsed_ms < 8000 and stalled_closed and
+                  int(pre_shutdown_snapshot.get("transport", {}).get(
+                      "active_websocket_clients", 0)) >= 2,
+                  f"elapsed_ms={shutdown_elapsed_ms}; "
+                  f"active_before={pre_shutdown_snapshot.get('transport', {}).get('active_websocket_clients')}; "
+                  f"stalled_closed={stalled_closed}")
+            check("publisher restart requires coherent resync snapshot",
+                  restart_resync.get("schema") ==
+                      "graphx.dashboard.websocket_resync_required.v1" and
+                  restarted_hello.get("publisher_epoch") != old_epoch and
+                  snapshot_status == 200 and
+                  snapshot.get("schema") == "graphx.dashboard.fhss_snapshot.v1" and
+                  snapshot.get("publisher_epoch") == restarted_hello.get("publisher_epoch") and
+                  snapshot.get("latest_sequence") == restart_resync.get("latest_sequence") and
+                  snapshot.get("config_revision") ==
+                      snapshot.get("configuration", {}).get("config_revision") and
+                  snapshot.get("generation") ==
+                      snapshot.get("runtime", {}).get("active_generation"),
+                  f"old={old_epoch}; new={restarted_hello.get('publisher_epoch')}; "
+                  f"snapshot_http={snapshot_status}")
+            persist("phase6_restart_resync", json.dumps(restart_resync).encode())
+            persist("phase6_coherent_snapshot", snapshot_body)
+            close_event_client(restarted, "publisher_restart",
+                               "phase6-old-epoch")
+            persist("phase6_reset_response", reset_event_body)
+            negative_proof = {**negative_codes,
+                              "malformed_resume": malformed_resume_code}
+            direct_stream_documents: dict[str, list[object]] = {}
+            direct_stream_metadata: dict[str, tuple[str, str, str]] = {}
+            for record in phase6_records:
+                if record.get("transport") != "websocket":
+                    continue
+                scenario_name = str(record["scenario"])
+                direction_name = str(record["direction"])
+                client_name = str(record.get("client_id") or "none")
+                identifier = stream_id(
+                    scenario_name, record.get("client_id"), direction_name)
+                if identifier in phase6_lossless_overrides:
+                    continue
+                kind = str(record["kind"])
+                if kind in ("handshake_response", "handshake_request"):
+                    document: object = {
+                        "frame_type": "http_handshake",
+                        "http_status": record.get("http_status"),
+                        "headers": record.get("payload"),
+                    }
+                elif kind == "close":
+                    document = {
+                        "frame_type": "close",
+                        "close_code": record.get("close_code"),
+                        "frame_hex": record.get("frame_hex", ""),
+                        "payload": record.get("payload"),
+                    }
+                elif isinstance(record.get("payload"), dict):
+                    document = copy.deepcopy(record["payload"])
+                else:
+                    document = {"frame_type": kind,
+                                "payload": copy.deepcopy(record.get("payload"))}
+                direct_stream_documents.setdefault(identifier, []).append(
+                    document)
+                direct_stream_metadata[identifier] = (
+                    scenario_name, direction_name, client_name)
+            for identifier, documents in direct_stream_documents.items():
+                scenario_name, direction_name, client_name = (
+                    direct_stream_metadata[identifier])
+                expected_frames = sum(phase6_document_is_frame(document)
+                                      for document in documents)
+                phase6_lossless_overrides[identifier] = (
+                    build_phase6_lossless_stream(
+                        identifier, scenario_name, direction_name, client_name,
+                        documents, len(documents), expected_frames))
+            lossless_streams = sorted(
+                phase6_lossless_overrides.values(),
+                key=lambda item: str(item["stream_id"]))
+            transcript_document = {
+                "schema": "graphx.dashboard.phase6-wire-transcript.v1",
+                "captured_at": datetime.now(timezone.utc).isoformat().replace(
+                    "+00:00", "Z"),
+                "limits": {"max_records": 1024,
+                           "max_encoded_bytes": 16777216,
+                           "max_payload_bytes": 262144,
+                           "max_streams": 128,
+                           "max_chunks_per_stream": 64,
+                           "max_chunk_uncompressed_bytes": 524288,
+                           "max_chunk_encoded_bytes": 524288},
+                "redaction_policy": (
+                    "synthetic loopback protocol evidence only; no cookies, "
+                    "authorization headers, IQ, truth, or user data"),
+                "records": phase6_records,
+                "lossless_streams": lossless_streams,
+                "proof": {
+                    "two_client_sequence": int(first_event["sequence"]),
+                    "resume_from_sequence": resume_sequence,
+                    "replayed_sequences": [int(replay_event["sequence"])],
+                    "replay_contiguous": int(replay_event["sequence"]) ==
+                        resume_sequence + 1,
+                    "old_publisher_epoch": old_epoch,
+                    "new_publisher_epoch": restarted_hello["publisher_epoch"],
+                    "publisher_epoch_changed":
+                        restarted_hello["publisher_epoch"] != old_epoch,
+                    "negative_close_codes": negative_proof,
+                    "required_scenarios": [
+                        "two_client", "within_retention_replay", "heartbeat",
+                        "stalled_websocket", "slow_client_overflow",
+                        "websocket_outage", "cross_origin", "missing_origin",
+                        "malformed_resume", "sequence_ahead", "idle_no_pong",
+                        "bounded_shutdown", "publisher_restart"],
+                    "lossless_stream_ids": [
+                        str(item["stream_id"]) for item in lossless_streams],
+                    "lossless_streams_complete": True,
+                },
+            }
+            transcript_bytes = (json.dumps(
+                transcript_document, indent=2, sort_keys=True) + "\n").encode()
+            transcript_path = output / "phase6-wire-transcript.json"
+            transcript_path.write_bytes(transcript_bytes)
+            transcript_valid = validate_phase6_wire_transcript(
+                transcript_document)
+            transcript_negative_corpus_valid = (
+                validate_phase6_wire_transcript_negative_corpus(
+                    transcript_document))
+            check("bounded complete Phase6 wire transcript",
+                  transcript_valid and transcript_negative_corpus_valid and
+                  len(transcript_bytes) <= 16777216,
+                  f"records={len(phase6_records)}; streams={len(lossless_streams)}; "
+                  f"bytes={len(transcript_bytes)}; "
+                  f"schema={transcript_valid}; negative_corpus="
+                  f"{transcript_negative_corpus_valid}")
+            if not transcript_valid or not transcript_negative_corpus_valid:
+                raise RuntimeError("Phase6 wire transcript failed validation")
+            persist("phase6_wire_transcript", transcript_bytes)
+            phase6_screenshot_manifest = {
+                "schema": "graphx.dashboard.phase6.screenshot_manifest.v1",
+                "dashboard_url": url, "capture_required": True,
+                "synthetic_data_only": True,
+                "required_cases": ["live", "replay", "resync"],
+                "captured_files": {},
+                "capture_mechanism":
+                    "direct Firefox WebDriver BiDi screenshot and console acquisition",
+            }
+            phase6_manifest_bytes = (
+                json.dumps(phase6_screenshot_manifest, indent=2) + "\n").encode()
+            (output / "phase6-screenshot-manifest.json").write_bytes(
+                phase6_manifest_bytes)
+            persist("phase6_screenshot_manifest", phase6_manifest_bytes)
         status, headers, body = request(port, "PUT", "/healthz")
         problem = json.loads(body)
         persist("PUT /healthz", body)
@@ -2296,8 +4489,10 @@ def exercise(args: argparse.Namespace) -> int:
             "dashboard_url": url, "api_version": "v1", "synthetic_data_only": True,
             "hwil_available": False, "production_rf_qualified": False,
             "input_hashes": {"openapi": sha256(Path(__file__).resolve().parents[1] / "api/openapi.json"),
+                             "transport_state": sha256(Path(__file__).resolve().parents[1] / "fhss_transport_state.js"),
                              "operator": sha256(Path(__file__).resolve()),
                              "operator_report_schema": sha256(Path(__file__).resolve().parent / "schemas/operator-report.schema.json"),
+                             "phase6_transcript_schema": sha256(Path(__file__).resolve().parent / "schemas/phase6-wire-transcript.schema.json"),
                              **schema_hashes},
             "artifact_hashes": {"dashboard_index": sha256(Path(__file__).resolve().parents[1] / "index.html"),
                                 **live_hashes,
@@ -2312,7 +4507,8 @@ def exercise(args: argparse.Namespace) -> int:
         print(report_path)
         return 0 if report["result"] in ("PASS", "PARTIAL") else 1
     except Exception as error:
-        checks.append({"name": "operator execution", "pass": False, "evidence": str(error)})
+        checks.append({"name": "operator execution", "pass": False,
+                       "evidence": traceback.format_exc()})
         report = {
             "schema": "graphx.fhss.dashboard.operator_report.v1", "phase": phase,
             "source_revision": "unknown", "compiler": "unknown",
@@ -2345,8 +4541,22 @@ def verify(args: argparse.Namespace) -> int:
         validate_instance(report, schema)
         dashboard_index = Path(__file__).resolve().parents[1] / "index.html"
         openapi = Path(__file__).resolve().parents[1] / "api/openapi.json"
+        transport_state = (Path(__file__).resolve().parents[1] /
+                           "fhss_transport_state.js")
+        transcript_schema = (Path(__file__).resolve().parent / "schemas" /
+                             "phase6-wire-transcript.schema.json")
+        transport_hash_valid = (
+            args.phase < 6 or
+            report.get("input_hashes", {}).get("transport_state") ==
+                sha256(transport_state))
+        transcript_schema_hash_valid = (
+            args.phase < 6 or
+            report.get("input_hashes", {}).get("phase6_transcript_schema") ==
+                sha256(transcript_schema))
         hashes_valid = (report.get("artifact_hashes", {}).get("dashboard_index") == sha256(dashboard_index)
                         and report.get("input_hashes", {}).get("openapi") == sha256(openapi)
+                        and transport_hash_valid
+                        and transcript_schema_hash_valid
                         and report.get("input_hashes", {}).get("operator") == sha256(Path(__file__).resolve())
                         and report.get("input_hashes", {}).get("operator_report_schema") ==
                             sha256(Path(__file__).resolve().parent / "schemas/operator-report.schema.json"))
@@ -2356,6 +4566,23 @@ def verify(args: argparse.Namespace) -> int:
         evidence_dir = args.output_dir.resolve() / "artifacts"
         for key, digest in report.get("artifact_hashes", {}).items():
             if key == "dashboard_index":
+                continue
+            if key == "phase6_wire_transcript":
+                transcript_path = (args.output_dir.resolve() /
+                                   "phase6-wire-transcript.json")
+                transcript_document = json.loads(
+                    transcript_path.read_text(encoding="utf-8"))
+                evidence = evidence_dir / (
+                    hashlib.sha256(key.encode()).hexdigest() + ".bin")
+                hashes_valid = (
+                    hashes_valid and transcript_path.is_file() and
+                    sha256(transcript_path) == digest and
+                    evidence.is_file() and sha256(evidence) == digest and
+                    validate_phase6_wire_transcript(transcript_document) and
+                    validate_phase6_wire_transcript_negative_corpus(
+                        transcript_document) and
+                    hashlib.sha256(transcript_path.read_bytes() + b" ").hexdigest()
+                        != digest)
                 continue
             if key == f"phase{args.phase}_screenshot_manifest_current":
                 manifest_path = (args.output_dir.resolve() /
@@ -2375,6 +4602,13 @@ def verify(args: argparse.Namespace) -> int:
                 hashes_valid = (hashes_valid and served_state.is_file() and
                                 sha256(served_state) == digest)
                 continue
+            if key.startswith(f"phase{args.phase}_browser_console:"):
+                case = key.split(":", 1)[1]
+                console_log = (args.output_dir.resolve() / "browser-console" /
+                               f"{case}.json")
+                hashes_valid = (hashes_valid and console_log.is_file() and
+                                sha256(console_log) == digest)
+                continue
             evidence = evidence_dir / (hashlib.sha256(key.encode()).hexdigest() + ".bin")
             hashes_valid = hashes_valid and evidence.is_file() and sha256(evidence) == digest
     except ValueError:
@@ -2388,12 +4622,25 @@ def verify(args: argparse.Namespace) -> int:
             captures = manifest.get("captured_files", {})
             required_cases = ({"clean", "impaired", "negative"}
                               if args.phase == 4 else
-                              {"step", "continue", "cancelled"})
+                              ({"step", "continue", "cancelled"}
+                               if args.phase == 5 else
+                               {"live", "replay", "resync"}))
             screenshots_valid = set(captures) == required_cases
             for case, record in captures.items():
                 screenshot = args.output_dir.resolve() / record["relative_path"]
                 state_path = args.output_dir.resolve() / record["served_state"]
                 state = json.loads(state_path.read_text(encoding="utf-8"))
+                console_valid = True
+                if args.phase == 6:
+                    console_path = args.output_dir.resolve() / record["console_log"]
+                    console = json.loads(console_path.read_text(encoding="utf-8"))
+                    console_valid = (
+                        console_path.is_file() and
+                        record.get("console_sha256") == sha256(console_path) and
+                        report.get("artifact_hashes", {}).get(
+                            f"phase6_browser_console:{case}") == sha256(console_path) and
+                        validate_browser_console(
+                            console, state, state_path, screenshot))
                 captured_at = datetime.fromisoformat(
                     str(record["captured_at_utc"]).replace("Z", "+00:00"))
                 state_generation = int(state.get(
@@ -2419,6 +4666,7 @@ def verify(args: argparse.Namespace) -> int:
                                          capture_age_seconds) <= 5.0 and
                                      int(record.get("screenshot_mtime_ns", -1)) ==
                                          screenshot.stat().st_mtime_ns and
+                                     console_valid and
                                      ((args.phase == 4 and
                                        state.get("truth_files_present") is False and
                                        len(str(state.get("config_sha256", ""))) == 64 and
@@ -2431,7 +4679,14 @@ def verify(args: argparse.Namespace) -> int:
                                        len(str(state.get("job_id", ""))) == 26 and
                                        len(str(state.get("job_sha256", ""))) == 64 and
                                        (case == "cancelled" or
-                                        state.get("truth_withheld_during_replay") is True))) and
+                                        state.get("truth_withheld_during_replay") is True)) or
+                                      (args.phase == 6 and
+                                       state.get("synthetic_data_only") is True and
+                                       state.get("hwil_available") is False and
+                                       state.get("transport_state") in
+                                       ("live", "contiguous_replay", "resync_required") and
+                                       len(str(state.get("publisher_epoch", ""))) == 32 and
+                                       int(state.get("sequence", -1)) >= 0)) and
                                      record.get("served_state_sha256") == sha256(state_path) and
                                      report.get("artifact_hashes", {}).get(
                                          f"phase{args.phase}_served_state:{case}") == sha256(state_path) and
@@ -2480,6 +4735,24 @@ def record_screenshot(args: argparse.Namespace) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     state_path = output / f"phase{args.phase}-{args.case}-served-state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
+    console_destination = None
+    console_digest = None
+    if args.phase == 6:
+        if args.console_log is None:
+            raise RuntimeError("--console-log is required for Phase6 captures")
+        console_source = args.console_log.resolve()
+        if not console_source.is_file():
+            raise RuntimeError("Phase6 browser console evidence is required")
+        console = json.loads(console_source.read_text(encoding="utf-8"))
+        if not validate_browser_console(console, state, state_path, source):
+            raise RuntimeError(
+                "browser console evidence lacks valid direct BiDi provenance")
+        console_directory = output / "browser-console"
+        console_directory.mkdir(exist_ok=True)
+        console_destination = console_directory / f"{args.case}.json"
+        if console_source != console_destination.resolve():
+            shutil.copy2(console_source, console_destination)
+        console_digest = sha256(console_destination)
     generation = int(state.get(
         "generation", state.get("terminal", {}).get("active_generation", -1)))
     run_epoch = int(state.get("run_epoch", -1))
@@ -2496,7 +4769,7 @@ def record_screenshot(args: argparse.Namespace) -> int:
                        iq_path.is_file() and sha256(iq_path) == state.get("iq_sha256") and
                        str(state.get("observation_id", "")).startswith("observation-g") and
                        len(str(state.get("observation_sha256", ""))) == 64)
-    else:
+    elif args.phase == 5:
         state_valid = (common_valid and state.get("synthetic_data_only") is True and
                        state.get("hwil_available") is False and
                        re.fullmatch(r"j-[0-9a-f]{24}", str(state.get("job_id", ""))) is not None and
@@ -2505,12 +4778,20 @@ def record_screenshot(args: argparse.Namespace) -> int:
                        (args.case == "cancelled" or
                         (generation >= 1 and run_epoch >= 1 and
                          state.get("truth_withheld_during_replay") is True)))
+    else:
+        state_valid = (common_valid and state.get("synthetic_data_only") is True and
+                       state.get("hwil_available") is False and
+                       state.get("transport_state") in
+                       ("live", "contiguous_replay", "resync_required") and
+                       len(str(state.get("publisher_epoch", ""))) == 32 and
+                       int(state.get("sequence", -1)) >= 0)
     if not state_valid:
         raise RuntimeError("served-state evidence does not identify the requested case")
     screenshots = output / "screenshots"
     screenshots.mkdir(exist_ok=True)
     destination = screenshots / f"{args.case}.png"
-    shutil.copy2(source, destination)
+    if source.resolve() != destination.resolve():
+        shutil.copy2(source, destination)
     digest = sha256(destination)
     state_digest = sha256(state_path)
     manifest.setdefault("captured_files", {})[args.case] = {
@@ -2530,16 +4811,25 @@ def record_screenshot(args: argparse.Namespace) -> int:
         "capture_age_seconds_at_record": capture_age_seconds,
         "synthetic_data_only": True,
     }
+    if args.phase == 6:
+        manifest["captured_files"][args.case].update({
+            "console_log": str(console_destination.relative_to(output)),
+            "console_sha256": console_digest,
+        })
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report.setdefault("artifact_hashes", {})[f"phase{args.phase}_screenshot:{args.case}"] = digest
     report["artifact_hashes"][f"phase{args.phase}_served_state:{args.case}"] = state_digest
+    if args.phase == 6:
+        report["artifact_hashes"][f"phase6_browser_console:{args.case}"] = console_digest
     report["artifact_hashes"][f"phase{args.phase}_screenshot_manifest_current"] = sha256(
         manifest_path)
     captured_cases = set(manifest.get("captured_files", {}))
     required_cases = ({"clean", "impaired", "negative"}
                       if args.phase == 4 else
-                      {"step", "continue", "cancelled"})
+                      ({"step", "continue", "cancelled"}
+                       if args.phase == 5 else
+                       {"live", "replay", "resync"}))
     final_capture_set = captured_cases == required_cases
     check_name = f"Phase{args.phase} bound browser screenshots"
     report["checks"] = [
@@ -2560,6 +4850,46 @@ def record_screenshot(args: argparse.Namespace) -> int:
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(destination)
     return 0
+
+
+def capture_browser(args: argparse.Namespace) -> int:
+    if args.phase != 6:
+        raise RuntimeError("capture-browser is defined for Phase6 only")
+    output = args.output_dir.resolve()
+    state_path = output / f"phase6-{args.case}-served-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    url = str(state.get("url", ""))
+    if not url.startswith("http://127.0.0.1:"):
+        raise RuntimeError("served-state URL is not a bound loopback origin")
+    expected = {
+        "live": "live WebSocket sequence",
+        "replay": "live — replayed through sequence",
+        "resync": "resync snapshot at sequence",
+    }[args.case]
+    capture_input = output / "capture-input"
+    capture_input.mkdir(exist_ok=True)
+    screenshot_path = capture_input / f"{args.case}.png"
+    console_path = capture_input / f"{args.case}-console.json"
+    with FirefoxBidiSession(output) as browser:
+        browser.navigate(url)
+        observed = str(browser.wait_for(
+            "document.getElementById('event-transport').textContent", 10))
+        browser.wait_for(
+            f"document.getElementById('event-transport').textContent.includes({json.dumps(expected)})",
+            10)
+        final_state = str(browser.evaluate(
+            "document.getElementById('event-transport').textContent"))
+        browser.screenshot(screenshot_path)
+        console_path.write_text(json.dumps(browser_console_document(
+            browser, url, state_path, screenshot_path,
+            [observed, final_state]), indent=2) + "\n", encoding="utf-8")
+    result = record_screenshot(argparse.Namespace(
+        phase=6, build_dir=args.build_dir, output_dir=output, case=args.case,
+        path=screenshot_path, console_log=console_path))
+    screenshot_path.unlink(missing_ok=True)
+    console_path.unlink(missing_ok=True)
+    capture_input.rmdir()
+    return result
 
 
 def cleanup(args: argparse.Namespace) -> int:
@@ -2585,12 +4915,19 @@ def cleanup(args: argparse.Namespace) -> int:
         "phase5-offline-summary.json", "phase5-screenshot-manifest.json",
         "phase5-step-served-state.json", "phase5-continue-served-state.json",
         "phase5-cancelled-served-state.json",
+        "phase6-screenshot-manifest.json", "phase6-live-served-state.json",
+        "phase6-replay-served-state.json", "phase6-resync-served-state.json",
+        "phase6-wire-transcript.json",
     }
     exact_files.update(f"phase4-cases/{case}-config.json"
                        for case in ("clean", "impaired", "negative", "malformed"))
     exact_files.update(f"screenshots/{case}.png"
                        for case in ("clean", "impaired", "negative",
                                     "step", "continue", "cancelled"))
+    exact_files.update(f"screenshots/{case}.png"
+                       for case in ("live", "replay", "resync"))
+    exact_files.update(f"browser-console/{case}.json"
+                       for case in ("live", "replay", "resync"))
     for relative in sorted(exact_files):
         tracked = output / relative
         if tracked.is_file() or tracked.is_symlink():
@@ -2603,7 +4940,8 @@ def cleanup(args: argparse.Namespace) -> int:
             else:
                 raise RuntimeError(f"refusing unowned evidence entry: {artifact}")
         evidence_dir.rmdir()
-    for directory in (output / "screenshots", output / "phase4-cases"):
+    for directory in (output / "screenshots", output / "browser-console",
+                      output / "phase4-cases"):
         if directory.is_dir():
             directory.rmdir()
     phase5_jobs = output / "phase5-job-artifacts" / "fhss-jobs"
@@ -2633,28 +4971,33 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("serve", "exercise", "verify", "report", "cleanup",
-                 "record-screenshot"):
+                 "record-screenshot", "capture-browser"):
         item = commands.add_parser(name)
         item.add_argument("--phase", type=int, default=PHASE)
         item.add_argument("--build-dir", type=Path, default=Path("build-ninja/ninja-debug"))
         item.add_argument("--output-dir", type=Path, required=True)
         if name == "serve":
             item.add_argument("--case", choices=("clean", "impaired", "negative",
-                                                   "step", "continue", "cancelled"))
+                                                   "step", "continue", "cancelled",
+                                                   "live", "replay", "resync"))
             item.add_argument("--port", type=int, default=0)
             item.add_argument("--exit-after-case", action="store_true")
         elif name == "verify":
             item.add_argument("--require-screenshots", action="store_true")
-        elif name == "record-screenshot":
+        elif name in ("record-screenshot", "capture-browser"):
             item.add_argument("--case", choices=("clean", "impaired", "negative",
-                                                   "step", "continue", "cancelled"),
+                                                   "step", "continue", "cancelled",
+                                                   "live", "replay", "resync"),
                               required=True)
-            item.add_argument("--path", type=Path, required=True)
+            if name == "record-screenshot":
+                item.add_argument("--path", type=Path, required=True)
+                item.add_argument("--console-log", type=Path)
     args = parser.parse_args()
     if args.command == "exercise": return exercise(args)
     if args.command == "verify": return verify(args)
     if args.command == "cleanup": return cleanup(args)
     if args.command == "record-screenshot": return record_screenshot(args)
+    if args.command == "capture-browser": return capture_browser(args)
     if args.command == "report":
         print((args.output_dir.resolve() / f"phase{args.phase}-report.json").read_text(encoding="utf-8"))
         return 0
@@ -2667,8 +5010,11 @@ def main() -> int:
         elif args.phase == 5:
             start_served_phase5_case(int(url.rsplit(":", 1)[1]), args.case,
                                      args.output_dir.resolve(), url)
+        elif args.phase == 6:
+            start_served_phase6_case(int(url.rsplit(":", 1)[1]), args.case,
+                                     args.output_dir.resolve(), url)
         else:
-            raise RuntimeError("serve --case is supported for phases 4 and 5")
+            raise RuntimeError("serve --case is supported for phases 4 through 6")
         if args.exit_after_case:
             stop(process)
             return 0

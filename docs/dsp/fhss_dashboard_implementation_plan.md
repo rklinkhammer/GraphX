@@ -546,6 +546,45 @@ Acceptance:
 - HTTP polling fallback remains schema-compatible; and
 - TSAN plus sanitizer streaming tests pass.
 
+Implemented Phase 6 semantics:
+
+- Boost.Beast owns the RFC 6455 upgrade and framing on the existing loopback
+  listener; the request authority and single `Origin` must exactly match the
+  bound loopback endpoint; extension offers are safely declined by omission and
+  unsupported subprotocols are rejected before upgrade;
+- every process start creates an opaque publisher epoch and every event carries
+  monotonic sequence, RFC 3339 time, graph generation/run epoch, configuration
+  revision/ETag, optional controller/job/correlation/semantic identifiers, and
+  a source-owned payload;
+- graph/job threads capture generation/run/configuration provenance at ingress
+  commit and enqueue into an event-and-byte-bounded publisher ingress;
+  metrics/diagnostics coalesce deterministically while terminal/config/job
+  transitions already admitted to ingress retain FIFO order. Admission is
+  non-blocking: coalescible entries are evicted first, and if the bounded queue
+  contains only critical transitions the newest critical event is rejected and
+  every client is required to resynchronize. No producer thread bypasses the
+  ingress or publishes synchronously. Snapshot
+  collection, serialization, retention commit, and client fan-out run outside
+  graph and job critical sections;
+- frame, reassembled-message, fragment, command/event rate, replay, queue,
+  connection-lifetime, idle, close, client-count, and client-state lifetime
+  limits are enforced; retention is bounded by 4,096 events, 8 MiB, and 120
+  seconds, and each of at most eight clients is bounded independently;
+- the browser resumes only a contiguous range in the same epoch, fetches a
+  schema-validated coherent HTTP snapshot after any epoch/sequence/schema
+  discontinuity, ignores exact duplicates, fetches only the fixed same-origin
+  snapshot route, atomically replaces its coherent display model, and uses
+  bounded polling plus a capped exponential reconnect budget only while
+  WebSocket transport is unavailable;
+- the external operator drives maintained Firefox through WebDriver BiDi. It
+  forces a real WebSocket-only outage while HTTP health and snapshots remain
+  available, observes polling and coherent restoration in the rendered page,
+  and captures browser-authenticated screenshots, console entries, browser
+  identity, session/context IDs, timestamps, served-state hashes, and viewport
+  hashes. Hand-authored console JSON is not accepted as browser evidence;
+- Phase 6 evidence remains synthetic-only. No HWIL, conducted-RF, OTA, or
+  production-RF qualification is available.
+
 ### Phase 7 — Investigation artifacts and SigMF integrity
 
 Goal: provide reproducible evidence bundles that accurately contain what the UI

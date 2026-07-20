@@ -306,6 +306,7 @@
   <header>
     <h1>GraphX FHSS Dashboard</h1>
     <div class="subtle">Synthetic IQ evaluation only — scenario values are expected truth, not receiver detections.</div>
+    <div id="event-transport" class="subtle" role="status" aria-live="polite">Event transport: connecting</div>
     <div id="meta"></div>
   </header>
   <nav class="tabs" aria-label="Dashboard tabs">
@@ -435,6 +436,7 @@
       </div>
     </div>
   </section>
+  <script src="/fhss_transport_state.js"></script>
   <script>
     const openDetailsState = {
       nodes: new Set(),
@@ -976,11 +978,243 @@
 
       const bounds = visualizationData.bounds || {};
       const refreshMs = Math.max(100, Number(bounds.refresh_interval_ms || 250));
+      schedulePollingFallback(refreshMs);
+    }
+
+    let eventSocket = null;
+    let eventPublisherEpoch = sessionStorage.getItem('fhss.publisher_epoch') || '';
+    let eventLastSequence = Number(sessionStorage.getItem('fhss.last_sequence') || 0);
+    let eventReplayThrough = 0;
+    let eventTransportState = '';
+    let pollingTimer = null;
+    let reconnectTimer = null;
+    let stableConnectionTimer = null;
+    let reconnectAttempt = 0;
+    let coherentResyncRequired = false;
+    const maxReconnectDelayMs = 30000;
+    const maxReconnectAttempts = 12;
+    const coherentSnapshotRoute = '/api/v1/fhss/snapshot';
+    const eventPollClientId = 'fhss-browser-poll';
+    const transportContract = window.GraphXFhssTransport;
+    function validSequence(value) {
+      return transportContract.validSequence(value);
+    }
+    function renderCoherentSnapshot(snapshot) {
+      const graph = snapshot.graph?.graph || {};
+      const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+      const edges = Array.isArray(graph.edges) ? graph.edges : [];
+      renderMetrics(snapshot.metrics?.graph || {});
+      renderActivity(snapshot.metrics?.nodes || [], snapshot.metrics?.edges || []);
+      renderDiagnostics(snapshot.diagnostics?.nodes || []);
+      renderSchedule({});
+      renderHeatmap({});
+      renderTimeline({});
+      const unavailable = {availability: {state: 'unavailable',
+        reason: 'coherent transport snapshot contains no receiver observation'}};
+      const unavailableSpectrum = {availability: {state: 'unavailable',
+        reason: 'coherent transport snapshot contains no selected spectrum'}, bins: []};
+      renderObservationWorkbench(unavailable, unavailable, unavailable,
+        unavailableSpectrum);
+      latestObservationData = [unavailable, unavailable, unavailable,
+        unavailableSpectrum];
+      selectedSpectrumChannel = null;
+      document.getElementById('spectrum-channel').value = '';
+      document.getElementById('spectrum-channel').disabled = true;
+      document.getElementById('spectrum-channel-identity').textContent =
+        'unavailable: coherent snapshot requires a subsequent receiver event';
+      document.getElementById('config-identity').textContent =
+        `revision=${snapshot.config_revision} etag=${snapshot.config_etag}`;
+      document.getElementById('config-effective').textContent =
+        `Coherent configuration\n${JSON.stringify(snapshot.configuration, null, 2)}`;
+      document.getElementById('config-provenance').textContent =
+        'Provenance unavailable in the coherent transport snapshot';
+      document.getElementById('runtime-status').textContent =
+        JSON.stringify(snapshot.runtime, null, 2);
+      document.getElementById('runtime-rebuild').disabled =
+        !snapshot.runtime.rebuild_allowed;
+      document.getElementById('runtime-start').disabled = true;
+      document.getElementById('runtime-stop').disabled = true;
+      renderJob({controller_epoch: 'coherent-snapshot', state: 'unavailable'});
+      const nodesHost = document.getElementById('nodes');
+      nodesHost.textContent = '';
+      nodes.forEach((node, index) => {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = nodeTitle(node, index);
+        details.appendChild(summary);
+        const body = document.createElement('pre');
+        body.textContent = JSON.stringify(node, null, 2);
+        details.appendChild(body);
+        nodesHost.appendChild(details);
+      });
+      document.getElementById('edges').textContent = JSON.stringify(edges, null, 2);
+      document.getElementById('meta').textContent =
+        `coherent snapshot=${snapshot.captured_at} revision=${snapshot.config_revision} generation=${snapshot.generation} run=${snapshot.run_epoch}`;
+    }
+    async function applyResync(expectedEpoch = '') {
+      const snapshot = await fetchJson(coherentSnapshotRoute);
+      if (snapshot.schema !== 'graphx.dashboard.fhss_snapshot.v1' ||
+          typeof snapshot.publisher_epoch !== 'string' ||
+          !validSequence(Number(snapshot.latest_sequence)) ||
+          !snapshot.graph || !snapshot.configuration || !snapshot.runtime ||
+          !snapshot.metrics || !snapshot.diagnostics ||
+          (expectedEpoch && snapshot.publisher_epoch !== expectedEpoch)) {
+        throw new Error('incoherent resync snapshot');
+      }
+      renderCoherentSnapshot(snapshot);
+      eventPublisherEpoch = snapshot.publisher_epoch;
+      eventLastSequence = Number(snapshot.latest_sequence);
+      coherentResyncRequired = false;
+      sessionStorage.setItem('fhss.publisher_epoch', eventPublisherEpoch);
+      sessionStorage.setItem('fhss.last_sequence', String(eventLastSequence));
+      document.getElementById('event-transport').textContent =
+        `Event transport: resync snapshot at sequence ${eventLastSequence}`;
+      eventTransportState = 'resync';
+    }
+    function acceptEventEnvelope(eventDocument) {
+      const classification = transportContract.classifyEvent(
+        eventDocument, eventPublisherEpoch, eventLastSequence);
+      if (classification !== 'accepted') return classification;
+      const sequence = Number(eventDocument.sequence);
+      eventPublisherEpoch = eventDocument.publisher_epoch;
+      eventLastSequence = sequence;
+      sessionStorage.setItem('fhss.publisher_epoch', eventPublisherEpoch);
+      sessionStorage.setItem('fhss.last_sequence', String(eventLastSequence));
+      const websocketDelivery = eventSocket && eventSocket.readyState === WebSocket.OPEN;
+      const replayed = websocketDelivery && eventLastSequence <= eventReplayThrough;
+      eventTransportState = websocketDelivery ? (replayed ? 'replay' : 'live') : 'polling';
+      document.getElementById('event-transport').textContent = websocketDelivery
+        ? (replayed
+          ? `Event transport: live — replayed through sequence ${eventLastSequence}`
+          : `Event transport: live WebSocket sequence ${eventLastSequence}`)
+        : `Event transport: bounded polling sequence ${eventLastSequence}; reconnecting`;
+      refreshFromEvent();
+      return 'accepted';
+    }
+    function schedulePollingFallback(delay = 2000) {
+      window.clearTimeout(pollingTimer);
+      if (eventSocket && eventSocket.readyState === WebSocket.OPEN) return;
+      pollingTimer = window.setTimeout(async () => {
+        try {
+          const batch = await fetchJson(`/api/v1/fhss/events?client_id=${eventPollClientId}&last_sequence=${eventLastSequence}`);
+          if (!transportContract.validateBatch(batch, eventPollClientId))
+            throw new Error('invalid event batch');
+          if (batch.resync_required ||
+              (eventPublisherEpoch && batch.publisher_epoch !== eventPublisherEpoch)) {
+            await applyResync(batch.publisher_epoch);
+          } else {
+            for (const eventDocument of batch.events) {
+              if (acceptEventEnvelope(eventDocument) === 'resync') {
+                await applyResync(batch.publisher_epoch);
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          coherentResyncRequired = true;
+          document.getElementById('meta').textContent = `polling fallback failed: ${err}`;
+        }
+        schedulePollingFallback(Math.max(500, delay));
+      }, Math.max(500, delay));
+    }
+    function refreshFromEvent() {
+      window.clearTimeout(pollingTimer);
       window.setTimeout(() => {
         refreshDashboard().catch((err) => {
-          document.getElementById('meta').textContent = `failed: ${err}`;
+          document.getElementById('meta').textContent = `stream refresh failed: ${err}`;
         });
-      }, refreshMs);
+      }, 25);
+    }
+    function connectEventStream() {
+      window.clearTimeout(reconnectTimer);
+      const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      eventSocket = new WebSocket(`${scheme}//${window.location.host}/api/v1/fhss/events/stream`);
+      eventSocket.addEventListener('message', async (message) => {
+        let eventDocument;
+        try { eventDocument = JSON.parse(message.data); } catch (_) {
+          coherentResyncRequired = true; eventSocket.close(1007); return;
+        }
+        if (eventDocument.schema === 'graphx.dashboard.websocket_hello.v1') {
+          if (!transportContract.validateHello(eventDocument)) {
+            coherentResyncRequired = true; eventSocket.close(1002); return;
+          }
+          eventReplayThrough = Number(eventDocument.latest_sequence || 0);
+          if (coherentResyncRequired) {
+            try { await applyResync(eventDocument.publisher_epoch); }
+            catch (_) { eventSocket.close(1011, 'incoherent resync snapshot'); return; }
+          }
+          eventSocket.send(JSON.stringify({action: 'subscribe', client_id: 'fhss-browser',
+            publisher_epoch: eventPublisherEpoch, last_sequence: eventLastSequence}));
+          window.clearTimeout(stableConnectionTimer);
+          stableConnectionTimer = window.setTimeout(() => {
+            if (eventSocket && eventSocket.readyState === WebSocket.OPEN)
+              reconnectAttempt = 0;
+          }, Math.max(5000, Number(eventDocument.heartbeat_interval_ms) * 2));
+          return;
+        }
+        if (eventDocument.schema === 'graphx.dashboard.websocket_heartbeat.v1') {
+          if (!transportContract.validateHeartbeat(
+              eventDocument, eventPublisherEpoch)) {
+            coherentResyncRequired = true; eventSocket.close(1002, 'invalid heartbeat'); return;
+          }
+          eventSocket.send(JSON.stringify({action: 'heartbeat_ack',
+            publisher_epoch: eventDocument.publisher_epoch}));
+          return;
+        }
+        if (eventDocument.schema === 'graphx.dashboard.websocket_resync_required.v1') {
+          if (!transportContract.validateResync(
+              eventDocument, coherentSnapshotRoute)) {
+            coherentResyncRequired = true; eventSocket.close(1002, 'invalid resync'); return;
+          }
+          try { await applyResync(eventDocument.publisher_epoch); }
+          catch (_) { coherentResyncRequired = true; eventSocket.close(1011); }
+          return;
+        }
+        const disposition = acceptEventEnvelope(eventDocument);
+        if (disposition === 'resync') {
+          coherentResyncRequired = true;
+          eventSocket.close(1012, 'event resync required');
+        }
+      });
+      eventSocket.addEventListener('open', () => {
+        window.clearTimeout(pollingTimer);
+        if (!['replay', 'resync'].includes(eventTransportState)) {
+          document.getElementById('event-transport').textContent = 'Event transport: WebSocket connected';
+        }
+      });
+      eventSocket.addEventListener('close', () => {
+        window.clearTimeout(stableConnectionTimer);
+        if (!['replay', 'resync'].includes(eventTransportState)) {
+          document.getElementById('event-transport').textContent = 'Event transport: bounded polling fallback; reconnecting';
+        }
+        schedulePollingFallback(500);
+        const reconnect = transportContract.nextReconnect(
+          reconnectAttempt, maxReconnectAttempts, maxReconnectDelayMs);
+        if (!reconnect.allowed) {
+          document.getElementById('event-transport').textContent =
+            'Event transport: bounded polling fallback; reconnect budget exhausted — reload to retry';
+          return;
+        }
+        reconnectAttempt = reconnect.attempt;
+        reconnectTimer = window.setTimeout(connectEventStream,
+          reconnect.delay_ms);
+      });
+      eventSocket.addEventListener('error', () => schedulePollingFallback(500));
+    }
+
+    const transportTestRequested =
+      new URLSearchParams(window.location.search).get('transport_test') === '1' &&
+      ['127.0.0.1', '::1'].includes(window.location.hostname);
+    if (transportTestRequested) {
+      window.__graphxDashboardTransportTest = Object.freeze({
+        contract: transportContract,
+        state: () => Object.freeze({publisher_epoch: eventPublisherEpoch,
+          last_sequence: eventLastSequence, reconnect_attempt: reconnectAttempt,
+          transport_state: eventTransportState,
+          coherent_resync_required: coherentResyncRequired}),
+        renderCoherentSnapshotForTesting: (snapshot) =>
+          renderCoherentSnapshot(snapshot),
+      });
     }
 
     let selectedSpectrumChannel = null;
@@ -1008,6 +1242,7 @@
     refreshDashboard().catch((err) => {
       document.getElementById('meta').textContent = `failed: ${err}`;
     });
+    connectEventStream();
 
     document.getElementById('tab-main').addEventListener('click', () => {
       activateTab('panel-main');

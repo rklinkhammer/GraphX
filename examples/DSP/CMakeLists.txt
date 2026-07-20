@@ -110,10 +110,11 @@ install(TARGETS dsp_fhss_demo
 )
 
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-    install(FILES dashboard/index.html
+    install(FILES dashboard/index.html dashboard/fhss_transport_state.js
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard)
     install(DIRECTORY dashboard/api/
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/api)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/api
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(DIRECTORY dashboard/operator/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
