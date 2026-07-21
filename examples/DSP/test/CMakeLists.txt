@@ -21,6 +21,7 @@ target_sources(test_dsp_example_unit PRIVATE
     test_dsp_fhss_dashboard_step5.cpp
     test_dsp_fhss_dashboard_step6.cpp
     test_dsp_fhss_dashboard_step7.cpp
+    test_dsp_fhss_dashboard_phase7.cpp
 )
 endif()
 
@@ -46,6 +47,7 @@ target_include_directories(test_dsp_example_unit PRIVATE
 target_link_libraries(test_dsp_example_unit PRIVATE
     graphx_project_options
     dsp
+    dsp_fhss_iq_artifacts
     GTest::gtest_main
     Threads::Threads
     log4cxx
@@ -88,6 +90,8 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     FhssDashboardJobControllerTest
     FhssDashboardVisualizationTest
     FhssDashboardVisualizationCancellationTest)
+  list(APPEND DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
+    FhssDashboardInvestigationBundleTest)
 else()
   set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES "")
 endif()
@@ -130,7 +134,22 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
             -DPHASE=5 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
     set_tests_properties(fhss_dashboard_phase5_external_operator
         fhss_dashboard_phase5_installed_tree_operator PROPERTIES
-        TIMEOUT 600 LABELS "dsp;fhss;dashboard;phase5;operator;host-any")
+        TIMEOUT 600 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase5;operator;host-any")
+    add_test(NAME fhss_dashboard_phase7_external_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=7 -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase7_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=7 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    set_tests_properties(fhss_dashboard_phase7_external_operator
+        fhss_dashboard_phase7_installed_tree_operator PROPERTIES
+        TIMEOUT 1500 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase7;operator;browser;host-any")
     add_test(NAME fhss_dashboard_external_operator
         COMMAND ${CMAKE_COMMAND}
             -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
@@ -172,10 +191,14 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         fhss_dashboard_phase3_external_operator fhss_dashboard_phase3_installed_tree_operator
         fhss_dashboard_phase4_external_operator fhss_dashboard_phase4_installed_tree_operator
         PROPERTIES LABELS "dsp;fhss;dashboard;operator;ci-safe;host-any" TIMEOUT 180 RUN_SERIAL TRUE)
+    # Phase 4 runs several sequential synthetic receiver cases, each retaining
+    # its own strict 120-second execution, 30-second request, and 5-second Stop
+    # bounds.  Match the Phase 5 outer envelope so installation and browser
+    # evidence overhead cannot expire CTest before those assertions report.
     set_tests_properties(fhss_dashboard_phase4_external_operator
         fhss_dashboard_phase4_installed_tree_operator
         PROPERTIES LABELS "dsp;fhss;dashboard;operator;phase4;pre-browser-partial;ci-safe;host-any"
-        TIMEOUT 360)
+        TIMEOUT 600)
 endif()
 
 add_test(NAME fhss_dashboard_off_build

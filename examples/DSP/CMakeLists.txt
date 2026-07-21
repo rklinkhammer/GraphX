@@ -5,6 +5,7 @@ project(graphx_dsp_example LANGUAGES CXX)
 find_package(log4cxx REQUIRED)
 
 add_library(dsp_fhss_iq_artifacts STATIC
+    src/FHSSHash.cpp
     src/FHSSIqArtifactGenerator.cpp)
 target_include_directories(dsp_fhss_iq_artifacts PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -17,11 +18,52 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         dashboard/FHSSReceiverTemplate.hpp.in
         "${CMAKE_CURRENT_BINARY_DIR}/generated/FHSSReceiverTemplate.hpp"
         @ONLY)
+    set(GRAPHX_FHSS_PINNED_SCHEMA_FILES
+        dashboard/sigmf/official-v1.2.6/sigmf-schema.json
+        dashboard/api/schemas/fhss-investigation-manifest.schema.json
+        dashboard/api/schemas/fhss-investigation-artifact-entry.schema.json
+        dashboard/api/schemas/fhss-investigation-provenance.schema.json
+        dashboard/api/schemas/fhss-receiver-observation.schema.json
+        dashboard/api/schemas/fhss-comparison-result.schema.json
+        dashboard/api/schemas/fhss-receiver-result.schema.json
+        dashboard/api/schemas/fhss-operator-actions.schema.json
+        dashboard/api/schemas/fhss-external-iq-reference.schema.json
+        dashboard/api/schemas/fhss-iq-truth.schema.json
+        dashboard/api/schemas/fhss-receiver-graph.schema.json
+        dashboard/api/schemas/fhss-build-api-manifest.schema.json)
+    set(GRAPHX_FHSS_PINNED_SCHEMA_INITIALIZERS "")
+    set(GRAPHX_FHSS_PINNED_SCHEMA_DIGEST_INITIALIZERS "")
+    foreach(schema_file IN LISTS GRAPHX_FHSS_PINNED_SCHEMA_FILES)
+        file(READ "${CMAKE_CURRENT_SOURCE_DIR}/${schema_file}" schema_json)
+        file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${schema_file}" schema_sha256)
+        string(APPEND GRAPHX_FHSS_PINNED_SCHEMA_INITIALIZERS
+            "R\"GRAPHX_SCHEMA(${schema_json})GRAPHX_SCHEMA\",\n")
+        string(APPEND GRAPHX_FHSS_PINNED_SCHEMA_DIGEST_INITIALIZERS
+            "std::pair<std::string_view,std::string_view>{\"${schema_file}\",\"${schema_sha256}\"},\n")
+    endforeach()
+    file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/api/openapi.json"
+        GRAPHX_FHSS_OPENAPI_SHA256)
+    execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    execute_process(COMMAND git status --porcelain WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_DIRTY_FILES OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(GRAPHX_FHSS_SOURCE_DIRTY_FILES)
+        set(GRAPHX_FHSS_SOURCE_DIRTY true)
+    else()
+        set(GRAPHX_FHSS_SOURCE_DIRTY false)
+    endif()
+    configure_file(
+        dashboard/FHSSPinnedSchemas.hpp.in
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/FHSSPinnedSchemas.hpp"
+        @ONLY)
     add_library(dsp_fhss_dashboard_api STATIC
         dashboard/FHSSDashboardApi.cpp
         dashboard/FHSSObservationService.cpp
         dashboard/FHSSGraphRuntimeOwner.cpp
         dashboard/FHSSJobController.cpp
+        dashboard/FHSSInvestigationBundleService.cpp
         dashboard/FHSSDashboardConfigurationPolicy.cpp)
     target_include_directories(dsp_fhss_dashboard_api PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/dashboard
@@ -118,6 +160,8 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     install(DIRECTORY dashboard/operator/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    install(DIRECTORY dashboard/sigmf/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/sigmf)
     install(FILES tools/fhss_phase3_independent.py
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator)
     install(FILES

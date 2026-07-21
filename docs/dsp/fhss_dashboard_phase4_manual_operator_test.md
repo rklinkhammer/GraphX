@@ -58,10 +58,14 @@ creates `impaired-cfo-awgn.cf32`, `negative-no-message.cf32`,
 `phase4-clean-measured-baseline.json`. Generator schedule and truth paths are
 unlinked before receiver replay.
 
-The clean generator-only schedule must contain the receiver's explicit
-64-channel, 7.5 MHz-spaced IQ offset map and message start samples shifted by
-6,500 samples. This one-pulse-slot causal warm-up protects the first decoded
-word; the receiver graph must still contain neither the schedule nor truth.
+The clean generator-only schedule must contain exactly one complete canonical
+architecture-conformant message with every pulse and field preserved, the
+receiver's explicit 64-channel, 7.5 MHz-spaced IQ offset map, and that message's
+start shifted by 6,500 samples. The impaired and negative cases derive from the
+same isolated validation fixture. This one-pulse-slot causal warm-up protects
+the first decoded word; the receiver graph must still contain neither the
+schedule nor truth. The separate 80-message replay remains the cancellation
+workload and is not substituted for clean/impaired/negative validation.
 Natural receiver processing is bounded at 30 seconds and Stop remains bounded
 at five seconds. If the processing bound expires without a graph completion
 signal, confirm the terminal state is `failed` with code `execution_failed`,

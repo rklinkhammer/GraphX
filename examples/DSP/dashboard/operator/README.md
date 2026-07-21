@@ -1,4 +1,4 @@
-# FHSS dashboard Phase 1/2/3/4/5/6 operator
+# FHSS dashboard Phase 1/2/3/4/5/6/7 operator
 
 Phase 4 manual browser/API validation is documented in
 `docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
@@ -6,6 +6,23 @@ Phase 5 message-job validation is documented in
 `docs/dsp/fhss_dashboard_phase5_manual_operator_test.md`.
 Phase 6 bounded streaming validation is documented in
 `docs/dsp/fhss_dashboard_phase6_manual_operator_test.md`.
+Phase 7 investigation-bundle validation is documented in
+`docs/dsp/fhss_dashboard_phase7_manual_operator_test.md`.
+
+Phase 7 runs the complete inherited synthetic workflow, exports reference-only
+and copied-IQ bundles, validates them with the pinned official SigMF schema,
+replays both through the normal receiver, compares semantic result hashes, and
+executes the artifact, metadata, inventory, containment, link/special-file,
+collision, and restoration negative corpus. It also captures the rendered
+investigation controls directly from maintained headless Firefox in four
+states: reference completion, copy completion, replay success, and safe
+failure. A second public executable instance uses a fixed startup-only,
+non-production qualification sequence for quota, copy-size, ENOSPC,
+hash/copy/pre-rename cancellation, timeout, shutdown, and cleanup evidence;
+HTTP requests cannot enable or select its faults. Run the workflow with
+`exercise --phase 7`, then independently rehash and verify with
+`verify --phase 7`; both source and installed-tree lanes must report
+`PASS / final_verified`.
 
 The operator exercises the production `graphx-dsp-fhss-demo` executable on an
 ephemeral loopback port. All scenario data is synthetic. There is no HWIL,
@@ -126,10 +143,12 @@ controls. Reports contain SHA-256 hashes of the authoritative, validation,
 applied, and receiver-graph payloads. Use `--phase 1` to retain the Phase 1
 transport/read-only evidence lane.
 
-Phase 3 generates architecture-conformant IQ with the production generator,
-keeps IQ/SigMF separate from truth, removes schedule and truth before receiver
-execution, and runs two transactional runtime generations to natural terminal
-completion. Rebuild is synchronous (HTTP 200 after publication), start is
+Phase 3 selects exactly one complete canonical architecture-conformant message,
+adds one 6,500-sample pulse slot of causal warm-up, and generates its IQ with
+the production generator. It keeps IQ/SigMF separate from truth, removes the
+schedule and truth before receiver execution, and runs the same bounded fixture
+through two transactional runtime generations to natural terminal completion.
+Rebuild is synchronous (HTTP 200 after publication), start is
 accepted asynchronously (HTTP 202), and stop is synchronous (HTTP 200 after a
 real join). The operator also uses a longer third fixture to observe running
 state and nonzero traffic before issuing Stop. Stop is bounded at five seconds;
@@ -149,14 +168,18 @@ pulse. Live receiver cases contain IQ and receiver configuration only—truth an
 schedule files are removed before execution. This remains synthetic software
 evidence: HWIL and production-RF qualification are unavailable.
 
-For the clean replay, the operator copies the receiver's explicit 64-channel,
-7.5 MHz-spaced IQ offset map into the generator-only schedule and adds one
-6,500-sample pulse slot before every message. This causal warm-up makes the
-first word independently decodable without exposing the map, message schedule,
-or truth to the receiver. Runtime processing is bounded at 30 seconds, while
-Stop keeps its separate five-second join bound. A processing timeout without a
-graph completion signal is reported as `execution_failed` rather than
-`execution_completed`.
+For Phase 4 and later validation replays, the operator selects exactly one
+complete canonical architecture-conformant message, copies the receiver's
+explicit 64-channel, 7.5 MHz-spaced IQ offset map into the generator-only
+schedule, and adds one 6,500-sample pulse slot before that message. This
+isolated-node-sized fixture preserves every canonical pulse and field while
+making the first word independently decodable without exposing the map,
+message schedule, or truth to the receiver. Clean, impaired, and negative cases
+all derive from this same bounded fixture. The separate 80-message replay still
+exercises real in-flight cancellation. Runtime processing is bounded at 30
+seconds, while Stop keeps its separate five-second join bound. A processing
+timeout without a graph completion signal is reported as `execution_failed`
+rather than `execution_completed`.
 
 The Overview schedule and timeline use the visualization contract's configured
 message start plus the architecture's 6,500-sample pulse period; they never

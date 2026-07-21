@@ -6,6 +6,7 @@
 #include "dsp/fhss/FHSSProductionCandidateChannelizerNode.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <complex>
@@ -17,6 +18,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace dsp::fhss {
@@ -294,6 +296,171 @@ TEST(FHSSPhase2ChannelizerTest,
   RecordProperty("history_storage_elements", kernel.HistoryStorageSize());
   RecordProperty("history_writes", kernel.HistoryWriteCount());
   RecordProperty("history_overwrites", kernel.HistoryOverwriteCount());
+}
+
+TEST(FHSSPhase2ChannelizerTest,
+     ExactZeroShortcutMatchesIndependentNormalPathAndStreamingState) {
+  const auto config = ProductionConfig();
+  const auto coefficients =
+      DesignFHSSHammingLowpass(config.fir_tap_count, config.cutoff_frequency_hz,
+                               config.frequency.sample_rate_hz);
+  constexpr std::uint64_t kGlobalStart = 7u;
+  const std::vector<std::complex<double>> zeros(12'345u, {0.0, 0.0});
+  FHSSFirChannelizerKernel normal(coefficients, config.decimation_factor,
+                                  3'750'000.0,
+                                  config.frequency.sample_rate_hz);
+  FHSSFirChannelizerKernel shortcut(coefficients, config.decimation_factor,
+                                    3'750'000.0,
+                                    config.frequency.sample_rate_hz);
+
+  const auto expected = normal.Process(zeros, kGlobalStart);
+  const auto actual =
+      shortcut.ProcessZerosFromReset(zeros.size(), kGlobalStart);
+  ASSERT_TRUE(expected.has_value());
+  ASSERT_TRUE(actual.has_value());
+  EXPECT_EQ(actual->has_output, expected->has_output);
+  EXPECT_EQ(actual->first_causal_input_global_sample,
+            expected->first_causal_input_global_sample);
+  EXPECT_EQ(actual->samples, expected->samples);
+  EXPECT_EQ(shortcut.HistoryStorageSize(), normal.HistoryStorageSize());
+  EXPECT_EQ(shortcut.HistoryWriteCount(), normal.HistoryWriteCount());
+  EXPECT_EQ(shortcut.HistoryOverwriteCount(), normal.HistoryOverwriteCount());
+  EXPECT_EQ(shortcut.HistoryNonzeroCount(), 0u);
+  EXPECT_EQ(normal.HistoryNonzeroCount(), 0u);
+
+  const auto continuation =
+      Tone(800u, 3'750'000.0, config.frequency.sample_rate_hz, 0.25, 0.17);
+  const auto expected_continuation =
+      normal.Process(continuation, kGlobalStart + zeros.size());
+  const auto actual_continuation =
+      shortcut.Process(continuation, kGlobalStart + zeros.size());
+  ASSERT_TRUE(expected_continuation.has_value());
+  ASSERT_TRUE(actual_continuation.has_value());
+  ASSERT_EQ(actual_continuation->samples.size(),
+            expected_continuation->samples.size());
+  for (std::size_t index = 0; index < expected_continuation->samples.size();
+       ++index) {
+    EXPECT_NEAR(actual_continuation->samples[index].real(),
+                expected_continuation->samples[index].real(), 1.0e-12);
+    EXPECT_NEAR(actual_continuation->samples[index].imag(),
+                expected_continuation->samples[index].imag(), 1.0e-12);
+  }
+}
+
+TEST(FHSSPhase2ChannelizerTest,
+     SparseZeroRunsMatchIndependentFirAcrossPacketsAndHistoryFlushes) {
+  const auto config = ProductionConfig();
+  const auto coefficients =
+      DesignFHSSHammingLowpass(config.fir_tap_count, config.cutoff_frequency_hz,
+                               config.frequency.sample_rate_hz);
+  std::vector<std::complex<double>> input(901u, {0.0, 0.0});
+  for (std::size_t index = 32u; index < 64u; ++index) {
+    input[index] = {0.2 + 0.001 * static_cast<double>(index),
+                    -0.1 + 0.0005 * static_cast<double>(index)};
+  }
+  for (std::size_t index = 400u; index < 450u; ++index) {
+    input[index] = {-0.3 + 0.0007 * static_cast<double>(index),
+                    0.15 - 0.0002 * static_cast<double>(index)};
+  }
+  for (std::size_t index = 801u; index < input.size(); ++index) {
+    input[index] = {0.4 - 0.0003 * static_cast<double>(index),
+                    0.05 + 0.0001 * static_cast<double>(index)};
+  }
+  const auto expected =
+      IndependentFirDecimate(input, coefficients, config.decimation_factor);
+
+  FHSSFirChannelizerKernel kernel(coefficients, config.decimation_factor, 0.0,
+                                  config.frequency.sample_rate_hz);
+  std::vector<std::complex<double>> actual;
+  const std::array<std::size_t, 5> packet_ends{300u, 400u, 520u, 801u,
+                                               input.size()};
+  const std::array<std::size_t, 5> expected_nonzero_counts{5u, 0u, 50u, 0u,
+                                                           100u};
+  std::size_t packet_start = 0u;
+  for (std::size_t packet = 0; packet < packet_ends.size(); ++packet) {
+    const auto packet_end = packet_ends[packet];
+    const std::vector<std::complex<double>> samples(
+        input.begin() + static_cast<std::ptrdiff_t>(packet_start),
+        input.begin() + static_cast<std::ptrdiff_t>(packet_end));
+    auto result = kernel.Process(samples, packet_start);
+    ASSERT_TRUE(result.has_value()) << packet;
+    actual.insert(actual.end(), result->samples.begin(), result->samples.end());
+    EXPECT_EQ(kernel.HistoryNonzeroCount(), expected_nonzero_counts[packet])
+        << packet;
+    packet_start = packet_end;
+  }
+
+  ASSERT_EQ(actual.size(), expected.size());
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    EXPECT_NEAR(actual[index].real(), expected[index].real(), 1.0e-12)
+        << index;
+    EXPECT_NEAR(actual[index].imag(), expected[index].imag(), 1.0e-12)
+        << index;
+  }
+  EXPECT_EQ(kernel.HistoryWriteCount(), input.size());
+  EXPECT_EQ(kernel.HistoryOverwriteCount(),
+            input.size() - coefficients.size());
+  kernel.Reset();
+  EXPECT_EQ(kernel.HistoryNonzeroCount(), 0u);
+}
+
+TEST(FHSSPhase2ChannelizerTest,
+     CancellableKernelReportsTeardownWithoutValidationFailureOrOutput) {
+  const auto config = ProductionConfig();
+  const auto coefficients =
+      DesignFHSSHammingLowpass(config.fir_tap_count, config.cutoff_frequency_hz,
+                               config.frequency.sample_rate_hz);
+  FHSSFirChannelizerKernel kernel(coefficients, config.decimation_factor,
+                                  3'750'000.0,
+                                  config.frequency.sample_rate_hz);
+  const std::atomic<bool> cancellation_requested{true};
+
+  const auto result = kernel.ProcessCancellable(
+      Tone(16'384u, 3'750'000.0, config.frequency.sample_rate_hz), 0u,
+      cancellation_requested);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_FALSE(result->has_value());
+  EXPECT_EQ(kernel.HistoryStorageSize(), 0u);
+  EXPECT_EQ(kernel.HistoryWriteCount(), 0u);
+  EXPECT_EQ(kernel.HistoryNonzeroCount(), 0u);
+}
+
+TEST(FHSSPhase2ChannelizerTest,
+     ProductionNodeStopInterruptsInFlightFirWithoutPartialOutput) {
+  constexpr std::size_t kLongCaptureSamples = 1'048'576u;
+  const auto samples =
+      std::make_shared<const std::vector<std::complex<double>>>(Tone(
+          kLongCaptureSamples,
+          ProductionConfig().frequency.iq_offset_frequency_hz[24],
+          FHSSProtocolConstants::kSampleRateHz, 0.25, 0.37));
+  FHSSProductionCandidateChannelizerNode channelizer(ProductionConfig());
+  ASSERT_TRUE(channelizer.Init());
+  ASSERT_TRUE(channelizer.Start());
+  std::atomic<bool> consume_finished{false};
+  std::atomic<bool> consume_result{true};
+  std::jthread worker([&] {
+    consume_result.store(
+        channelizer.ConsumeInput<0>(DownconvertedToken(samples, 0u, true)),
+        std::memory_order_release);
+    consume_finished.store(true, std::memory_order_release);
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  ASSERT_FALSE(consume_finished.load(std::memory_order_acquire));
+  const auto stop_started = std::chrono::steady_clock::now();
+  channelizer.Stop();
+  worker.join();
+  const auto stop_elapsed = std::chrono::steady_clock::now() - stop_started;
+  channelizer.Join();
+
+  EXPECT_FALSE(consume_result.load(std::memory_order_acquire));
+  EXPECT_LT(stop_elapsed, std::chrono::seconds(1));
+  for (std::size_t port = 0;
+       port < FHSSProtocolConstants::kFrequencyCount; ++port) {
+    const auto *metrics = channelizer.GetOutputQueueMetrics(port);
+    ASSERT_NE(metrics, nullptr);
+    EXPECT_EQ(metrics->current_size.load(), 0u) << port;
+  }
 }
 
 TEST(FHSSPhase2ChannelizerTest,

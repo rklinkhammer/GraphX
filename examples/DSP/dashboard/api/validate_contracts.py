@@ -288,6 +288,121 @@ def main() -> int:
             "message_cursor":0,"retained_job_count":1,
             "idempotency_entries_retained":0,"status":"reset_completed"},
     }
+    artifact = {"path":"truth.json","schema":"truth.v1",
+        "media_type":"application/json","classification":"generator_truth",
+        "retention_class":"bundle","receiver_visible":False,
+        "evaluator_visible":True,"replay_use":False,"storage":"bundled",
+        "bytes":2,"sha256":"0" * 64,"sha512":"1" * 128}
+    artifacts = []
+    for index, path in enumerate(("truth.json", "observation.json", "comparison.json",
+            "receiver-config.json", "receiver-result.json", "recording.sigmf-meta",
+            "provenance.json", "actions.json", "external-iq-reference.json")):
+        entry = copy.deepcopy(artifact); entry["path"] = path
+        entry["sha256"] = f"{index:x}" * 64
+        artifacts.append(entry)
+    samples.update({
+        "fhss-investigation-export-request.schema.json": {
+            "request_id":"export-1","bundle_name":"bundle-1",
+            "job_id":"j-" + "1" * 24,"iq_mode":"reference","timeout_ms":30000},
+        "fhss-investigation-validation-request.schema.json": {
+            "request_id":"validate-1","bundle_name":"bundle-1","timeout_ms":30000},
+        "fhss-investigation-replay-request.schema.json": {
+            "request_id":"replay-1","bundle_name":"bundle-1","timeout_ms":30000},
+        "fhss-investigation-operation.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_operation.v1",
+            "operation_id":"op-" + "1" * 24,"operation":"export",
+            "request_id":"export-1","bundle_name":"bundle-1","state":"queued",
+            "created_at":"2026-01-01T00:00:00Z","started_at":None,"terminal_at":None,
+            "terminal":{"code":None,"detail":None},"result":None,
+            "bounds":{"timeout_ms":30000,"checkpoint_bound_ms":100}},
+        "fhss-investigation-operations.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_operations.v1",
+            "entries":[],"bounds":{"max_entries":32}},
+        "fhss-investigation-artifact-entry.schema.json": artifact,
+        "fhss-investigation-manifest.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_manifest.v1",
+            "bundle_name":"bundle-1","bundle_format_version":1,
+            "created_at":"2026-01-01T00:00:00Z","iq_mode":"reference",
+            "self_contained":False,"synthetic_only":True,"receiver_truth_access":"none",
+            "source_job_id":"j-" + "1" * 24,
+            "source_job_request_id":"request-1","controller_epoch":1,
+            "scenario_correlation_id":"scenario-1",
+            "datatype":"cf32_le","iq_bytes":8,"sample_count":1,
+            "iq_sha256":"0" * 64,"iq_sha512":"1" * 128,
+            "expected_receiver_result_sha256":"2" * 64,"artifacts":artifacts,
+            "manifest_integrity":{"algorithm":"sha256","detached_file":"manifest.sha256",
+                "scope":"exact canonical manifest.json bytes"}},
+        "fhss-external-iq-reference.schema.json": {
+            "schema":"graphx.dashboard.fhss_external_iq_reference.v1",
+            "approved_root_id":"fhss-jobs","relative_components":["j-" + "1" * 24,"iq.cf32"],
+            "bytes":8,"sha256":"0" * 64,"sha512":"1" * 128,
+            "identity":{"device":1,"inode":2}},
+        "fhss-investigation-provenance.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_provenance.v1",
+            "created_at":"2026-01-01T00:00:00Z","synthetic_only":True,
+            "hwil":"unavailable","production_rf_qualification":"not_qualified",
+            "source_job_id":"j-" + "1" * 24,"source_job_request_id":"step-1",
+            "controller_epoch":1,"graph_generation":1,"run_epoch":1,
+            "scenario_correlation_id":"s-" + "2" * 24,"source_config_revision":1,
+            "source_config_etag":"etag","sample_format":"cf32_le","sample_count":1,
+            "sample_rate_hz":500000000.0,"center_frequency_hz":1240000000.0,
+            "producer":"graphx-dsp-fhss-demo","build":{"language_standard":"C++26",
+                "compiler":"validator","platform":"local-host"},"api_version":"v1",
+            "bundle_schema_version":1,"sigmf_core_version":"1.2.6",
+            "publisher_epoch":None,"event_sequence_range":None},
+        "fhss-operator-actions.schema.json": {
+            "schema":"graphx.dashboard.fhss_operator_actions.v1","actions":[{
+                "sequence":1,"action":"export","request_id":"export-1",
+                "timestamp":"2026-01-01T00:00:00Z"}]},
+        "fhss-investigation-quota.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_quota.v1",
+            "active_operations":0,"retained_operations":0,
+            "retained_bundle_bytes":0,"remaining_bundle_bytes":536870912,"limits":{
+                "concurrent_operations":1,"operations":32,"bundles":32,
+                "artifacts_per_bundle":64,"json_bytes":1048576,"copied_iq_bytes":67108864,
+                "referenced_iq_bytes":536870912,"retained_bundle_bytes":536870912,
+                "chunk_bytes":262144,"checkpoint_bound_ms":100}},
+        "fhss-investigation-export-result.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_export_result.v1",
+            "bundle_name":"bundle-1","iq_mode":"reference","self_contained":False,
+            "manifest_sha256":"0" * 64,"iq_sha512":"1" * 128,"iq_bytes":8,
+            "datatype":"cf32_le","sample_count":1},
+        "fhss-investigation-validation-result.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_validation_result.v1",
+            "bundle_name":"bundle-1","iq_mode":"reference","datatype":"cf32_le",
+            "iq_bytes":8,"sample_count":1,"iq_sha512":"1" * 128,
+            "manifest_sha256":"0" * 64,"receiver_truth_access":"none"},
+        "fhss-investigation-replay-result.schema.json": {
+            "schema":"graphx.dashboard.fhss_investigation_replay_result.v1",
+            "bundle_name":"bundle-1","manifest_sha256":"0" * 64,
+            "semantic_receiver_result_sha256":"2" * 64,"matches_expected":True,
+            "receiver_truth_access":"none","receiver_message_result":{
+                "accepted":True,"decoded_pulse_count":1,"status":"accepted"}},
+        "fhss-receiver-result.schema.json": {
+            "schema":"graphx.dashboard.fhss_receiver_result.v1","result":{
+                "accepted":True,"decoded_pulse_count":1,"status":"accepted"},
+            "semantic_sha256":"2" * 64},
+        "fhss-iq-truth.schema.json": {
+            "schema":"graphx.fhss.iq-truth.v1","generator":"generator",
+            "generator_version":1,"input_sha256":"0" * 64,
+            "iq_sha256":"1" * 64,"sample_count":1,"sample_format":"cf32_le",
+            "sample_rate_hz":1.0,"truth_pulses":[]},
+        "fhss-receiver-graph.schema.json": {
+            "schema":"graphx.dashboard.receiver_graph.v1","config_revision":1,
+            "etag":"etag","graph":{"nodes":[{}],"edges":[]}},
+        "fhss-build-api-manifest.schema.json": {
+            "schema":"graphx.dashboard.fhss_build_api_manifest.v1",
+            "producer_executable":{"path":"/bin/demo","bytes":1,
+                "sha256":"0" * 64,"device":1,"inode":2},
+            "source_revision":"1" * 40,"source_dirty":True,
+            "source_state_capture":"configure_time_git_status_porcelain",
+            "language_standard":"C++26","platform":"test",
+            "openapi":{"version":"7.0.0","sha256":"1" * 64},
+            "pinned_sigmf":{"version":"1.2.6",
+                "schema_id":"https://raw.githubusercontent.com/sigmf/SigMF/v1.2.6/sigmf-schema.json",
+                "sha256":"2" * 64,"license":"Apache-2.0"},
+            "schemas":[{"path":"schema.json","sha256":"3" * 64}]},
+    })
     repository = ROOT.parents[3]
     generator_graph = json.loads((repository / "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json").read_text())
     generator_scenario = next(node["node_config"] for node in generator_graph["nodes"]
@@ -300,6 +415,25 @@ def main() -> int:
     for name, sample in samples.items():
         authoritative_validator(name).validate(sample)
         validate_instance(sample, registry[name], registry=registry)
+
+    # Pinned upstream SigMF 1.2.6 is an independent oracle, not generated from
+    # the production serializer. Both GraphX datatypes are exercised here.
+    official_sigmf_path = ROOT.parent / "sigmf" / "official-v1.2.6" / "sigmf-schema.json"
+    official_sigmf = json.loads(official_sigmf_path.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(official_sigmf)
+    official_sigmf_validator = Draft202012Validator(official_sigmf,
+                                                     format_checker=FormatChecker())
+    for datatype, stride in (("cf32_le", 8), ("cf64_le", 16)):
+        metadata = {"global":{"core:datatype":datatype,"core:version":"1.2.6",
+                    "core:sample_rate":500000000.0,"core:sha512":"0" * 128},
+                    "captures":[{"core:sample_start":0,
+                                 "core:frequency":1240000000.0}],
+                    "annotations":[{"core:sample_start":0,"core:sample_count":1}]}
+        official_sigmf_validator.validate(metadata)
+        assert stride in (8, 16)
+    malformed_sigmf = copy.deepcopy(metadata)
+    del malformed_sigmf["global"]["core:version"]
+    assert not official_sigmf_validator.is_valid(malformed_sigmf)
 
     def assert_contract_rejects(name: str, value: object, label: str) -> None:
         assert not authoritative_validator(name).is_valid(value), label

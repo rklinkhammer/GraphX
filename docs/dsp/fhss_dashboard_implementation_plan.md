@@ -359,10 +359,14 @@ Implementation:
 
 Operator example:
 
-The Phase 3 workflow generates a small deterministic IQ recording, starts the
-dashboard stopped, verifies zero/empty runtime metrics, starts actual replay,
-observes nonzero edge activity and a terminal receiver result, stops or waits
-for completion, rebuilds, runs again, and records both generation IDs.
+The Phase 3 workflow selects exactly one complete canonical message, preserves
+all of its pulses and fields, shifts its transmit start by one 6,500-sample
+pulse slot for causal receiver warm-up, and generates a deterministic IQ
+recording. It starts the dashboard stopped, verifies zero/empty runtime metrics,
+starts actual replay, observes nonzero edge activity and a terminal receiver
+result, asserts that Stop reports the already-completed state, rebuilds, runs
+the identical bounded fixture again, and records both generation IDs. The
+separate long fixture remains responsible for in-flight cancellation coverage.
 
 Acceptance:
 
@@ -422,13 +426,17 @@ HWIL, conducted-RF, channel-emulator, independently recorded, or OTA test path
 is available. The operator therefore binds clean, independently impaired, and
 negative synthetic IQ to separate receiver served-state evidence and records a
 malformed-IQ failure. This phase cannot confer production-RF qualification.
-The clean generator uses the receiver's explicit 64-channel, 7.5 MHz-spaced IQ
-offset map and shifts all message starts by one 6,500-sample pulse slot so the
-causal channel filter is warm before the first decoded word. Neither the map nor
-the schedule is passed to receiver execution as truth. Receiver execution has a
-30-second processing bound while Stop retains its independent five-second join
-bound; reaching the processing bound without an executor completion signal is
-an `execution_failed` result, never a successful completion.
+The clean generator selects exactly one complete canonical message, preserves
+all of its pulses and fields, uses the receiver's explicit 64-channel, 7.5
+MHz-spaced IQ offset map, and shifts its start by one 6,500-sample pulse slot so
+the causal channel filter is warm before the first decoded word. The impaired
+and negative cases derive from this same isolated validation fixture; the
+separate 80-message replay remains the real cancellation workload. Neither the
+map nor the schedule is passed to receiver execution as truth. Receiver
+execution has a 30-second processing bound while Stop retains its independent
+five-second join bound; reaching the processing bound without an executor
+completion signal is an `execution_failed` result, never a successful
+completion.
 Schedule/timeline rendering uses the configured message start and the normative
 6,500-sample pulse period, with complete non-null display fields. The spectrum
 selector is bounded to physical receiver channels 0–63 and defaults only from
@@ -605,13 +613,28 @@ Implementation:
   plus hash when the input already exists.
 - Validate imported/replayed bundles before use and reject traversal, symlink,
   datatype, length, or hash mismatches.
+- Embed the exact official SigMF and repository API schemas in the production
+  validator; parse semantically used artifacts from retained hashed
+  descriptors, reject path replacement/in-place mutation, cross-correlate all
+  source-job/request/controller/scenario and sample/configuration/run
+  identities, and publish a separately hashed
+  executable/build/OpenAPI/schema manifest.
+- Enforce retained bytes as an aggregate approved-root quota, reporting current
+  and remaining bytes and rechecking the reservation before atomic rename.
+- Keep qualification faults outside the request/API contract. A fixed,
+  startup-only, visibly non-production executable profile may expose bounded
+  quota, copy-limit, ENOSPC, cancellation, timeout, and shutdown seams to the
+  external operator; normal dashboard startup must never enable it.
 
 Operator example:
 
 The Phase 7 workflow exports both reference-only and copied-IQ bundles, validates
 them with the official SigMF schema/tooling, replays the exported recording,
 compares receiver result hashes, and demonstrates rejection of tampered and
-out-of-root bundles.
+out-of-root bundles. It persists real browser captures and served-state records
+for reference completion, copy completion, replay success, and a safe terminal
+failure. Source-tree and installed-tree workflows run the same named failure
+and cleanup matrix.
 
 Acceptance:
 

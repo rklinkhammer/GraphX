@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "FHSSIqOutputTransaction.hpp"
+#include "FHSSHash.hpp"
 #include "dsp/fhss/FHSSBinaryIqFileSourceNode.hpp"
 #include "dsp/fhss/FHSSMessageSinkNode.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -313,7 +314,12 @@ TEST(DspFhssIqGeneratorExecutableTest,
     const auto meta = ReadJson(sigmf);
     EXPECT_EQ(meta.at("global").at("core:datatype"), format);
     EXPECT_EQ(meta.at("global").at("core:sample_rate"), 500'000'000.0);
-    EXPECT_EQ(meta.at("global").at("core:frequency"), 1'240'000'000.0);
+    EXPECT_EQ(meta.at("global").at("core:version"), "1.2.6");
+    EXPECT_EQ(meta.at("captures").at(0).at("core:sample_start"), 0u);
+    EXPECT_EQ(meta.at("captures").at(0).at("core:frequency"),
+              1'240'000'000.0);
+    EXPECT_EQ(meta.at("global").at("core:sha512"),
+              graphx::examples::fhss::Sha512(std::span(bytes)));
   }
 }
 

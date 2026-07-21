@@ -1197,12 +1197,16 @@ The test suite covers the implementation in layers:
 - Demo/dashboard: CLI behavior, external message JSON, deterministic dashboard
   APIs, rebuild controls, event replay, visualization, and artifact export.
 
-Phase 4 dashboard validation gives the generator the production receiver's
-explicit 64-channel IQ map, whose adjacent offsets are separated by 7.5 MHz,
-and shifts every message start by one 6,500-sample pulse slot. This is a causal
-channel-filter warm-up for the first decoded word, not receiver truth: receiver
-execution receives only raw IQ and its minimal receiver configuration, with no
-message definitions, generator schedule, truth, or active-frequency set.
+Phase 4 and later dashboard validation selects exactly one complete canonical
+architecture-conformant message, preserving all of its pulses and fields,
+gives the generator the production receiver's explicit 64-channel IQ map whose
+adjacent offsets are separated by 7.5 MHz, and shifts that message start by one
+6,500-sample pulse slot. Clean, impaired, and negative validation derive from
+this isolated fixture; a separate 80-message replay exercises cancellation.
+The shift is a causal channel-filter warm-up for the first decoded word, not
+receiver truth: receiver execution receives only raw IQ and its minimal
+receiver configuration, with no message definitions, generator schedule,
+truth, or active-frequency set.
 
 Dashboard receiver processing is bounded at 30 seconds independently of the
 five-second Stop/join bound. A lower-level successful Execute return is not a
@@ -1278,6 +1282,72 @@ available for explicit offline replay.
 
 The dashboard Phase 5 evidence remains entirely synthetic. It contains no
 HWIL, conducted-RF, OTA, or production-RF qualification.
+
+### Dashboard investigation bundle and replay boundary
+
+Dashboard Phase 7 adds an application-owned investigation service downstream
+of a completed synthetic message job. It does not change the FHSS waveform,
+packet, demodulation, or assembly rules in this document. Export records those
+rules' outputs as distinct truth, observation, evaluation, receiver-input,
+receiver-result, provenance, action, SigMF, and raw-IQ artifacts. Reference
+mode retains IQ under the approved job root; copy mode publishes the same
+bytes in a self-contained bundle after explicit operator confirmation. The
+manifest independently commits `source_job_id`, `source_job_request_id`,
+`controller_epoch`, and `scenario_correlation_id`; validation rejects any
+disagreement with the provenance artifact even when both artifact and manifest
+digests have been recomputed.
+
+The receiver boundary remains intentionally narrow: deterministic replay gets
+only a validated binary-IQ descriptor plus the receiver-minimal graph. Truth,
+scheduled messages, active-frequency indices, observations, and evaluator
+comparisons are never inserted into the rebuilt graph. Preamble detection
+derives active frequencies from `preamble_pulses`, as described above.
+
+```mermaid
+sequenceDiagram
+  actor Operator
+  participant Job as "Completed synthetic job"
+  participant Bundle as "Investigation service"
+  participant Validator
+  participant Receiver as "Binary-IQ receiver graph"
+  Operator->>Bundle: export(reference or confirmed copy)
+  Bundle->>Job: open retained IQ and separated evidence
+  Bundle->>Bundle: hash, stage, fsync, atomic no-replace publish
+  Operator->>Validator: validate or replay(bundle name)
+  Validator->>Validator: held descriptors, pinned schemas, hashes, cross-identities, isolation
+  Validator->>Receiver: IQ descriptor + receiver-minimal graph only
+  Receiver-->>Validator: semantic receiver result
+  Validator-->>Operator: expected/actual semantic hash comparison
+```
+
+Operations are serialized and bounded. Hashing and copying use fixed-size
+chunks with cooperative cancellation/deadline checkpoints. Publication's
+atomic rename is the point of no return: cancellation accepted before it
+removes operation-owned staging; cancellation observed after it reports the
+already-completed export. The external operator has a startup-only,
+non-production qualification profile for deterministic quota, size-limit,
+ENOSPC, cancellation, timeout, and shutdown evidence. No HTTP request can
+enable or choose a fault.
+
+The exact pinned official SigMF 1.2.6 Draft 2020-12 schema is embedded into the
+production binary and validates metadata structure without network access.
+Repository-pinned schemas likewise validate every bundle JSON document. The
+service independently enforces dataset semantics: `cf32_le`/`cf64_le` stride,
+positive sample rate, capture and annotation bounds, center frequency, and
+exact lowercase SHA-512 of IQ bytes. All current evidence is synthetic. HWIL,
+conducted RF, OTA, field-capture, and production-RF qualification are
+unavailable.
+
+Validation parses JSON only from the same retained descriptors whose bytes
+were hashed, then rechecks descriptor content and bundle-path identity before
+receiver construction. It cross-correlates generation, run epoch,
+configuration revision/etag, datatype, sample count/rate, frequency, and IQ
+digests. `build-api.json` records the producing executable path/device/inode,
+size and SHA-256, configure-time source revision and dirty state, OpenAPI
+digest, and all pinned schema digests. A replaying binary reports compatibility
+against those declared API/schema identities; producer/replayer executable
+equality is not required. Retained-bundle bytes are an aggregate root quota,
+not a per-bundle multiplier.
 
 ## Architectural Limits
 

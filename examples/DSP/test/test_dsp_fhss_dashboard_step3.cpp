@@ -181,6 +181,13 @@ ProductionReceiverFixture MakeProductionReceiverFixture() {
                    });
   if (source == canonical.at("nodes").end())
     throw std::runtime_error("canonical FHSS source is missing");
+  // A single complete canonical message is sufficient to exercise genuine
+  // receiver traffic and completion.  Start it one pulse slot into the
+  // capture so the production FIR has the same causal warm-up used by the
+  // dashboard Step path.
+  auto &messages = source->at("node_config").at("messages");
+  messages = nlohmann::json::array({messages.front()});
+  messages.front()["transmit_start_sample"] = 6'500u;
   const auto generator_config =
       dsp::fhss::FHSSSyntheticIqGeneratorConfigFromJson(
           graph::JsonView(source->at("node_config")));
@@ -188,12 +195,15 @@ ProductionReceiverFixture MakeProductionReceiverFixture() {
   if (!fixture)
     throw std::runtime_error("canonical synthetic IQ generation failed");
 
-  constexpr std::size_t kReplaySamples = 1'048'576;
+  // Exercise the complete canonical one-message capture exactly once.  The
+  // concurrency tests need real graph traffic and natural completion, not a
+  // second synthetic repetition that makes their lifecycle deadline depend
+  // on accumulated Debug-build CPU load from earlier tests.
+  const std::size_t replay_samples = fixture->samples.size();
   std::ofstream output(result.iq_path, std::ios::binary | std::ios::trunc);
   if (!output)
     throw std::runtime_error("failed to create production receiver IQ");
-  for (std::size_t index = 0; index < kReplaySamples; ++index) {
-    const auto sample = fixture->samples[index % fixture->samples.size()];
+  for (const auto &sample : fixture->samples) {
     const std::array<float, 2> encoded{static_cast<float>(sample.real()),
                                        static_cast<float>(sample.imag())};
     output.write(reinterpret_cast<const char *>(encoded.data()),
@@ -205,8 +215,8 @@ ProductionReceiverFixture MakeProductionReceiverFixture() {
       {"file_path", result.iq_path.string()},
       {"sample_format", "cf32_le"},
       {"first_complex_sample", 0},
-      {"max_complex_samples", kReplaySamples},
-      {"max_read_complex_samples", kReplaySamples}};
+      {"max_complex_samples", replay_samples},
+      {"max_read_complex_samples", replay_samples}};
   auto service = graph::dashboard::GraphConfigurationService(
       canonical, std::make_shared<
                      dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());

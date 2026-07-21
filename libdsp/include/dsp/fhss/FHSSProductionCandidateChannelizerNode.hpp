@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -213,6 +214,28 @@ public:
   [[nodiscard]] FHSSResult<FHSSChannelizerKernelOutput>
   Process(const std::vector<std::complex<double>> &input,
           std::uint64_t global_start_sample) {
+    auto result = ProcessImpl(input, global_start_sample, nullptr);
+    if (!result) {
+      return std::unexpected(result.error());
+    }
+    return std::move(result->value());
+  }
+
+  // Cancellation is a successful internal teardown outcome, represented by
+  // an empty optional.  Callers must discard the kernel after cancellation;
+  // partially advanced streaming state is valid only until graph teardown.
+  [[nodiscard]] FHSSResult<std::optional<FHSSChannelizerKernelOutput>>
+  ProcessCancellable(const std::vector<std::complex<double>> &input,
+                     std::uint64_t global_start_sample,
+                     const std::atomic<bool> &cancellation_requested) {
+    return ProcessImpl(input, global_start_sample, &cancellation_requested);
+  }
+
+private:
+  [[nodiscard]] FHSSResult<std::optional<FHSSChannelizerKernelOutput>>
+  ProcessImpl(const std::vector<std::complex<double>> &input,
+              std::uint64_t global_start_sample,
+              const std::atomic<bool> *cancellation_requested) {
     if (taps_.empty() || decimation_ == 0u ||
         !std::isfinite(mix_frequency_hz_) || !std::isfinite(sample_rate_hz_) ||
         sample_rate_hz_ <= 0.0) {
@@ -235,15 +258,32 @@ public:
     FHSSChannelizerKernelOutput output;
     output.samples.reserve((input.size() + decimation_ - 1u) / decimation_);
     for (std::size_t i = 0; i < input.size(); ++i) {
+      if ((i % 4096u) == 0u && cancellation_requested != nullptr &&
+          cancellation_requested->load(std::memory_order_acquire)) {
+        return std::optional<FHSSChannelizerKernelOutput>{};
+      }
       const std::uint64_t global = global_start_sample + i;
-      const double phase = -kTwoPi * mix_frequency_hz_ *
-                           static_cast<double>(global) / sample_rate_hz_;
-      const auto mixed =
-          input[i] * std::complex<double>(std::cos(phase), std::sin(phase));
+      std::complex<double> mixed{0.0, 0.0};
+      if (input[i] != std::complex<double>{0.0, 0.0}) {
+        const double phase = -kTwoPi * mix_frequency_hz_ *
+                             static_cast<double>(global) / sample_rate_hz_;
+        mixed = input[i] *
+                std::complex<double>(std::cos(phase), std::sin(phase));
+      }
+      const bool mixed_is_nonzero =
+          mixed != std::complex<double>{0.0, 0.0};
       if (history_.size() < taps_.size()) {
         history_.push_back(mixed);
+        if (mixed_is_nonzero)
+          ++history_nonzero_count_;
       } else {
+        if (history_[history_write_index_] !=
+            std::complex<double>{0.0, 0.0}) {
+          --history_nonzero_count_;
+        }
         history_[history_write_index_] = mixed;
+        if (mixed_is_nonzero)
+          ++history_nonzero_count_;
         history_write_index_ = (history_write_index_ + 1u) % history_.size();
         ++history_overwrite_count_;
       }
@@ -252,14 +292,16 @@ public:
         continue;
       }
       std::complex<double> filtered{0.0, 0.0};
-      std::size_t tap = 0u;
-      for (std::size_t history_index = history_write_index_;
-           history_index-- > 0u;) {
-        filtered += taps_[tap++] * history_[history_index];
-      }
-      for (std::size_t history_index = history_.size();
-           history_index-- > history_write_index_;) {
-        filtered += taps_[tap++] * history_[history_index];
+      if (history_nonzero_count_ != 0u) {
+        std::size_t tap = 0u;
+        for (std::size_t history_index = history_write_index_;
+             history_index-- > 0u;) {
+          filtered += taps_[tap++] * history_[history_index];
+        }
+        for (std::size_t history_index = history_.size();
+             history_index-- > history_write_index_;) {
+          filtered += taps_[tap++] * history_[history_index];
+        }
       }
       if (!output.has_output) {
         output.first_causal_input_global_sample = global;
@@ -268,6 +310,68 @@ public:
       output.samples.push_back(filtered);
     }
     next_global_sample_ = global_start_sample + input.size();
+    allocation_high_water_bytes_ =
+        std::max(allocation_high_water_bytes_,
+                 (history_.capacity() + output.samples.capacity()) *
+                     sizeof(std::complex<double>));
+    return std::optional<FHSSChannelizerKernelOutput>{std::move(output)};
+  }
+
+public:
+
+  // Exact-zero captures are a common negative receiver fixture.  Starting
+  // from reset, mixing and FIR filtering an all-zero packet is identically
+  // zero; constructing that result arithmetically avoids doing one complex
+  // mixer and FIR convolution per input sample on every one of the 64
+  // channels.  The kernel's streaming counters and history are advanced to
+  // the same state as Process() so subsequent contiguous packets retain the
+  // normal streaming contract.
+  [[nodiscard]] FHSSResult<FHSSChannelizerKernelOutput>
+  ProcessZerosFromReset(std::size_t input_size,
+                        std::uint64_t global_start_sample) {
+    if (taps_.empty() || decimation_ == 0u ||
+        !std::isfinite(mix_frequency_hz_) ||
+        !std::isfinite(sample_rate_hz_) || sample_rate_hz_ <= 0.0 ||
+        !history_.empty() || next_global_sample_.has_value()) {
+      return std::unexpected(MakeError(
+          FHSSValidationCode::InvalidTiming,
+          "zero-input FIR shortcut requires a valid reset kernel"));
+    }
+    if (input_size > std::numeric_limits<std::uint64_t>::max() -
+                         global_start_sample) {
+      return std::unexpected(
+          MakeError(FHSSValidationCode::InvalidGlobalTiming,
+                    "FIR channelizer global sample range overflows uint64"));
+    }
+
+    FHSSChannelizerKernelOutput output;
+    const auto tap_count = static_cast<std::uint64_t>(taps_.size());
+    const auto input_count = static_cast<std::uint64_t>(input_size);
+    const auto end = global_start_sample + input_count;
+    if (input_count >= tap_count) {
+      const auto first_ready = global_start_sample + tap_count - 1u;
+      const auto remainder = first_ready % decimation_;
+      const auto alignment =
+          remainder == 0u ? 0u : decimation_ - remainder;
+      if (alignment < end - first_ready) {
+        const auto first = first_ready + alignment;
+        const auto output_count = 1u + (end - 1u - first) / decimation_;
+        output.samples.assign(static_cast<std::size_t>(output_count),
+                              std::complex<double>{0.0, 0.0});
+        output.first_causal_input_global_sample = first;
+        output.has_output = true;
+      }
+    }
+
+    const auto retained = std::min(input_size, taps_.size());
+    history_.assign(retained, std::complex<double>{0.0, 0.0});
+    history_nonzero_count_ = 0u;
+    history_write_count_ = input_size;
+    if (input_size > taps_.size()) {
+      history_overwrite_count_ = input_size - taps_.size();
+      history_write_index_ = history_overwrite_count_ % taps_.size();
+    }
+    next_global_sample_ = end;
     allocation_high_water_bytes_ =
         std::max(allocation_high_water_bytes_,
                  (history_.capacity() + output.samples.capacity()) *
@@ -291,11 +395,16 @@ public:
     return history_overwrite_count_;
   }
 
+  [[nodiscard]] std::size_t HistoryNonzeroCount() const noexcept {
+    return history_nonzero_count_;
+  }
+
   void Reset() {
     history_.clear();
     history_write_index_ = 0u;
     history_write_count_ = 0u;
     history_overwrite_count_ = 0u;
+    history_nonzero_count_ = 0u;
     next_global_sample_.reset();
   }
 
@@ -308,6 +417,7 @@ private:
   std::size_t history_write_index_ = 0u;
   std::size_t history_write_count_ = 0u;
   std::size_t history_overwrite_count_ = 0u;
+  std::size_t history_nonzero_count_ = 0u;
   std::optional<std::uint64_t> next_global_sample_;
   std::size_t allocation_high_water_bytes_ = 0u;
 };
@@ -341,6 +451,16 @@ public:
   }
   void Configure(const graph::JsonView &cfg) override {
     SetConfig(FHSSProductionChannelizerConfigFromJson(cfg));
+  }
+  bool Start() override {
+    cancellation_requested_.store(false, std::memory_order_release);
+    return Base::Start();
+  }
+  void Stop() override {
+    // Publish cancellation before disabling port queues so an in-flight
+    // synchronous FIR Consume can return within the graph Stop deadline.
+    cancellation_requested_.store(true, std::memory_order_release);
+    Base::Stop();
   }
   [[nodiscard]] graph::JsonView GetParameters() const override {
     nlohmann::json iq_offsets = nlohmann::json::array();
@@ -466,7 +586,8 @@ public:
             source.size() - input.sidecar.iq.sample_offset) {
       return false;
     }
-    if (!initialized_) {
+    const bool kernels_were_reset = !initialized_;
+    if (kernels_were_reset) {
       InitializeKernels();
     }
     const std::vector<std::complex<double>> selected(
@@ -475,9 +596,14 @@ public:
         source.begin() +
             static_cast<std::ptrdiff_t>(input.sidecar.iq.sample_offset +
                                         input.sidecar.iq.sample_count));
+    const bool exact_zero_input =
+        kernels_were_reset &&
+        std::ranges::all_of(selected, [](const auto &sample) {
+          return sample == std::complex<double>{0.0, 0.0};
+        });
     allocation_cycle_bytes_ =
         selected.capacity() * sizeof(std::complex<double>);
-    return EnqueueAllOutputs(input, selected);
+    return EnqueueAllOutputs(input, selected, exact_zero_input);
   }
 
   template <std::size_t Port> std::optional<OutputTokenType> ProduceOutput() {
@@ -501,13 +627,28 @@ private:
 
   template <std::size_t Port>
   bool EnqueueOutputForPort(const InputTokenType &input,
-                            const std::vector<std::complex<double>> &selected) {
+                            const std::vector<std::complex<double>> &selected,
+                            bool exact_zero_input) {
     static_assert(Port < kOutputPortCount);
+    if (cancellation_requested_.load(std::memory_order_acquire)) {
+      return false;
+    }
     const auto global_start =
         input.sidecar.iq.sample_time_map.input_packet_global_start_sample;
-    auto kernel_output = kernels_[Port].Process(selected, global_start);
-    if (!kernel_output) {
-      return false;
+    std::optional<FHSSChannelizerKernelOutput> kernel_output;
+    if (exact_zero_input) {
+      auto zero_output =
+          kernels_[Port].ProcessZerosFromReset(selected.size(), global_start);
+      if (!zero_output)
+        return false;
+      kernel_output = std::move(*zero_output);
+    } else {
+      auto cancellable = kernels_[Port].ProcessCancellable(
+          selected, global_start, cancellation_requested_);
+      if (!cancellable || !cancellable->has_value()) {
+        return false;
+      }
+      kernel_output = std::move(**cancellable);
     }
     OutputTokenType output{};
     output.token_id = input.token_id;
@@ -591,6 +732,10 @@ private:
       double best_energy = window_energy;
       for (std::size_t start = 1;
            start + capture_count <= kernel_output->samples.size(); ++start) {
+        if ((start % 4096u) == 0u &&
+            cancellation_requested_.load(std::memory_order_acquire)) {
+          return false;
+        }
         window_energy -= std::norm(kernel_output->samples[start - 1]);
         window_energy +=
             std::norm(kernel_output->samples[start + capture_count - 1]);
@@ -627,9 +772,12 @@ private:
   template <std::size_t... Ports>
   bool EnqueueAllOutputsImpl(const InputTokenType &input,
                              const std::vector<std::complex<double>> &selected,
+                             bool exact_zero_input,
                              std::index_sequence<Ports...>) {
     bool success = true;
-    ((success = success && EnqueueOutputForPort<Ports>(input, selected)), ...);
+    ((success = success && EnqueueOutputForPort<Ports>(
+                               input, selected, exact_zero_input)),
+     ...);
     if (!success) {
       return false;
     }
@@ -643,13 +791,15 @@ private:
   }
 
   bool EnqueueAllOutputs(const InputTokenType &input,
-                         const std::vector<std::complex<double>> &selected) {
-    return EnqueueAllOutputsImpl(input, selected,
+                         const std::vector<std::complex<double>> &selected,
+                         bool exact_zero_input) {
+    return EnqueueAllOutputsImpl(input, selected, exact_zero_input,
                                  std::make_index_sequence<kOutputPortCount>{});
   }
 
   FHSSProductionChannelizerConfig config_{};
   std::array<FHSSFirChannelizerKernel, kOutputPortCount> kernels_{};
+  std::atomic<bool> cancellation_requested_{false};
   bool initialized_ = false;
   std::size_t allocation_cycle_bytes_ = 0u;
   std::size_t allocation_high_water_bytes_ = 0u;

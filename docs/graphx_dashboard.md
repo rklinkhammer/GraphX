@@ -279,11 +279,14 @@ concurrency and atomic failure, verifies truth-free receiver export, and hashes
 the inspected documents. It also checks framing, malformed and oversized input, traversal,
 defensive headers, unsupported methods, slow-client isolation, loopback-only
 binding, artifact hashes, and the absence of old generic routes. It generates
-separate IQ, truth, and SigMF artifacts, removes schedule/truth before replay,
-runs two real receiver generations to natural terminal completion, requires
-generation-attributed nonzero traffic, and verifies an invalid rebuild leaves
-the prior generation active. Cleanup only removes files marked as
-operator-owned.
+separate IQ, truth, and SigMF artifacts from exactly one complete canonical
+message shifted by one 6,500-sample pulse slot for causal warm-up. It removes
+schedule/truth before replay, runs that same bounded fixture through two real
+receiver generations to natural terminal completion, requires
+generation-attributed nonzero traffic, verifies exact already-completed Stop
+responses, and verifies an invalid rebuild leaves the prior generation active.
+The distinct long fixture retains in-flight cancellation coverage. Cleanup only
+removes files marked as operator-owned.
 
 ## Automated evidence
 
@@ -398,3 +401,61 @@ console JSON is not valid browser evidence. See
 `docs/dsp/fhss_dashboard_phase6_manual_operator_test.md`. This remains
 synthetic-only software validation; HWIL and production-RF qualification are
 unavailable.
+
+## FHSS investigation bundles and deterministic replay
+
+Dashboard Phase 7 adds an application-owned asynchronous investigation service
+at `/api/v1/fhss/investigations`. It exports a completed synthetic FHSS job in
+one of two explicit modes: a default reference-only, non-self-contained bundle,
+or an operator-confirmed copied-IQ, self-contained bundle. The confirmation
+response and browser show the committed IQ byte estimate before copying.
+
+Each version-1 bundle separates `truth.json`, `observation.json`,
+`comparison.json`, `receiver-config.json`, `receiver-result.json`,
+`provenance.json`, `actions.json`, and `recording.sigmf-meta`. Every mode adds
+`build-api.json`, which binds the producer executable identity and SHA-256,
+source revision/dirty state, OpenAPI version/digest, and the complete pinned
+schema inventory/digests. Copy mode adds
+`recording.sigmf-data`; reference mode instead adds an immutable approved-root
+record. `manifest.json` records bounded artifact paths, media and semantic
+classes, visibility, replay use, byte counts, SHA-256, and SHA-512. Its hash is
+defined over the exact canonical manifest bytes and stored separately in
+`manifest.sha256`, avoiding recursive self-hashing. The manifest independently
+commits the source job id, source request id, controller epoch, and scenario
+correlation id; import requires all four to equal the separately hashed
+provenance document.
+
+The repository pins and embeds the official SigMF 1.2.6 schema and license beneath
+`examples/DSP/dashboard/sigmf/official-v1.2.6`. The generator emits `cf32_le`
+or `cf64_le`, exact `core:sha512`, sample rate, capture start and center
+frequency, and bounded annotations. Reference/self-contained status belongs to
+the investigation manifest rather than being inferred by the receiver.
+
+Import and replay resolve every component from opened approved-root handles,
+reject links and special files, enforce single-link regular inputs and quotas,
+verify the complete inventory and all hashes, validate every JSON document
+against its embedded repository schema (including the official Draft 2020-12
+SigMF schema), cross-correlate source-job/request/controller/scenario and
+sample/configuration/generation/run/build
+identities, validate datatype
+stride, audit receiver configuration recursively, and only then construct the
+normal binary-IQ receiver graph. Replay holds the validated IQ descriptor
+through execution. Only IQ bytes and receiver-minimal configuration are
+receiver-visible; truth, observation, comparison, metadata, provenance, and
+actions remain validator/evaluator evidence. The replay result compares a
+canonical semantic projection (`accepted`, decoded pulse count, and status),
+excluding timestamps and other documented nondeterministic identity.
+
+Publication uses a private same-root directory, synchronized files, and an
+atomic no-replace directory rename. A cancellation accepted before rename
+leaves no completed bundle; after rename it observes a completed point of no
+return. Hash/copy work is chunked and bounded, one operation runs at a time,
+history is capped, and failures clean only operation-owned temporary content.
+Every semantically consumed artifact remains open after hashing; parsing uses
+those exact descriptor bytes, and a final digest/path-identity check rejects
+in-place mutation or replacement. Aggregate retained bytes are rescanned and
+rechecked immediately before atomic publication and exposed as current and
+remaining quota.
+See `docs/dsp/fhss_dashboard_phase7_manual_operator_test.md` for source and
+installed external workflows. All evidence is synthetic; HWIL, conducted RF,
+OTA, and production-RF qualification remain unavailable.

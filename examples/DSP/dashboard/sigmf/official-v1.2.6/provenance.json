@@ -1,0 +1,25 @@
+{
+  "schema": "graphx.dashboard.vendored_dependency.v1",
+  "name": "SigMF Core JSON Schema",
+  "upstream_repository": "https://github.com/sigmf/SigMF",
+  "upstream_tag": "v1.2.6",
+  "upstream_tag_object": "9ae44d99112dfe7ab5ada6750a8cdbf69f89cfe9",
+  "upstream_commit": "418d9170c287ebd378122d65426b38b62a43ecf5",
+  "normal_runtime_network_access": false,
+  "files": [
+    {
+      "path": "sigmf-schema.json",
+      "source_url": "https://raw.githubusercontent.com/sigmf/SigMF/v1.2.6/sigmf-schema.json",
+      "bytes": 23590,
+      "sha256": "1995bd03cd1486e116c7f72acb46d020ac442d12fa59e4c270d41beed536c79a",
+      "sha512": "9f642f4c2bc7d806996a144cda5aec5deea5b96fc05b25d1a3bbe72a08a67d21ead49f6f3c32bea63599316cc5572ab008a081961daea044edeae1decb75a372"
+    },
+    {
+      "path": "LICENSE.md",
+      "source_url": "https://raw.githubusercontent.com/sigmf/SigMF/v1.2.6/LICENSE.md",
+      "bytes": 20132,
+      "sha256": "405e857a501b372cf3e9b7b224ea85868e95f7822790b1a38f4b9c26c8808413",
+      "sha512": "9c1ab7285c13644cef5d910dc774ca63d1921f91318417cfadc71c4d7f3acf85ec3c5b05e9335e9cc310b1557de517519c76da540b08886a0e440d71e1271fd0"
+    }
+  ]
+}

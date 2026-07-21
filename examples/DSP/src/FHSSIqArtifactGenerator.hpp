@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include "FHSSHash.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
 
 #include <cstddef>
@@ -20,9 +21,9 @@ struct IqArtifactBundle {
   nlohmann::json sigmf;
   std::string input_sha256;
   std::string iq_sha256;
+  std::string iq_sha512;
 };
 
-[[nodiscard]] std::string Sha256(std::span<const std::byte> bytes);
 [[nodiscard]] std::vector<std::byte>
 EncodeIq(const std::vector<std::complex<double>> &samples,
          std::string_view sample_format);

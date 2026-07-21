@@ -9,6 +9,7 @@ import concurrent.futures
 import copy
 import hashlib
 import http.client
+import importlib.metadata
 import json
 import os
 import platform
@@ -30,6 +31,7 @@ API_DIR = Path(__file__).resolve().parents[1] / "api"
 sys.path.insert(0, str(API_DIR))
 from schema_subset import load_registry, validate_instance, validate_schema  # noqa: E402
 try:
+    import jsonschema
     from jsonschema import Draft202012Validator, FormatChecker
     from referencing import Registry, Resource
 except ImportError as error:
@@ -1112,6 +1114,8 @@ def launch(args: argparse.Namespace) -> tuple[subprocess.Popen[str], str, int, l
         command.extend(["--dashboard-websocket-heartbeat-ms", "200",
                         "--dashboard-websocket-idle-ms", "1200",
                         "--dashboard-websocket-gate-file", str(websocket_gate)])
+    if getattr(args, "investigation_qualification", False):
+        command.append("--dashboard-investigation-qualification")
     case = getattr(args, "case", None)
     if case:
         output = args.output_dir.resolve()
@@ -1684,8 +1688,8 @@ def start_served_phase6_case(port: int, case: str, output: Path,
 
 
 def exercise(args: argparse.Namespace) -> int:
-    if args.phase not in (1, 2, 3, 4, 5, 6):
-        raise RuntimeError("this operator implements Phases 1 through 6 only")
+    if args.phase not in (1, 2, 3, 4, 5, 6, 7):
+        raise RuntimeError("this operator implements Phases 1 through 7 only")
     phase = args.phase
     output = args.output_dir.resolve()
     output_preexisted = output.exists()
@@ -1733,6 +1737,7 @@ def exercise(args: argparse.Namespace) -> int:
 
     process = None
     command: list[str] = []
+    additional_commands: list[list[str]] = []
     url = ""
     port = 0
     try:
@@ -3412,6 +3417,694 @@ def exercise(args: argparse.Namespace) -> int:
             (output / "phase6-screenshot-manifest.json").write_bytes(
                 phase6_manifest_bytes)
             persist("phase6_screenshot_manifest", phase6_manifest_bytes)
+        if phase >= 7:
+            def submit_investigation(target: str, payload: dict[str, object],
+                                     key: str) -> tuple[int, dict[str, str], dict[str, object]]:
+                code, response_headers, response_body = request(
+                    port, "POST", target, json.dumps(payload).encode(),
+                    {"Content-Type":"application/json", "Idempotency-Key":key},
+                    timeout=10)
+                return code, response_headers, json.loads(response_body)
+
+            def wait_investigation(operation_id: str,
+                                   timeout_seconds: float = 90) -> dict[str, object]:
+                deadline = time.monotonic() + timeout_seconds
+                latest: dict[str, object] = {}
+                while time.monotonic() < deadline:
+                    code, _, payload = request(
+                        port, "GET",
+                        f"/api/v1/fhss/investigations/operations/{operation_id}")
+                    if code != 200:
+                        raise RuntimeError(f"investigation lookup failed: HTTP {code}")
+                    latest = json.loads(payload)
+                    if latest.get("state") in (
+                            "completed", "cancelled", "failed", "timed_out"):
+                        return latest
+                    time.sleep(0.02)
+                raise RuntimeError(
+                    f"investigation did not terminate: {operation_id}; {latest}")
+
+            p7_job_status, _, p7_job_body, p7_job = submit_job(
+                "/api/v1/fhss/commands/step",
+                {"request_id":"phase7-source-job", "timeout_ms":60000},
+                "phase7-source-job-key")
+            persist("phase7_source_job_submit", p7_job_body)
+            p7_terminal = wait_job(str(p7_job["job_id"]), 70)
+            persist("phase7_source_job_terminal",
+                    json.dumps(p7_terminal, sort_keys=True).encode())
+            check("Phase7 committed source job",
+                  p7_job_status == 202 and p7_terminal.get("state") == "completed",
+                  json.dumps(p7_terminal.get("terminal"), sort_keys=True))
+            job_id = str(p7_terminal["job_id"])
+            estimated_bytes = int(p7_terminal["artifacts"]["iq"]["bytes"])
+
+            unconfirmed_status, unconfirmed_headers, unconfirmed = submit_investigation(
+                "/api/v1/fhss/investigations/exports",
+                {"request_id":"phase7-copy-estimate","bundle_name":"phase7-unconfirmed",
+                 "job_id":job_id,"iq_mode":"copy"}, "phase7-copy-estimate-key")
+            check("Phase7 copy requires confirmation with byte estimate",
+                  unconfirmed_status == 428 and
+                  unconfirmed_headers.get("content-type", "").startswith(
+                      "application/problem+json") and
+                  int(unconfirmed.get("estimated_iq_bytes", -1)) == estimated_bytes,
+                  json.dumps(unconfirmed, sort_keys=True))
+
+            def export_bundle(name: str, mode: str) -> dict[str, object]:
+                payload: dict[str, object] = {
+                    "request_id":f"phase7-export-{mode}", "bundle_name":name,
+                    "job_id":job_id,"iq_mode":mode,"timeout_ms":120000}
+                if mode == "copy": payload["confirm_copy"] = True
+                code, _, submitted = submit_investigation(
+                    "/api/v1/fhss/investigations/exports", payload,
+                    f"phase7-export-{mode}-key")
+                if code != 202: raise RuntimeError(f"{mode} export HTTP {code}: {submitted}")
+                return wait_investigation(str(submitted["operation_id"]), 120)
+
+            def operation(name: str, kind: str, qualifier: str = "") -> dict[str, object]:
+                route = ("import-validations" if kind == "validate" else "replays")
+                identity = f"{kind}-{name}{qualifier}"
+                code, _, submitted = submit_investigation(
+                    f"/api/v1/fhss/investigations/{route}",
+                    {"request_id":f"phase7-{identity}","bundle_name":name,
+                     "timeout_ms":120000}, f"phase7-{identity}-key")
+                if code != 202: raise RuntimeError(f"{kind} HTTP {code}: {submitted}")
+                return wait_investigation(str(submitted["operation_id"]), 120)
+
+            reference_export = export_bundle("phase7-reference", "reference")
+            reference_validation = operation("phase7-reference", "validate")
+            reference_replay = operation("phase7-reference", "replay")
+            copied_export = export_bundle("phase7-copied", "copy")
+            copied_validation = operation("phase7-copied", "validate")
+            copied_replay = operation("phase7-copied", "replay")
+            browser_evidence: dict[str, object] = {}
+            browser_console: list[dict[str, object]] = []
+
+            def capture_investigation_states(
+                    cases: tuple[tuple[str, dict[str, object]], ...]) -> None:
+                with FirefoxBidiSession(output) as browser:
+                    browser.navigate(url)
+                    browser.evaluate(
+                        "document.getElementById('tab-graph').click(); true")
+                    for label, selected_operation in cases:
+                        operation_id = str(selected_operation["operation_id"])
+                        browser.evaluate(
+                            f"selectedInvestigationOperationId={json.dumps(operation_id)}; "
+                            "refreshInvestigations(); true")
+                        browser.wait_for(
+                            "document.getElementById('investigation-identity').textContent"
+                            f".includes({json.dumps(operation_id)})")
+                        browser.evaluate("""
+                          (() => {
+                            const target=document.getElementById('investigation-identity');
+                            target.scrollIntoView({block:'start',inline:'nearest'});
+                            return true;
+                          })()
+                        """)
+                        served = json.loads(str(browser.evaluate("""
+                          (() => {
+                            const panel=document.getElementById('investigation-controls');
+                            const rect=panel.getBoundingClientRect();
+                            const identity=document.getElementById('investigation-identity');
+                            const identityRect=identity.getBoundingClientRect();
+                            return JSON.stringify({
+                              identity:identity.textContent,
+                              state:document.getElementById('investigation-state').textContent,
+                              panel_text:panel.innerText,
+                              panel_rect:{top:rect.top,bottom:rect.bottom,left:rect.left,
+                                          right:rect.right,width:rect.width,height:rect.height},
+                              identity_rect:{top:identityRect.top,bottom:identityRect.bottom,
+                                             left:identityRect.left,right:identityRect.right,
+                                             width:identityRect.width,height:identityRect.height},
+                              viewport:{width:innerWidth,height:innerHeight},
+                              panel_visible:rect.width>0 && rect.height>0 && rect.bottom>0 &&
+                                            rect.top<innerHeight && rect.right>0 && rect.left<innerWidth,
+                              visible:identityRect.width>0 && identityRect.height>0 &&
+                                      identityRect.bottom>0 && identityRect.top<innerHeight &&
+                                      identityRect.right>0 && identityRect.left<innerWidth
+                            });
+                          })()
+                        """)))
+                        if (not served.get("visible") or
+                                operation_id not in str(served.get("panel_text", ""))):
+                            raise RuntimeError(
+                                f"Phase7 investigation state is not visibly rendered: {served}")
+                        served.update({
+                            "operation_id": operation_id,
+                            "dashboard_url": url,
+                            "browser_session_id": browser.session_id,
+                            "browser_context_id": browser.context,
+                            "browser_name": browser.capabilities.get("browserName"),
+                            "browser_version": browser.capabilities.get("browserVersion"),
+                            "captured_at": datetime.now(timezone.utc).isoformat().replace(
+                                "+00:00", "Z"),
+                        })
+                        screenshot = output / f"phase7-investigation-{label}.png"
+                        browser.screenshot(screenshot)
+                        served["screenshot_sha256"] = sha256(screenshot)
+                        evidence_path = output / f"phase7-investigation-{label}.json"
+                        evidence_path.write_text(json.dumps(served, indent=2) + "\n")
+                        persist(f"phase7_browser_screenshot:{label}",
+                                screenshot.read_bytes())
+                        persist(f"phase7_browser_state:{label}",
+                                evidence_path.read_bytes())
+                        browser_evidence[label] = served
+                    browser_console.extend(browser.messages)
+
+            # Capture these terminal operations before the bounded history is
+            # intentionally filled by the adversarial import matrix.
+            capture_investigation_states((
+                ("reference-completed", reference_export),
+                ("copy-completed", copied_export),
+                ("replay-success", copied_replay),
+            ))
+            for label, document in (
+                    ("reference_export", reference_export),
+                    ("reference_validation", reference_validation),
+                    ("reference_replay", reference_replay),
+                    ("copied_export", copied_export),
+                    ("copied_validation", copied_validation),
+                    ("copied_replay", copied_replay)):
+                persist("phase7_" + label,
+                        json.dumps(document, sort_keys=True).encode())
+                check("Phase7 " + label.replace("_", " "),
+                      document.get("state") == "completed",
+                      json.dumps(document.get("terminal"), sort_keys=True))
+            check("Phase7 deterministic replay hashes agree",
+                  reference_replay.get("result", {}).get(
+                      "semantic_receiver_result_sha256") ==
+                  copied_replay.get("result", {}).get(
+                      "semantic_receiver_result_sha256") and
+                  reference_replay.get("result", {}).get("matches_expected") is True and
+                  copied_replay.get("result", {}).get("matches_expected") is True,
+                  json.dumps({"reference":reference_replay.get("result"),
+                              "copy":copied_replay.get("result")}, sort_keys=True))
+
+            bundle_root = output / "phase5-job-artifacts" / "fhss-investigations"
+            official_schema = json.loads((Path(__file__).resolve().parents[1] /
+                "sigmf/official-v1.2.6/sigmf-schema.json").read_text())
+            official_validator = Draft202012Validator(
+                official_schema, format_checker=FormatChecker())
+            bundle_schema_documents = [json.loads(path.read_text())
+                for path in sorted((API_DIR / "schemas").glob("fhss-*.schema.json"))]
+            bundle_registry = Registry()
+            for schema_document in bundle_schema_documents:
+                if "$id" in schema_document:
+                    bundle_registry = bundle_registry.with_resource(
+                        schema_document["$id"], Resource.from_contents(schema_document))
+            bundle_schemas = {document["$id"]: document
+                              for document in bundle_schema_documents
+                              if "$id" in document}
+            bundle_schema_by_identity = {
+                "graphx.dashboard.fhss_investigation_manifest.v1":
+                    "urn:graphx:dashboard:fhss-investigation-manifest:v1",
+                "graphx.fhss.iq-truth.v1": "urn:graphx:fhss:iq-truth:v1",
+                "graphx.dashboard.fhss_receiver_observation.v1":
+                    "urn:graphx:dashboard:fhss-receiver-observation:v1",
+                "graphx.dashboard.fhss_comparison_result.v1":
+                    "urn:graphx:dashboard:fhss-comparison-result:v1",
+                "graphx.dashboard.receiver_graph.v1":
+                    "urn:graphx:dashboard:fhss-receiver-graph:v1",
+                "graphx.dashboard.fhss_receiver_result.v1":
+                    "urn:graphx:dashboard:fhss-receiver-result:v1",
+                "graphx.dashboard.fhss_investigation_provenance.v1":
+                    "urn:graphx:dashboard:fhss-investigation-provenance:v1",
+                "graphx.dashboard.fhss_operator_actions.v1":
+                    "urn:graphx:dashboard:fhss-operator-actions:v1",
+                "graphx.dashboard.fhss_external_iq_reference.v1":
+                    "urn:graphx:dashboard:fhss-external-iq-reference:v1",
+                "graphx.dashboard.fhss_build_api_manifest.v1":
+                    "urn:graphx:dashboard:fhss-build-api-manifest:v1",
+            }
+
+            def validate_bundle_document(document: dict[str, object]) -> None:
+                schema_id = bundle_schema_by_identity.get(str(document.get("schema", "")))
+                if schema_id is None or schema_id not in bundle_schemas:
+                    raise RuntimeError(
+                        f"no pinned bundle schema for {document.get('schema')}")
+                Draft202012Validator(
+                    bundle_schemas[schema_id], registry=bundle_registry,
+                    format_checker=FormatChecker()).validate(document)
+            for name, mode in (("phase7-reference", "reference"),
+                               ("phase7-copied", "copy")):
+                directory = bundle_root / name
+                manifest_bytes = (directory / "manifest.json").read_bytes()
+                manifest = json.loads(manifest_bytes)
+                validate_bundle_document(manifest)
+                detached = (directory / "manifest.sha256").read_text().strip()
+                sigmf = json.loads((directory / "recording.sigmf-meta").read_text())
+                official_validator.validate(sigmf)
+                for artifact in manifest["artifacts"]:
+                    if artifact["media_type"] != "application/json" or \
+                            artifact["path"] == "recording.sigmf-meta":
+                        continue
+                    validate_bundle_document(json.loads(
+                        (directory / artifact["path"]).read_text()))
+                artifact_paths = {entry["path"] for entry in manifest["artifacts"]}
+                check(f"Phase7 {mode} canonical manifest and detached hash",
+                      manifest_bytes == (json.dumps(manifest, sort_keys=True,
+                          separators=(",", ":")) + "\n").encode() and
+                      detached == hashlib.sha256(manifest_bytes).hexdigest(), detached)
+                check(f"Phase7 {mode} inventory and SigMF identity",
+                      manifest["iq_mode"] == mode and
+                      manifest["self_contained"] is (mode == "copy") and
+                      manifest["receiver_truth_access"] == "none" and
+                      "truth.json" in artifact_paths and
+                      "observation.json" in artifact_paths and
+                      "comparison.json" in artifact_paths and
+                      "receiver-config.json" in artifact_paths and
+                      (("recording.sigmf-data" in artifact_paths) is
+                       (mode == "copy")) and
+                      sigmf["global"]["core:sha512"] == manifest["iq_sha512"],
+                      json.dumps(sorted(artifact_paths)))
+                persist(f"phase7_{mode}_manifest", manifest_bytes)
+                persist(f"phase7_{mode}_sigmf",
+                        (directory / "recording.sigmf-meta").read_bytes())
+
+            copied_iq = bundle_root / "phase7-copied" / "recording.sigmf-data"
+            with copied_iq.open("r+b", buffering=0) as stream:
+                original_first = stream.read(1)
+                if len(original_first) != 1:
+                    raise RuntimeError("copied IQ is unexpectedly empty")
+                stream.seek(0)
+                stream.write(bytes([original_first[0] ^ 1]))
+            tamper = operation("phase7-copied", "validate", "-tampered")
+            with copied_iq.open("r+b", buffering=0) as stream:
+                stream.write(original_first)
+            check("Phase7 tampered IQ rejected before replay",
+                  tamper.get("state") == "failed" and
+                  tamper.get("terminal", {}).get("code") ==
+                      "investigation_validation_failed",
+                  json.dumps(tamper.get("terminal"), sort_keys=True))
+
+            copied_directory = bundle_root / "phase7-copied"
+            canonical = lambda value: (json.dumps(
+                value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+            def expect_validation_failure(
+                    label: str, check_label: str | None = None) -> dict[str, object]:
+                result = operation("phase7-copied", "validate", "-" + label)
+                check("Phase7 rejects " + (check_label or label.replace("-", " ")),
+                      result.get("state") == "failed" and
+                      result.get("terminal", {}).get("code") ==
+                          "investigation_validation_failed",
+                      json.dumps(result.get("terminal"), sort_keys=True))
+                return result
+
+            # Raw byte tampering proves every distinct artifact digest is
+            # enforced. Restore exact bytes after each operation.
+            for artifact_name, label in (
+                    ("recording.sigmf-meta", "modified-metadata"),
+                    ("truth.json", "modified-truth"),
+                    ("observation.json", "modified-observation"),
+                    ("comparison.json", "modified-comparison"),
+                    ("receiver-config.json", "modified-receiver-config"),
+                    ("receiver-result.json", "modified-receiver-result"),
+                    ("provenance.json", "modified-build-provenance"),
+                    ("actions.json", "modified-action-log"),
+                    ("build-api.json", "modified-build-api-manifest")):
+                path = copied_directory / artifact_name
+                original = path.read_bytes()
+                path.write_bytes(original + b" ")
+                expect_validation_failure(label)
+                path.write_bytes(original)
+
+            manifest_path = copied_directory / "manifest.json"
+            detached_path = copied_directory / "manifest.sha256"
+            metadata_path = copied_directory / "recording.sigmf-meta"
+            original_manifest_bytes = manifest_path.read_bytes()
+            original_detached_bytes = detached_path.read_bytes()
+            original_metadata_bytes = metadata_path.read_bytes()
+
+            def publish_modified_manifest(manifest: dict[str, object]) -> None:
+                encoded = canonical(manifest)
+                manifest_path.write_bytes(encoded)
+                detached_path.write_text(hashlib.sha256(encoded).hexdigest() + "\n")
+
+            def publish_modified_metadata(mutator) -> None:
+                metadata = json.loads(original_metadata_bytes)
+                mutator(metadata)
+                metadata_bytes = canonical(metadata)
+                metadata_path.write_bytes(metadata_bytes)
+                manifest = json.loads(original_manifest_bytes)
+                entry = next(item for item in manifest["artifacts"]
+                             if item["path"] == "recording.sigmf-meta")
+                entry["bytes"] = len(metadata_bytes)
+                entry["sha256"] = hashlib.sha256(metadata_bytes).hexdigest()
+                entry["sha512"] = hashlib.sha512(metadata_bytes).hexdigest()
+                publish_modified_manifest(manifest)
+
+            def restore_semantic_files() -> None:
+                manifest_path.write_bytes(original_manifest_bytes)
+                detached_path.write_bytes(original_detached_bytes)
+                metadata_path.write_bytes(original_metadata_bytes)
+
+            semantic_metadata_cases = (
+                ("official-schema-extra-property", lambda value:
+                    value.update({"unexpected":True})),
+                ("unsupported-datatype", lambda value:
+                    value["global"].update({"core:datatype":"ci16_le"})),
+                ("nonpositive-sample-rate", lambda value:
+                    value["global"].update({"core:sample_rate":0})),
+                ("negative-center-frequency", lambda value:
+                    value["captures"][0].update({"core:frequency":-1})),
+                ("capture-out-of-range", lambda value:
+                    value["captures"][0].update({"core:sample_start":999999999})),
+                ("annotation-out-of-range", lambda value:
+                    value["annotations"][0].update({"core:sample_count":999999999})),
+                ("dataset-sha512-mismatch", lambda value:
+                    value["global"].update({"core:sha512":"0" * 128})),
+                ("unsupported-sigmf-version", lambda value:
+                    value["global"].update({"core:version":"9.9.9"})),
+                ("metadata-only-masquerade", lambda value:
+                    value["global"].update({"core:metadata_only":True})),
+            )
+            for label, mutator in semantic_metadata_cases:
+                publish_modified_metadata(mutator)
+                expect_validation_failure(label)
+                restore_semantic_files()
+
+            provenance_path = copied_directory / "provenance.json"
+            original_provenance_bytes = provenance_path.read_bytes()
+            committed_identity_cases = (
+                ("job-id-rehash", "rehashed source job id disagreement",
+                 "source_job_id",
+                 "j-000000000000000000000008"),
+                ("request-id-rehash", "rehashed source job request id disagreement",
+                 "source_job_request_id",
+                 "operator-substituted-request"),
+                ("epoch-rehash", "rehashed controller epoch disagreement",
+                 "controller_epoch",
+                 int(json.loads(original_provenance_bytes)["controller_epoch"]) + 1),
+                ("scenario-id-rehash", "rehashed scenario correlation id disagreement",
+                 "scenario_correlation_id",
+                 "s-000000000000000000000008"),
+            )
+            for label, check_label, field, replacement in committed_identity_cases:
+                inconsistent_provenance = json.loads(original_provenance_bytes)
+                inconsistent_provenance[field] = replacement
+                inconsistent_bytes = canonical(inconsistent_provenance)
+                provenance_path.write_bytes(inconsistent_bytes)
+                inconsistent_manifest = json.loads(original_manifest_bytes)
+                inconsistent_entry = next(
+                    item for item in inconsistent_manifest["artifacts"]
+                    if item["path"] == "provenance.json")
+                inconsistent_entry.update({
+                    "bytes": len(inconsistent_bytes),
+                    "sha256": hashlib.sha256(inconsistent_bytes).hexdigest(),
+                    "sha512": hashlib.sha512(inconsistent_bytes).hexdigest()})
+                publish_modified_manifest(inconsistent_manifest)
+                expect_validation_failure(label, check_label)
+                provenance_path.write_bytes(original_provenance_bytes)
+                restore_semantic_files()
+
+            for label, mutate_manifest in (
+                    ("sample-count-mismatch", lambda value:
+                        value.update({"sample_count":int(value["sample_count"]) + 1})),
+                    ("unsupported-bundle-version", lambda value:
+                        value.update({"bundle_format_version":2})),
+                    ("unsupported-manifest-schema", lambda value:
+                        value.update({"schema":"graphx.dashboard.fhss_investigation_manifest.v999"})),
+                    ("absolute-artifact-path", lambda value:
+                        value["artifacts"][0].update({"path":"/tmp/truth.json"})),
+                    ("sibling-prefix-artifact-path", lambda value:
+                        value["artifacts"][0].update({"path":"../fhss-investigations-evil/truth.json"})),
+                    ("duplicate-manifest-entry", lambda value:
+                        value["artifacts"].append(copy.deepcopy(value["artifacts"][0])))):
+                modified = json.loads(original_manifest_bytes)
+                mutate_manifest(modified)
+                publish_modified_manifest(modified)
+                expect_validation_failure(label)
+                restore_semantic_files()
+
+            missing_path = copied_directory / "truth.json"
+            missing_backup = output / "phase7-truth-backup.json"
+            shutil.copyfile(missing_path, missing_backup)
+            missing_path.unlink()
+            expect_validation_failure("missing-declared-file")
+            shutil.copyfile(missing_backup, missing_path)
+            missing_backup.unlink()
+            extra_path = copied_directory / "unmanifested.json"
+            extra_path.write_text("{}\n")
+            expect_validation_failure("extra-unmanifested-file")
+            extra_path.unlink()
+
+            regular_path = copied_directory / "truth.json"
+            regular_backup = output / "phase7-regular-backup.json"
+            shutil.copyfile(regular_path, regular_backup)
+            regular_path.unlink()
+            os.link(regular_backup, regular_path)
+            expect_validation_failure("hardlink-substitution")
+            regular_path.unlink(); shutil.copyfile(regular_backup, regular_path)
+            regular_path.unlink(); regular_path.symlink_to(regular_backup)
+            expect_validation_failure("symlink-file-substitution")
+            regular_path.unlink(); shutil.copyfile(regular_backup, regular_path)
+            regular_path.unlink(); os.mkfifo(regular_path)
+            expect_validation_failure("fifo-special-file-substitution")
+            regular_path.unlink(); shutil.copyfile(regular_backup, regular_path)
+            regular_backup.unlink()
+
+            # Rebind the reference record to unsafe components while keeping
+            # all outer hashes consistent, proving containment is independent
+            # of manifest integrity.
+            reference_directory = bundle_root / "phase7-reference"
+            reference_record_path = reference_directory / "external-iq-reference.json"
+            reference_manifest_path = reference_directory / "manifest.json"
+            reference_detached_path = reference_directory / "manifest.sha256"
+            reference_record_original = reference_record_path.read_bytes()
+            reference_manifest_original = reference_manifest_path.read_bytes()
+            reference_detached_original = reference_detached_path.read_bytes()
+            unsafe_reference = json.loads(reference_record_original)
+            unsafe_reference["relative_components"] = ["..", "outside.cf32"]
+            unsafe_reference_bytes = canonical(unsafe_reference)
+            reference_record_path.write_bytes(unsafe_reference_bytes)
+            reference_manifest = json.loads(reference_manifest_original)
+            reference_entry = next(item for item in reference_manifest["artifacts"]
+                                   if item["path"] == "external-iq-reference.json")
+            reference_entry.update({
+                "bytes":len(unsafe_reference_bytes),
+                "sha256":hashlib.sha256(unsafe_reference_bytes).hexdigest(),
+                "sha512":hashlib.sha512(unsafe_reference_bytes).hexdigest()})
+            encoded_reference_manifest = canonical(reference_manifest)
+            reference_manifest_path.write_bytes(encoded_reference_manifest)
+            reference_detached_path.write_text(
+                hashlib.sha256(encoded_reference_manifest).hexdigest() + "\n")
+            unsafe_reference_result = operation(
+                "phase7-reference", "validate", "-out-of-root")
+            check("Phase7 rejects out-of-root external IQ reference",
+                  unsafe_reference_result.get("state") == "failed",
+                  json.dumps(unsafe_reference_result.get("terminal"), sort_keys=True))
+            reference_record_path.write_bytes(reference_record_original)
+            reference_manifest_path.write_bytes(reference_manifest_original)
+            reference_detached_path.write_bytes(reference_detached_original)
+
+            collision_code, _, collision_submit = submit_investigation(
+                "/api/v1/fhss/investigations/exports",
+                {"request_id":"phase7-collision","bundle_name":"phase7-copied",
+                 "job_id":job_id,"iq_mode":"reference","timeout_ms":30000},
+                "phase7-collision-key")
+            collision_result = (wait_investigation(str(collision_submit["operation_id"]), 30)
+                                if collision_code == 202 else collision_submit)
+            check("Phase7 no-overwrite collision policy",
+                  collision_code == 202 and collision_result.get("state") == "failed",
+                  json.dumps(collision_result.get("terminal"), sort_keys=True))
+            restored_validation = operation(
+                "phase7-copied", "validate", "-restored-after-failures")
+            check("Phase7 prior committed bundle survives later failures",
+                  restored_validation.get("state") == "completed",
+                  json.dumps(restored_validation.get("terminal"), sort_keys=True))
+            traversal_status, _, traversal = submit_investigation(
+                "/api/v1/fhss/investigations/import-validations",
+                {"request_id":"phase7-traversal","bundle_name":"../outside"},
+                "phase7-traversal-key")
+            check("Phase7 traversal rejected synchronously",
+                  traversal_status == 400, json.dumps(traversal, sort_keys=True))
+            outside = output / "phase7-outside"
+            outside.mkdir(exist_ok=True)
+            symlink = bundle_root / "phase7-symlink"
+            symlink.symlink_to(outside, target_is_directory=True)
+            symlink_rejection = operation("phase7-symlink", "validate")
+            check("Phase7 symlink bundle rejected",
+                  symlink_rejection.get("state") == "failed",
+                  json.dumps(symlink_rejection.get("terminal"), sort_keys=True))
+            symlink.unlink()
+
+            # A separate public executable instance enables a fixed,
+            # startup-only qualification sequence. No fault is selected by an
+            # HTTP request, and production startup never enables this profile.
+            qualification_output = output / "phase7-qualification"
+            qualification_output.mkdir()
+            qualification_args = copy.copy(args)
+            qualification_args.output_dir = qualification_output
+            qualification_args.investigation_qualification = True
+            qualification_process = None
+            qualification_port = 0
+            try:
+                qualification_process, _, qualification_port, qualification_command = (
+                    launch(qualification_args))
+                additional_commands.append(qualification_command)
+
+                def q_request(method: str, target: str,
+                              payload: dict[str, object] | None = None,
+                              key: str | None = None) -> tuple[int, dict[str, object]]:
+                    headers = {"Content-Type":"application/json"}
+                    if key is not None:
+                        headers["Idempotency-Key"] = key
+                    code, _, body = request(
+                        qualification_port, method, target,
+                        None if payload is None else json.dumps(payload).encode(),
+                        headers if payload is not None else None, timeout=10)
+                    return code, json.loads(body)
+
+                q_job_code, q_job_submit = q_request(
+                    "POST", "/api/v1/fhss/commands/step",
+                    {"request_id":"phase7-qualification-source",
+                     "timeout_ms":60000}, "phase7-qualification-source-key")
+                q_job_id = str(q_job_submit["job_id"])
+                q_deadline = time.monotonic() + 70
+                q_job_terminal: dict[str, object] = {}
+                while time.monotonic() < q_deadline:
+                    q_code, q_job_terminal = q_request(
+                        "GET", f"/api/v1/fhss/jobs/{q_job_id}")
+                    if q_code == 200 and q_job_terminal.get("state") in (
+                            "completed", "cancelled", "failed", "timed_out"):
+                        break
+                    time.sleep(0.02)
+                check("Phase7 qualification source job completed",
+                      q_job_code == 202 and q_job_terminal.get("state") == "completed",
+                      json.dumps(q_job_terminal.get("terminal"), sort_keys=True))
+
+                q_bundle_root = (qualification_output /
+                                 "phase5-job-artifacts" /
+                                 "fhss-investigations")
+
+                def q_submit_export(sequence: int, mode: str,
+                                    timeout_ms: int = 30000) -> dict[str, object]:
+                    name = f"qualification-{sequence}"
+                    payload: dict[str, object] = {
+                        "request_id":name, "bundle_name":name,
+                        "job_id":q_job_id, "iq_mode":mode,
+                        "timeout_ms":timeout_ms}
+                    if mode == "copy":
+                        payload["confirm_copy"] = True
+                    code, submitted = q_request(
+                        "POST", "/api/v1/fhss/investigations/exports",
+                        payload, f"{name}-key")
+                    if code != 202:
+                        raise RuntimeError(
+                            f"qualification export {sequence} rejected: {code} {submitted}")
+                    return submitted
+
+                def q_wait(operation_id: str, terminal: bool = True,
+                           state: str | None = None,
+                           bound: float = 8) -> dict[str, object]:
+                    deadline = time.monotonic() + bound
+                    latest: dict[str, object] = {}
+                    while time.monotonic() < deadline:
+                        code, latest = q_request(
+                            "GET", "/api/v1/fhss/investigations/operations/" +
+                            operation_id)
+                        if code != 200:
+                            raise RuntimeError("qualification operation lookup failed")
+                        if ((terminal and latest.get("state") in
+                             ("completed", "cancelled", "failed", "timed_out")) or
+                                (state is not None and latest.get("state") == state)):
+                            return latest
+                        time.sleep(0.005)
+                    raise RuntimeError(
+                        f"qualification operation did not reach target: {latest}")
+
+                def q_cleanup(sequence: int) -> bool:
+                    name = f"qualification-{sequence}"
+                    return (not (q_bundle_root / name).exists() and
+                            not any(q_bundle_root.glob(".tmp-*")))
+
+                for sequence, mode, expected_code, label in (
+                        (1, "reference", "investigation_quota_exceeded",
+                         "quota exceeded"),
+                        (2, "copy", "investigation_quota_exceeded",
+                         "copied-IQ size limit"),
+                        (3, "copy", "artifact_enospc", "deterministic ENOSPC")):
+                    submitted = q_submit_export(sequence, mode)
+                    terminal = q_wait(str(submitted["operation_id"]))
+                    persist(f"phase7_qualification_{sequence}_{label}",
+                            json.dumps(terminal, sort_keys=True).encode())
+                    check(f"Phase7 external {label} transition and cleanup",
+                          terminal.get("state") == "failed" and
+                          terminal.get("terminal", {}).get("code") == expected_code and
+                          q_cleanup(sequence),
+                          json.dumps(terminal.get("terminal"), sort_keys=True))
+
+                for sequence, mode, active_state, label in (
+                        (4, "reference", "hashing", "cancel during hashing"),
+                        (5, "copy", "copying", "cancel during copying"),
+                        (6, "reference", "publishing", "cancel before rename")):
+                    submitted = q_submit_export(sequence, mode)
+                    operation_id = str(submitted["operation_id"])
+                    observed = q_wait(operation_id, terminal=False,
+                                      state=active_state)
+                    cancel_code, accepted = q_request(
+                        "POST", "/api/v1/fhss/investigations/operations/" +
+                        operation_id + "/cancel", {})
+                    terminal = q_wait(operation_id)
+                    persist(f"phase7_qualification_{sequence}_{label}",
+                            json.dumps({"observed":observed, "accepted":accepted,
+                                        "terminal":terminal},
+                                       sort_keys=True).encode())
+                    check(f"Phase7 external {label} transition and cleanup",
+                          cancel_code == 202 and terminal.get("state") == "cancelled" and
+                          q_cleanup(sequence),
+                          json.dumps(terminal.get("terminal"), sort_keys=True))
+
+                timeout_submit = q_submit_export(7, "reference", 100)
+                timeout_terminal = q_wait(str(timeout_submit["operation_id"]))
+                persist("phase7_qualification_timeout",
+                        json.dumps(timeout_terminal, sort_keys=True).encode())
+                check("Phase7 external deterministic timeout and cleanup",
+                      timeout_terminal.get("state") == "timed_out" and
+                      timeout_terminal.get("terminal", {}).get("code") ==
+                          "operation_timeout" and q_cleanup(7),
+                      json.dumps(timeout_terminal.get("terminal"), sort_keys=True))
+
+                shutdown_submit = q_submit_export(8, "reference")
+                q_wait(str(shutdown_submit["operation_id"]), terminal=False,
+                       state="hashing")
+                shutdown_started = time.monotonic()
+                qualification_process.send_signal(signal.SIGTERM)
+                qualification_process.wait(timeout=5)
+                shutdown_elapsed = time.monotonic() - shutdown_started
+                qualification_process = None
+                persist("phase7_qualification_shutdown",
+                        json.dumps({"elapsed_seconds":shutdown_elapsed,
+                                    "operation_id":shutdown_submit["operation_id"],
+                                    "destination_absent":q_cleanup(8)},
+                                   sort_keys=True).encode())
+                check("Phase7 bounded active-export shutdown and cleanup",
+                      shutdown_elapsed <= 5 and q_cleanup(8),
+                      f"elapsed={shutdown_elapsed:.3f}s")
+            finally:
+                if qualification_process is not None:
+                    stop(qualification_process)
+
+            capture_investigation_states((("safe-failed", symlink_rejection),))
+            persist("phase7_browser_console", json.dumps(browser_console).encode())
+            browser_case_labels = ("reference-completed", "copy-completed",
+                                   "replay-success", "safe-failed")
+            completed_identities = [
+                str(browser_evidence[label]["identity"])
+                for label in ("reference-completed", "copy-completed")]
+            check("Phase7 browser renders four genuine investigation states",
+                  all(is_valid_png(output / f"phase7-investigation-{label}.png")
+                      for label in browser_case_labels) and
+                  all("pending" not in identity and "datatype=cf" in identity and
+                      "samples=" in identity and "IQ-SHA512=" in identity and
+                      "bytes=" in identity for identity in completed_identities) and
+                  '"state": "completed"' in str(browser_evidence["replay-success"]["state"]) and
+                  '"state": "failed"' in str(browser_evidence["safe-failed"]["state"]) and
+                  all(
+                      str(entry.get("level", "")).lower() not in
+                      ("warning", "warn", "error") for entry in browser_console),
+                  f"captures={len(browser_case_labels)}; "
+                  f"console={len(browser_console)}")
         status, headers, body = request(port, "PUT", "/healthz")
         problem = json.loads(body)
         persist("PUT /healthz", body)
@@ -3601,6 +4294,90 @@ def exercise(args: argparse.Namespace) -> int:
         if phase >= 3:
             _, current_headers, current_bytes = request(port, "GET", "/api/v1/fhss/config/authoritative")
             current = json.loads(current_bytes)
+            if phase == 3:
+                lifecycle_guard_samples = 6_500
+                lifecycle_scenario = current.get("scenario", {})
+                lifecycle_messages = copy.deepcopy(
+                    lifecycle_scenario.get("messages", []))
+                if not lifecycle_messages:
+                    raise RuntimeError(
+                        "Phase3 lifecycle fixture requires one canonical message")
+                canonical_lifecycle_message = copy.deepcopy(
+                    lifecycle_messages[0])
+                lifecycle_patch_operations = []
+                for message_index in range(
+                        len(lifecycle_messages) - 1, 0, -1):
+                    lifecycle_patch_operations.append([{
+                        "op": "remove",
+                        "path": f"/messages/{message_index}",
+                    }])
+                lifecycle_patch_operations.append([{
+                    "op": "replace",
+                    "path": "/messages/0/transmit_start_sample",
+                    "value": int(canonical_lifecycle_message[
+                        "transmit_start_sample"]) + lifecycle_guard_samples,
+                }])
+                lifecycle_patch_statuses = []
+                lifecycle_patch_responses = []
+                for lifecycle_patch in lifecycle_patch_operations:
+                    patch_status, _, patch_body = request(
+                        port, "PATCH", "/api/v1/fhss/config",
+                        json.dumps(lifecycle_patch).encode(),
+                        {"Content-Type": "application/json-patch+json",
+                         "If-Match": current_headers["etag"]})
+                    lifecycle_patch_statuses.append(patch_status)
+                    try:
+                        patch_response = json.loads(patch_body)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        patch_response = patch_body.decode(errors="replace")
+                    lifecycle_patch_responses.append(patch_response)
+                    if (patch_status != 200 or
+                            not isinstance(patch_response, dict) or
+                            patch_response.get("status") != "applied"):
+                        break
+                    _, current_headers, current_bytes = request(
+                        port, "GET", "/api/v1/fhss/config/authoritative")
+                    current = json.loads(current_bytes)
+                persist(
+                    "phase3_lifecycle_waveform_patch",
+                    (json.dumps({
+                        "statuses": lifecycle_patch_statuses,
+                        "operations": lifecycle_patch_operations,
+                        "responses": lifecycle_patch_responses,
+                    }, sort_keys=True) + "\n").encode())
+                isolated_lifecycle_messages = current.get(
+                    "scenario", {}).get("messages", [])
+                expected_lifecycle_message = copy.deepcopy(
+                    canonical_lifecycle_message)
+                expected_lifecycle_message["transmit_start_sample"] = (
+                    int(canonical_lifecycle_message["transmit_start_sample"]) +
+                    lifecycle_guard_samples)
+                check("Phase3 isolated one-message lifecycle fixture",
+                      len(lifecycle_patch_statuses) ==
+                          len(lifecycle_patch_operations) and
+                      all(status == 200
+                          for status in lifecycle_patch_statuses) and
+                      all(isinstance(response, dict) and
+                          response.get("status") == "applied"
+                          for response in lifecycle_patch_responses) and
+                      isolated_lifecycle_messages ==
+                          [expected_lifecycle_message] and
+                      isolated_lifecycle_messages[0].get("pulses") ==
+                          canonical_lifecycle_message.get("pulses") and
+                      len(isolated_lifecycle_messages[0].get("pulses", [])) > 0,
+                      json.dumps({
+                          "message_count": len(isolated_lifecycle_messages),
+                          "message_id": (isolated_lifecycle_messages[0].get(
+                              "message_id")
+                              if isolated_lifecycle_messages else None),
+                          "pulse_count": (len(isolated_lifecycle_messages[0].get(
+                              "pulses", []))
+                              if isolated_lifecycle_messages else 0),
+                          "transmit_start_sample": (
+                              isolated_lifecycle_messages[0].get(
+                                  "transmit_start_sample")
+                              if isolated_lifecycle_messages else None),
+                      }, sort_keys=True))
             if phase >= 4:
                 receiver_channelizer = next(
                     (node for node in receiver.get("nodes", [])
@@ -3612,14 +4389,24 @@ def exercise(args: argparse.Namespace) -> int:
                 clean_guard_samples = 6_500
                 clean_patch_statuses = []
                 clean_patch_responses = []
-                scenario_messages = scenario.get("messages", [])
-                for message_index in range(len(scenario_messages) - 1, -1, -1):
-                    message = scenario_messages[message_index]
-                    clean_patch = [{
-                        "op": "replace",
-                        "path": f"/messages/{message_index}/transmit_start_sample",
-                        "value": int(message["transmit_start_sample"]) + clean_guard_samples,
-                    }]
+                clean_patch_operations = []
+                scenario_messages = copy.deepcopy(scenario.get("messages", []))
+                if not scenario_messages:
+                    raise RuntimeError(
+                        "Phase4 isolated validation fixture requires one canonical message")
+                canonical_message = copy.deepcopy(scenario_messages[0])
+                for message_index in range(len(scenario_messages) - 1, 0, -1):
+                    clean_patch_operations.append([{
+                        "op": "remove",
+                        "path": f"/messages/{message_index}",
+                    }])
+                clean_patch_operations.append([{
+                    "op": "replace",
+                    "path": "/messages/0/transmit_start_sample",
+                    "value": int(canonical_message["transmit_start_sample"]) +
+                             clean_guard_samples,
+                }])
+                for clean_patch in clean_patch_operations:
                     clean_patch_status, _, clean_patch_body = request(
                         port, "PATCH", "/api/v1/fhss/config",
                         json.dumps(clean_patch).encode(),
@@ -3641,26 +4428,45 @@ def exercise(args: argparse.Namespace) -> int:
                 persist(
                     "phase4_clean_waveform_patch",
                     (json.dumps({"statuses": clean_patch_statuses,
+                                 "operations": clean_patch_operations,
                                  "responses": clean_patch_responses},
                                 sort_keys=True) + "\n").encode())
                 patched_scenario = current.get("scenario", {})
+                isolated_messages = patched_scenario.get("messages", [])
+                expected_message = copy.deepcopy(canonical_message)
+                expected_message["transmit_start_sample"] = (
+                    int(canonical_message["transmit_start_sample"]) +
+                    clean_guard_samples)
                 check("Phase4 receiver-compatible clean waveform contract",
-                      len(clean_patch_statuses) == len(scenario_messages) and
+                      len(clean_patch_statuses) == len(clean_patch_operations) and
                       all(status == 200 for status in clean_patch_statuses) and
                       all(isinstance(response, dict) and
                           response.get("status") == "applied"
                           for response in clean_patch_responses) and
                       offset_indices == list(range(64)) and
                       len(receiver_offsets) == 64 and
-                      all(int(after["transmit_start_sample"]) ==
-                          int(before["transmit_start_sample"]) + clean_guard_samples
-                          for before, after in zip(scenario.get("messages", []),
-                                                   patched_scenario.get("messages", []))),
-                      "explicit receiver IQ map copied to generator; 6500-sample causal warm-up; receiver still receives no schedule")
+                      isolated_messages == [expected_message],
+                      "explicit receiver IQ map; one complete canonical message; "
+                      "6500-sample causal warm-up; receiver still receives no schedule")
+                check("Phase4 isolated one-message validation fixture",
+                      len(isolated_messages) == 1 and
+                      isolated_messages[0] == expected_message and
+                      isolated_messages[0].get("pulses") ==
+                          canonical_message.get("pulses") and
+                      len(isolated_messages[0].get("pulses", [])) > 0,
+                      json.dumps({
+                          "message_count": len(isolated_messages),
+                          "message_id": (isolated_messages[0].get("message_id")
+                                         if isolated_messages else None),
+                          "pulse_count": (len(isolated_messages[0].get("pulses", []))
+                                          if isolated_messages else 0),
+                          "transmit_start_sample": (
+                              isolated_messages[0].get("transmit_start_sample")
+                              if isolated_messages else None),
+                      }, sort_keys=True))
             schedule_path, iq_path = output / "schedule.json", output / "replay.cf32"
             truth_path, sigmf_path = output / "truth.json", output / "replay.sigmf-meta"
-            generator_schedule = dict(
-                current["scenario"] if phase >= 4 else authoritative_doc["scenario"])
+            generator_schedule = dict(current["scenario"])
             if phase >= 4:
                 generator_schedule["iq_offsets"] = receiver_offsets
             generator_schedule["active_frequency_indices"] = independently_active
@@ -3717,7 +4523,7 @@ def exercise(args: argparse.Namespace) -> int:
                     start_schema_ok = False
                 check(f"generation {number} start returned", start_schema_ok, f"HTTP {s_status}; schema={start_schema_ok}")
                 terminal_doc = {}
-                terminal_deadline = time.monotonic() + 60
+                terminal_deadline = time.monotonic() + 120
                 while time.monotonic() < terminal_deadline:
                     terminal_status, _, terminal_body = request(port,"GET","/api/v1/fhss/status")
                     terminal_doc = json.loads(terminal_body)
@@ -3811,7 +4617,8 @@ def exercise(args: argparse.Namespace) -> int:
                                   "active_run_epoch")],
                       }, sort_keys=True))
                 stop_started=time.monotonic(); x_status,_,x_body=request(port,"POST","/api/v1/fhss/commands/stop",
-                    json.dumps({"command_id":f"phase3-stop-{number}"}).encode(),{"Content-Type":"application/json"})
+                    json.dumps({"command_id":f"phase3-stop-{number}"}).encode(),
+                    {"Content-Type":"application/json"}, timeout=30)
                 persist(f"generation_{number}_stop", x_body)
                 try:
                     stop_schema_ok, stop_doc = schema_valid("command-result", x_body)
@@ -4065,7 +4872,8 @@ def exercise(args: argparse.Namespace) -> int:
                                                   ("long_generated_schedule", long_schedule_path),
                                                   ("long_generated_sigmf", long_sigmf_path)):
                 if artifact_path.exists(): persist(artifact_name, artifact_path.read_bytes())
-            long_truth_path.unlink(); long_schedule_path.unlink()
+            long_truth_path.unlink(missing_ok=True)
+            long_schedule_path.unlink(missing_ok=True)
             _, long_headers, _ = request(port,"GET","/api/v1/fhss/config/authoritative")
             long_patch = json.dumps([{"op":"replace","path":"/receiver_input","value":{
                 "file_path":str(long_iq_path),"sample_format":"cf32_le",
@@ -4152,7 +4960,11 @@ def exercise(args: argparse.Namespace) -> int:
                         persist(f"observation_export_{command_suffix}_start",
                                 export_start_body)
                     export_terminal: dict[str, object] = {}
-                    export_deadline = time.monotonic() + 60
+                    # Debug/installed receiver execution can legitimately
+                    # exceed one minute. Match the operator's established
+                    # maximum bounded wait without weakening the requirement
+                    # that the graph reaches a real terminal state.
+                    export_deadline = time.monotonic() + 120
                     while time.monotonic() < export_deadline:
                         _, _, export_status_body = request(
                             port, "GET", "/api/v1/fhss/status")
@@ -4331,7 +5143,7 @@ def exercise(args: argparse.Namespace) -> int:
                         {"Content-Type": "application/json"})
                     persist(f"{label}_start", start_body)
                     terminal = {}
-                    deadline = time.monotonic() + 60
+                    deadline = time.monotonic() + 120
                     while time.monotonic() < deadline:
                         _, _, terminal_body = request(port, "GET", "/api/v1/fhss/status")
                         terminal = json.loads(terminal_body)
@@ -4339,15 +5151,21 @@ def exercise(args: argparse.Namespace) -> int:
                             break
                         time.sleep(0.05)
                     if terminal.get("lifecycle_state") in ("starting", "running"):
-                        _, _, cleanup_body = request(
+                        cleanup_status, _, cleanup_body = request(
                             port, "POST", "/api/v1/fhss/commands/stop",
                             json.dumps({"command_id":
                                         f"phase4-{label}-timeout-cleanup"}).encode(),
-                            {"Content-Type": "application/json"})
+                            {"Content-Type": "application/json"}, timeout=30)
                         persist(f"{label}_timeout_cleanup", cleanup_body)
                         _, _, terminal_body = request(
                             port, "GET", "/api/v1/fhss/status")
                         terminal = json.loads(terminal_body)
+                        check(f"Phase4 {label} timeout cleanup is terminal",
+                              cleanup_status == 200 and
+                              terminal.get("lifecycle_state") not in
+                                  ("starting", "running"),
+                              f"stop={cleanup_status}; "
+                              f"terminal={terminal.get('lifecycle_state')}")
                     observation_status, _, observation_body = request(
                         port, "GET", "/api/v1/fhss/observations")
                     comparison_status, _, comparison_body = request(
@@ -4479,13 +5297,24 @@ def exercise(args: argparse.Namespace) -> int:
                                   check=False).stdout.splitlines()
         schema_hashes = {f"schema:{path.name}": sha256(path)
                          for path in sorted((API_DIR / "schemas").glob("*.json"))}
+        sigmf_root = (Path(__file__).resolve().parents[1] / "sigmf" /
+                      "official-v1.2.6")
+        sigmf_input_hashes = {
+            "sigmf_schema": sha256(sigmf_root / "sigmf-schema.json"),
+            "sigmf_provenance": sha256(sigmf_root / "provenance.json"),
+            "sigmf_license": sha256(sigmf_root / "LICENSE.md"),
+            "jsonschema_validator_module": sha256(Path(jsonschema.__file__).resolve()),
+            "jsonschema_validator_version": importlib.metadata.version("jsonschema"),
+        }
         checks_pass = all(item["pass"] for item in checks)
-        evidence_status = "partial_pre_browser" if phase >= 4 else "complete"
+        evidence_status = ("final_verified" if phase == 7 else
+                           ("partial_pre_browser" if phase >= 4 else "complete"))
         report = {
             "schema": "graphx.fhss.dashboard.operator_report.v1", "phase": phase,
             "source_revision": revision, "compiler": compiler[0] if compiler else "unknown",
             "build_profile": args.build_dir.name, "platform": platform.platform(),
-            "commands": [command], "bound_address": "127.0.0.1", "bound_port": port,
+            "commands": [command, *additional_commands],
+            "bound_address": "127.0.0.1", "bound_port": port,
             "dashboard_url": url, "api_version": "v1", "synthetic_data_only": True,
             "hwil_available": False, "production_rf_qualified": False,
             "input_hashes": {"openapi": sha256(Path(__file__).resolve().parents[1] / "api/openapi.json"),
@@ -4493,13 +5322,15 @@ def exercise(args: argparse.Namespace) -> int:
                              "operator": sha256(Path(__file__).resolve()),
                              "operator_report_schema": sha256(Path(__file__).resolve().parent / "schemas/operator-report.schema.json"),
                              "phase6_transcript_schema": sha256(Path(__file__).resolve().parent / "schemas/phase6-wire-transcript.schema.json"),
+                             **sigmf_input_hashes,
                              **schema_hashes},
             "artifact_hashes": {"dashboard_index": sha256(Path(__file__).resolve().parents[1] / "index.html"),
                                 **live_hashes,
                                 **phase2_hashes},
             "checks": checks,
             "evidence_status": evidence_status,
-            "result": ("PARTIAL" if phase >= 4 else "PASS")
+            "result": ("PASS" if phase == 7 else
+                       ("PARTIAL" if phase >= 4 else "PASS"))
                       if checks_pass else "FAIL"
         }
         report_path = output / f"phase{phase}-report.json"
@@ -4545,6 +5376,8 @@ def verify(args: argparse.Namespace) -> int:
                            "fhss_transport_state.js")
         transcript_schema = (Path(__file__).resolve().parent / "schemas" /
                              "phase6-wire-transcript.schema.json")
+        sigmf_root = (Path(__file__).resolve().parents[1] / "sigmf" /
+                      "official-v1.2.6")
         transport_hash_valid = (
             args.phase < 6 or
             report.get("input_hashes", {}).get("transport_state") ==
@@ -4553,10 +5386,23 @@ def verify(args: argparse.Namespace) -> int:
             args.phase < 6 or
             report.get("input_hashes", {}).get("phase6_transcript_schema") ==
                 sha256(transcript_schema))
+        sigmf_hashes_valid = (
+            args.phase < 7 or (
+                report.get("input_hashes", {}).get("sigmf_schema") ==
+                    sha256(sigmf_root / "sigmf-schema.json") and
+                report.get("input_hashes", {}).get("sigmf_provenance") ==
+                    sha256(sigmf_root / "provenance.json") and
+                report.get("input_hashes", {}).get("sigmf_license") ==
+                    sha256(sigmf_root / "LICENSE.md") and
+                report.get("input_hashes", {}).get("jsonschema_validator_module") ==
+                    sha256(Path(jsonschema.__file__).resolve()) and
+                report.get("input_hashes", {}).get("jsonschema_validator_version") ==
+                    importlib.metadata.version("jsonschema")))
         hashes_valid = (report.get("artifact_hashes", {}).get("dashboard_index") == sha256(dashboard_index)
                         and report.get("input_hashes", {}).get("openapi") == sha256(openapi)
                         and transport_hash_valid
                         and transcript_schema_hash_valid
+                        and sigmf_hashes_valid
                         and report.get("input_hashes", {}).get("operator") == sha256(Path(__file__).resolve())
                         and report.get("input_hashes", {}).get("operator_report_schema") ==
                             sha256(Path(__file__).resolve().parent / "schemas/operator-report.schema.json"))
@@ -4695,7 +5541,49 @@ def verify(args: argparse.Namespace) -> int:
         except (OSError, KeyError, TypeError, ValueError,
                 json.JSONDecodeError):
             screenshots_valid = False
-    if args.phase >= 4 and require_screenshots:
+    if args.phase == 7:
+        screenshot_cases = ("reference-completed", "copy-completed",
+                            "replay-success", "safe-failed")
+        try:
+            phase7_states = {
+                case: json.loads((args.output_dir.resolve() /
+                    f"phase7-investigation-{case}.json").read_text())
+                for case in screenshot_cases}
+            screenshots_valid = all(
+                is_valid_png(args.output_dir.resolve() /
+                             f"phase7-investigation-{case}.png") and
+                report.get("artifact_hashes", {}).get(
+                    f"phase7_browser_screenshot:{case}") == sha256(
+                        args.output_dir.resolve() /
+                        f"phase7-investigation-{case}.png") and
+                report.get("artifact_hashes", {}).get(
+                    f"phase7_browser_state:{case}") == sha256(
+                        args.output_dir.resolve() /
+                        f"phase7-investigation-{case}.json") and
+                phase7_states[case].get("screenshot_sha256") == sha256(
+                    args.output_dir.resolve() /
+                    f"phase7-investigation-{case}.png") and
+                phase7_states[case].get("visible") is True and
+                phase7_states[case].get("operation_id") in
+                    str(phase7_states[case].get("panel_text", "")) and
+                phase7_states[case].get("operation_id") in
+                    str(phase7_states[case].get("identity", "")) and
+                phase7_states[case].get("dashboard_url") == report.get("dashboard_url") and
+                bool(phase7_states[case].get("browser_session_id")) and
+                bool(phase7_states[case].get("browser_context_id")) and
+                phase7_states[case].get("panel_visible") is True and
+                int(phase7_states[case].get("panel_rect", {}).get("bottom", 0)) > 0 and
+                int(phase7_states[case].get("panel_rect", {}).get("top", -1)) <
+                    int(phase7_states[case].get("viewport", {}).get("height", -1)) and
+                int(phase7_states[case].get("identity_rect", {}).get("bottom", 0)) > 0 and
+                int(phase7_states[case].get("identity_rect", {}).get("top", -1)) <
+                    int(phase7_states[case].get("viewport", {}).get("height", -1))
+                for case in screenshot_cases)
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            screenshots_valid = False
+        expected_states = {("PASS", "final_verified")}
+        displayed_result = "PASS"
+    elif args.phase >= 4 and require_screenshots:
         expected_states = {
             ("PARTIAL", "captures_complete_unverified"),
             ("PASS", "final_verified"),

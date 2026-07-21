@@ -422,6 +422,27 @@
           <pre id="job-receiver-result">Receiver message result unavailable.</pre>
           <pre id="job-comparison">Evaluator comparison unavailable.</pre>
         </section>
+        <section class="card" id="investigation-controls">
+          <h2>Phase 7 Investigation Bundles</h2>
+          <p class="subtle">Synthetic IQ only; no HWIL or production-RF qualification. Reference-only is the default and is not self-contained.</p>
+          <label for="investigation-bundle-name">Bounded bundle name</label>
+          <input id="investigation-bundle-name" value="fhss-investigation-1" maxlength="64" pattern="[A-Za-z0-9._-]+">
+          <label for="investigation-mode">IQ storage</label>
+          <select id="investigation-mode">
+            <option value="reference" selected>Reference-only (not self-contained)</option>
+            <option value="copy">Copied IQ (self-contained after validation)</option>
+          </select>
+          <label><input id="investigation-confirm-copy" type="checkbox" disabled> Confirm copying <span id="investigation-copy-estimate">0</span> IQ bytes</label>
+          <div class="command-bar" role="group" aria-label="Investigation bundle controls">
+            <button class="command-btn primary" id="investigation-export" type="button">Export selected completed job</button>
+            <button class="command-btn" id="investigation-validate" type="button">Validate bundle</button>
+            <button class="command-btn" id="investigation-replay" type="button">Replay validated bundle</button>
+            <button class="command-btn" id="investigation-cancel" type="button" disabled>Cancel operation</button>
+          </div>
+          <div id="investigation-identity" class="subtle">No investigation operation selected.</div>
+          <pre id="investigation-state">Operation history unavailable.</pre>
+          <pre id="investigation-files">Separate models: synthetic truth; receiver observation; evaluator comparison; receiver-minimal configuration; receiver result; SigMF metadata; IQ reference/data; provenance; operator actions.</pre>
+        </section>
       </div>
       <div class="stack">
         <section class="card">
@@ -806,12 +827,15 @@
     }
 
     let selectedJobId = null;
+    let selectedJob = null;
+    let selectedInvestigationOperationId = null;
     function jobIsTerminal(state) {
       return ['completed', 'cancelled', 'timed_out', 'failed',
         'abandoned_on_restart'].includes(state);
     }
 
     function renderJob(job) {
+      selectedJob = job || null;
       selectedJobId = job?.job_id || selectedJobId;
       const state = job?.state || 'unavailable';
       document.getElementById('job-identity').textContent =
@@ -843,6 +867,56 @@
       document.getElementById('job-continue').disabled = active;
       document.getElementById('job-cancel').disabled = !active;
       document.getElementById('job-reset').disabled = active;
+      const estimate = job?.artifacts?.iq?.bytes ?? 0;
+      document.getElementById('investigation-copy-estimate').textContent = String(estimate);
+    }
+
+    function investigationIsTerminal(state) {
+      return ['completed', 'cancelled', 'failed', 'timed_out'].includes(state);
+    }
+
+    function renderInvestigation(operation) {
+      selectedInvestigationOperationId = operation?.operation_id ||
+        selectedInvestigationOperationId;
+      const state = operation?.state || 'unavailable';
+      const result = operation?.result || {};
+      document.getElementById('investigation-identity').textContent =
+        `operation=${operation?.operation_id || 'unavailable'} bundle=${operation?.bundle_name || 'unavailable'} mode=${result.iq_mode || 'pending'} manifest=${result.manifest_sha256 || 'pending'} IQ-SHA512=${result.iq_sha512 || 'pending'} bytes=${result.iq_bytes ?? 'pending'} datatype=${result.datatype || 'pending'} samples=${result.sample_count ?? 'pending'} synthetic-only=true`;
+      document.getElementById('investigation-state').textContent =
+        JSON.stringify({state, operation: operation?.operation,
+          terminal: operation?.terminal, result}, null, 2);
+      document.getElementById('investigation-cancel').disabled =
+        !operation?.operation_id || investigationIsTerminal(state);
+    }
+
+    async function refreshInvestigations() {
+      const response = await fetch('/api/v1/fhss/investigations/operations');
+      const host = document.getElementById('investigation-controls');
+      if (response.status === 404) { host.hidden = true; return; }
+      host.hidden = false;
+      const history = await response.json();
+      const entries = Array.isArray(history.entries) ? history.entries : [];
+      renderInvestigation(entries.find((entry) =>
+        entry.operation_id === selectedInvestigationOperationId) || entries[0]);
+    }
+
+    async function submitInvestigation(path, body) {
+      const key = `${body.request_id}-${Date.now()}`;
+      const response = await fetch(path, {method: 'POST', headers: {
+        'Content-Type': 'application/json', 'Idempotency-Key': key},
+        body: JSON.stringify(body)});
+      const result = await response.json();
+      if (response.status === 428) {
+        document.getElementById('investigation-copy-estimate').textContent =
+          String(result.estimated_iq_bytes ?? 'unavailable');
+      }
+      if (!response.ok) {
+        document.getElementById('investigation-state').textContent =
+          JSON.stringify(result, null, 2);
+        return;
+      }
+      renderInvestigation(result);
+      await refreshInvestigations();
     }
 
     async function refreshJobs() {
@@ -869,6 +943,7 @@
       const result = await response.json();
       renderJob(result);
       await refreshJobs();
+      await refreshInvestigations();
     }
 
     async function submitConfiguration(validateOnly) {
@@ -1308,6 +1383,49 @@
       }).catch((error) => {
         document.getElementById('job-state').textContent = `Reset failed: ${error}`;
       });
+    });
+    document.getElementById('investigation-mode').addEventListener('change', (event) => {
+      const copy = event.target.value === 'copy';
+      document.getElementById('investigation-confirm-copy').disabled = !copy;
+      if (!copy) document.getElementById('investigation-confirm-copy').checked = false;
+    });
+    document.getElementById('investigation-export').addEventListener('click', () => {
+      const bundleName = document.getElementById('investigation-bundle-name').value;
+      const mode = document.getElementById('investigation-mode').value;
+      const token = `ui-export-${Date.now()}`;
+      if (!selectedJob?.job_id || selectedJob.state !== 'completed') {
+        document.getElementById('investigation-state').textContent =
+          'Select or complete an FHSS message job before export.';
+        return;
+      }
+      submitInvestigation('/api/v1/fhss/investigations/exports', {
+        request_id: token, bundle_name: bundleName, job_id: selectedJob.job_id,
+        iq_mode: mode,
+        ...(mode === 'copy' ? {confirm_copy:
+          document.getElementById('investigation-confirm-copy').checked} : {})
+      });
+    });
+    document.getElementById('investigation-validate').addEventListener('click', () => {
+      const token = `ui-validate-${Date.now()}`;
+      submitInvestigation('/api/v1/fhss/investigations/import-validations', {
+        request_id: token,
+        bundle_name: document.getElementById('investigation-bundle-name').value});
+    });
+    document.getElementById('investigation-replay').addEventListener('click', () => {
+      const token = `ui-replay-${Date.now()}`;
+      submitInvestigation('/api/v1/fhss/investigations/replays', {
+        request_id: token,
+        bundle_name: document.getElementById('investigation-bundle-name').value});
+    });
+    document.getElementById('investigation-cancel').addEventListener('click', () => {
+      if (!selectedInvestigationOperationId) return;
+      fetch(`/api/v1/fhss/investigations/operations/${selectedInvestigationOperationId}/cancel`,
+        {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'})
+        .then((response) => response.json()).then(renderInvestigation)
+        .catch((error) => {
+          document.getElementById('investigation-state').textContent =
+            `Cancel failed: ${error}`;
+        });
     });
     document.getElementById('show-expected').addEventListener('change', () => {
       if (latestObservationData) renderObservationWorkbench(...latestObservationData);

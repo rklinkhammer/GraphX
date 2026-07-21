@@ -50,6 +50,14 @@ public:
     std::function<void()> after_running;
   };
 
+  struct InvestigationSource {
+    std::filesystem::path directory;
+    nlohmann::json job;
+    nlohmann::json observation;
+    nlohmann::json comparison;
+    nlohmann::json receiver_result;
+  };
+
   using EventSink = std::function<void(std::string, nlohmann::json,
                                        nlohmann::json)>;
 
@@ -70,6 +78,8 @@ public:
   [[nodiscard]] Result List() const;
   [[nodiscard]] Result Cancel(std::string_view job_id);
   [[nodiscard]] Result Reset();
+  [[nodiscard]] std::optional<InvestigationSource>
+  GetInvestigationSource(std::string_view job_id) const;
   void SetEventSink(EventSink sink);
   void Shutdown();
 

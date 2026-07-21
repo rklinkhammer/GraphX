@@ -11,6 +11,7 @@
 #include "FHSSDashboardConfigurationPolicy.hpp"
 #include "FHSSGraphRuntimeOwner.hpp"
 #include "FHSSJobController.hpp"
+#include "FHSSInvestigationBundleService.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -115,6 +116,7 @@ struct CliOptions {
   bool print_effective_config = false;
   bool dashboard = false;
   bool dashboard_no_run = false;
+  bool dashboard_investigation_qualification = false;
 };
 
 std::uint64_t ParseUint64Option(const std::string &name, const char *raw) {
@@ -168,6 +170,7 @@ void PrintUsage() {
          "                             [--dashboard-assets path]\n"
          "                             [--dashboard-artifact-root path]\n"
          "                             [--dashboard-no-run]\n\n"
+         "                             [--dashboard-investigation-qualification]\n\n"
          "Message JSON may be either a full FHSS source node_config object or "
          "an\n"
          "object with a node_config field. It must include messages[]. The "
@@ -277,6 +280,8 @@ CliOptions ParseArgs(int argc, char **argv) {
             "--dashboard-artifact-root requires a path");
       }
       options.dashboard_artifact_root = argv[++i];
+    } else if (arg == "--dashboard-investigation-qualification") {
+      options.dashboard_investigation_qualification = true;
     } else if (arg == "--print-effective-config") {
       options.print_effective_config = true;
     } else {
@@ -286,6 +291,9 @@ CliOptions ParseArgs(int argc, char **argv) {
   if (options.dashboard && options.dashboard_no_run)
     throw std::invalid_argument(
         "--dashboard and --dashboard-no-run are mutually exclusive");
+  if (options.dashboard_investigation_qualification && !options.dashboard)
+    throw std::invalid_argument(
+        "--dashboard-investigation-qualification requires --dashboard");
   return options;
 }
 
@@ -759,10 +767,28 @@ int RunDashboardMode(const CliOptions &options,
   snapshot_collector->BindRuntimeSession(runtime_session);
   runtime_session->MarkReady();
   std::shared_ptr<dsp::fhss::dashboard::FHSSJobController> job_controller;
+  std::shared_ptr<dsp::fhss::dashboard::FHSSInvestigationBundleService>
+      investigation_service;
   if (options.dashboard)
     job_controller = std::make_shared<dsp::fhss::dashboard::FHSSJobController>(
         configuration_service, runtime_session,
         options.dashboard_artifact_root);
+  if (job_controller)
+  {
+    std::shared_ptr<dsp::fhss::dashboard::FHSSInvestigationBundleService::TestHooks>
+        investigation_hooks;
+    if (options.dashboard_investigation_qualification) {
+      investigation_hooks = std::make_shared<
+          dsp::fhss::dashboard::FHSSInvestigationBundleService::TestHooks>();
+      investigation_hooks->qualification_sequence = true;
+      std::cerr << "WARNING: startup-only Phase 7 investigation qualification "
+                   "fault sequence enabled; this mode is not for production\n";
+    }
+    investigation_service =
+        std::make_shared<dsp::fhss::dashboard::FHSSInvestigationBundleService>(
+            configuration_service, runtime_session, job_controller,
+            options.dashboard_artifact_root, investigation_hooks);
+  }
   // Dashboard production mode exposes runtime control but deliberately starts
   // stopped/not-built.  Rebuild and Start are public operator actions, so an
   // existing file path can never trigger receiver execution during launch.
@@ -775,7 +801,8 @@ int RunDashboardMode(const CliOptions &options,
   server_options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
           .handler = dsp::fhss::dashboard::MakeApiHandler(
-              configuration_service, runtime_session, job_controller),
+              configuration_service, runtime_session, job_controller,
+              investigation_service),
           .cooperative_cancellation = true,
           .maximum_checkpoint_latency = std::chrono::milliseconds(5)};
   if (!options.dashboard_websocket_gate_file.empty()) {
@@ -827,6 +854,8 @@ int RunDashboardMode(const CliOptions &options,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  if (investigation_service)
+    investigation_service->Shutdown();
   if (job_controller)
     job_controller->Shutdown();
   runtime_session->MarkShuttingDown();

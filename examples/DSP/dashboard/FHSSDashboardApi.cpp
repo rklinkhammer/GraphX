@@ -2,6 +2,7 @@
 
 #include "FHSSDashboardApi.hpp"
 #include "FHSSJobController.hpp"
+#include "FHSSInvestigationBundleService.hpp"
 #include "FHSSObservationService.hpp"
 
 #include "graph/dashboard/GraphConfigurationService.hpp"
@@ -205,12 +206,14 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
     std::shared_ptr<graph::dashboard::GraphConfigurationService>
         configuration_service,
     std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime_session,
-    std::shared_ptr<FHSSJobController> job_controller) {
+    std::shared_ptr<FHSSJobController> job_controller,
+    std::shared_ptr<FHSSInvestigationBundleService> investigation_service) {
   auto observation_service = std::make_shared<FHSSObservationService>(
       configuration_service, std::move(runtime_session));
   return [service = std::move(configuration_service),
           observation_service = std::move(observation_service),
-          job_controller = std::move(job_controller)](
+          job_controller = std::move(job_controller),
+          investigation_service = std::move(investigation_service)](
              const ApiRequest &request,
              const graph::dashboard::EmbeddedDashboardServer::ApiContext
                  &context) -> std::optional<ApiResponse> {
@@ -229,6 +232,13 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
                                              : "application/json",
                          .body = result.document.dump()};
     };
+    const auto investigation_response = [](FHSSInvestigationBundleService::Result result) {
+      return ApiResponse{.status_code = result.status_code,
+                         .content_type = result.status_code >= 400
+                                             ? "application/problem+json"
+                                             : "application/json",
+                         .body = result.document.dump()};
+    };
     const auto parse_body = [&]() -> std::optional<nlohmann::json> {
       try {
         return nlohmann::json::parse(request.body);
@@ -236,6 +246,45 @@ graph::dashboard::EmbeddedDashboardServer::ApiHandler MakeApiHandler(
         return std::nullopt;
       }
     };
+    if (investigation_service && request.method == "GET" &&
+        request.path == "/api/v1/fhss/investigations/operations")
+      return investigation_response(investigation_service->List());
+    if (investigation_service && request.method == "GET" &&
+        request.path == "/api/v1/fhss/investigations/quota")
+      return investigation_response(investigation_service->Quota());
+    if (investigation_service && request.method == "POST" &&
+        (request.path == "/api/v1/fhss/investigations/exports" ||
+         request.path == "/api/v1/fhss/investigations/import-validations" ||
+         request.path == "/api/v1/fhss/investigations/replays")) {
+      const auto body = parse_body();
+      if (!body)
+        return ErrorResponse(400, "invalid_json",
+                             "investigation request is not valid JSON");
+      const auto key = request.headers.contains("idempotency-key")
+                           ? request.headers.at("idempotency-key")
+                           : std::string{};
+      if (request.path.ends_with("/exports"))
+        return investigation_response(investigation_service->SubmitExport(*body, key));
+      if (request.path.ends_with("/import-validations"))
+        return investigation_response(investigation_service->SubmitValidation(*body, key));
+      return investigation_response(investigation_service->SubmitReplay(*body, key));
+    }
+    constexpr std::string_view investigation_prefix =
+        "/api/v1/fhss/investigations/operations/";
+    if (investigation_service && request.path.starts_with(investigation_prefix)) {
+      const auto suffix = request.path.substr(investigation_prefix.size());
+      constexpr std::string_view cancel_suffix = "/cancel";
+      if (request.method == "POST" && suffix.ends_with(cancel_suffix)) {
+        const auto body = parse_body();
+        if (!body || !body->is_object() || !body->empty())
+          return ErrorResponse(400, "invalid_cancel_request",
+                               "cancel body must be an empty object");
+        return investigation_response(investigation_service->Cancel(
+            suffix.substr(0, suffix.size() - cancel_suffix.size())));
+      }
+      if (request.method == "GET" && suffix.find('/') == std::string::npos)
+        return investigation_response(investigation_service->Get(suffix));
+    }
     if (job_controller && request.method == "GET" &&
         request.path == "/api/v1/fhss/jobs")
       return job_response(job_controller->List());

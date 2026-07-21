@@ -156,6 +156,8 @@ struct FHSSJobController::Job {
   nlohmann::json receiver_result = nullptr;
   nlohmann::json receiver_observation = nullptr;
   nlohmann::json comparison = nullptr;
+  nlohmann::json receiver_observation_document = nullptr;
+  nlohmann::json comparison_document = nullptr;
   bool cancel_requested = false;
   bool generator_invoked = false;
   bool replay_invoked = false;
@@ -587,6 +589,23 @@ FHSSJobController::Result FHSSJobController::List() const {
              {"truncated", entries.size() < jobs_.size()}}}}};
 }
 
+std::optional<FHSSJobController::InvestigationSource>
+FHSSJobController::GetInvestigationSource(std::string_view job_id) const {
+  std::lock_guard lock(mutex_);
+  const auto found = std::ranges::find(jobs_, job_id, &Job::job_id);
+  if (found == jobs_.end() || (*found)->state != "completed" ||
+      !(*found)->receiver_observation_document.is_object() ||
+      !(*found)->comparison_document.is_object() ||
+      !(*found)->receiver_result.is_object())
+    return std::nullopt;
+  return InvestigationSource{.directory = (*found)->directory,
+                             .job = JobJson(**found),
+                             .observation =
+                                 (*found)->receiver_observation_document,
+                             .comparison = (*found)->comparison_document,
+                             .receiver_result = (*found)->receiver_result};
+}
+
 FHSSJobController::Result FHSSJobController::Cancel(std::string_view job_id) {
   bool stop_runtime = false;
   std::shared_ptr<Job> job;
@@ -979,6 +998,8 @@ void FHSSJobController::Process(const std::shared_ptr<Job> &job,
       job->receiver_result = observation.contains("receiver_message_result")
                                  ? observation.at("receiver_message_result")
                                  : nlohmann::json(nullptr);
+      job->receiver_observation_document = observation;
+      job->comparison_document = comparison;
       job->comparison = {
           {"evaluation_state",
            comparison.value("evaluation_state", "unavailable")},
