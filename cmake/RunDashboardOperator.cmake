@@ -1,6 +1,16 @@
 if(NOT DEFINED CONTRACT_PYTHON OR NOT DEFINED SOURCE_DIR OR NOT DEFINED BUILD_DIR)
   message(FATAL_ERROR "CONTRACT_PYTHON, SOURCE_DIR, and BUILD_DIR are required")
 endif()
+# Source and installed operator lanes intentionally use fixed install/evidence
+# paths. RUN_SERIAL only serializes tests inside one CTest process, so take an
+# OS-level lock to prevent independent CTest invocations or agents from
+# deleting, rewriting, or resource-contending those paths concurrently.
+file(LOCK "${BUILD_DIR}/fhss-dashboard-operator.lock"
+     GUARD PROCESS TIMEOUT 1800 RESULT_VARIABLE operator_lock_result)
+if(NOT operator_lock_result EQUAL 0)
+  message(FATAL_ERROR
+    "could not acquire exclusive dashboard operator lock: ${operator_lock_result}")
+endif()
 set(operator "${SOURCE_DIR}/examples/DSP/dashboard/operator/fhss_dashboard_operator.py")
 if(NOT DEFINED PHASE)
   set(PHASE 1)

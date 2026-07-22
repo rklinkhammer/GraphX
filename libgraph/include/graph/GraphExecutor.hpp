@@ -234,6 +234,22 @@ public:
  * @return Result of the operation.
  */
     ExecutionResult Stop();
+    /**
+     * @brief Publish a cooperative stop request without stopping graph objects.
+     *
+     * This operation is safe for a control thread to use while Execute() owns
+     * the graph lifecycle.  Execute() observes the stopped capability and
+     * enters the sole GraphExecutor StopExpected teardown on the execution
+     * thread. GraphManager::Join may defensively republish idempotent component
+     * stops on that same thread before joining; no control-thread graph teardown
+     * occurs.
+     */
+    void RequestStop() noexcept;
+    /// @brief Number of serialized graph teardown sequences entered.
+    /// @details Exposed for lifecycle regression diagnostics.
+    std::uint64_t GetStopSequenceCount() const noexcept {
+        return stop_sequence_count_.load(std::memory_order_acquire);
+    }
 /**
  * @brief Join.
  * @return Result of the operation.
@@ -444,6 +460,7 @@ private:
     std::atomic<ExecutionState> current_state_{graph::ExecutionState::STOPPED};
     std::atomic<std::uint64_t> execution_attempt_{0};
     std::atomic<std::uint64_t> startup_complete_attempt_{0};
+    std::atomic<std::uint64_t> stop_sequence_count_{0};
 
     mutable std::atomic<bool> is_stopped{false};
 

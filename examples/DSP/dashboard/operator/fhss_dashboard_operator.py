@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External Phase 1-6 operator for the loopback-only GraphX FHSS dashboard."""
+"""External Phase 1-8 operator for the loopback-only GraphX FHSS dashboard."""
 
 from __future__ import annotations
 
@@ -42,6 +42,11 @@ OWNED_MARKER = ".graphx-fhss-dashboard-operator"
 MIN_SCREENSHOT_WIDTH = 640
 MIN_SCREENSHOT_HEIGHT = 360
 GENERATOR_TIMEOUT_SECONDS = 60
+# WebDriver BiDi carries browser-automation results, not dashboard protocol
+# traffic.  The reviewed axe-core 4.12.1 result observed during Phase 8 was
+# 1,295,262 bytes, so retain a finite 4 MiB qualification-client allowance.
+FIREFOX_BIDI_REVIEWED_AXE_FRAME_BYTES = 1_295_262
+FIREFOX_BIDI_RECEIVE_MAX_BYTES = 4 * 1024 * 1024
 RECEIVER_AUDIT_JQ = r'''[path(..) as $p | $p[]? |
   select(type == "string") | ascii_downcase |
   select(. == "messages" or contains("truth") or contains("schedule") or
@@ -57,6 +62,12 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(65536), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def firefox_bidi_message_too_big(error: BaseException) -> bool:
+    """Return whether a WebSocket close reports the bounded BiDi cap."""
+    return any(getattr(frame, "code", None) == 1009 for frame in
+               (getattr(error, "rcvd", None), getattr(error, "sent", None)))
 
 
 def masked_websocket_text_frame(payload: bytes, mask: bytes) -> bytes:
@@ -421,6 +432,8 @@ class FirefoxBidiSession:
         if profile.exists():
             shutil.rmtree(profile)
         profile.mkdir(parents=True)
+        (profile / "user.js").write_text(
+            'user_pref("ui.prefersReducedMotion", 1);\n', encoding="utf-8")
         self._profile = profile
         command = [str(locate_firefox()), "--headless", "--no-remote",
                    "--profile", str(profile), "--remote-debugging-port",
@@ -435,7 +448,8 @@ class FirefoxBidiSession:
             try:
                 self._socket = websocket_connect(
                     f"ws://127.0.0.1:{port}/session", open_timeout=1,
-                    close_timeout=1, compression=None)
+                    close_timeout=1, compression=None,
+                    max_size=FIREFOX_BIDI_RECEIVE_MAX_BYTES)
                 break
             except Exception:
                 time.sleep(0.1)
@@ -465,7 +479,16 @@ class FirefoxBidiSession:
             {"id": identifier, "method": method, "params": params}))
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
-            response = json.loads(self._socket.recv(timeout=5))
+            try:
+                received = self._socket.recv(timeout=5)
+            except Exception as error:
+                if firefox_bidi_message_too_big(error):
+                    raise RuntimeError(
+                        "Firefox BiDi response exceeded the finite "
+                        f"{FIREFOX_BIDI_RECEIVE_MAX_BYTES}-byte evidence-client "
+                        "receive limit") from error
+                raise
+            response = json.loads(received)
             if response.get("type") == "event":
                 if response.get("method") == "log.entryAdded":
                     entry = dict(response.get("params", {}).get("entry", {}))
@@ -512,6 +535,14 @@ class FirefoxBidiSession:
         encoded = self.call("browsingContext.captureScreenshot", {
             "context": self.context, "origin": "viewport"})["data"]
         destination.write_bytes(base64.b64decode(str(encoded), validate=True))
+
+    def key(self, value: str) -> None:
+        """Send one genuine WebDriver BiDi keyboard key press."""
+        self.call("input.performActions", {
+            "context": self.context,
+            "actions": [{"type":"key", "id":"phase8-keyboard", "actions":[
+                {"type":"keyDown", "value":value},
+                {"type":"keyUp", "value":value}]}]})
 
     @property
     def messages(self) -> list[dict[str, object]]:
@@ -855,14 +886,54 @@ def validate_phase6_wire_transcript_negative_corpus(
     return all(not validate_phase6_wire_transcript(item) for item in mutations)
 
 
+def browser_websocket_outage_predicates(
+        result: dict[str, object]) -> dict[str, object]:
+    """Expose every browser outage acceptance predicate for evidence/tests."""
+    outage_http = dict(result.get("outage_http", {}))
+    coherent = dict(result.get("coherent_return", {}))
+    behavioral = dict(result.get("behavioral", {}))
+    reconnect = dict(result.get("stable_reconnect_reset", {}))
+    messages = list(result.get("messages", []))
+    return {
+        "reset_status_200": outage_http.get("reset_status") == 200,
+        "health_status_200": outage_http.get("health_status") == 200,
+        "snapshot_status_200": outage_http.get("snapshot_status") == 200,
+        "coherent_return_agrees": coherent.get("agrees") is True,
+        "behavioral": {str(name): value is True
+                       for name, value in behavioral.items()},
+        "behavioral_nonempty": bool(behavioral),
+        "reconnect_attempt_observed": (
+            isinstance(reconnect.get("before"), int) and
+            reconnect["before"] > 0),
+        "stable_reconnect_reset": reconnect.get("after") == 0,
+        "console_clean": not any(
+            str(message.get("level", "")).lower() in
+            ("warning", "warn", "error")
+            for message in messages if isinstance(message, dict)),
+    }
+
+
+def browser_websocket_outage_passes(predicates: dict[str, object]) -> bool:
+    """Evaluate a fully materialized browser outage predicate record."""
+    behavioral = predicates.get("behavioral")
+    return (isinstance(behavioral, dict) and bool(behavioral) and
+            all(value is True for value in behavioral.values()) and
+            all(value is True for name, value in predicates.items()
+                if name != "behavioral"))
+
+
 def qualify_browser_websocket_outage(url: str, port: int,
                                      output: Path) -> dict[str, object]:
     """Drive the production page through real WS loss, polling, and restore."""
     gate = output / "phase6-websocket-disabled.flag"
+    diagnostic_path = output / "phase6-browser-transport-diagnostic.json"
     gate.unlink(missing_ok=True)
+    diagnostic_path.unlink(missing_ok=True)
     transitions: list[dict[str, object]] = []
+    stage = "launch_browser"
     try:
         with FirefoxBidiSession(output) as browser:
+            stage = "navigate"
             browser.navigate(url + "/?transport_test=1")
             browser.wait_for(
                 "document.getElementById('event-transport').textContent.length > 0")
@@ -883,6 +954,7 @@ def qualify_browser_websocket_outage(url: str, port: int,
             transitions.append({"state": "live", "dom": live,
                                 "at": datetime.now(timezone.utc).isoformat()})
 
+            stage = "observe_polling_fallback"
             gate.write_text("websocket-disabled\n", encoding="utf-8")
             fallback = str(browser.wait_for(
                 "document.getElementById('event-transport').textContent.includes("
@@ -904,6 +976,7 @@ def qualify_browser_websocket_outage(url: str, port: int,
             transitions.append({"state": "polling", "dom": polling,
                                 "at": datetime.now(timezone.utc).isoformat()})
 
+            stage = "restore_websocket"
             gate.unlink(missing_ok=True)
             browser.wait_for(
                 "document.getElementById('event-transport').textContent.includes("
@@ -934,9 +1007,16 @@ def qualify_browser_websocket_outage(url: str, port: int,
             """)
             reconnect_before_stable = int(browser.evaluate(
                 "window.__graphxDashboardTransportTest.state().reconnect_attempt"))
-            time.sleep(5.2)
-            reconnect_after_stable = int(browser.evaluate(
-                "window.__graphxDashboardTransportTest.state().reconnect_attempt"))
+            # The page resets this counter only after the restored connection's
+            # stable timer fires. Observe that semantic transition directly;
+            # a fixed sleep races browser scheduling under qualification load.
+            stable_state = json.loads(str(browser.wait_for("""
+              (() => {
+                const state = window.__graphxDashboardTransportTest.state();
+                return state.reconnect_attempt === 0 ? JSON.stringify(state) : '';
+              })()
+            """, 10)))
+            reconnect_after_stable = int(stable_state["reconnect_attempt"])
             behavioral = browser.evaluate("""
               (() => {
                 const hooks = window.__graphxDashboardTransportTest;
@@ -1033,16 +1113,37 @@ def qualify_browser_websocket_outage(url: str, port: int,
                     "after": reconnect_after_stable},
                 "messages": messages,
             }
-            if (reset_status != 200 or health_status != 200 or
-                    snapshot_status != 200 or
-                    not result["coherent_return"].get("agrees") or
-                    not all(result["behavioral"].values()) or
-                    reconnect_before_stable <= 0 or reconnect_after_stable != 0 or
-                    any(str(message.get("level", "")).lower() in
-                        ("warning", "warn", "error") for message in messages)):
+            predicates = browser_websocket_outage_predicates(result)
+            result["predicates"] = predicates
+            result["result"] = (
+                "PASS" if browser_websocket_outage_passes(predicates) else "FAIL")
+            diagnostic_path.write_text(
+                json.dumps(result, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8")
+            if result["result"] != "PASS":
+                failed = [name for name, value in predicates.items()
+                          if (not all(value.values()) if isinstance(value, dict)
+                              else value is not True)]
                 raise RuntimeError(
-                    "headless browser outage qualification was not clean/coherent")
+                    "headless browser outage qualification failed; "
+                    f"failed={failed}; evidence={diagnostic_path}; "
+                    f"predicates={json.dumps(predicates, sort_keys=True)}")
             return result
+    except Exception as error:
+        if not diagnostic_path.exists():
+            diagnostic_path.write_text(json.dumps({
+                "schema":"graphx.dashboard.browser_transport_diagnostic.v1",
+                "result":"FAIL", "stage":stage,
+                "captured_at":datetime.now(timezone.utc).isoformat().replace(
+                    "+00:00", "Z"),
+                "transitions":transitions,
+                "error":{"type":type(error).__name__, "message":str(error)},
+            }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if str(diagnostic_path) in str(error):
+            raise
+        raise RuntimeError(
+            f"browser outage qualification failed at {stage}; "
+            f"evidence={diagnostic_path}; cause={error}") from error
     finally:
         gate.unlink(missing_ok=True)
 
@@ -1688,8 +1789,8 @@ def start_served_phase6_case(port: int, case: str, output: Path,
 
 
 def exercise(args: argparse.Namespace) -> int:
-    if args.phase not in (1, 2, 3, 4, 5, 6, 7):
-        raise RuntimeError("this operator implements Phases 1 through 7 only")
+    if args.phase not in (1, 2, 3, 4, 5, 6, 7, 8):
+        raise RuntimeError("this operator implements Phases 1 through 8 only")
     phase = args.phase
     output = args.output_dir.resolve()
     output_preexisted = output.exists()
@@ -3418,6 +3519,21 @@ def exercise(args: argparse.Namespace) -> int:
                 phase6_manifest_bytes)
             persist("phase6_screenshot_manifest", phase6_manifest_bytes)
         if phase >= 7:
+            phase7_stage_durations: dict[str, dict[str, object]] = {}
+            phase7_timing_path = output / "phase7-stage-durations.json"
+
+            def record_phase7_duration(name: str, started: float,
+                                       state: object) -> None:
+                phase7_stage_durations[name] = {
+                    "elapsed_seconds":time.monotonic() - started,
+                    "terminal_state":state,
+                    "recorded_at":datetime.now(timezone.utc).isoformat().replace(
+                        "+00:00", "Z")}
+                phase7_timing_path.write_text(json.dumps({
+                    "schema":"graphx.dashboard.phase7.stage_durations.v1",
+                    "stages":phase7_stage_durations}, indent=2) + "\n",
+                    encoding="utf-8")
+
             def submit_investigation(target: str, payload: dict[str, object],
                                      key: str) -> tuple[int, dict[str, str], dict[str, object]]:
                 code, response_headers, response_body = request(
@@ -3444,12 +3560,16 @@ def exercise(args: argparse.Namespace) -> int:
                 raise RuntimeError(
                     f"investigation did not terminate: {operation_id}; {latest}")
 
+            p7_source_started = time.monotonic()
             p7_job_status, _, p7_job_body, p7_job = submit_job(
                 "/api/v1/fhss/commands/step",
                 {"request_id":"phase7-source-job", "timeout_ms":60000},
                 "phase7-source-job-key")
             persist("phase7_source_job_submit", p7_job_body)
             p7_terminal = wait_job(str(p7_job["job_id"]), 70)
+            record_phase7_duration(
+                "primary_source_job", p7_source_started,
+                p7_terminal.get("state"))
             persist("phase7_source_job_terminal",
                     json.dumps(p7_terminal, sort_keys=True).encode())
             check("Phase7 committed source job",
@@ -3470,6 +3590,7 @@ def exercise(args: argparse.Namespace) -> int:
                   json.dumps(unconfirmed, sort_keys=True))
 
             def export_bundle(name: str, mode: str) -> dict[str, object]:
+                stage_started = time.monotonic()
                 payload: dict[str, object] = {
                     "request_id":f"phase7-export-{mode}", "bundle_name":name,
                     "job_id":job_id,"iq_mode":mode,"timeout_ms":120000}
@@ -3478,9 +3599,21 @@ def exercise(args: argparse.Namespace) -> int:
                     "/api/v1/fhss/investigations/exports", payload,
                     f"phase7-export-{mode}-key")
                 if code != 202: raise RuntimeError(f"{mode} export HTTP {code}: {submitted}")
-                return wait_investigation(str(submitted["operation_id"]), 120)
+                try:
+                    terminal = wait_investigation(
+                        str(submitted["operation_id"]), 120)
+                except Exception:
+                    record_phase7_duration(
+                        f"{name}_{mode}_export", stage_started,
+                        "operator_wait_failed")
+                    raise
+                record_phase7_duration(
+                    f"{name}_{mode}_export", stage_started,
+                    terminal.get("state"))
+                return terminal
 
             def operation(name: str, kind: str, qualifier: str = "") -> dict[str, object]:
+                stage_started = time.monotonic()
                 route = ("import-validations" if kind == "validate" else "replays")
                 identity = f"{kind}-{name}{qualifier}"
                 code, _, submitted = submit_investigation(
@@ -3488,7 +3621,18 @@ def exercise(args: argparse.Namespace) -> int:
                     {"request_id":f"phase7-{identity}","bundle_name":name,
                      "timeout_ms":120000}, f"phase7-{identity}-key")
                 if code != 202: raise RuntimeError(f"{kind} HTTP {code}: {submitted}")
-                return wait_investigation(str(submitted["operation_id"]), 120)
+                try:
+                    terminal = wait_investigation(
+                        str(submitted["operation_id"]), 120)
+                except Exception:
+                    record_phase7_duration(
+                        f"{name}_{kind}{qualifier}", stage_started,
+                        "operator_wait_failed")
+                    raise
+                record_phase7_duration(
+                    f"{name}_{kind}{qualifier}", stage_started,
+                    terminal.get("state"))
+                return terminal
 
             reference_export = export_bundle("phase7-reference", "reference")
             reference_validation = operation("phase7-reference", "validate")
@@ -3955,6 +4099,7 @@ def exercise(args: argparse.Namespace) -> int:
                         headers if payload is not None else None, timeout=10)
                     return code, json.loads(body)
 
+                q_source_started = time.monotonic()
                 q_job_code, q_job_submit = q_request(
                     "POST", "/api/v1/fhss/commands/step",
                     {"request_id":"phase7-qualification-source",
@@ -3972,6 +4117,9 @@ def exercise(args: argparse.Namespace) -> int:
                 check("Phase7 qualification source job completed",
                       q_job_code == 202 and q_job_terminal.get("state") == "completed",
                       json.dumps(q_job_terminal.get("terminal"), sort_keys=True))
+                record_phase7_duration(
+                    "qualification_source_job", q_source_started,
+                    q_job_terminal.get("state"))
 
                 q_bundle_root = (qualification_output /
                                  "phase5-job-artifacts" /
@@ -4024,8 +4172,12 @@ def exercise(args: argparse.Namespace) -> int:
                         (2, "copy", "investigation_quota_exceeded",
                          "copied-IQ size limit"),
                         (3, "copy", "artifact_enospc", "deterministic ENOSPC")):
+                    qualification_stage_started = time.monotonic()
                     submitted = q_submit_export(sequence, mode)
                     terminal = q_wait(str(submitted["operation_id"]))
+                    record_phase7_duration(
+                        f"qualification_export_{sequence}",
+                        qualification_stage_started, terminal.get("state"))
                     persist(f"phase7_qualification_{sequence}_{label}",
                             json.dumps(terminal, sort_keys=True).encode())
                     check(f"Phase7 external {label} transition and cleanup",
@@ -4038,6 +4190,7 @@ def exercise(args: argparse.Namespace) -> int:
                         (4, "reference", "hashing", "cancel during hashing"),
                         (5, "copy", "copying", "cancel during copying"),
                         (6, "reference", "publishing", "cancel before rename")):
+                    qualification_stage_started = time.monotonic()
                     submitted = q_submit_export(sequence, mode)
                     operation_id = str(submitted["operation_id"])
                     observed = q_wait(operation_id, terminal=False,
@@ -4046,6 +4199,9 @@ def exercise(args: argparse.Namespace) -> int:
                         "POST", "/api/v1/fhss/investigations/operations/" +
                         operation_id + "/cancel", {})
                     terminal = q_wait(operation_id)
+                    record_phase7_duration(
+                        f"qualification_export_{sequence}",
+                        qualification_stage_started, terminal.get("state"))
                     persist(f"phase7_qualification_{sequence}_{label}",
                             json.dumps({"observed":observed, "accepted":accepted,
                                         "terminal":terminal},
@@ -4055,8 +4211,12 @@ def exercise(args: argparse.Namespace) -> int:
                           q_cleanup(sequence),
                           json.dumps(terminal.get("terminal"), sort_keys=True))
 
+                qualification_stage_started = time.monotonic()
                 timeout_submit = q_submit_export(7, "reference", 100)
                 timeout_terminal = q_wait(str(timeout_submit["operation_id"]))
+                record_phase7_duration(
+                    "qualification_export_7", qualification_stage_started,
+                    timeout_terminal.get("state"))
                 persist("phase7_qualification_timeout",
                         json.dumps(timeout_terminal, sort_keys=True).encode())
                 check("Phase7 external deterministic timeout and cleanup",
@@ -4065,6 +4225,7 @@ def exercise(args: argparse.Namespace) -> int:
                           "operation_timeout" and q_cleanup(7),
                       json.dumps(timeout_terminal.get("terminal"), sort_keys=True))
 
+                qualification_stage_started = time.monotonic()
                 shutdown_submit = q_submit_export(8, "reference")
                 q_wait(str(shutdown_submit["operation_id"]), terminal=False,
                        state="hashing")
@@ -4078,6 +4239,9 @@ def exercise(args: argparse.Namespace) -> int:
                                     "operation_id":shutdown_submit["operation_id"],
                                     "destination_absent":q_cleanup(8)},
                                    sort_keys=True).encode())
+                record_phase7_duration(
+                    "qualification_export_8", qualification_stage_started,
+                    "process_shutdown")
                 check("Phase7 bounded active-export shutdown and cleanup",
                       shutdown_elapsed <= 5 and q_cleanup(8),
                       f"elapsed={shutdown_elapsed:.3f}s")
@@ -4105,6 +4269,605 @@ def exercise(args: argparse.Namespace) -> int:
                       ("warning", "warn", "error") for entry in browser_console),
                   f"captures={len(browser_case_labels)}; "
                   f"console={len(browser_console)}")
+            persist("phase7_stage_durations", phase7_timing_path.read_bytes())
+            if phase == 8:
+                with FirefoxBidiSession(output) as browser:
+                    browser.navigate(url)
+                    browser.wait_for(
+                        "document.getElementById('event-transport').textContent.length > 0")
+                    browser.evaluate("document.activeElement.blur(); true")
+                    browser.key("\ue004")
+                    skip_focused = browser.evaluate(
+                        "document.activeElement.classList.contains('skip-link')")
+                    browser.key("\ue007")
+                    skip_activated = browser.evaluate(
+                        "document.activeElement.id === 'dashboard-main'")
+                    browser.evaluate("document.getElementById('tab-main').focus(); true")
+                    browser.key("\ue014")
+                    real_tab_right = browser.evaluate(
+                        "document.activeElement.id === 'tab-graph' && "
+                        "document.getElementById('panel-graph').classList.contains('active')")
+                    browser.key("\ue011")
+                    real_tab_home = browser.evaluate(
+                        "document.activeElement.id === 'tab-main' && "
+                        "document.getElementById('panel-main').classList.contains('active')")
+                    browser.evaluate("document.getElementById('tab-graph').click(); "
+                                     "document.getElementById('runtime-rebuild').focus(); true")
+                    browser.key("\ue007")
+                    browser.wait_for(
+                        "!document.getElementById('runtime-status').textContent"
+                        ".includes('unavailable')", 20)
+                    lifecycle_rebuild_text = browser.evaluate(
+                        "document.getElementById('runtime-status').textContent")
+                    browser.evaluate("document.getElementById('runtime-start').focus(); true")
+                    browser.key("\ue007")
+                    time.sleep(0.2)
+                    browser.evaluate("document.getElementById('runtime-stop').focus(); true")
+                    browser.key("\ue007")
+                    browser.wait_for(
+                        "document.getElementById('runtime-status').textContent.length > 20", 20)
+                    lifecycle_stop_text = browser.evaluate(
+                        "document.getElementById('runtime-status').textContent")
+                    browser.evaluate(
+                        "document.getElementById('config-validate').focus(); true")
+                    focus_before_refresh = browser.evaluate("document.activeElement.id")
+                    time.sleep(1.2)
+                    focus_after_refresh = browser.evaluate("document.activeElement.id")
+                    browser.evaluate("selectedJob=" + json.dumps(p7_terminal) + "; "
+                                     "document.getElementById('investigation-bundle-name')"
+                                     ".value='phase8-keyboard-export'; "
+                                     "document.getElementById('investigation-export').focus(); true")
+                    export_identity_before = str(browser.evaluate(
+                        "document.getElementById('investigation-identity').textContent"))
+                    browser.key("\ue007")
+                    browser.wait_for(
+                        "document.getElementById('investigation-identity').textContent !== "
+                        + json.dumps(export_identity_before), 20)
+                    keyboard_export_identity = browser.evaluate(
+                        "document.getElementById('investigation-identity').textContent")
+                    keyboard_export_operation = str(browser.evaluate(
+                        "selectedInvestigationOperationId"))
+                    keyboard_export_terminal = wait_investigation(
+                        keyboard_export_operation, 60)
+                    validate_identity_before = str(browser.evaluate(
+                        "document.getElementById('investigation-identity').textContent"))
+                    browser.evaluate(
+                        "document.getElementById('investigation-validate').focus(); true")
+                    browser.key("\ue007")
+                    browser.wait_for(
+                        "document.getElementById('investigation-identity').textContent !== "
+                        + json.dumps(validate_identity_before), 20)
+                    keyboard_validate_identity = browser.evaluate(
+                        "document.getElementById('investigation-identity').textContent")
+                    keyboard_validate_operation = str(browser.evaluate(
+                        "selectedInvestigationOperationId"))
+                    keyboard_validate_terminal = wait_investigation(
+                        keyboard_validate_operation, 60)
+                    replay_identity_before = str(keyboard_validate_identity)
+                    browser.evaluate(
+                        "document.getElementById('investigation-replay').focus(); true")
+                    browser.key("\ue007")
+                    browser.wait_for(
+                        "document.getElementById('investigation-identity').textContent !== "
+                        + json.dumps(replay_identity_before), 20)
+                    keyboard_replay_identity = browser.evaluate(
+                        "document.getElementById('investigation-identity').textContent")
+                    keyboard_replay_operation = str(browser.evaluate(
+                        "selectedInvestigationOperationId"))
+                    keyboard_replay_terminal = wait_investigation(
+                        keyboard_replay_operation, 60)
+                    accessibility = json.loads(str(browser.evaluate(r"""
+                      (() => {
+                        const tabs=[...document.querySelectorAll('[role=tab]')];
+                        const controls=[...document.querySelectorAll(
+                          'button,input,select,textarea,a[href]')];
+                        const named=(element) => {
+                          const id=element.id;
+                          const label=id && document.querySelector(`label[for="${id}"]`);
+                          const wrapped=element.closest('label');
+                          return Boolean(element.getAttribute('aria-label') ||
+                            element.getAttribute('aria-labelledby') || label || wrapped ||
+                            element.textContent.trim() || element.title);
+                        };
+                        const main=tabs[0], graph=tabs[1];
+                        const focus=getComputedStyle(main);
+                        const rgb=(hex) => {
+                          const value=hex.trim().replace('#','');
+                          return [0,2,4].map(i=>parseInt(value.slice(i,i+2),16)/255);
+                        };
+                        const luminance=(hex) => rgb(hex).map(value=>
+                          value<=0.04045 ? value/12.92 : ((value+0.055)/1.055)**2.4)
+                          .reduce((sum,value,index)=>sum+value*[0.2126,0.7152,0.0722][index],0);
+                        const contrast=(a,b) => {
+                          const values=[luminance(a),luminance(b)].sort((x,y)=>y-x);
+                          return (values[0]+0.05)/(values[1]+0.05);
+                        };
+                        const contrastRatios={
+                          foreground:contrast('#111827','#ffffff'),
+                          muted:contrast('#4b5563','#ffffff'),
+                          accent:contrast('#0f766e','#ffffff'),
+                          focus:contrast('#7c3aed','#ffffff')};
+                        const status=[...document.querySelectorAll(
+                          '[role=status],[aria-live]')].map(e=>({id:e.id,
+                            role:e.getAttribute('role'),live:e.getAttribute('aria-live')}));
+                        return JSON.stringify({
+                          title:document.title,language:document.documentElement.lang,
+                          main_landmark:Boolean(document.querySelector('main')),
+                          navigation_landmark_count:document.querySelectorAll('nav').length,
+                          skip_link:Boolean(document.querySelector('.skip-link')),
+                          tablist_count:document.querySelectorAll('[role=tablist]').length,
+                          tab_count:tabs.length,
+                          tab_roving:tabs.filter(t=>t.tabIndex===0).length===1,
+                          labelled_legend_group:Boolean(document.querySelector(
+                            '.legend-row[role="group"][aria-label]')),
+                          unnamed_controls:controls.filter(e=>!named(e)).map(e=>e.id),
+                          focus_outline_style:focus.outlineStyle,
+                          focus_outline_width:focus.outlineWidth,
+                          contrast_ratios:contrastRatios,
+                          live_regions:status,
+                          required_live_regions:['event-transport','config-status','runtime-status',
+                            'job-state','investigation-state'].every(id=>status.some(x=>x.id===id)),
+                          unsafe_inline_handlers:document.querySelectorAll('[onclick]').length,
+                          heading_one_count:document.querySelectorAll('h1').length,
+                          visualization_text_alternative:[
+                            document.getElementById('receiver-spectrum').textContent,
+                            document.getElementById('timeline').innerText,
+                            document.getElementById('heatmap-meta').textContent
+                          ].every(text=>text.trim().length>10),
+                          errors_are_text:Boolean(document.getElementById('config-status') &&
+                            document.getElementById('runtime-status')),
+                          non_color_status:Boolean(document.querySelector('.badge') ||
+                            document.getElementById('event-transport')),
+                          reduced_motion_matches:matchMedia('(prefers-reduced-motion: reduce)').matches,
+                          reduced_motion_duration:getComputedStyle(document.body).animationDuration
+                        });
+                      })()
+                    """)))
+                    browser.call("browsingContext.setViewport", {
+                        "context": browser.context,
+                        "viewport": {"width": 320, "height": 800},
+                        "devicePixelRatio": 1})
+                    reflow = json.loads(str(browser.evaluate(r"""
+                      (() => JSON.stringify({
+                        viewport:innerWidth,
+                        document_width:document.documentElement.scrollWidth,
+                        body_width:document.body.scrollWidth,
+                        active_panel_visible:Boolean(document.querySelector('.tab-panel.active')),
+                        focused_id:document.activeElement && document.activeElement.id
+                      }))()
+                    """)))
+                    browser.call("browsingContext.setViewport", {
+                        "context": browser.context,
+                        "viewport": {"width": 1440, "height": 1000},
+                        "devicePixelRatio": 1})
+                    screenshot = output / "phase8-accessibility.png"
+                    browser.screenshot(screenshot)
+                    accessibility.update({
+                        "schema":"graphx.fhss.dashboard.phase8_browser_accessibility.v1",
+                        "browser_name":browser.capabilities.get("browserName"),
+                        "browser_version":browser.capabilities.get("browserVersion"),
+                        "browser_session_id":browser.session_id,
+                        "browser_context_id":browser.context,
+                        "dashboard_url":url,
+                        "real_keyboard_input":True,
+                        "skip_focused":skip_focused,
+                        "skip_activated":skip_activated,
+                        "tab_right":real_tab_right,
+                        "tab_home":real_tab_home,
+                        "lifecycle_rebuild_text":lifecycle_rebuild_text,
+                        "lifecycle_stop_text":lifecycle_stop_text,
+                        "focus_before_refresh":focus_before_refresh,
+                        "focus_after_refresh":focus_after_refresh,
+                        "keyboard_export_identity":keyboard_export_identity,
+                        "keyboard_validate_identity":keyboard_validate_identity,
+                        "keyboard_replay_identity":keyboard_replay_identity,
+                        "keyboard_operation_states":[
+                            keyboard_export_terminal.get("state"),
+                            keyboard_validate_terminal.get("state"),
+                            keyboard_replay_terminal.get("state")],
+                        "reflow_320_css_px":reflow,
+                        "reduced_motion_rule_present":"prefers-reduced-motion" in
+                            (Path(__file__).resolve().parents[1] /
+                             "index.html").read_text(encoding="utf-8"),
+                        "screenshot_sha256":sha256(screenshot),
+                        "console":browser.messages,
+                    })
+                accessibility_path = output / "phase8-browser-accessibility.json"
+                accessibility_path.write_text(
+                    json.dumps(accessibility, indent=2) + "\n", encoding="utf-8")
+                persist("phase8_browser_accessibility",
+                        accessibility_path.read_bytes())
+                persist("phase8_accessibility_screenshot", screenshot.read_bytes())
+                check("Phase8 maintained-browser WCAG automation",
+                      accessibility["language"] == "en" and
+                      accessibility["main_landmark"] is True and
+                      accessibility["navigation_landmark_count"] >= 1 and
+                      accessibility["skip_link"] is True and
+                      accessibility["skip_focused"] is True and
+                      accessibility["skip_activated"] is True and
+                      accessibility["real_keyboard_input"] is True and
+                      accessibility["tablist_count"] == 1 and
+                      accessibility["tab_count"] == 2 and
+                      accessibility["tab_right"] is True and
+                      accessibility["tab_home"] is True and
+                      accessibility["tab_roving"] is True and
+                      accessibility["labelled_legend_group"] is True and
+                      accessibility["unnamed_controls"] == [] and
+                      accessibility["unsafe_inline_handlers"] == 0 and
+                      accessibility["heading_one_count"] == 1 and
+                      accessibility["visualization_text_alternative"] is True and
+                      accessibility["errors_are_text"] is True and
+                      accessibility["required_live_regions"] is True and
+                      accessibility["non_color_status"] is True and
+                      accessibility["focus_before_refresh"] == "config-validate" and
+                      accessibility["focus_after_refresh"] == "config-validate" and
+                      len(accessibility["lifecycle_rebuild_text"]) > 20 and
+                      len(accessibility["lifecycle_stop_text"]) > 20 and
+                      "operation=" in accessibility["keyboard_export_identity"] and
+                      "operation=" in accessibility["keyboard_validate_identity"] and
+                      "operation=" in accessibility["keyboard_replay_identity"] and
+                      len({accessibility["keyboard_export_identity"],
+                           accessibility["keyboard_validate_identity"],
+                           accessibility["keyboard_replay_identity"]}) == 3 and
+                      accessibility["keyboard_operation_states"] ==
+                          ["completed", "completed", "completed"] and
+                      min(accessibility["contrast_ratios"].values()) >= 4.5 and
+                      accessibility["reduced_motion_rule_present"] is True and
+                      accessibility["reduced_motion_matches"] is True and
+                      reflow["document_width"] <= 320 and
+                      reflow["body_width"] <= 320 and
+                      all(str(entry.get("level", "")).lower() not in
+                          ("warning", "warn", "error")
+                          for entry in accessibility["console"]),
+                      json.dumps(accessibility, sort_keys=True))
+
+                def process_resources() -> dict[str, object]:
+                    stats: dict[str, object] = {
+                        "rss_kib":None, "threads":None, "handles":None,
+                        "rss_thread_probe":"unsupported",
+                        "handle_probe":"unsupported"}
+                    if sys.platform == "darwin":
+                        try:
+                            import ctypes
+                            class ProcTaskInfo(ctypes.Structure):
+                                _fields_ = [
+                                    ("virtual_size", ctypes.c_uint64),
+                                    ("resident_size", ctypes.c_uint64),
+                                    ("total_user", ctypes.c_uint64),
+                                    ("total_system", ctypes.c_uint64),
+                                    ("threads_user", ctypes.c_uint64),
+                                    ("threads_system", ctypes.c_uint64),
+                                    ("policy", ctypes.c_int32),
+                                    ("faults", ctypes.c_int32),
+                                    ("pageins", ctypes.c_int32),
+                                    ("cow_faults", ctypes.c_int32),
+                                    ("messages_sent", ctypes.c_int32),
+                                    ("messages_received", ctypes.c_int32),
+                                    ("syscalls_mach", ctypes.c_int32),
+                                    ("syscalls_unix", ctypes.c_int32),
+                                    ("csw", ctypes.c_int32),
+                                    ("threadnum", ctypes.c_int32),
+                                    ("numrunning", ctypes.c_int32),
+                                    ("priority", ctypes.c_int32)]
+                            info = ProcTaskInfo()
+                            libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+                            size = libproc.proc_pidinfo(
+                                process.pid, 4, 0, ctypes.byref(info),
+                                ctypes.sizeof(info))
+                            if size == ctypes.sizeof(info):
+                                stats["rss_kib"] = int(info.resident_size // 1024)
+                                stats["threads"] = int(info.threadnum)
+                                stats["rss_thread_probe"] = "libproc-PROC_PIDTASKINFO"
+                        except (OSError, AttributeError, ValueError):
+                            pass
+                    if stats["rss_thread_probe"] == "unsupported":
+                        ps = subprocess.run(
+                            ["ps", "-o", "rss=", "-o", "thcount=", "-p",
+                             str(process.pid)], text=True, capture_output=True,
+                            check=False)
+                        fields = ps.stdout.split()
+                        if len(fields) >= 2:
+                            stats["rss_kib"], stats["threads"] = map(int, fields[:2])
+                            stats["rss_thread_probe"] = "ps"
+                    lsof = shutil.which("lsof")
+                    if lsof:
+                        descriptors = subprocess.run(
+                            [lsof, "-a", "-p", str(process.pid)], text=True,
+                            capture_output=True, check=False)
+                        stats["handles"] = max(0, len(descriptors.stdout.splitlines()) - 1)
+                        stats["handle_probe"] = "lsof"
+                    return stats
+
+                before = process_resources()
+                soak_started = time.monotonic()
+                soak_statuses: list[int] = []
+                for iteration in range(64):
+                    route = "/healthz" if iteration % 2 == 0 else "/api/v1/fhss/status"
+                    soak_statuses.append(request(port, "GET", route, timeout=5)[0])
+
+                from websockets.sync.client import connect as websocket_connect
+                reconnect_results: list[bool] = []
+                for iteration in range(8):
+                    client = websocket_connect(
+                        f"ws://127.0.0.1:{port}/api/v1/fhss/events/stream",
+                        origin=url, open_timeout=5, close_timeout=2,
+                        max_size=256 * 1024, compression=None)
+                    hello = json.loads(client.recv(timeout=5))
+                    client.send(json.dumps({
+                        "action":"subscribe", "client_id":f"phase8-soak-{iteration}",
+                        "publisher_epoch":hello["publisher_epoch"],
+                        "last_sequence":hello["latest_sequence"]}))
+                    reconnect_results.append(
+                        hello.get("schema") == "graphx.dashboard.websocket_hello.v1")
+                    client.close()
+
+                config_candidates = [
+                    args.build_dir.resolve() / "share/graphx/config" /
+                        "fhss_cpsm_channelized_fixture_500msps.json",
+                    Path(__file__).resolve().parents[4] / "libdsp/config" /
+                        "fhss_cpsm_channelized_fixture_500msps.json"]
+                soak_schedule_source = next(
+                    (candidate for candidate in config_candidates
+                     if candidate.is_file()), None)
+                if soak_schedule_source is None:
+                    raise RuntimeError(
+                        "Phase8 soak requires the canonical FHSS generator schedule")
+                soak_graph = json.loads(
+                    soak_schedule_source.read_text(encoding="utf-8"))
+                soak_source_node = next(
+                    (node for node in soak_graph.get("nodes", [])
+                     if node.get("type") == "FHSSSyntheticIqSourceNode"), None)
+                if (not isinstance(soak_source_node, dict) or
+                        not isinstance(soak_source_node.get("node_config"), dict)):
+                    raise RuntimeError(
+                        "canonical FHSS graph has no synthetic-IQ generator config")
+                soak_schedule = copy.deepcopy(soak_source_node["node_config"])
+                soak_base_message = copy.deepcopy(soak_schedule["messages"][0])
+                soak_stride = (len(soak_base_message["pulses"]) + 1) * 6500
+                soak_schedule["messages"] = []
+                for message_index in range(48):
+                    soak_message = copy.deepcopy(soak_base_message)
+                    soak_message["message_id"] = 8000 + message_index
+                    soak_message["transmit_start_sample"] = (
+                        message_index * soak_stride)
+                    soak_schedule["messages"].append(soak_message)
+                soak_long_schedule_path = output / "phase8-soak-long-schedule.json"
+                soak_long_iq_path = output / "phase8-soak-long.cf32"
+                soak_long_truth_path = output / "phase8-soak-long-truth.json"
+                soak_long_sigmf_path = output / "phase8-soak-long.sigmf-meta"
+                soak_long_schedule_path.write_text(
+                    json.dumps(soak_schedule, indent=2), encoding="utf-8")
+                soak_long_command = [
+                    str(locate_generator(args.build_dir.resolve())),
+                    "--message-json", str(soak_long_schedule_path),
+                    "--iq-output", str(soak_long_iq_path),
+                    "--truth-output", str(soak_long_truth_path),
+                    "--sigmf-meta", str(soak_long_sigmf_path), "--force"]
+                soak_long_generated = subprocess.run(
+                    soak_long_command, text=True, capture_output=True,
+                    timeout=GENERATOR_TIMEOUT_SECONDS)
+                additional_commands.append(soak_long_command)
+                if (soak_long_generated.returncode != 0 or
+                        not soak_long_iq_path.is_file() or
+                        soak_long_iq_path.stat().st_size < 32_000_000):
+                    raise RuntimeError(
+                        "Phase8 long soak IQ generation failed: " +
+                        soak_long_generated.stderr)
+                soak_long_schedule_path.unlink()
+                soak_long_truth_path.unlink()
+
+                shutdown_output = output / "phase8-soak-shutdown"
+                shutdown_output.mkdir()
+                shutdown_args = copy.copy(args)
+                shutdown_args.output_dir = shutdown_output
+                shutdown_process, _, shutdown_port, shutdown_command = launch(
+                    shutdown_args)
+                additional_commands.append(shutdown_command)
+                _, shutdown_config_headers, _ = request(
+                    shutdown_port, "GET", "/api/v1/fhss/config/authoritative")
+                shutdown_long_patch = json.dumps([{
+                    "op":"add", "path":"/receiver_input", "value":{
+                        "file_path":str(soak_long_iq_path), "sample_format":"cf32_le",
+                        "first_complex_sample":0,
+                        "max_complex_samples":4_194_304,
+                        "max_read_complex_samples":4_194_304,
+                    }}]).encode()
+                shutdown_patch_code, _, shutdown_patch_body = request(
+                    shutdown_port, "PATCH", "/api/v1/fhss/config",
+                    shutdown_long_patch,
+                    {"Content-Type":"application/json-patch+json",
+                     "If-Match":shutdown_config_headers["etag"]}, timeout=10)
+                lifecycle_results: list[dict[str, object]] = []
+                for iteration in range(2):
+                    config_code, _, config_body = request(
+                        shutdown_port, "GET", "/api/v1/fhss/config/authoritative")
+                    revision = int(json.loads(config_body)["config_revision"])
+                    rebuild_code, _, rebuild_body = request(
+                        shutdown_port, "POST", "/api/v1/fhss/config/rebuild",
+                        json.dumps({"expected_revision":revision,
+                                    "command_id":f"phase8-soak-rebuild-{iteration}"}).encode(),
+                        {"Content-Type":"application/json"}, timeout=30)
+                    start_code, _, start_body = request(
+                        shutdown_port, "POST", "/api/v1/fhss/commands/start",
+                        json.dumps({"command_id":
+                                    f"phase8-soak-start-{iteration}"}).encode(),
+                        {"Content-Type":"application/json"}, timeout=30)
+                    running_seen = False
+                    running_deadline = time.monotonic() + 5
+                    while time.monotonic() < running_deadline:
+                        _, _, running_body = request(
+                            shutdown_port, "GET", "/api/v1/fhss/status", timeout=5)
+                        running_seen = (
+                            json.loads(running_body).get("lifecycle_state") ==
+                            "running")
+                        if running_seen:
+                            break
+                        time.sleep(0.01)
+                    stop_code, _, stop_body = request(
+                        shutdown_port, "POST", "/api/v1/fhss/commands/stop",
+                        json.dumps({"command_id":
+                                    f"phase8-soak-stop-{iteration}"}).encode(),
+                        {"Content-Type":"application/json"}, timeout=10)
+                    deadline = time.monotonic() + 45
+                    terminal: dict[str, object] = {}
+                    while time.monotonic() < deadline:
+                        _, _, terminal_body = request(
+                            shutdown_port, "GET", "/api/v1/fhss/status", timeout=5)
+                        terminal = json.loads(terminal_body)
+                        if terminal.get("lifecycle_state") in (
+                                "completed", "failed", "stopped"):
+                            break
+                        time.sleep(0.02)
+                    lifecycle_results.append({
+                        "config":config_code, "rebuild":rebuild_code,
+                        "start":start_code, "stop":stop_code,
+                        "running_seen":running_seen,
+                        "rebuild_document":json.loads(rebuild_body),
+                        "start_document":json.loads(start_body),
+                        "terminal_state":terminal.get("lifecycle_state"),
+                        "stop_document":json.loads(stop_body)})
+
+                export_replay_results: list[dict[str, object]] = []
+                for iteration in range(2):
+                    bundle_name = f"phase8-soak-{iteration}"
+                    code, _, submitted = submit_investigation(
+                        "/api/v1/fhss/investigations/exports",
+                        {"request_id":f"phase8-soak-export-{iteration}",
+                         "bundle_name":bundle_name, "job_id":job_id,
+                         "iq_mode":"reference", "timeout_ms":120000},
+                        f"phase8-soak-export-key-{iteration}")
+                    exported = wait_investigation(str(submitted["operation_id"]), 120)
+                    validate_code, _, validate_submitted = submit_investigation(
+                        "/api/v1/fhss/investigations/import-validations",
+                        {"request_id":f"phase8-soak-validate-{iteration}",
+                         "bundle_name":bundle_name,"timeout_ms":120000},
+                        f"phase8-soak-validate-key-{iteration}")
+                    validated = wait_investigation(
+                        str(validate_submitted["operation_id"]), 120)
+                    replay_code, _, replay_submitted = submit_investigation(
+                        "/api/v1/fhss/investigations/replays",
+                        {"request_id":f"phase8-soak-replay-{iteration}",
+                         "bundle_name":bundle_name,"timeout_ms":120000},
+                        f"phase8-soak-replay-key-{iteration}")
+                    replayed = wait_investigation(
+                        str(replay_submitted["operation_id"]), 120)
+                    export_replay_results.append({
+                        "submit_codes":[code, validate_code, replay_code],
+                        "states":[exported.get("state"), validated.get("state"),
+                                  replayed.get("state")],
+                        "matches_expected":replayed.get("result", {}).get(
+                            "matches_expected")})
+
+                shutdown_started = time.monotonic()
+                shutdown_process.send_signal(signal.SIGTERM)
+                shutdown_process.wait(timeout=8)
+                shutdown_elapsed = time.monotonic() - shutdown_started
+                shutdown_exit = shutdown_process.returncode
+                try:
+                    request(shutdown_port, "GET", "/healthz", timeout=1)
+                    shutdown_unreachable = False
+                except OSError:
+                    shutdown_unreachable = True
+                soak_elapsed = time.monotonic() - soak_started
+                after = process_resources()
+                probe_support = {
+                    "rss":isinstance(before["rss_kib"], int) and
+                          isinstance(after["rss_kib"], int),
+                    "threads":isinstance(before["threads"], int) and
+                              isinstance(after["threads"], int),
+                    "handles":isinstance(before["handles"], int) and
+                              isinstance(after["handles"], int),
+                }
+                dimensions = {
+                    "load":"PASS" if soak_statuses == [200] * 64 else "FAIL",
+                    "reconnect":"PASS" if reconnect_results == [True] * 8 else "FAIL",
+                    "lifecycle":"PASS" if all(
+                        shutdown_patch_code == 200 and
+                        item["config"] == 200 and item["rebuild"] == 200 and
+                        item["start"] == 202 and item["stop"] == 200 and
+                        item["running_seen"] is True and
+                        item["terminal_state"] == "stopped"
+                        for item in lifecycle_results) else "FAIL",
+                    "export_replay":"PASS" if all(
+                        item["submit_codes"] == [202, 202, 202] and
+                        item["states"] == ["completed", "completed", "completed"] and
+                        item["matches_expected"] is True
+                        for item in export_replay_results) else "FAIL",
+                    "shutdown":"PASS" if shutdown_exit == 0 and
+                        shutdown_elapsed <= 8 and shutdown_unreachable else "FAIL",
+                }
+                resource_pass = (all(probe_support.values()) and
+                    after["rss_kib"] - before["rss_kib"] <= 65536 and
+                    after["threads"] - before["threads"] <= 8 and
+                    after["handles"] - before["handles"] <= 16)
+                soak_pass = (sys.platform == "darwin" and resource_pass and
+                             soak_elapsed <= 240 and
+                             all(value == "PASS" for value in dimensions.values()))
+                soak = {
+                    "schema":"graphx.fhss.dashboard.phase8_soak.v1",
+                    "result":"PASS" if soak_pass else "FAIL",
+                    "supported_profile":"macOS",
+                    "iterations":{"load":64,"reconnect":8,"lifecycle":2,
+                                  "export_replay":2,"shutdown":1},
+                    "elapsed_seconds":soak_elapsed,
+                    "bounds":{"max_seconds":240,"max_rss_growth_kib":65536,
+                              "max_thread_growth":8,"max_handle_growth":16,
+                              "max_shutdown_seconds":8},
+                    "before":before,"after":after,
+                    "probe_support":probe_support,
+                    "dimensions":dimensions,
+                    "receiver_fixture_patch":{
+                        "status":shutdown_patch_code,
+                        "document":json.loads(shutdown_patch_body)},
+                    "reconnect_results":reconnect_results,
+                    "lifecycle_results":lifecycle_results,
+                    "export_replay_results":export_replay_results,
+                    "shutdown":{"exit_code":shutdown_exit,
+                                "elapsed_seconds":shutdown_elapsed,
+                                "listener_unreachable":shutdown_unreachable,
+                                "process_survived":shutdown_process.poll() is None},
+                    "status_histogram":{str(code):soak_statuses.count(code)
+                                        for code in sorted(set(soak_statuses))},
+                }
+                soak_path = output / "phase8-soak.json"
+                soak_path.write_text(json.dumps(soak, indent=2) + "\n")
+                persist("phase8_soak", soak_path.read_bytes())
+                check("Phase8 bounded server resource soak",
+                      soak_pass,
+                      json.dumps(soak, sort_keys=True))
+                qualification_path = output / "phase8-fuzz-security.json"
+                qualification_command = [
+                    sys.executable,
+                    str(Path(__file__).resolve().parent /
+                        "phase8_qualification.py"),
+                    "--smoke", "--asset-root",
+                    str(Path(__file__).resolve().parents[1]),
+                    "--base-url", url,
+                    "--output", str(qualification_path)]
+                qualification_run = subprocess.run(
+                    qualification_command, text=True, capture_output=True,
+                    timeout=30, check=False)
+                additional_commands.append(qualification_command)
+                qualification_document = json.loads(
+                    qualification_path.read_text(encoding="utf-8"))
+                persist("phase8_fuzz_security", qualification_path.read_bytes())
+                retained_fuzz_records = qualification_document.get(
+                    "fuzz", {}).get("retained_regression_seeds", [])
+                for record in retained_fuzz_records:
+                    corpus_path = output / str(record["path"])
+                    persist("phase8_fuzz_seed:" + str(record["target"]) + ":" +
+                            str(record["sha256"]), corpus_path.read_bytes())
+                check("Phase8 bounded fuzz and security qualification",
+                      qualification_run.returncode == 0 and
+                      qualification_document.get("fuzz", {}).get("result") == "PASS" and
+                      qualification_document.get("security", {}).get("result") == "PASS" and
+                      set(qualification_document.get("fuzz", {}).get("targets", [])) == {
+                          "http_json", "json_patch", "websocket", "sigmf_import"} and
+                      len(retained_fuzz_records) >= 4 and
+                      all((output / str(record["path"])).is_file() and
+                          sha256(output / str(record["path"])) == record["sha256"]
+                          for record in retained_fuzz_records),
+                      qualification_run.stdout + qualification_run.stderr)
         status, headers, body = request(port, "PUT", "/healthz")
         problem = json.loads(body)
         persist("PUT /healthz", body)
@@ -5297,6 +6060,86 @@ def exercise(args: argparse.Namespace) -> int:
                                   check=False).stdout.splitlines()
         schema_hashes = {f"schema:{path.name}": sha256(path)
                          for path in sorted((API_DIR / "schemas").glob("*.json"))}
+        if phase == 8:
+            dashboard_root = Path(__file__).resolve().parents[1]
+            schema_paths = [
+                *sorted((dashboard_root / "api" / "schemas").glob("*.schema.json")),
+                *sorted((dashboard_root / "operator" / "schemas").glob(
+                    "*.schema.json"))]
+            schema_entries: list[dict[str, object]] = []
+            for schema_path in schema_paths:
+                schema_document = json.loads(schema_path.read_text(encoding="utf-8"))
+                Draft202012Validator.check_schema(schema_document)
+                relative = str(schema_path.relative_to(dashboard_root))
+                schema_entries.append({"path":relative, "sha256":sha256(schema_path),
+                                       "id":schema_document.get("$id")})
+                schema_hashes[f"schema:{relative}"] = sha256(schema_path)
+            schema_inventory = {
+                "schema":"graphx.fhss.dashboard.phase8_schema_inventory.v1",
+                "count":len(schema_entries), "metaschema_validation":"PASS",
+                "entries":schema_entries}
+            schema_inventory_path = output / "phase8-schema-inventory.json"
+            schema_inventory_path.write_text(
+                json.dumps(schema_inventory, indent=2) + "\n", encoding="utf-8")
+            persist("phase8_schema_inventory", schema_inventory_path.read_bytes())
+            packaged_paths = [
+                dashboard_root / "index.html",
+                dashboard_root / "fhss_transport_state.js",
+                *sorted((dashboard_root / "api").rglob("*")),
+                *sorted((dashboard_root / "operator").rglob("*")),
+                *sorted((dashboard_root / "sigmf").rglob("*"))]
+            package_entries = {
+                str(path.relative_to(dashboard_root)):sha256(path)
+                for path in packaged_paths
+                if path.is_file() and "__pycache__" not in path.parts and
+                   path.suffix != ".pyc"}
+            independent_tool = (
+                dashboard_root / "operator" / "fhss_phase3_independent.py")
+            if not independent_tool.is_file():
+                independent_tool = (Path(__file__).resolve().parents[2] /
+                                    "tools" / "fhss_phase3_independent.py")
+            if not independent_tool.is_file():
+                raise RuntimeError("packaged independent FHSS oracle is missing")
+            package_entries["operator/fhss_phase3_independent.py"] = sha256(
+                independent_tool)
+            required_phase8_docs = (
+                "fhss_dashboard_phase8_manual_operator_test.md",
+                "fhss_dashboard_phase8_security_support.md",
+                "fhss_dashboard_phase8_architecture_recommendation.md")
+            for document_name in required_phase8_docs:
+                document_path = dashboard_root / "docs" / document_name
+                if not document_path.is_file():
+                    document_path = (Path(__file__).resolve().parents[4] /
+                                     "docs" / "dsp" / document_name)
+                if not document_path.is_file():
+                    raise RuntimeError(
+                        f"required packaged Phase8 document is missing: {document_name}")
+                package_entries[f"docs/{document_name}"] = sha256(document_path)
+            package_executables = {
+                "graphx-dsp-fhss-demo":sha256(
+                    locate_executable(args.build_dir.resolve())),
+                "graphx-dsp-fhss-iq-generator":sha256(
+                    locate_generator(args.build_dir.resolve()))}
+            config_candidates = [
+                args.build_dir.resolve() / "share/graphx/config" /
+                    "fhss_cpsm_channelized_fixture_500msps.json",
+                Path(__file__).resolve().parents[4] / "libdsp/config" /
+                    "fhss_cpsm_channelized_fixture_500msps.json"]
+            canonical_config = next(
+                (candidate for candidate in config_candidates if candidate.is_file()), None)
+            if canonical_config is None:
+                raise RuntimeError("canonical packaged FHSS configuration missing")
+            package_entries["config:fhss_cpsm_channelized_fixture_500msps.json"] = (
+                sha256(canonical_config))
+            package_manifest = {
+                "schema":"graphx.fhss.dashboard.phase8_package_manifest.v1",
+                "entry_count":len(package_entries),
+                "entries":dict(sorted(package_entries.items())),
+                "executables":dict(sorted(package_executables.items()))}
+            package_manifest_path = output / "phase8-package-manifest.json"
+            package_manifest_path.write_text(
+                json.dumps(package_manifest, indent=2) + "\n", encoding="utf-8")
+            persist("phase8_package_manifest", package_manifest_path.read_bytes())
         sigmf_root = (Path(__file__).resolve().parents[1] / "sigmf" /
                       "official-v1.2.6")
         sigmf_input_hashes = {
@@ -5307,7 +6150,7 @@ def exercise(args: argparse.Namespace) -> int:
             "jsonschema_validator_version": importlib.metadata.version("jsonschema"),
         }
         checks_pass = all(item["pass"] for item in checks)
-        evidence_status = ("final_verified" if phase == 7 else
+        evidence_status = ("final_verified" if phase >= 7 else
                            ("partial_pre_browser" if phase >= 4 else "complete"))
         report = {
             "schema": "graphx.fhss.dashboard.operator_report.v1", "phase": phase,
@@ -5328,8 +6171,18 @@ def exercise(args: argparse.Namespace) -> int:
                                 **live_hashes,
                                 **phase2_hashes},
             "checks": checks,
+            **({"qualification": {
+                "dashboard_scope":"FHSS-specific",
+                "input_evidence":"synthetic IQ only",
+                "hwil_conducted_ota_evidence":"unavailable and deferred",
+                "receiver_truth_isolation":"PASS",
+                "browser_automation":"PASS",
+                "security_local_profile":"PASS",
+                "operator_workflow":"PASS",
+                "production_rf_qualification":"NOT QUALIFIED"
+            }} if phase == 8 and checks_pass else {}),
             "evidence_status": evidence_status,
-            "result": ("PASS" if phase == 7 else
+            "result": ("PASS" if phase >= 7 else
                        ("PARTIAL" if phase >= 4 else "PASS"))
                       if checks_pass else "FAIL"
         }
@@ -5541,7 +6394,7 @@ def verify(args: argparse.Namespace) -> int:
         except (OSError, KeyError, TypeError, ValueError,
                 json.JSONDecodeError):
             screenshots_valid = False
-    if args.phase == 7:
+    if args.phase >= 7:
         screenshot_cases = ("reference-completed", "copy-completed",
                             "replay-success", "safe-failed")
         try:
@@ -5600,6 +6453,18 @@ def verify(args: argparse.Namespace) -> int:
                  expected_states and
              all(item.get("pass") is True for item in report.get("checks", [])) and
              hashes_valid and screenshots_valid)
+    if args.phase == 8:
+        qualification = report.get("qualification", {})
+        valid = (valid and qualification == {
+            "dashboard_scope":"FHSS-specific",
+            "input_evidence":"synthetic IQ only",
+            "hwil_conducted_ota_evidence":"unavailable and deferred",
+            "receiver_truth_isolation":"PASS",
+            "browser_automation":"PASS",
+            "security_local_profile":"PASS",
+            "operator_workflow":"PASS",
+            "production_rf_qualification":"NOT QUALIFIED",
+        })
     if (valid and args.phase >= 4 and require_screenshots and
             report.get("evidence_status") == "captures_complete_unverified"):
         report["result"] = "PASS"

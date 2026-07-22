@@ -60,6 +60,7 @@ public:
     std::function<void()> after_bundle_artifacts_hashed;
     std::function<void()> after_copying;
     std::function<void()> executable_hash_checkpoint;
+    std::function<void()> qualification_enospc_checkpoint;
     std::function<void()> before_publish;
     std::function<void()> after_publish_rename;
     std::function<void()> before_replay_construction;

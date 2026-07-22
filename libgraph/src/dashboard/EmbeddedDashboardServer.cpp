@@ -1760,9 +1760,9 @@ void EmbeddedDashboardServer::RunLoop() {
               "Content-Security-Policy",
               "default-src 'self'; "
               "script-src 'self' "
-              "'sha256-5hFfjGYDg4VcOnwDE5rctR40s7sp+NMONeNh79ntiks='; "
+              "'sha256-eXgEIvGKZeEewtdoMN9Rs1lNgWWR9OGjnBxgFa8e6wY='; "
               "style-src 'self' "
-              "'sha256-+m6+B7a/b89ToglVQS8/9TMxEsvCSOF4c+lt3EadRrQ='; "
+              "'sha256-QN5HWA7ALQoMjkETFy4axOyi4ziXbq5mXpeEyeZtDFw='; "
               "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
               "base-uri 'none'; frame-ancestors 'none'");
           wire_response.set("X-Content-Type-Options", "nosniff");

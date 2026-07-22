@@ -303,6 +303,12 @@ ExecutionResult GraphExecutor::Stop() {
     return exec_result;
 }
 
+void GraphExecutor::RequestStop() noexcept {
+    if (graph_capability_) {
+        graph_capability_->SetStopped();
+    }
+}
+
 std::expected<ExecutionResult, app::error::GraphExecutionFailure>
 GraphExecutor::StopExpected() noexcept {
     return CaptureLifecycleFailure<ExecutionResult>("Stop", [&]()
@@ -310,6 +316,7 @@ GraphExecutor::StopExpected() noexcept {
         auto start_time = std::chrono::high_resolution_clock::now();
 
         LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() called");
+        stop_sequence_count_.fetch_add(1, std::memory_order_acq_rel);
         ExecutionResult result;
         SetExecutionState(ExecutionState::STOPPING);
         graph_capability_->SetStopped();

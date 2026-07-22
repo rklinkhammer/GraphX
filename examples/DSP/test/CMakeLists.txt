@@ -150,6 +150,34 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         fhss_dashboard_phase7_installed_tree_operator PROPERTIES
         TIMEOUT 1500 RUN_SERIAL TRUE
         LABELS "dsp;fhss;dashboard;phase7;operator;browser;host-any")
+    add_test(NAME fhss_dashboard_phase8_external_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=8 -DINSTALLED_TREE=OFF -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    add_test(NAME fhss_dashboard_phase8_installed_tree_operator
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DPHASE=8 -DINSTALLED_TREE=ON -P ${CMAKE_SOURCE_DIR}/cmake/RunDashboardOperator.cmake)
+    set_tests_properties(fhss_dashboard_phase8_external_operator
+        fhss_dashboard_phase8_installed_tree_operator PROPERTIES
+        TIMEOUT 1800 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase8;qualification;operator;browser;host-any")
+    add_test(NAME fhss_dashboard_phase8_security_static
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/operator/phase8_qualification.py
+            --static-only --asset-root ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard
+            --output ${CMAKE_BINARY_DIR}/fhss-dashboard-phase8-fuzz-security.json)
+    set_tests_properties(fhss_dashboard_phase8_security_static PROPERTIES
+        TIMEOUT 30
+        LABELS "dsp;fhss;dashboard;phase8;security;static;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase8_completion_evidence
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase8_completion.py)
+    set_tests_properties(fhss_dashboard_phase8_completion_evidence PROPERTIES
+        TIMEOUT 30
+        LABELS "dsp;fhss;dashboard;phase8;qualification;evidence;ci-safe;host-any")
     add_test(NAME fhss_dashboard_external_operator
         COMMAND ${CMAKE_COMMAND}
             -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}

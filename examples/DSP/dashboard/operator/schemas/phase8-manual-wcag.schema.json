@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://graphx.local/schemas/phase8-manual-wcag.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["schema","execution_mode","tester","executed_at","browser","host","viewport","attestation","items","axe_incomplete_resolutions"],
+  "properties":{
+    "schema":{"const":"graphx.fhss.dashboard.phase8_manual_wcag.v1"},
+    "execution_mode":{"const":"human"},
+    "tester":{"type":"string","minLength":2},
+    "executed_at":{"type":"string","format":"date-time"},
+    "browser":{"type":"object","additionalProperties":false,"required":["name","version"],"properties":{"name":{"const":"Firefox"},"version":{"type":"string","minLength":1}}},
+    "host":{"type":"string","minLength":1},
+    "viewport":{"type":"object","additionalProperties":false,"required":["width_css_px","height_css_px","zoom_percent"],"properties":{"width_css_px":{"type":"integer","minimum":320},"height_css_px":{"type":"integer","minimum":320},"zoom_percent":{"type":"integer","minimum":100,"maximum":400}}},
+    "attestation":{"const":"I personally executed every listed manual WCAG check and recorded the observed evidence."},
+    "items":{"type":"array","minItems":9,"maxItems":9,"items":{"type":"object","additionalProperties":false,"required":["id","result","evidence_paths","evidence_sha256","notes"],"properties":{"id":{"enum":["keyboard_only","tabs","focus","names_structure","status_errors","contrast_non_color","reduced_motion","zoom_reflow","visualization_alternatives"]},"result":{"enum":["PASS","FAIL"]},"evidence_paths":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},"evidence_sha256":{"type":"object","minProperties":1,"additionalProperties":{"type":"string","pattern":"^[0-9a-f]{64}$"}},"notes":{"type":"string"}}}},
+    "axe_incomplete_resolutions":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["tree","rule_id","impact","node_count","targets","manual_item_id","resolution_result","resolution_notes"],"properties":{"tree":{"enum":["source","installed"]},"rule_id":{"type":"string","minLength":1},"impact":{"enum":["critical","serious"]},"node_count":{"type":"integer","minimum":1},"targets":{"type":"array","minItems":1,"items":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}},"manual_item_id":{"enum":["keyboard_only","tabs","focus","names_structure","status_errors","contrast_non_color","reduced_motion","zoom_reflow","visualization_alternatives"]},"resolution_result":{"const":"PASS"},"resolution_notes":{"type":"string","minLength":10}}}}
+  }
+}

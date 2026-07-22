@@ -826,9 +826,9 @@ public:
      * Thread safety: Safe to call multiple times (idempotent).
      * Blocks until all port threads, edge threads, and ThreadPool threads exit.
      * 
-     * Prerequisites:
-     * - Stop() must have been called first
-     * - Calling Join() without Stop() will block forever (threads won't exit)
+     * Join defensively republishes Stop() immediately before waiting. This
+     * preserves idempotent Stop()/Join() callers while ensuring a missed or
+     * raced component stop cannot leave an edge or worker alive indefinitely.
      * 
      * Side effects:
      * - Blocks caller indefinitely (or until all threads exit)
@@ -852,6 +852,7 @@ public:
      * This ensures threads don't disappear while objects are being destroyed.
      */
     void Join() {
+        Stop();
        // Stop edges first to prevent new data flow
         for (auto& edge : edges_) {
             edge->Join();
@@ -882,9 +883,9 @@ public:
      * - If any component timeout expires, immediately returns false without waiting for others
      * - Logs which component(s) timed out for debugging
      * 
-     * Prerequisites:
-     * - Stop() must have been called first (required for threads to exit)
-     * - Threads may take time to finish pending work
+     * JoinWithTimeout defensively republishes the documented non-blocking Stop()
+     * before starting its join deadline. Threads may still take time to finish
+     * pending work; the supplied timeout governs the waits that follow Stop().
      * - Timeout should be >= 100ms to allow graceful shutdown
      * 
      * Timeout budgeting:
@@ -917,6 +918,7 @@ public:
      * Detailed logging identifies which component(s) timeout for troubleshooting.
      */
     bool JoinWithTimeout(std::chrono::milliseconds timeout_ms) {
+        Stop();
         auto logger = log4cxx::Logger::getLogger("graph.graph");
         auto start = std::chrono::high_resolution_clock::now();
         

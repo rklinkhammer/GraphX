@@ -493,6 +493,64 @@ TEST(DynamicEdgeTest, GraphManagerLifecycleTimingMetricsTrackRuntimeExecution) {
     EXPECT_GE(metrics.GetAverageLatencyUs(), 0.0);
 }
 
+TEST(DynamicEdgeTest, GraphManagerJoinDefensivelyStopsLiveDynamicEdge) {
+    graph::GraphManager graph;
+    graph.AddNode(std::make_shared<test::SourceTestNode>());
+    graph.AddNode(std::make_shared<test::SinkTestNode>());
+
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+    graph::DynamicEdgeConfig config{
+        .source = MakeOutputHandle(&output, 0),
+        .destination = MakeInputHandle(&input, 1),
+        .capacity = 8,
+    };
+    const auto added = graph.AddDynamicEdgeExpected(config);
+    ASSERT_TRUE(added);
+    auto* edge = *added;
+    ASSERT_NE(edge, nullptr);
+    ASSERT_TRUE(graph.Init());
+    ASSERT_TRUE(graph.Start());
+
+    const auto started = std::chrono::steady_clock::now();
+    graph.Join();
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    EXPECT_LT(elapsed, std::chrono::seconds(2));
+    EXPECT_FALSE(edge->IsRunning());
+    EXPECT_EQ(edge->GetEdgeThreadMetrics().active_thread_count.load(
+                  std::memory_order_acquire), 0u);
+}
+
+TEST(DynamicEdgeTest, GraphManagerTimedJoinDefensivelyStopsLiveDynamicEdge) {
+    graph::GraphManager graph;
+    graph.AddNode(std::make_shared<test::SourceTestNode>());
+    graph.AddNode(std::make_shared<test::SinkTestNode>());
+
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+    graph::DynamicEdgeConfig config{
+        .source = MakeOutputHandle(&output, 0),
+        .destination = MakeInputHandle(&input, 1),
+        .capacity = 8,
+    };
+    const auto added = graph.AddDynamicEdgeExpected(config);
+    ASSERT_TRUE(added);
+    auto* edge = *added;
+    ASSERT_NE(edge, nullptr);
+    ASSERT_TRUE(graph.Init());
+    ASSERT_TRUE(graph.Start());
+
+    const auto started = std::chrono::steady_clock::now();
+    EXPECT_TRUE(graph.JoinWithTimeout(std::chrono::seconds(2)));
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    EXPECT_LT(elapsed, std::chrono::seconds(3));
+    EXPECT_FALSE(edge->IsRunning());
+    EXPECT_EQ(edge->GetEdgeThreadMetrics().active_thread_count.load(
+                  std::memory_order_acquire), 0u);
+}
+
 TEST(DynamicEdgeTest, GraphManagerAggregatesDynamicEdgeThreadTimingMetrics) {
     graph::GraphManager graph;
     graph.AddNode(std::make_shared<test::SourceTestNode>());

@@ -50,6 +50,32 @@ class Phase5QualificationTest(unittest.TestCase):
         bound_paths |= {policy["baseline_artifact"] for policy in profile["trend_policy"]["policies"]}
         for relative in bound_paths:
             target = self.root / relative; target.parent.mkdir(parents=True, exist_ok=True); target.hardlink_to(ROOT / relative)
+        # Historical Phase 5 evidence remains immutable provenance. The unit
+        # fixture, however, binds the current source/build tree, so its private
+        # nested attestation must identify every copied source, suite input,
+        # executable, and CMake configuration. Unlink first to preserve the
+        # repository artifact behind the hardlink, then rebind the temporary
+        # registry to the copy-on-write attestation.
+        for relative in attestation["source_hashes"]:
+            attestation["source_hashes"][relative] = hashlib.sha256(
+                (self.root / relative).read_bytes()).hexdigest()
+        for suite in attestation["suites"]:
+            for relative in suite["input_hashes"]:
+                suite["input_hashes"][relative] = hashlib.sha256(
+                    (self.root / relative).read_bytes()).hexdigest()
+            executable = suite["command_argv"][0]
+            if executable.startswith("./"):
+                suite["executable_sha256"] = hashlib.sha256(
+                    (self.root / executable[2:]).read_bytes()).hexdigest()
+        attestation_path = self.root / attestation_item["artifact"]
+        attestation["build_configuration_sha256"] = hashlib.sha256(
+            (self.root / attestation["build_configuration"]).read_bytes()
+        ).hexdigest()
+        attestation_path.unlink()
+        attestation_path.write_bytes(phase5.canonical(attestation))
+        attestation_item["sha256"] = hashlib.sha256(
+            attestation_path.read_bytes()).hexdigest()
+        registry_path.write_bytes(phase5.canonical(registry))
 
     def tearDown(self): self.tmp.cleanup()
 
@@ -125,6 +151,24 @@ class Phase5QualificationTest(unittest.TestCase):
     def test_boolean_exit_status_fails(self): self.mutate_attestation(lambda x: x["suites"][0].update(exit_status=True)); self.assert_invalid()
     def test_rehashed_forged_counts_fail(self): self.mutate_attestation(lambda x: x["suites"][0].update(passed=999)); self.assert_invalid()
     def test_wrong_attestation_schema_fails(self): self.mutate_attestation(lambda x: x.update(schema="graphx.fhss.phase5-test-attestation.v999")); self.assert_invalid()
+    def test_post_bind_build_configuration_mutation_fails(self):
+        registry = json.loads(self.path("evidence_registry").read_text())
+        item = next(x for x in registry["evidence"] if x["evidence_id"] == "EV-P5-TESTS")
+        attestation = json.loads((self.root / item["artifact"]).read_text())
+        build_configuration = self.root / attestation["build_configuration"]
+        original = build_configuration.read_bytes()
+        build_configuration.unlink()
+        build_configuration.write_bytes(original + b"\n# fixture mutation\n")
+        self.assert_invalid()
+    def test_post_bind_source_mutation_fails(self):
+        registry = json.loads(self.path("evidence_registry").read_text())
+        item = next(x for x in registry["evidence"] if x["evidence_id"] == "EV-P5-TESTS")
+        attestation = json.loads((self.root / item["artifact"]).read_text())
+        source = self.root / sorted(attestation["source_hashes"])[0]
+        original = source.read_bytes()
+        source.unlink()
+        source.write_bytes(original + b"\n# fixture mutation\n")
+        self.assert_invalid()
     def test_v7_overall_false_derives_fail(self):
         self.mutate_evidence_artifact("EV-P3-V7-REPORT", lambda x: x.update(overall_pass=False))
         raw,report,markdown=phase5.result(self.root,self.passing_records()); self.assertEqual(raw["verdicts"]["synthetic_characterization"], "FAIL"); self.assertEqual(raw["verdicts"]["software_engineering_release_readiness"], "FAIL"); self.assertEqual(report["criteria"]["C"],"FAIL"); self.assertEqual(report["criteria"]["I"],"FAIL"); self.assertIn("`synthetic_characterization`: `FAIL`",markdown); self.assertNotIn("All infrastructure criteria A–I: PASS",markdown)

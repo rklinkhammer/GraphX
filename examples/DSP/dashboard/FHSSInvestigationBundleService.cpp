@@ -1284,6 +1284,17 @@ void FHSSInvestigationBundleService::Export(
   bool published = false;
   try {
     auto temporary = OpenDirectoryAt(bundle_root.Get(), temporary_name);
+    // Qualification step 3 validates the copy-stage ENOSPC transition and
+    // private staging cleanup. Inject it at that boundary instead of making
+    // the harness wait for unrelated JSON and executable hashing first. The
+    // production inject_enospc hook remains at the real copy boundary below.
+    if (qualification_step == 3) {
+      Transition(operation, "copying");
+      if (test_hooks_->qualification_enospc_checkpoint)
+        test_hooks_->qualification_enospc_checkpoint();
+      throw std::system_error(ENOSPC, std::generic_category(),
+                              "injected qualification disk full");
+    }
     struct Entry { std::string name; std::string classification; FileDigests digest; };
     std::vector<Entry> entries;
     std::uint64_t retained_bytes = 0;
@@ -1358,7 +1369,7 @@ void FHSSInvestigationBundleService::Export(
     if (mode == "copy") {
       Transition(operation, "copying");
       qualification_pause(5);
-      if ((test_hooks_ && test_hooks_->inject_enospc) || qualification_step == 3)
+      if (test_hooks_ && test_hooks_->inject_enospc)
         throw std::system_error(ENOSPC, std::generic_category(), "injected disk full");
       auto copied = CopyFdToAt(iq.Get(), temporary.Get(), "recording.sigmf-data",
                                kMaxCopiedIqBytes, checkpoint);

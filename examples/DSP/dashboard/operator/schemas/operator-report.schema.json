@@ -4,7 +4,7 @@
   "required":["schema","phase","source_revision","compiler","build_profile","platform","commands","bound_address","bound_port","dashboard_url","api_version","synthetic_data_only","hwil_available","production_rf_qualified","input_hashes","artifact_hashes","checks","evidence_status","result"],
   "additionalProperties":false,
   "properties":{
-    "schema":{"const":"graphx.fhss.dashboard.operator_report.v1"},"phase":{"enum":[1,2,3,4,5,6,7]},
+    "schema":{"const":"graphx.fhss.dashboard.operator_report.v1"},"phase":{"enum":[1,2,3,4,5,6,7,8]},
     "source_revision":{"type":"string"},"compiler":{"type":"string"},"build_profile":{"type":"string"},"platform":{"type":"string"},
     "commands":{"type":"array","items":{"type":"array","items":{"type":"string"}}},
     "bound_address":{"enum":["127.0.0.1","::1"]},"bound_port":{"type":"integer","minimum":1,"maximum":65535},
@@ -14,6 +14,7 @@
     "artifact_hashes":{"type":"object","required":["dashboard_index"],"properties":{"dashboard_index":{"type":"string"},"authoritative":{"type":"string"},"validation":{"type":"string"},"apply":{"type":"string"},"receiver_graph":{"type":"string"}},"additionalProperties":{"type":"string"}},
     "checks":{"type":"array","minItems":1,"items":{"type":"object","required":["name","pass","evidence"],"additionalProperties":false,"properties":{"name":{"type":"string"},"pass":{"type":"boolean"},"evidence":{"type":"string"}}}},
     "evidence_status":{"enum":["complete","partial_pre_browser","captures_complete_unverified","final_verified"]},
-    "result":{"enum":["PASS","PARTIAL","FAIL"]}
+    "result":{"enum":["PASS","PARTIAL","FAIL"]},
+    "qualification":{"type":"object","additionalProperties":false,"required":["dashboard_scope","input_evidence","hwil_conducted_ota_evidence","receiver_truth_isolation","browser_automation","security_local_profile","operator_workflow","production_rf_qualification"],"properties":{"dashboard_scope":{"const":"FHSS-specific"},"input_evidence":{"const":"synthetic IQ only"},"hwil_conducted_ota_evidence":{"const":"unavailable and deferred"},"receiver_truth_isolation":{"const":"PASS"},"browser_automation":{"const":"PASS"},"security_local_profile":{"const":"PASS"},"operator_workflow":{"const":"PASS"},"production_rf_qualification":{"const":"NOT QUALIFIED"}}}
   }
 }

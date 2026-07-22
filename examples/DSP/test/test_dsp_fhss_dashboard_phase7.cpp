@@ -4,6 +4,8 @@
 #include "FHSSDashboardConfigurationPolicy.hpp"
 #include "FHSSInvestigationBundleService.hpp"
 #include "FHSSIqArtifactGenerator.hpp"
+#include "FHSSGraphRuntimeOwner.hpp"
+#include "FHSSObservationService.hpp"
 #include "FHSSHash.hpp"
 #include "FHSSJobController.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
@@ -43,6 +45,10 @@ public:
     std::unique_lock lock(mutex_);
     cv_.wait(lock, [this] { return entered_; });
   }
+  bool WaitFor(std::chrono::milliseconds bound) {
+    std::unique_lock lock(mutex_);
+    return cv_.wait_for(lock, bound, [this] { return entered_; });
+  }
   void Release() {
     std::lock_guard lock(mutex_);
     released_ = true;
@@ -76,6 +82,33 @@ struct Phase7Fixture {
   }
 };
 
+struct Phase7RealOwnerFixture {
+  std::filesystem::path root = Phase7Temp();
+  std::shared_ptr<graph::dashboard::GraphConfigurationService> configuration =
+      std::make_shared<graph::dashboard::GraphConfigurationService>(
+          Phase7LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH),
+          std::make_shared<
+              dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
+  std::shared_ptr<dsp::fhss::dashboard::FHSSGraphRuntimeOwner> owner =
+      std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
+          std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY), root / "runtime");
+  std::shared_ptr<graph::dashboard::GraphRuntimeSession> runtime =
+      std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  std::shared_ptr<dsp::fhss::dashboard::FHSSJobController> jobs;
+
+  Phase7RealOwnerFixture() {
+    runtime->MarkReady();
+    jobs = std::make_shared<dsp::fhss::dashboard::FHSSJobController>(
+        configuration, runtime, root);
+  }
+  ~Phase7RealOwnerFixture() {
+    jobs->Shutdown();
+    (void)owner->Shutdown(0);
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+  }
+};
+
 void Phase7Write(const std::filesystem::path &path,
                  std::span<const std::byte> bytes) {
   std::ofstream output(path, std::ios::binary);
@@ -95,7 +128,31 @@ struct SeededPhase7Source {
 
 constexpr std::uint64_t kPhase7TestTimeoutMs = 120'000;
 
-SeededPhase7Source SeedSource(Phase7Fixture &fixture,
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+constexpr bool kThreadSanitizerBuild = true;
+#else
+constexpr bool kThreadSanitizerBuild = false;
+#endif
+#elif defined(__SANITIZE_THREAD__)
+constexpr bool kThreadSanitizerBuild = true;
+#else
+constexpr bool kThreadSanitizerBuild = false;
+#endif
+
+// TSan instruments every queue/edge synchronization in this real one-message
+// graph. Keep the ordinary regression contract at 15 seconds while giving only
+// that instrumented test build a finite overhead envelope. These are test-side
+// request/wait bounds; the production operation default remains 30 seconds.
+constexpr auto kRealOwnerTestEnvelope =
+    kThreadSanitizerBuild ? std::chrono::seconds(45)
+                          : std::chrono::seconds(15);
+static_assert(
+    dsp::fhss::dashboard::FHSSInvestigationBundleService::kDefaultTimeout ==
+    std::chrono::seconds(30));
+
+template <typename Fixture>
+SeededPhase7Source SeedSource(Fixture &fixture,
                               std::string format = "cf32_le") {
   auto graph = Phase7LoadJson(DSP_FHSS_CHANNELIZED_CONFIG_PATH);
   auto generator = std::ranges::find_if(graph.at("nodes"), [](const auto &node) {
@@ -196,9 +253,10 @@ SeededPhase7Source SeedSource(Phase7Fixture &fixture,
 
 nlohmann::json WaitPhase7(
     dsp::fhss::dashboard::FHSSInvestigationBundleService &service,
-    const std::string &operation_id) {
+    const std::string &operation_id,
+    std::chrono::seconds bound = std::chrono::seconds(120)) {
   const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::seconds(120);
+                        bound;
   while (std::chrono::steady_clock::now() < deadline) {
     auto document = service.Get(operation_id).document;
     const auto state = document.at("state").get<std::string>();
@@ -346,6 +404,103 @@ TEST(FhssDashboardInvestigationBundleTest,
 }
 
 TEST(FhssDashboardInvestigationBundleTest,
+     RepeatedSuccessfulReplayUsesRealRuntimeOwnerAndTerminatesWithinBound) {
+  Phase7RealOwnerFixture fixture;
+  fixture.owner->SetExecutorTimeoutForTesting(kRealOwnerTestEnvelope);
+  auto seeded = SeedSource(fixture);
+
+  // First use the same owner as the normal source-job receiver.  This is the
+  // lifecycle sequence implicated by the external flake: successful receiver
+  // execution, export, then repeated bundle replay on replacement executors.
+  auto source_graph = fixture.configuration->GetReceiverGraphResponse().at("graph");
+  auto source = std::ranges::find_if(
+      source_graph.at("nodes"), [](const auto &node) {
+        return node.value("id", "") == "source";
+      });
+  ASSERT_NE(source, source_graph.at("nodes").end());
+  (*source)["node_config"]["file_path"] =
+      (seeded.source.directory / "iq.cf32").string();
+  (*source)["node_config"]["max_read_complex_samples"] = 4'194'304;
+  ASSERT_EQ(fixture.runtime
+                ->Rebuild({.receiver_graph = source_graph,
+                           .config_revision = 1,
+                           .config_etag = "seed-etag"})
+                .status_code,
+            200);
+  ASSERT_EQ(fixture.runtime->Start().status_code, 202);
+  const auto source_deadline =
+      std::chrono::steady_clock::now() + kRealOwnerTestEnvelope;
+  while (std::chrono::steady_clock::now() < source_deadline &&
+         fixture.runtime->GetState() ==
+             graph::dashboard::GraphRuntimeSession::State::running)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  ASSERT_EQ(fixture.runtime->GetState(),
+            graph::dashboard::GraphRuntimeSession::State::completed)
+      << fixture.runtime->SnapshotStatus().terminal_result_message;
+  auto observations =
+      std::make_shared<dsp::fhss::dashboard::FHSSObservationService>(
+          fixture.configuration, fixture.runtime);
+  const auto source_observation = observations->ReceiverObservation().document;
+  ASSERT_TRUE(source_observation.contains("receiver_message_result"));
+  seeded.source.receiver_result =
+      source_observation.at("receiver_message_result");
+
+  auto hooks = Phase7Hooks(seeded);
+  dsp::fhss::dashboard::FHSSInvestigationBundleService service(
+      fixture.configuration, fixture.runtime, fixture.jobs, fixture.root,
+      hooks);
+  Phase7Export(service, seeded, "real-owner-reference", "reference");
+  Phase7Export(service, seeded, "real-owner-copy", "copy");
+
+  std::optional<std::string> semantic_hash;
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    const std::string bundle = attempt == 1 ? "real-owner-copy"
+                                            : "real-owner-reference";
+    const auto submitted = service.SubmitReplay(
+        {{"request_id", "real-owner-replay-" + std::to_string(attempt)},
+         {"bundle_name", bundle},
+         {"timeout_ms", std::chrono::duration_cast<std::chrono::milliseconds>(
+                            kRealOwnerTestEnvelope).count()}},
+        "real-owner-replay-key-" + std::to_string(attempt));
+    ASSERT_EQ(submitted.status_code, 202) << submitted.document.dump(2);
+    EXPECT_EQ(submitted.document.at("bounds").at("timeout_ms"),
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  kRealOwnerTestEnvelope).count());
+    const auto started = std::chrono::steady_clock::now();
+    const auto terminal = WaitPhase7(
+        service, submitted.document.at("operation_id").get<std::string>(),
+        kRealOwnerTestEnvelope);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+    ASSERT_EQ(terminal.at("state"), "completed")
+        << "attempt=" << attempt << "; elapsed_ms="
+        << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+        << "; operation=" << terminal.dump(2);
+    ASSERT_TRUE(terminal.at("result").at("matches_expected").get<bool>());
+    EXPECT_EQ(fixture.owner->StopSequenceCountForTesting(), 1u)
+        << "each replacement executor must enter GraphExecutor::StopExpected "
+           "once; same-thread defensive component stops are idempotent; "
+           "attempt="
+        << attempt;
+    const auto current_hash = terminal.at("result")
+                                  .at("semantic_receiver_result_sha256")
+                                  .get<std::string>();
+    if (semantic_hash)
+      EXPECT_EQ(current_hash, *semantic_hash) << "attempt=" << attempt;
+    semantic_hash = current_hash;
+    EXPECT_LT(elapsed, kRealOwnerTestEnvelope) << "attempt=" << attempt;
+    const auto shutdown_started = std::chrono::steady_clock::now();
+    const auto shutdown = fixture.owner->Shutdown(0);
+    const auto shutdown_elapsed =
+        std::chrono::steady_clock::now() - shutdown_started;
+    EXPECT_EQ(shutdown.status_code, 200)
+        << "attempt=" << attempt << "; code=" << shutdown.code;
+    EXPECT_LT(shutdown_elapsed, std::chrono::seconds(2))
+        << "owner shutdown must join every edge, node, and worker; attempt="
+        << attempt;
+  }
+}
+
+TEST(FhssDashboardInvestigationBundleTest,
      PublicationCancelCollisionEnospcAndSourceSwapFailWithoutPartialOutput) {
   Phase7Fixture fixture;
   const auto seeded = SeedSource(fixture);
@@ -426,6 +581,63 @@ TEST(FhssDashboardInvestigationBundleTest,
             "failed");
   EXPECT_FALSE(std::filesystem::exists(
       fixture.root / "fhss-investigations" / "swap"));
+}
+
+TEST(FhssDashboardInvestigationBundleTest,
+     QualificationEnospcTransitionsAtCopyBoundaryAndCleansStaging) {
+  Phase7Fixture fixture;
+  const auto seeded = SeedSource(fixture);
+  auto hooks = Phase7Hooks(seeded);
+  hooks->qualification_sequence = true;
+  Phase7Gate enospc_gate;
+  hooks->qualification_enospc_checkpoint = [&] { enospc_gate.Enter(); };
+  dsp::fhss::dashboard::FHSSInvestigationBundleService service(
+      fixture.configuration, fixture.runtime, fixture.jobs, fixture.root, hooks);
+
+  const auto submit = [&](int sequence, std::string_view mode) {
+    const auto name = "qualification-" + std::to_string(sequence);
+    nlohmann::json request{{"request_id", name}, {"bundle_name", name},
+                           {"job_id", seeded.job_id}, {"iq_mode", mode},
+                           {"timeout_ms", 30'000}};
+    if (mode == "copy") request["confirm_copy"] = true;
+    return service.SubmitExport(request, name + "-key");
+  };
+
+  const auto quota = submit(1, "reference");
+  ASSERT_EQ(quota.status_code, 202);
+  EXPECT_EQ(WaitPhase7(service, quota.document.at("operation_id")
+                                    .get<std::string>())
+                .at("terminal")
+                .at("code"),
+            "investigation_quota_exceeded");
+  const auto copy_limit = submit(2, "copy");
+  ASSERT_EQ(copy_limit.status_code, 202);
+  EXPECT_EQ(WaitPhase7(service, copy_limit.document.at("operation_id")
+                                    .get<std::string>())
+                .at("terminal")
+                .at("code"),
+            "investigation_quota_exceeded");
+
+  const auto enospc = submit(3, "copy");
+  ASSERT_EQ(enospc.status_code, 202);
+  const auto operation_id = enospc.document.at("operation_id").get<std::string>();
+  const bool reached_copy_boundary =
+      enospc_gate.WaitFor(std::chrono::seconds(5));
+  EXPECT_TRUE(reached_copy_boundary);
+  if (reached_copy_boundary)
+    EXPECT_EQ(service.Get(operation_id).document.at("state"), "copying");
+  enospc_gate.Release();
+
+  const auto terminal = WaitPhase7(service, operation_id,
+                                   std::chrono::seconds(5));
+  EXPECT_EQ(terminal.at("state"), "failed");
+  EXPECT_EQ(terminal.at("terminal").at("code"), "artifact_enospc");
+  const auto bundle_root = fixture.root / "fhss-investigations";
+  EXPECT_FALSE(std::filesystem::exists(bundle_root / "qualification-3"));
+  EXPECT_TRUE(std::ranges::none_of(
+      std::filesystem::directory_iterator(bundle_root), [](const auto &entry) {
+        return entry.path().filename().string().starts_with(".tmp-");
+      }));
 }
 
 TEST(FhssDashboardInvestigationBundleTest,

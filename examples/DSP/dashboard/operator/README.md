@@ -1,4 +1,4 @@
-# FHSS dashboard Phase 1/2/3/4/5/6/7 operator
+# FHSS dashboard Phase 1/2/3/4/5/6/7/8 operator
 
 Phase 4 manual browser/API validation is documented in
 `docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
@@ -8,6 +8,26 @@ Phase 6 bounded streaming validation is documented in
 `docs/dsp/fhss_dashboard_phase6_manual_operator_test.md`.
 Phase 7 investigation-bundle validation is documented in
 `docs/dsp/fhss_dashboard_phase7_manual_operator_test.md`.
+Phase 8 installed-tree qualification is documented in
+`docs/dsp/fhss_dashboard_phase8_manual_operator_test.md`; its threat/support
+policy and extraction recommendation are adjacent Phase 8 documents.
+
+Phase 8 inherits the complete Phase 7 synthetic workflow and adds maintained-
+Firefox keyboard/accessibility evidence, 320 CSS-pixel reflow, safe-DOM audits,
+a bounded complete soak covering load, reconnect, lifecycle, repeated
+export/replay, clean shutdown, and mandatory macOS RSS/thread/handle probes,
+plus response-coverage-guided
+mutations sent to the real production HTTP/JSON, Patch/Pointer, WebSocket, and
+investigation/SigMF endpoints. Run `exercise --phase 8`, then `verify --phase
+8`; both source and installed-tree lanes must report `PASS / final_verified`.
+Generate the separately hash-bound final sign-off only from schema-valid source
+and installed evidence, all-pass JUnit-bound focused/full/sanitizer/concurrency
+lanes, matching package/schema manifests, and a genuine human-executed WCAG
+record. The shipped human template fails by default and must never be completed
+by automation. Phase 8 final sign-off is blocked until that external action.
+Phase 8 remains
+FHSS-specific and synthetic-only; HWIL/conducted/OTA evidence is unavailable
+and deferred, and production RF is NOT QUALIFIED.
 
 Phase 7 runs the complete inherited synthetic workflow, exports reference-only
 and copied-IQ bundles, validates them with the pinned official SigMF schema,
@@ -207,6 +227,28 @@ queued and active cancellation, timeout, reset, and dashboard-free replay after
 truth deletion. Use `exercise --phase 5` and `verify --phase 5`; the Phase 5
 manual procedure contains the browser checklist. All evidence is synthetic and
 there is no HWIL lane.
+
+Phase 8 recognized-engine evidence is captured with
+`phase8_axe_scan.py`. It accepts only the reviewed `axe-core@4.12.1` npm
+tarball and extracted `axe.min.js`/license files at their pinned SHA-256 and npm
+integrity values, runs the raw engine in maintained Firefox against an explicit
+loopback dashboard URL, and keeps raw output separate from the derived wrapper.
+Its Firefox WebDriver BiDi evidence channel has a finite 4 MiB receive limit,
+selected above the reviewed 1,295,262-byte axe-core result frame. This is an
+automation-client allowance only; it does not change the dashboard protocol's
+independent 256 KiB WebSocket message limits. A BiDi close with code 1009 is
+reported as an explicit evidence-client size failure.
+The wrapper and completion report retain raw-derived rule identifiers, impacts,
+node counts, and targets for both `violations` and `incomplete` findings.
+Critical or serious incomplete findings fail closed unless a human resolution
+binds the exact finding to a passing manual item, genuine hash-verified evidence,
+a `PASS` adjudication, and meaningful notes. Moderate and minor incomplete
+findings remain visible in completion evidence even though they do not block it.
+Manual evidence paths must be relative, confined non-symlink regular files next
+to the manual record, and declared in each item's `evidence_sha256` map.
+See the installed `docs/fhss_dashboard_phase8_manual_operator_test.md` for the
+reproducible provisioning and source/installed commands. No axe report or human
+WCAG attestation is shipped or synthesized.
 
 Phase 6 adds the maintained `websockets` client, the production RFC 6455
 `/api/v1/fhss/events/stream` endpoint, publisher-epoch/sequence resume,

@@ -179,6 +179,14 @@ transmitted-frequency hints, or redundant preamble/assembler active list.
 
 ## Build, packaging, and launch
 
+Phase 8 support, security, accessibility, installed qualification, and the
+decision not to perform premature generic extraction are specified in
+`docs/dsp/fhss_dashboard_phase8_manual_operator_test.md`,
+`docs/dsp/fhss_dashboard_phase8_security_support.md`, and
+`docs/dsp/fhss_dashboard_phase8_architecture_recommendation.md`. The supported
+profile remains an FHSS-specific, loopback-only local tool using synthetic IQ;
+there is no HWIL/conducted/OTA evidence and production RF is not qualified.
+
 Dashboard code and Boost are gated by:
 
 ```text

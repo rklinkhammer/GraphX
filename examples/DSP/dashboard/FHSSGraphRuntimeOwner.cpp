@@ -231,7 +231,14 @@ FHSSGraphRuntimeOwner::Stop(std::uint64_t generation) {
   const std::lock_guard operation_lock(operation_mutex_);
   if (generation != generation_ || !executor_)
     return {409, "generation_mismatch", "generation is not active"};
-  (void)executor_->Stop();
+  // Execute() owns the GraphExecutor lifecycle on execution_thread_.  Calling
+  // Stop() here would run GraphManager::Stop concurrently with Execute's own
+  // Stop()/Join() path and, more importantly, would place an unbounded call in
+  // front of the advertised five-second wait.  Publish only the cooperative
+  // cancellation intent; the execution thread alone enters GraphExecutor's
+  // teardown. GraphManager may serially republish idempotent component stops
+  // immediately before joining, but no control-thread teardown runs concurrently.
+  executor_->RequestStop();
   if (execution_thread_.joinable()) {
     std::unique_lock completion_lock(completion_mutex_);
     if (!completion_cv_.wait_for(completion_lock, kStopTimeout,
@@ -249,7 +256,7 @@ graph::dashboard::IGraphRuntimeOwner::Result
 FHSSGraphRuntimeOwner::Shutdown(std::uint64_t) {
   const std::lock_guard operation_lock(operation_mutex_);
   if (executor_)
-    (void)executor_->Stop();
+    executor_->RequestStop();
   if (execution_thread_.joinable()) {
     std::unique_lock completion_lock(completion_mutex_);
     if (!completion_cv_.wait_for(completion_lock, kStopTimeout,
@@ -283,5 +290,10 @@ void FHSSGraphRuntimeOwner::SetAfterStartupHookForTesting(
     std::function<void(std::shared_ptr<graph::GraphManager>)> hook) {
   const std::lock_guard operation_lock(operation_mutex_);
   after_startup_hook_ = std::move(hook);
+}
+
+std::uint64_t FHSSGraphRuntimeOwner::StopSequenceCountForTesting() const {
+  const std::lock_guard operation_lock(operation_mutex_);
+  return executor_ ? executor_->GetStopSequenceCount() : 0u;
 }
 } // namespace dsp::fhss::dashboard

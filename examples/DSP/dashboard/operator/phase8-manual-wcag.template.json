@@ -1,0 +1,22 @@
+{
+  "schema":"graphx.fhss.dashboard.phase8_manual_wcag.v1",
+  "execution_mode":"REPLACE_WITH_human_AFTER_PERSONAL_EXECUTION",
+  "tester":"REPLACE_WITH_OPERATOR_ID",
+  "executed_at":"REPLACE_WITH_UTC_RFC3339",
+  "browser":{"name":"Firefox","version":"REPLACE_WITH_VERSION"},
+  "host":"REPLACE_WITH_HOST_PROFILE",
+  "viewport":{"width_css_px":320,"height_css_px":800,"zoom_percent":200},
+  "attestation":"REPLACE_ONLY_AFTER_PERSONAL_EXECUTION",
+  "axe_incomplete_resolutions":[],
+  "items":[
+    {"id":"keyboard_only","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"tabs","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"focus","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"names_structure","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"status_errors","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"contrast_non_color","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"reduced_motion","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"zoom_reflow","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"},
+    {"id":"visualization_alternatives","result":"FAIL","evidence_paths":[],"evidence_sha256":{},"notes":"pending human execution"}
+  ]
+}

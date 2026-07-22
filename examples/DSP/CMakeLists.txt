@@ -165,6 +165,11 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     install(FILES tools/fhss_phase3_independent.py
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/operator)
     install(FILES
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_manual_operator_test.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_security_support.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_architecture_recommendation.md
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/docs)
+    install(FILES
         ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/config)
 endif()

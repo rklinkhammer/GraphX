@@ -31,6 +31,7 @@ public:
   void SetExecutorTimeoutForTesting(std::chrono::seconds timeout);
   void SetAfterStartupHookForTesting(
       std::function<void(std::shared_ptr<graph::GraphManager>)> hook);
+  [[nodiscard]] std::uint64_t StopSequenceCountForTesting() const;
 
 private:
   struct ReceiverInputSnapshot {
@@ -41,7 +42,7 @@ private:
     std::uint64_t max_complex_samples = 0;
     std::uint64_t max_read_complex_samples = 0;
   };
-  std::mutex operation_mutex_;
+  mutable std::mutex operation_mutex_;
   std::mutex callback_mutex_;
   std::mutex completion_mutex_;
   std::condition_variable completion_cv_;

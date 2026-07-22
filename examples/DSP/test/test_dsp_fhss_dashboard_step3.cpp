@@ -1074,6 +1074,35 @@ TEST(FHSSGraphRuntimeOwnerTest,
 }
 
 TEST(FHSSGraphRuntimeOwnerConcurrencyTest,
+     CooperativeStopUsesOneGraphExecutorTeardownEntry) {
+  auto fixture = MakeProductionReceiverFixture();
+  auto owner = std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
+      std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY),
+      fixture.directory / "cooperative-stop-runtime");
+  owner->SetExecutorTimeoutForTesting(std::chrono::seconds(60));
+  graph::dashboard::GraphRuntimeSession session(owner);
+  session.MarkReady();
+  ASSERT_EQ(session.Rebuild(fixture.snapshot).status_code, 200);
+  ASSERT_EQ(session.Start().status_code, 202);
+
+  const auto started = std::chrono::steady_clock::now();
+  const auto stopped = session.Stop();
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  EXPECT_EQ(stopped.status_code, 200) << stopped.code << ": "
+                                      << stopped.message;
+  EXPECT_LT(elapsed, std::chrono::seconds(5));
+  EXPECT_EQ(owner->StopSequenceCountForTesting(), 1u)
+      << "the control thread must request cancellation, not enter a second "
+         "GraphExecutor teardown sequence";
+  EXPECT_EQ(session.SnapshotStatus().terminal_result_code,
+            "execution_cancelled");
+
+  EXPECT_EQ(owner->Shutdown(0).status_code, 200);
+  EXPECT_EQ(owner->StopSequenceCountForTesting(), 1u)
+      << "Shutdown of a retired execution must remain request-only";
+}
+
+TEST(FHSSGraphRuntimeOwnerConcurrencyTest,
      CanonicalReceiverTrafficSerializesStartStopRebuildAndShutdown) {
   auto fixture = MakeProductionReceiverFixture();
   const auto runtime_directory = fixture.directory / "runtime";
