@@ -1,5 +1,8 @@
 # GraphX FHSS dashboard architecture
 
+For build, launch, operation, FHSS workflows, API use, installation, and
+troubleshooting, see the [GraphX dashboard user manual](graphx_dashboard_user_manual.md).
+
 The current observation checklist is in [FHSS dashboard Phase 4 manual operator test](dsp/fhss_dashboard_phase4_manual_operator_test.md).
 
 ## Scope and evidence boundary
