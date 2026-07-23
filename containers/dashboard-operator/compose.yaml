@@ -1,0 +1,15 @@
+services:
+  dashboard:
+    image: graphx-dashboard-operator:${GRAPHX_REVISION:-local}
+    build:
+      context: ../..
+      dockerfile: containers/dashboard-operator/Dockerfile
+      args:
+        GRAPHX_REVISION: ${GRAPHX_REVISION:-unrecorded}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ../../.graphx-operator:/workspace/evidence
+    init: true
+    stop_grace_period: 20s
+

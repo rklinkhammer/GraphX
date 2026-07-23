@@ -1,5 +1,14 @@
 # FHSS dashboard Phase 3 manual operator test
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
 This is a deterministic synthetic-IQ test. It provides no hardware-in-the-loop
 (HWIL), conducted-RF, OTA, or production-RF qualification evidence. Run it from
 the repository root on macOS or Linux with CMake, Ninja, a C++26 compiler,
@@ -7,17 +16,19 @@ Python 3, `jq`, `curl`, and `shasum` available.
 
 ## 1. Build, install, and create evidence inputs
 
-Copy and paste this block. It creates only the named build and `/tmp` trees.
+Copy and paste this block. It creates only named paths beneath the fresh clone.
 
 ```sh
 set -eu
 ROOT="$PWD"
-SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/graphx-fhss-dashboard-phase3.XXXXXX")
+SCRATCH="$ROOT/.graphx-operator/phase3-scratch"
 BUILD="$SCRATCH/build"
 INSTALL="$BUILD/install"
-OUT="/tmp/graphx-fhss-dashboard-phase3"
+OUT="$ROOT/.graphx-operator/phase3-evidence"
+test ! -e "$SCRATCH"
 test ! -e "$OUT"
 mkdir -p "$OUT/evidence/schemas"
+mkdir -p "$SCRATCH"
 printf '%s\n' "graphx-fhss-dashboard-phase3-owned" > "$OUT/.graphx-owned"
 PID=""
 cleanup_owned() {
@@ -32,17 +43,16 @@ SCHEDULE="$OUT/schedule.json"
 IQ="$OUT/replay.cf32"
 TRUTH="$OUT/truth.json"
 SIGMF="$OUT/replay.sigmf-meta"
-VALIDATOR="$SCRATCH/validator-venv"
+VALIDATOR_PYTHON="$ROOT/.venv-dashboard-contracts/bin/python"
+test -x "$VALIDATOR_PYTHON"
 
-python3 "$ROOT/examples/DSP/dashboard/api/provision_contract_validators.py" \
-  --venv "$VALIDATOR"
 cmake -S "$ROOT" -B "$BUILD" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=26 \
   -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
-  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$VALIDATOR/bin/python"
+  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$VALIDATOR_PYTHON"
 cmake --build "$BUILD" -j4
 cmake --install "$BUILD" --prefix "$INSTALL"
-"$VALIDATOR/bin/python" \
+"$VALIDATOR_PYTHON" \
   "$ROOT/examples/DSP/dashboard/api/validate_contracts.py"
 cp "$ROOT/examples/DSP/dashboard/api/openapi.json" \
   "$ROOT/examples/DSP/dashboard/api/schemas/"*.json \
@@ -353,13 +363,13 @@ From a new empty path, configure dashboard-on C++26 with TSAN and run the
 registered live-thread lifecycle tests:
 
 ```sh
-TSAN_BUILD="/tmp/graphx-fhss-dashboard-tsan-manual"
+TSAN_BUILD="$ROOT/.graphx-operator/phase3-tsan"
 test ! -e "$TSAN_BUILD"
 cmake -S "$ROOT" -B "$TSAN_BUILD" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=26 \
   -DGRAPHX_BUILD_WEB_DASHBOARD=ON -DENABLE_TSAN=ON \
   -DGRAPHX_BUILD_EXAMPLES_SAR=OFF \
-  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$VALIDATOR/bin/python"
+  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$VALIDATOR_PYTHON"
 cmake --build "$TSAN_BUILD" --target test_dsp_example_unit -j4
 "$TSAN_BUILD/examples/DSP/test/test_dsp_example_unit" \
   '--gtest_filter=GraphRuntimeSessionOwnerTest.*:FHSSGraphRuntimeOwnerConcurrencyTest.*'

@@ -9,17 +9,71 @@ conducted-RF, OTA, live-RF, or production-RF qualification.
 Record observations separately. Do not mark keyboard, focus, or reflow review
 complete unless a human performs it.
 
-## Build
+## Fresh-clone prerequisite
 
-From the repository root, provision the pinned frontend from the controlled
-offline cache and run its focused checks. Put the exact pinned executables on
-`PATH` first and verify the reported versions are `v24.4.1` and `11.5.2`; do
-not use an engine warning as qualification evidence:
+Operator qualification begins by downloading a new clone. Do not reuse a
+developer checkout, build tree, install prefix, `node_modules`, CMake cache, or
+generated test artifacts:
+
+```sh
+git clone https://github.com/rklinkhammer/GraphX.git graphx-phase1-operator
+cd graphx-phase1-operator
+git rev-parse HEAD
+git status --short
+```
+
+Record the revision printed by `git rev-parse`. The initial status must be
+clean. If the repository cannot be cloned, stop; an existing checkout is not a
+substitute for first-principles operator-build evidence.
+
+## Canonical Docker environment
+
+The preferred cross-host qualification uses the repository-owned Docker image.
+Docker with Compose must already be installed on the host:
+
+```sh
+docker --version
+docker compose version
+export GRAPHX_REVISION="$(git rev-parse HEAD)"
+mkdir -p .graphx-operator
+docker compose -f containers/dashboard-operator/compose.yaml build
+docker compose -f containers/dashboard-operator/compose.yaml up
+```
+
+Open `http://127.0.0.1:8080/` and perform the manual checks below. The image
+builds the clean clone in C++26 mode and owns its build dependencies. Generated
+IQ, truth, SigMF metadata, and operator evidence remain under
+`.graphx-operator`. Stop with:
+
+```sh
+docker compose -f containers/dashboard-operator/compose.yaml down
+```
+
+The host-native procedure below remains available for macOS-specific or
+non-container development.
+
+## Host prerequisites and build
+
+Node.js and npm must already be installed on the host and available through
+`PATH`. Supported versions are Node 24 through 26 and npm 11. GraphX does not
+download or provision them in a temporary directory:
+
+```sh
+which node
+which npm
+node --version
+npm --version
+```
+
+If either tool is missing or outside the supported range, stop and have the
+supported package installed on the host. Do not use a temporary executable,
+package prefix, or CMake override.
+
+Install the lockfile-controlled frontend dependencies explicitly from the
+controlled offline cache and run the focused checks:
 
 ```sh
 cd examples/DSP/dashboard/frontend
-node --version
-npm --version
 npm ci --ignore-scripts --offline
 npm run format:check
 npm run typecheck
@@ -33,15 +87,14 @@ Configure and build GraphX in C++26 mode with the dashboard enabled:
 ```sh
 cmake -S . -B build-phase1 -G Ninja \
   -DCMAKE_CXX_STANDARD=26 \
-  -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
-  -DGRAPHX_DASHBOARD_NODE_EXECUTABLE=/absolute/path/to/node-24.4.1 \
-  -DGRAPHX_DASHBOARD_NPM_CLI=/absolute/path/to/npm-11.5.2/bin/npm-cli.js
+  -DGRAPHX_BUILD_WEB_DASHBOARD=ON
 cmake --build build-phase1 --target graphx-dsp-fhss-demo
 ```
 
-The CMake build performs the frozen offline frontend installation and creates a
-single build-tree asset inventory. A dashboard-disabled build does not invoke
-Node or npm.
+CMake verifies the supported host toolchain and the already-installed locked
+dependencies, records the host versions, and creates a single build-tree asset
+inventory. It does not install packages. A dashboard-disabled build does not
+invoke Node or npm.
 
 ## Run the synthetic demo
 
@@ -114,9 +167,9 @@ the port.
 ## Installed-tree check
 
 ```sh
-cmake --install build-phase1 --prefix /tmp/graphx-phase1-install
-/tmp/graphx-phase1-install/bin/graphx-dsp-fhss-demo \
-  --graph-config /tmp/graphx-phase1-install/share/graphx/config/fhss_phase2_binary_iq_receiver.json \
+cmake --install build-phase1 --prefix build-phase1/operator-install
+build-phase1/operator-install/bin/graphx-dsp-fhss-demo \
+  --graph-config build-phase1/operator-install/share/graphx/config/fhss_phase2_binary_iq_receiver.json \
   --dashboard --dashboard-host 127.0.0.1 --dashboard-port 8080
 ```
 

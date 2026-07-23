@@ -1,5 +1,21 @@
 # FHSS dashboard Phase 4 manual operator test
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
+```sh
+export GRAPHX_OPERATOR_ROOT="$PWD/.graphx-operator"
+export GRAPHX_CONTRACT_PYTHON="$PWD/.venv-dashboard-contracts/bin/python"
+mkdir -p "$GRAPHX_OPERATOR_ROOT"
+test -x "$GRAPHX_CONTRACT_PYTHON"
+```
+
 This checklist validates the FHSS-specific Phase 4 dashboard with synthetic IQ
 only. No HWIL, conducted-RF, channel-emulator, independently recorded, or OTA
 evidence is available. Passing it qualifies the software observation path, not
@@ -7,19 +23,18 @@ RF performance.
 
 ## Build and machine checks
 
-Use the pinned contract environment configured as
-`GRAPHX_DASHBOARD_CONTRACT_PYTHON`:
+Use the host-installed contract environment configured as
+`GRAPHX_DASHBOARD_CONTRACT_PYTHON`. If the executable or a locked dependency is
+missing, stop and have it installed before continuing:
 
 ```sh
-python3 examples/DSP/dashboard/api/provision_contract_validators.py \
-  --venv /private/tmp/graphx-dashboard-contracts-venv
-/private/tmp/graphx-dashboard-contracts-venv/bin/python -m pip check
+"$GRAPHX_CONTRACT_PYTHON" -m pip check
 cmake -S . -B build-ninja/ninja-debug -G Ninja \
   -DCMAKE_CXX_STANDARD=26 -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
-  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON=/private/tmp/graphx-dashboard-contracts-venv/bin/python
+  -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$GRAPHX_CONTRACT_PYTHON"
 ```
 
-The provisioning script installs the exact versions from
+The environment must already contain the exact versions from
 `requirements-contracts.lock`; `pip check` must report no broken requirements.
 The configure output must identify `-std=c++2c`.
 
@@ -27,27 +42,27 @@ The configure output must identify `-std=c++2c`.
 cmake --build build-ninja/ninja-debug
 ctest --test-dir build-ninja/ninja-debug -R \
   'fhss_dashboard_(api_contracts|phase4_evidence_smoke)' --output-on-failure
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
   exercise --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir /private/tmp/graphx-dashboard-phase4
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
-  verify --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  verify --phase 4 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4
 ```
 
 For a source-independent installed-tree check:
 
 ```sh
 cmake --install build-ninja/ninja-debug \
-  --prefix /private/tmp/graphx-dashboard-phase4-install
-cd /private/tmp
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase4-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
-  exercise --phase 4 --build-dir /private/tmp/graphx-dashboard-phase4-install \
-  --output-dir /private/tmp/graphx-dashboard-phase4-installed-evidence
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase4-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
+  --prefix ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-install
+cd ${GRAPHX_OPERATOR_ROOT}
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
+  exercise --phase 4 --build-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-install \
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-installed-evidence
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
   verify --phase 4 \
-  --output-dir /private/tmp/graphx-dashboard-phase4-installed-evidence
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-installed-evidence
 ```
 
 The workflow generates `replay.cf32` with the canonical
@@ -105,7 +120,7 @@ the underlying lifecycle endpoints manually instead, launch the demo and use a
 PID-scoped trap (never a broad `pkill`):
 
 ```sh
-LOG=/private/tmp/graphx-dashboard-phase4-server.log
+LOG=${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4-server.log
 ./build-ninja/ninja-debug/examples/DSP/graphx-dsp-fhss-demo \
   --dashboard --dashboard-port 18087 >"$LOG" 2>&1 &
 DASH_PID=$!
@@ -135,15 +150,15 @@ Run one command at a time and leave it running while inspecting its printed
 loopback URL:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
   serve --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir /private/tmp/graphx-dashboard-phase4 --case clean --port 18084
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 --case clean --port 18084
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
   serve --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir /private/tmp/graphx-dashboard-phase4 --case impaired --port 18085
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 --case impaired --port 18085
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
   serve --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir /private/tmp/graphx-dashboard-phase4 --case negative --port 18086
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 --case negative --port 18086
 ```
 
 For each case, verify that the page labels and toggles independently identify
@@ -217,18 +232,18 @@ Repeat the following twice after refresh and compare the files byte-for-byte:
 
 ```sh
 for n in 1 2; do
-  curl -fsS http://127.0.0.1:18084/api/v1/fhss/observations >"/private/tmp/observed-$n.json"
-  curl -fsS http://127.0.0.1:18084/api/v1/fhss/comparison >"/private/tmp/comparison-$n.json"
+  curl -fsS http://127.0.0.1:18084/api/v1/fhss/observations >"${GRAPHX_OPERATOR_ROOT}/observed-$n.json"
+  curl -fsS http://127.0.0.1:18084/api/v1/fhss/comparison >"${GRAPHX_OPERATOR_ROOT}/comparison-$n.json"
 done
-cmp /private/tmp/observed-1.json /private/tmp/observed-2.json
-cmp /private/tmp/comparison-1.json /private/tmp/comparison-2.json
-sha256sum /private/tmp/observed-1.json /private/tmp/comparison-1.json
+cmp ${GRAPHX_OPERATOR_ROOT}/observed-1.json ${GRAPHX_OPERATOR_ROOT}/observed-2.json
+cmp ${GRAPHX_OPERATOR_ROOT}/comparison-1.json ${GRAPHX_OPERATOR_ROOT}/comparison-2.json
+sha256sum ${GRAPHX_OPERATOR_ROOT}/observed-1.json ${GRAPHX_OPERATOR_ROOT}/comparison-1.json
 ```
 
 Audit the receiver case recursively for prohibited side channels:
 
 ```sh
-RECEIVER_GRAPH=/private/tmp/graphx-dashboard-phase4/phase4-receiver-minimal.json
+RECEIVER_GRAPH=${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4/phase4-receiver-minimal.json
 jq -e '[path(..) as $p | $p[]? |
   select(type == "string") | ascii_downcase |
   select(. == "messages" or contains("truth") or contains("schedule") or
@@ -237,14 +252,14 @@ jq -e '[path(..) as $p | $p[]? |
          (contains("expected") and (contains("word") or contains("value"))))] |
   length == 0' "${RECEIVER_GRAPH}"
 
-jq '.graph.messages = []' "${RECEIVER_GRAPH}" >/private/tmp/receiver-injected.json
+jq '.graph.messages = []' "${RECEIVER_GRAPH}" >${GRAPHX_OPERATOR_ROOT}/receiver-injected.json
 if jq -e '[path(..) as $p | $p[]? |
   select(type == "string") | ascii_downcase |
   select(. == "messages" or contains("truth") or contains("schedule") or
          . == "active_frequency_indices" or
          (contains("generator") and contains("metadata")) or
          (contains("expected") and (contains("word") or contains("value"))))] |
-  length == 0' /private/tmp/receiver-injected.json; then
+  length == 0' ${GRAPHX_OPERATOR_ROOT}/receiver-injected.json; then
   echo 'FAIL: injected messages container escaped audit' >&2
   exit 1
 fi
@@ -275,18 +290,18 @@ Capture each visible browser as a real PNG, stop that case, then bind it to its
 case-specific served-state evidence:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
-  record-screenshot --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4 \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  record-screenshot --phase 4 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 \
   --case clean --path /path/to/clean.png
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
-  record-screenshot --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4 \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  record-screenshot --phase 4 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 \
   --case impaired --path /path/to/impaired.png
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
-  record-screenshot --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4 \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  record-screenshot --phase 4 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4 \
   --case negative --path /path/to/negative.png
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
   verify --phase 4 --require-screenshots \
-  --output-dir /private/tmp/graphx-dashboard-phase4
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4
 ```
 
 The final command must print `PASS`. It validates complete, non-uniform PNG
@@ -315,8 +330,8 @@ Cleanup is marker- and phase-guarded and removes only exact operator-owned
 artifacts:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
-  cleanup --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4
+"$GRAPHX_CONTRACT_PYTHON" examples/DSP/dashboard/operator/fhss_dashboard_operator.py \
+  cleanup --phase 4 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase4
 ```
 
 ## Troubleshooting and result worksheet

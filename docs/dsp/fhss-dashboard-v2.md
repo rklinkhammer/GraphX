@@ -596,10 +596,17 @@ any future generic frontend framework.
 
 #### Frontend toolchain and asset budgets
 
-- Select and pin the Node.js runtime, package manager, React, React Flow,
-  ELK.js, TypeScript, Vite, and all resolved transitive dependencies.
-- Commit the lockfile and record the selected tool versions, license/notices
-  process, and an offline or controlled-cache provisioning procedure.
+- Define a tested compatibility range for host-installed Node.js and npm.
+  Resolve them from the host `PATH`, record the versions used, and reject
+  missing or unsupported major versions. Do not require one exact patch
+  version.
+- Do not download or provision toolchains or packages under `/tmp`,
+  `/private/tmp`, another ephemeral prefix, or as an automatic CMake side
+  effect. Stop with host-installation instructions when a required tool or
+  locked dependency is missing.
+- Pin React, React Flow, ELK.js, TypeScript, Vite, and all resolved transitive
+  dependencies in the committed lockfile. Record the license/notices process
+  and controlled-cache dependency-installation procedure.
 - Define per-asset and total installed-size budgets. Every served file must fit
   the server's current 4 MiB response limit; production bundles must be split
   accordingly.
@@ -628,6 +635,15 @@ any future generic frontend framework.
 - Define rollback as rebuilding or reinstalling the last qualified source or
   release artifact. Rollback must not depend on dormant legacy assets or a
   runtime implementation switch.
+- Require every manual operator qualification to begin with a newly downloaded
+  fresh repository clone, new build directory, and new install prefix. Record
+  the repository revision and host tool versions; do not reuse another
+  checkout's dependencies, generated frontend, CMake cache, or test artifacts.
+- Provide a versioned Docker/Compose operator environment as the canonical
+  cross-host first-principles lane. Docker must be installed on the host; image
+  construction may install declared dependencies inside the image but may not
+  provision tools into host temporary directories. Publish the dashboard only
+  on host loopback and keep evidence under the fresh clone.
 
 #### Phase 0 exit criteria
 
@@ -645,9 +661,10 @@ Phase 0 passes only when:
    within the declared per-file and total-size budgets.
 5. Golden identity tests cover all 75 nodes, all 137 edges, and every exact
    source and target port in the Phase 2 binary-IQ receiver graph.
-6. The pinned frontend toolchain, lockfile policy, license/notices process,
-   controlled/offline provisioning, current CSP posture, MIME types, and
-   source-map policy are documented and directly checkable.
+6. The supported host frontend-tool range, lockfile policy, license/notices
+   process, explicit dependency installation, current CSP posture, MIME types,
+   source-map policy, and prohibition on ephemeral toolchains are documented
+   and directly checkable.
 7. Tests prove that one root dashboard and one `/api/v1/fhss` route tree are
    installed and served, with no alternate-UI selector, duplicate implementation,
    or `/api/v2` route.
@@ -659,7 +676,8 @@ Phase 0 passes only when:
 
 ### Phase 1: Read-only topology prototype
 
-- Create the pinned TypeScript/Vite/React Flow build.
+- Create the lockfile-controlled TypeScript/Vite/React Flow build with the
+  supported host Node/npm range.
 - Consume the existing graph API.
 - Render stable nodes, exact ports, and edges.
 - Add selection, pan, zoom, fit-to-view, and an inspector.

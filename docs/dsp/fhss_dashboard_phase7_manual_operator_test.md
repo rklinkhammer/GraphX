@@ -2,6 +2,20 @@
 
 Date: 2026-07-20
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
+```sh
+export GRAPHX_OPERATOR_ROOT="$PWD/.graphx-operator"
+mkdir -p "$GRAPHX_OPERATOR_ROOT"
+```
+
 This procedure validates FHSS investigation-bundle integrity, official SigMF
 1.2.6 metadata, truth isolation, and deterministic binary-IQ replay. All data
 is synthetic. No hardware-in-the-loop, conducted-RF, OTA, field-capture, or
@@ -18,12 +32,13 @@ Run from the repository root and choose new, empty output directories.
 ```sh
 export GRAPHX_PHASE7_ROOT="$PWD"
 export GRAPHX_PHASE7_BUILD="$PWD/build-ninja/ninja-debug"
-export GRAPHX_PHASE7_VENV="/private/tmp/graphx-dashboard-contracts-venv"
-export GRAPHX_PHASE7_SOURCE_OUT="/private/tmp/graphx-dashboard-phase7-source"
-export GRAPHX_PHASE7_PREFIX="/private/tmp/graphx-dashboard-phase7-install"
-export GRAPHX_PHASE7_INSTALL_OUT="/private/tmp/graphx-dashboard-phase7-installed"
+export GRAPHX_PHASE7_PYTHON="$PWD/.venv-dashboard-contracts/bin/python"
+export GRAPHX_PHASE7_SOURCE_OUT="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-source"
+export GRAPHX_PHASE7_PREFIX="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-install"
+export GRAPHX_PHASE7_INSTALL_OUT="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-installed"
 test ! -e "$GRAPHX_PHASE7_SOURCE_OUT"
 test ! -e "$GRAPHX_PHASE7_INSTALL_OUT"
+test -x "$GRAPHX_PHASE7_PYTHON"
 git status --short
 git rev-parse HEAD
 cmake --version
@@ -35,14 +50,15 @@ jq --version
 Do not reset, stash, or clean unrelated worktree changes. The operator refuses
 a nonempty output directory and cleanup requires its ownership marker.
 
-## 2. Provision pinned validators and build C++26
+## 2. Verify host validators and build C++26
 
-Use a reviewed wheelhouse when network-free reproducibility is required.
+The host validator environment must already contain the versions in
+`requirements-contracts.lock`. If it does not, stop and have it installed
+before qualification.
 
 ```sh
-python3 examples/DSP/dashboard/api/provision_contract_validators.py \
-  --venv "$GRAPHX_PHASE7_VENV" --wheelhouse /path/to/approved/wheelhouse
-"$GRAPHX_PHASE7_VENV/bin/python" \
+"$GRAPHX_PHASE7_PYTHON" -m pip check
+"$GRAPHX_PHASE7_PYTHON" \
   examples/DSP/dashboard/api/validate_contracts.py
 cmake --build "$GRAPHX_PHASE7_BUILD" --target \
   graphx-dsp-fhss-demo graphx-dsp-fhss-iq-generator test_dsp_example_unit
@@ -62,7 +78,7 @@ No normal runtime step downloads schemas or tooling.
 Bind only loopback and send the matching Origin on every request:
 
 ```sh
-export GRAPHX_PHASE7_MANUAL="/private/tmp/graphx-dashboard-phase7-manual"
+export GRAPHX_PHASE7_MANUAL="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-manual"
 export GRAPHX_PHASE7_URL="http://127.0.0.1:18777"
 export GRAPHX_PHASE7_ORIGIN="$GRAPHX_PHASE7_URL"
 mkdir -p "$GRAPHX_PHASE7_MANUAL"
@@ -160,11 +176,11 @@ Maintained Firefox must be installed; set `GRAPHX_FIREFOX_BINARY` when it is not
 discoverable.
 
 ```sh
-"$GRAPHX_PHASE7_VENV/bin/python" \
+"$GRAPHX_PHASE7_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
   --phase 7 --build-dir "$GRAPHX_PHASE7_BUILD" \
   --output-dir "$GRAPHX_PHASE7_SOURCE_OUT"
-"$GRAPHX_PHASE7_VENV/bin/python" \
+"$GRAPHX_PHASE7_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
   --phase 7 --output-dir "$GRAPHX_PHASE7_SOURCE_OUT"
 jq '{phase,result,evidence_status,failed:[.checks[]|select(.pass==false)]}' \
@@ -228,7 +244,7 @@ messages, schedules, truth, comparison, generator metadata, or
 Validate the metadata independently with the pinned upstream schema:
 
 ```sh
-"$GRAPHX_PHASE7_VENV/bin/python" -c '
+"$GRAPHX_PHASE7_PYTHON" -c '
 import json, os, pathlib
 from jsonschema import Draft202012Validator
 r=pathlib.Path("examples/DSP/dashboard/sigmf/official-v1.2.6/sigmf-schema.json")
@@ -321,11 +337,11 @@ done
 ```sh
 cmake --install "$GRAPHX_PHASE7_BUILD" --prefix "$GRAPHX_PHASE7_PREFIX"
 test -f "$GRAPHX_PHASE7_PREFIX/share/graphx/fhss-dashboard/sigmf/official-v1.2.6/sigmf-schema.json"
-"$GRAPHX_PHASE7_VENV/bin/python" \
+"$GRAPHX_PHASE7_PYTHON" \
   "$GRAPHX_PHASE7_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py" exercise \
   --phase 7 --build-dir "$GRAPHX_PHASE7_PREFIX" \
   --output-dir "$GRAPHX_PHASE7_INSTALL_OUT"
-"$GRAPHX_PHASE7_VENV/bin/python" \
+"$GRAPHX_PHASE7_PYTHON" \
   "$GRAPHX_PHASE7_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py" verify \
   --phase 7 --output-dir "$GRAPHX_PHASE7_INSTALL_OUT"
 jq '{result,evidence_status,failed:[.checks[]|select(.pass==false)]}' \
@@ -351,21 +367,21 @@ cancellation, publication, and shutdown. A sanitizer skip is not a pass.
 Concrete fresh-tree commands (choose new empty directories) are:
 
 ```sh
-cmake -S . -B /private/tmp/graphx-dashboard-phase7-asan -G Ninja \
+cmake -S . -B ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-asan -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=26 \
   -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
   -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' \
   -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
-cmake --build /private/tmp/graphx-dashboard-phase7-asan \
+cmake --build ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-asan \
   --target test_dsp_example_unit
-/private/tmp/graphx-dashboard-phase7-asan/examples/DSP/test/test_dsp_example_unit \
+${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-asan/examples/DSP/test/test_dsp_example_unit \
   --gtest_filter='FhssDashboardInvestigationBundleTest.*'
-cmake -S . -B /private/tmp/graphx-dashboard-phase7-tsan -G Ninja \
+cmake -S . -B ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-tsan -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=26 \
   -DGRAPHX_BUILD_WEB_DASHBOARD=ON -DENABLE_TSAN=ON
-cmake --build /private/tmp/graphx-dashboard-phase7-tsan \
+cmake --build ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-tsan \
   --target test_dsp_example_unit
-/private/tmp/graphx-dashboard-phase7-tsan/examples/DSP/test/test_dsp_example_unit \
+${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase7-tsan/examples/DSP/test/test_dsp_example_unit \
   --gtest_filter='FhssDashboardInvestigationBundleTest.*'
 ```
 

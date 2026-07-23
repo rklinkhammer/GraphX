@@ -1,15 +1,26 @@
 # FHSS Dashboard Phase 5 Operator Test
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
 This procedure validates message-oriented dashboard control using synthetic IQ
 only. No HWIL facility is available. The result is software-contract evidence,
 not RF, regulatory, interoperability, or hardware qualification.
 
 ## Prerequisites
 
-From the repository root, build the C++26 dashboard and provision the locked
-OpenAPI/JSON Schema validator environment:
+From the repository root, verify the host-installed locked OpenAPI/JSON Schema
+validator environment, then build the C++26 dashboard:
 
 ```sh
+test -x "$PWD/.venv-dashboard-contracts/bin/python"
+"$PWD/.venv-dashboard-contracts/bin/python" -m pip check
 cmake -S . -B build-ninja/ninja-debug -G Ninja \
   -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
   -DGRAPHX_DASHBOARD_CONTRACT_PYTHON="$PWD/.venv-dashboard-contracts/bin/python"
@@ -17,9 +28,8 @@ cmake --build build-ninja/ninja-debug --target \
   graphx-dsp-fhss-demo graphx-dsp-fhss-iq-generator test_dsp_example_unit
 ```
 
-If the validator environment does not exist, create it with
-`examples/DSP/dashboard/api/provision_contract_validators.py` as documented in
-the operator README.
+If the validator environment or a required package does not exist, stop and
+have it installed on the host before continuing.
 
 Validate an installed-tree launch independently of the source layout:
 

@@ -75,7 +75,7 @@ from which the receiver derives the active-frequency set.
 
 Building GraphX requires:
 
-- CMake 3.23 or newer;
+- CMake 4.0 or newer;
 - Ninja;
 - Linux or macOS;
 - a compiler with C++26 support; and

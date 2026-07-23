@@ -121,13 +121,18 @@ class Phase0BaselineTest(unittest.TestCase):
                          "edges":list(reversed(graph["edges"]))}
         self.assertEqual(identity, topology_identity_document(reconstructed, digest))
 
-    def test_toolchain_is_pinned_with_phase1_application(self) -> None:
+    def test_host_toolchain_range_and_locked_dependencies(self) -> None:
         frontend = DASHBOARD_ROOT / "frontend"
         package = json.loads((frontend / "package.json").read_text())
         lock = json.loads((frontend / "package-lock.json").read_text())
         policy = json.loads((frontend / "toolchain.json").read_text())
         self.assertEqual(lock["lockfileVersion"], 3)
-        self.assertEqual(package["packageManager"], "npm@11.5.2")
+        self.assertEqual(package["engines"]["node"], ">=24.0.0 <27.0.0")
+        self.assertEqual(package["engines"]["npm"], ">=11.0.0 <12.0.0")
+        self.assertTrue(policy["host_toolchain_required"])
+        self.assertFalse(policy["automatic_toolchain_provisioning"])
+        self.assertFalse(policy["temporary_toolchain_paths_allowed"])
+        self.assertEqual(policy["cmake_resolution"], "host_PATH")
         self.assertTrue(policy["application_present"])
         self.assertEqual(policy["application_phase"], 1)
         for section in ("dependencies", "devDependencies"):

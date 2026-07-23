@@ -31,7 +31,7 @@ baseline consolidation:
 
 ## Requirements
 
-- CMake 3.23 or newer.
+- CMake 4.0 or newer.
 - Ninja. The project requires Ninja by default.
 - Host platform: Linux or macOS.
 - A C++ compiler with C++26 support.
@@ -65,6 +65,22 @@ ctest --preset test-libgraph-unit --output-on-failure
 The container is Linux-based, so native Metal development and runtime tests
 still require a macOS host build. CUDA and SYCL toolchains are not installed by
 the default container.
+
+For first-principles FHSS dashboard operator qualification, use the dedicated
+container in `containers/dashboard-operator`. It builds a fresh clone with its
+declared C++26, Node/npm, Python-contract, and frontend dependencies and exposes
+the dashboard only on host loopback:
+
+```bash
+export GRAPHX_REVISION="$(git rev-parse HEAD)"
+mkdir -p .graphx-operator
+docker compose -f containers/dashboard-operator/compose.yaml build
+docker compose -f containers/dashboard-operator/compose.yaml up
+```
+
+Open `http://127.0.0.1:8080/`. See
+`containers/dashboard-operator/README.md` for the clean-clone prerequisite and
+shutdown procedure.
 
 Configure and build the default debug tree:
 
@@ -372,13 +388,15 @@ Notes:
 Run the Phase 4 synthetic observation workflow and verify its hashed evidence:
 
 ```bash
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
+test -x "$PWD/.venv-dashboard-contracts/bin/python"
+mkdir -p "$PWD/.graphx-operator"
+"$PWD/.venv-dashboard-contracts/bin/python" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
   --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir /private/tmp/graphx-dashboard-phase4
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
+  --output-dir "$PWD/.graphx-operator/graphx-dashboard-phase4"
+"$PWD/.venv-dashboard-contracts/bin/python" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
-  --phase 4 --output-dir /private/tmp/graphx-dashboard-phase4
+  --phase 4 --output-dir "$PWD/.graphx-operator/graphx-dashboard-phase4"
 ```
 
 The Phase 4 dashboard keeps [expected truth, receiver observations, and

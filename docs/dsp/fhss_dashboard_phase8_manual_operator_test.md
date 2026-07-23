@@ -1,5 +1,24 @@
 # FHSS dashboard Phase 8 operator qualification
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
+```sh
+export GRAPHX_OPERATOR_ROOT="$PWD/.graphx-operator"
+export GRAPHX_CONTRACT_PYTHON="$PWD/.venv-dashboard-contracts/bin/python"
+export GRAPHX_AXE_ROOT="$PWD/.host-packages/axe-core-4.12.1"
+mkdir -p "$GRAPHX_OPERATOR_ROOT"
+test -x "$GRAPHX_CONTRACT_PYTHON"
+test -f "$GRAPHX_AXE_ROOT/axe-core-4.12.1.tgz"
+test -f "$GRAPHX_AXE_ROOT/package/axe.min.js"
+```
+
 ## Qualification boundary
 
 Dashboard scope: FHSS-specific  
@@ -21,17 +40,17 @@ contract interpreter must contain the exact locked dependencies from
 
 ```sh
 cmake --install build-ninja/ninja-debug \
-  --prefix /private/tmp/graphx-dashboard-phase8-install
-cd /private/tmp
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
+  --prefix ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install
+cd ${GRAPHX_OPERATOR_ROOT}
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
   exercise --phase 8 \
-  --build-dir /private/tmp/graphx-dashboard-phase8-install \
-  --output-dir /private/tmp/graphx-dashboard-phase8-evidence
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
+  --build-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install \
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-evidence
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
   verify --phase 8 \
-  --output-dir /private/tmp/graphx-dashboard-phase8-evidence
+  --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-evidence
 ```
 
 Expected output is `PASS`; `phase8-report.json` must say `PASS` and
@@ -73,8 +92,8 @@ security/fuzz, complete-soak, schema/package inventory, and human evidence is
 available:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/phase8_completion_report.py \
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/phase8_completion_report.py \
   --source-operator-report SOURCE/phase8-report.json \
   --installed-operator-report INSTALLED/phase8-report.json \
   --browser-evidence SOURCE/phase8-browser-accessibility.json \
@@ -95,7 +114,7 @@ available:
   --sanitizer-evidence EVIDENCE/sanitizer.json \
   --concurrency-evidence EVIDENCE/concurrency.json \
   --signed-off-by OPERATOR_ID \
-  --output /private/tmp/graphx-dashboard-phase8-evidence/phase8-completion.json
+  --output ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-evidence/phase8-completion.json
 ```
 
 The tool authoritatively validates both operator reports and all evidence
@@ -106,20 +125,16 @@ missing, failing, skipped, stale, divergent, malformed, or hash-mismatched
 evidence and writes a detached SHA-256 file.
 
 There is intentionally no completed human record or recognized accessibility-
-engine report in the repository. Provision the reviewed npm `axe-core@4.12.1`
-distribution without adding it to tracked source:
+engine report in the repository. The reviewed `axe-core@4.12.1` distribution
+must already be installed on the host at `GRAPHX_AXE_ROOT`. If it is
+missing, stop and have it installed before qualification:
 
 ```sh
-mkdir -p /private/tmp/graphx-axe-core-4.12.1
-curl --proto '=https' --tlsv1.2 -fsSLo /private/tmp/graphx-axe-core-4.12.1/axe-core-4.12.1.tgz \
-  https://registry.npmjs.org/axe-core/-/axe-core-4.12.1.tgz
-shasum -a 256 /private/tmp/graphx-axe-core-4.12.1/axe-core-4.12.1.tgz
-tar -xzf /private/tmp/graphx-axe-core-4.12.1/axe-core-4.12.1.tgz \
-  -C /private/tmp/graphx-axe-core-4.12.1
 shasum -a 256 \
-  /private/tmp/graphx-axe-core-4.12.1/package/axe.min.js \
-  /private/tmp/graphx-axe-core-4.12.1/package/LICENSE \
-  /private/tmp/graphx-axe-core-4.12.1/package/LICENSE-3RD-PARTY.txt
+  "$GRAPHX_AXE_ROOT/axe-core-4.12.1.tgz" \
+  "$GRAPHX_AXE_ROOT/package/axe.min.js" \
+  "$GRAPHX_AXE_ROOT/package/LICENSE" \
+  "$GRAPHX_AXE_ROOT/package/LICENSE-3RD-PARTY.txt"
 ```
 
 Required SHA-256 values, in command order, are
@@ -134,11 +149,11 @@ With each independently launched source and installed dashboard URL, run the
 corresponding installed-or-source `phase8_axe_scan.py`:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
+"$GRAPHX_CONTRACT_PYTHON" \
   PATH_TO_OPERATOR/phase8_axe_scan.py \
   --dashboard-url http://127.0.0.1:PORT \
-  --axe-tarball /private/tmp/graphx-axe-core-4.12.1/axe-core-4.12.1.tgz \
-  --axe-package-root /private/tmp/graphx-axe-core-4.12.1/package \
+  --axe-tarball "$GRAPHX_AXE_ROOT/axe-core-4.12.1.tgz" \
+  --axe-package-root "$GRAPHX_AXE_ROOT/package" \
   --output-dir EVIDENCE --label source
 ```
 
@@ -222,7 +237,7 @@ completion evidence and resolve required failures before sign-off.
 Cleanup only operator-owned output:
 
 ```sh
-/private/tmp/graphx-dashboard-contracts-venv/bin/python \
-  /private/tmp/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
-  cleanup --phase 8 --output-dir /private/tmp/graphx-dashboard-phase8-evidence
+"$GRAPHX_CONTRACT_PYTHON" \
+  ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-install/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py \
+  cleanup --phase 8 --output-dir ${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase8-evidence
 ```

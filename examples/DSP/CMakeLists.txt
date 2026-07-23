@@ -12,37 +12,45 @@ target_include_directories(dsp_fhss_iq_artifacts PUBLIC
 target_link_libraries(dsp_fhss_iq_artifacts PUBLIC dsp)
 
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-    set(GRAPHX_DASHBOARD_NODE_EXECUTABLE "" CACHE FILEPATH
-        "Exact pinned Node.js executable for the dashboard build")
-    set(GRAPHX_DASHBOARD_NPM_CLI "" CACHE FILEPATH
-        "Exact pinned npm-cli.js for the dashboard build")
-    option(GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN
-        "Developer-only override for an unpinned dashboard toolchain" OFF)
-    if(NOT GRAPHX_DASHBOARD_NODE_EXECUTABLE)
-        find_program(GRAPHX_DASHBOARD_NODE_EXECUTABLE NAMES node REQUIRED)
+    # Remove obsolete Phase 1 exact-toolchain cache entries so an existing build
+    # cannot continue resolving Node or npm from an ephemeral path.
+    unset(GRAPHX_DASHBOARD_NODE_EXECUTABLE CACHE)
+    unset(GRAPHX_DASHBOARD_NPM_CLI CACHE)
+    unset(GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN CACHE)
+    find_program(GRAPHX_DASHBOARD_HOST_NODE NAMES node NO_CACHE)
+    find_program(GRAPHX_DASHBOARD_HOST_NPM NAMES npm NO_CACHE)
+    if(NOT GRAPHX_DASHBOARD_HOST_NODE)
+        message(FATAL_ERROR
+            "Node.js was not found on the host PATH. Install a supported "
+            "Node.js release on the host, then reconfigure. GraphX does not "
+            "download or provision Node.js in a temporary directory.")
+    endif()
+    if(NOT GRAPHX_DASHBOARD_HOST_NPM)
+        message(FATAL_ERROR
+            "npm was not found on the host PATH. Install supported npm on the "
+            "host, then reconfigure. GraphX does not download or provision npm "
+            "in a temporary directory.")
     endif()
     get_filename_component(GRAPHX_DASHBOARD_NODE_DIRECTORY
-        "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" DIRECTORY)
-    set(GRAPHX_DASHBOARD_PINNED_ENV_COMMAND
+        "${GRAPHX_DASHBOARD_HOST_NODE}" DIRECTORY)
+    get_filename_component(GRAPHX_DASHBOARD_NPM_DIRECTORY
+        "${GRAPHX_DASHBOARD_HOST_NPM}" DIRECTORY)
+    set(GRAPHX_DASHBOARD_HOST_ENV_COMMAND
         "${CMAKE_COMMAND}" -E env
-        "PATH=${GRAPHX_DASHBOARD_NODE_DIRECTORY}:$ENV{PATH}")
-    if(GRAPHX_DASHBOARD_NPM_CLI)
-        set(GRAPHX_DASHBOARD_NPM_COMMAND
-            ${GRAPHX_DASHBOARD_PINNED_ENV_COMMAND}
-            "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" "${GRAPHX_DASHBOARD_NPM_CLI}")
-    else()
-        find_program(GRAPHX_DASHBOARD_NPM_EXECUTABLE NAMES npm REQUIRED)
-        set(GRAPHX_DASHBOARD_NPM_COMMAND
-            ${GRAPHX_DASHBOARD_PINNED_ENV_COMMAND}
-            "${GRAPHX_DASHBOARD_NPM_EXECUTABLE}")
-    endif()
+        "PATH=${GRAPHX_DASHBOARD_NPM_DIRECTORY}:${GRAPHX_DASHBOARD_NODE_DIRECTORY}:$ENV{PATH}")
+    set(GRAPHX_DASHBOARD_NPM_COMMAND
+        ${GRAPHX_DASHBOARD_HOST_ENV_COMMAND} "${GRAPHX_DASHBOARD_HOST_NPM}")
     file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/toolchain.json"
         GRAPHX_DASHBOARD_TOOLCHAIN_JSON)
-    string(JSON GRAPHX_DASHBOARD_PINNED_NODE GET
-        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" node)
-    string(JSON GRAPHX_DASHBOARD_PINNED_NPM GET
-        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" npm)
-    execute_process(COMMAND "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" --version
+    string(JSON GRAPHX_DASHBOARD_NODE_MINIMUM GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" node_minimum)
+    string(JSON GRAPHX_DASHBOARD_NODE_MAXIMUM GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" node_maximum_exclusive)
+    string(JSON GRAPHX_DASHBOARD_NPM_MINIMUM GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" npm_minimum)
+    string(JSON GRAPHX_DASHBOARD_NPM_MAXIMUM GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" npm_maximum_exclusive)
+    execute_process(COMMAND "${GRAPHX_DASHBOARD_HOST_NODE}" --version
         OUTPUT_VARIABLE GRAPHX_DASHBOARD_ACTUAL_NODE OUTPUT_STRIP_TRAILING_WHITESPACE
         RESULT_VARIABLE GRAPHX_DASHBOARD_NODE_RESULT)
     execute_process(COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} --version
@@ -50,23 +58,44 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         RESULT_VARIABLE GRAPHX_DASHBOARD_NPM_RESULT)
     string(REGEX REPLACE "^v" "" GRAPHX_DASHBOARD_ACTUAL_NODE
         "${GRAPHX_DASHBOARD_ACTUAL_NODE}")
-    set(GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES TRUE)
     if(NOT GRAPHX_DASHBOARD_NODE_RESULT EQUAL 0 OR
-       NOT GRAPHX_DASHBOARD_NPM_RESULT EQUAL 0 OR
-       NOT GRAPHX_DASHBOARD_ACTUAL_NODE STREQUAL GRAPHX_DASHBOARD_PINNED_NODE OR
-       NOT GRAPHX_DASHBOARD_ACTUAL_NPM STREQUAL GRAPHX_DASHBOARD_PINNED_NPM)
-        set(GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES FALSE)
+       GRAPHX_DASHBOARD_ACTUAL_NODE VERSION_LESS GRAPHX_DASHBOARD_NODE_MINIMUM OR
+       NOT GRAPHX_DASHBOARD_ACTUAL_NODE VERSION_LESS GRAPHX_DASHBOARD_NODE_MAXIMUM)
+        message(FATAL_ERROR
+            "The host Node.js installation is missing or unsupported. "
+            "Install Node >=${GRAPHX_DASHBOARD_NODE_MINIMUM} and "
+            "<${GRAPHX_DASHBOARD_NODE_MAXIMUM} on the host, then reconfigure. "
+            "Found '${GRAPHX_DASHBOARD_ACTUAL_NODE}'. GraphX does not download "
+            "or provision Node.js in a temporary directory.")
     endif()
-    if(NOT GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES)
-        if(NOT GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN)
-            message(FATAL_ERROR
-                "Dashboard build requires Node ${GRAPHX_DASHBOARD_PINNED_NODE} and npm ${GRAPHX_DASHBOARD_PINNED_NPM}; found Node ${GRAPHX_DASHBOARD_ACTUAL_NODE} and npm ${GRAPHX_DASHBOARD_ACTUAL_NPM}. Set exact executable paths. The developer-only GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN override is not release evidence.")
-        endif()
-        message(WARNING
-            "Using developer-only unpinned dashboard toolchain; this build is not release or installed-tree qualification evidence")
-        file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/dashboard-toolchain-mismatch.json"
-            "{\"schema\":\"graphx.fhss.dashboard.toolchain_mismatch.v1\",\"release_evidence\":false,\"expected_node\":\"${GRAPHX_DASHBOARD_PINNED_NODE}\",\"actual_node\":\"${GRAPHX_DASHBOARD_ACTUAL_NODE}\",\"expected_npm\":\"${GRAPHX_DASHBOARD_PINNED_NPM}\",\"actual_npm\":\"${GRAPHX_DASHBOARD_ACTUAL_NPM}\"}\n")
+    if(NOT GRAPHX_DASHBOARD_NPM_RESULT EQUAL 0 OR
+       GRAPHX_DASHBOARD_ACTUAL_NPM VERSION_LESS GRAPHX_DASHBOARD_NPM_MINIMUM OR
+       NOT GRAPHX_DASHBOARD_ACTUAL_NPM VERSION_LESS GRAPHX_DASHBOARD_NPM_MAXIMUM)
+        message(FATAL_ERROR
+            "The host npm installation is missing or unsupported. "
+            "Install npm >=${GRAPHX_DASHBOARD_NPM_MINIMUM} and "
+            "<${GRAPHX_DASHBOARD_NPM_MAXIMUM} on the host, then reconfigure. "
+            "Found '${GRAPHX_DASHBOARD_ACTUAL_NPM}'. GraphX does not download "
+            "or provision npm in a temporary directory.")
     endif()
+    execute_process(
+        COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} ls --depth=0 --offline
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend"
+        RESULT_VARIABLE GRAPHX_DASHBOARD_DEPENDENCY_RESULT
+        OUTPUT_QUIET ERROR_QUIET)
+    if(NOT GRAPHX_DASHBOARD_DEPENDENCY_RESULT EQUAL 0)
+        message(FATAL_ERROR
+            "Dashboard frontend dependencies are not installed in the source "
+            "workspace. Using the supported host Node/npm installation, run "
+            "'npm ci --ignore-scripts --offline' in "
+            "examples/DSP/dashboard/frontend, then reconfigure. GraphX does "
+            "not install packages or use temporary package prefixes.")
+    endif()
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/dashboard-toolchain.json"
+        "{\"schema\":\"graphx.fhss.dashboard.host_toolchain.v1\","
+        "\"node\":\"${GRAPHX_DASHBOARD_ACTUAL_NODE}\","
+        "\"npm\":\"${GRAPHX_DASHBOARD_ACTUAL_NPM}\","
+        "\"resolution\":\"host_PATH\",\"supported\":true}\n")
     file(GLOB_RECURSE GRAPHX_DASHBOARD_FRONTEND_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/src/*"
         "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/test/*")
@@ -74,7 +103,6 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         "${CMAKE_CURRENT_BINARY_DIR}/fhss-dashboard-dist")
     add_custom_command(
         OUTPUT "${GRAPHX_DASHBOARD_DIST_DIR}/index.html"
-        COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} ci --ignore-scripts --offline
         COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} run build --
             --outDir "${GRAPHX_DASHBOARD_DIST_DIR}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend"

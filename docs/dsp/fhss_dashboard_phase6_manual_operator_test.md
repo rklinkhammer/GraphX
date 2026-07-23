@@ -2,6 +2,20 @@
 
 Date: 2026-07-19
 
+## Fresh-clone prerequisite
+
+Run this qualification only from a newly downloaded clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record `git rev-parse HEAD` and
+require a clean `git status --short` before building. Do not reuse a developer
+checkout, build tree, installed dependencies, CMake cache, or prior evidence.
+Required packages must already be installed on the host; stop if one is
+missing rather than provisioning it under a temporary path.
+
+```sh
+export GRAPHX_OPERATOR_ROOT="$PWD/.graphx-operator"
+mkdir -p "$GRAPHX_OPERATOR_ROOT"
+```
+
 This procedure qualifies bounded RFC 6455 event streaming, deterministic
 replay/resynchronization, and the HTTP polling fallback of the loopback-only
 FHSS dashboard. It covers both a source build and an installed, source-tree-
@@ -21,11 +35,12 @@ directories; the operator refuses a nonempty output directory.
 ```sh
 export GRAPHX_PHASE6_ROOT="$PWD"
 export GRAPHX_PHASE6_BUILD="$PWD/build-ninja/ninja-debug"
-export GRAPHX_PHASE6_VENV="/private/tmp/graphx-dashboard-contracts-venv"
-export GRAPHX_PHASE6_SOURCE_OUT="/private/tmp/graphx-dashboard-phase6-source"
-export GRAPHX_PHASE6_PREFIX="/private/tmp/graphx-dashboard-phase6-install"
-export GRAPHX_PHASE6_INSTALL_OUT="/private/tmp/graphx-dashboard-phase6-installed"
+export GRAPHX_PHASE6_PYTHON="$PWD/.venv-dashboard-contracts/bin/python"
+export GRAPHX_PHASE6_SOURCE_OUT="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase6-source"
+export GRAPHX_PHASE6_PREFIX="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase6-install"
+export GRAPHX_PHASE6_INSTALL_OUT="${GRAPHX_OPERATOR_ROOT}/graphx-dashboard-phase6-installed"
 test -f "$GRAPHX_PHASE6_ROOT/CMakePresets.json"
+test -x "$GRAPHX_PHASE6_PYTHON"
 test ! -e "$GRAPHX_PHASE6_SOURCE_OUT"
 test ! -e "$GRAPHX_PHASE6_INSTALL_OUT"
 ```
@@ -47,26 +62,21 @@ unless its ownership marker and phase match.
 
 ## 2. Locked validator environment
 
-Use an access-controlled wheelhouse for a fully offline qualification. The
-provisioner installs the exact versions in `requirements-contracts.lock`; do
-not substitute the system Python packages.
+Use the host-installed validator environment. It must already contain the exact
+versions in `requirements-contracts.lock`. If it is absent or incomplete, stop
+and have it installed before qualification:
 
 ```sh
-python3 examples/DSP/dashboard/api/provision_contract_validators.py \
-  --venv "$GRAPHX_PHASE6_VENV" \
-  --wheelhouse /path/to/approved/wheelhouse
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" -m pip check
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/api/validate_contracts.py
 ```
 
-If an approved wheelhouse is unavailable, omit `--wheelhouse` only when the
-qualification authority permits a network-backed provisioning run. Record
-that limitation and retain the lock file, interpreter version, and installed
-package listing:
+Record the lock file, interpreter version, and installed package listing:
 
 ```sh
 sha256sum examples/DSP/dashboard/api/requirements-contracts.lock
-"$GRAPHX_PHASE6_VENV/bin/python" -m pip freeze
+"$GRAPHX_PHASE6_PYTHON" -m pip freeze
 ```
 
 Expected contract result: `OpenAPI 3.1.2 authoritative validation: PASS`.
@@ -102,7 +112,7 @@ Run the production executable through documented HTTP and WebSocket surfaces.
 The exercise launches and terminates every child process itself.
 
 ```sh
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
   --phase 6 --build-dir "$GRAPHX_PHASE6_BUILD" \
   --output-dir "$GRAPHX_PHASE6_SOURCE_OUT"
@@ -304,7 +314,7 @@ For each case, run `serve` in terminal A. It prints the exact loopback URL and
 writes the served-state document. Leave it running:
 
 ```sh
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py serve \
   --phase 6 --case live --build-dir "$GRAPHX_PHASE6_BUILD" \
   --output-dir "$GRAPHX_PHASE6_SOURCE_OUT"
@@ -315,7 +325,7 @@ In terminal B, confirm the exact URL and capture only that served state:
 ```sh
 jq -er '.url | select(startswith("http://127.0.0.1:"))' \
   "$GRAPHX_PHASE6_SOURCE_OUT/phase6-live-served-state.json"
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py capture-browser \
   --phase 6 --case live --build-dir "$GRAPHX_PHASE6_BUILD" \
   --output-dir "$GRAPHX_PHASE6_SOURCE_OUT"
@@ -347,7 +357,7 @@ for CASE_NAME in live replay resync; do
   file "$GRAPHX_PHASE6_SOURCE_OUT/screenshots/$CASE_NAME.png" | \
     grep -q 'PNG image data' || exit 1
 done
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
   --phase 6 --require-screenshots \
   --output-dir "$GRAPHX_PHASE6_SOURCE_OUT"
@@ -367,12 +377,12 @@ cmake --install "$GRAPHX_PHASE6_BUILD" --prefix "$GRAPHX_PHASE6_PREFIX"
 test -x "$GRAPHX_PHASE6_PREFIX/bin/graphx-dsp-fhss-demo"
 test -f "$GRAPHX_PHASE6_PREFIX/share/graphx/fhss-dashboard/index.html"
 test -f "$GRAPHX_PHASE6_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py"
-cd /private/tmp
-"$GRAPHX_PHASE6_VENV/bin/python" \
+cd ${GRAPHX_OPERATOR_ROOT}
+"$GRAPHX_PHASE6_PYTHON" \
   "$GRAPHX_PHASE6_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py" \
   exercise --phase 6 --build-dir "$GRAPHX_PHASE6_PREFIX" \
   --output-dir "$GRAPHX_PHASE6_INSTALL_OUT"
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   "$GRAPHX_PHASE6_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py" \
   verify --phase 6 --output-dir "$GRAPHX_PHASE6_INSTALL_OUT"
 cd "$GRAPHX_PHASE6_ROOT"
@@ -458,10 +468,10 @@ using the same installed/source operator that created it:
 
 ```sh
 pgrep -fl 'graphx-dsp-fhss-demo.*--dashboard' && exit 1 || true
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   examples/DSP/dashboard/operator/fhss_dashboard_operator.py cleanup \
   --phase 6 --output-dir "$GRAPHX_PHASE6_SOURCE_OUT"
-"$GRAPHX_PHASE6_VENV/bin/python" \
+"$GRAPHX_PHASE6_PYTHON" \
   "$GRAPHX_PHASE6_PREFIX/share/graphx/fhss-dashboard/operator/fhss_dashboard_operator.py" \
   cleanup --phase 6 --output-dir "$GRAPHX_PHASE6_INSTALL_OUT"
 ```

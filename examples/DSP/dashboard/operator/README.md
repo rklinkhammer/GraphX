@@ -1,5 +1,19 @@
 # FHSS dashboard Phase 1/2/3/4/5/6/7/8 operator
 
+## Clean-clone prerequisite
+
+Every operator qualification begins by downloading a new clone of
+`https://github.com/rklinkhammer/GraphX.git`. Record the checked-out revision
+and use new build and install directories inside that clone. Do not reuse a
+developer checkout, `node_modules`, generated frontend output, CMake cache,
+install prefix, or evidence directory from another run.
+
+Required compilers, interpreters, Node.js, npm, browsers, and validation
+packages must be installed on the host before the operator test begins.
+Operator tooling must stop and request host installation when a dependency is
+missing or unsupported; it must not download or provision packages under
+`/tmp`, `/private/tmp`, or another ephemeral prefix.
+
 Phase 4 manual browser/API validation is documented in
 `docs/dsp/fhss_dashboard_phase4_manual_operator_test.md`.
 Phase 5 message-job validation is documented in

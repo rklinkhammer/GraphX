@@ -4,36 +4,41 @@ This policy is normative for the dashboard-modernization initiative. `V2` is a
 project label only. There is one dashboard at `/` and one application API
 namespace, `/api/v1/fhss`.
 
-## Toolchain lock
+## Host toolchain and dependency lock
 
-The selected build-time baseline is recorded by
+The supported build-time range is recorded by
 `examples/DSP/dashboard/frontend/package.json`, `package-lock.json`, and
-`toolchain.json`. Exact direct versions and every resolved transitive package
-must be integrity-bound in the lockfile. `THIRD_PARTY_NOTICES.md` records the
-reviewed license inventory. `node_modules` is never a repository input. The
-compiled Phase 1 `dashboard/dist` inventory is the sole source-tree frontend;
-the prototype is not retained as a fallback.
+`toolchain.json`. Node.js and npm are host-installed tools resolved from
+`PATH`. GraphX accepts Node 24 through 26 and npm 11, records the versions used
+by the build, and rejects unsupported major versions. Exact direct frontend
+dependency versions and every resolved transitive package remain
+integrity-bound in the lockfile. `THIRD_PARTY_NOTICES.md` records the reviewed
+license inventory. `node_modules` is never a repository input. The compiled
+Phase 1 `dashboard/dist` inventory is the sole source-tree frontend; the
+prototype is not retained as a fallback.
 
-Provision from a controlled cache with:
+GraphX does not download or provision Node.js, npm, or another package manager,
+does not select executables from `/tmp`, `/private/tmp`, or another ephemeral
+toolchain directory, and does not automatically install frontend dependencies
+during CMake configuration or build. If a supported host tool or the locked
+frontend dependencies are missing, configuration stops and asks the operator
+to install them on the host or in the source workspace. There is no
+unsupported-version override.
+
+After installing the supported host tools, an operator installs the
+repository-locked frontend dependencies explicitly:
 
 ```sh
 cd examples/DSP/dashboard/frontend
 npm ci --ignore-scripts --offline
 ```
 
-CMake reads `toolchain.json` and fails configuration unless the executables
-selected by `GRAPHX_DASHBOARD_NODE_EXECUTABLE` and
-`GRAPHX_DASHBOARD_NPM_CLI` report the exact pinned versions. The explicitly
-named `GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN` option is for local developer
-experimentation only. It writes a mismatch record and is never acceptable as
-release or installed-tree qualification evidence.
-
 Populate the controlled cache only in an authorized dependency-acquisition
-environment. CI and ordinary builds use `npm ci`, never lockfile mutation.
+environment. Dependency installation uses `npm ci`, never lockfile mutation.
 Dashboard-disabled configuration and builds must not invoke Node, npm, or a
-network. Dashboard-enabled CMake builds invoke the frozen offline installation
-and production build as a build-time-only step. The deployed target does not
-require Node.js.
+network. Dashboard-enabled CMake builds verify the host toolchain and installed
+locked dependencies, then run only the production build. The deployed target
+does not require Node.js.
 
 ## Release asset policy
 
@@ -69,6 +74,23 @@ and diagnostic correlation may reference that identity only after Phase 3
 defines and tests the mapping; Phase 0 enables no live overlays.
 
 ## Required gates
+
+Every manual operator qualification starts from a newly downloaded fresh clone
+of the repository and a new build directory. The operator records the clone
+URL, revision, host Node/npm versions, and configuration command. Qualification
+must not reuse another checkout's `node_modules`, compiled frontend output,
+CMake cache, install prefix, or generated test artifacts. Fast developer
+reruns may use an existing checkout, but they are not clean-build operator
+evidence.
+
+The canonical cross-host operator environment is
+`containers/dashboard-operator`. Docker with Compose must already be installed
+on the host. The versioned image owns its Linux, C++26, Node/npm, Python
+contract, browser-support, and frontend dependencies; image construction is an
+explicit operator action, never a CMake side effect. Docker publishes the
+dashboard only on host loopback and stores generated evidence beneath the fresh
+clone's `.graphx-operator` directory. Native macOS Metal qualification remains
+a separate host lane.
 
 Browser-operator scenarios written against the retired prototype DOM and its
 standalone transport module remain visible as disabled CTest entries, but are

@@ -52,11 +52,16 @@ class Phase1DashboardTest(unittest.TestCase):
         self.assertIn("ArrowDown", source)
         self.assertIn("min-width: 320px", source)
 
-    def test_build_is_pinned_and_has_no_production_source_maps(self) -> None:
+    def test_build_uses_supported_host_range_and_has_no_source_maps(self) -> None:
         package = json.loads((FRONTEND / "package.json").read_text())
         lock = json.loads((FRONTEND / "package-lock.json").read_text())
+        toolchain = json.loads((FRONTEND / "toolchain.json").read_text())
         config = (FRONTEND / "vite.config.ts").read_text()
-        self.assertEqual(package["packageManager"], "npm@11.5.2")
+        self.assertEqual(package["engines"]["node"], ">=24.0.0 <27.0.0")
+        self.assertEqual(package["engines"]["npm"], ">=11.0.0 <12.0.0")
+        self.assertEqual(toolchain["cmake_resolution"], "host_PATH")
+        self.assertFalse(toolchain["automatic_toolchain_provisioning"])
+        self.assertFalse(toolchain["temporary_toolchain_paths_allowed"])
         self.assertEqual(lock["lockfileVersion"], 3)
         self.assertEqual(package["version"], "1.0.0-phase1")
         self.assertRegex(config, re.compile(r"sourcemap:\s*false"))
@@ -65,9 +70,25 @@ class Phase1DashboardTest(unittest.TestCase):
     def test_operator_guide_exposes_external_manual_checks(self) -> None:
         guide = (SOURCE_ROOT / "docs/dsp/fhss_dashboard_phase1_operator_test.md").read_text()
         for expectation in ("75 nodes", "137 exact-port edges", "320 CSS-pixel",
-                            "/api/v2", "keyboard", "synthetic IQ only"):
+                            "/api/v2", "keyboard", "synthetic IQ only",
+                            "git clone", "first-principles",
+                            "installed on the host", "docker compose"):
             self.assertIn(expectation, guide)
         self.assertIn("Do not mark keyboard, focus, or reflow review", guide)
+
+    def test_operator_container_is_clean_clone_and_loopback_scoped(self) -> None:
+        container = SOURCE_ROOT / "containers/dashboard-operator"
+        dockerfile = (container / "Dockerfile").read_text()
+        compose = (container / "compose.yaml").read_text()
+        runner = (container / "run-dashboard.sh").read_text()
+        readme = (container / "README.md").read_text()
+        self.assertIn("node:26.5.0", dockerfile)
+        self.assertIn("CMAKE_CXX_STANDARD=26", dockerfile)
+        self.assertIn("127.0.0.1:8080:8080", compose)
+        self.assertIn("--dashboard-host 127.0.0.1", runner)
+        self.assertIn("socat", runner)
+        self.assertIn("git clone", readme)
+        self.assertNotIn("/private/tmp", dockerfile + compose + runner + readme)
 
 
 if __name__ == "__main__":

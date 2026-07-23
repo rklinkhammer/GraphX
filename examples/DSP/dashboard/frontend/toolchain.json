@@ -1,8 +1,15 @@
 {
   "schema": "graphx.fhss.dashboard.frontend_toolchain.v1",
-  "node": "24.4.1",
-  "npm": "11.5.2",
-  "install_command": "npm ci --ignore-scripts --offline",
+  "node_minimum": "24.0.0",
+  "node_maximum_exclusive": "27.0.0",
+  "npm_minimum": "11.0.0",
+  "npm_maximum_exclusive": "12.0.0",
+  "validated_host_node": "26.5.0",
+  "validated_host_npm": "11.17.0",
+  "dependency_install_command": "npm ci --ignore-scripts --offline",
+  "host_toolchain_required": true,
+  "automatic_toolchain_provisioning": false,
+  "temporary_toolchain_paths_allowed": false,
   "lockfile": "package-lock.json",
   "lockfile_version": 3,
   "build_time_only": true,
@@ -12,8 +19,7 @@
   "application_phase": 1,
   "build_command": "npm run build",
   "output_directory": "../dist",
-  "cmake_node_variable": "GRAPHX_DASHBOARD_NODE_EXECUTABLE",
-  "cmake_npm_cli_variable": "GRAPHX_DASHBOARD_NPM_CLI",
-  "developer_override": "GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN",
-  "developer_override_release_evidence": false
+  "cmake_resolution": "host_PATH",
+  "unsupported_or_missing_tool_policy": "stop_and_request_host_installation",
+  "missing_dependency_policy": "stop_and_request_host_installation"
 }

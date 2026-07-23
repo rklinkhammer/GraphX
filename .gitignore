@@ -29,6 +29,7 @@ compile_commands.json
 # Test outputs
 *.log
 Testing/
+.graphx-operator/
 
 # Install directory
 install/
