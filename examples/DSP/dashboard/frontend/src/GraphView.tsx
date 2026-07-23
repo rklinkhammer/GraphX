@@ -10,14 +10,16 @@ import type { TopologyModel, TopologyNode } from './topology';
 type GraphXFlowNode = Node<TopologyNode, 'graphx'>;
 
 function GraphXNode({ data, selected }: NodeProps<GraphXFlowNode>) {
+  const presentationGroup = data.type === 'FHSSPresentationGroup';
   return (
-    <div className={`graph-node${selected ? ' selected' : ''}`} aria-label={`${data.id}, ${data.type}`}>
+    <div className={`graph-node${presentationGroup ? ' presentation-group' : ''}${selected ? ' selected' : ''}`} aria-label={`${data.id}, ${data.type}`}>
       {data.inputPorts.map((port, index) => (
         <Handle key={`in-${port}`} id={`in-${port}`} type="target" position={Position.Left} style={{ top: 42 + index * 14 }} />
       ))}
-      <strong>{data.id}</strong>
-      <span>{data.type}</span>
+      <strong>{presentationGroup ? String(data.configuration.label) : data.id}</strong>
+      <span>{presentationGroup ? '64 structurally recognized GraphX nodes' : data.type}</span>
       <small>inputs: {data.inputPorts.join(', ') || 'none'} · outputs: {data.outputPorts.join(', ') || 'none'}</small>
+      {presentationGroup && <small>channelizer outputs 0–63 · merge inputs 1–64</small>}
       {data.outputPorts.map((port, index) => (
         <Handle key={`out-${port}`} id={`out-${port}`} type="source" position={Position.Right} style={{ top: 42 + index * 14 }} />
       ))}
@@ -36,8 +38,9 @@ export function toFlowElements(model: TopologyModel): { nodes: GraphXFlowNode[];
 
 export interface Selection { kind: 'node' | 'edge'; id: string }
 
-export function GraphView({ model, selection, onSelection }: {
+export function GraphView({ model, selection, onSelection, authoritativeCounts }: {
   model: TopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
+  authoritativeCounts?: { nodes: number; edges: number };
 }) {
   const elements = useMemo(() => toFlowElements(model), [model]);
   const initialNodes = elements.nodes;
@@ -62,7 +65,9 @@ export function GraphView({ model, selection, onSelection }: {
   return (
     <section className="topology-card" aria-labelledby="topology-heading">
       <div className="section-heading">
-        <div><h2 id="topology-heading">Read-only GraphX topology</h2><p>{model.nodes.length} nodes · {model.edges.length} exact-port edges</p></div>
+        <div><h2 id="topology-heading">Read-only GraphX topology</h2><p>{authoritativeCounts
+          ? `${authoritativeCounts.nodes} authoritative nodes · ${authoritativeCounts.edges} authoritative exact-port edges · ${model.nodes.length} display objects`
+          : `${model.nodes.length} nodes · ${model.edges.length} exact-port edges`}</p></div>
         <button type="button" onClick={() => void resetLayout()}>Reset layout</button>
       </div>
       <p className="presentation-note">Dragging changes local presentation only; it never changes GraphX execution. Connection, reconnection, and deletion are disabled.</p>

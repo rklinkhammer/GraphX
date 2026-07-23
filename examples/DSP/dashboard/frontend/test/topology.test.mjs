@@ -11,7 +11,7 @@ const graphPath = new URL('../../../../../libdsp/config/fhss_phase2_binary_iq_re
 const fixture = JSON.parse(await readFile(graphPath, 'utf8'));
 
 test('canonical receiver graph has stable identities and all exact ports', () => {
-  const resource = parseGraphResource({ schema: 'graphx.dashboard.graph.v1', config_revision: 1, graph: fixture });
+  const resource = parseGraphResource({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, graph: fixture });
   const topology = toTopology(resource.graph);
   assert.equal(topology.nodes.length, 75);
   assert.equal(topology.edges.length, 137);
@@ -43,7 +43,7 @@ test('topology mutations are disabled and keyboard selection wraps', () => {
 });
 
 test('malformed graph resources fail without position-derived identity', () => {
-  const resource = (graph) => ({ schema: 'graphx.dashboard.graph.v1', config_revision: 1, graph });
+  const resource = (graph) => ({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, graph });
   assert.throws(() => parseGraphResource(resource({ nodes: [{}], edges: [] })), /stable id and type/);
   assert.throws(() => parseGraphResource(resource({ nodes: [{ id: 'a', type: 'T' }, { id: 'a', type: 'T' }], edges: [] })), /duplicate/);
   assert.throws(() => parseGraphResource(resource({ nodes: [{ id: 'a', type: 'T' }], edges: [{ source_node_id: 'a', source_port: 0, target_node_id: 'missing', target_port: 0 }] })), /unknown node/);

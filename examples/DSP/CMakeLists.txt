@@ -279,6 +279,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_architecture_recommendation.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss-dashboard-v2.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase1_operator_test.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase2_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_frontend_policy.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/adr/0001-fhss-dashboard-react-flow-elk.md
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/docs)

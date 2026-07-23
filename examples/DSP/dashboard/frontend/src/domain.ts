@@ -20,15 +20,16 @@ export interface GraphContract {
 
 export interface GraphResource {
   schema?: string;
+  owner: string;
   config_revision?: number;
   graph: GraphContract;
 }
 
 export type LoadState =
   | { kind: 'loading' }
-  | { kind: 'ready'; graph: GraphContract; revision?: number }
+  | { kind: 'ready'; graph: GraphContract; revision?: number; resource?: GraphResource }
   | { kind: 'empty'; message: string }
-  | { kind: 'stale'; graph: GraphContract; message: string }
+  | { kind: 'stale'; graph: GraphContract; message: string; revision?: number; resource?: GraphResource }
   | { kind: 'disconnected'; message: string }
   | { kind: 'error'; message: string };
 
@@ -36,6 +37,9 @@ export function parseGraphResource(value: unknown): GraphResource {
   if (!value || typeof value !== 'object') throw new Error('graph response must be an object');
   const candidate = value as Record<string, unknown>;
   if (candidate.schema !== 'graphx.dashboard.graph.v1') throw new Error('graph response schema is invalid');
+  if (typeof candidate.owner !== 'string' || !candidate.owner) {
+    throw new Error('graph response owner is invalid');
+  }
   if (!Number.isSafeInteger(candidate.config_revision) || Number(candidate.config_revision) < 0) throw new Error('graph response config_revision is invalid');
   if (!candidate.graph || typeof candidate.graph !== 'object') {
     throw new Error('graph response is missing graph');
@@ -75,8 +79,14 @@ export function parseGraphResource(value: unknown): GraphResource {
       target_port: Number(item.target_port),
     };
   });
+  const edgeIdentities = new Set(edges.map((edge) =>
+    `${edge.source_node_id}:${edge.source_port}->${edge.target_node_id}:${edge.target_port}`));
+  if (edgeIdentities.size !== edges.length) {
+    throw new Error('graph contains duplicate port-aware edge identities');
+  }
   return {
     schema: candidate.schema,
+    owner: candidate.owner,
     config_revision: Number(candidate.config_revision),
     graph: { nodes, edges },
   };

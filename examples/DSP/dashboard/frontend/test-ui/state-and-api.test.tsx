@@ -22,7 +22,8 @@ const expectedTruth = schema('graphx.dashboard.fhss_expected_truth.v1', {
 });
 const observation = schema('graphx.dashboard.fhss_receiver_observation.v1', {
   semantic_class: 'observed', generation: 0, run_epoch: 0, config_revision: 0,
-  config_etag: '', observation_id: 'observation-g0-r0', availability: {},
+  config_etag: '', observation_id: 'observation-g0-r0',
+  availability: { state: 'available', reason: null },
   timing_basis: {}, sample_rate: {}, observed_pulses: [], detected_count: null,
   rejected_count: null, count_availability: {}, count_semantics: {},
   rejection_reason_codes: [], preamble: {}, receiver_derived_active_frequencies: {},

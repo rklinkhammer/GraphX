@@ -28,22 +28,35 @@ h2 { margin: 0 0 0.4rem; }
 .flow-canvas { height: 660px; border: 1px solid #9cafaa; border-radius: 0.4rem; background: #f8fbfa; }
 .graph-node { width: 220px; min-height: 82px; display: grid; gap: 0.25rem; padding: 0.65rem; border: 2px solid #44615b; border-radius: 0.5rem; background: #fff; box-shadow: 0 2px 8px #14363025; }
 .graph-node.selected { border-width: 4px; border-color: #7b3ff2; }
+.graph-node.presentation-group { border-color: #7a4c00; background: #fff5d8; }
 .graph-node span, .graph-node small { overflow-wrap: anywhere; }
 .graph-node small { color: #40524e; }
 .react-flow__handle { width: 10px; height: 10px; background: #184b43; }
 .inspector dl { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.5fr); gap: 0.5rem; }
 .inspector dt { font-weight: 700; }
 .inspector dd { margin: 0; overflow-wrap: anywhere; }
+.inspector-column { display: grid; align-content: start; gap: 1rem; }
 pre { overflow: auto; max-height: 22rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #f0f5f3; padding: 0.7rem; border-radius: 0.4rem; }
 .semantic-list { display: grid; gap: 0.3rem; max-height: 24rem; overflow: auto; padding: 0.5rem; }
 .semantic-list button { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 2fr) minmax(10rem, 2fr); text-align: left; gap: 0.7rem; }
 .semantic-list button[aria-selected="true"] { color: #fff; background: #6140b4; }
 .operations { margin-top: 1rem; }
+.detector-bank-card, .raw-diagnostic { margin-top: 1rem; background: #fff; border: 1px solid #b7c7c3; border-radius: 0.7rem; padding: 1rem; box-shadow: 0 0.3rem 1.3rem #183b3220; }
+.detector-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0.35rem; }
+.detector-row { display: contents; }
+.detector-cell { display: grid; min-width: 0; gap: 0.2rem; padding: 0.45rem; text-align: left; }
+.detector-cell span, .detector-cell small { overflow-wrap: anywhere; font-size: 0.72rem; }
+.detector-cell[aria-selected="true"] { color: #fff; background: #6140b4; }
+.detector-cell[aria-selected="true"] small { color: #fff; }
+.collapsed-bank-summary { width: 100%; text-align: left; border-width: 2px; border-color: #7a4c00; background: #fff5d8; }
+.raw-diagnostic > summary { cursor: pointer; font-weight: 700; }
 .operation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .operation-grid article { min-width: 0; padding: 1rem; border: 1px solid #bdcbc8; border-radius: 0.5rem; }
 .heatmap { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0.25rem; }
-.heatmap div { display: grid; padding: 0.35rem; border: 1px solid #60736f; background: color-mix(in srgb, #2f8c7c calc(var(--load) * 75%), #fff); font-size: 0.72rem; }
+.heatmap button { display: grid; padding: 0.35rem; border: 1px solid #60736f; background: color-mix(in srgb, #2f8c7c calc(var(--load) * 75%), #fff); color: #172d29; font-size: 0.72rem; text-align: left; }
+.heatmap button[aria-pressed="true"] { color: #fff; background: #6140b4; }
 .heatmap span { color: #243733; }
+.heatmap button[aria-pressed="true"] span { color: #fff; }
 .operation-grid h3 { margin-top: 0; }
 .metric-summary, .evidence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.5rem; }
 .metric-summary div, .evidence-grid section { min-width: 0; padding: 0.5rem; border: 1px solid #bdcbc8; border-radius: 0.35rem; }
@@ -67,6 +80,7 @@ footer { padding: 1rem; text-align: center; color: #fff; background: #153d39; }
   .topology-layout, .operation-grid { grid-template-columns: 1fr; }
   .semantic-card { grid-column: 1; }
   .flow-canvas { height: 520px; }
+  .detector-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 420px) {
   .semantic-list button { grid-template-columns: 1fr; }
@@ -74,6 +88,8 @@ footer { padding: 1rem; text-align: center; color: #fff; background: #153d39; }
   .structured-fields > div { grid-template-columns: 1fr; }
   .flow-canvas { height: 420px; }
   .heatmap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detector-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detector-cell { min-height: 5.5rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
