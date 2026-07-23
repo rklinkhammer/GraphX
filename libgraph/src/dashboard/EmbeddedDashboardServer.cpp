@@ -1808,7 +1808,7 @@ EmbeddedDashboardServer::GuessContentType(const std::filesystem::path &path) {
   if (ext == ".html") {
     return "text/html; charset=utf-8";
   }
-  if (ext == ".js") {
+  if (ext == ".js" || ext == ".mjs") {
     return "text/javascript; charset=utf-8";
   }
   if (ext == ".css") {
@@ -1816,6 +1816,21 @@ EmbeddedDashboardServer::GuessContentType(const std::filesystem::path &path) {
   }
   if (ext == ".json") {
     return "application/json";
+  }
+  if (ext == ".map") {
+    return "application/json";
+  }
+  if (ext == ".woff") {
+    return "font/woff";
+  }
+  if (ext == ".woff2") {
+    return "font/woff2";
+  }
+  if (ext == ".ttf") {
+    return "font/ttf";
+  }
+  if (ext == ".otf") {
+    return "font/otf";
   }
   return "application/octet-stream";
 }

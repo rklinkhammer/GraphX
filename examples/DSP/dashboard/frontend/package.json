@@ -1,0 +1,23 @@
+{
+  "name": "@graphx/fhss-dashboard-frontend",
+  "version": "0.0.0-phase0",
+  "private": true,
+  "description": "Pinned build policy for the future single GraphX FHSS dashboard frontend",
+  "engines": {
+    "node": "24.4.1",
+    "npm": "11.5.2"
+  },
+  "packageManager": "npm@11.5.2",
+  "dependencies": {
+    "@xyflow/react": "12.8.5",
+    "elkjs": "0.11.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "typescript": "5.9.2",
+    "vite": "7.3.6"
+  }
+}

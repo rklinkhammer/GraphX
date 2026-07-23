@@ -39,6 +39,12 @@ std::filesystem::path MakeTempAssetDirectory(const std::string &name) {
 
   std::ofstream index(dir / "index.html", std::ios::trunc);
   index << "<html><body>GraphX Dashboard Test</body></html>";
+  for (const auto *name : {"bundle.js", "bundle.mjs", "bundle.css",
+                           "bundle.js.map", "font.woff", "font.woff2",
+                           "font.ttf", "font.otf"}) {
+    std::ofstream asset(dir / name, std::ios::binary | std::ios::trunc);
+    asset << "fixture";
+  }
   return dir;
 }
 
@@ -288,6 +294,19 @@ TEST_F(FhssDashboardServerContractTest,
 }
 
 TEST_F(FhssDashboardServerContractTest,
+       ServesOneRootDashboardAndRejectsAlternateEntrypoints) {
+  const auto root = HttpGet(server_->BoundPort(), "/");
+  ASSERT_EQ(root.status_code, 200);
+  EXPECT_NE(root.body.find("GraphX Dashboard Test"), std::string::npos);
+  for (const auto *path : {"/api/v2", "/api/v2/fhss", "/legacy",
+                           "/legacy/index.html", "/v2", "/v2/index.html",
+                           "/dashboard-v2", "/alternate-dashboard"}) {
+    SCOPED_TRACE(path);
+    EXPECT_EQ(HttpGet(server_->BoundPort(), path).status_code, 404);
+  }
+}
+
+TEST_F(FhssDashboardServerContractTest,
        ContentTypesAllowAndDefaultMutationAreExact) {
   EXPECT_EQ(HttpGet(server_->BoundPort(), "/").headers.at("content-type"),
             "text/html; charset=utf-8");
@@ -307,6 +326,24 @@ TEST_F(FhssDashboardServerContractTest,
               "Content-Type: application/json\r\nConnection: close\r\n\r\n{}");
   EXPECT_EQ(mutation.status_code, 404);
   EXPECT_EQ(mutation.headers.at("content-type"), "application/problem+json");
+}
+
+TEST_F(FhssDashboardServerContractTest, FrontendAssetContentTypesAreExact) {
+  const std::map<std::string, std::string> expected{
+      {"/bundle.js", "text/javascript; charset=utf-8"},
+      {"/bundle.mjs", "text/javascript; charset=utf-8"},
+      {"/bundle.css", "text/css; charset=utf-8"},
+      {"/bundle.js.map", "application/json"},
+      {"/font.woff", "font/woff"},
+      {"/font.woff2", "font/woff2"},
+      {"/font.ttf", "font/ttf"},
+      {"/font.otf", "font/otf"}};
+  for (const auto &[path, content_type] : expected) {
+    SCOPED_TRACE(path);
+    const auto response = HttpGet(server_->BoundPort(), path);
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_EQ(response.headers.at("content-type"), content_type);
+  }
 }
 
 TEST_F(FhssDashboardServerContractTest, HealthzAndReadyzStateEndpoints) {

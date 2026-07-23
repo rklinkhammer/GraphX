@@ -46,6 +46,33 @@ and qualification/security policy.
 This recommendation therefore defines a compatibility-first frontend
 modernization track, not a restart of dashboard architecture.
 
+### GraphX maturity model
+
+GraphX is an engineering and research platform. Dashboard work is prioritized
+in this order:
+
+1. architecture and clear ownership boundaries;
+2. functional correctness and preservation of execution semantics;
+3. deterministic, reproducible behavior where the repository controls the
+   inputs;
+4. maintainability and comprehensible test evidence;
+5. performance and bounded instrumentation cost; and
+6. security hardening and formal release qualification.
+
+Security hardening is a later maturity phase unless a planner or roadmap item
+explicitly places it in an earlier phase. Each phase must preserve the existing
+loopback-only deployment boundary and must not knowingly weaken an established
+control, but it is not required to add exhaustive adversarial tests, formal
+security evidence, or release-grade supply-chain qualification unless those
+items are named in that phase.
+
+Validation should be proportional to the change. Prefer a small set of direct,
+deterministic contract and integration tests over duplicate evidence layers,
+hashes of volatile runtime output, or tests that only prove the test harness.
+Full regression, sanitizer, concurrency, soak, formal accessibility, and
+security campaigns are release or roadmap gates rather than automatic gates
+for every implementation phase.
+
 ## Executive decision
 
 Adopt this stack:
@@ -119,7 +146,8 @@ The modernized dashboard retains the existing:
 - synthetic IQ generation and truth-free receiver execution;
 - expected-truth, receiver-observation, and evaluator-comparison separation;
 - investigation export, validation, and replay services; and
-- current security, accessibility, installed-tree, and qualification gates.
+- current loopback deployment, accessibility behavior, installed-tree, and
+  qualification boundaries.
 
 ### Component replaced
 
@@ -155,8 +183,9 @@ There is one implementation throughout the modernization:
 2. Replace the frontend in place. The executable continues to serve the one
    current implementation at `/`.
 3. Preserve configuration, lifecycle, FHSS jobs, observations,
-   investigations, reconnect behavior, security, and accessibility during
-   every phase; an intermediate phase may not remove an inherited capability.
+   investigations, reconnect behavior, the current security posture, and
+   accessibility behavior during every phase; an intermediate phase may not
+   remove an inherited capability.
 4. Package only the current compiled frontend. Do not install or serve the old
    page as a fallback.
 5. Use a source-control reversion or a previously qualified release artifact
@@ -164,10 +193,10 @@ There is one implementation throughout the modernization:
 6. Complete source-tree and clean installed-tree qualification before a
    modernized build is released.
 
-Every milestone reruns the applicable automated source-tree and clean
-installed-tree operator and contract-validation lanes currently used to
-qualify the dashboard. Human accessibility evidence is renewed after material
-UI changes and completed in full for the release candidate.
+Every milestone runs focused contract tests plus the applicable source-tree and
+clean installed-tree smoke paths. Broader operator, regression, accessibility,
+security, soak, sanitizer, and concurrency lanes are selected according to the
+phase's change risk and become mandatory for the release candidate.
 
 ## Why React Flow and ELK.js fit GraphX
 
@@ -462,31 +491,37 @@ collapsed operational model should reduce both visual and accessibility noise.
 Existing automated and human accessibility gates remain applicable; adopting
 React Flow does not itself prove WCAG conformance.
 
-## Security, supply chain, and packaging
+## Packaging and staged security maturity
 
 The frontend must be completely self-hosted. Do not load React, React Flow,
 ELK, fonts, scripts, styles, or maps from a CDN.
 
-The build should require:
+The modernization build should require the following engineering controls from
+its first compiled-frontend phase:
 
 - committed lockfiles;
 - pinned and reviewed package versions;
 - license and third-party notices;
-- vulnerability review;
 - reproducible or offline-capable frontend builds;
 - hashes and inventory for installed bundles;
-- CSP validation;
-- safe DOM and dependency audits;
 - source-tree and installed-tree tests; and
 - a dashboard-disabled build that does not require Node tooling.
+
+Existing CSP, loopback binding, request limits, and safe DOM behavior must not
+be weakened. Vulnerability review, adversarial DOM testing, fuzzing, formal
+dependency-risk acceptance, CSP attack-matrix validation, and other security
+hardening are deferred until a security roadmap item or the release-candidate
+phase explicitly requires them.
 
 The current CSP accepts self-hosted scripts, styles, images, and connections.
 If ELK runs in a Web Worker, the worker must be a self-hosted asset and tested
 against the maintained CSP. Blob-based workers require an explicit security
 decision rather than an incidental CSP relaxation.
 
-React Flow is MIT licensed, but every transitive dependency must still be
-inventoried and reviewed.
+React Flow is MIT licensed. Direct and transitive package metadata remains
+lockfile-controlled and notices must be generated for distribution. A manual
+security review of every transitive dependency is a later hardening activity,
+not a Phase 0 exit gate.
 
 ## Qualification boundary
 
@@ -522,26 +557,30 @@ any future generic frontend framework.
 
 #### Baseline evidence
 
-- Freeze and hash the pre-modernization OpenAPI document, schemas,
-  representative API responses, event envelopes, reconnect/resynchronization
-  transcripts, operator workflows, qualification outputs, current asset
-  inventory, and installed-tree layout.
+- Freeze the pre-modernization OpenAPI document, schemas, current asset
+  inventory, installed-tree layout, and representative semantic behavior needed
+  to detect an accidental API or operator regression.
+- Hash stable repository-controlled files and normalized topology identities.
+  Do not require hashes of volatile runtime transcripts, generated job IDs,
+  timestamps, executable binaries, or qualification output merely to prove
+  that the harness can reproduce itself.
 - Record feature-level expected behavior for configuration, runtime lifecycle,
   message jobs, observations, comparison, spectrum, investigations, event
   recovery, and shutdown.
-- Store baseline manifests and expected results as reviewable test inputs; do
-  not preserve the prototype as a second served application.
+- Use a concise reviewable baseline manifest and focused contract tests. Store
+  fixtures only when they are stable, independently useful regression inputs.
+  Do not preserve the prototype as a second served application.
 
 #### Qualification-harness generalization
 
 - Replace the current two-file `index.html`/`fhss_transport_state.js` asset
-  assumptions with a recursive, bounded frontend inventory that covers HTML,
-  hashed JavaScript, CSS, worker files, licenses, and permitted debug-only
-  source maps.
-- Hash-bind source-tree and installed-tree inventories and require exact
-  agreement for release assets.
-- Scan all shipped HTML and JavaScript for unsafe DOM sinks, inline handlers,
-  CSP violations, unexpected network references, and unapproved dynamic code.
+  assumptions with a recursive, bounded frontend inventory suitable for HTML,
+  JavaScript, CSS, worker files, licenses, and permitted debug-only source maps.
+- Require deterministic paths, regular contained files, per-file and total
+  size limits, and source-tree/installed-tree agreement.
+- Preserve the current self-hosted/no-CDN and CSP posture with straightforward
+  policy checks. Exhaustive unsafe-DOM, dynamic-code, worker, malformed-input,
+  race, and adversarial containment corpora are deferred security hardening.
 - Version package/evidence schemas only where their data shape changes; this
   evidence-schema versioning does not create a new dashboard API.
 
@@ -559,28 +598,33 @@ any future generic frontend framework.
 
 - Select and pin the Node.js runtime, package manager, React, React Flow,
   ELK.js, TypeScript, Vite, and all resolved transitive dependencies.
-- Commit the lockfile, third-party notices, license inventory, integrity
-  records, and an offline or controlled-cache provisioning procedure.
+- Commit the lockfile and record the selected tool versions, license/notices
+  process, and an offline or controlled-cache provisioning procedure.
 - Define per-asset and total installed-size budgets. Every served file must fit
   the server's current 4 MiB response limit; production bundles must be split
   accordingly.
 - Require self-hosted external scripts, styles, and workers; prohibit CDN
-  dependencies, unapproved `eval`, release source maps, and incidental CSP
-  relaxation.
+  dependencies, release source maps, and incidental CSP relaxation. Detailed
+  dynamic-code and worker threat analysis is deferred to security hardening.
 - Verify required MIME types and keep dashboard-disabled builds independent of
   Node and frontend packages.
 
 #### Phase and release gates
 
-- Require contract validation, frontend unit tests, C++ focused tests,
-  source-tree operator tests, clean installed-tree tests, package inventory,
-  CSP/safe-DOM checks, accessibility automation, and `git diff --check` in
-  every implementation phase.
-- Require focused human keyboard, focus, motion, and reflow review after each
-  material UI change.
-- Require full human WCAG evidence, reconnect/soak evidence,
-  sanitizer/concurrency lanes, and full regression results for the release
-  candidate.
+- Require focused contract validation, relevant frontend/unit tests, focused
+  C++ dashboard tests, a source-tree smoke test, a clean installed-tree smoke
+  test, package inventory, and `git diff --check` in every implementation
+  phase.
+- Run the broader operator suite or full regression when a phase changes shared
+  runtime/API behavior, and at integration/release milestones. A documentation,
+  baseline, or build-policy-only phase does not require repeatedly executing
+  every long-running inherited synthetic workflow when focused tests establish
+  non-regression.
+- Require focused human keyboard, focus, motion, and reflow review after a
+  material UI change when those interactions are introduced or changed.
+- Defer full human WCAG evidence, security review, reconnect/soak campaigns,
+  sanitizer/concurrency lanes, and full release regression to the release
+  candidate or an explicit roadmap phase.
 - Define rollback as rebuilding or reinstalling the last qualified source or
   release artifact. Rollback must not depend on dormant legacy assets or a
   runtime implementation switch.
@@ -591,23 +635,27 @@ Phase 0 passes only when:
 
 1. The React Flow/ELK.js architecture decision and single-implementation rule
    are reviewed and recorded.
-2. A schema-valid, hash-bound baseline manifest covers the authoritative API,
-   schemas, representative responses, event/reconnect transcripts, operator
-   behavior, qualification outputs, asset inventory, and installed layout.
+2. A concise deterministic baseline identifies the authoritative API and
+   schemas, stable representative behavior, current asset inventory, installed
+   layout, and synthetic-only qualification boundary. Stable checked-in inputs
+   are hash-bound; volatile runtime outputs are characterized by semantics.
 3. Qualification tooling recursively inventories and scans the current asset
    set without assuming that the dashboard consists of exactly two files.
 4. Source-tree and clean installed-tree inventories match and every asset is
    within the declared per-file and total-size budgets.
 5. Golden identity tests cover all 75 nodes, all 137 edges, and every exact
    source and target port in the Phase 2 binary-IQ receiver graph.
-6. The pinned frontend toolchain, lockfile policy, licenses, integrity records,
-   offline provisioning, CSP rules, MIME types, and source-map policy are
-   documented and independently checkable.
+6. The pinned frontend toolchain, lockfile policy, license/notices process,
+   controlled/offline provisioning, current CSP posture, MIME types, and
+   source-map policy are documented and directly checkable.
 7. Tests prove that one root dashboard and one `/api/v1/fhss` route tree are
    installed and served, with no alternate-UI selector, duplicate implementation,
    or `/api/v2` route.
-8. Phase 0 makes no public dashboard API semantic change and all focused and
-   full inherited regression and operator lanes pass.
+8. Phase 0 makes no public dashboard API semantic change; focused C++,
+   contract, source-tree smoke, clean installed-tree smoke, dashboard-disabled
+   build, and diff-hygiene checks pass. Full inherited operator/regression,
+   security, soak, sanitizer, concurrency, and human WCAG campaigns are not
+   Phase 0 gates unless a focused result indicates shared-runtime risk.
 
 ### Phase 1: Read-only topology prototype
 
@@ -647,8 +695,9 @@ Phase 0 passes only when:
 - Complete configuration, runtime, jobs, observations, spectrum, and
   investigation integration.
 - Test reconnect, replay, gaps, resynchronization, and stale generations.
-- Repeat CSP, safe-DOM, accessibility, keyboard, reflow, soak, sanitizer,
-  concurrency, installed-tree, and full-regression validation.
+- Complete the roadmap-approved security-hardening review and repeat CSP,
+  safe-DOM, accessibility, keyboard, reflow, soak, sanitizer, concurrency,
+  installed-tree, and full-regression validation for the release candidate.
 - Release the modernized dashboard only after all acceptance criteria pass.
 
 ## Acceptance principles
@@ -660,11 +709,14 @@ The modernization is successful only if it:
 3. Preserves exact ports and stable identities.
 4. Keeps animation representative, bounded, and optional.
 5. Preserves truth-free receiver execution and evidence separation.
-6. Remains secure and functional without network-loaded assets.
+6. Preserves the established loopback security posture and remains functional
+   without network-loaded assets; expanded hardening follows the maturity
+   roadmap.
 7. Has an accessible non-canvas representation.
 8. Preserves all current operator-facing capabilities throughout the in-place
    replacement.
-9. Passes source-tree and clean installed-tree qualification.
+9. Passes proportional source-tree and clean installed-tree qualification for
+   each phase and the full qualification program at release.
 10. Does not claim HWIL or production-RF qualification.
 11. Preserves or explicitly versions the evidence schemas and validation
    workflows needed to prove source-tree/installed-tree equivalence.

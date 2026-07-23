@@ -172,6 +172,30 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     set_tests_properties(fhss_dashboard_phase8_security_static PROPERTIES
         TIMEOUT 30
         LABELS "dsp;fhss;dashboard;phase8;security;static;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase0_baseline
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase0.py)
+    set_tests_properties(fhss_dashboard_phase0_baseline PROPERTIES
+        ENVIRONMENT "GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}"
+        TIMEOUT 60
+        LABELS "dsp;fhss;dashboard;phase0;baseline;identity;policy;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase0_source_smoke
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/operator/phase0_smoke.py
+            --executable $<TARGET_FILE:dsp_fhss_demo>
+            --assets ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard
+            --graph-config ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json)
+    set_tests_properties(fhss_dashboard_phase0_source_smoke PROPERTIES
+        TIMEOUT 30 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase0;source;smoke;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase0_installed_inventory
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -P ${CMAKE_SOURCE_DIR}/cmake/ValidateDashboardPhase0Install.cmake)
+    set_tests_properties(fhss_dashboard_phase0_installed_inventory PROPERTIES
+        TIMEOUT 180 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase0;installed;inventory;ci-safe;host-any")
     add_test(NAME fhss_dashboard_phase8_completion_evidence
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase8_completion.py)

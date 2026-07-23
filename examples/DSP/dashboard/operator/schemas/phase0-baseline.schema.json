@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:graphx:fhss:dashboard:phase0-baseline:v1",
+  "type":"object",
+  "required":["schema","canonicalization","authoritative_contracts","frontend_assets","installed_layout","topology_identity","stable_repository_inputs","feature_expectations","qualification"],
+  "additionalProperties":false,
+  "properties":{
+    "schema":{"const":"graphx.fhss.dashboard.phase0_baseline.v1"},
+    "canonicalization":{"const":"json-sort-keys-compact-utf8-lf-v1"},
+    "authoritative_contracts":{"type":"object"},
+    "frontend_assets":{"type":"object"},
+    "installed_layout":{"type":"object"},
+    "topology_identity":{"$ref":"#/$defs/binding"},
+    "stable_repository_inputs":{"type":"array","minItems":5,"items":{"$ref":"#/$defs/binding"}},
+    "feature_expectations":{"type":"object","required":["configuration","runtime_lifecycle","message_jobs","observations","comparison","spectrum","investigations","event_recovery","shutdown"],"additionalProperties":{"type":"string"}},
+    "qualification":{"type":"object","additionalProperties":false,"required":["dashboard_scope","synthetic_data_only","hwil_available","conducted_rf_available","ota_available","live_rf_available","production_rf_qualified"],"properties":{"dashboard_scope":{"const":"FHSS-specific"},"synthetic_data_only":{"const":true},"hwil_available":{"const":false},"conducted_rf_available":{"const":false},"ota_available":{"const":false},"live_rf_available":{"const":false},"production_rf_qualified":{"const":false}}}
+  },
+  "$defs":{"hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},"binding":{"type":"object","required":["path","sha256"],"additionalProperties":false,"properties":{"path":{"type":"string"},"sha256":{"$ref":"#/$defs/hash"}}}}
+}

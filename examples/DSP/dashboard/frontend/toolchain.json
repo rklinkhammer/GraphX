@@ -1,0 +1,12 @@
+{
+  "schema": "graphx.fhss.dashboard.frontend_toolchain.v1",
+  "node": "24.4.1",
+  "npm": "11.5.2",
+  "install_command": "npm ci --ignore-scripts --offline",
+  "lockfile": "package-lock.json",
+  "lockfile_version": 3,
+  "build_time_only": true,
+  "dashboard_disabled_build_dependency": false,
+  "runtime_network_dependencies": false,
+  "phase0_application_present": false
+}
