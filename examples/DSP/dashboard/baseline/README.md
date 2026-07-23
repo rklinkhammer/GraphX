@@ -1,7 +1,8 @@
 # Phase 0 Dashboard Baseline
 
-This directory characterizes the one FHSS dashboard before its frontend is
-replaced in place. It is not a second implementation and defines no new API.
+This directory characterizes the one FHSS dashboard across its in-place
+frontend replacement. It is not a second implementation and defines no new
+API. In Phase 1, `dashboard/dist` is the sole source frontend inventory.
 
 `phase0-baseline.json` binds stable repository-controlled inputs: the
 authoritative OpenAPI and JSON Schemas, recursive frontend inventory, selected

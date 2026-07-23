@@ -515,44 +515,37 @@ TEST_F(FhssDashboardEventReplayTest,
 
 TEST(FhssDashboardBrowserScriptTest,
      EventPayloadCannotShadowDocumentAndReplayUpdatesTransportDom) {
-  const auto index_path = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
-                          "examples/DSP/dashboard/index.html";
-  std::ifstream input(index_path);
-  ASSERT_TRUE(input.good()) << index_path;
+  const auto script_path = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
+      "examples/DSP/dashboard/frontend/src/useEventTransport.ts";
+  std::ifstream input(script_path);
+  ASSERT_TRUE(input.good()) << script_path;
   const std::string script((std::istreambuf_iterator<char>(input)),
                            std::istreambuf_iterator<char>());
-  const auto transport_path =
-      index_path.parent_path() / "fhss_transport_state.js";
+  const auto transport_path = std::filesystem::path(GRAPHX_SOURCE_ROOT) /
+      "examples/DSP/dashboard/frontend/src/transportState.ts";
   std::ifstream transport_input(transport_path);
   ASSERT_TRUE(transport_input.good()) << transport_path;
   const std::string transport((std::istreambuf_iterator<char>(transport_input)),
                               std::istreambuf_iterator<char>());
-  EXPECT_NE(script.find("src=\"/fhss_transport_state.js\""), std::string::npos);
-  EXPECT_NE(script.find("let eventDocument;"), std::string::npos);
+  EXPECT_NE(script.find("const raw: unknown = JSON.parse"), std::string::npos);
   EXPECT_EQ(script.find("let document;"), std::string::npos);
-  EXPECT_NE(script.find("eventDocument = JSON.parse(message.data)"),
+  EXPECT_NE(script.find("/api/v1/fhss/snapshot"), std::string::npos);
+  EXPECT_NE(script.find("/api/v1/fhss/events?client_id=${CLIENT}"),
             std::string::npos);
-  EXPECT_NE(script.find("Event transport: live — replayed through sequence"),
-            std::string::npos);
-  EXPECT_NE(
-      script.find("document.getElementById('event-transport').textContent"),
-      std::string::npos);
-  EXPECT_NE(script.find("transportContract.classifyEvent"), std::string::npos);
-  EXPECT_NE(script.find("transportContract.validateBatch"), std::string::npos);
-  EXPECT_NE(transport.find("graphx.dashboard.events_batch.v1"),
-            std::string::npos);
-  EXPECT_NE(transport.find("value.sequence === sequence"), std::string::npos);
-  EXPECT_NE(script.find("coherentResyncRequired"), std::string::npos);
-  EXPECT_NE(script.find("maxReconnectDelayMs"), std::string::npos);
-  EXPECT_NE(script.find("maxReconnectAttempts = 12"), std::string::npos);
-  EXPECT_NE(script.find("stableConnectionTimer"), std::string::npos);
-  EXPECT_NE(script.find("coherentSnapshotRoute = '/api/v1/fhss/snapshot'"),
-            std::string::npos);
-  EXPECT_EQ(script.find("applyResync(eventDocument.snapshot_url"),
-            std::string::npos);
-  EXPECT_NE(script.find("renderCoherentSnapshot(snapshot)"), std::string::npos);
-  EXPECT_NE(script.find("transportContract.nextReconnect"), std::string::npos);
-  EXPECT_NE(transport.find("2 ** Math.min(6, attempt)"), std::string::npos);
+  EXPECT_NE(script.find("/api/v1/fhss/events/stream"), std::string::npos);
+  EXPECT_NE(script.find("heartbeat_ack"), std::string::npos);
+  EXPECT_NE(script.find("bounded polling fallback"), std::string::npos);
+  EXPECT_NE(script.find("parseHello(raw)"), std::string::npos);
+  EXPECT_NE(script.find("parseEventBatch"), std::string::npos);
+  EXPECT_NE(script.find("parseHeartbeat"), std::string::npos);
+  EXPECT_NE(script.find("parseResyncRequired"), std::string::npos);
+  EXPECT_NE(script.find("sessionStorage"), std::string::npos);
+  EXPECT_NE(script.find("reconnect budget exhausted"), std::string::npos);
+  EXPECT_NE(transport.find("exactFields"), std::string::npos);
+  EXPECT_NE(transport.find("nextReconnect"), std::string::npos);
+  EXPECT_NE(transport.find("'duplicate'"), std::string::npos);
+  EXPECT_NE(transport.find("'gap'"), std::string::npos);
+  EXPECT_NE(transport.find("'resync'"), std::string::npos);
 }
 
 TEST_F(FhssDashboardEventReplayTest,

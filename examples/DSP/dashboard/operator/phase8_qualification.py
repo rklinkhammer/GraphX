@@ -291,18 +291,21 @@ def smoke(base_url: str | None = None,
 
 def security_audit(asset_root: Path) -> dict[str, object]:
     html = (asset_root / "index.html").read_text(encoding="utf-8")
-    transport = (asset_root / "fhss_transport_state.js").read_text(encoding="utf-8")
+    compiled_assets = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(asset_root.rglob("*"))
+        if path.is_file() and path.suffix in (".css", ".js"))
     unsafe = re.findall(r"\.(?:innerHTML|outerHTML)\s*=|insertAdjacentHTML\s*\(",
-                        html + "\n" + transport)
+                        html + "\n" + compiled_assets)
     return {
         "schema":"graphx.fhss.dashboard.phase8_security_static.v1",
         "profile":"loopback-only local operator",
         "unsafe_dynamic_html_sinks":len(unsafe),
         "inline_event_handlers":len(re.findall(r"\son[a-z]+\s*=", html,
                                                  flags=re.IGNORECASE)),
-        "has_reduced_motion":"prefers-reduced-motion" in html,
-        "has_visible_focus":":focus-visible" in html,
-        "has_skip_link":"class=\"skip-link\"" in html,
+        "has_reduced_motion":"prefers-reduced-motion" in compiled_assets,
+        "has_visible_focus":":focus-visible" in compiled_assets,
+        "has_skip_link":"skip-link" in compiled_assets,
         "result":"PASS" if not unsafe else "FAIL",
     }
 

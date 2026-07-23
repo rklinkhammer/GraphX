@@ -128,7 +128,8 @@ protected:
     graph::dashboard::EmbeddedDashboardServer::Options options;
     options.port = 0;
     options.asset_directory =
-        std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
+        std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" /
+        "dashboard" / "dist";
     options.artifact_root = options.asset_directory.parent_path();
     options.application_api_handler =
         graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{
@@ -165,11 +166,21 @@ protected:
 TEST_F(FhssDashboardVisualizationTest, ScheduleAndHeatmapRenderingAreCorrect) {
   const auto index_response = HttpGet(server_->BoundPort(), "/");
   ASSERT_EQ(index_response.status_code, 200);
-  EXPECT_NE(index_response.body.find("FHSS Schedule"), std::string::npos);
-  EXPECT_NE(index_response.body.find("64-Channel Heatmap"), std::string::npos);
-  EXPECT_NE(index_response.body.find("Synthetic Schedule Expectations"),
+  const auto script_marker = index_response.body.find("src=\"");
+  ASSERT_NE(script_marker, std::string::npos);
+  const auto script_start = script_marker + 5;
+  const auto script_end = index_response.body.find('"', script_start);
+  ASSERT_NE(script_end, std::string::npos);
+  const auto script_response = HttpGet(
+      server_->BoundPort(),
+      index_response.body.substr(script_start, script_end - script_start));
+  ASSERT_EQ(script_response.status_code, 200);
+  EXPECT_NE(script_response.body.find("FHSS Schedule"), std::string::npos);
+  EXPECT_NE(script_response.body.find("64-Channel Heatmap"), std::string::npos);
+  EXPECT_NE(script_response.body.find("Synthetic Schedule Expectations"),
             std::string::npos);
-  EXPECT_NE(index_response.body.find("/api/v1/fhss/visualization"), std::string::npos);
+  EXPECT_NE(script_response.body.find("/visualization"),
+            std::string::npos);
 
   const auto viz = VisualizationRequest("?message_offset=0&message_limit=3&pulse_offset=0&pulse_limit=32&refresh_ms=250");
   EXPECT_EQ(viz.at("schema").get<std::string>(), "graphx.dashboard.fhss_visualization.v1");
@@ -281,7 +292,8 @@ TEST(FhssDashboardVisualizationCancellationTest,
   auto snapshots = std::make_shared<graph::dashboard::GraphSnapshotCollector>();
   graph::dashboard::EmbeddedDashboardServer::Options options;
   options.asset_directory =
-      std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" / "dashboard";
+      std::filesystem::path(GRAPHX_SOURCE_ROOT) / "examples" / "DSP" /
+      "dashboard" / "dist";
   options.total_request_timeout = std::chrono::milliseconds(5);
   options.application_api_handler =
       graph::dashboard::EmbeddedDashboardServer::ApiHandlerRegistration{

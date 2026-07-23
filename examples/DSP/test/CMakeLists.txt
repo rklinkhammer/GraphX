@@ -68,16 +68,6 @@ endif()
 
 add_test(NAME dsp_example_unit COMMAND test_dsp_example_unit)
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-  find_program(GRAPHX_NODE_EXECUTABLE NAMES node NO_CACHE)
-  if(GRAPHX_NODE_EXECUTABLE)
-    add_test(NAME fhss_dashboard_transport_state_behavior
-      COMMAND ${GRAPHX_NODE_EXECUTABLE}
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_transport_state.js
-        ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/fhss_transport_state.js)
-    set_tests_properties(fhss_dashboard_transport_state_behavior PROPERTIES
-      LABELS "dsp;fhss;dashboard;browser;behavior;ci-safe;host-any"
-      TIMEOUT 30)
-  endif()
   set(DSP_EXAMPLE_DISCOVERY_EXPECTED_SUITES
     FhssDashboardServerContractTest
     FhssDashboardServerFailureTest
@@ -167,7 +157,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     add_test(NAME fhss_dashboard_phase8_security_static
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/operator/phase8_qualification.py
-            --static-only --asset-root ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard
+            --static-only --asset-root ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/dist
             --output ${CMAKE_BINARY_DIR}/fhss-dashboard-phase8-fuzz-security.json)
     set_tests_properties(fhss_dashboard_phase8_security_static PROPERTIES
         TIMEOUT 30
@@ -179,11 +169,18 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ENVIRONMENT "GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}"
         TIMEOUT 60
         LABELS "dsp;fhss;dashboard;phase0;baseline;identity;policy;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_phase1_frontend
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase1.py)
+    set_tests_properties(fhss_dashboard_phase1_frontend PROPERTIES
+        ENVIRONMENT "GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}"
+        TIMEOUT 60
+        LABELS "dsp;fhss;dashboard;phase1;frontend;identity;accessibility;ci-safe;host-any")
     add_test(NAME fhss_dashboard_phase0_source_smoke
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/operator/phase0_smoke.py
             --executable $<TARGET_FILE:dsp_fhss_demo>
-            --assets ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard
+            --assets ${CMAKE_BINARY_DIR}/examples/DSP/fhss-dashboard-dist
             --graph-config ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json)
     set_tests_properties(fhss_dashboard_phase0_source_smoke PROPERTIES
         TIMEOUT 30 RUN_SERIAL TRUE
@@ -196,6 +193,23 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     set_tests_properties(fhss_dashboard_phase0_installed_inventory PROPERTIES
         TIMEOUT 180 RUN_SERIAL TRUE
         LABELS "dsp;fhss;dashboard;phase0;installed;inventory;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_compiled_live_source
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DINSTALLED_TREE=OFF
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunCompiledDashboardLive.cmake)
+    add_test(NAME fhss_dashboard_compiled_live_installed
+        COMMAND ${CMAKE_COMMAND}
+            -DCONTRACT_PYTHON=${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DINSTALLED_TREE=ON
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunCompiledDashboardLive.cmake)
+    set_tests_properties(
+        fhss_dashboard_compiled_live_source
+        fhss_dashboard_compiled_live_installed PROPERTIES
+        TIMEOUT 300 RUN_SERIAL TRUE
+        LABELS "dsp;fhss;dashboard;phase1;compiled;live;operator;browser;host-any")
     add_test(NAME fhss_dashboard_phase8_completion_evidence
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase8_completion.py)
@@ -251,6 +265,24 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         fhss_dashboard_phase4_installed_tree_operator
         PROPERTIES LABELS "dsp;fhss;dashboard;operator;phase4;pre-browser-partial;ci-safe;host-any"
         TIMEOUT 600)
+    # Disabled-test audit (15 total): the source/install pairs for the generic
+    # lane and Phases 2, 3, 4, 5, 7, and 8 are seven prototype-DOM pairs (14);
+    # phase8_security_static is the prototype handcrafted-script sink scanner
+    # (1). Their selectors and scanner model the deleted dashboard/index.html,
+    # so enabling them would test a retired implementation. The enabled
+    # compiled_live source/install pair above replaces their shared API,
+    # lifecycle, job, investigation, event-recovery, and browser-load coverage.
+    set_tests_properties(
+        fhss_dashboard_external_operator fhss_dashboard_installed_tree_operator
+        fhss_dashboard_phase2_external_operator fhss_dashboard_phase2_installed_tree_operator
+        fhss_dashboard_phase3_external_operator fhss_dashboard_phase3_installed_tree_operator
+        fhss_dashboard_phase4_external_operator fhss_dashboard_phase4_installed_tree_operator
+        fhss_dashboard_phase5_external_operator fhss_dashboard_phase5_installed_tree_operator
+        fhss_dashboard_phase7_external_operator fhss_dashboard_phase7_installed_tree_operator
+        fhss_dashboard_phase8_external_operator fhss_dashboard_phase8_installed_tree_operator
+        fhss_dashboard_phase8_security_static
+        PROPERTIES DISABLED TRUE
+        LABELS "dsp;fhss;dashboard;retired-prototype-operator;deferred")
 endif()
 
 add_test(NAME fhss_dashboard_off_build

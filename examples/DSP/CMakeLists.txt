@@ -12,6 +12,83 @@ target_include_directories(dsp_fhss_iq_artifacts PUBLIC
 target_link_libraries(dsp_fhss_iq_artifacts PUBLIC dsp)
 
 if(GRAPHX_BUILD_WEB_DASHBOARD)
+    set(GRAPHX_DASHBOARD_NODE_EXECUTABLE "" CACHE FILEPATH
+        "Exact pinned Node.js executable for the dashboard build")
+    set(GRAPHX_DASHBOARD_NPM_CLI "" CACHE FILEPATH
+        "Exact pinned npm-cli.js for the dashboard build")
+    option(GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN
+        "Developer-only override for an unpinned dashboard toolchain" OFF)
+    if(NOT GRAPHX_DASHBOARD_NODE_EXECUTABLE)
+        find_program(GRAPHX_DASHBOARD_NODE_EXECUTABLE NAMES node REQUIRED)
+    endif()
+    get_filename_component(GRAPHX_DASHBOARD_NODE_DIRECTORY
+        "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" DIRECTORY)
+    set(GRAPHX_DASHBOARD_PINNED_ENV_COMMAND
+        "${CMAKE_COMMAND}" -E env
+        "PATH=${GRAPHX_DASHBOARD_NODE_DIRECTORY}:$ENV{PATH}")
+    if(GRAPHX_DASHBOARD_NPM_CLI)
+        set(GRAPHX_DASHBOARD_NPM_COMMAND
+            ${GRAPHX_DASHBOARD_PINNED_ENV_COMMAND}
+            "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" "${GRAPHX_DASHBOARD_NPM_CLI}")
+    else()
+        find_program(GRAPHX_DASHBOARD_NPM_EXECUTABLE NAMES npm REQUIRED)
+        set(GRAPHX_DASHBOARD_NPM_COMMAND
+            ${GRAPHX_DASHBOARD_PINNED_ENV_COMMAND}
+            "${GRAPHX_DASHBOARD_NPM_EXECUTABLE}")
+    endif()
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/toolchain.json"
+        GRAPHX_DASHBOARD_TOOLCHAIN_JSON)
+    string(JSON GRAPHX_DASHBOARD_PINNED_NODE GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" node)
+    string(JSON GRAPHX_DASHBOARD_PINNED_NPM GET
+        "${GRAPHX_DASHBOARD_TOOLCHAIN_JSON}" npm)
+    execute_process(COMMAND "${GRAPHX_DASHBOARD_NODE_EXECUTABLE}" --version
+        OUTPUT_VARIABLE GRAPHX_DASHBOARD_ACTUAL_NODE OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE GRAPHX_DASHBOARD_NODE_RESULT)
+    execute_process(COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} --version
+        OUTPUT_VARIABLE GRAPHX_DASHBOARD_ACTUAL_NPM OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE GRAPHX_DASHBOARD_NPM_RESULT)
+    string(REGEX REPLACE "^v" "" GRAPHX_DASHBOARD_ACTUAL_NODE
+        "${GRAPHX_DASHBOARD_ACTUAL_NODE}")
+    set(GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES TRUE)
+    if(NOT GRAPHX_DASHBOARD_NODE_RESULT EQUAL 0 OR
+       NOT GRAPHX_DASHBOARD_NPM_RESULT EQUAL 0 OR
+       NOT GRAPHX_DASHBOARD_ACTUAL_NODE STREQUAL GRAPHX_DASHBOARD_PINNED_NODE OR
+       NOT GRAPHX_DASHBOARD_ACTUAL_NPM STREQUAL GRAPHX_DASHBOARD_PINNED_NPM)
+        set(GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES FALSE)
+    endif()
+    if(NOT GRAPHX_DASHBOARD_TOOLCHAIN_MATCHES)
+        if(NOT GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN)
+            message(FATAL_ERROR
+                "Dashboard build requires Node ${GRAPHX_DASHBOARD_PINNED_NODE} and npm ${GRAPHX_DASHBOARD_PINNED_NPM}; found Node ${GRAPHX_DASHBOARD_ACTUAL_NODE} and npm ${GRAPHX_DASHBOARD_ACTUAL_NPM}. Set exact executable paths. The developer-only GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN override is not release evidence.")
+        endif()
+        message(WARNING
+            "Using developer-only unpinned dashboard toolchain; this build is not release or installed-tree qualification evidence")
+        file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/dashboard-toolchain-mismatch.json"
+            "{\"schema\":\"graphx.fhss.dashboard.toolchain_mismatch.v1\",\"release_evidence\":false,\"expected_node\":\"${GRAPHX_DASHBOARD_PINNED_NODE}\",\"actual_node\":\"${GRAPHX_DASHBOARD_ACTUAL_NODE}\",\"expected_npm\":\"${GRAPHX_DASHBOARD_PINNED_NPM}\",\"actual_npm\":\"${GRAPHX_DASHBOARD_ACTUAL_NPM}\"}\n")
+    endif()
+    file(GLOB_RECURSE GRAPHX_DASHBOARD_FRONTEND_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/src/*"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/test/*")
+    set(GRAPHX_DASHBOARD_DIST_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/fhss-dashboard-dist")
+    add_custom_command(
+        OUTPUT "${GRAPHX_DASHBOARD_DIST_DIR}/index.html"
+        COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} ci --ignore-scripts --offline
+        COMMAND ${GRAPHX_DASHBOARD_NPM_COMMAND} run build --
+            --outDir "${GRAPHX_DASHBOARD_DIST_DIR}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/package.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/package-lock.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/toolchain.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/vite.config.ts"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/frontend/index.html"
+            ${GRAPHX_DASHBOARD_FRONTEND_SOURCES}
+        COMMENT "Building the single compiled GraphX FHSS dashboard"
+        VERBATIM)
+    add_custom_target(dsp_fhss_dashboard_frontend ALL
+        DEPENDS "${GRAPHX_DASHBOARD_DIST_DIR}/index.html")
     file(READ "${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json"
         GRAPHX_FHSS_RECEIVER_TEMPLATE_JSON)
     configure_file(
@@ -132,10 +209,11 @@ target_compile_definitions(dsp_fhss_demo PRIVATE
     DSP_FHSS_CHANNELIZED_CONFIG_PATH="${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json"
 )
 if(GRAPHX_BUILD_WEB_DASHBOARD)
+    add_dependencies(dsp_fhss_demo dsp_fhss_dashboard_frontend)
     target_link_libraries(dsp_fhss_demo PRIVATE dsp_fhss_dashboard_api)
     target_compile_definitions(dsp_fhss_demo PRIVATE
         GRAPHX_BUILD_WEB_DASHBOARD=1
-        DSP_FHSS_DASHBOARD_ASSET_DIRECTORY="${CMAKE_SOURCE_DIR}/examples/DSP/dashboard"
+        DSP_FHSS_DASHBOARD_ASSET_DIRECTORY="${GRAPHX_DASHBOARD_DIST_DIR}"
         DSP_FHSS_DASHBOARD_INSTALLED_ASSET_DIRECTORY="${CMAKE_INSTALL_FULL_DATADIR}/graphx/fhss-dashboard"
     )
 endif()
@@ -152,7 +230,7 @@ install(TARGETS dsp_fhss_demo
 )
 
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-    install(FILES dashboard/index.html dashboard/fhss_transport_state.js
+    install(DIRECTORY "${GRAPHX_DASHBOARD_DIST_DIR}/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard)
     install(DIRECTORY dashboard/api/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/api
@@ -172,6 +250,7 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_security_support.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_architecture_recommendation.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss-dashboard-v2.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase1_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_frontend_policy.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/adr/0001-fhss-dashboard-react-flow-elk.md
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/docs)

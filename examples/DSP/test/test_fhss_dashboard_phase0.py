@@ -33,13 +33,13 @@ class Phase0InventoryTest(unittest.TestCase):
         return root
 
     def test_current_frontend_is_recursive_bounded_and_self_hosted(self) -> None:
-        inventory = inventory_frontend(DASHBOARD_ROOT)
+        inventory = inventory_frontend(DASHBOARD_ROOT / "dist")
         paths = [str(item["path"]) for item in inventory["entries"]]
         self.assertIn("index.html", paths)
         self.assertEqual(paths, sorted(paths))
         self.assertLessEqual(inventory["total_bytes"], inventory["max_total_bytes"])
         self.assertEqual(check_self_hosted_assets(
-            DASHBOARD_ROOT, inventory)["result"], "PASS")
+            DASHBOARD_ROOT / "dist", inventory)["result"], "PASS")
 
     def test_nested_assets_are_deterministic_and_install_must_match(self) -> None:
         source = self.make_root()
@@ -121,15 +121,15 @@ class Phase0BaselineTest(unittest.TestCase):
                          "edges":list(reversed(graph["edges"]))}
         self.assertEqual(identity, topology_identity_document(reconstructed, digest))
 
-    def test_toolchain_is_pinned_without_phase1_application_or_node_modules(self) -> None:
+    def test_toolchain_is_pinned_with_phase1_application(self) -> None:
         frontend = DASHBOARD_ROOT / "frontend"
         package = json.loads((frontend / "package.json").read_text())
         lock = json.loads((frontend / "package-lock.json").read_text())
         policy = json.loads((frontend / "toolchain.json").read_text())
         self.assertEqual(lock["lockfileVersion"], 3)
         self.assertEqual(package["packageManager"], "npm@11.5.2")
-        self.assertFalse(policy["phase0_application_present"])
-        self.assertFalse((frontend / "node_modules").exists())
+        self.assertTrue(policy["application_present"])
+        self.assertEqual(policy["application_phase"], 1)
         for section in ("dependencies", "devDependencies"):
             for name, version in package[section].items():
                 self.assertEqual(lock["packages"][""][section][name], version)

@@ -7,6 +7,8 @@ import argparse
 import json
 import signal
 import subprocess
+import re
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -29,13 +31,28 @@ def main() -> int:
             raise RuntimeError(f"dashboard did not publish its URL: {line}")
         base_url = line.removeprefix("Dashboard URL: ")
         with urllib.request.urlopen(base_url + "/", timeout=10) as response:
-            if response.status != 200 or b"GraphX FHSS Dashboard" not in response.read():
+            body = response.read()
+            if response.status != 200 or b"GraphX FHSS Dashboard" not in body:
                 raise RuntimeError("root dashboard smoke failed")
+        for asset in re.findall(rb'(?:src|href)="(/assets/[^"]+)"', body):
+            with urllib.request.urlopen(base_url + asset.decode(), timeout=10) as response:
+                content_type = response.headers.get("Content-Type", "")
+                if response.status != 200 or not content_type.startswith(
+                        "text/javascript" if asset.endswith(b".js") else "text/css"):
+                    raise RuntimeError("compiled asset MIME smoke failed")
         with urllib.request.urlopen(base_url + "/api/v1/fhss/graph",
                                     timeout=10) as response:
             graph = json.loads(response.read())
             if response.status != 200 or graph.get("schema") != "graphx.dashboard.graph.v1":
                 raise RuntimeError("FHSS graph API smoke failed")
+        for forbidden in ("/api/v2", "/legacy", "/v2"):
+            try:
+                urllib.request.urlopen(base_url + forbidden, timeout=10)
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    raise RuntimeError(f"unexpected status for {forbidden}: {error.code}")
+            else:
+                raise RuntimeError(f"alternate route unexpectedly exists: {forbidden}")
     finally:
         if process.poll() is None:
             process.send_signal(signal.SIGINT)

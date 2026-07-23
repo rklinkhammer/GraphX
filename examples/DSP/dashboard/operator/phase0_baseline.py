@@ -111,7 +111,7 @@ def build(root: Path) -> tuple[dict[str, object], dict[str, object]]:
     graph_path = root / "libdsp/config/fhss_phase2_binary_iq_receiver.json"
     identity = topology_identity_from_path(graph_path)
     identity_path = dashboard / "baseline/topology-identity.json"
-    frontend = inventory_frontend(dashboard)
+    frontend = inventory_frontend(dashboard / "dist")
     manifest = {
         "schema":"graphx.fhss.dashboard.phase0_baseline.v1",
         "canonicalization":CANONICALIZATION,

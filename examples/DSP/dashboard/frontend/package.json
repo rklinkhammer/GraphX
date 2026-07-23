@@ -1,8 +1,17 @@
 {
   "name": "@graphx/fhss-dashboard-frontend",
-  "version": "0.0.0-phase0",
+  "version": "1.0.0-phase1",
   "private": true,
-  "description": "Pinned build policy for the future single GraphX FHSS dashboard frontend",
+  "type": "module",
+  "description": "Single compiled GraphX FHSS dashboard frontend",
+  "scripts": {
+    "format:check": "node scripts/check-format.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:domain": "rm -rf test-dist && tsc -p tsconfig.test.json && node --test test/*.test.mjs",
+    "test:components": "vitest run",
+    "test": "npm run test:domain && npm run test:components",
+    "build": "vite build"
+  },
   "engines": {
     "node": "24.4.1",
     "npm": "11.5.2"
@@ -15,9 +24,13 @@
     "react-dom": "19.1.1"
   },
   "devDependencies": {
+    "@testing-library/react": "https://registry.npmjs.org/@testing-library/react/-/react-16.3.1.tgz",
+    "@testing-library/user-event": "https://registry.npmjs.org/@testing-library/user-event/-/user-event-14.6.1.tgz",
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
+    "jsdom": "https://registry.npmjs.org/jsdom/-/jsdom-27.3.0.tgz",
     "typescript": "5.9.2",
-    "vite": "7.3.6"
+    "vite": "7.3.6",
+    "vitest": "https://registry.npmjs.org/vitest/-/vitest-4.0.16.tgz"
   }
 }

@@ -107,7 +107,7 @@ def main() -> int:
                    for path in sorted(schema_dir.glob("*.json"))},
             },
             "artifact_hashes": {"dashboard_index": operator.sha256(
-                OPERATOR_PATH.parents[1] / "index.html")},
+                OPERATOR_PATH.parents[1] / "dist" / "index.html")},
             "checks": [{"name": "smoke", "pass": True, "evidence": "synthetic"}],
             "evidence_status": "partial_pre_browser", "result": "PARTIAL",
         }

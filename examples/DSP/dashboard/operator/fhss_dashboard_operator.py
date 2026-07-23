@@ -64,6 +64,13 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def dashboard_index_path() -> Path:
+    """Resolve the one compiled dashboard in source and installed layouts."""
+    dashboard_root = Path(__file__).resolve().parents[1]
+    installed_index = dashboard_root / "index.html"
+    return installed_index if installed_index.is_file() else dashboard_root / "dist/index.html"
+
+
 def firefox_bidi_message_too_big(error: BaseException) -> bool:
     """Return whether a WebSocket close reports the bounded BiDi cap."""
     return any(getattr(frame, "code", None) == 1009 for frame in
@@ -6167,7 +6174,7 @@ def exercise(args: argparse.Namespace) -> int:
                              "phase6_transcript_schema": sha256(Path(__file__).resolve().parent / "schemas/phase6-wire-transcript.schema.json"),
                              **sigmf_input_hashes,
                              **schema_hashes},
-            "artifact_hashes": {"dashboard_index": sha256(Path(__file__).resolve().parents[1] / "index.html"),
+            "artifact_hashes": {"dashboard_index": sha256(dashboard_index_path()),
                                 **live_hashes,
                                 **phase2_hashes},
             "checks": checks,
@@ -6202,7 +6209,7 @@ def exercise(args: argparse.Namespace) -> int:
             "synthetic_data_only": True, "hwil_available": False,
             "production_rf_qualified": False,
             "input_hashes": {"openapi": sha256(API_DIR / "openapi.json")},
-            "artifact_hashes": {"dashboard_index": sha256(Path(__file__).resolve().parents[1] / "index.html")},
+            "artifact_hashes": {"dashboard_index": sha256(dashboard_index_path())},
             "checks": checks,
             "evidence_status": "partial_pre_browser" if phase >= 4 else "complete",
             "result": "FAIL"
@@ -6223,7 +6230,7 @@ def verify(args: argparse.Namespace) -> int:
     try:
         validate_schema(schema, "operator-report.schema.json")
         validate_instance(report, schema)
-        dashboard_index = Path(__file__).resolve().parents[1] / "index.html"
+        dashboard_index = dashboard_index_path()
         openapi = Path(__file__).resolve().parents[1] / "api/openapi.json"
         transport_state = (Path(__file__).resolve().parents[1] /
                            "fhss_transport_state.js")

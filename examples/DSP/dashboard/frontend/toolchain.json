@@ -8,5 +8,12 @@
   "build_time_only": true,
   "dashboard_disabled_build_dependency": false,
   "runtime_network_dependencies": false,
-  "phase0_application_present": false
+  "application_present": true,
+  "application_phase": 1,
+  "build_command": "npm run build",
+  "output_directory": "../dist",
+  "cmake_node_variable": "GRAPHX_DASHBOARD_NODE_EXECUTABLE",
+  "cmake_npm_cli_variable": "GRAPHX_DASHBOARD_NPM_CLI",
+  "developer_override": "GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN",
+  "developer_override_release_evidence": false
 }

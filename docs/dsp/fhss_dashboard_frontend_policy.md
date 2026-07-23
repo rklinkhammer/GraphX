@@ -10,8 +10,9 @@ The selected build-time baseline is recorded by
 `examples/DSP/dashboard/frontend/package.json`, `package-lock.json`, and
 `toolchain.json`. Exact direct versions and every resolved transitive package
 must be integrity-bound in the lockfile. `THIRD_PARTY_NOTICES.md` records the
-reviewed license inventory. `node_modules` and built Phase 1 assets are not
-repository inputs in Phase 0.
+reviewed license inventory. `node_modules` is never a repository input. The
+compiled Phase 1 `dashboard/dist` inventory is the sole source-tree frontend;
+the prototype is not retained as a fallback.
 
 Provision from a controlled cache with:
 
@@ -20,10 +21,19 @@ cd examples/DSP/dashboard/frontend
 npm ci --ignore-scripts --offline
 ```
 
+CMake reads `toolchain.json` and fails configuration unless the executables
+selected by `GRAPHX_DASHBOARD_NODE_EXECUTABLE` and
+`GRAPHX_DASHBOARD_NPM_CLI` report the exact pinned versions. The explicitly
+named `GRAPHX_DASHBOARD_ALLOW_UNPINNED_TOOLCHAIN` option is for local developer
+experimentation only. It writes a mismatch record and is never acceptable as
+release or installed-tree qualification evidence.
+
 Populate the controlled cache only in an authorized dependency-acquisition
 environment. CI and ordinary builds use `npm ci`, never lockfile mutation.
 Dashboard-disabled configuration and builds must not invoke Node, npm, or a
-network. Phase 0 does not invoke the frontend toolchain from CMake.
+network. Dashboard-enabled CMake builds invoke the frozen offline installation
+and production build as a build-time-only step. The deployed target does not
+require Node.js.
 
 ## Release asset policy
 
@@ -59,6 +69,14 @@ and diagnostic correlation may reference that identity only after Phase 3
 defines and tests the mapping; Phase 0 enables no live overlays.
 
 ## Required gates
+
+Browser-operator scenarios written against the retired prototype DOM and its
+standalone transport module remain visible as disabled CTest entries, but are
+not evidence for the compiled application. Phase 1 instead qualifies the typed
+domain, component, API-boundary, and transport tests; exact source/install
+asset inventories; loopback smoke test; and external manual procedure. A later
+phase must re-author each browser scenario against the compiled component
+semantics before enabling it again.
 
 Phase 0 runs authoritative contract/schema validation, its focused frontend
 and C++ dashboard tests, source and clean-installed smoke checks, the
