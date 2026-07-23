@@ -186,8 +186,13 @@ FHSSJobController::FHSSJobController(
         "FHSS job controller dependencies are required");
   std::filesystem::create_directories(artifact_root_);
   artifact_root_ = std::filesystem::weakly_canonical(artifact_root_);
+  // JSON numbers consumed by the browser must remain exactly representable as
+  // JavaScript integers. Microseconds retain ample restart discrimination
+  // while remaining below 2^53 through the supported lifetime of this API.
   controller_epoch_ = static_cast<std::uint64_t>(
-      std::chrono::system_clock::now().time_since_epoch().count());
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
   if (controller_epoch_ == 0)
     controller_epoch_ = 1;
   ReconcileArtifactsAtStartup();

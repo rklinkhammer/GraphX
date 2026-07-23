@@ -12,6 +12,7 @@
 #include <array>
 #include <barrier>
 #include <condition_variable>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -797,7 +798,11 @@ TEST(FhssDashboardJobControllerTest,
       handler({.method = "GET", .path = "/api/v1/fhss/jobs"}, context);
   ASSERT_TRUE(history);
   EXPECT_EQ(history->status_code, 200);
-  EXPECT_EQ(nlohmann::json::parse(history->body).at("entries").size(), 1u);
+  const auto history_json = nlohmann::json::parse(history->body);
+  EXPECT_EQ(history_json.at("entries").size(), 1u);
+  constexpr std::uint64_t kMaxJsonSafeInteger = (std::uint64_t{1} << 53) - 1;
+  EXPECT_LE(history_json.at("controller_epoch").get<std::uint64_t>(),
+            kMaxJsonSafeInteger);
   (void)shared_controller->Cancel(created_json.at("job_id").get<std::string>());
   fixture.owner->Release();
   shared_controller->Shutdown();

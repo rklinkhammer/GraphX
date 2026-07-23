@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LoadStatePanel } from '../src/App';
 import { getConfiguration, getSpectrum, parsers } from '../src/api';
+import { Operations } from '../src/Operations';
 
 const schema = (name: string, fields: Record<string, unknown>) => ({ schema: name, ...fields });
 const sha = (digit: string) => digit.repeat(64);
@@ -82,6 +83,8 @@ describe('typed API boundaries', () => {
 });
 
 describe('operator state presentation', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it.each([
     [{ kind: 'loading' } as const, 'Loading topology…'],
     [{ kind: 'empty', message: 'none' } as const, 'Empty topology'],
@@ -91,5 +94,13 @@ describe('operator state presentation', () => {
   ])('renders %s state', (state, text) => {
     const retry = vi.fn(); const { unmount } = render(<LoadStatePanel load={state} retry={retry} />);
     expect(screen.getByText(text)).toBeTruthy(); const button = screen.queryByRole('button', { name: 'Retry' }); if (button) { fireEvent.click(button); expect(retry).toHaveBeenCalled(); } unmount();
+  });
+
+  it('keeps the workbench mounted when operator resources are unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('unavailable')));
+    render(<Operations refreshToken={0} />);
+    await waitFor(() => expect(screen.getByText('Operator resources refreshed')).toBeTruthy());
+    expect(screen.getByRole('heading', { name: 'Complete-message jobs' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Investigation workflow' })).toBeTruthy();
   });
 });
