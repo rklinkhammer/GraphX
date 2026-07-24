@@ -1,6 +1,92 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:graphx:dashboard:config:v1",
-  "type": "object", "required": ["schema", "owner", "config_revision", "etag", "effective", "derived_paths"], "additionalProperties": false,
-  "properties": {"schema": {"const": "graphx.dashboard.config.v1"}, "owner": {"type": "string"}, "config_revision":{"type":"integer","minimum":0}, "etag":{"type":"string"}, "effective": {"type": "object", "required": ["nodes", "edges"],"properties":{"nodes":{"type":"array","items":{"type":"object","properties":{"node_config":{"type":"object","not":{"anyOf":[{"required":["messages"]},{"required":["truth_from_fixture"]},{"required":["truth_path"]},{"required":["truth_file"]},{"required":["generator_metadata"]},{"required":["transmitted_active_frequency_indices"]},{"required":["transmitted_pulse_frequency_indices"]}]}}}}},"edges":{"type":"array"}}}, "derived_paths":{"type":"array","items":{"type":"string"}}}
+  "$defs": {
+    "safeInteger":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "receiverValue": {
+      "not":{"anyOf":[
+        {"type":"object","required":["messages"]},
+        {"type":"object","required":["truth_from_fixture"]},
+        {"type":"object","required":["truth_path"]},
+        {"type":"object","required":["truth_file"]},
+        {"type":"object","required":["generator_metadata"]},
+        {"type":"object","required":["transmitted_active_frequency_indices"]},
+        {"type":"object","required":["transmitted_pulse_frequency_indices"]}
+      ]},
+      "if":{"type":"object"},
+      "then":{"maxProperties":128,"additionalProperties":{"$ref":"#/$defs/receiverValue"}},
+      "else":{"if":{"type":"array"},"then":{"maxItems":512,"items":{"$ref":"#/$defs/receiverValue"}}}
+    },
+    "preamblePulse": {
+      "type":"object","required":["frequency_index","word_value"],"additionalProperties":false,
+      "properties":{
+        "frequency_index":{"type":"integer","minimum":1,"maximum":62},
+        "word_value":{"type":"integer","minimum":0,"maximum":4294967295}
+      }
+    },
+    "preamblePulses":{"type":"array","maxItems":256,"items":{"$ref":"#/$defs/preamblePulse"}},
+    "activeFrequencies":{"type":"array","maxItems":62,"uniqueItems":true,"items":{"type":"integer","minimum":1,"maximum":62}},
+    "timing": {
+      "type":"object","required":["pulse_samples","gap_samples","pulse_period_samples"],"additionalProperties":false,
+      "properties":{
+        "pulse_samples":{"$ref":"#/$defs/safeInteger"},
+        "gap_samples":{"$ref":"#/$defs/safeInteger"},
+        "pulse_period_samples":{"$ref":"#/$defs/safeInteger"}
+      }
+    },
+    "dashboardDerived": {
+      "type":"object","required":["active_frequency_indices","preamble_pulses","timing"],"additionalProperties":false,
+      "properties":{
+        "active_frequency_indices":{"$ref":"#/$defs/activeFrequencies"},
+        "preamble_pulses":{"$ref":"#/$defs/preamblePulses"},
+        "timing":{"$ref":"#/$defs/timing"}
+      }
+    },
+    "node": {
+      "type":"object","required":["id","type"],"additionalProperties":false,
+      "properties":{
+        "id":{"type":"string","minLength":1,"maxLength":128},
+        "type":{"type":"string","minLength":1,"maxLength":256},
+        "node_config":{"type":"object","maxProperties":128,"additionalProperties":{"$ref":"#/$defs/receiverValue"}}
+      }
+    },
+    "edge": {
+      "type":"object","required":["source_node_id","source_port","target_node_id","target_port"],"additionalProperties":false,
+      "properties":{
+        "source_node_id":{"type":"string","minLength":1,"maxLength":128},
+        "source_port":{"$ref":"#/$defs/safeInteger"},
+        "target_node_id":{"type":"string","minLength":1,"maxLength":128},
+        "target_port":{"$ref":"#/$defs/safeInteger"}
+      }
+    },
+    "graph": {
+      "type":"object","required":["nodes","edges"],"additionalProperties":false,
+      "properties":{
+        "name":{"type":"string","maxLength":256},
+        "description":{"type":"string","maxLength":2048},
+        "execution_backend":{"type":"string","maxLength":128},
+        "backend_fallback_policy":{"type":"string","maxLength":128},
+        "fhss_graph_role":{"type":"string","maxLength":128},
+        "canonical_fhss_graph":{"type":"boolean"},
+        "reference_only":{"type":"boolean"},
+        "resolver_diagnostics":{"type":"boolean"},
+        "active_frequency_indices":{"$ref":"#/$defs/activeFrequencies"},
+        "preamble_pulses":{"$ref":"#/$defs/preamblePulses"},
+        "dashboard_derived":{"$ref":"#/$defs/dashboardDerived"},
+        "nodes":{"type":"array","maxItems":256,"items":{"$ref":"#/$defs/node"}},
+        "edges":{"type":"array","maxItems":512,"items":{"$ref":"#/$defs/edge"}}
+      }
+    }
+  },
+  "type":"object",
+  "required":["schema","owner","config_revision","etag","effective","derived_paths"],
+  "additionalProperties":false,
+  "properties":{
+    "schema":{"const":"graphx.dashboard.config.v1"},
+    "owner":{"type":"string","minLength":1,"maxLength":64},
+    "config_revision":{"$ref":"#/$defs/safeInteger"},
+    "etag":{"type":"string","minLength":1,"maxLength":256},
+    "effective":{"$ref":"#/$defs/graph"},
+    "derived_paths":{"type":"array","maxItems":1024,"items":{"type":"string","minLength":1,"maxLength":4096}}
+  }
 }

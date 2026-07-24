@@ -28,7 +28,7 @@ public:
   Result Shutdown(std::uint64_t generation) override;
   void SetCompletionCallback(CompletionCallback callback) override;
   void SetBeforeExecuteHookForTesting(std::function<void()> hook);
-  void SetExecutorTimeoutForTesting(std::chrono::seconds timeout);
+  void SetExecutorTimeoutForTesting(std::chrono::milliseconds timeout);
   void SetAfterStartupHookForTesting(
       std::function<void(std::shared_ptr<graph::GraphManager>)> hook);
   [[nodiscard]] std::uint64_t StopSequenceCountForTesting() const;
@@ -54,7 +54,7 @@ private:
   std::uint64_t generation_ = 0;
   bool execution_finished_ = true;
   bool executor_used_ = false;
-  std::chrono::seconds executor_timeout_{30};
+  std::chrono::milliseconds executor_timeout_{std::chrono::seconds(30)};
   CompletionCallback completion_callback_;
   std::function<void()> before_execute_hook_;
   std::function<void(std::shared_ptr<graph::GraphManager>)> after_startup_hook_;

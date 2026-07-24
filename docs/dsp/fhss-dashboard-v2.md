@@ -292,10 +292,19 @@ The detector-bank presentation should have four levels:
 
 1. A collapsed bank node in the top-level pipeline.
 2. A heatmap or table for operational channel activity.
-3. An optional 8x8 expansion for structural diagnosis.
+3. An optional hierarchical 8x8 expansion in which the bank is the visual
+   parent of all 64 authoritative detector nodes.
 4. A detailed inspector for one selected detector.
 
 Raw JSON remains an advanced fallback rather than the primary visualization.
+
+The collapsed boundary uses presentation-only bundle edges. A bundle carries
+all 64 authoritative edge identities and exact port mappings, but it is not an
+authoritative edge and has no fabricated numeric source or destination port.
+When expanded, the bundles are replaced by the original 128 exact-port
+boundary edges: channelizer outputs 0–63 connect to detector inputs 0, and
+detector outputs 0 connect to merge inputs 1–64. The expanded detector nodes
+retain the bank display group as their `parentId`.
 
 ## Presentation adapter
 
@@ -338,6 +347,12 @@ Numeric GraphX ports become stable visual handle IDs such as `out-24` and
 `in-25`. The renderer must preserve exact port numbers rather than normalizing
 them. The Phase 2 graph, for example, connects detector 0 to merge input 1 and
 detector 63 to merge input 64.
+
+A presentation bundle must not satisfy the authoritative `DisplayEdge`
+contract by selecting a representative numeric port. Bundle identity,
+membership, and exact member mappings are separate presentation data. Metrics,
+diagnostics, and canonical selection continue to use only the authoritative
+member edge identities.
 
 ### Group detection
 
@@ -699,6 +714,10 @@ Phase 0 passes only when:
 - Add any missing current-queue-depth contract.
 - Define rate, interval, reset, and latency semantics.
 - Update OpenAPI, schemas, negative tests, and compatibility policy.
+- Normative identity and metric semantics are recorded in
+  `docs/dsp/adr/0002-dashboard-runtime-identity-and-metrics.md`.
+- Manual native and Docker evidence is defined by
+  `docs/dsp/fhss_dashboard_phase3_operator_test.md`.
 
 ### Phase 4: Bounded activity visualization
 

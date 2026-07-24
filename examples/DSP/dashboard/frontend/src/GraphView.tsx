@@ -5,21 +5,31 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { layoutTopology } from './layout';
-import type { TopologyModel, TopologyNode } from './topology';
+import {
+  isPresentationBundleEdge,
+  type DisplayTopologyModel,
+  type TopologyNode,
+} from './topology';
 
 type GraphXFlowNode = Node<TopologyNode, 'graphx'>;
 
 function GraphXNode({ data, selected }: NodeProps<GraphXFlowNode>) {
   const presentationGroup = data.type === 'FHSSPresentationGroup';
+  const groupMember = data.presentationRole === 'group-member';
+  const expandedGroup = presentationGroup && data.configuration.expanded === true;
   return (
-    <div className={`graph-node${presentationGroup ? ' presentation-group' : ''}${selected ? ' selected' : ''}`} aria-label={`${data.id}, ${data.type}`}>
+    <div className={`graph-node${presentationGroup ? ' presentation-group' : ''}${expandedGroup ? ' expanded-group' : ''}${groupMember ? ' group-member' : ''}${selected ? ' selected' : ''}`} aria-label={`${data.id}, ${data.type}`}>
       {data.inputPorts.map((port, index) => (
         <Handle key={`in-${port}`} id={`in-${port}`} type="target" position={Position.Left} style={{ top: 42 + index * 14 }} />
       ))}
       <strong>{presentationGroup ? String(data.configuration.label) : data.id}</strong>
-      <span>{presentationGroup ? '64 structurally recognized GraphX nodes' : data.type}</span>
-      <small>inputs: {data.inputPorts.join(', ') || 'none'} · outputs: {data.outputPorts.join(', ') || 'none'}</small>
-      {presentationGroup && <small>channelizer outputs 0–63 · merge inputs 1–64</small>}
+      <span>{presentationGroup
+        ? expandedGroup ? 'Hierarchical parent · 64 GraphX detector children' : 'Collapsed presentation group · 64 GraphX detectors'
+        : data.type}</span>
+      {!expandedGroup && <small>inputs: {data.inputPorts.join(', ') || 'none'} · outputs: {data.outputPorts.join(', ') || 'none'}</small>}
+      {presentationGroup && <small>{expandedGroup
+        ? 'Exact edges connect channelizer outputs 0–63 through detector children to merge inputs 1–64'
+        : 'Two visual bundles retain 128 authoritative exact-port edge identities'}</small>}
       {data.outputPorts.map((port, index) => (
         <Handle key={`out-${port}`} id={`out-${port}`} type="source" position={Position.Right} style={{ top: 42 + index * 14 }} />
       ))}
@@ -29,17 +39,59 @@ function GraphXNode({ data, selected }: NodeProps<GraphXFlowNode>) {
 
 const nodeTypes = { graphx: GraphXNode };
 
-export function toFlowElements(model: TopologyModel): { nodes: GraphXFlowNode[]; edges: Edge[] } {
+export function toFlowElements(model: DisplayTopologyModel): { nodes: GraphXFlowNode[]; edges: Edge[] } {
+  const orderedNodes = [
+    ...model.nodes.filter(({ parentId }) => !parentId),
+    ...model.nodes.filter(({ parentId }) => parentId),
+  ];
+  const childOrder = new Map(model.nodes.filter(({ parentId }) => parentId)
+    .map((node, index) => [node.id, index]));
   return {
-    nodes: model.nodes.map((node, index) => ({ id: node.id, type: 'graphx', data: node, position: { x: (index % 8) * 260, y: Math.floor(index / 8) * 130 }, draggable: true, deletable: false, connectable: false, selectable: true })),
-    edges: model.edges.map((edge) => ({ id: edge.id, source: edge.source_node_id, sourceHandle: edge.sourceHandle, target: edge.target_node_id, targetHandle: edge.targetHandle, deletable: false, reconnectable: false, selectable: true, markerEnd: { type: MarkerType.ArrowClosed } })),
+    nodes: orderedNodes.map((node, index) => ({
+      id: node.id,
+      type: 'graphx',
+      data: node,
+      parentId: node.parentId,
+      extent: node.parentId ? 'parent' as const : undefined,
+      position: node.parentId
+        ? {
+            x: 45 + ((childOrder.get(node.id) ?? 0) % 8) * 170,
+            y: 90 + Math.floor((childOrder.get(node.id) ?? 0) / 8) * 98,
+          }
+        : { x: (index % 8) * 260, y: Math.floor(index / 8) * 130 },
+      style: node.presentationRole === 'group' && node.configuration.expanded
+        ? { width: 1420, height: 900 } : undefined,
+      draggable: true,
+      deletable: false,
+      connectable: false,
+      selectable: true,
+    })),
+    edges: model.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source_node_id,
+      sourceHandle: edge.sourceHandle,
+      target: edge.target_node_id,
+      targetHandle: edge.targetHandle,
+      data: isPresentationBundleEdge(edge)
+        ? {
+            presentation_only: true,
+            authoritative_edge_ids: edge.authoritativeEdgeIds,
+            mappings: edge.mappings,
+          } : undefined,
+      label: isPresentationBundleEdge(edge) ? edge.label : undefined,
+      className: isPresentationBundleEdge(edge) ? 'presentation-bundle-edge' : undefined,
+      deletable: false,
+      reconnectable: false,
+      selectable: true,
+      markerEnd: { type: MarkerType.ArrowClosed },
+    })),
   };
 }
 
 export interface Selection { kind: 'node' | 'edge'; id: string }
 
 export function GraphView({ model, selection, onSelection, authoritativeCounts }: {
-  model: TopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
+  model: DisplayTopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
   authoritativeCounts?: { nodes: number; edges: number };
 }) {
   const elements = useMemo(() => toFlowElements(model), [model]);

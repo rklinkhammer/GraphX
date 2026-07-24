@@ -15,4 +15,5 @@ inline constexpr auto kPinnedSchemaDigests = std::to_array({
 inline constexpr std::string_view kPinnedOpenApiSha256 = "@GRAPHX_FHSS_OPENAPI_SHA256@";
 inline constexpr std::string_view kBuildSourceRevision = "@GRAPHX_FHSS_SOURCE_REVISION@";
 inline constexpr bool kBuildSourceDirty = @GRAPHX_FHSS_SOURCE_DIRTY@;
+inline constexpr std::string_view kBuildSourceStateCapture = "@GRAPHX_FHSS_SOURCE_STATE_CAPTURE@";
 } // namespace dsp::fhss::dashboard

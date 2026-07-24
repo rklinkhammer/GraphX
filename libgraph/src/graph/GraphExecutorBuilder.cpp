@@ -178,11 +178,17 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithCSVInjectionRate(uint32_t rate_m
  * @param timeout Parameter for with executor timeout.
  */
 GraphExecutorBuilder& GraphExecutorBuilder::WithExecutorTimeout(const std::chrono::seconds& timeout) {
+    return WithExecutorTimeout(
+        std::chrono::duration_cast<std::chrono::milliseconds>(timeout));
+}
+
+GraphExecutorBuilder& GraphExecutorBuilder::WithExecutorTimeout(
+    const std::chrono::milliseconds& timeout) {
     if (timeout.count() <= 0) {
-        throw std::invalid_argument("GraphExecutorBuilder: Executor timeout must be > 0 seconds");
+        throw std::invalid_argument("GraphExecutorBuilder: Executor timeout must be > 0 milliseconds");
     }
     executor_timeout_ = timeout;
-    LOG4CXX_TRACE(g_logger, "Set executor timeout: " << timeout.count() << "s");
+    LOG4CXX_TRACE(g_logger, "Set executor timeout: " << timeout.count() << "ms");
     return *this;
 }
 
@@ -334,7 +340,7 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     }
     LOG4CXX_TRACE(g_logger, "  csv_inputs: " << csv_inputs_.size());
     LOG4CXX_TRACE(g_logger, "  csv_injection_rate_ms: " << csv_injection_rate_ms_);
-    LOG4CXX_TRACE(g_logger, "  executor_timeout: " << executor_timeout_.count() << "s");
+    LOG4CXX_TRACE(g_logger, "  executor_timeout: " << executor_timeout_.count() << "ms");
     LOG4CXX_TRACE(g_logger, "  graph_threads: " << graph_threads_);
     LOG4CXX_TRACE(g_logger, "  verbose_logging: " << (verbose_logging_ ? "enabled" : "disabled"));
 
@@ -394,7 +400,7 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
         LOG4CXX_TRACE(g_logger, "Step 5: Creating executor");
 
         auto completion_policy = std::make_unique<policies::CompletionPolicy>();
-        completion_policy->SetMaxDuration(std::chrono::duration_cast<std::chrono::milliseconds>(executor_timeout_));
+        completion_policy->SetMaxDuration(executor_timeout_);
         completion_policy->SetCliMode(cli_mode_);
         auto gpu_policy = std::make_unique<policies::GpuPolicy>();
         auto injection_policy = std::make_unique<policies::DataInjectionPolicy>();  

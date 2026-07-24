@@ -10,7 +10,7 @@ import { Visualization } from '../src/Operations';
 import {
   DETECTOR_BANK_ID, DETECTOR_TYPE, recognizeDetectorBank, toFHSSPresentation,
 } from '../src/fhssPresentation';
-import { toTopology } from '../src/topology';
+import { isPresentationBundleEdge, toTopology } from '../src/topology';
 import { parseGraphResource, type GraphContract } from '../src/domain';
 
 function independentGraph(): GraphContract {
@@ -89,10 +89,20 @@ describe('Phase 2 typed FHSS presentation adapter', () => {
     expect(presentation.authoritative.edges).toHaveLength(137);
     expect(presentation.collapsed.nodes).toHaveLength(12);
     expect(presentation.collapsed.edges).toHaveLength(11);
+    expect(presentation.expanded.nodes).toHaveLength(76);
+    expect(presentation.expanded.edges).toHaveLength(137);
     expect(presentation.collapsed.nodes.map((node) => node.id)).toEqual([
       'binary', 'translate', 'fanout', DETECTOR_BANK_ID, 'fanin', 'candidate',
       'metric', 'viterbi', 'word', 'preamble', 'assembler', 'sink',
     ]);
+    const bundles = presentation.collapsed.edges.filter(isPresentationBundleEdge);
+    expect(bundles).toHaveLength(2);
+    expect(bundles.every((edge) =>
+      !('source_port' in edge) && !('target_port' in edge)
+      && edge.authoritativeEdgeIds.length === 64 && edge.mappings.length === 64)).toBe(true);
+    expect(new Set(bundles.flatMap((edge) => edge.authoritativeEdgeIds))).toEqual(
+      new Set(presentation.detectorBank?.authoritativeEdgeIds),
+    );
     presentation.detectorBank?.members.forEach((mapping, physicalChannel) => {
       expect(mapping.logicalChannel).toBe(physicalChannel);
       expect(mapping.physicalChannel).toBe(physicalChannel);
@@ -104,7 +114,18 @@ describe('Phase 2 typed FHSS presentation adapter', () => {
       expect(mapping.outgoingEdge.targetHandle).toBe(`in-${physicalChannel + 1}`);
       expect(presentation.detectorBank?.authoritativeEdgeIds).toContain(mapping.incomingEdge.id);
       expect(presentation.detectorBank?.authoritativeEdgeIds).toContain(mapping.outgoingEdge.id);
+      const child = presentation.expanded.nodes.find(({ id }) => id === mapping.node.id);
+      expect(child?.parentId).toBe(DETECTOR_BANK_ID);
+      expect(child?.presentationRole).toBe('group-member');
+      expect(presentation.expanded.edges).toContain(mapping.incomingEdge);
+      expect(presentation.expanded.edges).toContain(mapping.outgoingEdge);
     });
+    expect(presentation.expanded.edges).toContain(
+      presentation.detectorBank?.members[63]?.incomingEdge,
+    );
+    expect(presentation.expanded.edges).toContain(
+      presentation.detectorBank?.members[63]?.outgoingEdge,
+    );
   });
 
   it.each([
@@ -228,10 +249,11 @@ describe('Phase 2 detector-bank interaction', () => {
 
   it('traces a grouped boundary display edge to all 64 authoritative exact-port edges', () => {
     render(<DetectorInspector presentation={presentation}
-      selection={{ kind: 'edge', id: 'fanout:0-63->fhss-acquisition-detector-bank:0' }}
+      selection={{ kind: 'edge', id: 'bundle:fanout->fhss-acquisition-detector-bank:inputs' }}
       onSelection={vi.fn()} />);
     expect(screen.getByText('Grouped boundary inspector')).toBeTruthy();
     expect(screen.getByText(/summarizes 64 authoritative exact-port edges/)).toBeTruthy();
+    expect(screen.getByText(/has no canonical numeric ports/)).toBeTruthy();
     expect(screen.getByText('Authoritative exact-port mappings (64)')).toBeTruthy();
     expect(screen.getAllByText('graph edge id')).toHaveLength(64);
   });
@@ -286,7 +308,7 @@ describe('Phase 2 detector-bank interaction', () => {
   it('retains the complete authoritative graph resource wrapper for raw diagnostics', () => {
     const graph = independentGraph();
     const resource = {
-      schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 19, graph,
+      schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 19, etag: '"graphx-config-19"', graph,
     };
     expect(authoritativeGraphDocument({
       kind: 'ready', graph, revision: 19, resource,
@@ -302,7 +324,7 @@ describe('Phase 2 malformed graph handling', () => {
     const graph = independentGraph();
     graph.edges.push({ ...graph.edges[0] });
     expect(() => parseGraphResource({
-      schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 0, graph,
+      schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 0, etag: '"graphx-config-0"', graph,
     })).toThrow(/duplicate port-aware edge identities/);
   });
 });

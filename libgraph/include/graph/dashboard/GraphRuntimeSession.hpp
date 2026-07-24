@@ -7,12 +7,18 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace graph {
 class GraphManager;
 }
 
 namespace graph::dashboard {
+
+[[nodiscard]] std::string
+CanonicalEdgeId(const std::string &source_node_id, std::size_t source_port,
+                const std::string &destination_node_id,
+                std::size_t destination_port);
 
 class GraphRuntimeSession {
 public:
@@ -58,10 +64,23 @@ public:
   };
 
   struct GenerationSnapshot {
+    struct EdgeIdentity {
+      std::string edge_id;
+      std::string source_node_id;
+      std::size_t source_port = 0;
+      std::string destination_node_id;
+      std::size_t destination_port = 0;
+    };
+
     std::uint64_t generation = 0;
     std::uint64_t run_epoch = 0;
     std::uint64_t config_revision = 0;
     std::string config_etag;
+    // These vectors are immutable for a graph generation. Their positions are
+    // runtime lookup keys only; the string IDs are the canonical identities.
+    std::vector<std::string> canonical_node_ids;
+    std::vector<EdgeIdentity> canonical_edges;
+    std::string identity_error;
     std::shared_ptr<graph::GraphManager> graph_manager;
   };
 
@@ -88,6 +107,11 @@ public:
   [[nodiscard]] CommandResult Stop();
 
   void SetStateForTesting(State state);
+  void SetIdentityCountersForTesting(std::uint64_t active_generation,
+                                     std::uint64_t active_run_epoch,
+                                     std::uint64_t command_epoch,
+                                     std::uint64_t rebuild_attempts,
+                                     std::uint64_t successful_rebuilds);
 
   [[nodiscard]] bool IsRebuildAllowedInCurrentState() const;
 

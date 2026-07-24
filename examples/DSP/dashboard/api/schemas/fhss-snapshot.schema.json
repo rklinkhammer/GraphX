@@ -2,22 +2,53 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"urn:graphx:dashboard:fhss-snapshot:v1",
   "type":"object",
-  "required":["schema","publisher_epoch","latest_sequence","captured_at","config_revision","config_etag","generation","run_epoch","configuration","graph","runtime","metrics","transport","diagnostics"],
+  "required":["schema","publisher_epoch","latest_sequence","captured_at","config_revision","config_etag","generation","run_epoch","coherence","configuration","graph","runtime","metrics","transport","diagnostics"],
   "additionalProperties":false,
+  "$defs":{
+    "safe":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "nullableSafe":{"anyOf":[{"$ref":"#/$defs/safe"},{"type":"null"}]},
+    "counterAvailability":{
+      "type":"object","required":["state","reason"],"additionalProperties":false,
+      "properties":{"state":{"enum":["available","unavailable"]},"reason":{"type":["string","null"],"maxLength":512}},
+      "allOf":[
+        {"if":{"properties":{"state":{"const":"available"}}},"then":{"properties":{"reason":{"type":"null"}}}},
+        {"if":{"properties":{"state":{"const":"unavailable"}}},"then":{"properties":{"reason":{"type":"string","minLength":1}}}}
+      ]
+    }
+  },
   "properties":{
     "schema":{"const":"graphx.dashboard.fhss_snapshot.v1"},
     "publisher_epoch":{"type":"string","pattern":"^[0-9a-f]{32}$"},
-    "latest_sequence":{"type":"integer","minimum":0,"maximum":18446744073709551615},
+    "latest_sequence":{"$ref":"#/$defs/safe"},
     "captured_at":{"type":"string","format":"date-time"},
-    "config_revision":{"type":"integer","minimum":0,"maximum":18446744073709551615},
+    "config_revision":{"$ref":"#/$defs/safe"},
     "config_etag":{"type":"string","minLength":1,"maxLength":256},
-    "generation":{"type":"integer","minimum":0,"maximum":18446744073709551615},
-    "run_epoch":{"type":"integer","minimum":0,"maximum":18446744073709551615},
-    "configuration":{"type":"object"},
-    "graph":{"type":"object"},
-    "runtime":{"type":"object"},
-    "metrics":{"type":"object"},
-    "transport":{"type":"object","required":["active_websocket_clients","pongs_received","idle_closes","protocol_failures","rejected_upgrades","replayed_events","resync_requests","queue_overflows","close_reasons","dropped_events_total","coalesced_events_total"],"additionalProperties":false,"properties":{"active_websocket_clients":{"type":"integer","minimum":0,"maximum":8},"pongs_received":{"type":"integer","minimum":0,"maximum":18446744073709551615},"idle_closes":{"type":"integer","minimum":0,"maximum":18446744073709551615},"protocol_failures":{"type":"integer","minimum":0,"maximum":18446744073709551615},"rejected_upgrades":{"type":"integer","minimum":0,"maximum":18446744073709551615},"replayed_events":{"type":"integer","minimum":0,"maximum":18446744073709551615},"resync_requests":{"type":"integer","minimum":0,"maximum":18446744073709551615},"queue_overflows":{"type":"integer","minimum":0,"maximum":18446744073709551615},"close_reasons":{"type":"object","required":["normal","protocol","unsupported_data","invalid_utf8","too_big","policy","going_away","internal"],"additionalProperties":false,"properties":{"normal":{"type":"integer","minimum":0,"maximum":18446744073709551615},"protocol":{"type":"integer","minimum":0,"maximum":18446744073709551615},"unsupported_data":{"type":"integer","minimum":0,"maximum":18446744073709551615},"invalid_utf8":{"type":"integer","minimum":0,"maximum":18446744073709551615},"too_big":{"type":"integer","minimum":0,"maximum":18446744073709551615},"policy":{"type":"integer","minimum":0,"maximum":18446744073709551615},"going_away":{"type":"integer","minimum":0,"maximum":18446744073709551615},"internal":{"type":"integer","minimum":0,"maximum":18446744073709551615}}},"dropped_events_total":{"type":"integer","minimum":0,"maximum":18446744073709551615},"coalesced_events_total":{"type":"integer","minimum":0,"maximum":18446744073709551615}}},
-    "diagnostics":{"type":"object"}
+    "generation":{"$ref":"#/$defs/safe"},
+    "run_epoch":{"$ref":"#/$defs/safe"},
+    "coherence":{"type":"object","required":["state","metric_capture_id","diagnostic_capture_id"],"additionalProperties":false,"properties":{"state":{"const":"coherent"},"metric_capture_id":{"type":"string","minLength":1,"maxLength":128},"diagnostic_capture_id":{"type":"string","minLength":1,"maxLength":128}}},
+    "configuration":{"$ref":"urn:graphx:dashboard:config:v1"},
+    "graph":{"$ref":"urn:graphx:dashboard:graph:v1"},
+    "runtime":{"$ref":"urn:graphx:dashboard:runtime-status:v1"},
+    "metrics":{"$ref":"urn:graphx:dashboard:metrics:v1"},
+    "transport":{
+      "type":"object",
+      "required":["counter_availability","active_websocket_clients","pongs_received","idle_closes","protocol_failures","rejected_upgrades","replayed_events","resync_requests","queue_overflows","close_reasons","dropped_events_total","coalesced_events_total"],
+      "additionalProperties":false,
+      "properties":{
+        "counter_availability":{"$ref":"#/$defs/counterAvailability"},
+        "active_websocket_clients":{"type":"integer","minimum":0,"maximum":8},
+        "pongs_received":{"$ref":"#/$defs/nullableSafe"},"idle_closes":{"$ref":"#/$defs/nullableSafe"},
+        "protocol_failures":{"$ref":"#/$defs/nullableSafe"},"rejected_upgrades":{"$ref":"#/$defs/nullableSafe"},
+        "replayed_events":{"$ref":"#/$defs/nullableSafe"},"resync_requests":{"$ref":"#/$defs/nullableSafe"},
+        "queue_overflows":{"$ref":"#/$defs/nullableSafe"},
+        "close_reasons":{"type":"object","required":["normal","protocol","unsupported_data","invalid_utf8","too_big","policy","going_away","internal"],"additionalProperties":false,"properties":{"normal":{"$ref":"#/$defs/nullableSafe"},"protocol":{"$ref":"#/$defs/nullableSafe"},"unsupported_data":{"$ref":"#/$defs/nullableSafe"},"invalid_utf8":{"$ref":"#/$defs/nullableSafe"},"too_big":{"$ref":"#/$defs/nullableSafe"},"policy":{"$ref":"#/$defs/nullableSafe"},"going_away":{"$ref":"#/$defs/nullableSafe"},"internal":{"$ref":"#/$defs/nullableSafe"}}},
+        "dropped_events_total":{"$ref":"#/$defs/nullableSafe"},"coalesced_events_total":{"$ref":"#/$defs/nullableSafe"}
+      },
+      "allOf":[
+        {"if":{"properties":{"counter_availability":{"properties":{"state":{"const":"available"}}}}},"then":{"properties":{"pongs_received":{"$ref":"#/$defs/safe"},"idle_closes":{"$ref":"#/$defs/safe"},"protocol_failures":{"$ref":"#/$defs/safe"},"rejected_upgrades":{"$ref":"#/$defs/safe"},"replayed_events":{"$ref":"#/$defs/safe"},"resync_requests":{"$ref":"#/$defs/safe"},"queue_overflows":{"$ref":"#/$defs/safe"},"dropped_events_total":{"$ref":"#/$defs/safe"},"coalesced_events_total":{"$ref":"#/$defs/safe"},"close_reasons":{"properties":{"normal":{"$ref":"#/$defs/safe"},"protocol":{"$ref":"#/$defs/safe"},"unsupported_data":{"$ref":"#/$defs/safe"},"invalid_utf8":{"$ref":"#/$defs/safe"},"too_big":{"$ref":"#/$defs/safe"},"policy":{"$ref":"#/$defs/safe"},"going_away":{"$ref":"#/$defs/safe"},"internal":{"$ref":"#/$defs/safe"}}}}}},
+        {"if":{"properties":{"counter_availability":{"properties":{"state":{"const":"unavailable"}}}}},"then":{"properties":{"pongs_received":{"type":"null"},"idle_closes":{"type":"null"},"protocol_failures":{"type":"null"},"rejected_upgrades":{"type":"null"},"replayed_events":{"type":"null"},"resync_requests":{"type":"null"},"queue_overflows":{"type":"null"},"dropped_events_total":{"type":"null"},"coalesced_events_total":{"type":"null"},"close_reasons":{"properties":{"normal":{"type":"null"},"protocol":{"type":"null"},"unsupported_data":{"type":"null"},"invalid_utf8":{"type":"null"},"too_big":{"type":"null"},"policy":{"type":"null"},"going_away":{"type":"null"},"internal":{"type":"null"}}}}}}
+      ]
+    },
+    "diagnostics":{"$ref":"urn:graphx:dashboard:diagnostics:v1"}
   }
 }

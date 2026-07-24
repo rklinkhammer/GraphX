@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { nextSelectionIndex, type TopologyModel } from './topology';
+import { nextSelectionIndex } from './topology';
+import {
+  isPresentationBundleEdge,
+  type DisplayTopologyModel,
+} from './topology';
 import type { Selection } from './GraphView';
-import type { DetectorBankGroup } from './fhssPresentation';
 
-export function TopologyTable({ model, selection, onSelection, detectorBank, expanded, authoritativeCounts }: {
-  model: TopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
-  detectorBank?: DetectorBankGroup;
-  expanded?: boolean;
+export function TopologyTable({ model, selection, onSelection, authoritativeCounts }: {
+  model: DisplayTopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
   authoritativeCounts?: { nodes: number; edges: number };
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -18,17 +19,18 @@ export function TopologyTable({ model, selection, onSelection, detectorBank, exp
     const item = items[next];
     if (item) onSelection(item);
   };
-  const nodes = detectorBank && expanded
-    ? model.nodes.flatMap((node) => node.id === detectorBank.id ? detectorBank.members.map((entry) => entry.node) : [node])
-    : model.nodes;
+  const nodes = model.nodes;
   const nodeSelections = nodes.map((node): Selection => ({ kind: 'node', id: node.id }));
   const edgeSelections = model.edges.map((edge): Selection => ({ kind: 'edge', id: edge.id }));
+  const containsBundles = model.edges.some(isPresentationBundleEdge);
+  const nodeLabel = authoritativeCounts ? 'Display nodes' : 'Nodes';
+  const edgeLabel = authoritativeCounts ? 'Display edges' : 'Edges';
   return (
     <section className="semantic-card" aria-labelledby="semantic-heading">
       <h2 id="semantic-heading">Semantic topology</h2>
       <p>Keyboard-accessible text equivalent synchronized with the canvas and detector grid. Use Up/Down, Home, and End. Grouping is presentation-only.</p>
       {authoritativeCounts && <p>{authoritativeCounts.nodes} authoritative nodes and {authoritativeCounts.edges} authoritative exact-port edges remain available in the advanced raw diagnostic.</p>}
-      <details open><summary>{detectorBank ? 'Display nodes' : 'Nodes'} ({nodes.length})</summary>
+      <details open><summary>{nodeLabel} ({nodes.length})</summary>
         <div className="semantic-list" role="listbox" aria-label="GraphX nodes">
           {nodes.map((node, index) => <button key={node.id} type="button" role="option"
             aria-selected={selection?.kind === 'node' && selection.id === node.id}
@@ -39,14 +41,17 @@ export function TopologyTable({ model, selection, onSelection, detectorBank, exp
           </button>)}
         </div>
       </details>
-      <details><summary>{detectorBank ? 'Display edges' : 'Edges'} ({model.edges.length})</summary>
-        <div className="semantic-list" role="listbox" aria-label="GraphX exact-port edges">
+      <details><summary>{edgeLabel} ({model.edges.length})</summary>
+        <div className="semantic-list" role="listbox"
+          aria-label={containsBundles ? 'GraphX presentation edges' : 'GraphX exact-port edges'}>
           {model.edges.map((edge, index) => <button key={edge.id} type="button" role="option"
             aria-selected={selection?.kind === 'edge' && selection.id === edge.id}
             ref={selection?.kind === 'edge' && selection.id === edge.id ? selectedRef : undefined}
             onKeyDown={(event) => chooseByKey(event, edgeSelections, index)}
             onClick={() => onSelection({ kind: 'edge', id: edge.id })}>
-            <strong>{edge.id}</strong><span>{edge.source_node_id} port {edge.source_port} → {edge.target_node_id} port {edge.target_port}</span>
+            <strong>{edge.id}</strong><span>{isPresentationBundleEdge(edge)
+              ? `${edge.label}; ${edge.authoritativeEdgeIds.length} authoritative mappings`
+              : `${edge.source_node_id} port ${edge.source_port} → ${edge.target_node_id} port ${edge.target_port}`}</span>
           </button>)}
         </div>
       </details>

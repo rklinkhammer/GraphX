@@ -6,6 +6,7 @@ import { GraphView, toFlowElements } from '../src/GraphView';
 import { Inspector } from '../src/Inspector';
 import { TopologyTable } from '../src/TopologyTable';
 import { layoutTopology } from '../src/layout';
+import { DETECTOR_BANK_ID, toFHSSPresentation } from '../src/fhssPresentation';
 import { toTopology } from '../src/topology';
 
 const graph = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../libdsp/config/fhss_phase2_binary_iq_receiver.json'), 'utf8'));
@@ -24,6 +25,42 @@ describe('Phase 1 topology presentation', () => {
     const first = await layoutTopology(model); const second = await layoutTopology(model);
     expect(first.size).toBe(75); expect([...first]).toEqual([...second]);
     expect(first.get('source')).toBeDefined(); expect(first.get('merge')).toBeDefined();
+  });
+
+  it('renders the expanded detector bank as a parent with 64 children and exact edges', () => {
+    const presentation = toFHSSPresentation(model);
+    const flow = toFlowElements(presentation.expanded);
+    const parentIndex = flow.nodes.findIndex(({ id }) => id === DETECTOR_BANK_ID);
+    const children = flow.nodes.filter(({ parentId }) => parentId === DETECTOR_BANK_ID);
+    expect(parentIndex).toBeGreaterThanOrEqual(0);
+    expect(children).toHaveLength(64);
+    expect(children.every((node) => flow.nodes.indexOf(node) > parentIndex)).toBe(true);
+    expect(flow.edges).toHaveLength(137);
+    expect(flow.edges.find((edge) => edge.id === 'channelizer:63->detector_63:0'))
+      .toMatchObject({ sourceHandle: 'out-63', targetHandle: 'in-0' });
+    expect(flow.edges.find((edge) => edge.id === 'detector_63:0->merge:64'))
+      .toMatchObject({ sourceHandle: 'out-0', targetHandle: 'in-64' });
+  });
+
+  it('lays out the hierarchical parent and all detector children deterministically', async () => {
+    const presentation = toFHSSPresentation(model);
+    const first = await layoutTopology(presentation.expanded);
+    const second = await layoutTopology(presentation.expanded);
+    expect(first.size).toBe(76);
+    expect([...first]).toEqual([...second]);
+    expect(first.get(DETECTOR_BANK_ID)).toBeDefined();
+    expect(first.get('detector_0')).toEqual({ x: 45, y: 90 });
+    expect(first.get('detector_63')).toEqual({ x: 1235, y: 776 });
+  });
+
+  it('uses presentation-only bundles without fabricated canonical ports when collapsed', () => {
+    const presentation = toFHSSPresentation(model);
+    const bundles = presentation.collapsed.edges.filter((edge) => 'kind' in edge);
+    expect(bundles).toHaveLength(2);
+    expect(bundles.every((edge) =>
+      !('source_port' in edge) && !('target_port' in edge))).toBe(true);
+    const flow = toFlowElements(presentation.collapsed);
+    expect(flow.edges.filter((edge) => edge.className === 'presentation-bundle-edge')).toHaveLength(2);
   });
 
   it('renders graph controls and read-only presentation notice', () => {

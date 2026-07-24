@@ -928,7 +928,12 @@ int main(int argc, char **argv) {
         std::make_shared<graph::dashboard::GraphSnapshotCollector>();
     snapshot_collector->BindRuntimeSession(runtime_session);
 
-    const auto metrics_snapshot = snapshot_collector->GetMetricsSnapshot();
+    auto metrics_snapshot = snapshot_collector->GetMetricsSnapshot();
+    // The standalone demo predates dashboard configuration identity and owns
+    // the manager directly. Preserve its execution-summary contract without
+    // pretending the identity-unavailable dashboard projection is a zero
+    // sample.
+    metrics_snapshot["graph"] = GraphMetricsJson(manager->GetMetrics());
     auto diagnostics_snapshot = snapshot_collector->GetDiagnosticsSnapshot();
     if (!diagnostics_snapshot.contains("nodes") ||
         diagnostics_snapshot.at("nodes").empty()) {

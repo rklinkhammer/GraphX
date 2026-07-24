@@ -11,7 +11,7 @@ const graphPath = new URL('../../../../../libdsp/config/fhss_phase2_binary_iq_re
 const fixture = JSON.parse(await readFile(graphPath, 'utf8'));
 
 test('canonical receiver graph has stable identities and all exact ports', () => {
-  const resource = parseGraphResource({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, graph: fixture });
+  const resource = parseGraphResource({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, etag: '"graphx-config-1"', graph: fixture });
   const topology = toTopology(resource.graph);
   assert.equal(topology.nodes.length, 75);
   assert.equal(topology.edges.length, 137);
@@ -22,6 +22,33 @@ test('canonical receiver graph has stable identities and all exact ports', () =>
     && edge.sourceHandle === 'out-0' && edge.targetHandle === 'in-1'));
   assert.ok(topology.edges.some((edge) => edge.id === 'detector_63:0->merge:64'
     && edge.sourceHandle === 'out-0' && edge.targetHandle === 'in-64'));
+});
+
+test('production graph response accepts the exact policy-derived metadata shape', () => {
+  const graph = structuredClone(fixture);
+  graph.active_frequency_indices = [];
+  graph.preamble_pulses = [];
+  graph.dashboard_derived = {
+    active_frequency_indices: [],
+    preamble_pulses: [],
+    timing: { pulse_samples: 3200, gap_samples: 3300, pulse_period_samples: 6500 },
+  };
+  for (const node of graph.nodes) {
+    if (node.id === 'preamble' || node.id === 'assembler') {
+      node.node_config = { ...(node.node_config ?? {}), preamble_pulses: [] };
+    }
+  }
+  const resource = parseGraphResource({
+    schema: 'graphx.dashboard.graph.v1',
+    owner: 'GraphConfigurationService',
+    config_revision: 1,
+    etag: '"graphx-config-1"',
+    graph,
+  });
+  const topology = toTopology(resource.graph);
+  assert.equal(topology.nodes.length, 75);
+  assert.equal(topology.edges.length, 137);
+  assert.equal(detectorMergeOffsets(topology), true);
 });
 
 test('edge identity is stable and port-aware', () => {
@@ -43,8 +70,10 @@ test('topology mutations are disabled and keyboard selection wraps', () => {
 });
 
 test('malformed graph resources fail without position-derived identity', () => {
-  const resource = (graph) => ({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, graph });
+  const resource = (graph) => ({ schema: 'graphx.dashboard.graph.v1', owner: 'receiver', config_revision: 1, etag: '"graphx-config-1"', graph });
   assert.throws(() => parseGraphResource(resource({ nodes: [{}], edges: [] })), /stable id and type/);
   assert.throws(() => parseGraphResource(resource({ nodes: [{ id: 'a', type: 'T' }, { id: 'a', type: 'T' }], edges: [] })), /duplicate/);
   assert.throws(() => parseGraphResource(resource({ nodes: [{ id: 'a', type: 'T' }], edges: [{ source_node_id: 'a', source_port: 0, target_node_id: 'missing', target_port: 0 }] })), /unknown node/);
+  assert.throws(() => parseGraphResource({ ...resource({ nodes: [], edges: [] }), positional_nodes: [] }), /unexpected field/);
+  assert.throws(() => parseGraphResource(resource({ nodes: [], edges: [], inferred_edges: [] })), /unexpected field/);
 });

@@ -4,7 +4,7 @@ import {
   getSpectrum, postCommand, requestJson, resourceLoaders,
   type ComparisonResource, type ConfigurationResource, type ExpectedTruthResource,
   type InvestigationHistoryResource, type JobHistoryResource, type MetricsResource,
-  type ObservationResource, type SpectrumResource,
+  type ObservationResource, type SpectrumResource, type DiagnosticsResource, type SnapshotResource,
 } from './api';
 
 type DataMap = Record<string, unknown>;
@@ -75,11 +75,14 @@ export function ReceiverEvidence({ expected, observation, comparison, spectrum, 
     <p>Selected channel: {spectrum?.channel_index ?? 'unavailable'}; bins: {spectrum?.bins.length ?? 0}</p><StructuredValue value={spectrum} /></article>;
 }
 
-export function Operations({ refreshToken, selectedPhysicalChannel, onPhysicalChannel, onObservation }: {
+export function Operations({ refreshToken, selectedPhysicalChannel, onPhysicalChannel, onObservation, onMetrics, onDiagnostics, onSnapshot }: {
   refreshToken: number;
   selectedPhysicalChannel?: number;
   onPhysicalChannel?: (channel: number | undefined) => void;
   onObservation?: (observation: ObservationResource | undefined) => void;
+  onMetrics?: (metrics: MetricsResource | undefined) => void;
+  onDiagnostics?: (diagnostics: DiagnosticsResource | undefined) => void;
+  onSnapshot?: (snapshot: SnapshotResource | undefined) => void;
 }) {
   const [data, setData] = useState<DataMap>({});
   const [status, setStatus] = useState('Loading operator resources…');
@@ -114,7 +117,12 @@ export function Operations({ refreshToken, selectedPhysicalChannel, onPhysicalCh
   const comparison = resourceWithSchema<ComparisonResource>(data.comparison, 'graphx.dashboard.fhss_comparison_result.v1');
   const spectrum = resourceWithSchema<SpectrumResource>(data.spectrum, 'graphx.dashboard.fhss_receiver_spectrum.v1');
   const metrics = resourceWithSchema<MetricsResource>(data.metrics, 'graphx.dashboard.metrics.v1');
+  const diagnostics = resourceWithSchema<DiagnosticsResource>(data.diagnostics, 'graphx.dashboard.diagnostics.v1');
+  const snapshot = resourceWithSchema<SnapshotResource>(data.snapshot, 'graphx.dashboard.fhss_snapshot.v1');
   useEffect(() => { onObservation?.(observations); }, [observations, onObservation]);
+  useEffect(() => { onMetrics?.(metrics); }, [metrics, onMetrics]);
+  useEffect(() => { onDiagnostics?.(diagnostics); }, [diagnostics, onDiagnostics]);
+  useEffect(() => { onSnapshot?.(snapshot); }, [snapshot, onSnapshot]);
   useEffect(() => {
     if (selectedPhysicalChannel !== undefined && selectedPhysicalChannel !== spectrumChannel) {
       setSpectrumChannel(selectedPhysicalChannel);

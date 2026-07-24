@@ -6,6 +6,13 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(GRAPHX_DASHBOARD_CONTRACT_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH
     "Python interpreter provisioned with dashboard requirements-contracts.lock")
 
+set(GRAPHX_LINK_GROUP_BEGIN "")
+set(GRAPHX_LINK_GROUP_END "")
+if(UNIX AND NOT APPLE)
+    set(GRAPHX_LINK_GROUP_BEGIN "-Wl,--start-group")
+    set(GRAPHX_LINK_GROUP_END "-Wl,--end-group")
+endif()
+
 add_executable(test_dsp_example_unit
     test_dsp_spectrum_demo.cpp
     test_dsp_fhss_demo.cpp
@@ -48,6 +55,10 @@ target_link_libraries(test_dsp_example_unit PRIVATE
     graphx_project_options
     dsp
     dsp_fhss_iq_artifacts
+    ${GRAPHX_LINK_GROUP_BEGIN}
+    graph
+    gpu
+    ${GRAPHX_LINK_GROUP_END}
     GTest::gtest_main
     Threads::Threads
     log4cxx
@@ -176,6 +187,13 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ENVIRONMENT "GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}"
         TIMEOUT 60
         LABELS "dsp;fhss;dashboard;phase1;frontend;identity;accessibility;ci-safe;host-any")
+    add_test(NAME fhss_dashboard_v2_phase3_identity
+        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_v2_phase3.py)
+    set_tests_properties(fhss_dashboard_v2_phase3_identity PROPERTIES
+        ENVIRONMENT "GRAPHX_SOURCE_ROOT=${CMAKE_SOURCE_DIR}"
+        TIMEOUT 60
+        LABELS "dsp;fhss;dashboard;v2-phase3;identity;metrics;schema;ci-safe;host-any")
     add_test(NAME fhss_dashboard_phase0_source_smoke
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/operator/phase0_smoke.py

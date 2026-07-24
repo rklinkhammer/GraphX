@@ -120,6 +120,7 @@ public:
   void SetArtifactRoot(std::filesystem::path artifact_root);
   void SetValidationInjectorForTesting(ValidationInjector injector);
   void SetUpdateEventSinkForTesting(UpdateEventSink sink);
+  void SetRevisionForTesting(std::uint64_t revision);
 
 private:
   struct PendingChange {

@@ -250,7 +250,7 @@ BuildResult GraphBuilder::Build() {
             LOG4CXX_TRACE(logger_, "Node " << i << ": " << node_name << " (type: " << node_type << ")");
         }
         
-        RegisterNodes(nodes);
+        RegisterNodes(nodes, parsed_config_for_resolver->nodes);
         
         LOG4CXX_TRACE(logger_, "Registered " << nodes.size() << " nodes");
         
@@ -333,8 +333,14 @@ BuildResult GraphBuilder::Build() {
  * @brief Register nodes.
  * @param nodes Parameter for register nodes.
  */
-void GraphBuilder::RegisterNodes(std::vector<std::shared_ptr<graph::NodeFacadeAdapter>>& nodes) {
+void GraphBuilder::RegisterNodes(
+    std::vector<std::shared_ptr<graph::NodeFacadeAdapter>>& nodes,
+    const std::vector<graph::NodeConfig>& node_configs) {
     LOG4CXX_TRACE(logger_, "Registering " << nodes.size() << " nodes");
+    if (node_configs.size() != nodes.size()) {
+        throw std::runtime_error(
+            "Runtime node count does not match canonical configuration IDs");
+    }
     
     for (size_t i = 0; i < nodes.size(); ++i) {
         try {
@@ -342,7 +348,7 @@ void GraphBuilder::RegisterNodes(std::vector<std::shared_ptr<graph::NodeFacadeAd
             auto wrapper = std::make_shared<graph::NodeFacadeAdapterWrapper>(nodes[i]);
             
             // Add the wrapped node to GraphManager
-            graph_->AddNode(wrapper);
+            graph_->AddNode(wrapper, node_configs[i].id);
             
             LOG4CXX_TRACE(logger_, "Registered node " << i << ": " 
                                   << wrapper->GetAdapter()->GetName());

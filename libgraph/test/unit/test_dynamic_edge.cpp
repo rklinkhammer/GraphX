@@ -399,6 +399,47 @@ TEST(DynamicEdgeTest, GraphManagerDynamicEdgeMetricsTrackRuntimeTransfer) {
     EXPECT_GE(edge_metrics->peak_queue_depth.load(std::memory_order_relaxed), 1u);
 }
 
+TEST(DynamicEdgeTest,
+     CurrentQueueDepthSamplesActualDestinationOccupancyWithoutMutation) {
+    graph::GraphManager graph;
+    graph.AddNode(std::make_shared<test::SourceTestNode>());
+    graph.AddNode(std::make_shared<test::SinkTestNode>());
+
+    graph::PortFunction<OutputIntPort> output(graph::PortDirection::Output);
+    graph::PortFunction<InputIntPort> input(graph::PortDirection::Input);
+    graph::DynamicEdgeConfig config{
+        .source = MakeOutputHandle(&output, 0),
+        .destination = MakeInputHandle(&input, 1),
+        .capacity = 2,
+    };
+
+    ASSERT_TRUE(graph.AddDynamicEdgeExpected(config));
+    ASSERT_EQ(graph.GetEdges().size(), 1u);
+    auto* edge = graph.GetEdges().front().get();
+    ASSERT_NE(edge, nullptr);
+    ASSERT_TRUE(edge->Init());
+
+    EXPECT_EQ(edge->GetQueueSize(), 0u);
+    ASSERT_TRUE(input.GetQueue().Enqueue(11));
+    EXPECT_EQ(edge->GetQueueSize(), 1u);
+    ASSERT_TRUE(input.GetQueue().Enqueue(12));
+    EXPECT_EQ(edge->GetQueueSize(), 2u);
+    EXPECT_FALSE(input.GetQueue().Enqueue(13));
+    EXPECT_EQ(edge->GetQueueSize(), 2u);
+
+    int value = 0;
+    ASSERT_TRUE(input.GetQueue().DequeueNonBlocking(value));
+    EXPECT_EQ(value, 11);
+    EXPECT_EQ(edge->GetQueueSize(), 1u);
+    ASSERT_TRUE(input.GetQueue().DequeueNonBlocking(value));
+    EXPECT_EQ(value, 12);
+    EXPECT_EQ(edge->GetQueueSize(), 0u);
+
+    edge->Stop();
+    edge->Join();
+    EXPECT_EQ(edge->GetQueueSize(), 0u);
+}
+
 TEST(DynamicEdgeTest, GraphManagerMetricsAggregateDynamicEdgeCounters) {
     graph::GraphManager graph;
     graph.AddNode(std::make_shared<test::SourceTestNode>());

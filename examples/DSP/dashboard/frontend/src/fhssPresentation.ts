@@ -1,4 +1,6 @@
-import type { TopologyEdge, TopologyModel, TopologyNode } from './topology';
+import type {
+  DisplayTopologyModel, PresentationBundleEdge, TopologyEdge, TopologyModel, TopologyNode,
+} from './topology';
 
 export const DETECTOR_TYPE = 'FHSSAcquisitionPulseDetectorNode';
 export const DETECTOR_BANK_ID = 'fhss-acquisition-detector-bank';
@@ -39,7 +41,8 @@ export interface DetectorBankGroup {
 
 export interface FHSSPresentation {
   authoritative: TopologyModel;
-  collapsed: TopologyModel;
+  collapsed: DisplayTopologyModel;
+  expanded: DisplayTopologyModel;
   detectorBank?: DetectorBankGroup;
   diagnostics: string[];
 }
@@ -62,7 +65,12 @@ function completeChannelSet(values: number[], first: number): boolean {
 }
 
 function reject(authoritative: TopologyModel, reason: string): FHSSPresentation {
-  return { authoritative, collapsed: authoritative, diagnostics: [`Detector bank not collapsed: ${reason}`] };
+  return {
+    authoritative,
+    collapsed: authoritative,
+    expanded: authoritative,
+    diagnostics: [`Detector bank not collapsed: ${reason}`],
+  };
 }
 
 export function recognizeDetectorBank(model: TopologyModel): {
@@ -176,46 +184,86 @@ function firstValue(values: Set<string>): string | undefined {
   return values.values().next().value;
 }
 
-function collapsedModel(model: TopologyModel, group: DetectorBankGroup): TopologyModel {
-  const memberIds = new Set(group.authoritativeNodeIds);
-  const boundaryEdgeIds = new Set(group.authoritativeEdgeIds);
-  const groupNode: TopologyNode = {
+function groupNode(group: DetectorBankGroup, expanded: boolean): TopologyNode {
+  return {
     id: group.id,
     type: 'FHSSPresentationGroup',
+    presentationRole: 'group',
     configuration: {
       presentation_only: true,
+      expanded,
       label: group.label,
       member_count: group.members.length,
       authoritative_node_ids: group.authoritativeNodeIds,
       channelizer_output_ports: group.members.map((entry) => entry.channelizerOutputPort),
       merge_input_ports: group.members.map((entry) => entry.mergeInputPort),
+      boundary_summary:
+        `${group.channelizerNodeId} outputs 0–63 → detectors → ${group.mergeNodeId} inputs 1–64`,
     },
-    inputPorts: [0],
-    outputPorts: [0],
+    inputPorts: [],
+    outputPorts: [],
   };
-  const first = group.members[0]!;
-  const last = group.members.at(-1)!;
-  const fanout: TopologyEdge = {
-    id: `${group.channelizerNodeId}:0-63->${group.id}:0`,
-    source_node_id: group.channelizerNodeId, source_port: 0,
-    target_node_id: group.id, target_port: 0,
-    sourceHandle: 'out-0', targetHandle: 'in-0',
+}
+
+function boundaryBundle(
+  group: DetectorBankGroup,
+  direction: 'incoming' | 'outgoing',
+): PresentationBundleEdge {
+  const incoming = direction === 'incoming';
+  const mappings = group.members.map((entry) => {
+    const edge = incoming ? entry.incomingEdge : entry.outgoingEdge;
+    return {
+      graph_edge_id: edge.id,
+      source_node_id: edge.source_node_id,
+      source_port: edge.source_port,
+      target_node_id: edge.target_node_id,
+      target_port: edge.target_port,
+    };
+  });
+  return {
+    kind: 'presentation-bundle',
+    presentation_only: true,
+    id: incoming
+      ? `bundle:${group.channelizerNodeId}->${group.id}:inputs`
+      : `bundle:${group.id}->${group.mergeNodeId}:outputs`,
+    source_node_id: incoming ? group.channelizerNodeId : group.id,
+    target_node_id: incoming ? group.id : group.mergeNodeId,
+    label: incoming
+      ? '64 exact channelizer-to-detector edges (outputs 0–63)'
+      : '64 exact detector-to-merge edges (inputs 1–64)',
+    authoritativeEdgeIds: mappings.map(({ graph_edge_id }) => graph_edge_id),
+    mappings,
   };
-  const fanin: TopologyEdge = {
-    id: `${group.id}:0->${group.mergeNodeId}:1-64`,
-    source_node_id: group.id, source_port: 0,
-    target_node_id: group.mergeNodeId, target_port: 1,
-    sourceHandle: 'out-0', targetHandle: 'in-1',
-  };
-  groupNode.configuration.boundary_summary =
-    `${first.channelizerNodeId} outputs 0–63 → detectors → ${last.mergeNodeId} inputs 1–64`;
+}
+
+function collapsedModel(model: TopologyModel, group: DetectorBankGroup): DisplayTopologyModel {
+  const memberIds = new Set(group.authoritativeNodeIds);
+  const boundaryEdgeIds = new Set(group.authoritativeEdgeIds);
   const firstMemberIndex = model.nodes.findIndex((node) => memberIds.has(node.id));
   const nodes = model.nodes.filter((node) => !memberIds.has(node.id));
-  nodes.splice(Math.max(0, firstMemberIndex), 0, groupNode);
+  nodes.splice(Math.max(0, firstMemberIndex), 0, groupNode(group, false));
   return {
     nodes,
-    edges: [...model.edges.filter((edge) => !boundaryEdgeIds.has(edge.id)), fanout, fanin],
+    edges: [
+      ...model.edges.filter((edge) => !boundaryEdgeIds.has(edge.id)),
+      boundaryBundle(group, 'incoming'),
+      boundaryBundle(group, 'outgoing'),
+    ],
   };
+}
+
+function expandedModel(model: TopologyModel, group: DetectorBankGroup): DisplayTopologyModel {
+  const memberIds = new Set(group.authoritativeNodeIds);
+  const parent = groupNode(group, true);
+  const members = group.members.map(({ node }) => ({
+    ...node,
+    parentId: group.id,
+    presentationRole: 'group-member' as const,
+  }));
+  const firstMemberIndex = model.nodes.findIndex((node) => memberIds.has(node.id));
+  const nodes = model.nodes.filter((node) => !memberIds.has(node.id));
+  nodes.splice(Math.max(0, firstMemberIndex), 0, parent, ...members);
+  return { nodes, edges: model.edges };
 }
 
 export function toFHSSPresentation(model: TopologyModel): FHSSPresentation {
@@ -224,6 +272,7 @@ export function toFHSSPresentation(model: TopologyModel): FHSSPresentation {
   return {
     authoritative: model,
     collapsed: collapsedModel(model, recognition.group),
+    expanded: expandedModel(model, recognition.group),
     detectorBank: recognition.group,
     diagnostics: [],
   };

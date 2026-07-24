@@ -229,6 +229,7 @@ public:
             throw std::runtime_error("Failed to convert node to INode");
         }
         nodes_.push_back(inode);
+        canonical_node_ids_.emplace_back();
         
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "Added node (total: " << nodes_.size() << ")");
@@ -244,7 +245,8 @@ public:
      * 
      * Registers an existing node for lifecycle management.
      */
-    void AddNode(std::shared_ptr<INode> node) {
+    void AddNode(std::shared_ptr<INode> node,
+                 std::string canonical_node_id = {}) {
         /**
          * @brief Executes the Lock operation.
          *
@@ -265,6 +267,7 @@ public:
         }
         
         nodes_.push_back(node);
+        canonical_node_ids_.push_back(std::move(canonical_node_id));
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "Added node (total: " << nodes_.size() << ")");
     }
@@ -1441,6 +1444,16 @@ public:
      * Safe to read at any time from any thread.
      */
     const GraphMetrics& GetMetrics() const {
+        bool aggregation_overflow = false;
+        const auto checked_add = [&aggregation_overflow](
+                                     uint64_t& total, uint64_t value) {
+            if (value > std::numeric_limits<uint64_t>::max() - total) {
+                aggregation_overflow = true;
+                total = std::numeric_limits<uint64_t>::max();
+                return;
+            }
+            total += value;
+        };
         uint64_t total_enqueued = 0;
         uint64_t total_dequeued = 0;
         uint64_t total_rejected = 0;
@@ -1457,11 +1470,11 @@ public:
                 continue;
             }
 
-            total_enqueued += edge_metrics->messages_enqueued.load(std::memory_order_relaxed);
-            total_dequeued += edge_metrics->messages_dequeued.load(std::memory_order_relaxed);
-            total_rejected += edge_metrics->messages_rejected.load(std::memory_order_relaxed);
-            total_queue_time_ns += edge_metrics->total_queue_time_ns.load(std::memory_order_relaxed);
-            total_backpressure += edge_metrics->backpressure_events.load(std::memory_order_relaxed);
+            checked_add(total_enqueued, edge_metrics->messages_enqueued.load(std::memory_order_relaxed));
+            checked_add(total_dequeued, edge_metrics->messages_dequeued.load(std::memory_order_relaxed));
+            checked_add(total_rejected, edge_metrics->messages_rejected.load(std::memory_order_relaxed));
+            checked_add(total_queue_time_ns, edge_metrics->total_queue_time_ns.load(std::memory_order_relaxed));
+            checked_add(total_backpressure, edge_metrics->backpressure_events.load(std::memory_order_relaxed));
 
             const uint64_t edge_peak = edge_metrics->peak_queue_depth.load(std::memory_order_relaxed);
             if (edge_peak > peak_queue_depth) {
@@ -1475,18 +1488,21 @@ public:
             }
 
             const auto& thread_metrics = edge->GetEdgeThreadMetrics();
-            total_transfer_time_ns += thread_metrics.total_transfer_time_ns.load(std::memory_order_relaxed);
-            total_idle_time_ns += thread_metrics.total_idle_time_ns.load(std::memory_order_relaxed);
-            total_queue_wait_ns += thread_metrics.total_queue_wait_ns.load(std::memory_order_relaxed);
+            checked_add(total_transfer_time_ns, thread_metrics.total_transfer_time_ns.load(std::memory_order_relaxed));
+            checked_add(total_idle_time_ns, thread_metrics.total_idle_time_ns.load(std::memory_order_relaxed));
+            checked_add(total_queue_wait_ns, thread_metrics.total_queue_wait_ns.load(std::memory_order_relaxed));
 
             if (thread_metrics.thread_active.load(std::memory_order_relaxed)) {
-                ++active_edge_threads;
+                checked_add(active_edge_threads, 1);
             }
         }
 
-        const uint64_t total_thread_time_ns =
-            total_transfer_time_ns + total_idle_time_ns + total_queue_wait_ns;
+        uint64_t total_thread_time_ns = 0;
+        checked_add(total_thread_time_ns, total_transfer_time_ns);
+        checked_add(total_thread_time_ns, total_idle_time_ns);
+        checked_add(total_thread_time_ns, total_queue_wait_ns);
 
+        metrics_.aggregation_overflow.store(aggregation_overflow, std::memory_order_relaxed);
         metrics_.graph_total_enqueued.store(total_enqueued, std::memory_order_relaxed);
         metrics_.graph_total_dequeued.store(total_dequeued, std::memory_order_relaxed);
         metrics_.total_items_rejected.store(total_rejected, std::memory_order_relaxed);
@@ -1617,6 +1633,7 @@ public:
     void Clear() {
         edges_.clear();
         nodes_.clear();
+        canonical_node_ids_.clear();
         initialized_.store(false, std::memory_order_release);
         started_.store(false, std::memory_order_release);
     }
@@ -1652,6 +1669,15 @@ public:
      */
     const std::vector<std::shared_ptr<INode>>& GetNodes() const {
         return nodes_;
+    }
+
+    /**
+     * Canonical configuration IDs captured when runtime nodes were registered.
+     * Entries are aligned with GetNodes() only as runtime lookup keys; callers
+     * must correlate and publish the string value, never the position.
+     */
+    const std::vector<std::string>& GetCanonicalNodeIds() const {
+        return canonical_node_ids_;
     }
     
     /**
@@ -1692,6 +1718,7 @@ private:
     std::unique_ptr<ThreadPool> thread_pool_;
     size_t num_threads_;
     std::vector<std::shared_ptr<INode>> nodes_;
+    std::vector<std::string> canonical_node_ids_;
     std::vector<std::unique_ptr<IEdgeBase>> edges_;  // Owns edges through type-erased interface
     std::vector<EdgeMetadata> edge_metadata_;  // Parallel vector to recover type information (Phase 14a)
     std::vector<std::shared_ptr<EdgeMetrics>> edge_metrics_;    // Parallel vector for per-edge metrics (Phase 14d)

@@ -7,6 +7,8 @@ export interface TopologyNode {
   configuration: Record<string, unknown>;
   inputPorts: number[];
   outputPorts: number[];
+  parentId?: string;
+  presentationRole?: 'group' | 'group-member';
 }
 
 export interface TopologyEdge extends GraphEdgeContract {
@@ -19,6 +21,38 @@ export interface TopologyModel {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
 }
+
+export interface BundledEdgeMapping {
+  graph_edge_id: string;
+  source_node_id: string;
+  source_port: number;
+  target_node_id: string;
+  target_port: number;
+}
+
+export interface PresentationBundleEdge {
+  kind: 'presentation-bundle';
+  presentation_only: true;
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  sourceHandle?: undefined;
+  targetHandle?: undefined;
+  label: string;
+  authoritativeEdgeIds: string[];
+  mappings: BundledEdgeMapping[];
+}
+
+export type DisplayTopologyEdge = TopologyEdge | PresentationBundleEdge;
+
+export interface DisplayTopologyModel {
+  nodes: TopologyNode[];
+  edges: DisplayTopologyEdge[];
+}
+
+export const isPresentationBundleEdge = (
+  edge: DisplayTopologyEdge,
+): edge is PresentationBundleEdge => 'kind' in edge && edge.kind === 'presentation-bundle';
 
 export const sourceHandleId = (port: number): string => `out-${port}`;
 export const targetHandleId = (port: number): string => `in-${port}`;

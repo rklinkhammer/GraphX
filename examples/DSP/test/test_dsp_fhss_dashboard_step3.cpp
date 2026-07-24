@@ -6,8 +6,10 @@
 #include "FHSSDashboardConfigurationPolicy.hpp"
 #include "dsp/fhss/FHSSGraphXConfig.hpp"
 #include "dsp/fhss/FHSSSyntheticIqGenerator.hpp"
+#include "graph/DynamicEdge.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphManagerCore.hpp"
+#include "graph/PortFunction.hpp"
 #include "graph/dashboard/EmbeddedDashboardServer.hpp"
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
@@ -28,6 +30,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -422,10 +425,12 @@ TEST_F(FhssDashboardRebuildControlTest,
   const auto default_metrics_json = nlohmann::json::parse(default_metrics.body);
   EXPECT_EQ(default_metrics_json.at("schema").get<std::string>(),
             "graphx.dashboard.metrics.v1");
-  EXPECT_EQ(default_metrics_json.at("graph")
-                .at("graph_total_enqueued")
-                .get<std::uint64_t>(),
-            0u);
+  EXPECT_EQ(default_metrics_json.at("graph").at("availability"),
+            "unavailable");
+  EXPECT_EQ(default_metrics_json.at("graph").at("unavailable_reason"),
+            "no active runtime generation");
+  EXPECT_TRUE(
+      default_metrics_json.at("graph").at("graph_total_enqueued").is_null());
   EXPECT_TRUE(default_metrics_json.at("nodes").empty());
   EXPECT_TRUE(default_metrics_json.at("edges").empty());
 
@@ -448,10 +453,12 @@ TEST_F(FhssDashboardRebuildControlTest,
       nlohmann::json::parse(populated_metrics.body);
   EXPECT_EQ(populated_metrics_json.at("schema").get<std::string>(),
             "graphx.dashboard.metrics.v1");
-  EXPECT_EQ(populated_metrics_json.at("graph")
-                .at("graph_total_enqueued")
-                .get<std::uint64_t>(),
-            0u);
+  EXPECT_EQ(populated_metrics_json.at("graph").at("availability"),
+            "unavailable");
+  EXPECT_EQ(populated_metrics_json.at("graph").at("unavailable_reason"),
+            "no active runtime generation");
+  EXPECT_TRUE(
+      populated_metrics_json.at("graph").at("graph_total_enqueued").is_null());
   EXPECT_TRUE(populated_metrics_json.at("nodes").empty());
   EXPECT_TRUE(populated_metrics_json.at("edges").empty());
 }
@@ -699,8 +706,11 @@ TEST(GraphRuntimeSessionOwnerTest,
   EXPECT_EQ(collected.at("active_run_epoch"), run2.run_epoch);
   EXPECT_EQ(collected.at("active_config_revision"), run2.config_revision);
   EXPECT_EQ(collected.at("active_config_etag"), run2.config_etag);
-  EXPECT_EQ(collected.at("graph").at("peak_active_threads"), 22u);
-  EXPECT_NE(collected.at("graph").at("peak_active_threads"), 11u);
+  EXPECT_EQ(collected.at("identity_availability").at("state"), "unavailable");
+  EXPECT_EQ(collected.at("graph").at("availability"), "unavailable");
+  EXPECT_TRUE(collected.at("graph").at("peak_active_threads").is_null());
+  EXPECT_EQ(owner->Manager(1)->GetMetrics().peak_active_threads.load(), 22u);
+  EXPECT_NE(owner->Manager(0)->GetMetrics().peak_active_threads.load(), 22u);
   auto diagnostics = collector->GetDiagnosticsSnapshot();
   EXPECT_EQ(diagnostics.at("active_generation"), run2.generation);
   EXPECT_EQ(diagnostics.at("active_run_epoch"), run2.run_epoch);
@@ -724,13 +734,585 @@ TEST(GraphRuntimeSessionOwnerTest,
   EXPECT_EQ(current.graph_manager, owner->Manager(3));
   EXPECT_NE(current.graph_manager, owner->Manager(2));
   collected = collector->GetMetricsSnapshot();
-  EXPECT_EQ(collected.at("graph").at("peak_active_threads"), 44u);
+  EXPECT_EQ(collected.at("identity_availability").at("state"), "unavailable");
+  EXPECT_TRUE(collected.at("graph").at("peak_active_threads").is_null());
+  EXPECT_EQ(owner->Manager(3)->GetMetrics().peak_active_threads.load(), 44u);
   diagnostics = collector->GetDiagnosticsSnapshot();
   EXPECT_EQ(diagnostics.at("active_generation"), current.generation);
   EXPECT_EQ(diagnostics.at("active_run_epoch"), current.run_epoch);
   EXPECT_NE(diagnostics.at("active_run_epoch"), run2.run_epoch);
   EXPECT_EQ(diagnostics.at("active_config_revision"), current.config_revision);
   EXPECT_EQ(diagnostics.at("active_config_etag"), current.config_etag);
+}
+
+TEST(GraphRuntimeSessionIdentityTest,
+     CapturesCanonicalIdsAndExactPortsIndependentlyOfRuntimeNames) {
+  auto owner = std::make_shared<ImmediateCompletionRuntimeOwner>();
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  const nlohmann::json graph = {
+      {"nodes",
+       {{{"id", "source"}, {"type", "Source"}, {"name", "display source"}},
+        {{"id", "sink"}, {"type", "Sink"}, {"name", "display sink"}}}},
+      {"edges",
+       {{{"source_node_id", "source"},
+         {"source_port", 24u},
+         {"target_node_id", "sink"},
+         {"target_port", 25u}}}}};
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = graph,
+                           .config_revision = 91,
+                           .config_etag = "\"identity-91\""})
+                .status_code,
+            200);
+  const auto captured = session->SnapshotGeneration();
+  EXPECT_TRUE(captured.identity_error.empty());
+  EXPECT_EQ(captured.canonical_node_ids,
+            (std::vector<std::string>{"source", "sink"}));
+  ASSERT_EQ(captured.canonical_edges.size(), 1u);
+  EXPECT_EQ(captured.canonical_edges.front().edge_id,
+            "source:24->sink:25");
+  EXPECT_EQ(captured.canonical_edges.front().source_node_id, "source");
+  EXPECT_EQ(captured.canonical_edges.front().source_port, 24u);
+  EXPECT_EQ(captured.canonical_edges.front().destination_node_id, "sink");
+  EXPECT_EQ(captured.canonical_edges.front().destination_port, 25u);
+}
+
+TEST(GraphRuntimeSessionIdentityTest,
+     CanonicalEdgeFormattingIsSharedAndExactlyPortAware) {
+  EXPECT_EQ(graph::dashboard::CanonicalEdgeId("source", 24, "sink", 25),
+            "source:24->sink:25");
+  EXPECT_NE(graph::dashboard::CanonicalEdgeId("source", 24, "sink", 25),
+            graph::dashboard::CanonicalEdgeId("source", 24, "sink", 26));
+}
+
+TEST(GraphRuntimeSessionIdentityTest,
+     PublishedRuntimeIdentitiesStopAtJavascriptSafeIntegerBeforeMutation) {
+  constexpr std::uint64_t kMaximumJavascriptSafeInteger =
+      9'007'199'254'740'991ULL;
+  const nlohmann::json graph = {
+      {"nodes", {{{"id", "source"}, {"type", "Source"}}}},
+      {"edges", nlohmann::json::array()}};
+
+  auto generation_owner = std::make_shared<ControlledRuntimeOwner>();
+  graph::dashboard::GraphRuntimeSession generation_session(generation_owner);
+  generation_session.MarkReady();
+  generation_session.SetIdentityCountersForTesting(
+      kMaximumJavascriptSafeInteger - 1, 0, 0, 0, 0);
+  ASSERT_EQ(generation_session
+                .Rebuild({.receiver_graph = graph,
+                          .config_revision = kMaximumJavascriptSafeInteger,
+                          .config_etag = "\"maximum-safe\""})
+                .status_code,
+            200);
+  const auto maximum_generation = generation_session.SnapshotStatus();
+  EXPECT_EQ(maximum_generation.active_generation,
+            kMaximumJavascriptSafeInteger);
+  const auto generation_exhausted = generation_session.Rebuild(
+      {.receiver_graph = graph,
+       .config_revision = kMaximumJavascriptSafeInteger,
+       .config_etag = "\"maximum-safe\""});
+  EXPECT_EQ(generation_exhausted.code, "identity_space_exhausted");
+  const auto generation_after = generation_session.SnapshotStatus();
+  EXPECT_EQ(generation_after.active_generation,
+            maximum_generation.active_generation);
+  EXPECT_EQ(generation_after.rebuild_attempts,
+            maximum_generation.rebuild_attempts);
+  EXPECT_EQ(generation_after.successful_rebuilds,
+            maximum_generation.successful_rebuilds);
+  EXPECT_EQ(generation_after.state, maximum_generation.state);
+
+  auto run_owner = std::make_shared<ControlledRuntimeOwner>();
+  graph::dashboard::GraphRuntimeSession run_session(run_owner);
+  run_session.MarkReady();
+  ASSERT_EQ(run_session
+                .Rebuild({.receiver_graph = graph,
+                          .config_revision = 1,
+                          .config_etag = "\"config-1\""})
+                .status_code,
+            200);
+  run_session.SetIdentityCountersForTesting(
+      1, kMaximumJavascriptSafeInteger, 1, 1, 1);
+  const auto before_run = run_session.SnapshotStatus();
+  const auto run_exhausted = run_session.Start();
+  EXPECT_EQ(run_exhausted.code, "identity_space_exhausted");
+  const auto after_run = run_session.SnapshotStatus();
+  EXPECT_EQ(after_run.active_run_epoch, before_run.active_run_epoch);
+  EXPECT_EQ(after_run.state, before_run.state);
+
+  for (const auto counters : std::array{
+           std::array<std::uint64_t, 3>{
+               kMaximumJavascriptSafeInteger, 0, 0},
+           std::array<std::uint64_t, 3>{
+               0, kMaximumJavascriptSafeInteger, 0},
+           std::array<std::uint64_t, 3>{
+               0, 0, kMaximumJavascriptSafeInteger}}) {
+    auto owner = std::make_shared<ControlledRuntimeOwner>();
+    graph::dashboard::GraphRuntimeSession session(owner);
+    session.MarkReady();
+    session.SetIdentityCountersForTesting(
+        0, 0, counters[0], counters[1], counters[2]);
+    const auto before = session.SnapshotStatus();
+    const auto result =
+        session.Rebuild({.receiver_graph = graph,
+                         .config_revision = 1,
+                         .config_etag = "\"config-1\""});
+    EXPECT_EQ(result.code, "identity_space_exhausted");
+    const auto after = session.SnapshotStatus();
+    EXPECT_EQ(after.active_generation, before.active_generation);
+    EXPECT_EQ(after.rebuild_attempts, before.rebuild_attempts);
+    EXPECT_EQ(after.successful_rebuilds, before.successful_rebuilds);
+    EXPECT_EQ(after.state, before.state);
+  }
+}
+
+class MetricContractNode final : public graph::INode {
+public:
+  graph::LifecycleState GetLifecycleState() const override {
+    return graph::LifecycleState::Uninitialized;
+  }
+  bool Init() override { return true; }
+  bool Start() override { return true; }
+  void Join() override {}
+  bool JoinWithTimeout(std::chrono::milliseconds) override { return true; }
+  void Stop() override {}
+};
+
+class FixedManagerRuntimeOwner final
+    : public graph::dashboard::IGraphRuntimeOwner {
+public:
+  explicit FixedManagerRuntimeOwner(
+      std::shared_ptr<graph::GraphManager> manager)
+      : manager_(std::move(manager)) {}
+  Result Rebuild(std::uint64_t, const BuildSnapshot &) override {
+    return {200, "rebuilt", "fixed manager rebuilt", manager_};
+  }
+  Result Start(std::uint64_t, std::uint64_t) override {
+    return {202, "started", "fixed manager started", manager_};
+  }
+  Result Stop(std::uint64_t) override {
+    return {200, "stopped", "fixed manager stopped"};
+  }
+  Result Shutdown(std::uint64_t) override {
+    return {200, "shutdown", "fixed manager shutdown"};
+  }
+  void SetCompletionCallback(CompletionCallback callback) override {
+    completion_ = std::move(callback);
+  }
+
+private:
+  std::shared_ptr<graph::GraphManager> manager_;
+  CompletionCallback completion_;
+};
+
+TEST(GraphSnapshotCollectorContractTest,
+     CanonicalEdgeIdentitySurvivesRuntimeNodeReordering) {
+  auto manager = std::make_shared<graph::GraphManager>();
+  manager->EnableMetrics(true);
+  manager->AddNode(std::make_shared<MetricContractNode>(), "sink");
+  manager->AddNode(std::make_shared<MetricContractNode>(), "source");
+  using MetricPort = graph::Port<int, 0>;
+  graph::PortFunction<MetricPort> output(graph::PortDirection::Output);
+  graph::PortFunction<MetricPort> input(graph::PortDirection::Input);
+  ASSERT_TRUE(manager->AddDynamicEdgeExpected(
+      {.source = {.node_index = 1,
+                  .descriptor = {.id = 0,
+                                 .name = "output",
+                                 .direction = graph::PortDirection::Output,
+                                 .payload_type =
+                                     std::string(output.GetTypeName()),
+                                 .transport_type = std::string(
+                                     output.GetTransportTypeName())},
+                  .port = &output},
+       .destination = {.node_index = 0,
+                       .descriptor = {.id = 0,
+                                      .name = "input",
+                                      .direction =
+                                          graph::PortDirection::Input,
+                                      .payload_type =
+                                          std::string(input.GetTypeName()),
+                                      .transport_type = std::string(
+                                          input.GetTransportTypeName())},
+                       .port = &input},
+       .capacity = 4}));
+  auto owner = std::make_shared<FixedManagerRuntimeOwner>(manager);
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = {
+                               {"nodes",
+                                {{{"id", "source"}, {"type", "Source"}},
+                                 {{"id", "sink"}, {"type", "Sink"}}}},
+                               {"edges",
+                                {{{"source_node_id", "source"},
+                                  {"source_port", 0u},
+                                  {"target_node_id", "sink"},
+                                  {"target_port", 0u}}}}},
+                           .config_revision = 95,
+                           .config_etag = "\"identity-95\""})
+                .status_code,
+            200);
+  graph::dashboard::GraphSnapshotCollector collector;
+  collector.BindRuntimeSession(session);
+  const auto snapshot = collector.GetMetricsSnapshot();
+  EXPECT_EQ(snapshot.at("identity_availability").at("state"), "available");
+  ASSERT_EQ(snapshot.at("edges").size(), 1u);
+  EXPECT_EQ(snapshot.at("edges").front().at("edge_id"),
+            "source:0->sink:0");
+  EXPECT_EQ(snapshot.at("edges").front().at("source_node_id"), "source");
+  EXPECT_EQ(snapshot.at("edges").front().at("destination_node_id"), "sink");
+}
+
+TEST(GraphSnapshotCollectorContractTest,
+     MultiEdgeAggregateOverflowIsUnavailableAndCannotPublishWrappedRates) {
+  auto manager = std::make_shared<graph::GraphManager>();
+  manager->EnableMetrics(true);
+  manager->AddNode(std::make_shared<MetricContractNode>(), "source");
+  manager->AddNode(std::make_shared<MetricContractNode>(), "sink-a");
+  manager->AddNode(std::make_shared<MetricContractNode>(), "sink-b");
+  using MetricPort = graph::Port<int, 0>;
+  graph::PortFunction<MetricPort> output_a(graph::PortDirection::Output);
+  graph::PortFunction<MetricPort> input_a(graph::PortDirection::Input);
+  graph::PortFunction<MetricPort> output_b(graph::PortDirection::Output);
+  graph::PortFunction<MetricPort> input_b(graph::PortDirection::Input);
+  const auto add_edge = [&](graph::PortFunction<MetricPort> &output,
+                            graph::PortFunction<MetricPort> &input,
+                            std::size_t destination) {
+    return manager->AddDynamicEdgeExpected(
+        {.source = {.node_index = 0,
+                    .descriptor = {.id = destination - 1,
+                                   .name = "output",
+                                   .direction =
+                                       graph::PortDirection::Output,
+                                   .payload_type =
+                                       std::string(output.GetTypeName()),
+                                   .transport_type = std::string(
+                                       output.GetTransportTypeName())},
+                    .port = &output},
+         .destination = {.node_index = destination,
+                         .descriptor = {.id = 0,
+                                        .name = "input",
+                                        .direction =
+                                            graph::PortDirection::Input,
+                                        .payload_type =
+                                            std::string(input.GetTypeName()),
+                                        .transport_type = std::string(
+                                            input.GetTransportTypeName())},
+                         .port = &input},
+         .capacity = 4});
+  };
+  ASSERT_TRUE(add_edge(output_a, input_a, 1));
+  ASSERT_TRUE(add_edge(output_b, input_b, 2));
+  auto metrics_a = manager->GetEdgeMetrics(0);
+  auto metrics_b = manager->GetEdgeMetrics(1);
+  ASSERT_NE(metrics_a, nullptr);
+  ASSERT_NE(metrics_b, nullptr);
+  const_cast<graph::EdgeMetrics &>(*metrics_a)
+      .messages_enqueued.store(std::numeric_limits<std::uint64_t>::max());
+  const_cast<graph::EdgeMetrics &>(*metrics_b).messages_enqueued.store(1);
+
+  auto owner = std::make_shared<FixedManagerRuntimeOwner>(manager);
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = {
+                               {"nodes",
+                                {{{"id", "source"}, {"type", "Source"}},
+                                 {{"id", "sink-a"}, {"type", "Sink"}},
+                                 {{"id", "sink-b"}, {"type", "Sink"}}}},
+                               {"edges",
+                                {{{"source_node_id", "source"},
+                                  {"source_port", 0u},
+                                  {"target_node_id", "sink-a"},
+                                  {"target_port", 0u}},
+                                 {{"source_node_id", "source"},
+                                  {"source_port", 1u},
+                                  {"target_node_id", "sink-b"},
+                                  {"target_port", 0u}}}}},
+                           .config_revision = 96,
+                           .config_etag = "\"identity-96\""})
+                .status_code,
+            200);
+  graph::dashboard::GraphSnapshotCollector collector;
+  collector.BindRuntimeSession(session);
+  const auto first = collector.GetMetricsSnapshot();
+  EXPECT_TRUE(manager->GetMetrics().aggregation_overflow.load());
+  EXPECT_EQ(first.at("graph").at("availability"), "unavailable");
+  EXPECT_TRUE(first.at("graph").at("graph_total_enqueued").is_null());
+  EXPECT_EQ(first.at("rate_availability").at("state"), "unavailable");
+  EXPECT_TRUE(first.at("qualified_rates").empty());
+  EXPECT_NE(first.at("graph")
+                .at("unavailable_reason")
+                .get<std::string>()
+                .find("overflow"),
+            std::string::npos);
+  std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  const auto second = collector.GetMetricsSnapshot();
+  EXPECT_EQ(second.at("graph").at("availability"), "unavailable");
+  EXPECT_EQ(second.at("rate_availability").at("state"), "unavailable");
+  EXPECT_TRUE(second.at("qualified_rates").empty());
+}
+
+TEST(GraphSnapshotCollectorContractTest,
+     RatesRequireCompatibleSamplesCollectionDoesNotMutateAndUnsafeCountersAreNull) {
+  auto owner = std::make_shared<ImmediateCompletionRuntimeOwner>();
+  auto manager = owner->Manager(0);
+  manager->AddNode(std::make_shared<MetricContractNode>(), "source");
+  manager->AddNode(std::make_shared<MetricContractNode>(), "sink");
+  using MetricPort = graph::Port<int, 0>;
+  graph::PortFunction<MetricPort> output(graph::PortDirection::Output);
+  graph::PortFunction<MetricPort> input(graph::PortDirection::Input);
+  graph::DynamicEdgeConfig edge_config{
+      .source = {.node_index = 0,
+                 .descriptor = {.id = 0,
+                                .name = "output",
+                                .direction = graph::PortDirection::Output,
+                                .payload_type =
+                                    std::string(output.GetTypeName()),
+                                .transport_type =
+                                    std::string(
+                                        output.GetTransportTypeName())},
+                 .port = &output},
+      .destination = {.node_index = 1,
+                      .descriptor = {.id = 0,
+                                     .name = "input",
+                                     .direction =
+                                         graph::PortDirection::Input,
+                                     .payload_type =
+                                         std::string(input.GetTypeName()),
+                                     .transport_type =
+                                         std::string(
+                                             input.GetTransportTypeName())},
+                      .port = &input},
+      .capacity = 4};
+  ASSERT_TRUE(manager->AddDynamicEdgeExpected(edge_config));
+
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = {
+                               {"nodes",
+                                {{{"id", "source"}, {"type", "Source"}},
+                                 {{"id", "sink"}, {"type", "Sink"}}}},
+                               {"edges",
+                                {{{"source_node_id", "source"},
+                                  {"source_port", 0u},
+                                  {"target_node_id", "sink"},
+                                  {"target_port", 0u}}}}},
+                           .config_revision = 94,
+                           .config_etag = "\"identity-94\""})
+                .status_code,
+            200);
+  ASSERT_EQ(session->SnapshotGeneration().graph_manager, manager);
+  auto edge_metrics = manager->GetEdgeMetrics(0);
+  ASSERT_NE(edge_metrics, nullptr);
+  auto &mutable_edge_metrics = const_cast<graph::EdgeMetrics &>(*edge_metrics);
+
+  graph::dashboard::GraphSnapshotCollector collector;
+  collector.BindRuntimeSession(session);
+  const auto initial = collector.GetMetricsSnapshot();
+  ASSERT_EQ(initial.at("edges").size(), 1u);
+  EXPECT_EQ(initial.at("edges").front().at("edge_id"),
+            "source:0->sink:0");
+  EXPECT_EQ(initial.at("edges").front().at("current_queue_depth"), 0);
+
+  auto &runtime_edge = manager->GetEdges().front();
+  ASSERT_TRUE(runtime_edge->Init());
+  ASSERT_TRUE(runtime_edge->Start());
+  for (int value = 0; value < 4; ++value) {
+    ASSERT_TRUE(output.GetQueue().Enqueue(value));
+    for (int attempt = 0;
+         attempt < 200 &&
+         input.GetQueue().Size() != static_cast<std::size_t>(value + 1);
+         ++attempt)
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    ASSERT_EQ(input.GetQueue().Size(), static_cast<std::size_t>(value + 1));
+  }
+  ASSERT_TRUE(output.GetQueue().Enqueue(4));
+  for (int attempt = 0;
+       attempt < 200 &&
+       (input.GetQueue().Size() != 4 ||
+        edge_metrics->backpressure_events.load() == 0);
+       ++attempt)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  ASSERT_EQ(input.GetQueue().Size(), 4u);
+  ASSERT_GT(edge_metrics->backpressure_events.load(), 0u);
+  const auto full = collector.GetMetricsSnapshot();
+  ASSERT_EQ(full.at("edges").size(), 1u);
+  EXPECT_EQ(full.at("edges").front().at("current_queue_depth"), 4);
+  EXPECT_GE(full.at("edges").front().at("peak_queue_depth"), 4);
+  EXPECT_GT(full.at("edges").front().at("backpressure_events"), 0);
+
+  runtime_edge->Stop();
+  ASSERT_TRUE(runtime_edge->JoinWithTimeout(std::chrono::seconds(1)));
+  int drained_value = 0;
+  std::size_t drained_count = 0;
+  while (input.GetQueue().DequeueNonBlocking(drained_value))
+    ++drained_count;
+  EXPECT_EQ(drained_count, 4u);
+  const auto drained = collector.GetMetricsSnapshot();
+  EXPECT_EQ(drained.at("edges").front().at("current_queue_depth"), 0);
+  EXPECT_GE(drained.at("edges").front().at("peak_queue_depth"), 4);
+  EXPECT_FALSE(drained.at("edges").front().at("thread_active"));
+  session->SetStateForTesting(
+      graph::dashboard::GraphRuntimeSession::State::stopped);
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = {
+                               {"nodes",
+                                {{{"id", "source"}, {"type", "Source"}},
+                                 {{"id", "sink"}, {"type", "Sink"}}}},
+                               {"edges",
+                                {{{"source_node_id", "source"},
+                                  {"source_port", 0u},
+                                  {"target_node_id", "sink"},
+                                  {"target_port", 0u}}}}},
+                           .config_revision = 95,
+                           .config_etag = "\"identity-95-rebuilt\""})
+                .status_code,
+            200);
+  const auto rebuilt = collector.GetMetricsSnapshot();
+  ASSERT_EQ(rebuilt.at("edges").size(), 1u);
+  EXPECT_EQ(rebuilt.at("edges").front().at("edge_id"),
+            "source:0->sink:0");
+  EXPECT_EQ(rebuilt.at("edges").front().at("current_queue_depth"), 0);
+
+  // Reset only the counters used by the deterministic interval assertions
+  // below; collection itself must never reset producer-owned state.
+  mutable_edge_metrics.messages_enqueued.store(5);
+  mutable_edge_metrics.messages_dequeued.store(2);
+
+  const auto first = collector.GetMetricsSnapshot();
+  EXPECT_EQ(first.at("rate_availability").at("state"), "unavailable");
+  EXPECT_TRUE(first.at("qualified_rates").empty());
+  EXPECT_EQ(edge_metrics->messages_enqueued.load(), 5u);
+  EXPECT_EQ(edge_metrics->messages_dequeued.load(), 2u);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  mutable_edge_metrics.messages_enqueued.store(8);
+  mutable_edge_metrics.messages_dequeued.store(4);
+  const auto second = collector.GetMetricsSnapshot();
+  EXPECT_EQ(second.at("rate_availability").at("state"), "available");
+  EXPECT_EQ(second.at("collection_interval").at("clock"), "steady_clock");
+  ASSERT_EQ(second.at("qualified_rates").size(), 2u);
+  EXPECT_EQ(edge_metrics->messages_enqueued.load(), 8u);
+  EXPECT_EQ(edge_metrics->messages_dequeued.load(), 4u);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  mutable_edge_metrics.messages_enqueued.store(7);
+  const auto regressed = collector.GetMetricsSnapshot();
+  EXPECT_EQ(regressed.at("rate_availability").at("state"), "unavailable");
+  EXPECT_TRUE(regressed.at("qualified_rates").empty());
+
+  ASSERT_EQ(session->Start().status_code, 202);
+  const auto incompatible = collector.GetMetricsSnapshot();
+  EXPECT_EQ(incompatible.at("rate_availability").at("state"),
+            "unavailable");
+  EXPECT_TRUE(incompatible.at("qualified_rates").empty());
+
+  constexpr std::uint64_t kFirstUnsafeJavascriptInteger =
+      9'007'199'254'740'992ULL;
+  mutable_edge_metrics.messages_enqueued.store(
+      kFirstUnsafeJavascriptInteger);
+  const auto unsafe = collector.GetMetricsSnapshot();
+  EXPECT_EQ(unsafe.at("graph").at("availability"), "unavailable");
+  EXPECT_TRUE(unsafe.at("graph").at("graph_total_enqueued").is_null());
+  EXPECT_FALSE(
+      unsafe.at("graph").at("unavailable_reason").get<std::string>().empty());
+}
+
+TEST(GraphRuntimeSessionIdentityTest,
+     DuplicateCanonicalIdentityIsUnavailableRatherThanAmbiguous) {
+  auto owner = std::make_shared<ImmediateCompletionRuntimeOwner>();
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  const nlohmann::json graph = {
+      {"nodes",
+       {{{"id", "same"}, {"type", "A"}},
+        {{"id", "same"}, {"type", "B"}}}},
+      {"edges", nlohmann::json::array()}};
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = graph,
+                           .config_revision = 92,
+                           .config_etag = "\"identity-92\""})
+                .status_code,
+            200);
+  const auto captured = session->SnapshotGeneration();
+  EXPECT_FALSE(captured.identity_error.empty());
+  EXPECT_TRUE(captured.canonical_node_ids.empty());
+}
+
+class IdentityTestNode final : public graph::INode {
+public:
+  graph::LifecycleState GetLifecycleState() const override {
+    return graph::LifecycleState::Uninitialized;
+  }
+  bool Init() override { return true; }
+  bool Start() override { return true; }
+  void Join() override {}
+  bool JoinWithTimeout(std::chrono::milliseconds) override { return true; }
+  void Stop() override {}
+};
+
+class CanonicalIdentityRuntimeOwner final
+    : public graph::dashboard::IGraphRuntimeOwner {
+public:
+  explicit CanonicalIdentityRuntimeOwner(
+      std::shared_ptr<graph::GraphManager> manager)
+      : manager_(std::move(manager)) {}
+
+  Result Rebuild(std::uint64_t, const BuildSnapshot &) override {
+    return {200, "rebuilt", "canonical identity owner rebuilt", manager_};
+  }
+  Result Start(std::uint64_t, std::uint64_t) override {
+    return {202, "started", "canonical identity owner started", manager_};
+  }
+  Result Stop(std::uint64_t) override {
+    return {200, "stopped", "canonical identity owner stopped", manager_};
+  }
+  Result Shutdown(std::uint64_t) override {
+    return {200, "shutdown", "canonical identity owner shut down", manager_};
+  }
+  void SetCompletionCallback(CompletionCallback callback) override {
+    completion_ = std::move(callback);
+  }
+
+private:
+  std::shared_ptr<graph::GraphManager> manager_;
+  CompletionCallback completion_;
+};
+
+TEST(GraphRuntimeSessionIdentityTest,
+     CollectorUsesRuntimeCanonicalIdsWhenRuntimeNodeOrderChanges) {
+  auto manager = std::make_shared<graph::GraphManager>();
+  manager->AddNode(std::make_shared<IdentityTestNode>(), "sink");
+  manager->AddNode(std::make_shared<IdentityTestNode>(), "source");
+  manager->EnableMetrics(true);
+  auto owner = std::make_shared<CanonicalIdentityRuntimeOwner>(manager);
+  auto session = std::make_shared<graph::dashboard::GraphRuntimeSession>(owner);
+  session->MarkReady();
+  const nlohmann::json graph = {
+      {"nodes",
+       {{{"id", "source"}, {"type", "Source"}},
+        {{"id", "sink"}, {"type", "Sink"}}}},
+      {"edges", nlohmann::json::array()}};
+  ASSERT_EQ(session
+                ->Rebuild({.receiver_graph = graph,
+                           .config_revision = 93,
+                           .config_etag = "\"identity-93\""})
+                .status_code,
+            200);
+
+  graph::dashboard::GraphSnapshotCollector collector;
+  collector.BindRuntimeSession(session);
+  const auto metrics = collector.GetMetricsSnapshot();
+  ASSERT_EQ(metrics.at("identity_availability").at("state"), "available");
+  ASSERT_EQ(metrics.at("nodes").size(), 2u);
+  EXPECT_EQ(metrics.at("nodes").at(0).at("node_id"), "sink");
+  EXPECT_EQ(metrics.at("nodes").at(1).at("node_id"), "source");
+  const auto diagnostics = collector.GetDiagnosticsSnapshot();
+  ASSERT_EQ(diagnostics.at("nodes").size(), 2u);
+  EXPECT_EQ(diagnostics.at("nodes").at(0).at("node_id"), "sink");
+  EXPECT_EQ(diagnostics.at("nodes").at(1).at("node_id"), "source");
 }
 
 class LiveThreadRuntimeOwner final
@@ -1050,7 +1632,10 @@ TEST(FHSSGraphRuntimeOwnerTest,
   auto owner = std::make_shared<dsp::fhss::dashboard::FHSSGraphRuntimeOwner>(
       std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY),
       fixture.directory / "timeout-runtime");
-  owner->SetExecutorTimeoutForTesting(std::chrono::seconds(1));
+  // The synthetic fixture may complete in under a second in an optimized
+  // container. Use a short positive timeout so this test exercises the
+  // incomplete/no-completion-signal path rather than host performance.
+  owner->SetExecutorTimeoutForTesting(std::chrono::milliseconds(1));
   graph::dashboard::GraphRuntimeSession session(owner);
   session.MarkReady();
   ASSERT_EQ(session.Rebuild(fixture.snapshot).status_code, 200);

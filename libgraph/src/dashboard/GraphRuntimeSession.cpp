@@ -3,10 +3,13 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <set>
 #include <sstream>
 
 namespace graph::dashboard {
 namespace {
+constexpr std::uint64_t kMaximumJsonSafeInteger = 9'007'199'254'740'991ULL;
+
 std::string NowIso() {
   const auto value =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -16,7 +19,74 @@ std::string NowIso() {
   output << std::put_time(&time, "%Y-%m-%dT%H:%M:%SZ");
   return output.str();
 }
+
+GraphRuntimeSession::GenerationSnapshot IdentitySnapshot(
+    std::uint64_t generation, std::uint64_t config_revision,
+    std::string config_etag, const nlohmann::json &graph) {
+  GraphRuntimeSession::GenerationSnapshot result;
+  result.generation = generation;
+  result.config_revision = config_revision;
+  result.config_etag = std::move(config_etag);
+  if (!graph.is_object() || !graph.contains("nodes") ||
+      !graph.at("nodes").is_array() || !graph.contains("edges") ||
+      !graph.at("edges").is_array()) {
+    result.identity_error =
+        "effective receiver graph does not contain node and edge arrays";
+    return result;
+  }
+  std::set<std::string> node_ids;
+  for (const auto &node : graph.at("nodes")) {
+    const auto id = node.value("id", std::string{});
+    if (id.empty() || !node_ids.insert(id).second) {
+      result.identity_error =
+          "effective receiver graph contains a missing or duplicate node ID";
+      result.canonical_node_ids.clear();
+      return result;
+    }
+    result.canonical_node_ids.push_back(id);
+  }
+  std::set<std::string> edge_ids;
+  for (const auto &edge : graph.at("edges")) {
+    const auto source = edge.value("source_node_id", std::string{});
+    const auto destination = edge.value("target_node_id", std::string{});
+    if (!node_ids.contains(source) || !node_ids.contains(destination) ||
+        !edge.contains("source_port") ||
+        !edge.at("source_port").is_number_unsigned() ||
+        !edge.contains("target_port") ||
+        !edge.at("target_port").is_number_unsigned()) {
+      result.identity_error =
+          "effective receiver graph contains an invalid edge identity";
+      result.canonical_edges.clear();
+      return result;
+    }
+    const auto source_port = edge.at("source_port").get<std::size_t>();
+    const auto destination_port = edge.at("target_port").get<std::size_t>();
+    const auto edge_id =
+        CanonicalEdgeId(source, source_port, destination, destination_port);
+    if (!edge_ids.insert(edge_id).second) {
+      result.identity_error =
+          "effective receiver graph contains a duplicate edge identity";
+      result.canonical_edges.clear();
+      return result;
+    }
+    result.canonical_edges.push_back(
+        {.edge_id = edge_id,
+         .source_node_id = source,
+         .source_port = source_port,
+         .destination_node_id = destination,
+         .destination_port = destination_port});
+  }
+  return result;
+}
 } // namespace
+
+std::string CanonicalEdgeId(const std::string &source_node_id,
+                            std::size_t source_port,
+                            const std::string &destination_node_id,
+                            std::size_t destination_port) {
+  return source_node_id + ":" + std::to_string(source_port) + "->" +
+         destination_node_id + ":" + std::to_string(destination_port);
+}
 
 GraphRuntimeSession::GraphRuntimeSession(
     std::shared_ptr<IGraphRuntimeOwner> owner)
@@ -130,7 +200,8 @@ void GraphRuntimeSession::MarkShuttingDown() {
     const std::lock_guard lock(mutex_);
     state_ = State::shutting_down;
     generation = active_generation_;
-    ++command_epoch_;
+    if (command_epoch_ < kMaximumJsonSafeInteger)
+      command_epoch_ += 1;
   }
   if (owner_)
     (void)owner_->Shutdown(generation);
@@ -168,10 +239,19 @@ GraphRuntimeSession::Rebuild(IGraphRuntimeOwner::BuildSnapshot snapshot) {
     if (!IsRebuildAllowedState(state_))
       return {409, "invalid_state",
               "rebuild is not allowed in current runtime state"};
+    if (snapshot.config_revision > kMaximumJsonSafeInteger ||
+        active_generation_ >= kMaximumJsonSafeInteger ||
+        command_epoch_ >= kMaximumJsonSafeInteger ||
+        rebuild_attempts_ >= kMaximumJsonSafeInteger ||
+        successful_rebuilds_ >= kMaximumJsonSafeInteger)
+      return {409, "identity_space_exhausted",
+              "runtime identity or published command counter cannot advance "
+              "within JavaScript safe integer bounds"};
     previous = state_;
     state_ = State::rebuilding;
-    ++rebuild_attempts_;
-    epoch = ++command_epoch_;
+    rebuild_attempts_ += 1;
+    command_epoch_ += 1;
+    epoch = command_epoch_;
     generation = active_generation_ + 1;
   }
   auto result = owner_->Rebuild(generation, snapshot);
@@ -185,11 +265,13 @@ GraphRuntimeSession::Rebuild(IGraphRuntimeOwner::BuildSnapshot snapshot) {
       last_error_message_ = result.message;
     } else {
       active_generation_ = generation;
-      ++successful_rebuilds_;
+      successful_rebuilds_ += 1;
       active_graph_manager_ = std::move(result.graph_manager);
-      active_snapshot_ = {generation, 0, snapshot.config_revision,
-                          std::move(snapshot.config_etag),
-                          active_graph_manager_};
+      active_snapshot_ =
+          IdentitySnapshot(generation, snapshot.config_revision,
+                           std::move(snapshot.config_etag),
+                           snapshot.receiver_graph);
+      active_snapshot_.graph_manager = active_graph_manager_;
       state_ = result.cleanup_failed ? State::cleanup_failed : State::stopped;
       rebuild_blocked_ = result.cleanup_failed;
       stop_requested_ = false;
@@ -217,10 +299,15 @@ GraphRuntimeSession::CommandResult GraphRuntimeSession::Start() {
     const std::lock_guard lock(mutex_);
     if (state_ != State::stopped && state_ != State::completed)
       return {409, "invalid_state", "runtime cannot start in current state"};
+    if (active_run_epoch_ >= kMaximumJsonSafeInteger)
+      return {409, "identity_space_exhausted",
+              "runtime run identity cannot advance within JavaScript safe "
+              "integer bounds"};
     generation = active_generation_;
     previous = state_;
     state_ = State::starting;
-    run_epoch = ++active_run_epoch_;
+    active_run_epoch_ += 1;
+    run_epoch = active_run_epoch_;
     active_snapshot_.run_epoch = run_epoch;
     stop_requested_ = false;
     started_at_ = NowIso();
@@ -283,6 +370,19 @@ GraphRuntimeSession::CommandResult GraphRuntimeSession::Stop() {
 
 void GraphRuntimeSession::SetStateForTesting(State state) {
   SetLifecycleState(state);
+}
+void GraphRuntimeSession::SetIdentityCountersForTesting(
+    std::uint64_t active_generation, std::uint64_t active_run_epoch,
+    std::uint64_t command_epoch, std::uint64_t rebuild_attempts,
+    std::uint64_t successful_rebuilds) {
+  const std::lock_guard lock(mutex_);
+  active_generation_ = active_generation;
+  active_run_epoch_ = active_run_epoch;
+  command_epoch_ = command_epoch;
+  rebuild_attempts_ = rebuild_attempts;
+  successful_rebuilds_ = successful_rebuilds;
+  active_snapshot_.generation = active_generation;
+  active_snapshot_.run_epoch = active_run_epoch;
 }
 bool GraphRuntimeSession::IsRebuildAllowedInCurrentState() const {
   const std::lock_guard lock(mutex_);

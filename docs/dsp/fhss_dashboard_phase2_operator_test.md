@@ -180,27 +180,36 @@ installed-tree, or Docker lane.
    deterministic physical-channel order. Each cell must provide channel,
    observation state, authoritative node ID, and merge input as text rather
    than color alone.
-5. Select channel 0, channel 31, and channel 63. Confirm their detector
+5. Confirm the topology canvas expands the same detector bank as a hierarchical
+   parent containing 64 detector child nodes. Confirm the canvas and Semantic
+   topology expose all 137 authoritative exact-port edges, including
+   channelizer output 63 and merge input 64, rather than two collapsed
+   boundary bundles.
+6. Select channel 0, channel 31, and channel 63. Confirm their detector
    inspector mappings are respectively merge inputs 1, 32, and 64. Confirm
    exact channelizer output, detector input/output, logical channel, physical
    channel, node type, configuration summary, and observation availability.
-6. Select the same channels through the 8×8 view, Semantic topology, and
+7. Select the same channels through the 8×8 view, Semantic topology, and
    receiver-spectrum channel selector. Confirm selection cross-references the
-   same detector, canvas group, inspector, and physical channel.
-7. Before receiver observations are available, confirm each channel says
+   same detector child, parent group, inspector, and physical channel.
+8. Before receiver observations are available, confirm each channel says
    **Observation unavailable**, not zero. After observations exist, confirm
    channels with no observed pulses explicitly say **0 observed pulses**.
-8. Collapse and re-expand the group. Refresh evidence. Confirm valid selection
+9. Collapse the bank. Confirm the canvas returns to two visibly bundled,
+   presentation-only boundary edges. Each bundle inspector must enumerate 64
+   authoritative edge identities and exact mappings and must not claim a
+   canonical numeric bundle port. Re-expand the group and refresh evidence.
+   Confirm valid selection
    is preserved. If topology changes remove the selected detector, confirm
    selection is cleared deterministically instead of pointing to stale data.
-9. Exercise pan, zoom, fit-to-view, minimap, selection, and **Reset layout**.
+10. Exercise pan, zoom, fit-to-view, minimap, selection, and **Reset layout**.
    Reload and confirm the same collapsed pipeline layout. Dragging may change
    local presentation, but no connect, reconnect, delete, topology-mutation, or
    lifecycle request may result from collapse, expansion, selection, or drag.
-10. Open **Advanced diagnostic: full authoritative GraphX JSON**. Confirm the
+11. Open **Advanced diagnostic: full authoritative GraphX JSON**. Confirm the
     complete 75-node/137-edge graph is present as escaped text and is not the
     primary presentation.
-11. Exercise representative inherited controls: Refresh all, configuration
+12. Exercise representative inherited controls: Refresh all, configuration
     Validate, Rebuild, Start, Stop, Step message, selected-channel spectrum,
     and investigation validation. Confirm explicit success or failure status
     remains visible and a temporarily unavailable resource does not blank the

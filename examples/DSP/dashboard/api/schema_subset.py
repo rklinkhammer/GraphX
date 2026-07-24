@@ -22,7 +22,8 @@ ASSERTIONS = {
     "exclusiveMinimum", "pattern", "required",
     "properties", "additionalProperties", "items", "minItems", "maxItems",
     "uniqueItems",
-    "minLength", "maxLength", "maxProperties", "anyOf", "not", "contains",
+    "minLength", "maxLength", "maxProperties", "anyOf", "oneOf", "allOf", "if", "then", "else",
+    "not", "contains",
 }
 ALLOWED = ANNOTATIONS | ASSERTIONS
 TYPES = {"object", "array", "string", "integer", "number", "boolean", "null"}
@@ -96,6 +97,25 @@ def validate_schema(schema: Any, location: str = "$") -> None:
             _fail(location, "anyOf must be a nonempty array")
         for index, child in enumerate(alternatives):
             validate_schema(child, f"{location}.anyOf[{index}]")
+    if "oneOf" in schema:
+        alternatives = schema["oneOf"]
+        if not isinstance(alternatives, list) or not alternatives:
+            _fail(location, "oneOf must be a nonempty array")
+        for index, child in enumerate(alternatives):
+            validate_schema(child, f"{location}.oneOf[{index}]")
+    if "allOf" in schema:
+        alternatives = schema["allOf"]
+        if not isinstance(alternatives, list) or not alternatives:
+            _fail(location, "allOf must be a nonempty array")
+        for index, child in enumerate(alternatives):
+            validate_schema(child, f"{location}.allOf[{index}]")
+    if ("if" in schema) != ("then" in schema):
+        _fail(location, "if and then must be used together")
+    if "if" in schema:
+        validate_schema(schema["if"], f"{location}.if")
+        validate_schema(schema["then"], f"{location}.then")
+        if "else" in schema:
+            validate_schema(schema["else"], f"{location}.else")
     if "not" in schema:
         validate_schema(schema["not"], f"{location}.not")
     if "contains" in schema:
@@ -113,25 +133,82 @@ def validate_schema(schema: Any, location: str = "$") -> None:
         _fail(location, "minItems exceeds maxItems")
 
 
+def _resolve_instance_ref(
+    reference: str,
+    root_schema: Mapping[str, Any],
+    registry: Mapping[str, Mapping[str, Any]] | None,
+    location: str,
+) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+    base, separator, fragment = reference.partition("#")
+    if base:
+        if registry is None or base not in registry:
+            _fail(location, f"unresolved reference {reference}")
+        target_root = registry[base]
+    else:
+        target_root = root_schema
+    target: Any = target_root
+    if separator and fragment:
+        if not fragment.startswith("/"):
+            _fail(location, f"unsupported reference fragment {reference}")
+        for raw_token in fragment[1:].split("/"):
+            token = raw_token.replace("~1", "/").replace("~0", "~")
+            if not isinstance(target, Mapping) or token not in target:
+                _fail(location, f"unresolved reference {reference}")
+            target = target[token]
+    if not isinstance(target, Mapping):
+        _fail(location, f"reference does not identify a schema {reference}")
+    return target, target_root
+
+
 def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mapping[str, Mapping[str, Any]] | None = None,
-                      location: str = "$") -> None:
+                      location: str = "$",
+                      _root_schema: Mapping[str, Any] | None = None) -> None:
+    if _root_schema is None:
+        _root_schema = schema
     if "$ref" in schema:
-        if registry is None or schema["$ref"] not in registry:
-            _fail(location, f"unresolved reference {schema['$ref']}")
-        validate_instance(value, registry[schema["$ref"]], registry=registry, location=location)
+        target, target_root = _resolve_instance_ref(
+            schema["$ref"], _root_schema, registry, location)
+        validate_instance(value, target, registry=registry, location=location,
+                          _root_schema=target_root)
     if "anyOf" in schema:
         matches = 0
         for child in schema["anyOf"]:
             try:
-                validate_instance(value, child, registry=registry, location=location)
+                validate_instance(value, child, registry=registry, location=location,
+                                  _root_schema=_root_schema)
                 matches += 1
             except ValueError:
                 pass
         if matches == 0:
             _fail(location, "does not match any anyOf alternative")
+    if "oneOf" in schema:
+        matches = 0
+        for child in schema["oneOf"]:
+            try:
+                validate_instance(value, child, registry=registry,
+                                  location=location,
+                                  _root_schema=_root_schema)
+                matches += 1
+            except ValueError:
+                pass
+        if matches != 1:
+            _fail(location, "does not match exactly one oneOf alternative")
+    if "allOf" in schema:
+        for child in schema["allOf"]:
+            validate_instance(value, child, registry=registry, location=location,
+                              _root_schema=_root_schema)
+    if "if" in schema:
+        if _instance_matches(
+                value, schema["if"], registry, root_schema=_root_schema):
+            validate_instance(value, schema["then"], registry=registry,
+                              location=location, _root_schema=_root_schema)
+        elif "else" in schema:
+            validate_instance(value, schema["else"], registry=registry,
+                              location=location, _root_schema=_root_schema)
     if "not" in schema:
         try:
-            validate_instance(value, schema["not"], registry=registry, location=location)
+            validate_instance(value, schema["not"], registry=registry, location=location,
+                              _root_schema=_root_schema)
         except ValueError:
             pass
         else:
@@ -178,14 +255,16 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
             _fail(location, f"missing required properties {sorted(missing)}")
         for key, child in properties.items():
             if key in value:
-                validate_instance(value[key], child, registry=registry, location=f"{location}.{key}")
+                validate_instance(value[key], child, registry=registry, location=f"{location}.{key}",
+                                  _root_schema=_root_schema)
         extras = set(value) - set(properties)
         additional = schema.get("additionalProperties", True)
         if extras and additional is False:
             _fail(location, f"unexpected properties {sorted(extras)}")
         if isinstance(additional, dict):
             for key in extras:
-                validate_instance(value[key], additional, registry=registry, location=f"{location}.{key}")
+                validate_instance(value[key], additional, registry=registry, location=f"{location}.{key}",
+                                  _root_schema=_root_schema)
     if isinstance(value, list):
         if schema.get("uniqueItems") is True:
             for index, item in enumerate(value):
@@ -197,15 +276,23 @@ def validate_instance(value: Any, schema: Mapping[str, Any], *, registry: Mappin
             _fail(location, "has too many items")
         if "items" in schema:
             for index, item in enumerate(value):
-                validate_instance(item, schema["items"], registry=registry, location=f"{location}[{index}]")
+                validate_instance(item, schema["items"], registry=registry, location=f"{location}[{index}]",
+                                  _root_schema=_root_schema)
         if "contains" in schema:
             if not any(_instance_matches(item, schema["contains"], registry) for item in value):
                 _fail(location, "does not contain a required matching item")
 
 
-def _instance_matches(value: Any, schema: Mapping[str, Any], registry: Mapping[str, Mapping[str, Any]] | None) -> bool:
+def _instance_matches(
+    value: Any,
+    schema: Mapping[str, Any],
+    registry: Mapping[str, Mapping[str, Any]] | None,
+    *,
+    root_schema: Mapping[str, Any] | None = None,
+) -> bool:
     try:
-        validate_instance(value, schema, registry=registry)
+        validate_instance(value, schema, registry=registry,
+                          _root_schema=root_schema)
         return True
     except ValueError:
         return False

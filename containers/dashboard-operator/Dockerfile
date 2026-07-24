@@ -71,11 +71,15 @@ RUN cmake -S . -B build-dashboard-operator -G Ninja \
         -DENABLE_METAL_GRAPH_NODES=OFF \
         -DENABLE_METAL_NATIVE_RUNTIME=OFF \
         -DGRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=OFF \
+        -DGRAPHX_FHSS_SOURCE_REVISION_OVERRIDE=${GRAPHX_REVISION} \
+        -DGRAPHX_FHSS_SOURCE_DIRTY_OVERRIDE=true \
         -DGRAPHX_DASHBOARD_CONTRACT_PYTHON=/opt/graphx/contracts/bin/python \
     && cmake --build build-dashboard-operator --parallel 2 --target \
-        dsp_fhss_demo dsp_fhss_iq_generator \
+        dsp_fhss_demo dsp_fhss_iq_generator test_dsp_example_unit \
+    && build-dashboard-operator/examples/DSP/test/test_dsp_example_unit \
+        --gtest_filter='GraphRuntimeSessionIdentityTest.*:FhssDashboardServerContractTest.MetricsSchemasAreStableWithDefaultPayloads' \
     && ctest --test-dir build-dashboard-operator --output-on-failure -R \
-        'fhss_dashboard_(api_contracts|phase0_baseline|phase1_frontend)'
+        'fhss_dashboard_(api_contracts|phase0_baseline|phase1_frontend|v2_phase3_identity)'
 
 RUN printf '%s\n' "${GRAPHX_REVISION}" > /opt/graphx/GRAPHX_REVISION
 

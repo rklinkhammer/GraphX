@@ -62,30 +62,135 @@ def main() -> int:
         (("rejected_messages", "node"), "message"),
         (("backpressure_events", "node"), "event"),
         (("peak_queue_depth", "node"), "message"),
+        (("connected_edges", "node"), "edge"),
+        (("diagnostics_available", "node"), "boolean"),
+        (("activity_state", "node"), "state"),
         (("messages_enqueued", "edge"), "message"),
         (("messages_dequeued", "edge"), "message"),
         (("messages_rejected", "edge"), "message"),
         (("backpressure_events", "edge"), "event"),
         (("current_queue_depth", "edge"), "message"),
         (("peak_queue_depth", "edge"), "message"),
+        (("transfer_service_duration", "edge"), "nanosecond"),
+        (("initialized", "edge"), "boolean"),
+        (("started", "edge"), "boolean"),
+        (("thread_active", "edge"), "boolean"),
+        (("activity_state", "edge"), "state"),
+        (("queue_residence_duration", "edge"), "nanosecond"),
+        (("node_processing_duration", "edge"), "nanosecond"),
+        (("end_to_end_duration", "edge"), "nanosecond"),
+        (("dashboard_delivery_duration", "edge"), "nanosecond"),
     )
     metric_definitions = [
-        {"name": name, "scope": scope,
-         "kind": "counter" if name not in (
+        {"name": name,
+         "field": f"/{scope}{'' if scope == 'graph' else 's/*'}/{name}",
+         "scope": scope,
+         "kind": ("distribution" if "duration" in name else
+                  "state" if name in ("diagnostics_available", "activity_state",
+                                      "initialized", "started", "thread_active") else
+                  "counter" if name not in (
              "peak_queue_depth", "peak_active_threads",
-             "current_queue_depth") else "gauge",
+             "current_queue_depth", "connected_edges") else "gauge"),
          "unit": unit,
          "monotonic": name not in (
              "peak_queue_depth", "peak_active_threads",
              "current_queue_depth"),
-         "reset": "new_graph_generation"}
+         "availability": "explicit",
+         "capture": ("instantaneous read at server collection"
+                     if name == "current_queue_depth"
+                     else "atomic relaxed-load at server collection"),
+         "reset": ("not_collected" if "duration" in name
+                   and name != "transfer_service_duration" else
+                   "sample_replaced" if name in (
+                       "current_queue_depth", "connected_edges",
+                       "diagnostics_available", "activity_state", "initialized",
+                       "started", "thread_active") else "new_runtime_manager"),
+         "aggregation": ("no cross-sample aggregation"
+                         if name == "current_queue_depth"
+                         else ("maximum only within one generation and run epoch"
+                               if name in ("peak_queue_depth", "peak_active_threads")
+                               else "sum only within one generation and run epoch")),
+         "overflow": ("not_applicable" if name in (
+             "diagnostics_available", "activity_state", "initialized",
+             "started", "thread_active") else
+             "unavailable_above_javascript_safe_integer"),
+         "numeric_representation": (
+             "structured_duration" if "duration" in name else
+             "enumerated_string" if name == "activity_state" else
+             "boolean" if name in (
+                 "diagnostics_available", "initialized", "started",
+                 "thread_active") else
+             "non_negative_javascript_safe_integer")}
         for (name, scope), unit in metric_units
     ]
+    # This independent contract table mirrors the normative wire contract
+    # explicitly; it is intentionally not imported from the C++ producer.
+    for definition in metric_definitions:
+        scope = definition["scope"]
+        name = definition["name"]
+        if "duration" in name:
+            definition.update(
+                kind="distribution", monotonic=False,
+                reset=("new_runtime_manager"
+                       if name == "transfer_service_duration"
+                       else "not_collected"))
+        elif name in ("diagnostics_available", "activity_state",
+                      "initialized", "started", "thread_active"):
+            definition.update(kind="state", monotonic=False,
+                              reset="sample_replaced")
+        elif name in ("peak_queue_depth", "peak_active_threads",
+                      "current_queue_depth", "connected_edges"):
+            definition.update(
+                kind="gauge", monotonic=False,
+                reset=("new_runtime_manager"
+                       if name in ("peak_queue_depth", "peak_active_threads")
+                       else "sample_replaced"))
+        else:
+            definition.update(kind="counter", monotonic=True,
+                              reset="new_runtime_manager")
+        if definition["kind"] == "counter":
+            definition["aggregation"] = (
+                "runtime manager aggregate loaded atomically; never re-summed by dashboard"
+                if scope == "graph" else
+                "checked sum of incident canonical edge counters in one collection"
+                if scope == "node" else
+                "direct atomic edge counter; never re-summed by dashboard")
+        elif name in ("peak_queue_depth", "peak_active_threads"):
+            definition["aggregation"] = (
+                "maximum retained by the active runtime manager")
+        elif definition["kind"] == "gauge":
+            definition["aggregation"] = "no cross-sample aggregation"
+        elif definition["kind"] == "state":
+            definition["aggregation"] = "one state per canonical record"
+        else:
+            definition["aggregation"] = {
+                "transfer_service_duration":
+                    "cumulative successful transfer-call duration and count",
+                "queue_residence_duration":
+                    "explicitly unavailable; GraphX does not timestamp queue entry and exit",
+                "node_processing_duration":
+                    "explicitly unavailable; node service intervals are not collected here",
+                "end_to_end_duration":
+                    "explicitly unavailable; messages are not end-to-end correlated",
+                "dashboard_delivery_duration":
+                    "explicitly unavailable; browser delivery is outside the runtime metric boundary",
+            }[name]
+    inactive_identity = {"state": "unavailable",
+                         "reason": "no active runtime generation"}
+    inactive_graph_metrics = {
+        "availability": "unavailable",
+        "unavailable_reason": "no active runtime generation",
+        "total_items_processed": None, "total_items_rejected": None,
+        "total_messages_processed": None, "graph_total_enqueued": None,
+        "graph_total_dequeued": None, "backpressure_events": None,
+        "peak_queue_depth": None, "peak_active_threads": None,
+    }
     samples = {
         "health.schema.json": {"status": "ok"},
         "readiness.schema.json": {"ready": True, "state": "ready"},
         "version.schema.json": {"schema": "graphx.dashboard.version.v1", "api_version": "v1"},
         "graph.schema.json": {"schema": "graphx.dashboard.graph.v1", "owner": "receiver", "config_revision": 1,
+                              "etag": '"graphx-config-1"',
                               "graph": {"nodes": [], "edges": []}},
         "config.schema.json": {"schema": "graphx.dashboard.config.v1", "owner": "receiver",
                                "config_revision": 1, "etag": '"graphx-config-1"',
@@ -102,10 +207,14 @@ def main() -> int:
             "started_at":None,"terminal_at":None,"terminal_result":None},
         "metrics.schema.json": {"schema": "graphx.dashboard.metrics.v1", "active_generation":0,
                                 "active_run_epoch":0,"active_config_revision":0,"active_config_etag":"",
-                                "metric_definitions":metric_definitions,"graph": {},
+                                "capture_id":"inactive","sampled_at_monotonic_ms":1,
+                                "collection_interval":{"state":"unavailable","reason":"no compatible previous sample","clock":"steady_clock","duration_ms":None},
+                                "rate_availability":{"state":"unavailable","reason":"two samples required"},
+                                "qualified_rates":[],"identity_availability":inactive_identity,
+                                "metric_definitions":metric_definitions,"graph": inactive_graph_metrics,
                                 "nodes": [], "edges": []},
-        "edge-metrics.schema.json": {"schema": "graphx.dashboard.edge_metrics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","edges": []},
-        "diagnostics.schema.json": {"schema": "graphx.dashboard.diagnostics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","nodes": []},
+        "edge-metrics.schema.json": {"schema": "graphx.dashboard.edge_metrics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","capture_id":"inactive","sampled_at_monotonic_ms":1,"identity_availability":inactive_identity,"edges": []},
+        "diagnostics.schema.json": {"schema": "graphx.dashboard.diagnostics.v1", "active_generation":0,"active_run_epoch":0,"active_config_revision":0,"active_config_etag":"","capture_id":"inactive","sampled_at_monotonic_ms":1,"identity_availability":inactive_identity,"nodes": []},
         "events.schema.json": {"schema": "graphx.dashboard.events_batch.v1",
             "stream": "/api/v1/fhss/events", "publisher_epoch": "a" * 32,
             "client_id": "validator", "resync_required": False,
@@ -146,8 +255,11 @@ def main() -> int:
             "publisher_epoch": "a" * 32, "latest_sequence": 1,
             "captured_at": "2026-07-19T00:00:00.000Z", "config_revision": 1,
             "config_etag": '"graphx-config-1"', "generation": 1, "run_epoch": 1,
+            "coherence":{"state":"coherent","metric_capture_id":"g1-r1-m1",
+                         "diagnostic_capture_id":"g1-r1-d1"},
             "configuration": {}, "graph": {}, "runtime": {}, "metrics": {},
-            "transport": {"active_websocket_clients": 0, "pongs_received": 0,
+            "transport": {"counter_availability":{"state":"available","reason":None},
+                "active_websocket_clients": 0, "pongs_received": 0,
                 "idle_closes": 0, "protocol_failures": 0,
                 "rejected_upgrades": 0, "replayed_events": 0,
                 "resync_requests": 0, "queue_overflows": 0,
@@ -403,6 +515,34 @@ def main() -> int:
                 "sha256":"2" * 64,"license":"Apache-2.0"},
             "schemas":[{"path":"schema.json","sha256":"3" * 64}]},
     })
+    snapshot = samples["fhss-snapshot.schema.json"]
+    snapshot["configuration"] = copy.deepcopy(samples["config.schema.json"])
+    snapshot["graph"] = copy.deepcopy(samples["graph.schema.json"])
+    snapshot_runtime = copy.deepcopy(samples["runtime-status.schema.json"])
+    snapshot_runtime.update({
+        "active_generation": 1, "active_run_epoch": 1,
+        "active_config_revision": 1,
+        "active_config_etag": '"graphx-config-1"',
+        "rebuild_required": False, "configuration_stale": False,
+    })
+    snapshot["runtime"] = snapshot_runtime
+    snapshot_metrics = copy.deepcopy(samples["metrics.schema.json"])
+    snapshot_metrics.update({
+        "active_generation": 1, "active_run_epoch": 1,
+        "active_config_revision": 1,
+        "active_config_etag": '"graphx-config-1"',
+        "capture_id": "g1-r1-m1",
+    })
+    snapshot["metrics"] = snapshot_metrics
+    snapshot_diagnostics = copy.deepcopy(samples["diagnostics.schema.json"])
+    snapshot_diagnostics.update({
+        "active_generation": 1, "active_run_epoch": 1,
+        "active_config_revision": 1,
+        "active_config_etag": '"graphx-config-1"',
+        "capture_id": "g1-r1-d1",
+    })
+    snapshot["diagnostics"] = snapshot_diagnostics
+
     repository = ROOT.parents[3]
     generator_graph = json.loads((repository / "libdsp/config/fhss_cpsm_channelized_fixture_500msps.json").read_text())
     generator_scenario = next(node["node_config"] for node in generator_graph["nodes"]
@@ -443,6 +583,81 @@ def main() -> int:
             pass
         else:
             raise AssertionError(f"offline validator accepted {label}")
+
+    # The 31 metric definitions are an exact set, not a generic bag of
+    # plausible metadata. Exercise each semantic identity dimension against
+    # two independent validators.
+    duplicate_metric = copy.deepcopy(samples["metrics.schema.json"])
+    duplicate_metric["metric_definitions"][-1] = copy.deepcopy(
+        duplicate_metric["metric_definitions"][0])
+    assert_contract_rejects("metrics.schema.json", duplicate_metric,
+                            "duplicate metric definition")
+    for field, replacement in (
+            ("field", "/graph/total_items_rejected"),
+            ("scope", "edge"), ("kind", "gauge"), ("unit", "event"),
+            ("monotonic", False), ("reset", "sample_replaced"),
+            ("aggregation", "no cross-sample aggregation")):
+        conflicting = copy.deepcopy(samples["metrics.schema.json"])
+        conflicting["metric_definitions"][0][field] = replacement
+        assert_contract_rejects(
+            "metrics.schema.json", conflicting,
+            f"conflicting metric definition {field}")
+
+    # Canonical graph/config structures are closed and bounded below the
+    # dashboard transport boundary.
+    for schema_name, graph_key in (
+            ("graph.schema.json", "graph"),
+            ("config.schema.json", "effective")):
+        unknown_graph_field = copy.deepcopy(samples[schema_name])
+        unknown_graph_field[graph_key]["unknown"] = True
+        assert_contract_rejects(schema_name, unknown_graph_field,
+                                f"{schema_name} nested unknown")
+
+        unknown_node_field = copy.deepcopy(samples[schema_name])
+        unknown_node_field[graph_key]["nodes"] = [
+            {"id":"source","type":"Source","unexpected":True}]
+        assert_contract_rejects(schema_name, unknown_node_field,
+                                f"{schema_name} node unknown")
+
+        missing_node_identity = copy.deepcopy(samples[schema_name])
+        missing_node_identity[graph_key]["nodes"] = [{"type":"Source"}]
+        assert_contract_rejects(schema_name, missing_node_identity,
+                                f"{schema_name} missing node identity")
+
+        malformed_edge = copy.deepcopy(samples[schema_name])
+        malformed_edge[graph_key]["edges"] = [{
+            "source_node_id":"source", "source_port":0,
+            "target_node_id":"sink"}]
+        assert_contract_rejects(schema_name, malformed_edge,
+                                f"{schema_name} missing edge endpoint")
+
+        extra_edge_field = copy.deepcopy(samples[schema_name])
+        extra_edge_field[graph_key]["edges"] = [{
+            "source_node_id":"source", "source_port":0,
+            "target_node_id":"sink", "target_port":0, "weight":1}]
+        assert_contract_rejects(schema_name, extra_edge_field,
+                                f"{schema_name} edge unknown")
+
+        negative_port = copy.deepcopy(samples[schema_name])
+        negative_port[graph_key]["edges"] = [{
+            "source_node_id":"source", "source_port":-1,
+            "target_node_id":"sink", "target_port":0}]
+        assert_contract_rejects(schema_name, negative_port,
+                                f"{schema_name} negative port")
+
+        too_many_nodes = copy.deepcopy(samples[schema_name])
+        too_many_nodes[graph_key]["nodes"] = [
+            {"id":f"node-{index}","type":"Node"} for index in range(257)]
+        assert_contract_rejects(schema_name, too_many_nodes,
+                                f"{schema_name} node bound")
+
+        too_many_edges = copy.deepcopy(samples[schema_name])
+        too_many_edges[graph_key]["edges"] = [{
+            "source_node_id":"source", "source_port":index,
+            "target_node_id":"sink", "target_port":index}
+            for index in range(513)]
+        assert_contract_rejects(schema_name, too_many_edges,
+                                f"{schema_name} edge bound")
 
     # Independent Phase6 adversarial corpus. These values are constructed here,
     # not by the production server/generator, and both authoritative Draft

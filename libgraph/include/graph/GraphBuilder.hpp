@@ -332,7 +332,9 @@ private:
     /// Must be done before edge wiring.
     ///
     /// Throws on error (caught by Build()).
-    void RegisterNodes(std::vector<std::shared_ptr<graph::NodeFacadeAdapter>>& nodes);
+    void RegisterNodes(
+        std::vector<std::shared_ptr<graph::NodeFacadeAdapter>>& nodes,
+        const std::vector<graph::NodeConfig>& node_configs);
 
     /// @brief Step 4: Wire edges between all specified node pairs
     /// @param edge_configs Parsed edge configurations from JSON

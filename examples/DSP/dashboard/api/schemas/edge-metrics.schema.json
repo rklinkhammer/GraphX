@@ -1,1 +1,18 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:edge-metrics:v1","type":"object","required":["schema","active_generation","active_run_epoch","active_config_revision","active_config_etag","edges"],"additionalProperties":false,"properties":{"schema":{"const":"graphx.dashboard.edge_metrics.v1"},"active_generation":{"type":"integer","minimum":0},"active_run_epoch":{"type":"integer","minimum":0},"active_config_revision":{"type":"integer","minimum":0},"active_config_etag":{"type":"string"},"edges":{"type":"array","items":{"type":"object"}}}}
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:graphx:dashboard:edge-metrics:v1",
+  "type":"object",
+  "required":["schema","active_generation","active_run_epoch","active_config_revision","active_config_etag","capture_id","sampled_at_monotonic_ms","identity_availability","edges"],
+  "additionalProperties":false,
+  "properties":{
+    "schema":{"const":"graphx.dashboard.edge_metrics.v1"},
+    "active_generation":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "active_run_epoch":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "active_config_revision":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "active_config_etag":{"type":"string","maxLength":256},
+    "capture_id":{"type":"string","minLength":1,"maxLength":128},
+    "sampled_at_monotonic_ms":{"type":"integer","minimum":0,"maximum":9007199254740991},
+    "identity_availability":{"$ref":"urn:graphx:dashboard:metrics:v1#/$defs/availability"},
+    "edges":{"type":"array","maxItems":512,"items":{"$ref":"urn:graphx:dashboard:metrics:v1#/$defs/edge"}}
+  }
+}

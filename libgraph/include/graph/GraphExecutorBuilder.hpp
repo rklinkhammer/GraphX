@@ -207,6 +207,8 @@ public:
  * @return Result of the operation.
  */
     GraphExecutorBuilder& WithExecutorTimeout(const std::chrono::seconds& timeout);
+    GraphExecutorBuilder& WithExecutorTimeout(
+        const std::chrono::milliseconds& timeout);
 
     /**
      * @brief Set number of graph execution threads
@@ -310,7 +312,7 @@ private:
     std::vector<std::string> plugin_directories_;
     std::vector<std::pair<std::string, std::string>> csv_inputs_;
     uint32_t csv_injection_rate_ms_;
-    std::chrono::seconds executor_timeout_;
+    std::chrono::milliseconds executor_timeout_;
     size_t graph_threads_;
     bool verbose_logging_;
     bool already_built_;

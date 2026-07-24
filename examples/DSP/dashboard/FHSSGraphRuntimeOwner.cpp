@@ -281,7 +281,7 @@ void FHSSGraphRuntimeOwner::SetBeforeExecuteHookForTesting(
 }
 
 void FHSSGraphRuntimeOwner::SetExecutorTimeoutForTesting(
-    std::chrono::seconds timeout) {
+    std::chrono::milliseconds timeout) {
   const std::lock_guard operation_lock(operation_mutex_);
   executor_timeout_ = timeout;
 }

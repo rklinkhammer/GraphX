@@ -1,1 +1,190 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"urn:graphx:dashboard:metrics:v1","type":"object","required":["schema","active_generation","active_run_epoch","active_config_revision","active_config_etag","metric_definitions","graph","nodes","edges"],"additionalProperties":false,"properties":{"schema":{"const":"graphx.dashboard.metrics.v1"},"active_generation":{"type":"integer","minimum":0},"active_run_epoch":{"type":"integer","minimum":0},"active_config_revision":{"type":"integer","minimum":0},"active_config_etag":{"type":"string"},"metric_definitions":{"type":"array","minItems":19,"maxItems":19,"items":{"type":"object","additionalProperties":false,"required":["name","scope","kind","unit","monotonic","reset"],"properties":{"name":{"type":"string"},"scope":{"enum":["graph","node","edge"]},"kind":{"enum":["counter","gauge","distribution"]},"unit":{"enum":["item","message","event","thread"]},"monotonic":{"type":"boolean"},"reset":{"const":"new_graph_generation"}}}},"graph":{"type":"object"},"nodes":{"type":"array","items":{"type":"object"}},"edges":{"type":"array","items":{"type":"object"}}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphx:dashboard:metrics:v1",
+  "type": "object",
+  "required": ["schema","active_generation","active_run_epoch","active_config_revision","active_config_etag","capture_id","sampled_at_monotonic_ms","collection_interval","rate_availability","qualified_rates","identity_availability","metric_definitions","graph","nodes","edges"],
+  "additionalProperties": false,
+  "$defs": {
+    "safeInteger": {"type":"integer","minimum":0,"maximum":9007199254740991},
+    "availability": {"type":"object","required":["state","reason"],"additionalProperties":false,"properties":{"state":{"enum":["available","unavailable"]},"reason":{"type":["string","null"],"maxLength":512}},"allOf":[{"if":{"properties":{"state":{"const":"available"}}},"then":{"properties":{"reason":{"type":"null"}}}},{"if":{"properties":{"state":{"const":"unavailable"}}},"then":{"properties":{"reason":{"type":"string","minLength":1}}}}]},
+    "collectionInterval": {"type":"object","required":["state","reason","clock","duration_ms"],"additionalProperties":false,"properties":{"state":{"enum":["available","unavailable"]},"reason":{"type":["string","null"],"maxLength":512},"clock":{"const":"steady_clock"},"duration_ms":{"anyOf":[{"type":"integer","minimum":1,"maximum":9007199254740991},{"type":"null"}]}},"allOf":[{"if":{"properties":{"state":{"const":"available"}}},"then":{"properties":{"reason":{"type":"null"},"duration_ms":{"type":"integer","minimum":1,"maximum":9007199254740991}}}},{"if":{"properties":{"state":{"const":"unavailable"}}},"then":{"properties":{"reason":{"type":"string","minLength":1},"duration_ms":{"type":"null"}}}}]},
+    "identityAvailability": {"type":"object","required":["state","reason"],"additionalProperties":false,"properties":{"state":{"enum":["available","unavailable"]},"reason":{"type":["string","null"],"maxLength":512},"canonical_node_count":{"$ref":"#/$defs/safeInteger"},"canonical_edge_count":{"$ref":"#/$defs/safeInteger"}}},
+    "nullableMetric":{"anyOf":[{"$ref":"#/$defs/safeInteger"},{"type":"null"}]},
+    "definition": {
+      "type":"object",
+      "required":["name","field","scope","kind","unit","monotonic","availability","capture","reset","aggregation","overflow","numeric_representation"],
+      "additionalProperties":false,
+      "properties":{
+        "name":{"enum":["total_items_processed","total_items_rejected","total_messages_processed","graph_total_enqueued","graph_total_dequeued","backpressure_events","peak_queue_depth","peak_active_threads","inbound_messages","outbound_messages","rejected_messages","connected_edges","diagnostics_available","activity_state","messages_enqueued","messages_dequeued","messages_rejected","current_queue_depth","transfer_service_duration","initialized","started","thread_active","queue_residence_duration","node_processing_duration","end_to_end_duration","dashboard_delivery_duration"]},
+        "field":{"type":"string","pattern":"^/(graph|nodes/\\*|edges/\\*)/[a-z_]+$","maxLength":128},
+        "scope":{"enum":["graph","node","edge"]},
+        "kind":{"enum":["counter","gauge","distribution","state"]},
+        "unit":{"enum":["item","message","event","thread","edge","boolean","state","nanosecond"]},
+        "monotonic":{"type":"boolean"},
+        "availability":{"const":"explicit"},
+        "capture":{"type":"string","minLength":1,"maxLength":128},
+        "reset":{"enum":["new_runtime_manager","sample_replaced","not_collected"]},
+        "aggregation":{"type":"string","minLength":1,"maxLength":192},
+        "overflow":{"enum":["unavailable_above_javascript_safe_integer","not_applicable"]},
+        "numeric_representation":{"enum":["non_negative_javascript_safe_integer","boolean","enumerated_string","structured_duration"]}
+      },
+      "oneOf":[
+        {"properties":{"name":{"const":"total_items_processed"},"field":{"const":"/graph/total_items_processed"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"item"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"total_items_rejected"},"field":{"const":"/graph/total_items_rejected"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"item"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"total_messages_processed"},"field":{"const":"/graph/total_messages_processed"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"graph_total_enqueued"},"field":{"const":"/graph/graph_total_enqueued"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"graph_total_dequeued"},"field":{"const":"/graph/graph_total_dequeued"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"backpressure_events"},"field":{"const":"/graph/backpressure_events"},"scope":{"const":"graph"},"kind":{"const":"counter"},"unit":{"const":"event"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"runtime manager aggregate loaded atomically; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"peak_queue_depth"},"field":{"const":"/graph/peak_queue_depth"},"scope":{"const":"graph"},"kind":{"const":"gauge"},"unit":{"const":"message"},"monotonic":{"const":false},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"maximum retained by the active runtime manager"}}},
+        {"properties":{"name":{"const":"peak_active_threads"},"field":{"const":"/graph/peak_active_threads"},"scope":{"const":"graph"},"kind":{"const":"gauge"},"unit":{"const":"thread"},"monotonic":{"const":false},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"maximum retained by the active runtime manager"}}},
+        {"properties":{"name":{"const":"inbound_messages"},"field":{"const":"/nodes/*/inbound_messages"},"scope":{"const":"node"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"checked sum of incident canonical edge counters in one collection"}}},
+        {"properties":{"name":{"const":"outbound_messages"},"field":{"const":"/nodes/*/outbound_messages"},"scope":{"const":"node"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"checked sum of incident canonical edge counters in one collection"}}},
+        {"properties":{"name":{"const":"rejected_messages"},"field":{"const":"/nodes/*/rejected_messages"},"scope":{"const":"node"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"checked sum of incident canonical edge counters in one collection"}}},
+        {"properties":{"name":{"const":"backpressure_events"},"field":{"const":"/nodes/*/backpressure_events"},"scope":{"const":"node"},"kind":{"const":"counter"},"unit":{"const":"event"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"checked sum of incident canonical edge counters in one collection"}}},
+        {"properties":{"name":{"const":"peak_queue_depth"},"field":{"const":"/nodes/*/peak_queue_depth"},"scope":{"const":"node"},"kind":{"const":"gauge"},"unit":{"const":"message"},"monotonic":{"const":false},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"maximum retained by the active runtime manager"}}},
+        {"properties":{"name":{"const":"connected_edges"},"field":{"const":"/nodes/*/connected_edges"},"scope":{"const":"node"},"kind":{"const":"gauge"},"unit":{"const":"edge"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"no cross-sample aggregation"}}},
+        {"properties":{"name":{"const":"diagnostics_available"},"field":{"const":"/nodes/*/diagnostics_available"},"scope":{"const":"node"},"kind":{"const":"state"},"unit":{"const":"boolean"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"activity_state"},"field":{"const":"/nodes/*/activity_state"},"scope":{"const":"node"},"kind":{"const":"state"},"unit":{"const":"state"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"messages_enqueued"},"field":{"const":"/edges/*/messages_enqueued"},"scope":{"const":"edge"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"direct atomic edge counter; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"messages_dequeued"},"field":{"const":"/edges/*/messages_dequeued"},"scope":{"const":"edge"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"direct atomic edge counter; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"messages_rejected"},"field":{"const":"/edges/*/messages_rejected"},"scope":{"const":"edge"},"kind":{"const":"counter"},"unit":{"const":"message"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"direct atomic edge counter; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"backpressure_events"},"field":{"const":"/edges/*/backpressure_events"},"scope":{"const":"edge"},"kind":{"const":"counter"},"unit":{"const":"event"},"monotonic":{"const":true},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"direct atomic edge counter; never re-summed by dashboard"}}},
+        {"properties":{"name":{"const":"current_queue_depth"},"field":{"const":"/edges/*/current_queue_depth"},"scope":{"const":"edge"},"kind":{"const":"gauge"},"unit":{"const":"message"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"no cross-sample aggregation"}}},
+        {"properties":{"name":{"const":"peak_queue_depth"},"field":{"const":"/edges/*/peak_queue_depth"},"scope":{"const":"edge"},"kind":{"const":"gauge"},"unit":{"const":"message"},"monotonic":{"const":false},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"maximum retained by the active runtime manager"}}},
+        {"properties":{"name":{"const":"transfer_service_duration"},"field":{"const":"/edges/*/transfer_service_duration"},"scope":{"const":"edge"},"kind":{"const":"distribution"},"unit":{"const":"nanosecond"},"monotonic":{"const":false},"reset":{"const":"new_runtime_manager"},"aggregation":{"const":"cumulative successful transfer-call duration and count"}}},
+        {"properties":{"name":{"const":"initialized"},"field":{"const":"/edges/*/initialized"},"scope":{"const":"edge"},"kind":{"const":"state"},"unit":{"const":"boolean"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"started"},"field":{"const":"/edges/*/started"},"scope":{"const":"edge"},"kind":{"const":"state"},"unit":{"const":"boolean"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"thread_active"},"field":{"const":"/edges/*/thread_active"},"scope":{"const":"edge"},"kind":{"const":"state"},"unit":{"const":"boolean"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"activity_state"},"field":{"const":"/edges/*/activity_state"},"scope":{"const":"edge"},"kind":{"const":"state"},"unit":{"const":"state"},"monotonic":{"const":false},"reset":{"const":"sample_replaced"},"aggregation":{"const":"one state per canonical record"}}},
+        {"properties":{"name":{"const":"queue_residence_duration"},"field":{"const":"/edges/*/queue_residence_duration"},"scope":{"const":"edge"},"kind":{"const":"distribution"},"unit":{"const":"nanosecond"},"monotonic":{"const":false},"reset":{"const":"not_collected"},"aggregation":{"const":"explicitly unavailable; GraphX does not timestamp queue entry and exit"}}},
+        {"properties":{"name":{"const":"node_processing_duration"},"field":{"const":"/edges/*/node_processing_duration"},"scope":{"const":"edge"},"kind":{"const":"distribution"},"unit":{"const":"nanosecond"},"monotonic":{"const":false},"reset":{"const":"not_collected"},"aggregation":{"const":"explicitly unavailable; node service intervals are not collected here"}}},
+        {"properties":{"name":{"const":"end_to_end_duration"},"field":{"const":"/edges/*/end_to_end_duration"},"scope":{"const":"edge"},"kind":{"const":"distribution"},"unit":{"const":"nanosecond"},"monotonic":{"const":false},"reset":{"const":"not_collected"},"aggregation":{"const":"explicitly unavailable; messages are not end-to-end correlated"}}},
+        {"properties":{"name":{"const":"dashboard_delivery_duration"},"field":{"const":"/edges/*/dashboard_delivery_duration"},"scope":{"const":"edge"},"kind":{"const":"distribution"},"unit":{"const":"nanosecond"},"monotonic":{"const":false},"reset":{"const":"not_collected"},"aggregation":{"const":"explicitly unavailable; browser delivery is outside the runtime metric boundary"}}}
+      ]
+    },
+    "activity":{"enum":["idle","initialized","started","active","backpressured","running","unavailable"]},
+    "node":{
+      "type":"object",
+      "required":["node_id","availability","unavailable_reason","node_index","name","type","inbound_messages","outbound_messages","rejected_messages","backpressure_events","peak_queue_depth","connected_edges","diagnostics_available","activity_state"],
+      "additionalProperties":false,
+      "properties":{
+        "node_id":{"type":"string","minLength":1,"maxLength":128},
+        "availability":{"enum":["available","unavailable"]},
+        "unavailable_reason":{"type":["string","null"],"maxLength":512},
+        "node_index":{"$ref":"#/$defs/safeInteger"},
+        "name":{"type":"string","maxLength":256},
+        "type":{"type":"string","minLength":1,"maxLength":256},
+        "inbound_messages":{"$ref":"#/$defs/nullableMetric"},
+        "outbound_messages":{"$ref":"#/$defs/nullableMetric"},
+        "rejected_messages":{"$ref":"#/$defs/nullableMetric"},
+        "backpressure_events":{"$ref":"#/$defs/nullableMetric"},
+        "peak_queue_depth":{"$ref":"#/$defs/nullableMetric"},
+        "connected_edges":{"$ref":"#/$defs/nullableMetric"},
+        "diagnostics_available":{"type":"boolean"},
+        "activity_state":{"$ref":"#/$defs/activity"}
+      },
+      "allOf":[
+        {"if":{"properties":{"availability":{"const":"available"}}},"then":{"properties":{"unavailable_reason":{"type":"null"},"inbound_messages":{"$ref":"#/$defs/safeInteger"},"outbound_messages":{"$ref":"#/$defs/safeInteger"},"rejected_messages":{"$ref":"#/$defs/safeInteger"},"backpressure_events":{"$ref":"#/$defs/safeInteger"},"peak_queue_depth":{"$ref":"#/$defs/safeInteger"},"connected_edges":{"$ref":"#/$defs/safeInteger"}}}},
+        {"if":{"properties":{"availability":{"const":"unavailable"}}},"then":{"properties":{"unavailable_reason":{"type":"string","minLength":1},"inbound_messages":{"type":"null"},"outbound_messages":{"type":"null"},"rejected_messages":{"type":"null"},"backpressure_events":{"type":"null"},"peak_queue_depth":{"type":"null"},"connected_edges":{"type":"null"},"activity_state":{"const":"unavailable"}}}}
+      ]
+    },
+    "transferDuration":{
+      "type":"object",
+      "required":["availability","reason","clock","start_event","end_event","unit","count","cumulative_total"],
+      "additionalProperties":false,
+      "properties":{
+        "availability":{"enum":["available","unavailable"]},
+        "reason":{"type":["string","null"],"maxLength":512},
+        "clock":{"type":["string","null"],"maxLength":128},
+        "start_event":{"type":["string","null"],"maxLength":128},
+        "end_event":{"type":["string","null"],"maxLength":128},
+        "unit":{"const":"nanosecond"},
+        "count":{"$ref":"#/$defs/nullableMetric"},
+        "cumulative_total":{"$ref":"#/$defs/nullableMetric"}
+      },
+      "allOf":[
+        {"if":{"properties":{"availability":{"const":"available"}}},"then":{"properties":{"reason":{"type":"null"},"clock":{"const":"steady_clock"},"start_event":{"const":"DynamicEdge TransferTo call entry"},"end_event":{"const":"DynamicEdge TransferTo call return"},"count":{"$ref":"#/$defs/safeInteger"},"cumulative_total":{"$ref":"#/$defs/safeInteger"}}}},
+        {"if":{"properties":{"availability":{"const":"unavailable"}}},"then":{"properties":{"reason":{"type":"string","minLength":1},"clock":{"type":"null"},"start_event":{"type":"null"},"end_event":{"type":"null"},"count":{"type":"null"},"cumulative_total":{"type":"null"}}}}
+      ]
+    },
+    "edge":{
+      "type":"object",
+      "required":["edge_id","source_node_id","source_port","destination_node_id","destination_port","availability","unavailable_reason","edge_index","source_node_index","source_node_name","source_port_index","destination_node_index","destination_node_name","destination_port_index","message_type","messages_enqueued","messages_dequeued","messages_rejected","backpressure_events","current_queue_depth","current_queue_depth_availability","peak_queue_depth","transfer_service_duration","queue_residence_duration","node_processing_duration","end_to_end_duration","dashboard_delivery_duration","initialized","started","thread_active","activity_state"],
+      "additionalProperties":false,
+      "properties":{
+        "edge_id":{"type":"string","minLength":5,"maxLength":320},
+        "source_node_id":{"type":"string","minLength":1,"maxLength":128},
+        "source_port":{"$ref":"#/$defs/safeInteger"},
+        "destination_node_id":{"type":"string","minLength":1,"maxLength":128},
+        "destination_port":{"$ref":"#/$defs/safeInteger"},
+        "availability":{"enum":["available","unavailable"]},
+        "unavailable_reason":{"type":["string","null"],"maxLength":512},
+        "edge_index":{"$ref":"#/$defs/safeInteger"},
+        "source_node_index":{"$ref":"#/$defs/safeInteger"},
+        "source_node_name":{"type":"string","maxLength":256},
+        "source_port_index":{"$ref":"#/$defs/safeInteger"},
+        "destination_node_index":{"$ref":"#/$defs/safeInteger"},
+        "destination_node_name":{"type":"string","maxLength":256},
+        "destination_port_index":{"$ref":"#/$defs/safeInteger"},
+        "message_type":{"type":"string","maxLength":512},
+        "messages_enqueued":{"$ref":"#/$defs/nullableMetric"},
+        "messages_dequeued":{"$ref":"#/$defs/nullableMetric"},
+        "messages_rejected":{"$ref":"#/$defs/nullableMetric"},
+        "backpressure_events":{"$ref":"#/$defs/nullableMetric"},
+        "current_queue_depth":{"$ref":"#/$defs/nullableMetric"},
+        "current_queue_depth_availability":{"$ref":"#/$defs/availability"},
+        "peak_queue_depth":{"$ref":"#/$defs/nullableMetric"},
+        "transfer_service_duration":{"$ref":"#/$defs/transferDuration"},
+        "queue_residence_duration":{"$ref":"#/$defs/transferDuration"},
+        "node_processing_duration":{"$ref":"#/$defs/transferDuration"},
+        "end_to_end_duration":{"$ref":"#/$defs/transferDuration"},
+        "dashboard_delivery_duration":{"$ref":"#/$defs/transferDuration"},
+        "initialized":{"type":"boolean"},
+        "started":{"type":"boolean"},
+        "thread_active":{"type":"boolean"},
+        "activity_state":{"$ref":"#/$defs/activity"}
+      },
+      "allOf":[
+        {"if":{"properties":{"availability":{"const":"available"}}},"then":{"properties":{"unavailable_reason":{"type":"null"},"messages_enqueued":{"$ref":"#/$defs/safeInteger"},"messages_dequeued":{"$ref":"#/$defs/safeInteger"},"messages_rejected":{"$ref":"#/$defs/safeInteger"},"backpressure_events":{"$ref":"#/$defs/safeInteger"},"peak_queue_depth":{"$ref":"#/$defs/safeInteger"}}}},
+        {"if":{"properties":{"availability":{"const":"unavailable"}}},"then":{"properties":{"unavailable_reason":{"type":"string","minLength":1},"messages_enqueued":{"type":"null"},"messages_dequeued":{"type":"null"},"messages_rejected":{"type":"null"},"backpressure_events":{"type":"null"},"peak_queue_depth":{"type":"null"},"activity_state":{"const":"unavailable"}}}}
+      ]
+    }
+  },
+  "properties":{
+    "schema":{"const":"graphx.dashboard.metrics.v1"},
+    "active_generation":{"$ref":"#/$defs/safeInteger"},
+    "active_run_epoch":{"$ref":"#/$defs/safeInteger"},
+    "active_config_revision":{"$ref":"#/$defs/safeInteger"},
+    "active_config_etag":{"type":"string","maxLength":256},
+    "capture_id":{"type":"string","minLength":1,"maxLength":128},
+    "sampled_at_monotonic_ms":{"$ref":"#/$defs/safeInteger"},
+    "collection_interval":{"$ref":"#/$defs/collectionInterval"},
+    "rate_availability":{"$ref":"#/$defs/availability"},
+    "qualified_rates":{"type":"array","maxItems":2,"items":{"type":"object","required":["name","scope","unit","interval_ms","value"],"additionalProperties":false,"properties":{"name":{"enum":["graph_total_enqueued","graph_total_dequeued"]},"scope":{"const":"graph"},"unit":{"const":"messages_per_second"},"interval_ms":{"type":"integer","minimum":1,"maximum":9007199254740991},"value":{"type":"number","minimum":0}}}},
+    "identity_availability":{"$ref":"#/$defs/identityAvailability"},
+    "metric_definitions":{"type":"array","minItems":31,"maxItems":31,"uniqueItems":true,"items":{"$ref":"#/$defs/definition"}},
+    "graph":{
+      "type":"object",
+      "required":["availability","unavailable_reason","total_items_processed","total_items_rejected","total_messages_processed","graph_total_enqueued","graph_total_dequeued","backpressure_events","peak_queue_depth","peak_active_threads"],
+      "additionalProperties":false,
+      "properties":{
+        "availability":{"enum":["available","unavailable"]},
+        "unavailable_reason":{"type":["string","null"],"maxLength":512},
+        "total_items_processed":{"$ref":"#/$defs/nullableMetric"},
+        "total_items_rejected":{"$ref":"#/$defs/nullableMetric"},
+        "total_messages_processed":{"$ref":"#/$defs/nullableMetric"},
+        "graph_total_enqueued":{"$ref":"#/$defs/nullableMetric"},
+        "graph_total_dequeued":{"$ref":"#/$defs/nullableMetric"},
+        "backpressure_events":{"$ref":"#/$defs/nullableMetric"},
+        "peak_queue_depth":{"$ref":"#/$defs/nullableMetric"},
+        "peak_active_threads":{"$ref":"#/$defs/nullableMetric"}
+      },
+      "allOf":[
+        {"if":{"properties":{"availability":{"const":"available"}}},"then":{"properties":{"unavailable_reason":{"type":"null"},"total_items_processed":{"$ref":"#/$defs/safeInteger"},"total_items_rejected":{"$ref":"#/$defs/safeInteger"},"total_messages_processed":{"$ref":"#/$defs/safeInteger"},"graph_total_enqueued":{"$ref":"#/$defs/safeInteger"},"graph_total_dequeued":{"$ref":"#/$defs/safeInteger"},"backpressure_events":{"$ref":"#/$defs/safeInteger"},"peak_queue_depth":{"$ref":"#/$defs/safeInteger"},"peak_active_threads":{"$ref":"#/$defs/safeInteger"}}}},
+        {"if":{"properties":{"availability":{"const":"unavailable"}}},"then":{"properties":{"unavailable_reason":{"type":"string","minLength":1},"total_items_processed":{"type":"null"},"total_items_rejected":{"type":"null"},"total_messages_processed":{"type":"null"},"graph_total_enqueued":{"type":"null"},"graph_total_dequeued":{"type":"null"},"backpressure_events":{"type":"null"},"peak_queue_depth":{"type":"null"},"peak_active_threads":{"type":"null"}}}}
+      ]
+    },
+    "nodes":{"type":"array","maxItems":256,"items":{"$ref":"#/$defs/node"}},
+    "edges":{"type":"array","maxItems":512,"items":{"$ref":"#/$defs/edge"}}
+  }
+}

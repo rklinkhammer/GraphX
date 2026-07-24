@@ -142,9 +142,9 @@ public:
                 thread_metrics_.thread_active.store(true, std::memory_order_release);
                 thread_metrics_.active_thread_count.store(1, std::memory_order_release);
                 while (running_.load(std::memory_order_acquire)) {
-                    const auto transfer_start = std::chrono::high_resolution_clock::now();
+                    const auto transfer_start = std::chrono::steady_clock::now();
                     auto moved = source_.port->TransferTo(*destination_.port);
-                    const auto transfer_end = std::chrono::high_resolution_clock::now();
+                    const auto transfer_end = std::chrono::steady_clock::now();
                     const auto transfer_ns = static_cast<uint64_t>(
                         std::chrono::duration_cast<std::chrono::nanoseconds>(
                             transfer_end - transfer_start)
@@ -164,11 +164,11 @@ public:
                             break;
                         }
 
-                        const auto idle_start = std::chrono::high_resolution_clock::now();
+                        const auto idle_start = std::chrono::steady_clock::now();
                         std::this_thread::sleep_for(std::chrono::milliseconds(1));
                         const auto idle_ns = static_cast<uint64_t>(
                             std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                std::chrono::high_resolution_clock::now() - idle_start)
+                                std::chrono::steady_clock::now() - idle_start)
                                 .count());
                         thread_metrics_.total_idle_time_ns.fetch_add(idle_ns, std::memory_order_acq_rel);
                         thread_metrics_.total_queue_wait_ns.fetch_add(idle_ns, std::memory_order_acq_rel);
@@ -193,11 +193,11 @@ public:
                         continue;
                     }
 
-                    const auto idle_start = std::chrono::high_resolution_clock::now();
+                    const auto idle_start = std::chrono::steady_clock::now();
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     const auto idle_ns = static_cast<uint64_t>(
                         std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            std::chrono::high_resolution_clock::now() - idle_start)
+                            std::chrono::steady_clock::now() - idle_start)
                             .count());
                     thread_metrics_.total_idle_time_ns.fetch_add(idle_ns, std::memory_order_acq_rel);
                     thread_metrics_.total_queue_wait_ns.fetch_add(idle_ns, std::memory_order_acq_rel);

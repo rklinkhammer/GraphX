@@ -5,6 +5,7 @@ import {
   DETECTOR_BANK_ID, detectorForPhysicalChannel,
   type DetectorMapping, type FHSSPresentation,
 } from './fhssPresentation';
+import { isPresentationBundleEdge } from './topology';
 import { StructuredValue } from './Operations';
 import { nextSelectionIndex } from './topology';
 
@@ -34,6 +35,7 @@ export function DetectorInspector({ presentation, selection, observation, onSele
     : undefined;
   const groupedBoundary = selection?.kind === 'edge' && group
     ? presentation.collapsed.edges.find((edge) => edge.id === selection.id
+      && isPresentationBundleEdge(edge)
       && (edge.source_node_id === group.id || edge.target_node_id === group.id))
     : undefined;
   if (groupedBoundary && group) {
@@ -55,7 +57,7 @@ export function DetectorInspector({ presentation, selection, observation, onSele
       <h2 id="detector-inspector-heading">Grouped boundary inspector</h2>
       <dl>
         <dt>Display edge</dt><dd>{groupedBoundary.id}</dd>
-        <dt>Presentation only</dt><dd>Yes — this summarizes 64 authoritative exact-port edges.</dd>
+        <dt>Presentation only</dt><dd>Yes — this bundle has no canonical numeric ports and summarizes 64 authoritative exact-port edges.</dd>
         <dt>Direction</dt><dd>{incoming ? 'Channelizer fan-out into detector bank' : 'Detector bank fan-in to pulse merge'}</dd>
       </dl>
       <details open><summary>Authoritative exact-port mappings (64)</summary><StructuredValue value={mappings} /></details>

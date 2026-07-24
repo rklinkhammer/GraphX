@@ -449,6 +449,40 @@ TEST(GraphConfigurationJsonPatchTest, FailureCategoriesAreIndividuallyAtomic) {
   EXPECT_TRUE(arrays.GetScenarioResponse()["scenario"]["root"]);
 }
 
+TEST(GraphConfigurationJsonPatchTest,
+     RevisionStopsAtJavascriptSafeIntegerWithoutMutatingConfiguration) {
+  constexpr std::uint64_t kMaximumJavascriptSafeInteger =
+      9'007'199'254'740'991ULL;
+  graph::dashboard::GraphConfigurationService service(
+      nlohmann::json{{"value", 1}});
+  service.SetRevisionForTesting(kMaximumJavascriptSafeInteger - 1);
+
+  const auto first = service.ApplyJsonPatch(
+      nlohmann::json::array(
+          {{{"op", "replace"}, {"path", "/value"}, {"value", 2}}}),
+      service.ETag(), false);
+  ASSERT_EQ(first.value("status", std::string{}), "applied") << first.dump();
+  EXPECT_EQ(service.ConfigRevision(), kMaximumJavascriptSafeInteger);
+  EXPECT_EQ(service.GetScenarioResponse().at("scenario").at("value"), 2);
+
+  const auto before = service.GetScenarioResponse();
+  const auto exhausted = service.ApplyJsonPatch(
+      nlohmann::json::array(
+          {{{"op", "replace"}, {"path", "/value"}, {"value", 3}}}),
+      service.ETag(), false);
+  EXPECT_EQ(exhausted.value("code", std::string{}),
+            "revision_space_exhausted")
+      << exhausted.dump();
+  EXPECT_EQ(service.ConfigRevision(), kMaximumJavascriptSafeInteger);
+  EXPECT_EQ(service.GetScenarioResponse(), before);
+
+  const auto undo = service.UndoLastEdit();
+  EXPECT_EQ(undo.value("code", std::string{}), "revision_space_exhausted")
+      << undo.dump();
+  EXPECT_EQ(service.ConfigRevision(), kMaximumJavascriptSafeInteger);
+  EXPECT_EQ(service.GetScenarioResponse(), before);
+}
+
 TEST(FhssDashboardConfigurationPolicyTest,
      AliasGeneratedPathsAndMoveCopySourcesCannotBypassReadOnlyPolicy) {
   const auto config =

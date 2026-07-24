@@ -1,10 +1,29 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
-import type { TopologyModel } from './topology';
+import type { DisplayTopologyModel } from './topology';
+import { isPresentationBundleEdge } from './topology';
 import { normalizeLayout } from './topology';
 
 const elk = new ELK();
 
-export async function layoutTopology(model: TopologyModel): Promise<Map<string, { x: number; y: number }>> {
+export async function layoutTopology(model: DisplayTopologyModel): Promise<Map<string, { x: number; y: number }>> {
+  const parents = new Map(model.nodes.filter(({ parentId }) => !parentId).map((node) => [node.id, node]));
+  const parentOf = new Map(model.nodes.filter(({ parentId }) => parentId)
+    .map((node) => [node.id, node.parentId!]));
+  const rootId = (nodeId: string) => parentOf.get(nodeId) ?? nodeId;
+  const rootEdges = new Map<string, { id: string; source: string; target: string }>();
+  for (const edge of model.edges) {
+    const sourceRoot = rootId(edge.source_node_id);
+    const targetRoot = rootId(edge.target_node_id);
+    if (sourceRoot === targetRoot) continue;
+    const crossesHierarchy = sourceRoot !== edge.source_node_id || targetRoot !== edge.target_node_id;
+    const bundled = isPresentationBundleEdge(edge);
+    const id = crossesHierarchy || bundled ? `${sourceRoot}->${targetRoot}` : edge.id;
+    const source = crossesHierarchy || bundled
+      ? sourceRoot : `${edge.source_node_id}:${edge.sourceHandle}`;
+    const target = crossesHierarchy || bundled
+      ? targetRoot : `${edge.target_node_id}:${edge.targetHandle}`;
+    if (!rootEdges.has(id)) rootEdges.set(id, { id, source, target });
+  }
   const result = await elk.layout({
     id: 'graphx',
     layoutOptions: {
@@ -15,16 +34,31 @@ export async function layoutTopology(model: TopologyModel): Promise<Map<string, 
       'elk.spacing.nodeNode': '35',
       'elk.layered.spacing.nodeNodeBetweenLayers': '100',
     },
-    children: model.nodes.map((node) => ({
-      id: node.id, width: 220, height: Math.max(86, 54 + Math.max(node.inputPorts.length, node.outputPorts.length) * 14),
+    children: [...parents.values()].map((node) => ({
+      id: node.id,
+      width: node.presentationRole === 'group' && node.configuration.expanded ? 1420 : 220,
+      height: node.presentationRole === 'group' && node.configuration.expanded
+        ? 900 : Math.max(86, 54 + Math.max(node.inputPorts.length, node.outputPorts.length) * 14),
       ports: [
         ...node.inputPorts.map((port) => ({ id: `${node.id}:in-${port}`, layoutOptions: { 'elk.port.side': 'WEST', 'elk.port.index': String(port) } })),
         ...node.outputPorts.map((port) => ({ id: `${node.id}:out-${port}`, layoutOptions: { 'elk.port.side': 'EAST', 'elk.port.index': String(port) } })),
       ],
       layoutOptions: { 'elk.portConstraints': 'FIXED_ORDER' },
     })),
-    edges: model.edges.map((edge) => ({ id: edge.id, sources: [`${edge.source_node_id}:${edge.sourceHandle}`], targets: [`${edge.target_node_id}:${edge.targetHandle}`] })),
+    edges: [...rootEdges.values()].map((edge) => ({
+      id: edge.id,
+      sources: [edge.source],
+      targets: [edge.target],
+    })),
   });
   const normalized = normalizeLayout((result.children ?? []).map((node) => ({ id: node.id, x: node.x ?? 0, y: node.y ?? 0 })));
-  return new Map(normalized.map(({ id, x, y }) => [id, { x, y }]));
+  const positions = new Map(normalized.map(({ id, x, y }) => [id, { x, y }]));
+  const children = model.nodes.filter(({ parentId }) => parentId);
+  children.forEach((node, index) => {
+    positions.set(node.id, {
+      x: 45 + (index % 8) * 170,
+      y: 90 + Math.floor(index / 8) * 98,
+    });
+  });
+  return positions;
 }

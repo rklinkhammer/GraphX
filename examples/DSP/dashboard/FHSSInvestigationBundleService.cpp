@@ -616,7 +616,7 @@ nlohmann::json BuildApiManifest(Checkpoint checkpoint) {
            CurrentExecutableIdentity(std::move(checkpoint))},
           {"source_revision", kBuildSourceRevision},
           {"source_dirty", kBuildSourceDirty},
-          {"source_state_capture", "configure_time_git_status_porcelain"},
+          {"source_state_capture", kBuildSourceStateCapture},
           {"language_standard", "C++26"}, {"platform", platform},
           {"openapi", {{"version", "7.0.0"},
                        {"sha256", kPinnedOpenApiSha256}}},

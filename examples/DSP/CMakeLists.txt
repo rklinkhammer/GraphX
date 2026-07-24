@@ -148,16 +148,34 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
     endforeach()
     file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/dashboard/api/openapi.json"
         GRAPHX_FHSS_OPENAPI_SHA256)
-    execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
-    execute_process(COMMAND git status --porcelain WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_DIRTY_FILES OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
-    if(GRAPHX_FHSS_SOURCE_DIRTY_FILES)
-        set(GRAPHX_FHSS_SOURCE_DIRTY true)
+    set(GRAPHX_FHSS_SOURCE_REVISION_OVERRIDE "" CACHE STRING
+        "Explicit 40-hex revision for build contexts that intentionally omit .git")
+    set(GRAPHX_FHSS_SOURCE_DIRTY_OVERRIDE "" CACHE STRING
+        "Explicit true/false dirty state paired with the revision override")
+    if(GRAPHX_FHSS_SOURCE_REVISION_OVERRIDE)
+        set(GRAPHX_FHSS_SOURCE_REVISION
+            "${GRAPHX_FHSS_SOURCE_REVISION_OVERRIDE}")
+        if(GRAPHX_FHSS_SOURCE_DIRTY_OVERRIDE STREQUAL "true")
+            set(GRAPHX_FHSS_SOURCE_DIRTY true)
+        else()
+            set(GRAPHX_FHSS_SOURCE_DIRTY false)
+        endif()
+        set(GRAPHX_FHSS_SOURCE_STATE_CAPTURE
+            "configure_time_explicit_build_context")
     else()
-        set(GRAPHX_FHSS_SOURCE_DIRTY false)
+        execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        execute_process(COMMAND git status --porcelain WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            OUTPUT_VARIABLE GRAPHX_FHSS_SOURCE_DIRTY_FILES OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        if(GRAPHX_FHSS_SOURCE_DIRTY_FILES)
+            set(GRAPHX_FHSS_SOURCE_DIRTY true)
+        else()
+            set(GRAPHX_FHSS_SOURCE_DIRTY false)
+        endif()
+        set(GRAPHX_FHSS_SOURCE_STATE_CAPTURE
+            "configure_time_git_status_porcelain")
     endif()
     configure_file(
         dashboard/FHSSPinnedSchemas.hpp.in
@@ -280,8 +298,10 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss-dashboard-v2.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase1_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase2_operator_test.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase3_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_frontend_policy.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/adr/0001-fhss-dashboard-react-flow-elk.md
+        ${CMAKE_SOURCE_DIR}/docs/dsp/adr/0002-dashboard-runtime-identity-and-metrics.md
         DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/fhss-dashboard/docs)
     install(FILES
         ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_cpsm_channelized_fixture_500msps.json

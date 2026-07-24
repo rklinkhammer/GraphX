@@ -44,6 +44,8 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace websocket = beast::websocket;
 using tcp = asio::ip::tcp;
+constexpr std::uint64_t kMaximumJsonSafeInteger =
+    (std::uint64_t{1} << 53) - 1;
 
 struct EmbeddedDashboardServer::ServerState {
   struct Worker {
@@ -811,7 +813,11 @@ void EmbeddedDashboardServer::PublishEvent(std::string event_type,
       const auto replace = std::ranges::find_if(
           pending_events_, [&](const PendingEvent &queued) {
             return pending.coalescible &&
-                   queued.event_type == pending.event_type;
+                   queued.event_type == pending.event_type &&
+                   queued.generation == pending.generation &&
+                   queued.run_epoch == pending.run_epoch &&
+                   queued.config_revision == pending.config_revision &&
+                   queued.config_etag == pending.config_etag;
           });
       if (replace != pending_events_.end()) {
         const auto bytes_without_replaced =
@@ -2016,13 +2022,35 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
       const auto diagnostics = snapshot_collector_->GetDiagnosticsSnapshot();
       const auto runtime_after = runtime_session_->SnapshotStatus();
       const auto config_after = configuration_service_->GetConfigResponse();
+      const auto config_revision =
+          config_after.value("config_revision", std::uint64_t{0});
+      const auto config_etag =
+          config_after.value("etag", std::string{});
+      const auto graph_revision =
+          graph_snapshot.value("config_revision", std::uint64_t{0});
+      const auto graph_etag =
+          graph_snapshot.value("etag", std::string{});
+      const auto resource_matches = [&](const nlohmann::json &resource) {
+        return resource.value("active_generation", 0u) ==
+                   runtime_after.active_generation &&
+               resource.value("active_run_epoch", 0u) ==
+                   runtime_after.active_run_epoch &&
+               resource.value("active_config_revision", 0u) ==
+                   runtime_after.active_config_revision &&
+               resource.value("active_config_etag", std::string{}) ==
+                   runtime_after.active_config_etag;
+      };
       if (config_before.value("config_revision", 0u) !=
-              config_after.value("config_revision", 0u) ||
+              config_revision ||
           config_before.value("etag", std::string{}) !=
-              config_after.value("etag", std::string{}) ||
+              config_etag ||
+          graph_revision != config_revision || graph_etag != config_etag ||
           runtime_before.active_generation != runtime_after.active_generation ||
           runtime_before.active_run_epoch != runtime_after.active_run_epoch ||
-          runtime_before.state != runtime_after.state) {
+          runtime_before.state != runtime_after.state ||
+          runtime_after.active_config_revision != config_revision ||
+          runtime_after.active_config_etag != config_etag ||
+          !resource_matches(metrics) || !resource_matches(diagnostics)) {
         continue;
       }
       std::uint64_t latest_sequence = 0;
@@ -2034,6 +2062,37 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
         dropped_events = dropped_events_total_;
         coalesced_events = coalesced_events_total_;
       }
+      auto runtime_resource = RuntimeStatusJson(runtime_after);
+      runtime_resource["config_revision"] = config_revision;
+      runtime_resource["etag"] = config_etag;
+      runtime_resource["rebuild_required"] = false;
+      runtime_resource["configuration_stale"] = false;
+      const std::array<std::uint64_t, 17> transport_counters{
+          server_state_->websocket_pongs_received.load(),
+          server_state_->websocket_idle_closes.load(),
+          server_state_->websocket_protocol_failures.load(),
+          server_state_->websocket_rejected_upgrades.load(),
+          server_state_->websocket_replayed_events.load(),
+          server_state_->websocket_resync_requests.load(),
+          server_state_->websocket_queue_overflows.load(),
+          server_state_->websocket_close_normal.load(),
+          server_state_->websocket_close_protocol.load(),
+          server_state_->websocket_close_unsupported.load(),
+          server_state_->websocket_close_invalid_utf8.load(),
+          server_state_->websocket_close_too_big.load(),
+          server_state_->websocket_close_policy.load(),
+          server_state_->websocket_close_going_away.load(),
+          server_state_->websocket_close_internal.load(), dropped_events,
+          coalesced_events};
+      const bool transport_counters_available =
+          std::ranges::all_of(transport_counters, [](const auto value) {
+            return value <= kMaximumJsonSafeInteger;
+          });
+      const auto transport_counter_json =
+          [transport_counters_available](const std::uint64_t value) {
+            return transport_counters_available ? nlohmann::json(value)
+                                                : nlohmann::json(nullptr);
+          };
       return Response{
           .status_code = 200,
           .content_type = "application/json",
@@ -2042,45 +2101,81 @@ EmbeddedDashboardServer::HandleApiRequest(const Request &request) const {
                {"publisher_epoch", publisher_epoch_},
                {"latest_sequence", latest_sequence},
                {"captured_at", NowIso8601()},
-               {"config_revision", config_after.value("config_revision", 0u)},
-               {"config_etag", config_after.value("etag", std::string{})},
+               {"config_revision", config_revision},
+               {"config_etag", config_etag},
                {"generation", runtime_after.active_generation},
                {"run_epoch", runtime_after.active_run_epoch},
+               {"coherence",
+                {{"state", "coherent"},
+                 {"metric_capture_id",
+                  metrics.value("capture_id", std::string{})},
+                 {"diagnostic_capture_id",
+                  diagnostics.value("capture_id", std::string{})}}},
                {"configuration", config_after},
                {"graph", graph_snapshot},
-               {"runtime", RuntimeStatusJson(runtime_after)},
+               {"runtime", runtime_resource},
                {"metrics", metrics},
                {"transport",
                 {{"active_websocket_clients",
                   server_state_->active_websocket_clients.load()},
+                 {"counter_availability",
+                  {{"state", transport_counters_available ? "available"
+                                                          : "unavailable"},
+                   {"reason",
+                    transport_counters_available
+                        ? nlohmann::json(nullptr)
+                        : nlohmann::json(
+                              "one or more transport counters exceed "
+                              "JavaScript safe integer representation")}}},
                  {"pongs_received",
-                  server_state_->websocket_pongs_received.load()},
-                 {"idle_closes", server_state_->websocket_idle_closes.load()},
+                  transport_counter_json(
+                      server_state_->websocket_pongs_received.load())},
+                 {"idle_closes",
+                  transport_counter_json(
+                      server_state_->websocket_idle_closes.load())},
                  {"protocol_failures",
-                  server_state_->websocket_protocol_failures.load()},
+                  transport_counter_json(
+                      server_state_->websocket_protocol_failures.load())},
                  {"rejected_upgrades",
-                  server_state_->websocket_rejected_upgrades.load()},
+                  transport_counter_json(
+                      server_state_->websocket_rejected_upgrades.load())},
                  {"replayed_events",
-                  server_state_->websocket_replayed_events.load()},
+                  transport_counter_json(
+                      server_state_->websocket_replayed_events.load())},
                  {"resync_requests",
-                  server_state_->websocket_resync_requests.load()},
+                  transport_counter_json(
+                      server_state_->websocket_resync_requests.load())},
                  {"queue_overflows",
-                  server_state_->websocket_queue_overflows.load()},
+                  transport_counter_json(
+                      server_state_->websocket_queue_overflows.load())},
                  {"close_reasons",
-                  {{"normal", server_state_->websocket_close_normal.load()},
-                   {"protocol", server_state_->websocket_close_protocol.load()},
+                  {{"normal", transport_counter_json(
+                                  server_state_->websocket_close_normal.load())},
+                   {"protocol",
+                    transport_counter_json(
+                        server_state_->websocket_close_protocol.load())},
                    {"unsupported_data",
-                    server_state_->websocket_close_unsupported.load()},
+                    transport_counter_json(
+                        server_state_->websocket_close_unsupported.load())},
                    {"invalid_utf8",
-                    server_state_->websocket_close_invalid_utf8.load()},
-                   {"too_big", server_state_->websocket_close_too_big.load()},
-                   {"policy", server_state_->websocket_close_policy.load()},
+                    transport_counter_json(
+                        server_state_->websocket_close_invalid_utf8.load())},
+                   {"too_big",
+                    transport_counter_json(
+                        server_state_->websocket_close_too_big.load())},
+                   {"policy",
+                    transport_counter_json(
+                        server_state_->websocket_close_policy.load())},
                    {"going_away",
-                    server_state_->websocket_close_going_away.load()},
+                    transport_counter_json(
+                        server_state_->websocket_close_going_away.load())},
                    {"internal",
-                    server_state_->websocket_close_internal.load()}}},
-                 {"dropped_events_total", dropped_events},
-                 {"coalesced_events_total", coalesced_events}}},
+                    transport_counter_json(
+                        server_state_->websocket_close_internal.load())}}},
+                 {"dropped_events_total",
+                  transport_counter_json(dropped_events)},
+                 {"coalesced_events_total",
+                  transport_counter_json(coalesced_events)}}},
                {"diagnostics", diagnostics}})};
     }
     return Response{
@@ -2721,7 +2816,7 @@ void EmbeddedDashboardServer::PublishEventImpl(
       context.is_object() ? std::move(context) : nlohmann::json::object();
   envelope.payload = std::move(payload);
   std::scoped_lock lock(event_mutex_);
-  if (next_event_sequence_ == std::numeric_limits<std::uint64_t>::max()) {
+  if (next_event_sequence_ > kMaximumJsonSafeInteger) {
     for (auto &[id, client] : clients_) {
       (void)id;
       client.resync_required = true;

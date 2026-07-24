@@ -20,6 +20,8 @@
 namespace graph::dashboard {
 namespace {
 
+constexpr std::uint64_t kMaximumJsonSafeInteger = 9'007'199'254'740'991ULL;
+
 std::string ToIso8601(const std::chrono::system_clock::time_point &time_point) {
   const auto now = std::chrono::system_clock::to_time_t(time_point);
   std::tm utc{};
@@ -352,6 +354,11 @@ void GraphConfigurationService::SetUpdateEventSinkForTesting(
   update_event_sink_ = std::move(sink);
 }
 
+void GraphConfigurationService::SetRevisionForTesting(std::uint64_t revision) {
+  std::lock_guard lock(configuration_mutex_);
+  revision_ = revision;
+}
+
 std::optional<GraphConfigurationService::ValidationError>
 GraphConfigurationService::ValidateWithInjector(
     const nlohmann::json &request) const {
@@ -573,6 +580,13 @@ GraphConfigurationService::ApplyScenarioRequest(const nlohmann::json &request,
             "configuration changed before this transaction could commit",
             {{"current_revision", revision_}}, command_id, revision_);
       }
+      if (revision_ >= kMaximumJsonSafeInteger) {
+        return BuildErrorResponse(
+            409, "revision_space_exhausted",
+            "configuration revision cannot advance within JavaScript safe "
+            "integer bounds",
+            {{"current_revision", revision_}}, command_id, revision_);
+      }
       undo_stack_.push_back(scenario_);
       scenario_ = change.scenario;
       validation_ = change.validation;
@@ -603,6 +617,13 @@ GraphConfigurationService::ApplyScenarioRequest(const nlohmann::json &request,
 nlohmann::json GraphConfigurationService::CommitScenarioChange(
     const PendingChange &change, const std::string &command_id,
     std::uint64_t old_revision, bool rebuild_required) {
+  if (revision_ >= kMaximumJsonSafeInteger) {
+    return BuildErrorResponse(
+        409, "revision_space_exhausted",
+        "configuration revision cannot advance within JavaScript safe integer "
+        "bounds",
+        {{"current_revision", revision_}}, command_id, revision_);
+  }
   undo_stack_.push_back(scenario_);
   scenario_ = change.scenario;
   validation_ = change.validation;
@@ -775,6 +796,13 @@ GraphConfigurationService::ApplyJsonPatch(const nlohmann::json &patch,
           "configuration changed before this transaction could commit",
           {{"current_etag", current_etag}}, {}, revision_);
     }
+    if (revision_ >= kMaximumJsonSafeInteger) {
+      return BuildErrorResponse(
+          409, "revision_space_exhausted",
+          "configuration revision cannot advance within JavaScript safe "
+          "integer bounds",
+          {{"current_revision", revision_}}, {}, revision_);
+    }
     undo_stack_.push_back(scenario_);
     scenario_ = change.scenario;
     validation_ = change.validation;
@@ -834,6 +862,13 @@ nlohmann::json GraphConfigurationService::UndoLastEdit() {
                                 "configuration changed before undo commit",
                                 {{"current_revision", revision_}}, "undo",
                                 revision_);
+    }
+    if (revision_ >= kMaximumJsonSafeInteger) {
+      return BuildErrorResponse(
+          409, "revision_space_exhausted",
+          "configuration revision cannot advance within JavaScript safe "
+          "integer bounds",
+          {{"current_revision", revision_}}, "undo", revision_);
     }
     undo_stack_.pop_back();
     scenario_ = previous;
@@ -1004,6 +1039,8 @@ nlohmann::json GraphConfigurationService::GetGraphResponse() const {
   return nlohmann::json{{"schema", "graphx.dashboard.graph.v1"},
                         {"owner", owner_},
                         {"config_revision", revision},
+                        {"etag",
+                         "\"graphx-config-" + std::to_string(revision) + "\""},
                         {"graph", effective}};
 }
 

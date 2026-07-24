@@ -85,7 +85,9 @@ struct EdgeMetrics {
     /// Messages rejected (queue full) on this edge
     std::atomic<uint64_t> messages_rejected{0};
     
-    /// Cumulative time messages spent in this edge's queue (nanoseconds)
+    /// Cumulative duration of successful DynamicEdge::TransferTo calls.
+    /// This is transfer/service duration, not queue residence or end-to-end
+    /// latency. The historic member name is retained for source compatibility.
     std::atomic<uint64_t> total_queue_time_ns{0};
     
     /// Number of times the queue was full (backpressure events)
@@ -124,14 +126,19 @@ struct EdgeMetrics {
     EdgeMetrics& operator=(EdgeMetrics&&) = delete;
     
     /**
-     * Get average latency per message on this edge
-     * @return Average queue latency in microseconds (0.0 if no messages)
+     * Historic compatibility accessor. The measured interval is the
+     * DynamicEdge transfer/service call, not generic or queue latency.
+     * @return Average transfer/service duration in microseconds.
      */
     double GetAverageLatencyUs() const {
         uint64_t total_ns = total_queue_time_ns.load(std::memory_order_relaxed);
         uint64_t dequeued = messages_dequeued.load(std::memory_order_relaxed);
         if (dequeued == 0) return 0.0;
         return (static_cast<double>(total_ns) / dequeued) / 1000.0;
+    }
+
+    [[nodiscard]] double GetAverageTransferServiceDurationUs() const {
+        return GetAverageLatencyUs();
     }
     
     /**
@@ -205,6 +212,10 @@ struct EdgeMetadata {
  * @details Groups related fields passed through GraphX runtime, DSP, or GPU boundaries. The type is intentionally documented as a value object so callers understand ownership, lifetime, and validation expectations.
  */
 struct GraphMetrics {
+    /// True when any graph aggregate could not be represented without
+    /// unsigned-integer overflow. Aggregate values are saturated in that
+    /// case and consumers must publish the aggregate as unavailable.
+    std::atomic<bool> aggregation_overflow{false};
     // ====================================================================
     // Lifecycle timing (nanoseconds)
     // ====================================================================
@@ -245,7 +256,9 @@ struct GraphMetrics {
     // Timing aggregates
     // ====================================================================
     
-    /// Cumulative time messages spent in queues
+    /// Cumulative DynamicEdge transfer/service duration aggregated across
+    /// edges. This is not queue residence or end-to-end latency; the historic
+    /// member name is retained for source compatibility.
     std::atomic<uint64_t> total_queue_time_ns{0};
     
     /// Cumulative processing time
@@ -315,14 +328,20 @@ struct GraphMetrics {
     }
     
     /**
-     * Get average latency per message in microseconds
-     * @return Average time in queue per message (0.0 if no messages)
+     * Historic compatibility accessor for average DynamicEdge
+     * transfer/service duration.
+     * @return Average transfer/service duration in microseconds (0.0 if no
+     * messages)
      */
     double GetAverageLatencyUs() const {
         uint64_t total_ns = total_queue_time_ns.load(std::memory_order_relaxed);
         uint64_t dequeued = graph_total_dequeued.load(std::memory_order_relaxed);
         if (dequeued == 0) return 0.0;
         return (static_cast<double>(total_ns) / static_cast<double>(dequeued)) / 1000.0;
+    }
+
+    [[nodiscard]] double GetAverageTransferServiceDurationUs() const {
+        return GetAverageLatencyUs();
     }
     
     /**
@@ -357,4 +376,3 @@ struct GraphMetrics {
 };
 
 } // namespace graph
-

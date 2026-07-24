@@ -49,7 +49,7 @@ describe('Phase 2 application channel synchronization', () => {
       const path = String(input);
       if (path === '/api/v1/fhss/graph') {
         return json({
-          schema: 'graphx.dashboard.graph.v1', owner: 'receiver',
+          schema: 'graphx.dashboard.graph.v1', owner: 'receiver', etag: '"graphx-config-0"',
           config_revision: 0, graph,
         });
       }
@@ -70,6 +70,8 @@ describe('Phase 2 application channel synchronization', () => {
     await screen.findByRole('button', { name: /Ch 17.*3 expected pulses/ });
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand 8×8 detector bank' }));
+    await screen.findByText('Display nodes (76)');
+    expect(screen.getByText('Display edges (137)')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Ch 17.*3 expected pulses/ }));
 
     const grid = screen.getByRole('grid', {
@@ -79,7 +81,8 @@ describe('Phase 2 application channel synchronization', () => {
       within(grid).getByRole('gridcell', { name: /Ch 17/ }).getAttribute('aria-selected'),
     ).toBe('true'));
 
-    expect(screen.getByRole('option', { name: /detector_17/ }).getAttribute('aria-selected')).toBe('true');
+    expect(within(screen.getByRole('listbox', { name: 'GraphX nodes' }))
+      .getByRole('option', { name: /detector_17/ }).getAttribute('aria-selected')).toBe('true');
     const inspector = screen.getByRole('heading', { name: 'Selected detector' }).parentElement!;
     expect(within(inspector).getByText('Physical channel').nextElementSibling?.textContent).toBe('17');
     await waitFor(() => expect(

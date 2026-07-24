@@ -17,6 +17,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -366,6 +367,7 @@ TEST_F(FhssDashboardServerContractTest, GraphAndConfigResponseSchemas) {
   EXPECT_EQ(graph_json.at("schema").get<std::string>(),
             "graphx.dashboard.graph.v1");
   EXPECT_TRUE(graph_json.contains("config_revision"));
+  EXPECT_EQ(graph_json.at("etag"), "\"graphx-config-1\"");
   EXPECT_TRUE(graph_json.at("graph").contains("nodes"));
   EXPECT_TRUE(graph_json.at("graph").contains("edges"));
 
@@ -391,7 +393,7 @@ TEST_F(FhssDashboardServerContractTest,
   EXPECT_EQ(metrics_json.at("nodes").size(), 0u);
   EXPECT_EQ(metrics_json.at("edges").size(), 0u);
   EXPECT_EQ(metrics_json.at("active_run_epoch"), 0u);
-  ASSERT_EQ(metrics_json.at("metric_definitions").size(), 19u);
+  ASSERT_EQ(metrics_json.at("metric_definitions").size(), 31u);
   const std::map<std::pair<std::string, std::string>, std::string>
       expected_units{
           {{"graph", "total_items_processed"}, "item"},
@@ -407,23 +409,55 @@ TEST_F(FhssDashboardServerContractTest,
           {{"node", "rejected_messages"}, "message"},
           {{"node", "backpressure_events"}, "event"},
           {{"node", "peak_queue_depth"}, "message"},
+          {{"node", "connected_edges"}, "edge"},
+          {{"node", "diagnostics_available"}, "boolean"},
+          {{"node", "activity_state"}, "state"},
           {{"edge", "messages_enqueued"}, "message"},
           {{"edge", "messages_dequeued"}, "message"},
           {{"edge", "messages_rejected"}, "message"},
           {{"edge", "backpressure_events"}, "event"},
           {{"edge", "current_queue_depth"}, "message"},
           {{"edge", "peak_queue_depth"}, "message"},
+          {{"edge", "transfer_service_duration"}, "nanosecond"},
+          {{"edge", "initialized"}, "boolean"},
+          {{"edge", "started"}, "boolean"},
+          {{"edge", "thread_active"}, "boolean"},
+          {{"edge", "activity_state"}, "state"},
+          {{"edge", "queue_residence_duration"}, "nanosecond"},
+          {{"edge", "node_processing_duration"}, "nanosecond"},
+          {{"edge", "end_to_end_duration"}, "nanosecond"},
+          {{"edge", "dashboard_delivery_duration"}, "nanosecond"},
       };
+  std::set<std::pair<std::string, std::string>> observed;
   for (const auto &definition : metrics_json.at("metric_definitions")) {
     EXPECT_TRUE(definition.at("kind") == "counter" ||
-                definition.at("kind") == "gauge");
-    EXPECT_EQ(definition.at("reset"), "new_graph_generation");
+                definition.at("kind") == "gauge" ||
+                definition.at("kind") == "distribution" ||
+                definition.at("kind") == "state");
+    EXPECT_TRUE(definition.at("reset") == "new_runtime_manager" ||
+                definition.at("reset") == "sample_replaced" ||
+                definition.at("reset") == "not_collected");
     const auto key = std::pair{definition.at("scope").get<std::string>(),
                                definition.at("name").get<std::string>()};
     ASSERT_TRUE(expected_units.contains(key));
+    EXPECT_TRUE(observed.insert(key).second);
     EXPECT_EQ(definition.at("unit"), expected_units.at(key));
+    const auto expected_field =
+        "/" + key.first + (key.first == "graph" ? "/" : "s/*/") +
+        key.second;
+    EXPECT_EQ(definition.at("field"), expected_field);
     EXPECT_TRUE(definition.contains("monotonic"));
+    EXPECT_EQ(definition.at("availability"), "explicit");
+    EXPECT_FALSE(definition.at("capture").get<std::string>().empty());
+    EXPECT_FALSE(definition.at("aggregation").get<std::string>().empty());
+    EXPECT_TRUE(
+        definition.at("overflow") ==
+            "unavailable_above_javascript_safe_integer" ||
+        definition.at("overflow") == "not_applicable");
   }
+  EXPECT_EQ(observed.size(), expected_units.size());
+  EXPECT_EQ(metrics_json.at("graph").at("availability"), "unavailable");
+  EXPECT_TRUE(metrics_json.at("graph").at("graph_total_enqueued").is_null());
 
   const auto edge_metrics =
       HttpGet(server_->BoundPort(), "/api/v1/fhss/metrics/edges");

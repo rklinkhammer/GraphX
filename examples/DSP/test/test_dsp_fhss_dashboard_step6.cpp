@@ -7,6 +7,7 @@
 #include "graph/dashboard/GraphConfigurationService.hpp"
 #include "graph/dashboard/GraphRuntimeSession.hpp"
 #include "graph/dashboard/GraphSnapshotCollector.hpp"
+#include "graph/GraphManagerCore.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -313,6 +314,30 @@ std::pair<bool, bool> ReadUntilPongAndText(int fd, std::string_view needle) {
   return {pong, text_match};
 }
 
+class CoherentSnapshotRuntimeOwner final
+    : public graph::dashboard::IGraphRuntimeOwner {
+public:
+  Result Rebuild(std::uint64_t, const BuildSnapshot &) override {
+    return {200, "rebuilt", "coherent snapshot fixture rebuilt",
+            std::make_shared<graph::GraphManager>()};
+  }
+  Result Start(std::uint64_t, std::uint64_t) override {
+    return {202, "started", "coherent snapshot fixture started"};
+  }
+  Result Stop(std::uint64_t) override {
+    return {200, "stopped", "coherent snapshot fixture stopped"};
+  }
+  Result Shutdown(std::uint64_t) override {
+    return {200, "shutdown", "coherent snapshot fixture shut down"};
+  }
+  void SetCompletionCallback(CompletionCallback callback) override {
+    completion_ = std::move(callback);
+  }
+
+private:
+  CompletionCallback completion_;
+};
+
 class FhssDashboardEventReplayTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -324,8 +349,14 @@ protected:
             config_,
             std::make_shared<
                 dsp::fhss::dashboard::FHSSDashboardConfigurationPolicy>());
-    runtime_session_ =
-        std::make_shared<graph::dashboard::GraphRuntimeSession>();
+    runtime_session_ = std::make_shared<graph::dashboard::GraphRuntimeSession>(
+        std::make_shared<CoherentSnapshotRuntimeOwner>());
+    runtime_session_->MarkReady();
+    const auto rebuild = runtime_session_->Rebuild(
+        {.receiver_graph = config_,
+         .config_revision = configuration_service_->ConfigRevision(),
+         .config_etag = configuration_service_->ETag()});
+    ASSERT_EQ(rebuild.status_code, 200) << rebuild.message;
     snapshot_collector_ =
         std::make_shared<graph::dashboard::GraphSnapshotCollector>();
 
@@ -1201,6 +1232,29 @@ TEST_F(FhssDashboardEventReplayTest,
 
 TEST_F(FhssDashboardEventReplayTest,
        ResyncSnapshotCarriesOneCoherentIdentityTuple) {
+  server_->Stop();
+  runtime_session_ = std::make_shared<graph::dashboard::GraphRuntimeSession>(
+      std::make_shared<CoherentSnapshotRuntimeOwner>());
+  runtime_session_->MarkReady();
+  const auto effective = configuration_service_->GetConfigResponse();
+  ASSERT_EQ(runtime_session_
+                ->Rebuild({.receiver_graph = config_,
+                           .config_revision =
+                               effective.at("config_revision")
+                                   .get<std::uint64_t>(),
+                           .config_etag =
+                               effective.at("etag").get<std::string>()})
+                .status_code,
+            200);
+  snapshot_collector_ =
+      std::make_shared<graph::dashboard::GraphSnapshotCollector>();
+  graph::dashboard::EmbeddedDashboardServer::Options options;
+  options.port = 0;
+  options.asset_directory = assets_;
+  server_ = std::make_unique<graph::dashboard::EmbeddedDashboardServer>(
+      options, configuration_service_, runtime_session_, snapshot_collector_);
+  ASSERT_TRUE(server_->Start()) << server_->LastError();
+
   server_->PublishEvent("snapshot_seed", {{"oracle", 23}});
   const auto response = HttpGet(server_->BoundPort(), "/api/v1/fhss/snapshot");
   ASSERT_EQ(response.status_code, 200) << response.body;
@@ -1210,10 +1264,27 @@ TEST_F(FhssDashboardEventReplayTest,
             snapshot.at("configuration").at("config_revision"));
   EXPECT_EQ(snapshot.at("config_etag"),
             snapshot.at("configuration").at("etag"));
+  EXPECT_EQ(snapshot.at("config_revision"),
+            snapshot.at("graph").at("config_revision"));
+  EXPECT_EQ(snapshot.at("config_etag"), snapshot.at("graph").at("etag"));
   EXPECT_EQ(snapshot.at("generation"),
             snapshot.at("runtime").at("active_generation"));
   EXPECT_EQ(snapshot.at("run_epoch"),
             snapshot.at("runtime").at("active_run_epoch"));
+  for (const auto *resource_name : {"metrics", "diagnostics"}) {
+    const auto &resource = snapshot.at(resource_name);
+    EXPECT_EQ(resource.at("active_generation"), snapshot.at("generation"));
+    EXPECT_EQ(resource.at("active_run_epoch"), snapshot.at("run_epoch"));
+    EXPECT_EQ(resource.at("active_config_revision"),
+              snapshot.at("config_revision"));
+    EXPECT_EQ(resource.at("active_config_etag"), snapshot.at("config_etag"));
+  }
+  EXPECT_EQ(snapshot.at("coherence").at("metric_capture_id"),
+            snapshot.at("metrics").at("capture_id"));
+  EXPECT_EQ(snapshot.at("coherence").at("diagnostic_capture_id"),
+            snapshot.at("diagnostics").at("capture_id"));
+  EXPECT_EQ(snapshot.at("transport").at("counter_availability").at("state"),
+            "available");
   EXPECT_GE(snapshot.at("latest_sequence").get<std::uint64_t>(), 1u);
 }
 
@@ -1486,6 +1557,43 @@ TEST_F(FhssDashboardEventReplayTest,
       HttpGet(server_->BoundPort(), "/api/v1/fhss/snapshot").body);
   EXPECT_GT(snapshot.at("transport").at("queue_overflows").get<std::uint64_t>(),
             0u);
+}
+
+TEST_F(FhssDashboardEventReplayTest,
+       CoalescingNeverMergesDiagnosticsAcrossConfigurationIdentityTuples) {
+  graph::dashboard::EmbeddedDashboardServer::Options options;
+  options.max_publisher_ingress_events = 4;
+  RestartWithOptions(options);
+  server_->SetPublisherPausedForTesting(true);
+  const auto old_revision = configuration_service_->ConfigRevision();
+  const auto old_etag = configuration_service_->ETag();
+  server_->PublishEvent("diagnostics", {{"sample", "old"}});
+  const auto update = configuration_service_->PatchConfig(
+      {{"schema", "graphx.dashboard.config_update.v1"},
+       {"command_id", "coalescing-identity-update"},
+       {"expected_revision", old_revision},
+       {"pointer", "/fhss/scenario/iq_center_frequency_hz"},
+       {"value", 1240000001.0},
+       {"apply", "staged"}});
+  ASSERT_EQ(update.value("status", std::string{}), "staged") << update.dump();
+  const auto new_revision = configuration_service_->ConfigRevision();
+  const auto new_etag = configuration_service_->ETag();
+  ASSERT_NE(new_revision, old_revision);
+  ASSERT_NE(new_etag, old_etag);
+  server_->PublishEvent("diagnostics", {{"sample", "new"}});
+  server_->SetPublisherPausedForTesting(false);
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  const auto batch = PollEvents("coalescing-identity-client", 0);
+  std::set<std::pair<std::uint64_t, std::string>> identities;
+  for (const auto &event : batch.at("events")) {
+    if (event.value("event_type", std::string{}) == "diagnostics") {
+      identities.emplace(event.at("config_revision").get<std::uint64_t>(),
+                         event.at("config_etag").get<std::string>());
+    }
+  }
+  EXPECT_TRUE(identities.contains(std::pair{old_revision, old_etag}));
+  EXPECT_TRUE(identities.contains(std::pair{new_revision, new_etag}));
 }
 
 TEST_F(FhssDashboardEventReplayTest,
