@@ -727,6 +727,53 @@ Phase 0 passes only when:
 - Prove that instrumentation overhead is bounded and does not participate in
   scheduling.
 
+Phase 4 reuses consecutive coherent `graphx.dashboard.metrics.v1` snapshots;
+it does not add another API or event type. The browser derives representative
+message rates only from same-generation, same-run, same-configuration
+monotonic `messages_dequeued` deltas. The divisor is the full positive
+difference between the two retained captures' server
+`sampled_at_monotonic_ms` values. This remains correct when browser delivery
+skips an intermediate collector capture; the current collector-local
+`collection_interval.duration_ms` is not incorrectly applied to a multi-capture
+counter delta. The current sample must still declare an available
+`steady_clock` collection interval and qualified rate availability. Both
+captures must declare the production `edge:messages_dequeued` definition
+exactly: message unit, monotonic counter, new-runtime-manager reset, atomic
+relaxed-load within one collector snapshot, direct edge-counter aggregation,
+and safe-integer overflow semantics. Reset, stale, missing, overflowed,
+incoherent, or partially available evidence is explicitly unavailable rather
+than zero. Collapsed detector-bank bundles aggregate their enumerated
+authoritative edge identities and withhold a total when any member is
+unavailable.
+
+The implemented presentation bounds are:
+
+- 32 animated authoritative/display edges;
+- one representative moving pattern per edge;
+- 10 accepted presentation updates per browser-monotonic second (metric rates
+  never use this clock);
+- 12 data-driven visual refreshes per second;
+- 60 retained aggregate frames;
+- one retained latest coalesced update, within the declared maximum of two;
+- 64 expanded detector children; and
+- no ELK invocation for metric-only changes.
+
+The latest-frame scheduler directly caps presentation promotion at 10 Hz
+(therefore also below the 12 Hz visual-refresh bound), promotes the newest
+coalesced frame at the next cadence boundary, clears superseded queued state,
+and cancels its timer on replacement or unmount. Its coalesced and queued
+counts are visible operator state. CSS motion is representative only. Pause,
+speed, system reduced-motion, explicit reduced-motion, and overload
+suppression do not change collection or GraphX execution. Edge class and
+qualified activity remain available in the semantic topology. Manual
+external-operator evidence is defined in
+`docs/dsp/fhss_dashboard_v2_phase4_operator_test.md`.
+
+Message classes use an exact allowlist of the nine production FHSS packet base
+types after removing only namespace/wrapper trailing decoration. Generic
+strings containing “message”, “candidate”, “complex”, or similar words remain
+`unknown/unclassified`.
+
 ### Phase 5: Feature parity and qualification
 
 - Complete configuration, runtime, jobs, observations, spectrum, and

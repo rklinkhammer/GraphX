@@ -18,6 +18,10 @@ header p { margin: 0.35rem 0 0; }
 .eyebrow { color: #b9e4d8; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; }
 .transport { max-width: 32rem; padding: 0.6rem; border: 1px solid #6b9d91; border-radius: 0.4rem; }
 main { padding: clamp(0.5rem, 2vw, 1.5rem); }
+.activity-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.8rem; margin-bottom: 1rem; padding: 1rem; background: #fff; border: 1px solid #b7c7c3; border-radius: 0.7rem; }
+.activity-controls > div { flex: 1 1 22rem; }
+.activity-controls h2, .activity-controls p { margin: 0.2rem 0; }
+.activity-controls label { display: grid; gap: 0.25rem; }
 .topology-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(16rem, 1fr); gap: 1rem; }
 .topology-card, .semantic-card, .inspector, .operations, .state { background: #fff; border: 1px solid #b7c7c3; border-radius: 0.7rem; padding: 1rem; box-shadow: 0 0.3rem 1.3rem #183b3220; }
 .semantic-card { grid-column: 1 / -1; }
@@ -42,6 +46,18 @@ h2 { margin: 0 0 0.4rem; }
   stroke-width: 5;
   stroke-dasharray: 10 5;
 }
+.activity-edge.activity-active .react-flow__edge-path { stroke: #176f5f; }
+.activity-edge.activity-idle .react-flow__edge-path { stroke: #687874; }
+.activity-edge.activity-unavailable .react-flow__edge-path { stroke: #815f54; stroke-dasharray: 4 5; }
+.message-iq-block .react-flow__edge-path { stroke-linecap: square; }
+.message-channel-iq .react-flow__edge-path { stroke-linecap: round; }
+.message-pulse-candidate .react-flow__edge-path { stroke-dasharray: 3 3; }
+.message-decoder-data .react-flow__edge-path { stroke-dasharray: 9 3; }
+.message-assembled-message .react-flow__edge-path { stroke-linecap: round; }
+.message-unknown-unclassified .react-flow__edge-path { stroke-dasharray: 2 7; }
+.react-flow__edge.animated .react-flow__edge-path { animation-duration: var(--activity-duration, 1.5s); }
+.activity-text.available::before { content: "◆ "; }
+.activity-text.unavailable::before { content: "◇ "; }
 .graph-node span, .graph-node small { overflow-wrap: anywhere; }
 .graph-node small { color: #40524e; }
 .react-flow__handle { width: 10px; height: 10px; background: #184b43; }

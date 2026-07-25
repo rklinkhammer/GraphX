@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getGraph } from './api';
 import type { ObservationResource, SnapshotResource } from './api';
 import {
@@ -13,6 +13,12 @@ import type { GraphContract, GraphResource, LoadState } from './domain';
 import { isPresentationBundleEdge, toTopology, type TopologyModel } from './topology';
 import type { FHSSPresentation } from './fhssPresentation';
 import { useEventTransport } from './useEventTransport';
+import {
+  activityForDisplayModel, animatedEdgeIds, coherentMetrics, deriveAuthoritativeActivity,
+  MAX_VISIBLE_ACTIVITY_MARKERS, type ActivityFrame,
+} from './activity';
+import { ActivityControls, useActivityPreferences } from './ActivityControls';
+import { useBoundedActivityPresentation } from './useBoundedActivityPresentation';
 
 export const SELECTION_CLEARED_MESSAGE =
   'Selection cleared because the selected topology identity is not present in the refreshed graph.';
@@ -24,6 +30,10 @@ export function App() {
   const [detectorBankExpanded, setDetectorBankExpanded] = useState(false);
   const [observation, setObservation] = useState<ObservationResource>();
   const [snapshot, setSnapshot] = useState<SnapshotResource>();
+  const [activityFrame, setActivityFrame] = useState<ActivityFrame>();
+  const previousMetrics = useRef<SnapshotResource['metrics'] | undefined>(undefined);
+  const boundedActivity = useBoundedActivityPresentation(activityFrame);
+  const [activityPreferences, setActivityPreferences] = useActivityPreferences();
   const [selectionNotice, setSelectionNotice] = useState('');
   const refresh = useCallback(async () => {
     try {
@@ -79,6 +89,26 @@ export function App() {
   const displayModel = presentation
     ? detectorBankExpanded ? presentation.expanded : presentation.collapsed
     : undefined;
+  const displayActivity = useMemo(() => displayModel
+    ? activityForDisplayModel(displayModel, boundedActivity.frame) : new Map(), [boundedActivity.frame, displayModel]);
+  const motionDisabled = activityPreferences.paused || activityPreferences.reducedMotion
+    || activityPreferences.systemReducedMotion;
+  const animatedEdges = useMemo(() => animatedEdgeIds(
+    displayActivity, activityPreferences.paused,
+    activityPreferences.reducedMotion || activityPreferences.systemReducedMotion,
+  ), [activityPreferences, displayActivity]);
+  const activeCount = [...displayActivity.values()]
+    .filter((edge) => edge.availability === 'available' && (edge.messages ?? 0) > 0).length;
+  const suppressedActivity = Math.max(0, activeCount - MAX_VISIBLE_ACTIVITY_MARKERS);
+  const acceptSnapshot = useCallback((next: SnapshotResource | undefined) => {
+    setSnapshot(next);
+    const metrics = coherentMetrics(next);
+    if (!metrics) { previousMetrics.current = undefined; setActivityFrame(undefined); return; }
+    if (previousMetrics.current?.capture_id === metrics.capture_id) return;
+    const nextFrame = deriveAuthoritativeActivity(previousMetrics.current, metrics);
+    setActivityFrame(nextFrame);
+    previousMetrics.current = metrics;
+  }, []);
   return <>
     <header><div><p className="eyebrow">Engineering and research platform</p><h1>GraphX FHSS Dashboard</h1><p>Synthetic IQ evaluation only — no HWIL, OTA, live-RF, or production-RF qualification.</p></div><p className="transport" role="status" aria-live="polite">{transportStatus}</p></header>
     <main id="main" tabIndex={-1}>
@@ -87,16 +117,22 @@ export function App() {
         && <section className="state" role="alert"><h2>Topology presentation unavailable</h2><p>{prepared.error}</p><p>The operator workbench remains available.</p></section>}
       {selectionNotice && <p className="stale" role="status">{selectionNotice}</p>}
       {model && presentation && displayModel && <>
+        <ActivityControls value={activityPreferences} onChange={setActivityPreferences}
+          suppressed={suppressedActivity} coalescedUpdates={boundedActivity.coalescedUpdates}
+          queuedUpdates={boundedActivity.queuedUpdates} />
         <div className="topology-layout">
           <GraphView model={displayModel} selection={canvasSelection} onSelection={chooseSelection}
-            authoritativeCounts={{ nodes: model.nodes.length, edges: model.edges.length }} />
+            authoritativeCounts={{ nodes: model.nodes.length, edges: model.edges.length }}
+            activity={displayActivity} animatedEdges={animatedEdges}
+            activitySpeed={activityPreferences.speed} motionDisabled={motionDisabled} />
           <div className="inspector-column">
             <Inspector model={model} selection={selection} snapshot={snapshot}
               graphResource={(load.kind === 'ready' || load.kind === 'stale') ? load.resource : undefined} />
             <DetectorInspector presentation={presentation} selection={selection} observation={observation} onSelection={chooseSelection} />
           </div>
           <TopologyTable model={displayModel} selection={selection} onSelection={chooseSelection}
-            authoritativeCounts={{ nodes: model.nodes.length, edges: model.edges.length }} />
+            authoritativeCounts={{ nodes: model.nodes.length, edges: model.edges.length }}
+            activity={displayActivity} />
         </div>
         <DetectorBankView presentation={presentation} expanded={detectorBankExpanded}
           onExpanded={setDetectorBankExpanded} selection={selection} onSelection={chooseSelection}
@@ -110,7 +146,7 @@ export function App() {
       <Operations refreshToken={refreshToken}
         selectedPhysicalChannel={presentation ? selectedPhysicalChannel(presentation, selection) : undefined}
         onPhysicalChannel={(channel) => { if (presentation && channel !== undefined) selectPhysicalChannel(presentation, channel, chooseSelection); }}
-        onObservation={setObservation} onSnapshot={setSnapshot} />
+        onObservation={setObservation} onSnapshot={acceptSnapshot} />
     </main>
     <footer>One dashboard at <code>/</code> · authoritative application namespace <code>/api/v1/fhss</code> · topology is read-only</footer>
   </>;

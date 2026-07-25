@@ -5,10 +5,12 @@ import {
   type DisplayTopologyModel,
 } from './topology';
 import type { Selection } from './GraphView';
+import type { EdgeActivity } from './activity';
 
-export function TopologyTable({ model, selection, onSelection, authoritativeCounts }: {
+export function TopologyTable({ model, selection, onSelection, authoritativeCounts, activity }: {
   model: DisplayTopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
   authoritativeCounts?: { nodes: number; edges: number };
+  activity?: ReadonlyMap<string, EdgeActivity>;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { selectedRef.current?.focus({ preventScroll: true }); }, [selection]);
@@ -52,9 +54,20 @@ export function TopologyTable({ model, selection, onSelection, authoritativeCoun
             <strong>{edge.id}</strong><span>{isPresentationBundleEdge(edge)
               ? `${edge.label}; ${edge.authoritativeEdgeIds.length} authoritative mappings`
               : `${edge.source_node_id} port ${edge.source_port} → ${edge.target_node_id} port ${edge.target_port}`}</span>
+            <ActivityText activity={activity?.get(edge.id)} />
           </button>)}
         </div>
       </details>
     </section>
   );
+}
+
+function ActivityText({ activity }: { activity: EdgeActivity | undefined }) {
+  if (!activity || activity.availability === 'unavailable') {
+    return <small className="activity-text unavailable">Activity unavailable: {activity?.unavailableReason ?? 'no compatible sample'}.
+      Class: {activity?.messageClass ?? 'unknown/unclassified'}.</small>;
+  }
+  return <small className="activity-text available">Class: {activity.messageClass}. {activity.messages} messages
+    over {activity.intervalMs} ms; {activity.messagesPerSecond?.toFixed(1)} message/s.
+    {activity.memberCount > 1 && ` ${activity.availableMembers}/${activity.memberCount} authoritative members available.`}</small>;
 }

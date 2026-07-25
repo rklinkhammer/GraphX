@@ -10,6 +10,7 @@ import {
   type DisplayTopologyModel,
   type TopologyNode,
 } from './topology';
+import type { EdgeActivity } from './activity';
 
 type GraphXFlowNode = Node<TopologyNode, 'graphx'>;
 
@@ -90,9 +91,23 @@ export function toFlowElements(model: DisplayTopologyModel): { nodes: GraphXFlow
 
 export interface Selection { kind: 'node' | 'edge'; id: string }
 
-export function GraphView({ model, selection, onSelection, authoritativeCounts }: {
+function activityLabel(activity: EdgeActivity | undefined): string {
+  if (!activity || activity.availability === 'unavailable') {
+    return `activity unavailable: ${activity?.unavailableReason ?? 'no compatible sample'}`;
+  }
+  return `${activity.messageClass} · ${activity.messages} messages/${activity.intervalMs} ms · ${activity.messagesPerSecond?.toFixed(1)} message/s`;
+}
+
+export function GraphView({
+  model, selection, onSelection, authoritativeCounts, activity, animatedEdges,
+  activitySpeed = 1, motionDisabled = false,
+}: {
   model: DisplayTopologyModel; selection: Selection | null; onSelection: (selection: Selection) => void;
   authoritativeCounts?: { nodes: number; edges: number };
+  activity?: ReadonlyMap<string, EdgeActivity>;
+  animatedEdges?: ReadonlySet<string>;
+  activitySpeed?: number;
+  motionDisabled?: boolean;
 }) {
   const elements = useMemo(() => toFlowElements(model), [model]);
   const initialNodes = elements.nodes;
@@ -126,7 +141,27 @@ export function GraphView({ model, selection, onSelection, authoritativeCounts }
       <div className="flow-canvas" aria-label="Interactive read-only GraphX topology">
         <ReactFlow
           nodes={nodes.map((node) => ({ ...node, selected: selection?.kind === 'node' && selection.id === node.id }))}
-          edges={edges.map((edge) => ({ ...edge, selected: selection?.kind === 'edge' && selection.id === edge.id }))}
+          edges={edges.map((edge) => {
+            const edgeActivity = activity?.get(edge.id);
+            const available = edgeActivity?.availability === 'available';
+            const active = available && (edgeActivity.messages ?? 0) > 0;
+            const messageClass = edgeActivity?.messageClass ?? 'unknown/unclassified';
+            return {
+              ...edge,
+              selected: selection?.kind === 'edge' && selection.id === edge.id,
+              animated: !motionDisabled && (animatedEdges?.has(edge.id) ?? false),
+              label: `${edge.label ? `${String(edge.label)} · ` : ''}${activityLabel(edgeActivity)}`,
+              className: [
+                edge.className, 'activity-edge', `message-${messageClass.replaceAll('/', '-')}`,
+                available ? active ? 'activity-active' : 'activity-idle' : 'activity-unavailable',
+              ].filter(Boolean).join(' '),
+              style: {
+                ...edge.style,
+                strokeWidth: available ? Math.min(7, 2 + Math.log2(1 + (edgeActivity.messagesPerSecond ?? 0))) : 2,
+                '--activity-duration': `${Math.max(0.3, 1.5 / activitySpeed)}s`,
+              } as React.CSSProperties,
+            };
+          })}
           nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
           nodesConnectable={false} nodesDraggable elementsSelectable
           edgesReconnectable={false} deleteKeyCode={null} onConnect={() => undefined}

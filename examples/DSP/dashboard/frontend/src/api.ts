@@ -13,6 +13,7 @@ export interface RuntimeResource extends JsonObject {
 export interface MetricsResource extends JsonObject {
   schema: string; active_generation: number; active_run_epoch: number;
   active_config_revision: number; active_config_etag: string; capture_id: string;
+  sampled_at_monotonic_ms: number; collection_interval: JsonObject;
   graph: JsonObject; nodes: JsonObject[]; edges: JsonObject[];
 }
 export interface DiagnosticsResource extends JsonObject {
