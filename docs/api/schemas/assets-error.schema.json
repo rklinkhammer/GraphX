@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graphx.local/schemas/assets-error",
+  "title": "Asset Error Response",
+  "description": "Error response when asset cannot be served",
+  "allOf": [
+    {
+      "$ref": "problem-details.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "type": "string",
+          "description": "Asset path that was requested (e.g., /assets/missing.js)"
+        }
+      }
+    }
+  ]
+}

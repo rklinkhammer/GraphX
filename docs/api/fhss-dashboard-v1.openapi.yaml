@@ -1,0 +1,144 @@
+openapi: 3.1.2
+info:
+  title: FHSS Dashboard V1
+  version: 1.0.0
+  description: |
+    Phase 1 FHSS Dashboard HTTP API (RFC 9110/9112 compliant).
+    
+    Loopback-only access (127.x.x.x for IPv4, ::1 for IPv6).
+    All endpoints require valid CSP and security headers.
+    All errors use RFC 9457 Problem Details format.
+
+servers:
+  - url: http://localhost:8765
+    description: Loopback server
+
+paths:
+  /:
+    get:
+      summary: Root redirect or HTML
+      operationId: getRoot
+      tags:
+        - Static
+      responses:
+        '200':
+          description: Dashboard HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+        '301':
+          description: Redirect to /index.html
+          headers:
+            Location:
+              schema:
+                type: string
+
+  /healthz:
+    get:
+      summary: Health check endpoint
+      operationId: getHealthz
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthzResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /assets/{path}:
+    get:
+      summary: Serve static assets
+      operationId: getAsset
+      tags:
+        - Assets
+      parameters:
+        - name: path
+          in: path
+          description: Asset path (e.g., "index.html", "js/app.js")
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asset found and served
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad Request (malformed path)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Asset not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '413':
+          description: Payload Too Large
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '414':
+          description: URI Too Long
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /openapi.yaml:
+    get:
+      summary: OpenAPI specification
+      operationId: getOpenapi
+      tags:
+        - Documentation
+      responses:
+        '200':
+          description: OpenAPI 3.1.2 specification
+          content:
+            application/yaml:
+              schema:
+                type: object
+
+components:
+  schemas:
+    HealthzResponse:
+      $ref: 'schemas/healthz-response.schema.json'
+
+    ProblemDetails:
+      $ref: 'schemas/problem-details.schema.json'
+
+    AssetError:
+      $ref: 'schemas/assets-error.schema.json'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Assets
+    description: Static asset serving
+  - name: Static
+    description: Static content
+  - name: Documentation
+    description: API documentation endpoints
+
+security: []

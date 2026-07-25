@@ -1,12 +1,12 @@
 {
   "branch": "main",
-  "commit_sha": "10a44f283f65ef130dcb9648a281032d24f98045",
+  "commit_sha": "0feca45a27801060592519174f0e46010daf9516",
   "diff_identity": {
     "type": "working_tree",
     "value": "uncommitted_changes_present",
     "working_tree_dirty": true
   },
-  "generated_at_utc": "2026-07-25T00:53:24Z",
+  "generated_at_utc": "2026-07-25T01:19:14Z",
   "host": {
     "architecture": "aarch64",
     "hostname": "unknown",
@@ -18,7 +18,7 @@
       "allocation_bytes": null,
       "allocation_count": null,
       "backend": "cpu",
-      "cold_frame_ms": 20124.639875,
+      "cold_frame_ms": 20054.607666,
       "compute_only_gpu_time_ms": null,
       "correctness_family": "phase6",
       "correctness_parity_status": "pass:cpu-benchmark-family-baseline",
@@ -26,12 +26,12 @@
       "execution_mode": "local",
       "fallback_diagnostic": null,
       "frame_count": 4,
-      "frames_per_second": 0.04978909208279216,
+      "frames_per_second": 0.04984322356633004,
       "graph_configuration_name": "accelgraph_phase7_spectrum_cpu_macos",
-      "graph_overhead_ms": 78.72053150000283,
+      "graph_overhead_ms": 51.65782274999947,
       "host_class": "cpu-only",
-      "latency_ms": 20084.720531500003,
-      "legacy_reference_baseline_ms": 1004.951552,
+      "latency_ms": 20062.90782275,
+      "legacy_reference_baseline_ms": 1003.41284375,
       "measurement_origin": {
         "imported": false,
         "measured_locally": true,
@@ -39,13 +39,13 @@
         "source_artifact": null
       },
       "packet_size": 256,
-      "samples_per_second": 12.746007573194793,
+      "samples_per_second": 12.75986523298049,
       "selected_backend": "cpu",
-      "steady_state_elapsed_time_ms": 80338.88212600001,
-      "total_elapsed_time_ms": 100727.175292,
+      "steady_state_elapsed_time_ms": 80251.631291,
+      "total_elapsed_time_ms": 100592.205875,
       "transfer_inclusive_gpu_time_ms": 0.0,
       "used_fallback": false,
-      "warm_frame_ms": 20071.414083666667,
+      "warm_frame_ms": 20065.674541666667,
       "warmup_frame_count": 1
     }
   ],

@@ -66,3 +66,8 @@ add_custom_target(test_libdsp
     COMMAND ${CMAKE_CTEST_COMMAND} -R "^libdsp_unit$" --output-on-failure
     COMMENT "Running libdsp tests"
 )
+
+# Include dashboard integration tests (Catch2-based)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.dashboard.txt)
+endif()
