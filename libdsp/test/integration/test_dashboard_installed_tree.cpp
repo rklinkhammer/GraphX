@@ -7,7 +7,7 @@
 #include "dsp/AssetResolver.hpp"
 
 using namespace graphx::dsp::dashboard;
-using Catch::Matchers::Contains;
+using Catch::Matchers::ContainsSubstring;
 namespace fs = std::filesystem;
 
 // ============================================================================
@@ -479,9 +479,10 @@ TEST_CASE("DashboardInstalledTree: No Sensitive Files") {
         
         // Verify that sensitive files would be detected
         for (const auto& file : sensitive_files) {
-            CHECK_FALSE(file.find(".env") == std::string::npos || 
-                       file.find("secret") != std::string::npos ||
-                       file.find("config") != std::string::npos);
+            bool is_sensitive = (file.find(".env") != std::string::npos) || 
+                               (file.find("secret") != std::string::npos) ||
+                               (file.find("config") != std::string::npos);
+            CHECK(is_sensitive);
         }
         
         fs::remove_all(temp_install);

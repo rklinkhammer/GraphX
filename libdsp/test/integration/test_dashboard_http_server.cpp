@@ -107,10 +107,10 @@ TEST_CASE("DashboardHttpServer: Handler Registration") {
     // Register a simple GET handler
     REQUIRE_NOTHROW([&]() {
         server.RegisterHandler("GET", "/test", [](
-            std::string_view method,
-            std::string_view path,
-            const std::vector<std::pair<std::string, std::string>>& headers,
-            std::string_view body,
+            std::string_view _method,
+            std::string_view _path,
+            const std::vector<std::pair<std::string, std::string>>& _headers,
+            std::string_view _body,
             int& response_status,
             std::vector<std::pair<std::string, std::string>>& response_headers,
             std::string& response_body

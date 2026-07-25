@@ -25,9 +25,9 @@ TEST_CASE("API Contract: Healthz Endpoint Metadata") {
     // Register healthz endpoint
     server.RegisterHandler("GET", "/healthz",
         [](std::string_view method,
-           std::string_view path,
-           const std::vector<std::pair<std::string, std::string>>& headers,
-           std::string_view body,
+           [[maybe_unused]] std::string_view path,
+           [[maybe_unused]] const std::vector<std::pair<std::string, std::string>>& headers,
+           [[maybe_unused]] std::string_view body,
            int& response_status,
            std::vector<std::pair<std::string, std::string>>& response_headers,
            std::string& response_body) -> bool {
@@ -41,7 +41,7 @@ TEST_CASE("API Contract: Healthz Endpoint Metadata") {
             return true;
         });
     
-    REQUIRE(server.IsRunning() || !server.IsRunning());  // Placeholder validation
+    REQUIRE_FALSE(server.IsRunning());  // Server not started yet
 }
 
 TEST_CASE("API Contract: Assets Endpoint Exists") {
@@ -54,9 +54,9 @@ TEST_CASE("API Contract: Assets Endpoint Exists") {
     // Register assets endpoint handler
     server.RegisterHandler("GET", "/assets/",
         [](std::string_view method,
-           std::string_view path,
-           const std::vector<std::pair<std::string, std::string>>& headers,
-           std::string_view body,
+           [[maybe_unused]] std::string_view path,
+           [[maybe_unused]] const std::vector<std::pair<std::string, std::string>>& headers,
+           [[maybe_unused]] std::string_view body,
            int& response_status,
            std::vector<std::pair<std::string, std::string>>& response_headers,
            std::string& response_body) -> bool {
@@ -66,7 +66,7 @@ TEST_CASE("API Contract: Assets Endpoint Exists") {
             return true;
         });
     
-    REQUIRE(server.IsRunning() || !server.IsRunning());  // Placeholder validation
+    REQUIRE_FALSE(server.IsRunning());  // Server not started yet
 }
 
 TEST_CASE("API Contract: Root Endpoint") {
@@ -79,9 +79,9 @@ TEST_CASE("API Contract: Root Endpoint") {
     // Register root endpoint
     server.RegisterHandler("GET", "/",
         [](std::string_view method,
-           std::string_view path,
-           const std::vector<std::pair<std::string, std::string>>& headers,
-           std::string_view body,
+           [[maybe_unused]] std::string_view path,
+           [[maybe_unused]] const std::vector<std::pair<std::string, std::string>>& headers,
+           [[maybe_unused]] std::string_view body,
            int& response_status,
            std::vector<std::pair<std::string, std::string>>& response_headers,
            std::string& response_body) -> bool {
@@ -91,7 +91,7 @@ TEST_CASE("API Contract: Root Endpoint") {
             return true;
         });
     
-    REQUIRE(server.IsRunning() || !server.IsRunning());  // Placeholder validation
+    REQUIRE_FALSE(server.IsRunning());  // Server not started yet
 }
 
 TEST_CASE("API Contract: OpenAPI Endpoint") {
@@ -104,9 +104,9 @@ TEST_CASE("API Contract: OpenAPI Endpoint") {
     // Register OpenAPI endpoint
     server.RegisterHandler("GET", "/openapi.yaml",
         [](std::string_view method,
-           std::string_view path,
-           const std::vector<std::pair<std::string, std::string>>& headers,
-           std::string_view body,
+           [[maybe_unused]] std::string_view path,
+           [[maybe_unused]] const std::vector<std::pair<std::string, std::string>>& headers,
+           [[maybe_unused]] std::string_view body,
            int& response_status,
            std::vector<std::pair<std::string, std::string>>& response_headers,
            std::string& response_body) -> bool {
@@ -116,7 +116,7 @@ TEST_CASE("API Contract: OpenAPI Endpoint") {
             return true;
         });
     
-    REQUIRE(server.IsRunning() || !server.IsRunning());  // Placeholder validation
+    REQUIRE_FALSE(server.IsRunning());  // Server not started yet
 }
 
 // ============================================================================
