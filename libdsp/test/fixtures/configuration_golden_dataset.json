@@ -1,0 +1,251 @@
+[
+  {
+    "name": "Empty Configuration",
+    "description": "Minimal configuration with no messages",
+    "source": {
+      "messages": [],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 0.0,
+      "max_abs_cfo_hz": 0.0,
+      "idle_duration_samples": 0,
+      "enable_noise": false,
+      "enable_doppler": false,
+      "enable_multipath": false,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [],
+      "active_frequency_indices_preamble": [],
+      "active_frequency_indices_channelizer": [],
+      "preamble_pulses": [],
+      "rf_copies": [],
+      "impairment_copies": [],
+      "pulse_frequency_indices_source": [],
+      "pulse_frequency_indices_preamble": [],
+      "pulse_frequency_indices_channelizer": []
+    }
+  },
+  {
+    "name": "Simple Single Message",
+    "description": "One message on frequency index 10",
+    "source": {
+      "messages": [
+        {"frequency_index": 10, "message_id": "msg1"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 5000000.0,
+      "max_abs_cfo_hz": 100000.0,
+      "idle_duration_samples": 1000,
+      "enable_noise": false,
+      "enable_doppler": false,
+      "enable_multipath": false,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [10],
+      "active_frequency_indices_preamble": [10],
+      "active_frequency_indices_channelizer": [10],
+      "preamble_pulses_count": 1,
+      "rf_copies_count": 1,
+      "impairment_copies": [],
+      "pulse_frequency_indices_source_count": 1
+    }
+  },
+  {
+    "name": "Multi-Message No Overlap",
+    "description": "Four messages on frequencies 1, 7, 12, 62",
+    "source": {
+      "messages": [
+        {"frequency_index": 1, "message_id": "msg1"},
+        {"frequency_index": 7, "message_id": "msg2"},
+        {"frequency_index": 12, "message_id": "msg3"},
+        {"frequency_index": 62, "message_id": "msg4"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 5000000.0,
+      "max_abs_cfo_hz": 100000.0,
+      "idle_duration_samples": 1000,
+      "enable_noise": false,
+      "enable_doppler": false,
+      "enable_multipath": false,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [1, 7, 12, 62],
+      "active_frequency_indices_preamble": [1, 12],
+      "active_frequency_indices_channelizer": [1, 7, 12, 62],
+      "preamble_pulses_count": 2,
+      "rf_copies_count": 4,
+      "impairment_copies": [],
+      "frequencies_sorted": true
+    }
+  },
+  {
+    "name": "All Impairments Enabled",
+    "description": "Configuration with noise, doppler, and multipath",
+    "source": {
+      "messages": [
+        {"frequency_index": 10, "message_id": "msg1"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 5000000.0,
+      "max_abs_cfo_hz": 100000.0,
+      "idle_duration_samples": 1000,
+      "enable_noise": true,
+      "enable_doppler": true,
+      "enable_multipath": true,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [10],
+      "impairment_types": ["AWGN", "Doppler", "Multipath"],
+      "impairment_copies_count": 3
+    }
+  },
+  {
+    "name": "With Allow Overlap",
+    "description": "Configuration allowing message overlap",
+    "source": {
+      "messages": [
+        {"frequency_index": 1, "message_id": "msg1", "transmit_start_sample": 0, "duration_samples": 2000},
+        {"frequency_index": 7, "message_id": "msg2", "transmit_start_sample": 1000, "duration_samples": 1000}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 5000000.0,
+      "max_abs_cfo_hz": 100000.0,
+      "idle_duration_samples": 0,
+      "enable_noise": false,
+      "enable_doppler": false,
+      "enable_multipath": false,
+      "allow_overlap": true
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [1, 7],
+      "message_assembler_config": {
+        "allow_partial_assembly": true
+      }
+    }
+  },
+  {
+    "name": "All 62 Active Frequencies",
+    "description": "Messages on all 62 selectable frequencies (1-62)",
+    "source": {
+      "messages": [
+        {"frequency_index": 1, "message_id": "msg_001"},
+        {"frequency_index": 2, "message_id": "msg_002"},
+        {"frequency_index": 3, "message_id": "msg_003"},
+        {"frequency_index": 62, "message_id": "msg_062"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 100000000.0,
+      "max_abs_cfo_hz": 1000000.0,
+      "idle_duration_samples": 5000,
+      "enable_noise": true,
+      "enable_doppler": true,
+      "enable_multipath": false,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [1, 2, 3, 62],
+      "rf_copies_count": 4,
+      "impairment_copies_count": 2
+    }
+  },
+  {
+    "name": "Duplicate Frequencies De-duplicated",
+    "description": "Multiple messages on same frequency should deduplicate",
+    "source": {
+      "messages": [
+        {"frequency_index": 32, "message_id": "msg_1"},
+        {"frequency_index": 32, "message_id": "msg_2"},
+        {"frequency_index": 32, "message_id": "msg_3"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 5000000.0,
+      "max_abs_cfo_hz": 100000.0,
+      "idle_duration_samples": 1000,
+      "enable_noise": false,
+      "enable_doppler": false,
+      "enable_multipath": false,
+      "allow_overlap": true
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [32],
+      "rf_copies_count": 1
+    }
+  },
+  {
+    "name": "High Bandwidth Configuration",
+    "description": "Large occupied bandwidth (100 MHz)",
+    "source": {
+      "messages": [
+        {"frequency_index": 10, "message_id": "msg1"},
+        {"frequency_index": 32, "message_id": "msg2"},
+        {"frequency_index": 55, "message_id": "msg3"}
+      ],
+      "iq_center_frequency_hz": 2000000000.0,
+      "occupied_bandwidth_hz": 100000000.0,
+      "max_abs_cfo_hz": 5000000.0,
+      "idle_duration_samples": 50000,
+      "enable_noise": true,
+      "enable_doppler": false,
+      "enable_multipath": true,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [10, 32, 55],
+      "rf_copies_count": 3,
+      "impairment_copies_count": 2
+    }
+  },
+  {
+    "name": "Low Bandwidth Configuration",
+    "description": "Small occupied bandwidth (1 MHz)",
+    "source": {
+      "messages": [
+        {"frequency_index": 1, "message_id": "msg1"}
+      ],
+      "iq_center_frequency_hz": 500000000.0,
+      "occupied_bandwidth_hz": 1000000.0,
+      "max_abs_cfo_hz": 10000.0,
+      "idle_duration_samples": 100,
+      "enable_noise": false,
+      "enable_doppler": true,
+      "enable_multipath": false,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [1],
+      "impairment_copies_count": 1
+    }
+  },
+  {
+    "name": "Determinism Test - Complex Configuration",
+    "description": "Complex configuration for determinism verification",
+    "source": {
+      "messages": [
+        {"frequency_index": 5, "message_id": "pulse_1"},
+        {"frequency_index": 15, "message_id": "pulse_2"},
+        {"frequency_index": 25, "message_id": "pulse_3"},
+        {"frequency_index": 35, "message_id": "pulse_4"},
+        {"frequency_index": 45, "message_id": "pulse_5"},
+        {"frequency_index": 55, "message_id": "pulse_6"}
+      ],
+      "iq_center_frequency_hz": 1000000000.0,
+      "occupied_bandwidth_hz": 50000000.0,
+      "max_abs_cfo_hz": 500000.0,
+      "idle_duration_samples": 10000,
+      "enable_noise": true,
+      "enable_doppler": true,
+      "enable_multipath": true,
+      "allow_overlap": false
+    },
+    "expected_effective": {
+      "active_frequency_indices_source": [5, 15, 25, 35, 45, 55],
+      "preamble_pulses_count": 3,
+      "rf_copies_count": 6,
+      "impairment_copies_count": 3,
+      "determinism_verified": false
+    }
+  }
+]

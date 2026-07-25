@@ -1,0 +1,172 @@
+{
+  "phase": "2A",
+  "orchestrator_date": "2026-07-24T14:30:00Z",
+  "orchestrator_agent": "Execution Agent",
+  "repository_state": {
+    "branch": "main",
+    "commit_hash": "dd41dc7cb7628469d3aa29b13110938f32a0c909",
+    "commit_message": "Phase 1 Implementation - Remediation: Fixed 4 blocking issues",
+    "status": "clean_with_untracked_files",
+    "uncommitted_changes": "libdsp/test/CMakeLists.txt (modified)",
+    "untracked_phase2a_files": 14
+  },
+  "phase2a_prerequisites": {
+    "fhss_configuration_deriver": {
+      "status": "passing",
+      "tests": "25/25",
+      "assertions": 65,
+      "determinism_verified": true,
+      "iterations_tested": 10,
+      "file_count": {
+        "headers": 1,
+        "implementations": 1,
+        "tests": 1
+      }
+    },
+    "fhss_cross_node_validator": {
+      "status": "passing",
+      "tests": "35/35",
+      "assertions": 89,
+      "validation_rules": 13,
+      "error_codes_verified": true,
+      "file_count": {
+        "headers": 1,
+        "implementations": 1,
+        "tests": 1
+      }
+    },
+    "configuration_state_machine": {
+      "status": "passing",
+      "tests": "30/30",
+      "assertions": 27,
+      "revision_monotonic": true,
+      "undo_redo_verified": true,
+      "etag_conflict_verified": true,
+      "file_count": {
+        "headers": 1,
+        "implementations": 1,
+        "tests": 1
+      }
+    },
+    "total_tests": 90,
+    "total_assertions": 181,
+    "all_passing": true
+  },
+  "baseline_hashes": {
+    "configuration_headers": {
+      "path": "libdsp/include/dsp/configuration/",
+      "file_count": 5,
+      "files": [
+        "FHSSConfigurationDeriver.hpp",
+        "FHSSCrossNodeValidator.hpp",
+        "ConfigurationStateMachine.hpp",
+        "FHSSConfigurationHttpServer.hpp",
+        "FHSSConfigurationCli.hpp"
+      ]
+    },
+    "configuration_implementations": {
+      "path": "libdsp/src/configuration/",
+      "file_count": 3,
+      "files": [
+        "FHSSConfigurationDeriver.cpp",
+        "FHSSCrossNodeValidator.cpp",
+        "ConfigurationStateMachine.cpp"
+      ]
+    }
+  },
+  "scope_checklist": {
+    "http_endpoints": 10,
+    "cli_commands": 4,
+    "tests_expected": 70,
+    "standards_mapped": 12,
+    "acceptance_criteria": 35,
+    "files_to_create": 4,
+    "files_to_modify": 1
+  },
+  "http_endpoints_defined": [
+    "GET    /api/v2/fhss/config",
+    "GET    /api/v2/fhss/config/effective",
+    "GET    /api/v2/fhss/config/history",
+    "POST   /api/v2/fhss/config/staged",
+    "PATCH  /api/v2/fhss/config/staged/{id}",
+    "POST   /api/v2/fhss/config/validate",
+    "POST   /api/v2/fhss/config/commit",
+    "DELETE /api/v2/fhss/config/staged/{id}",
+    "POST   /api/v2/fhss/config/undo",
+    "POST   /api/v2/fhss/config/redo"
+  ],
+  "cli_commands_defined": [
+    "--set-config KEY=VALUE [KEY=VALUE ...]",
+    "--config-patch FILE [--if-match ETAG]",
+    "--validate-config FILE",
+    "--show-config [--effective] [--history]"
+  ],
+  "standards_coverage": {
+    "rfc_7232": "ETag optimistic locking",
+    "rfc_9457": "Problem Details error format",
+    "rfc_9110": "HTTP/1.1 compliance",
+    "rfc_6902": "JSON Patch support",
+    "json_schema_2020_12": "Response validation",
+    "nist_sp_800_218": "Deterministic derivation and build reproducibility",
+    "ieee_1012": "V&V plan and test coverage"
+  },
+  "agent_assignments": {
+    "orchestrator": "Execution Agent",
+    "implementer": "TBD - Assigned at implementation gate",
+    "verifier": "TBD - Assigned independently, cannot be implementer"
+  },
+  "build_configuration": {
+    "c_standard": "C++26",
+    "compiler_flags": "-Wall -Wextra -Werror",
+    "sanitizers": "ASan + UBSan",
+    "build_directory": "/Users/rklinkhammer/workspace/GraphX/build-ninja/ninja-debug-metal-native",
+    "test_target": "test_phase2a_configuration"
+  },
+  "pre_verification_gates": [
+    "C++26 build succeeds with -Wall -Wextra -Werror",
+    "No compiler warnings",
+    "Phase 2A pre-requisites (90/90 tests) still passing",
+    "Phase 2A implementation tests (70+ tests) all passing",
+    "Determinism verified (10 iterations, byte-identical)",
+    "ETag conflict detection verified (409 Conflict)",
+    "All 13 validation rules tested and working",
+    "CLI workflow runs end-to-end",
+    "ASan/UBSan tests pass (no memory issues)",
+    "git diff --check clean"
+  ],
+  "verification_gates": [
+    "All 10 HTTP endpoints verified responding",
+    "All 4 CLI commands verified working",
+    "Determinism verified (10 iterations, byte-identical JSON)",
+    "All 13 validation rules triggered and verified",
+    "ETag conflict detection verified (409 responses)",
+    "Revision management verified (monotonic increment)",
+    "Undo/Redo state transitions verified",
+    "Installed-tree launch verified working",
+    "Zero compiler warnings (C++26 with -Wall -Wextra -Werror)",
+    "ASan/UBSan tests passing (no memory safety issues)"
+  ],
+  "success_criteria": {
+    "tests_passing": "90 pre-req + 70+ implementation = 160+/160+",
+    "pass_rate": "100%",
+    "compiler_warnings": "0",
+    "sanitizer_issues": "0",
+    "determinism_failures": "0",
+    "eTag_conflict_failures": "0",
+    "validation_rule_failures": "0"
+  },
+  "timeline": {
+    "orchestrator_preparation": "45 minutes",
+    "implementer_assignment": "2-3 days",
+    "verifier_phase": "1-2 days",
+    "total_phase_duration": "3-5 days",
+    "target_completion": "2026-07-27"
+  },
+  "orchestrator_sign_off": {
+    "date": "2026-07-24T14:30:00Z",
+    "status": "PREPARATION COMPLETE",
+    "ready_for_implementation": true,
+    "ready_for_verification": false,
+    "notes": "All pre-implementation artifacts created. Phase 2A ready for Implementer assignment."
+  }
+}
