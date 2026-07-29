@@ -17,7 +17,6 @@ const char* BackendName(graph::gpu::accel::BackendKind backend) noexcept {
     switch (backend) {
         case graph::gpu::accel::BackendKind::CPU: return "CPU";
         case graph::gpu::accel::BackendKind::CUDA: return "CUDA";
-        case graph::gpu::accel::BackendKind::SYCL: return "SYCL";
         case graph::gpu::accel::BackendKind::Metal: return "Metal";
         case graph::gpu::accel::BackendKind::Unknown:
         default: return "Unknown";

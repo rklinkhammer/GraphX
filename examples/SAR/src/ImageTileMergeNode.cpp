@@ -78,16 +78,23 @@ std::optional<SarControlToken> ImageTileMergeNode::Transfer(
     if (marker == SarFrameMarker::EndOfStream) {
         if (config_.require_all_tile_eos_before_complete) {
             eos_tiles_.insert(tile_id);
+            expected_data_tokens_ = std::max(
+                expected_data_tokens_,
+                sequence_id * static_cast<std::uint64_t>(expected_tiles));
         }
         const std::uint32_t missing_tiles =
             (received_tiles_ >= expected_tiles) ? 0u : (expected_tiles - received_tiles_);
         const bool all_required_eos_seen =
             !config_.require_all_tile_eos_before_complete ||
             (eos_tiles_.size() >= expected_tiles);
+        const bool all_expected_data_seen =
+            !config_.require_all_tile_eos_before_complete ||
+            (kernel_dispatches_ >= expected_data_tokens_);
         const bool complete =
             (missing_tiles == 0u) &&
             (!config_.require_watermark_before_complete || watermark_seen_) &&
-            all_required_eos_seen;
+            all_required_eos_seen &&
+            all_expected_data_seen;
 
         if (complete) {
             completion_emitted_ = true;
@@ -125,6 +132,18 @@ std::optional<SarControlToken> ImageTileMergeNode::Transfer(
         }
         last_tile_id_ = tile_id;
         has_last_tile_ = true;
+    }
+
+    const bool all_required_eos_seen =
+        config_.require_all_tile_eos_before_complete &&
+        (eos_tiles_.size() >= expected_tiles);
+    const bool complete_after_eos =
+        all_required_eos_seen &&
+        (kernel_dispatches_ >= expected_data_tokens_) &&
+        (!config_.require_watermark_before_complete || watermark_seen_);
+    if (complete_after_eos) {
+        completion_emitted_ = true;
+        return finalize_status(SarFrameMarker::EndOfStream, true);
     }
 
     return finalize_status(SarFrameMarker::Data, false);
@@ -231,6 +250,7 @@ std::vector<std::string> ImageTileMergeNode::GetParameterNames() const {
 void ImageTileMergeNode::Reset() {
     seen_tiles_.clear();
     eos_tiles_.clear();
+    expected_data_tokens_ = 0;
     received_tiles_ = 0;
     duplicate_tiles_ = 0;
     out_of_order_tiles_ = 0;

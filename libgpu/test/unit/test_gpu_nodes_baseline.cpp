@@ -17,7 +17,6 @@
 #include "graph/CapabilityBus.hpp"
 
 #include "gpu/cuda/nodes/LeaseReleaseNode.hpp"
-#include "gpu/sycl/nodes/LeaseReleaseNodeSycl.hpp"
 
 namespace {
 
@@ -32,35 +31,6 @@ public:
     }
 
     bool AllocatePinnedHost(std::uint64_t, graph::gpu::accel::BufferLease&) override {
-        return false;
-    }
-
-    bool Release(const graph::gpu::accel::BufferLease& lease) override {
-        ++release_count;
-        last_allocation_id = lease.allocation_id;
-        return should_succeed;
-    }
-
-    bool should_succeed{true};
-    std::size_t release_count{0};
-    std::uint64_t last_allocation_id{0};
-};
-
-/**
- * @class RecordingSyclMemoryPool
- * @brief Recording sycl memory pool implementation for GraphX.
- */
-class RecordingSyclMemoryPool final : public graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability {
-public:
-    bool AllocateDevice(std::uint64_t, std::uint32_t, graph::gpu::accel::BufferLease&) override {
-        return false;
-    }
-
-    bool AllocateShared(std::uint64_t, std::uint32_t, graph::gpu::accel::BufferLease&) override {
-        return false;
-    }
-
-    bool AllocateHost(std::uint64_t, graph::gpu::accel::BufferLease&) override {
         return false;
     }
 
@@ -104,37 +74,6 @@ TEST(GpuNodeBaseline, CudaLeaseReleaseNodeReleasesLeaseThroughPoolCapability) {
 
     graph::gpu::accel::BufferLease invalid_lease{};
     invalid_lease.pool_id = 1;
-    EXPECT_FALSE(release_node.ConsumeForTest(invalid_lease));
-}
-
-TEST(GpuNodeBaseline, SyclLeaseReleaseNodeReleasesLeaseThroughPoolCapability) {
-    static_assert(std::is_base_of_v<graph::INode, graph::gpu::sycl::nodes::LeaseReleaseNodeSycl>);
-
-    auto memory_pool = std::make_shared<RecordingSyclMemoryPool>();
-    graph::CapabilityBus bus;
-    bus.Register<graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability>(memory_pool);
-    graph::gpu::sycl::nodes::LeaseReleaseNodeSycl release_node;
-    ASSERT_TRUE(release_node.BindGpuCapabilities(bus));
-
-    graph::gpu::accel::BufferLease lease{};
-    lease.pool_id = 11;
-    lease.allocation_id = 84;
-    lease.release_policy = graph::gpu::accel::ReleasePolicy::Manual;
-    lease.host_view.host_ptr = reinterpret_cast<void*>(0x4000);
-    lease.host_view.bytes = 64;
-    lease.host_view.dtype = graph::gpu::accel::DataType::UInt8;
-    lease.host_view.layout.rank = 1;
-    lease.host_view.layout.shape[0] = 64;
-    lease.host_view.layout.stride[0] = 1;
-
-    ASSERT_TRUE(release_node.ConsumeForTest(lease));
-    EXPECT_EQ(memory_pool->release_count, 1U);
-    EXPECT_EQ(memory_pool->last_allocation_id, 84U);
-    EXPECT_EQ(release_node.ReleaseCount(), 1U);
-    EXPECT_EQ(release_node.LastReleasedLease().allocation_id, 84U);
-
-    graph::gpu::accel::BufferLease invalid_lease{};
-    invalid_lease.pool_id = 11;
     EXPECT_FALSE(release_node.ConsumeForTest(invalid_lease));
 }
 

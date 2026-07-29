@@ -323,20 +323,6 @@ TEST(ResolvingNodeProviderTest, DynamicMappingCanSelectDomainLocalMetalNode) {
     EXPECT_EQ(resolved->output_token_type, "DeviceBufferView");
 }
 
-TEST(ResolvingNodeProviderTest, ResolvesSyclD2HVariantWhenRequested) {
-    auto inner = std::make_shared<FakeNodeProvider>(
-        std::set<std::string>{"D2HAsyncNodeSycl"});
-    graph::ResolvingNodeProvider provider(inner, ResolverConfig(graph::ResolverBackend::Sycl));
-
-    const auto resolved = provider.ResolveNodeType("D2HAsyncNode");
-
-    ASSERT_TRUE(resolved);
-    EXPECT_EQ(resolved->concrete_type, "D2HAsyncNodeSycl");
-    EXPECT_EQ(resolved->selected_backend, graph::ResolverBackend::Sycl);
-    EXPECT_EQ(resolved->input_token_type, "DeviceBufferView");
-    EXPECT_EQ(resolved->output_token_type, "HostPinnedBufferView");
-}
-
 TEST(ResolvingNodeProviderTest, ResolvesCudaIntentToGenericCudaLaneWhenRequested) {
     auto inner = std::make_shared<FakeNodeProvider>(
         std::set<std::string>{"H2DAsyncNode"});

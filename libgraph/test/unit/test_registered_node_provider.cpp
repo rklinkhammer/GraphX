@@ -88,9 +88,10 @@ protected:
 // ===================================================================================
 
 TEST_F(RegisteredNodeProviderTest, CreateSourceTestNodeCompileTime) {
-    // For now, skip SourceTestNode - it has compilation issues
-    // This test will be added once SourceTestNode is properly implemented
-    GTEST_SKIP() << "SourceTestNode implementation pending";
+    auto node = CreateNodeOrThrow<test::SourceTestNode>(provider_);
+
+    ASSERT_NE(node, nullptr);
+    EXPECT_EQ(node->GetLifecycleState(), graph::LifecycleState::Uninitialized);
 }
 
 TEST_F(RegisteredNodeProviderTest, CreateSinkTestNodeCompileTime) {
@@ -324,13 +325,19 @@ TEST_F(RegisteredNodeProviderTest, NodeStartsUninitialized) {
     auto node = CreateNodeOrThrow<test::TestNode>(provider_);
     ASSERT_NE(node, nullptr);
     
-    // Node should be in uninitialized state
-    EXPECT_NE(node, nullptr);
+    EXPECT_EQ(node->GetLifecycleState(), graph::LifecycleState::Uninitialized);
 }
 
 TEST_F(RegisteredNodeProviderTest, NodeInitBeforeStart) {
-    // Disabled for now - potential hanging issue
-    GTEST_SKIP() << "NodeInitBeforeStart test disabled";
+    auto node = CreateNodeOrThrow<test::TestNode>(provider_);
+    ASSERT_NE(node, nullptr);
+
+    ASSERT_TRUE(node->Init());
+    EXPECT_EQ(node->GetLifecycleState(), graph::LifecycleState::Initialized);
+    EXPECT_TRUE(node->Start());
+    EXPECT_EQ(node->GetLifecycleState(), graph::LifecycleState::Started);
+    node->Stop();
+    EXPECT_EQ(node->GetLifecycleState(), graph::LifecycleState::Stopped);
 }
 
 // ===================================================================================

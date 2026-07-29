@@ -20,7 +20,9 @@ foreach(_source IN LISTS UNIT_TEST_SOURCES)
     endif()
 endforeach()
 
-option(ENABLE_THREADPOOL_EXTENDED_TESTS "Build and run ThreadPool benchmark/chaos/scaling tests" OFF)
+option(ENABLE_THREADPOOL_EXTENDED_TESTS
+    "Build and run ThreadPool benchmark/chaos/scaling tests"
+    ${GRAPHX_ENABLE_EXTENDED_VALIDATION})
 
 add_subdirectory(plugins)
 

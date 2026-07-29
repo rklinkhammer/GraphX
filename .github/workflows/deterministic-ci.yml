@@ -1,0 +1,56 @@
+name: Deterministic Regression
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deterministic:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            configure: ninja-ci-linux
+            build: build-ci-linux
+          - os: macos-latest
+            configure: ninja-ci-macos
+            build: build-ci-macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build gcc-14 g++-14 python3 \
+            nlohmann-json3-dev libeigen3-dev liblog4cxx-dev libgtest-dev \
+            catch2 libhdf5-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja eigen nlohmann-json log4cxx googletest catch2 hdf5
+
+      - name: Configure
+        env:
+          CC: ${{ runner.os == 'Linux' && 'gcc-14' || 'clang' }}
+          CXX: ${{ runner.os == 'Linux' && 'g++-14' || 'clang++' }}
+        run: cmake --preset ${{ matrix.configure }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.build }} --parallel 2
+
+      - name: Run deterministic regression
+        run: |
+          ctest --test-dir build-ninja/${{ matrix.configure }} \
+            --output-on-failure --no-tests=error
+
+      - name: Check patch whitespace
+        run: git diff --check

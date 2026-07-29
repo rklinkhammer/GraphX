@@ -20,7 +20,7 @@ baseline consolidation:
 | Path | Purpose |
 |---|---|
 | `libgraph/` | Graph runtime, executor, nodes, edges, plugins, config loading, policies. |
-| `libgpu/` | GPU/accelerator token contracts and backend nodes for CUDA/SYCL/Metal where enabled. |
+| `libgpu/` | GPU/accelerator token contracts and backend nodes for CUDA/Metal where enabled. |
 | `libdsp/` | DSP nodes, spectrum demo nodes, FHSS protocol/generator/decoder nodes and configs. |
 | `libsensor/` | Sensor-side support library. |
 | `examples/DSP/` | User-runnable DSP spectrum and FHSS demos plus tests. |
@@ -40,7 +40,6 @@ baseline consolidation:
   Apache log4cxx, GoogleTest, and Catch2.
 - Optional GPU/backend prerequisites:
   - CUDA: CUDAToolkit discoverable by CMake.
-  - SYCL: compiler support for `-fsycl`.
   - Metal: Apple platform for Metal graph nodes.
   - Native Metal runtime: Apple frameworks plus `metal-cpp` headers.
 
@@ -74,7 +73,7 @@ cmake --build --preset build-debug
 ctest --test-dir build-ninja/ninja-debug --output-on-failure
 ```
 
-On Linux, use the host preset, which disables Metal and SYCL requests:
+On Linux, use the host preset, which disables Metal requests:
 
 ```bash
 cmake --preset ninja-debug-linux-host
@@ -198,8 +197,8 @@ Top-level options:
 | `GRAPHX_BUILD_EXAMPLES_SAR` | `ON` | Build SAR examples. |
 | `GRAPHX_BUILD_EXAMPLES_DSP` | `ON` | Build DSP examples. |
 | `ENABLE_TSAN` | `OFF` | Add ThreadSanitizer flags on supported compilers. |
+| `ENABLE_ASAN_UBSAN` | `OFF` | Add AddressSanitizer and UndefinedBehaviorSanitizer flags on supported compilers. |
 | `ENABLE_CUDA_GRAPH_NODES` | `OFF` | Request CUDA graph node support. |
-| `ENABLE_SYCL_GRAPH_NODES` | `ON` | Request SYCL graph node support. |
 | `ENABLE_METAL_GRAPH_NODES` | `ON` | Request Metal graph node support. |
 | `ENABLE_METAL_NATIVE_RUNTIME` | `ON` | Request native Metal runtime on Apple. |
 | `GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME` | `OFF` | Fail if native Metal runtime cannot be enabled. |
@@ -632,7 +631,6 @@ Supported backend ownership:
 |---|---|---|
 | Metal | transfer, memory, synchronization, and registered kernels when native runtime is available | `libgpu_metal_runtime` |
 | CUDA | contract-safe stub capability only; native execution unsupported | `libgpu_stub_unit` |
-| SYCL | contract-safe stub capability only; native execution unsupported | `libgpu_backend_unit` |
 
 | Node | Classification |
 |---|---|

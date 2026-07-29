@@ -8,7 +8,6 @@ file(GLOB GPU_PERF_TEST_SOURCES CONFIGURE_DEPENDS "perf/test_*.cpp")
 
 # Backend-specific integration round-trip coverage is consolidated into the
 # typed suite in unit/test_gpu_topologies.cpp (test_libgpu_stub_unit).
-list(FILTER GPU_INTEGRATION_TEST_SOURCES EXCLUDE REGEX "/test_sycl_")
 list(FILTER GPU_INTEGRATION_TEST_SOURCES EXCLUDE REGEX "/test_metal_")
 
 if(GPU_STUB_UNIT_TEST_SOURCES)
@@ -35,7 +34,7 @@ if(GPU_STUB_UNIT_TEST_SOURCES)
         LABELS "gpu;unit;ci-safe;host-any")
 endif()
 
-if((GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED) AND GPU_BACKEND_UNIT_TEST_SOURCES)
+if(GRAPHX_CUDA_GRAPH_NODES_ENABLED AND GPU_BACKEND_UNIT_TEST_SOURCES)
     add_executable(test_libgpu_backend_unit ${GPU_BACKEND_UNIT_TEST_SOURCES})
     target_include_directories(test_libgpu_backend_unit PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include

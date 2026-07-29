@@ -12,9 +12,9 @@ This record captures the Phase 0-3 replacement slice for the GPU architecture: i
 | `IGpuCapabilityBinding` | Graph-side GPU binding hook; still used by GPU-aware nodes and plugin facades. |
 | `GpuPolicy` | Registers backend capabilities during graph initialization and binds them into nodes. |
 | `GpuCapabilityBootstrap` | Installs the authoritative `AcceleratorSessionRegistry` in the graph-owned bus; transitional backend capability sets remain until their nodes are replaced. |
-| `BackendKind` | CUDA, SYCL, Metal, Unknown, and CPU. |
+| `BackendKind` | CUDA, Metal, Unknown, and CPU. |
 | Accelerator tokens | Backend-neutral token/view/lease structures already exist in `libgpu/include/gpu/accel/types`. |
-| Backend capability APIs | CUDA, SYCL, and Metal still expose backend-specific context/memory/transfer/kernel/telemetry contracts. |
+| Backend capability APIs | CUDA and Metal still expose backend-specific context/memory/transfer/kernel/telemetry contracts. |
 | Shared GPU bus | Removed. There is no process-global authoritative GPU capability bus. |
 
 ## Native versus stub status
@@ -23,14 +23,13 @@ This record captures the Phase 0-3 replacement slice for the GPU architecture: i
 |---|---|---|
 | Metal | Direct new-interface provider is truthfully registered as `Stub`. The old native runtime remains outside the session architecture and must be refactored rather than wrapped. |
 | CUDA | Direct new-interface provider is truthfully registered as `Stub`; there is no native CUDA implementation in this slice. |
-| SYCL | Direct new-interface provider is truthfully registered as `Stub`; there is no native SYCL implementation in this slice. |
 | CPU | Direct `CpuFallback` provider implements allocation, copies, queue/event lifecycle, submission validation, telemetry, and cross-session rejection. |
 
 ## Duplicate logical contracts
 
 | Contract family | Duplicated today |
 |---|---|
-| Context/device selection | CUDA, SYCL, and Metal all carry a backend-specific notion of device or runtime context. |
+| Context/device selection | CUDA and Metal both carry a backend-specific notion of device or runtime context. |
 | Memory allocation | Device and host-visible allocation are implemented separately per backend. |
 | Transfers | H2D, D2H, and D2D transfer contracts repeat across backends. |
 | Event handling | Backend-specific queue/event acquisition and wait semantics repeat across backends. |
@@ -82,7 +81,7 @@ flowchart LR
 ## Gate status
 
 - Phase 2 foundation is complete: descriptors are validated, unavailable providers cannot register or resolve, provider ordering is deterministic, malformed enums are rejected, and the registry is graph-owned.
-- Gate A is **partially satisfied**. CPU is a real complete provider and CUDA/SYCL/Metal stubs are labeled truthfully, but direct native Metal has not yet migrated to the new interfaces.
+- Gate A is **partially satisfied**. CPU is a real complete provider and CUDA/Metal stubs are labeled truthfully, but direct native Metal has not yet migrated to the new interfaces.
 - Gate B is **not started** because generic resource-node migration belongs to Phase 5.
 
 ## APIs removed
@@ -93,7 +92,7 @@ flowchart LR
 
 ## APIs scheduled for deletion
 
-- `ICuda*Capability`, `IMetal*Capability`, and `ISycl*Capability` families.
+- `ICuda*Capability` and `IMetal*Capability` families.
 - Backend-specific ingress, transfer, release, synchronization, and generic-kernel nodes.
 - Backend-specific GPU infrastructure plugins and their topology mappings.
 

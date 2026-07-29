@@ -14,6 +14,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install current CMake
+        uses: lukka/get-cmake@latest
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -24,19 +27,22 @@ jobs:
             nlohmann-json3-dev \
             libeigen3-dev \
             liblog4cxx-dev \
-            libgtest-dev
+            libgtest-dev \
+            catch2 \
+            python3
 
-      - name: Configure (Ninja debug)
+      - name: Configure (Linux host debug)
         env:
           CC: gcc-14
           CXX: g++-14
         run: |
-          cmake --preset ninja-debug
+          cmake --preset ninja-debug-linux-host
 
       - name: Build libgraph unit target
         run: |
-          cmake --build --preset build-libgraph-unit
+          cmake --build build-ninja/ninja-debug-linux-host --target test_libgraph_unit
 
       - name: Run libgraph unit tests
         run: |
-          ctest --preset test-libgraph-unit
+          ctest --test-dir build-ninja/ninja-debug-linux-host \
+            -R '^libgraph_unit$' --output-on-failure --no-tests=error

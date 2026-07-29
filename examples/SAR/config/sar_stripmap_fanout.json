@@ -21,10 +21,6 @@
         {
           "backend": "cuda",
           "concrete_type": "SarBackprojectionTransformAccelNode"
-        },
-        {
-          "backend": "sycl",
-          "concrete_type": "SarBackprojectionTransformAccelNode"
         }
       ]
     }

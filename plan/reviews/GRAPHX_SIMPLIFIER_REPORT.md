@@ -318,7 +318,7 @@ descriptors; domain nodes do not implement per-port virtual boilerplate.
    small generic server/session API belongs in `libgraph` or the entire feature
    belongs under `examples/DSP`.
 4. Which accelerator backends have an active support commitment and available
-   correctness hardware: Metal, CUDA, and/or SYCL? Backend surfaces without an
+   correctness hardware: Metal and/or CUDA? Backend surfaces without an
    owner, hardware lane, and executable capability contract should be deleted
    rather than planned for indefinite preservation.
 5. Is the C++ module pilot an active deliverable with a compiler/test matrix? If

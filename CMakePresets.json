@@ -68,8 +68,7 @@
         "GRAPHX_BUILD_PROFILE": "linux-ninja-host",
         "ENABLE_METAL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
-        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF"
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
       }
     },
     {
@@ -82,8 +81,25 @@
         "GRAPHX_BUILD_PROFILE": "linux-ninja-host",
         "ENABLE_METAL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
-        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF"
+        "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
+      }
+    },
+    {
+      "name": "ninja-debug-linux-sanitized",
+      "displayName": "Ninja Debug (Linux ASAN/UBSAN)",
+      "description": "Linux deterministic regression with memory and undefined-behavior instrumentation",
+      "inherits": "ninja-debug-linux-host",
+      "cacheVariables": {
+        "ENABLE_ASAN_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "ninja-debug-linux-scheduled",
+      "displayName": "Ninja Debug (Linux Scheduled Validation)",
+      "description": "Linux extended ThreadPool and statistical validation profile",
+      "inherits": "ninja-debug-linux-host",
+      "cacheVariables": {
+        "GRAPHX_ENABLE_EXTENDED_VALIDATION": "ON"
       }
     },
     {
@@ -95,7 +111,6 @@
       "cacheVariables": {
         "ENABLE_CUDA_GRAPH_NODES": "ON",
         "ACCELGRAPH_ENABLE_CUDA": "ON",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
         "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
@@ -127,7 +142,6 @@
       "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_GRAPH_NODES": "ON",
         "ENABLE_METAL_NATIVE_RUNTIME": "ON",
         "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
@@ -149,7 +163,6 @@
       "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_GRAPH_NODES": "ON",
         "ENABLE_METAL_NATIVE_RUNTIME": "ON",
         "GRAPHX_METAL_CPP_INCLUDE_DIR": "/opt/homebrew/include"
@@ -173,7 +186,6 @@
       "inherits": "ninja-base-appleclang-macos",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ENABLE_SYCL_GRAPH_NODES": "OFF",
         "ENABLE_METAL_GRAPH_NODES": "ON",
         "ENABLE_METAL_NATIVE_RUNTIME": "OFF",
         "GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME": "OFF"
@@ -195,6 +207,16 @@
       "name": "build-debug-linux-host",
       "displayName": "Build Debug (Linux Host)",
       "configurePreset": "ninja-debug-linux-host"
+    },
+    {
+      "name": "build-debug-linux-sanitized",
+      "displayName": "Build Debug (Linux ASAN/UBSAN)",
+      "configurePreset": "ninja-debug-linux-sanitized"
+    },
+    {
+      "name": "build-debug-linux-scheduled",
+      "displayName": "Build Debug (Linux Scheduled Validation)",
+      "configurePreset": "ninja-debug-linux-scheduled"
     },
     {
       "name": "build-jetson-cuda",

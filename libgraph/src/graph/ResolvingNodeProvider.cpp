@@ -42,9 +42,8 @@ namespace {
 
 std::vector<ResolverBackend> BackendPreference(ResolverBackend requested_backend,
                                                ResolverFallbackPolicy fallback_policy) {
-    const std::array<ResolverBackend, 4> auto_order{
+    const std::array<ResolverBackend, 3> auto_order{
         ResolverBackend::Metal,
-        ResolverBackend::Sycl,
         ResolverBackend::Stub,
         ResolverBackend::Cuda,
     };

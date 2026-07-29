@@ -31,11 +31,6 @@
 #include "gpu/metal/nodes/H2DAsyncNodeMetal.hpp"
 #include "gpu/metal/nodes/HostEgressSinkNodeMetal.hpp"
 #include "gpu/metal/nodes/HostIngressPinnedSourceNodeMetal.hpp"
-#include "gpu/sycl/capabilities/DefaultSyclCapabilities.hpp"
-#include "gpu/sycl/nodes/D2HAsyncNodeSycl.hpp"
-#include "gpu/sycl/nodes/H2DAsyncNodeSycl.hpp"
-#include "gpu/sycl/nodes/HostEgressSinkNodeSycl.hpp"
-#include "gpu/sycl/nodes/HostIngressPinnedSourceNodeSycl.hpp"
 
 namespace {
 
@@ -199,171 +194,11 @@ private:
 };
 
 /**
- * @class TopologyTestSyclMemoryPool
- * @brief Topology test sycl memory pool implementation for GraphX.
- */
-class TopologyTestSyclMemoryPool final : public graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability {
-public:
-    bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
-                        graph::gpu::accel::BufferLease& out_lease) override {
-        if (bytes == 0) {
-            return false;
-        }
-
-        const auto allocation_id = next_allocation_id_++;
-        auto [it, inserted] = device_allocations_.emplace(allocation_id,
-                                                           std::vector<std::byte>(bytes, std::byte{0}));
-        if (!inserted) {
-            return false;
-        }
-
-        out_lease.pool_id = 201;
-        out_lease.allocation_id = allocation_id;
-        out_lease.release_policy = graph::gpu::accel::ReleasePolicy::Manual;
-        out_lease.device_view.backend = graph::gpu::accel::BackendKind::SYCL;
-        out_lease.device_view.device_id = device_id;
-        out_lease.device_view.bytes = bytes;
-        out_lease.device_view.dtype = graph::gpu::accel::DataType::UInt8;
-        out_lease.device_view.layout.rank = 1;
-        out_lease.device_view.layout.shape[0] = bytes;
-        out_lease.device_view.layout.stride[0] = 1;
-        out_lease.device_view.device_ptr = static_cast<void*>(it->second.data());
-        return true;
-    }
-
-    bool AllocateShared(std::uint64_t bytes, std::uint32_t device_id,
-                        graph::gpu::accel::BufferLease& out_lease) override {
-        return AllocateDevice(bytes, device_id, out_lease);
-    }
-
-    bool AllocateHost(std::uint64_t bytes,
-                      graph::gpu::accel::BufferLease& out_lease) override {
-        if (bytes == 0) {
-            return false;
-        }
-
-        const auto allocation_id = next_allocation_id_++;
-        const auto pattern = (host_allocation_count_++ == 0) ? kSourcePattern : kDestinationPattern;
-        auto [it, inserted] = host_allocations_.emplace(
-            allocation_id,
-            std::vector<std::byte>(bytes, std::byte{pattern}));
-        if (!inserted) {
-            return false;
-        }
-
-        out_lease.pool_id = 202;
-        out_lease.allocation_id = allocation_id;
-        out_lease.release_policy = graph::gpu::accel::ReleasePolicy::Manual;
-        out_lease.host_view.backend = graph::gpu::accel::BackendKind::SYCL;
-        out_lease.host_view.bytes = bytes;
-        out_lease.host_view.dtype = graph::gpu::accel::DataType::UInt8;
-        out_lease.host_view.layout.rank = 1;
-        out_lease.host_view.layout.shape[0] = bytes;
-        out_lease.host_view.layout.stride[0] = 1;
-        out_lease.host_view.host_ptr = static_cast<void*>(it->second.data());
-        out_lease.host_view.allocator_id = out_lease.pool_id;
-        return true;
-    }
-
-    bool Release(const graph::gpu::accel::BufferLease& lease) override {
-        if (lease.allocation_id == 0) {
-            return false;
-        }
-        const auto removed_device = device_allocations_.erase(lease.allocation_id);
-        const auto removed_host = host_allocations_.erase(lease.allocation_id);
-        return removed_device != 0 || removed_host != 0;
-    }
-
-private:
-    std::uint64_t next_allocation_id_{1};
-    std::size_t host_allocation_count_{0};
-    std::unordered_map<std::uint64_t, std::vector<std::byte>> device_allocations_{};
-    std::unordered_map<std::uint64_t, std::vector<std::byte>> host_allocations_{};
-};
-
-/**
- * @class TopologyTestSyclTransfer
- * @brief Topology test sycl transfer implementation for GraphX.
- */
-class TopologyTestSyclTransfer final : public graph::gpu::sycl::capabilities::ISyclTransferCapability {
-public:
-    bool EnqueueH2D(const graph::gpu::accel::HostPinnedBufferView& src,
-                    graph::gpu::accel::DeviceBufferView& dst,
-                    std::uint64_t queue_id,
-                    graph::gpu::accel::TransferTicket& out_ticket) override {
-        if (queue_id == 0) {
-            return false;
-        }
-
-        const auto copy_bytes = std::min(src.bytes, dst.bytes);
-        std::memcpy(dst.device_ptr, src.host_ptr, static_cast<std::size_t>(copy_bytes));
-        ++h2d_count;
-
-        out_ticket.backend = graph::gpu::accel::BackendKind::SYCL;
-        out_ticket.transfer_id = next_transfer_id_++;
-        out_ticket.execution_queue_id = queue_id;
-        out_ticket.completion_event = next_event_id_++;
-        out_ticket.src_host = src;
-        out_ticket.dst_device = dst;
-        dst.ready_event = out_ticket.completion_event;
-        return true;
-    }
-
-    bool EnqueueD2H(const graph::gpu::accel::DeviceBufferView& src,
-                    graph::gpu::accel::HostPinnedBufferView& dst,
-                    std::uint64_t queue_id,
-                    graph::gpu::accel::TransferTicket& out_ticket) override {
-        if (queue_id == 0) {
-            return false;
-        }
-
-        const auto copy_bytes = std::min(src.bytes, dst.bytes);
-        std::memcpy(dst.host_ptr, src.device_ptr, static_cast<std::size_t>(copy_bytes));
-        ++d2h_count;
-
-        out_ticket.backend = graph::gpu::accel::BackendKind::SYCL;
-        out_ticket.transfer_id = next_transfer_id_++;
-        out_ticket.execution_queue_id = queue_id;
-        out_ticket.completion_event = next_event_id_++;
-        out_ticket.src_device = src;
-        out_ticket.dst_host = dst;
-        return true;
-    }
-
-    bool EnqueueD2D(const graph::gpu::accel::DeviceBufferView& src,
-                    graph::gpu::accel::DeviceBufferView& dst,
-                    std::uint64_t queue_id,
-                    graph::gpu::accel::TransferTicket& out_ticket) override {
-        if (queue_id == 0) {
-            return false;
-        }
-
-        const auto copy_bytes = std::min(src.bytes, dst.bytes);
-        std::memcpy(dst.device_ptr, src.device_ptr, static_cast<std::size_t>(copy_bytes));
-
-        out_ticket.backend = graph::gpu::accel::BackendKind::SYCL;
-        out_ticket.transfer_id = next_transfer_id_++;
-        out_ticket.execution_queue_id = queue_id;
-        out_ticket.completion_event = next_event_id_++;
-        out_ticket.src_device = src;
-        out_ticket.dst_device = dst;
-        dst.ready_event = out_ticket.completion_event;
-        return true;
-    }
-
-    std::size_t h2d_count{0};
-    std::size_t d2h_count{0};
-
-private:
-    std::uint64_t next_transfer_id_{1};
-    std::uint64_t next_event_id_{1};
-};
-
-/**
  * @class TopologyTestMetalMemoryPool
- * @brief Topology test metal memory pool implementation for GraphX.
+ * @brief Topology test Metal memory pool implementation for GraphX.
  */
-class TopologyTestMetalMemoryPool final : public graph::gpu::metal::capabilities::IMetalMemoryPoolCapability {
+class TopologyTestMetalMemoryPool final
+    : public graph::gpu::metal::capabilities::IMetalMemoryPoolCapability {
 public:
     bool AllocateDevice(std::uint64_t bytes, std::uint32_t device_id,
                         graph::gpu::accel::BufferLease& out_lease) override {
@@ -542,24 +377,6 @@ struct CudaTopologyTraits {
             static constexpr const char* sink_type_name = "HostEgressSinkNode";
         };
 
-        struct SyclTopologyTraits {
-            using SourceNode = graph::gpu::sycl::nodes::HostIngressPinnedSourceNodeSycl;
-            using H2DNode = graph::gpu::sycl::nodes::H2DAsyncNodeSycl;
-            using D2HNode = graph::gpu::sycl::nodes::D2HAsyncNodeSycl;
-            using SinkNode = graph::gpu::sycl::nodes::HostEgressSinkNodeSycl;
-            using MemoryPool = TopologyTestSyclMemoryPool;
-            using Transfer = TopologyTestSyclTransfer;
-            using MemoryPoolCapability = graph::gpu::sycl::capabilities::ISyclMemoryPoolCapability;
-            using TransferCapability = graph::gpu::sycl::capabilities::ISyclTransferCapability;
-
-            static constexpr graph::gpu::accel::BackendKind backend = graph::gpu::accel::BackendKind::SYCL;
-            static constexpr std::uint64_t bytes = 2048;
-            static constexpr const char* source_type_name = "HostIngressPinnedSourceNodeSycl";
-            static constexpr const char* h2d_type_name = "H2DAsyncNodeSycl";
-            static constexpr const char* d2h_type_name = "D2HAsyncNodeSycl";
-            static constexpr const char* sink_type_name = "HostEgressSinkNodeSycl";
-        };
-
         struct MetalTopologyTraits {
             using SourceNode = graph::gpu::metal::nodes::HostIngressPinnedSourceNodeMetal;
             using H2DNode = graph::gpu::metal::nodes::H2DAsyncNodeMetal;
@@ -676,7 +493,7 @@ struct CudaTopologyTraits {
  */
         class GpuTopologyRoundTripTest : public ::testing::Test {};
 
-        using GpuTopologyRoundTripTypes = ::testing::Types<CudaTopologyTraits, SyclTopologyTraits, MetalTopologyTraits>;
+        using GpuTopologyRoundTripTypes = ::testing::Types<CudaTopologyTraits, MetalTopologyTraits>;
         TYPED_TEST_SUITE(GpuTopologyRoundTripTest, GpuTopologyRoundTripTypes);
 
         TYPED_TEST(GpuTopologyRoundTripTest, MinimalRoundTripGraphExecutorBuilder) {

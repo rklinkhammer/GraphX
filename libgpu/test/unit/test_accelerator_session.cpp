@@ -324,7 +324,7 @@ TEST(AcceleratorSessionTest, BootstrapsAuthoritativeRegistryInGraphBus) {
     graph::gpu::RegisterDefaultGpuCapabilities(bus, options);
     auto registry = bus.Get<graph::gpu::AcceleratorSessionRegistry>();
     ASSERT_NE(registry, nullptr);
-    EXPECT_EQ(registry->Size(), 4U);
+    EXPECT_EQ(registry->Size(), 3U);
 
     graph::gpu::AcceleratorSessionRequest native_request{};
     native_request.required_execution_mode = graph::gpu::ExecutionMode::Native;

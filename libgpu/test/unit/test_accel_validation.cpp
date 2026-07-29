@@ -119,7 +119,7 @@ TEST(AccelValidation, LeaseValidationRequiresAllocationAndValidPayload) {
 
 TEST(AccelValidation, TransferTicketValidationRequiresDirectionAndIds) {
     TransferTicket ticket{};
-    ticket.backend = BackendKind::SYCL;
+    ticket.backend = BackendKind::Metal;
     ticket.transfer_id = 4;
     ticket.execution_queue_id = 11;
     ticket.completion_event = 12;
@@ -133,7 +133,7 @@ TEST(AccelValidation, TransferTicketValidationRequiresDirectionAndIds) {
 
 TEST(AccelValidation, KernelTicketValidation) {
     KernelTicket ticket{};
-    ticket.backend = BackendKind::SYCL;
+    ticket.backend = BackendKind::Metal;
     ticket.kernel_id = 77;
     ticket.arg_count = 2;
     ticket.launch.grid_x = 2;
@@ -179,7 +179,7 @@ TEST(AccelValidation, PayloadFormattingProducesUsefulDiagnostics) {
     lease.device_view = MakeDeviceView();
 
     TransferTicket ticket{};
-    ticket.backend = BackendKind::SYCL;
+    ticket.backend = BackendKind::Metal;
     ticket.transfer_id = 44;
     ticket.execution_queue_id = 55;
     ticket.completion_event = 66;
@@ -207,6 +207,6 @@ TEST(AccelValidation, PayloadFormattingProducesUsefulDiagnostics) {
     EXPECT_NE(text.find("TransferTicket{"), std::string::npos);
     EXPECT_NE(text.find("DeviceShardDescriptor{"), std::string::npos);
     EXPECT_NE(text.find("CollectiveTicket{"), std::string::npos);
-    EXPECT_NE(text.find("SYCL"), std::string::npos);
+    EXPECT_NE(text.find("Metal"), std::string::npos);
     EXPECT_NE(text.find("ReduceScatter"), std::string::npos);
 }

@@ -4,7 +4,6 @@ project(gdashboard-workspace VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
 
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
@@ -89,8 +88,13 @@ endif()
 option(GRAPHX_BUILD_EXAMPLES_SAR "Build the SAR example package under examples/SAR" ON)
 option(GRAPHX_BUILD_EXAMPLES_DSP "Build the DSP example package under examples/DSP" ON)
 option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
+option(ENABLE_ASAN_UBSAN
+    "Build with AddressSanitizer and UndefinedBehaviorSanitizer instrumentation"
+    OFF)
+option(GRAPHX_ENABLE_EXTENDED_VALIDATION
+    "Register scheduled statistical, stress, and extended validation lanes"
+    OFF)
 option(ENABLE_CUDA_GRAPH_NODES "Enable CUDA GPU graph nodes in libgpu" OFF)
-option(ENABLE_SYCL_GRAPH_NODES "Enable SYCL GPU graph nodes in libgpu" ON)
 option(ENABLE_METAL_GRAPH_NODES "Enable Metal GPU graph nodes in libgpu" ON)
 option(ENABLE_METAL_NATIVE_RUNTIME "Enable native Metal runtime implementation on Apple" ON)
 option(GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME
@@ -109,14 +113,6 @@ find_package(CUDAToolkit QUIET)
 set(GRAPHX_HAS_CUDA_TOOLKIT OFF)
 if(CUDAToolkit_FOUND)
     set(GRAPHX_HAS_CUDA_TOOLKIT ON)
-endif()
-
-set(GRAPHX_HAS_SYCL_COMPILER OFF)
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|IntelLLVM")
-    check_cxx_compiler_flag("-fsycl" GRAPHX_CXX_SUPPORTS_FSYCL)
-    if(GRAPHX_CXX_SUPPORTS_FSYCL)
-        set(GRAPHX_HAS_SYCL_COMPILER ON)
-    endif()
 endif()
 
 set(GRAPHX_HAS_METAL_PLATFORM OFF)
@@ -185,17 +181,6 @@ if(ENABLE_CUDA_GRAPH_NODES)
     endif()
 endif()
 
-set(GRAPHX_SYCL_GRAPH_NODES_ENABLED OFF)
-if(ENABLE_SYCL_GRAPH_NODES)
-    if(GRAPHX_HAS_SYCL_COMPILER)
-        set(GRAPHX_SYCL_GRAPH_NODES_ENABLED ON)
-    else()
-        message(WARNING
-            "ENABLE_SYCL_GRAPH_NODES=ON but this compiler does not support -fsycl. "
-            "Disabling SYCL graph nodes for this configure.")
-    endif()
-endif()
-
 set(GRAPHX_METAL_GRAPH_NODES_ENABLED OFF)
 if(ENABLE_METAL_GRAPH_NODES)
     if(GRAPHX_HAS_METAL_PLATFORM)
@@ -237,10 +222,10 @@ if(GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME)
     endif()
 endif()
 
-if(MULTI_GPU_TESTS AND NOT (GRAPHX_CUDA_GRAPH_NODES_ENABLED OR GRAPHX_SYCL_GRAPH_NODES_ENABLED))
+if(MULTI_GPU_TESTS AND NOT GRAPHX_CUDA_GRAPH_NODES_ENABLED)
     message(WARNING
-        "MULTI_GPU_TESTS=ON but no GPU backend is enabled. "
-        "Tests may be skipped until CUDA or SYCL graph nodes are enabled.")
+        "MULTI_GPU_TESTS=ON but CUDA graph nodes are disabled. "
+        "Tests may be skipped until a multi-device CUDA backend is enabled.")
 endif()
 
 if(ENABLE_TSAN)
@@ -248,12 +233,15 @@ if(ENABLE_TSAN)
         message(FATAL_ERROR "ENABLE_TSAN is not supported with MSVC")
     endif()
 endif()
+if(ENABLE_TSAN AND ENABLE_ASAN_UBSAN)
+    message(FATAL_ERROR
+        "ENABLE_TSAN and ENABLE_ASAN_UBSAN are mutually exclusive")
+endif()
 
 # Shared project options target to avoid leaking global flags into all targets.
 add_library(graphx_project_options INTERFACE)
 target_compile_definitions(graphx_project_options INTERFACE
     GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
-    GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
     GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
     GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}>
@@ -271,9 +259,14 @@ if(ENABLE_TSAN)
     target_compile_options(graphx_project_options INTERFACE -fsanitize=thread -fno-omit-frame-pointer)
     target_link_options(graphx_project_options INTERFACE -fsanitize=thread)
 endif()
+if(ENABLE_ASAN_UBSAN)
+    target_compile_options(graphx_project_options INTERFACE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(graphx_project_options INTERFACE
+        -fsanitize=address,undefined)
+endif()
 
 message(STATUS "GraphX CUDA graph nodes: ${GRAPHX_CUDA_GRAPH_NODES_ENABLED}")
-message(STATUS "GraphX SYCL graph nodes: ${GRAPHX_SYCL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal graph nodes: ${GRAPHX_METAL_GRAPH_NODES_ENABLED}")
 message(STATUS "GraphX Metal native runtime: ${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}")
 message(STATUS "GraphX strict native Metal requirement: ${GRAPHX_REQUIRE_METAL_NATIVE_RUNTIME}")
@@ -319,12 +312,14 @@ if(BUILD_TESTS)
     # Ensure CTest dashboard metadata files are generated for clean ctest runs.
     include(CTest)
     enable_testing()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     
     # Add per-project tests
     add_subdirectory(libgraph/test)
     add_subdirectory(libaccelgraph/test)
     add_subdirectory(libgpu/test)
     add_subdirectory(libdsp/test)
+    add_subdirectory(libsensor/test)
     add_test(NAME graph_cli_help COMMAND graphx_graph_cli --help)
     add_test(NAME graph_dashboard_help COMMAND graphx_graph_dashboard --help)
     add_test(
@@ -335,6 +330,19 @@ if(BUILD_TESTS)
     set_tests_properties(
         graph_cli_help graph_cli_node_count graph_dashboard_help PROPERTIES
         LABELS "core;cli;phase2b;ci-safe;host-any")
+    add_test(
+        NAME graph_tools_executable_contract
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tools/tests/test_graph_tools.py
+            --dashboard $<TARGET_FILE:graphx_graph_dashboard>
+            --cli $<TARGET_FILE:graphx_graph_cli>
+            --graph
+                ${CMAKE_SOURCE_DIR}/libgraph/test/config/topologies/minimal_graph.json
+            --work-dir ${CMAKE_BINARY_DIR}/test-output/graph-tools)
+    set_tests_properties(graph_tools_executable_contract PROPERTIES
+        LABELS "core;cli;dashboard;integration;ci-safe;host-any"
+        TIMEOUT 30
+        RUN_SERIAL TRUE)
     if(GRAPHX_BUILD_EXAMPLES_SAR)
         add_subdirectory(examples/SAR/plugins)
         add_subdirectory(examples/SAR/test)

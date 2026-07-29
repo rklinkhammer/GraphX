@@ -21,10 +21,6 @@
         {
           "backend": "cuda",
           "concrete_type": "H2DAsyncAccelNode"
-        },
-        {
-          "backend": "sycl",
-          "concrete_type": "H2DAsyncAccelNode"
         }
       ]
     },
@@ -44,10 +40,6 @@
         {
           "backend": "cuda",
           "concrete_type": "SarBackprojectionTransformAccelNode"
-        },
-        {
-          "backend": "sycl",
-          "concrete_type": "SarBackprojectionTransformAccelNode"
         }
       ]
     },
@@ -66,10 +58,6 @@
         },
         {
           "backend": "cuda",
-          "concrete_type": "D2HAsyncAccelNode"
-        },
-        {
-          "backend": "sycl",
           "concrete_type": "D2HAsyncAccelNode"
         }
       ]

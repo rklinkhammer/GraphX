@@ -1081,8 +1081,6 @@ std::string BackendKindToString(graph::gpu::accel::BackendKind backend) {
             return "cpu";
         case graph::gpu::accel::BackendKind::CUDA:
             return "cuda";
-        case graph::gpu::accel::BackendKind::SYCL:
-            return "sycl";
         case graph::gpu::accel::BackendKind::Metal:
             return "metal";
         case graph::gpu::accel::BackendKind::Unknown:

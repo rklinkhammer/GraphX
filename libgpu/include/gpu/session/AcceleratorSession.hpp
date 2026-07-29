@@ -383,8 +383,6 @@ inline void from_json(const nlohmann::json& json, BackendDescriptor& descriptor)
         descriptor.backend = accel::BackendKind::CPU;
     } else if (backend == "CUDA") {
         descriptor.backend = accel::BackendKind::CUDA;
-    } else if (backend == "SYCL") {
-        descriptor.backend = accel::BackendKind::SYCL;
     } else if (backend == "Metal") {
         descriptor.backend = accel::BackendKind::Metal;
     } else {
@@ -446,8 +444,6 @@ inline void from_json(const nlohmann::json& json, AcceleratorSessionRequest& req
             request.required_backend = accel::BackendKind::CPU;
         } else if (value == "CUDA") {
             request.required_backend = accel::BackendKind::CUDA;
-        } else if (value == "SYCL") {
-            request.required_backend = accel::BackendKind::SYCL;
         } else if (value == "Metal") {
             request.required_backend = accel::BackendKind::Metal;
         } else { throw nlohmann::json::other_error::create(501, "invalid required_backend: " + value, &json); }
@@ -459,8 +455,6 @@ inline void from_json(const nlohmann::json& json, AcceleratorSessionRequest& req
             request.preferred_backend = accel::BackendKind::CPU;
         } else if (value == "CUDA") {
             request.preferred_backend = accel::BackendKind::CUDA;
-        } else if (value == "SYCL") {
-            request.preferred_backend = accel::BackendKind::SYCL;
         } else if (value == "Metal") {
             request.preferred_backend = accel::BackendKind::Metal;
         } else { throw nlohmann::json::other_error::create(501, "invalid preferred_backend: " + value, &json); }

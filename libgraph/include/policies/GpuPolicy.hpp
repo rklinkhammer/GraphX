@@ -36,7 +36,7 @@
 #include "graph/IGpuCapabilityBinding.hpp"
 #include "graph/IExecutionPolicy.hpp"
 
-#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #endif
@@ -94,7 +94,7 @@ public:
          */
         LOG4CXX_TRACE(gpu_policy_logger, "GpuPolicy OnInit called");
 
-#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
+#if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     if (context.IsGpuBootstrapEnabled()) {
         graph::gpu::GpuCapabilityBootstrapOptions options{};
         graph::gpu::RegisterDefaultGpuCapabilities(context.GetCapabilityBus(), options);

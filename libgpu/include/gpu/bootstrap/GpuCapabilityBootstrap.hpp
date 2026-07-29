@@ -36,12 +36,6 @@ struct GpuCapabilityBootstrapOptions {
     bool enable_cuda{false};
 #endif
 
-#if GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
-    bool enable_sycl{true};
-#else
-    bool enable_sycl{false};
-#endif
-
 #if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
     bool enable_metal{true};
 #else

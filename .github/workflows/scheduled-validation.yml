@@ -1,0 +1,56 @@
+name: Scheduled Validation
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build gcc-14 g++-14 python3 \
+            nlohmann-json3-dev libeigen3-dev liblog4cxx-dev libgtest-dev \
+            catch2 libhdf5-dev
+      - name: Configure and build
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake --preset ninja-debug-linux-sanitized
+          cmake --build --preset build-debug-linux-sanitized --parallel 2
+      - name: Run sanitizer regression
+        run: |
+          ctest --test-dir build-ninja/ninja-debug-linux-sanitized \
+            --output-on-failure --no-tests=error
+
+  extended:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build gcc-14 g++-14 python3 \
+            nlohmann-json3-dev libeigen3-dev liblog4cxx-dev libgtest-dev \
+            catch2 libhdf5-dev
+      - name: Configure and build
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake --preset ninja-debug-linux-scheduled
+          cmake --build --preset build-debug-linux-scheduled --parallel 2
+      - name: Run extended ThreadPool and FHSS validation
+        run: |
+          ctest --test-dir build-ninja/ninja-debug-linux-scheduled \
+            -R '^(threadpool_extended|fhss_phase2_candidate_characterization_extended|fhss_phase3_actual_graph_extended)$' \
+            --output-on-failure --no-tests=error

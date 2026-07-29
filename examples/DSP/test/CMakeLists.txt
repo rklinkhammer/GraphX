@@ -377,3 +377,34 @@ set_tests_properties(fhss_phase5_qualification PROPERTIES
     ENVIRONMENT
         "GRAPHX_TEST_BUILD_DIR=${CMAKE_BINARY_DIR};GRAPHX_TEST_WORK_DIR=${CMAKE_BINARY_DIR}"
     TIMEOUT 30)
+
+if(GRAPHX_ENABLE_EXTENDED_VALIDATION)
+    add_test(
+        NAME fhss_phase2_candidate_characterization_extended
+        COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_SOURCE_DIR}/examples/DSP/tools/characterize_fhss_phase2.py
+                --characterizer $<TARGET_FILE:dsp_fhss_phase2_characterize>
+                --trials 100
+                --seed-partition evaluation)
+    set_tests_properties(fhss_phase2_candidate_characterization_extended
+        PROPERTIES
+        LABELS "dsp;fhss;phase2;characterization;extended;scheduled;host-any"
+        TIMEOUT 1800)
+
+    add_test(
+        NAME fhss_phase3_actual_graph_extended
+        COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_SOURCE_DIR}/examples/DSP/tools/fhss_phase3_independent.py
+                evaluate
+                --profile ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase3_validation_profile_v6.json
+                --receiver $<TARGET_FILE:dsp_fhss_demo>
+                --graph ${CMAKE_SOURCE_DIR}/libdsp/config/fhss_phase2_binary_iq_receiver.json
+                --plugins ${CMAKE_BINARY_DIR}/plugins
+                --partition evaluation
+                --raw ${CMAKE_BINARY_DIR}/fhss_phase3_extended_raw.json
+                --report ${CMAKE_BINARY_DIR}/fhss_phase3_extended_report.json)
+    set_tests_properties(fhss_phase3_actual_graph_extended PROPERTIES
+        LABELS "dsp;fhss;phase3;actual-graph;extended;scheduled;host-any"
+        TIMEOUT 7200
+        RUN_SERIAL TRUE)
+endif()

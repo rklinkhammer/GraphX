@@ -11,16 +11,11 @@
 #include "gpu/bootstrap/GpuCapabilityBootstrap.hpp"
 
 #include "gpu/cuda/capabilities/ICudaCapabilities.hpp"
-#include "gpu/sycl/capabilities/ISyclCapabilities.hpp"
 #include "gpu/metal/capabilities/IMetalCapabilities.hpp"
 #include "gpu/session/AcceleratorSessionProviders.hpp"
 
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
 #include "gpu/cuda/capabilities/DefaultCudaCapabilities.hpp"
-#endif
-
-#if GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
-#include "gpu/sycl/capabilities/DefaultSyclCapabilities.hpp"
 #endif
 
 #if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
@@ -42,7 +37,6 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
         bus.Register<AcceleratorSessionRegistry>(CreateDefaultAcceleratorSessionRegistry(
             AcceleratorProviderOptions{.enable_cpu = options.enable_cpu,
                                        .enable_cuda = options.enable_cuda,
-                                       .enable_sycl = options.enable_sycl,
                                        .enable_metal = options.enable_metal}));
     }
 #if GRAPHX_ENABLE_CUDA_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
@@ -74,37 +68,6 @@ void RegisterDefaultGpuCapabilities(graph::CapabilityBus& bus,
     }
 #else
     (void)options.enable_cuda;
-#endif
-
-#if GRAPHX_ENABLE_SYCL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS
-    if (options.enable_sycl) {
-        if (!bus.Has<sycl::capabilities::ISyclContextCapability>()) {
-            bus.Register<sycl::capabilities::ISyclContextCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclContextCapability>());
-        }
-        if (!bus.Has<sycl::capabilities::ISyclMemoryPoolCapability>()) {
-            bus.Register<sycl::capabilities::ISyclMemoryPoolCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclMemoryPoolCapability>());
-        }
-        if (!bus.Has<sycl::capabilities::ISyclTransferCapability>()) {
-            bus.Register<sycl::capabilities::ISyclTransferCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclTransferCapability>());
-        }
-        if (!bus.Has<sycl::capabilities::ISyclKernelCapability>()) {
-            bus.Register<sycl::capabilities::ISyclKernelCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclKernelCapability>());
-        }
-        if (!bus.Has<sycl::capabilities::ISyclTelemetryCapability>()) {
-            bus.Register<sycl::capabilities::ISyclTelemetryCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclTelemetryCapability>());
-        }
-        if (!bus.Has<sycl::capabilities::ISyclCollectiveCapability>()) {
-            bus.Register<sycl::capabilities::ISyclCollectiveCapability>(
-                std::make_shared<sycl::capabilities::DefaultSyclCollectiveCapability>());
-        }
-    }
-#else
-    (void)options.enable_sycl;
 #endif
 
 #if GRAPHX_ENABLE_METAL_GRAPH_NODES || GRAPHX_GPU_STUB_BACKENDS

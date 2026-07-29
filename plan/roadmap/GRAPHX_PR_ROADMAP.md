@@ -318,7 +318,7 @@ Inputs:
 - **Scope:** For each supported backend, require executable capability results
   and deterministic unsupported diagnostics; delete nodes that advertise but do
   not perform their operation. Do not add GPU algorithms.
-- **Files likely to touch:** `libgpu/include/gpu/{cuda,sycl,metal}/`, matching
+- **Files likely to touch:** `libgpu/include/gpu/{cuda,metal}/`, matching
   sources/plugins, capability bootstrap, configs/tests/docs.
 - **Files likely to delete:** Placeholder node/plugin/config surfaces for
   unsupported operations or unowned backends.
@@ -331,7 +331,7 @@ Inputs:
   owner and test lane.
 - **Truth-in-labeling:** Accelerator-ready contract is not GPU execution;
   unavailable and unsupported are distinct.
-- **Risks:** Large deletion if CUDA/SYCL lack support commitments.
+- **Risks:** Large deletion if CUDA lacks support commitments.
 - **Rollback:** Revert per backend, never by restoring placeholder success.
 - **Status:** CI-safe stubs/capability checks; device execution is backend-CI or
   local-only.

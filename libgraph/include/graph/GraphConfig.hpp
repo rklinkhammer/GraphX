@@ -41,7 +41,6 @@ enum class ResolverBackend {
     Auto,
     Metal,
     Cuda,
-    Sycl,
     Stub,
     Direct,
     Unknown,

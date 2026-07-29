@@ -65,7 +65,7 @@ def build_local_replay_graph_template() -> dict[str, Any]:
                         "backend": backend,
                         "concrete_type": "SarBackprojectionTransformAccelNode",
                     }
-                    for backend in ("metal", "stub", "cuda", "sycl")
+                    for backend in ("metal", "stub", "cuda")
                 ],
             }
         ],

@@ -33,7 +33,6 @@ enum class BackendKind : std::uint8_t {
     Unknown = 0,
     CPU,
     CUDA,
-    SYCL,
     Metal
 };
 

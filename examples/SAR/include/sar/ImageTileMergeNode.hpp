@@ -146,6 +146,7 @@ private:
 
     std::unordered_set<std::uint32_t> seen_tiles_{};
     std::unordered_set<std::uint32_t> eos_tiles_{};
+    std::uint64_t expected_data_tokens_{0};
     std::uint32_t received_tiles_{0};
     std::uint32_t duplicate_tiles_{0};
     std::uint32_t out_of_order_tiles_{0};

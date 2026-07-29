@@ -18,16 +18,11 @@ file(GLOB SOURCES CONFIGURE_DEPENDS "src/gpu/*.cpp")
 
 # Always include CPU-safe simulation backends. These are stub/default
 # implementations used for contract validation and CPU-only topology tests.
-# They are not evidence of a real CUDA or SYCL runtime being exercised.
+# They are not evidence of a real CUDA runtime being exercised.
 file(GLOB CUDA_STUB_CAPABILITY_SOURCES CONFIGURE_DEPENDS
     "src/gpu/cuda/capabilities/*.cpp"
     "src/gpu/cuda/capabilities/**/*.cpp")
 list(APPEND SOURCES ${CUDA_STUB_CAPABILITY_SOURCES})
-
-file(GLOB SYCL_STUB_CAPABILITY_SOURCES CONFIGURE_DEPENDS
-    "src/gpu/sycl/capabilities/*.cpp"
-    "src/gpu/sycl/capabilities/**/*.cpp")
-list(APPEND SOURCES ${SYCL_STUB_CAPABILITY_SOURCES})
 
 file(GLOB METAL_STUB_CAPABILITY_SOURCES CONFIGURE_DEPENDS
     "src/gpu/metal/capabilities/*.cpp"
@@ -37,11 +32,6 @@ list(APPEND SOURCES ${METAL_STUB_CAPABILITY_SOURCES})
 if(GRAPHX_CUDA_GRAPH_NODES_ENABLED)
     file(GLOB CUDA_SOURCES CONFIGURE_DEPENDS "src/gpu/cuda/*.cpp" "src/gpu/cuda/**/*.cpp")
     list(APPEND SOURCES ${CUDA_SOURCES})
-endif()
-
-if(GRAPHX_SYCL_GRAPH_NODES_ENABLED)
-    file(GLOB SYCL_SOURCES CONFIGURE_DEPENDS "src/gpu/sycl/*.cpp" "src/gpu/sycl/**/*.cpp")
-    list(APPEND SOURCES ${SYCL_SOURCES})
 endif()
 
 if(GRAPHX_METAL_GRAPH_NODES_ENABLED)
@@ -62,7 +52,6 @@ if(SOURCES)
     target_compile_definitions(gpu PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
     target_compile_definitions(gpu PUBLIC
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
-        GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
         GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>
@@ -119,7 +108,6 @@ else()
     )
     target_compile_definitions(gpu INTERFACE
         GRAPHX_ENABLE_CUDA_GRAPH_NODES=$<BOOL:${GRAPHX_CUDA_GRAPH_NODES_ENABLED}>
-        GRAPHX_ENABLE_SYCL_GRAPH_NODES=$<BOOL:${GRAPHX_SYCL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_GRAPH_NODES=$<BOOL:${GRAPHX_METAL_GRAPH_NODES_ENABLED}>
         GRAPHX_ENABLE_METAL_NATIVE_RUNTIME=$<BOOL:${GRAPHX_METAL_NATIVE_RUNTIME_ENABLED}>
         GRAPHX_ENABLE_GPU_TEST_HOOKS=$<BOOL:${GRAPHX_GPU_TEST_HOOKS_ENABLED}>

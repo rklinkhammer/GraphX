@@ -8,13 +8,13 @@ GraphX already has a genuine capability-based GPU mechanism:
 - `IGpuCapabilityBinding` for dependency injection into nodes;
 - `GpuPolicy` to register and bind capabilities during graph initialization;
 - backend-neutral accelerator tokens;
-- backend-specific CUDA, SYCL, and Metal capability interfaces;
+- backend-specific CUDA and Metal capability interfaces;
 - plugin ABI support for capability-bound nodes; and
 - a resolver that can select concrete node implementations by backend.
 
-The foundation is good. The main limitation is that the capability abstraction becomes backend-specific too early. A supposedly generic node must request `IMetalMemoryPoolCapability`, `ICudaTransferCapability`, or an equivalent backend-specific service. Consequently, most reusable behavior is duplicated across CUDA, SYCL, and Metal nodes.
+The foundation is good. The main limitation is that the capability abstraction becomes backend-specific too early. A supposedly generic node must request `IMetalMemoryPoolCapability`, `ICudaTransferCapability`, or an equivalent backend-specific service. Consequently, most reusable behavior is duplicated across CUDA and Metal nodes.
 
-The recommended direction is evolutionary: preserve backend-neutral graph tokens and the existing capability bus, introduce backend-neutral execution capabilities above the CUDA/Metal/SYCL adapters, and retain specialized backend extensions for features that cannot be represented portably.
+The recommended direction is evolutionary: preserve backend-neutral graph tokens and the existing capability bus, introduce backend-neutral execution capabilities above the CUDA/Metal adapters, and retain specialized backend extensions for features that cannot be represented portably.
 
 ## Current architecture
 
@@ -29,7 +29,7 @@ flowchart LR
     I --> N
     N --> T["Backend-neutral accelerator tokens"]
     N --> BC["Backend-specific capabilities"]
-    BC --> RT["CUDA / Metal / SYCL runtime"]
+    BC --> RT["CUDA / Metal runtime"]
 ```
 
 ### Capability bus
@@ -79,19 +79,19 @@ Each backend defines approximately the same service family:
 - telemetry; and
 - collectives.
 
-CUDA defines these in `libgpu/include/gpu/cuda/capabilities/ICudaCapabilities.hpp`; Metal and SYCL repeat nearly the same logical contracts under backend-specific names. Metal additionally has richer kernel descriptor and shared-queue support.
+CUDA defines these in `libgpu/include/gpu/cuda/capabilities/ICudaCapabilities.hpp`; Metal repeats nearly the same logical contracts under backend-specific names. Metal additionally has richer kernel descriptor and shared-queue support.
 
 This indicates that the code already contains an implicit generic accelerator API; it simply has not been promoted into common interfaces.
 
 ### Capability bootstrap
 
-`RegisterDefaultGpuCapabilities()` registers all enabled backend services. CUDA and SYCL receive their default implementations, while Metal dynamically chooses native or default implementations.
+`RegisterDefaultGpuCapabilities()` registers all enabled backend services. CUDA receives its default implementation, while Metal dynamically chooses native or default implementations.
 
 Current concerns:
 
 - native and stub services satisfy the same interface with no generic execution-status contract;
 - backend creation is hardcoded into one bootstrap function;
-- Metal has stronger native selection than CUDA and SYCL;
+- Metal has stronger native selection than CUDA;
 - a backend may be registered despite not representing actual acceleration;
 - a global shared bus exists alongside the graph-owned bus, creating two possible ownership models; and
 - multi-device and multiple-provider selection are not modeled.
@@ -118,7 +118,7 @@ However, raw `void*` pointers and integer queue/event handles weaken type safety
 
 ### Backend-specific nodes
 
-CUDA, SYCL, and Metal have separate H2D, D2H, ingress, egress, and lease-release nodes.
+CUDA and Metal have separate H2D, D2H, ingress, egress, and lease-release nodes.
 
 For example, CUDA H2D binds CUDA-specific memory and transfer interfaces while Metal H2D performs effectively the same operation but binds Metal-specific services and manages a command queue. Their graph contracts are already compatible. The duplication exists primarily because the service interfaces are backend-specific.
 
@@ -139,7 +139,7 @@ Some SAR H2D/D2H `Accel` nodes synthesize accelerator metadata. They are useful 
 
 ### Option 1: Keep backend-specific nodes
 
-Continue adding separate CUDA, Metal, and SYCL nodes for each algorithm and operation.
+Continue adding separate CUDA and Metal nodes for each algorithm and operation.
 
 Advantages:
 
@@ -202,7 +202,7 @@ class ITelemetryCapability;
 class ICollectiveCapability;
 ```
 
-CUDA, Metal, and SYCL implementations adapt their native APIs to these contracts. A generic H2D node requests `ITransferCapability`, not `IMetalTransferCapability`.
+CUDA and Metal implementations adapt their native APIs to these contracts. A generic H2D node requests `ITransferCapability`, not `IMetalTransferCapability`.
 
 Advantages:
 
@@ -307,7 +307,7 @@ Best use: coarse-grained selection among materially different implementations.
 
 ### Option 7: Portable kernel IR or DSL
 
-Define backend-neutral kernel descriptions and compile them to CUDA, Metal, or SYCL.
+Define backend-neutral kernel descriptions and compile them to CUDA or Metal.
 
 Advantages:
 
@@ -343,7 +343,6 @@ flowchart TB
 
     X --> CA["CUDA adapter"]
     X --> MA["Metal adapter"]
-    X --> SA["SYCL adapter"]
 
     R["ResolvingNodeProvider"] --> GN
     R --> SN["Specialized backend node when required"]
@@ -420,7 +419,7 @@ Validation should reject tokens whose view, lease, event, and ticket belong to d
 1. Add `BackendDescriptor` and an explicit execution mode.
 2. Introduce `IAcceleratorSession` without deleting existing interfaces.
 3. Adapt Metal capabilities first because they already have the richest native implementation.
-4. Add CUDA and SYCL adapters.
+4. Add a CUDA adapter.
 5. Implement one generic H2D node and one generic D2H node.
 6. Build an `IDftOperation` with CPU, Metal, and CUDA implementations.
 7. Convert the DSP spectrum graph to a backend-neutral `SpectrumDftAccelNode`.
@@ -432,7 +431,7 @@ Validation should reject tokens whose view, lease, event, and ticket belong to d
 
 The system has the right capability-based bones. The capability bus, initialization policy, plugin ABI, resolver, and accelerator tokens are all reusable.
 
-The missing architectural layer is a backend-neutral capability and session API. GraphX currently has backend-neutral data contracts connected to backend-specific service contracts. Moving the service boundary upward would enable genuinely generic GPU nodes without sacrificing native CUDA, Metal, or SYCL implementations.
+The missing architectural layer is a backend-neutral capability and session API. GraphX currently has backend-neutral data contracts connected to backend-specific service contracts. Moving the service boundary upward would enable genuinely generic GPU nodes without sacrificing native CUDA or Metal implementations.
 
 The appropriate target is not one universal `GpuNode`. It is:
 

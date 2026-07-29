@@ -17,16 +17,14 @@
 #include "test/AdvancedTestNodes.hpp"
 #include "test/PluginInfrastructure.hpp"
 
-TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
+TEST(TopologyDebug, BuildsAndInitializesTopology3) {
     // Load plugins manually
     auto registry = std::make_shared<graph::PluginRegistry>();
     auto loader = std::make_unique<graph::PluginLoader>(
-        "/Users/rklinkhammer/workspace/GraphX/build/plugins", registry);
+        PLUGIN_OUTPUT_DIRECTORY, registry);
     
     auto loaded = loader->LoadAllPluginsSafe();
-    if (!loaded) {
-        // Plugins may not be fully available, but registration may have worked
-    }
+    ASSERT_TRUE(loaded);
     
     // Create provider
     std::shared_ptr<graph::INodeProvider> provider = std::make_shared<graph::RegisteredNodeProvider>(registry);
@@ -61,17 +59,11 @@ TEST(TopologyDebug, DISABLED_BuildsAndInitializesTopology3) {
         auto init_result = executor->Init();
         EXPECT_TRUE(init_result.success);
         
-        // Try to start execution (might crash here)
-        try {
-            auto start_result = executor->Start();
-            EXPECT_TRUE(start_result.success);
-            
-            // Wait a bit for execution
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        } catch (const std::exception& e) {
-            FAIL() << "Exception during Start(): " << e.what();
-        } catch (...) {
-            FAIL() << "Unknown exception during Start()";
-        }
+        auto start_result = executor->Start();
+        EXPECT_TRUE(start_result.success);
+        const auto stop_result = executor->Stop();
+        EXPECT_TRUE(stop_result.success);
+        const auto join_result = executor->Join();
+        EXPECT_TRUE(join_result.success);
     });
 }

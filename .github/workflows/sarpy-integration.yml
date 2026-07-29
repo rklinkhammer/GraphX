@@ -80,12 +80,12 @@ jobs:
           CC: gcc-14
           CXX: g++-14
         run: |
-          cmake --preset ninja-debug
+          cmake --preset ninja-debug-linux-host
 
-      - name: Build SAR unit test target
+      - name: Build SAR local validation target
         run: |
-          cmake --build --preset build-debug --target test_sar_example_unit
+          cmake --build --preset build-debug-linux-host --target test_sar_local_only
 
       - name: Run labeled SarPy lanes
         run: |
-          ctest --test-dir build-ninja/ninja-debug -L sarpy --output-on-failure
+          ctest --test-dir build-ninja/ninja-debug-linux-host -L sarpy --output-on-failure --no-tests=error

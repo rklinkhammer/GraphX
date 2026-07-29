@@ -257,10 +257,6 @@ std::shared_ptr<IAcceleratorSession> CreateCudaStubAcceleratorSession() {
     return std::make_shared<DirectSession>(
         StubDescriptor(accel::BackendKind::CUDA, "graphx-cuda-stub", 0x4355444100000001ULL));
 }
-std::shared_ptr<IAcceleratorSession> CreateSyclStubAcceleratorSession() {
-    return std::make_shared<DirectSession>(
-        StubDescriptor(accel::BackendKind::SYCL, "graphx-sycl-stub", 0x5359434c00000001ULL));
-}
 std::shared_ptr<IAcceleratorSession> CreateMetalStubAcceleratorSession() {
     return std::make_shared<DirectSession>(
         StubDescriptor(accel::BackendKind::Metal, "graphx-metal-stub", 0x4d45544100000001ULL));
@@ -275,7 +271,6 @@ CreateDefaultAcceleratorSessionRegistry(const AcceleratorProviderOptions& option
     };
     if (options.enable_cpu) add(CreateCpuAcceleratorSession());
     if (options.enable_cuda) add(CreateCudaStubAcceleratorSession());
-    if (options.enable_sycl) add(CreateSyclStubAcceleratorSession());
     if (options.enable_metal) add(CreateMetalStubAcceleratorSession());
     return registry;
 }

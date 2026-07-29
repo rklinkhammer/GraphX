@@ -1,0 +1,64 @@
+name: Package Smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            preset: ninja-debug-linux-host
+          - os: macos-latest
+            preset: ninja-debug
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build gcc-14 g++-14 python3 \
+            nlohmann-json3-dev libeigen3-dev liblog4cxx-dev libgtest-dev \
+            catch2 libhdf5-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja eigen nlohmann-json log4cxx googletest catch2 hdf5
+
+      - name: Configure and build
+        env:
+          CC: ${{ runner.os == 'Linux' && 'gcc-14' || 'clang' }}
+          CXX: ${{ runner.os == 'Linux' && 'g++-14' || 'clang++' }}
+        run: |
+          cmake --preset ${{ matrix.preset }}
+          cmake --build build-ninja/${{ matrix.preset }} --parallel 2
+
+      - name: Install package
+        run: |
+          cmake --install build-ninja/${{ matrix.preset }} \
+            --prefix "$PWD/.graphx-install"
+          test -f "$PWD/.graphx-install/share/graphx/dashboard/index.html"
+          "$PWD/.graphx-install/bin/graphx-dashboard" --help
+          "$PWD/.graphx-install/bin/graph-cli" --help
+
+      - name: Build downstream consumer
+        env:
+          CC: ${{ runner.os == 'Linux' && 'gcc-14' || 'clang' }}
+          CXX: ${{ runner.os == 'Linux' && 'g++-14' || 'clang++' }}
+        run: |
+          cmake -S tools/package_smoke_consumer \
+            -B .graphx-package-consumer -G Ninja \
+            -DCMAKE_PREFIX_PATH="$PWD/.graphx-install"
+          cmake --build .graphx-package-consumer
+          ./.graphx-package-consumer/package_smoke_consumer

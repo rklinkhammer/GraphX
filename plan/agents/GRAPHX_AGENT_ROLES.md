@@ -78,7 +78,7 @@ Inspect:
 - GraphX data contracts: typed packets, token sidecars, sample-time metadata,
   edge schemas, resolver diagnostics, capability substitution.
 - GPU/accelerator model: `ControlToken<...>`, transfer nodes, kernel-ticket
-  diagnostics, Metal/CUDA/SYCL capability boundaries, sidecar preservation.
+  diagnostics, Metal/CUDA capability boundaries, sidecar preservation.
 - DSP concepts: IQ streams, DFT/FFT truth-in-labeling, metrics, magnitude
   outputs versus complex evidence, deterministic fixtures.
 - SDR concepts: sample rates, center/reference frequencies, downconversion,
@@ -730,7 +730,7 @@ Investigate:
   validation, modem/demodulator references where licensing and scope permit.
 - RF/FHSS references: public CPM/CPFSK/MLSE references, channelizer examples,
   synthetic signal-analysis tools.
-- GPU references: backend sample code, Metal/CUDA/SYCL diagnostics, vendor
+- GPU references: backend sample code, Metal/CUDA diagnostics, vendor
   examples where they validate behavior rather than dictate architecture.
 
 ## Required Evaluation
@@ -835,4 +835,3 @@ Produce:
 6. Minimal recommended fixes.
 
 Do not rewrite unless explicitly asked.
-

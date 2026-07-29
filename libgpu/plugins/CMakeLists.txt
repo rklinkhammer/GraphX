@@ -75,61 +75,6 @@ target_include_directories(cuda_lease_release_node PRIVATE
 )
 
 add_graphx_plugin(
-	TARGET_NAME sycl_host_ingress_pinned_source_node
-	SOURCE_FILE sycl_host_ingress_pinned_source_node_plugin.cpp
-	DESCRIPTION "SYCL stub host ingress pinned source node"
-	DEPENDENCIES gpu
-)
-target_include_directories(sycl_host_ingress_pinned_source_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
-add_graphx_plugin(
-	TARGET_NAME sycl_h2d_async_node
-	SOURCE_FILE sycl_h2d_async_node_plugin.cpp
-	DESCRIPTION "SYCL stub async host-to-device transfer node"
-	DEPENDENCIES gpu
-)
-target_include_directories(sycl_h2d_async_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
-add_graphx_plugin(
-	TARGET_NAME sycl_d2h_async_node
-	SOURCE_FILE sycl_d2h_async_node_plugin.cpp
-	DESCRIPTION "SYCL stub async device-to-host transfer node"
-	DEPENDENCIES gpu
-)
-target_include_directories(sycl_d2h_async_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
-add_graphx_plugin(
-	TARGET_NAME sycl_host_egress_sink_node
-	SOURCE_FILE sycl_host_egress_sink_node_plugin.cpp
-	DESCRIPTION "SYCL stub host egress sink node"
-	DEPENDENCIES gpu
-)
-target_include_directories(sycl_host_egress_sink_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
-add_graphx_plugin(
-	TARGET_NAME sycl_lease_release_node
-	SOURCE_FILE sycl_lease_release_node_plugin.cpp
-	DESCRIPTION "SYCL stub lease release node"
-	DEPENDENCIES gpu
-)
-target_include_directories(sycl_lease_release_node PRIVATE
-	${CMAKE_SOURCE_DIR}/libgpu/include
-	${CMAKE_SOURCE_DIR}/libgraph/include
-)
-
-add_graphx_plugin(
 	TARGET_NAME metal_host_ingress_pinned_source_node
 	SOURCE_FILE metal_host_ingress_pinned_source_node_plugin.cpp
 	DESCRIPTION "Metal host ingress pinned source node"
@@ -253,6 +198,5 @@ target_include_directories(metal_peer_copy_node PRIVATE
 endif()
 
 # Real backend plugins remain backend-gated work. They should be introduced in
-# separate blocks keyed off GRAPHX_CUDA_GRAPH_NODES_ENABLED and
-# GRAPHX_SYCL_GRAPH_NODES_ENABLED once plugin construction is routed through a
+# separate blocks keyed off GRAPHX_CUDA_GRAPH_NODES_ENABLED once plugin construction is routed through a
 # shared CapabilityBus/bootstrap path rather than private default capabilities.

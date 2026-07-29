@@ -22,8 +22,6 @@ inline const char* ToString(BackendKind backend) noexcept {
         return "CPU";
     case BackendKind::CUDA:
         return "CUDA";
-    case BackendKind::SYCL:
-        return "SYCL";
     case BackendKind::Metal:
         return "Metal";
     case BackendKind::Unknown:

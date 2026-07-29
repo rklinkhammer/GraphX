@@ -32,8 +32,6 @@ const char* ToString(ResolverBackend backend) noexcept {
             return "metal";
         case ResolverBackend::Cuda:
             return "cuda";
-        case ResolverBackend::Sycl:
-            return "sycl";
         case ResolverBackend::Stub:
             return "stub";
         case ResolverBackend::Direct:
@@ -97,9 +95,6 @@ std::optional<ResolverBackend> ParseResolverBackend(
     if (normalized == "cuda") {
         return ResolverBackend::Cuda;
     }
-    if (normalized == "sycl") {
-        return ResolverBackend::Sycl;
-    }
     if (normalized == "stub") {
         return ResolverBackend::Stub;
     }
@@ -144,7 +139,6 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .output_token_type = "DeviceBufferView",
         .variants = {
             {ResolverBackend::Metal, "H2DAsyncNodeMetal"},
-            {ResolverBackend::Sycl, "H2DAsyncNodeSycl"},
             {ResolverBackend::Stub, "H2DAsyncNode"},
             {ResolverBackend::Cuda, "H2DAsyncNode"},
         },
@@ -156,7 +150,6 @@ NodeResolutionRegistry NodeResolutionRegistry::CreateDefault() {
         .output_token_type = "HostPinnedBufferView",
         .variants = {
             {ResolverBackend::Metal, "D2HAsyncNodeMetal"},
-            {ResolverBackend::Sycl, "D2HAsyncNodeSycl"},
             {ResolverBackend::Stub, "D2HAsyncNode"},
             {ResolverBackend::Cuda, "D2HAsyncNode"},
         },

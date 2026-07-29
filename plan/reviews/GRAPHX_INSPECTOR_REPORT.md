@@ -118,7 +118,7 @@ Scope: Current repository state only. No redesign or implementation.
 - Observed: SAR accel nodes rely on explicit tokenized transport contracts and update sidecar queue/timing counters.
 - Observed: SAR Metal focused-image node can execute native capability path but still emits incomplete algorithm warning status.
 - Inferred: Accelerator plumbing is significantly present; domain algorithm parity is not uniformly complete.
-- Unknown: CUDA/SYCL domain-path completeness relative to Metal-first workflows was not fully audited in this pass.
+- Unknown: CUDA domain-path completeness relative to Metal-first workflows was not fully audited in this pass.
 
 ### Implementation Defects
 

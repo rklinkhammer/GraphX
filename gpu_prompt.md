@@ -1,7 +1,7 @@
 # Generic GPU Node Architecture Implementation Prompt
 
 ```text
-You are working in the GraphX repository. Replace the existing GPU node architecture with a backend-neutral accelerator session and operation model that supports truthful native CUDA, Metal, and SYCL execution.
+You are working in the GraphX repository. Replace the existing GPU node architecture with a backend-neutral accelerator session and operation model that supports truthful native CUDA and Metal execution.
 
 Use `gpu_architecture.md` as the architectural rationale and starting analysis. Verify its observations against the current code before changing anything.
 
@@ -26,7 +26,7 @@ GraphX should support:
 - backend-neutral graph nodes for common GPU operations;
 - coherent graph-scoped accelerator sessions;
 - backend-neutral memory, transfer, event, execution, telemetry, and operation capabilities;
-- native CUDA, Metal, and SYCL providers behind those interfaces;
+- native CUDA and Metal providers behind those interfaces;
 - explicit native, stub, simulated, fallback, and unavailable execution modes;
 - domain algorithm resolution by operation intent;
 - backend-specific extension capabilities for features that are not honestly portable; and
@@ -57,11 +57,11 @@ Inspect at least:
 - `libgraph/include/policies/GpuPolicy.hpp`
 - `libgraph/src/graph/ResolvingNodeProvider.cpp`
 - `libgpu/include/gpu/accel/types`
-- `libgpu/include/gpu/{cuda,metal,sycl}/capabilities`
-- `libgpu/include/gpu/{cuda,metal,sycl}/nodes`
+- `libgpu/include/gpu/{cuda,metal}/capabilities`
+- `libgpu/include/gpu/{cuda,metal}/nodes`
 - `libgpu/src/gpu/GpuCapabilityBootstrap.cpp`
 - native Metal runtime implementations
-- CUDA and SYCL default/stub implementations
+- CUDA default/stub implementations
 - DSP GPU transfer and spectrum nodes
 - SAR `Accel` nodes and Metal domain nodes
 - GPU plugin registrations and tests
@@ -70,7 +70,7 @@ Produce a checked-in design record containing:
 
 - current capability and node inventory;
 - native versus stub/simulated status for each backend;
-- duplicated logical contracts across CUDA, Metal, and SYCL;
+- duplicated logical contracts across CUDA and Metal;
 - proposed generic interfaces and their ownership boundaries;
 - backend-specific semantic differences that must remain extensions;
 - plugin and configuration replacement strategy;
@@ -109,7 +109,6 @@ struct BackendDescriptor {
     FeatureSet features;
 };
 ```
-
 Exact names may be adjusted to repository conventions, but the model must explicitly distinguish native execution from stubs, simulation, and fallback.
 
 Requirements:
@@ -118,7 +117,7 @@ Requirements:
 - Diagnostics expose backend, execution mode, provider, device, runtime, and session identity.
 - A stub or simulated implementation must never satisfy a request requiring native execution.
 - Update all affected enum users, serializers, parsers, formatters, configurations, and tests together; numeric compatibility is not required.
-- CPU execution is represented deliberately; do not mislabel ordinary host memory as CUDA, Metal, or SYCL.
+- CPU execution is represented deliberately; do not mislabel ordinary host memory as CUDA or Metal.
 
 Add unit tests for descriptor validation, execution-mode filtering, formatting, and serialization where applicable.
 
@@ -187,10 +186,6 @@ Refactor the useful native Metal runtime implementation into a coherent session 
 Implement CUDA directly against the generic session model. Report its actual execution mode accurately. If native CUDA is not yet implemented, the provider must identify itself as `Stub` or `Unavailable`, never `Native`. Remove superseded `ICuda*Capability` interfaces and nodes after migration.
 
 When native CUDA support exists, distinguish compiler/toolkit availability, driver availability, compatible device availability, and successful session creation.
-
-### SYCL
-
-Implement SYCL directly against the generic session model. Do not label host-only or simulated behavior as native device acceleration. Remove superseded `ISycl*Capability` interfaces and nodes after migration.
 
 ### CPU reference session
 
@@ -401,7 +396,6 @@ Zero-duration placeholder telemetry must not be presented as measured performanc
 - CPU-only builds must remain supported.
 - Metal-only macOS builds must remain supported.
 - CUDA/Jetson configurations must not inherit desktop-only architecture assumptions.
-- SYCL-disabled builds must not require SYCL headers or libraries.
 - Native runtimes must be compile-time gated and runtime validated.
 - Stub backends must remain usable for contract tests but must be visibly marked as stubs.
 - Replace the GPU plugin ABI as needed and update plugin tests to validate only the new ABI.
@@ -413,7 +407,7 @@ Zero-duration placeholder telemetry must not be presented as measured performanc
 Add tests at four levels:
 
 1. unit tests for descriptors, requests, resolution, handles, and validation;
-2. provider contract tests shared across CPU/CUDA/Metal/SYCL implementations;
+2. provider contract tests shared across CPU/CUDA/Metal implementations;
 3. node tests for generic transfers and DFT operation behavior; and
 4. graph/plugin integration tests exercising resolver, capability binding, execution, diagnostics, and cleanup.
 

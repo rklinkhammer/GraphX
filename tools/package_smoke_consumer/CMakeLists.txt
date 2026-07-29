@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.23)
 project(graphx_package_smoke_consumer LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-std=gnu++26)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+    add_compile_options(-std=c++2c)
+else()
+    message(FATAL_ERROR "Package smoke requires a compiler with a known C++26 flag")
+endif()
 
 find_package(GraphX CONFIG REQUIRED)
 

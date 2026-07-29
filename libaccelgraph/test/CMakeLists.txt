@@ -145,7 +145,10 @@ if(ACCELGRAPH_BENCHMARK_SOURCES)
     endif()
 
     add_test(NAME accelgraph_phase7_benchmark_smoke
-        COMMAND accelgraph_phase7_benchmark --frames=4 --warmup=1)
+        COMMAND accelgraph_phase7_benchmark
+            --frames=4
+            --warmup=1
+            --output=${CMAKE_CURRENT_BINARY_DIR}/accelgraph-phase7-smoke.json)
     set_tests_properties(accelgraph_phase7_benchmark_smoke PROPERTIES
         LABELS "accelgraph;benchmark;phase7;host-any")
 endif()
