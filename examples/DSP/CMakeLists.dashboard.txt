@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 3.23)
+project(fhss_dashboard_http_server LANGUAGES CXX)
+
+# This target is only built when GRAPHX_BUILD_WEB_DASHBOARD is ON
+if(NOT GRAPHX_BUILD_WEB_DASHBOARD)
+    return()
+endif()
+
+# Create the dashboard HTTP server executable
+add_executable(graphx-fhss-dashboard-server
+    dashboard-server.cpp
+)
+
+target_link_libraries(graphx-fhss-dashboard-server PRIVATE
+    dsp
+    Threads::Threads
+)
+
+target_include_directories(graphx-fhss-dashboard-server PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# Installation
+install(TARGETS graphx-fhss-dashboard-server
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install the frontend assets if they exist
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dist/index.html")
+    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dist/"
+        DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/graphx/fhss-dashboard
+        FILES_MATCHING PATTERN "*"
+    )
+endif()
+
+# Install operator tool if it exists
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/operator/fhss_dashboard_operator.py")
+    install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/operator/fhss_dashboard_operator.py"
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        RENAME graphx-fhss-dashboard-operator
+    )
+endif()

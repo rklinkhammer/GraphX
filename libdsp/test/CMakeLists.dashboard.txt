@@ -1,0 +1,60 @@
+# Dashboard Integration Tests (Catch2)
+# These tests verify the dashboard HTTP server, asset containment, and security headers
+# They use Catch2 for modern C++20/26 testing capabilities
+
+find_package(Catch2 REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+# Collect dashboard test files
+file(GLOB DASHBOARD_TEST_SOURCES CONFIGURE_DEPENDS "integration/test_dashboard_*.cpp")
+
+if(DASHBOARD_TEST_SOURCES)
+    add_executable(test_dashboard_integration ${DASHBOARD_TEST_SOURCES})
+    
+    target_include_directories(test_dashboard_integration PRIVATE
+        ${CMAKE_SOURCE_DIR}/libgraph/test/include
+        ${CMAKE_SOURCE_DIR}/libdsp/include
+    )
+    
+    target_compile_definitions(test_dashboard_integration PRIVATE
+        GRAPHX_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+        PLUGIN_OUTPUT_DIRECTORY="${CMAKE_BINARY_DIR}/plugins"
+    )
+    
+    target_link_libraries(test_dashboard_integration PRIVATE
+        dsp
+        graph
+        gpu
+        Catch2::Catch2WithMain
+        nlohmann_json::nlohmann_json
+        Threads::Threads
+        graphx_project_options
+    )
+    
+    # Register with CTest
+    add_test(NAME dashboard_integration COMMAND test_dashboard_integration)
+    set_tests_properties(dashboard_integration PROPERTIES 
+        LABELS "dashboard;integration;catch2;ci-safe;host-any"
+    )
+    
+    # Catch2 discovery test
+    add_test(NAME dashboard_integration_discover
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_EXECUTABLE=$<TARGET_FILE:test_dashboard_integration>
+            -DCATCH2_TEST=1
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake
+    )
+    set_tests_properties(dashboard_integration_discover PROPERTIES
+        LABELS "dashboard;integration;discovery;catch2;ci-safe;host-any"
+    )
+    
+    # Add custom target for running dashboard tests
+    add_custom_target(test_dashboard
+        COMMAND ${CMAKE_CTEST_COMMAND} -R "^dashboard_integration$" --output-on-failure
+        COMMENT "Running dashboard integration tests"
+    )
+    
+    message(STATUS "Dashboard Catch2 tests enabled: ${DASHBOARD_TEST_SOURCES}")
+else()
+    message(WARNING "No dashboard test sources found in integration/")
+endif()

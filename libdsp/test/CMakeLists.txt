@@ -66,3 +66,11 @@ add_custom_target(test_libdsp
     COMMAND ${CMAKE_CTEST_COMMAND} -R "^libdsp_unit$" --output-on-failure
     COMMENT "Running libdsp tests"
 )
+
+# Include Phase 2A configuration tests (Catch2-based, always enabled)
+include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.phase2a.txt)
+
+# Include dashboard integration tests (Catch2-based)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.dashboard.txt)
+endif()

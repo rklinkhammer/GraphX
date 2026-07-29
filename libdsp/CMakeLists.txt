@@ -9,10 +9,25 @@ find_package(nlohmann_json REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 
+# Dashboard dependencies (when enabled)
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    find_package(OpenSSL REQUIRED)
+endif()
+
 add_subdirectory(plugins)
 
 # Collect source files
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/dsp/*.cpp")
+
+# Add dashboard sources when enabled
+if(GRAPHX_BUILD_WEB_DASHBOARD)
+    list(APPEND SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsp/DashboardHttpServer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsp/AssetResolver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsp/SecurityHeaders.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsp/ProblemDetails.cpp
+    )
+endif()
 
 # Only create library if sources found
 if(SOURCES)
@@ -36,6 +51,12 @@ if(SOURCES)
         Eigen3::Eigen
         Threads::Threads
     )
+    
+    # Add dashboard dependencies when enabled
+    if(GRAPHX_BUILD_WEB_DASHBOARD)
+        target_link_libraries(dsp PUBLIC OpenSSL::Crypto)
+        target_include_directories(dsp PRIVATE ${OPENSSL_INCLUDE_DIR})
+    endif()
 
     # Keep warning/sanitizer options local for install-exported static library.
     if(MSVC)
