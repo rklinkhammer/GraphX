@@ -17,7 +17,7 @@
 namespace graphx::dsp::dashboard {
 
 // Boost.Beast HTTP server implementation
-class DashboardHttpServer::Impl {
+struct DashboardHttpServer::Impl {
 public:
     Options options;
     std::atomic<bool> running{false};

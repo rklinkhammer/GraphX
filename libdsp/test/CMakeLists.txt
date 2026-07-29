@@ -3,6 +3,11 @@ find_package(log4cxx REQUIRED)
 
 file(GLOB LIBDSP_UNIT_TEST_SOURCES CONFIGURE_DEPENDS "unit/test_*.cpp")
 
+# These sources use Catch2 and are built by CMakeLists.phase2a.txt. Keep them
+# out of the GoogleTest aggregate target.
+list(FILTER LIBDSP_UNIT_TEST_SOURCES EXCLUDE REGEX
+    "/test_fhss_(configuration_deriver|cross_node_validator|configuration_state_machine)\\.cpp$")
+
 if(NOT LIBDSP_UNIT_TEST_SOURCES)
     message(FATAL_ERROR "libdsp_unit requires DSP/FHSS test sources")
 endif()

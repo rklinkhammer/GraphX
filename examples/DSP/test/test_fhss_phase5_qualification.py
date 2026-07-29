@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -22,7 +23,10 @@ SPEC.loader.exec_module(phase5)
 
 class Phase5QualificationTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        test_work_dir = Path(os.environ.get("GRAPHX_TEST_WORK_DIR", ROOT))
+        test_work_dir.mkdir(parents=True, exist_ok=True)
+        self.tmp = tempfile.TemporaryDirectory(
+            prefix="graphx-phase5-", dir=test_work_dir)
         self.root = Path(self.tmp.name)
         cfg = self.root / "libdsp/config"
         cfg.mkdir(parents=True)
@@ -48,8 +52,21 @@ class Phase5QualificationTest(unittest.TestCase):
         bound_paths |= {entry["fixed_by"] for entry in corpus["entries"] if entry["fixed_by"] is not None}
         profile = json.loads((cfg / "fhss_phase5_qualification_profile_v1.json").read_text())
         bound_paths |= {policy["baseline_artifact"] for policy in profile["trend_policy"]["policies"]}
+        legacy_build_prefix = Path("build-ninja/ninja-debug")
+        current_build = Path(os.environ.get(
+            "GRAPHX_TEST_BUILD_DIR", ROOT / legacy_build_prefix))
         for relative in bound_paths:
-            target = self.root / relative; target.parent.mkdir(parents=True, exist_ok=True); target.hardlink_to(ROOT / relative)
+            relative_path = Path(relative)
+            source = ROOT / relative_path
+            if (not source.exists() and
+                    relative_path.is_relative_to(legacy_build_prefix)):
+                source = current_build / relative_path.relative_to(
+                    legacy_build_prefix)
+            if not source.exists():
+                self.fail(f"required Phase 5 fixture input is missing: {source}")
+            target = self.root / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.hardlink_to(source)
         # Historical Phase 5 evidence remains immutable provenance. The unit
         # fixture, however, binds the current source/build tree, so its private
         # nested attestation must identify every copied source, suite input,

@@ -293,6 +293,20 @@ add_subdirectory(libsensor)
 add_subdirectory(libgpu)
 add_subdirectory(libdsp)
 
+add_executable(graphx_graph_cli tools/graph-cli.cpp)
+set_target_properties(graphx_graph_cli PROPERTIES OUTPUT_NAME graph-cli)
+target_link_libraries(graphx_graph_cli PRIVATE graph gpu graphx_project_options)
+
+add_executable(graphx_graph_dashboard tools/graph-dashboard.cpp)
+set_target_properties(graphx_graph_dashboard PROPERTIES OUTPUT_NAME graphx-dashboard)
+target_link_libraries(graphx_graph_dashboard PRIVATE graph gpu graphx_project_options)
+if(NOT MSVC)
+    target_compile_options(graphx_graph_cli PRIVATE -Werror)
+    target_compile_options(graphx_graph_dashboard PRIVATE -Werror)
+endif()
+install(TARGETS graphx_graph_cli graphx_graph_dashboard
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 if(GRAPHX_BUILD_EXAMPLES_SAR)
     add_subdirectory(examples/SAR)
 endif()
@@ -311,6 +325,16 @@ if(BUILD_TESTS)
     add_subdirectory(libaccelgraph/test)
     add_subdirectory(libgpu/test)
     add_subdirectory(libdsp/test)
+    add_test(NAME graph_cli_help COMMAND graphx_graph_cli --help)
+    add_test(NAME graph_dashboard_help COMMAND graphx_graph_dashboard --help)
+    add_test(
+        NAME graph_cli_node_count
+        COMMAND graphx_graph_cli --graph
+            ${CMAKE_SOURCE_DIR}/libgraph/test/config/topologies/minimal_graph.json
+            node-count)
+    set_tests_properties(
+        graph_cli_help graph_cli_node_count graph_dashboard_help PROPERTIES
+        LABELS "core;cli;phase2b;ci-safe;host-any")
     if(GRAPHX_BUILD_EXAMPLES_SAR)
         add_subdirectory(examples/SAR/plugins)
         add_subdirectory(examples/SAR/test)

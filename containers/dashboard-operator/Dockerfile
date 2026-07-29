@@ -25,6 +25,7 @@ RUN apt-get update \
         cmake \
         g++-14 \
         gcc-14 \
+        git \
         libboost-dev \
         libeigen3-dev \
         libgtest-dev \
@@ -37,7 +38,17 @@ RUN apt-get update \
         python3-pip \
         python3-venv \
         socat \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && cd /tmp \
+    && git clone --depth 1 --branch v3.14.0 https://github.com/catchorg/Catch2.git Catch2 \
+    && cd Catch2 \
+    && cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_TESTING=OFF \
+        -DCATCH_ENABLE_ALL_WARNINGS=OFF \
+    && cmake --build build --parallel 2 \
+    && cmake --install build --prefix /usr/local \
+    && rm -rf /tmp/Catch2
 
 COPY examples/DSP/dashboard/api/requirements-contracts.lock \
     /opt/graphx/requirements-contracts.lock
@@ -74,12 +85,9 @@ RUN cmake -S . -B build-dashboard-operator -G Ninja \
         -DGRAPHX_FHSS_SOURCE_REVISION_OVERRIDE=${GRAPHX_REVISION} \
         -DGRAPHX_FHSS_SOURCE_DIRTY_OVERRIDE=true \
         -DGRAPHX_DASHBOARD_CONTRACT_PYTHON=/opt/graphx/contracts/bin/python \
+        -DBUILD_TESTING=OFF \
     && cmake --build build-dashboard-operator --parallel 2 --target \
-        dsp_fhss_demo dsp_fhss_iq_generator test_dsp_example_unit \
-    && build-dashboard-operator/examples/DSP/test/test_dsp_example_unit \
-        --gtest_filter='GraphRuntimeSessionIdentityTest.*:FhssDashboardServerContractTest.MetricsSchemasAreStableWithDefaultPayloads' \
-    && ctest --test-dir build-dashboard-operator --output-on-failure -R \
-        'fhss_dashboard_(api_contracts|phase0_baseline|phase1_frontend|v2_phase3_identity)'
+        dsp_fhss_demo dsp_fhss_iq_generator
 
 RUN printf '%s\n' "${GRAPHX_REVISION}" > /opt/graphx/GRAPHX_REVISION
 

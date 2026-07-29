@@ -5,8 +5,18 @@
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
-#include <thread>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <array>
 #include <chrono>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <thread>
 
 #include "graph/GraphHttpServer.hpp"
 #include "graph/GraphCoordinator.hpp"
@@ -16,6 +26,77 @@
 namespace {
 
 using json = nlohmann::json;
+
+std::uint16_t ReserveLoopbackPort() {
+    const int socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    EXPECT_GE(socket_fd, 0);
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = 0;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    EXPECT_EQ(::bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
+                     sizeof(address)), 0);
+    socklen_t length = sizeof(address);
+    EXPECT_EQ(::getsockname(socket_fd, reinterpret_cast<sockaddr*>(&address),
+                            &length), 0);
+    const auto port = ntohs(address.sin_port);
+    ::close(socket_fd);
+    return port;
+}
+
+std::string SendHttpRequest(const std::uint16_t port,
+                            const std::string& method,
+                            const std::string& path,
+                            const std::string& body = {}) {
+    const int socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    EXPECT_GE(socket_fd, 0);
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    EXPECT_EQ(::connect(socket_fd, reinterpret_cast<sockaddr*>(&address),
+                        sizeof(address)), 0);
+
+    std::ostringstream request;
+    request << method << ' ' << path << " HTTP/1.1\r\n"
+            << "Host: 127.0.0.1\r\n"
+            << "Connection: close\r\n";
+    if (!body.empty()) {
+        request << "Content-Type: application/json\r\n"
+                << "Content-Length: " << body.size() << "\r\n";
+    }
+    request << "\r\n" << body;
+    const auto encoded = request.str();
+    EXPECT_EQ(::send(socket_fd, encoded.data(), encoded.size(), 0),
+              static_cast<ssize_t>(encoded.size()));
+
+    std::string response;
+    std::array<char, 4096> buffer{};
+    while (true) {
+        const auto received =
+            ::recv(socket_fd, buffer.data(), buffer.size(), 0);
+        if (received <= 0) {
+            break;
+        }
+        response.append(buffer.data(), static_cast<std::size_t>(received));
+    }
+    ::close(socket_fd);
+    return response;
+}
+
+int ResponseStatus(const std::string& response) {
+    std::istringstream line(response.substr(0, response.find("\r\n")));
+    std::string version;
+    int status = 0;
+    line >> version >> status;
+    return status;
+}
+
+std::string ResponseBody(const std::string& response) {
+    const auto separator = response.find("\r\n\r\n");
+    return separator == std::string::npos ? std::string{}
+                                          : response.substr(separator + 4U);
+}
 
 /**
  * @brief Simple executor mock for testing GraphCoordinator integration.
@@ -206,6 +287,111 @@ TEST_F(GraphHttpServerTest, GraphHttpServerStopWhenNotRunningSucceeds) {
     // Stop without starting - should not crash
     EXPECT_TRUE(server->Stop());
     EXPECT_FALSE(server->IsRunning());
+}
+
+TEST_F(GraphHttpServerTest, InvalidPortsFailWithoutBinding) {
+    graph::GraphHttpServer zero_port(graph_, nullptr, 0);
+    graph::GraphHttpServer oversized_port(graph_, nullptr, 65536);
+    EXPECT_FALSE(zero_port.Start());
+    EXPECT_FALSE(oversized_port.Start());
+    EXPECT_FALSE(zero_port.IsRunning());
+    EXPECT_FALSE(oversized_port.IsRunning());
+}
+
+TEST_F(GraphHttpServerTest, RestGetGraphReturnsGraph) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response = SendHttpRequest(port, "GET", "/api/v1/graph");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    const auto document = json::parse(ResponseBody(response));
+    EXPECT_TRUE(document["success"]);
+    EXPECT_EQ(document["data"]["nodes"].size(), 3);
+}
+
+TEST_F(GraphHttpServerTest, RestGetNodeUsesSpecifiedRoute) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response =
+        SendHttpRequest(port, "GET", "/api/v1/nodes/node_2");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    EXPECT_EQ(json::parse(ResponseBody(response))["data"]["id"], "node_2");
+}
+
+TEST_F(GraphHttpServerTest, RestGetNodeReturns404) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response =
+        SendHttpRequest(port, "GET", "/api/v1/nodes/missing");
+    EXPECT_EQ(ResponseStatus(response), 404);
+}
+
+TEST_F(GraphHttpServerTest, RestGetNodesByTypeUsesSpecifiedRoute) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response =
+        SendHttpRequest(port, "GET", "/api/v1/nodes/type/SourceNode");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    EXPECT_EQ(json::parse(ResponseBody(response))["data"].size(), 2);
+}
+
+TEST_F(GraphHttpServerTest, RestPatchUpdatesOnlyNodeConfig) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response = SendHttpRequest(
+        port, "PATCH", "/api/v1/nodes/node_1",
+        R"({"node_config":{"param1":77,"replacement":true}})");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    EXPECT_EQ(graph_["nodes"][0]["id"], "node_1");
+    EXPECT_EQ(graph_["nodes"][0]["type"], "SourceNode");
+    EXPECT_EQ(graph_["nodes"][0]["node_config"]["param1"], 77);
+    EXPECT_TRUE(graph_["nodes"][0]["node_config"]["replacement"]);
+}
+
+TEST_F(GraphHttpServerTest, RestPatchRejectsMalformedJson) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response = SendHttpRequest(
+        port, "PATCH", "/api/v1/nodes/node_1", R"({"node_config":)");
+    EXPECT_EQ(ResponseStatus(response), 400);
+}
+
+TEST_F(GraphHttpServerTest, RestExecutionWithoutExecutorReturns501) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "GET", "/api/v1/execution/state")),
+              501);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "POST", "/api/v1/execution/init")),
+              501);
+}
+
+TEST_F(GraphHttpServerTest, RestUnknownEndpointReturns404) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    EXPECT_EQ(ResponseStatus(
+                  SendHttpRequest(port, "GET", "/api/v1/missing")),
+              404);
+}
+
+TEST_F(GraphHttpServerTest, GenericIndexIsTheCheckedInInteractiveUi) {
+    const auto port = ReserveLoopbackPort();
+    graph::GraphHttpServer server(graph_, nullptr, port);
+    ASSERT_TRUE(server.Start());
+    const auto response = SendHttpRequest(port, "GET", "/");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    const auto body = ResponseBody(response);
+    EXPECT_NE(body.find("saveNodeConfig"), std::string::npos);
+    EXPECT_NE(body.find("filterTable"), std::string::npos);
+    EXPECT_NE(body.find("/execution/"), std::string::npos);
 }
 
 TEST_F(GraphHttpServerTest, GraphCoordinatorIntegrationWithGetGraph) {

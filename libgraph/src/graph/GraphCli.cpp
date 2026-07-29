@@ -1,9 +1,13 @@
 #include "graph/GraphCli.hpp"
+#include "graph/ExecutionState.hpp"
+#include "graph/GraphExecutor.hpp"
+#include "graph/GraphExecutorBuilder.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <utility>
 
 namespace graph {
 
@@ -27,6 +31,9 @@ bool GraphCli::LoadGraph(const std::string& filepath) {
         
         // Create coordinator for the loaded graph
         coordinator_ = std::make_unique<GraphCoordinator>(graph_);
+        executor_.reset();
+        graph_path_ = filepath;
+        dirty_ = false;
         return true;
     } catch (const nlohmann::json::parse_error& e) {
         std::cerr << "Error: Invalid JSON in file '" << filepath 
@@ -58,6 +65,8 @@ bool GraphCli::SaveGraph(const std::string& filepath) {
         
         file << std::setw(2) << graph_ << std::endl;
         file.close();
+        graph_path_ = filepath;
+        dirty_ = false;
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error: Failed to save graph: " << e.what() << "\n";
@@ -198,6 +207,9 @@ bool GraphCli::UpdateNode(const std::string& id, const nlohmann::json& config) {
         bool success = coordinator_->UpdateNodeConfig(id, config);
         if (!success) {
             std::cerr << "Error: Node '" << id << "' not found\n";
+        } else {
+            dirty_ = true;
+            executor_.reset();
         }
         return success;
     } catch (const std::exception& e) {
@@ -207,32 +219,113 @@ bool GraphCli::UpdateNode(const std::string& id, const nlohmann::json& config) {
 }
 
 bool GraphCli::Init() {
-    std::cerr << "Info: Init() - Executor not yet implemented\n";
-    return true;
+    if (!coordinator_ || graph_path_.empty()) {
+        std::cerr << "Error: No graph loaded\n";
+        return false;
+    }
+    if (dirty_) {
+        std::cerr << "Error: Graph has unsaved changes. Save before init.\n";
+        return false;
+    }
+    try {
+        executor_ = GraphExecutorBuilder()
+                        .WithJsonConfig(graph_path_)
+                        .WithPluginDirectory(plugin_directory_)
+                        .Build();
+        if (!executor_) {
+            std::cerr << "Error: Could not build GraphExecutor\n";
+            return false;
+        }
+        const auto result = executor_->Init();
+        if (!result.success) {
+            std::cerr << "Error: " << result.message << "\n";
+        }
+        return result.success;
+    } catch (const std::exception& error) {
+        std::cerr << "Error: " << error.what() << "\n";
+        executor_.reset();
+        return false;
+    }
 }
 
 bool GraphCli::Start() {
-    std::cerr << "Info: Start() - Executor not yet implemented\n";
-    return true;
+    if (!executor_) {
+        std::cerr << "Error: Executor is not initialized\n";
+        return false;
+    }
+    const auto result = executor_->Start();
+    if (!result.success) {
+        std::cerr << "Error: " << result.message << "\n";
+    }
+    return result.success;
 }
 
 bool GraphCli::Run() {
-    std::cerr << "Info: Run() - Executor not yet implemented\n";
-    return true;
+    if (!executor_) {
+        std::cerr << "Error: Executor is not initialized\n";
+        return false;
+    }
+    const auto result = executor_->Run();
+    if (!result.success) {
+        std::cerr << "Error: " << result.message << "\n";
+    }
+    return result.success;
 }
 
 bool GraphCli::Stop() {
-    std::cerr << "Info: Stop() - Executor not yet implemented\n";
-    return true;
+    if (!executor_) {
+        std::cerr << "Error: Executor is not initialized\n";
+        return false;
+    }
+    const auto result = executor_->Stop();
+    if (!result.success) {
+        std::cerr << "Error: " << result.message << "\n";
+    }
+    return result.success;
 }
 
 bool GraphCli::Join() {
-    std::cerr << "Info: Join() - Executor not yet implemented\n";
-    return true;
+    if (!executor_) {
+        std::cerr << "Error: Executor is not initialized\n";
+        return false;
+    }
+    const auto result = executor_->Join();
+    if (!result.success) {
+        std::cerr << "Error: " << result.message << "\n";
+    }
+    return result.success;
 }
 
 std::string GraphCli::GetState() {
-    return "State: NOT_INITIALIZED (Executor not yet implemented)";
+    if (!executor_) {
+        return "NOT_INITIALIZED";
+    }
+    switch (executor_->GetExecutionState()) {
+    case ExecutionState::INITIALIZED:
+        return "INITIALIZED";
+    case ExecutionState::PAUSED:
+        return "PAUSED";
+    case ExecutionState::RUNNING:
+        return "RUNNING";
+    case ExecutionState::STEPPING:
+        return "STEPPING";
+    case ExecutionState::STOPPING:
+        return "STOPPING";
+    case ExecutionState::STOPPED:
+        return "STOPPED";
+    case ExecutionState::ERROR:
+        return "ERROR";
+    case ExecutionState::ANY:
+        return "ANY";
+    }
+    return "UNKNOWN";
+}
+
+void GraphCli::SetPluginDirectory(std::string directory) {
+    if (!directory.empty()) {
+        plugin_directory_ = std::move(directory);
+        executor_.reset();
+    }
 }
 
 }  // namespace graph

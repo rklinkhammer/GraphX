@@ -11,7 +11,7 @@
  * - Web UI with node table, parameter editor, and execution controls
  * - Thread-safe HTTP server with configurable port
  * - Proper HTTP status codes and JSON response format
- * - CORS headers for cross-origin requests
+ * - Loopback-only binding for local operator access
  *
  * Usage:
  * @code
@@ -54,14 +54,16 @@ public:
      *              Must contain "nodes" array with node objects.
      * @param executor Pointer to GraphExecutor for lifecycle control.
      *                Can be nullptr (execution endpoints disabled).
-     * @param port HTTP server port (default 8080).
+     * @param port HTTP server port in the range 1-65535 (default 8080).
+     * @param index_path Optional explicit path to the dashboard index resource.
      *
      * @pre graph must remain valid for server lifetime
      * @pre executor must remain valid for server lifetime (if provided)
      */
     explicit GraphHttpServer(nlohmann::json& graph,
                             GraphExecutor* executor = nullptr,
-                            int port = 8080);
+                            int port = 8080,
+                            std::string index_path = {});
 
     /**
      * @brief Destructor. Calls Stop() if server is running.

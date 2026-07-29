@@ -35,6 +35,9 @@ baseline consolidation:
 - Ninja. The project requires Ninja by default.
 - Host platform: Linux or macOS.
 - A C++ compiler with C++26 support.
+- Python 3 interpreter (required by the default DSP example-test target).
+- Development headers/libraries discoverable by CMake: Eigen3, nlohmann-json,
+  Apache log4cxx, GoogleTest, and Catch2.
 - Optional GPU/backend prerequisites:
   - CUDA: CUDAToolkit discoverable by CMake.
   - SYCL: compiler support for `-fsycl`.
@@ -42,59 +45,59 @@ baseline consolidation:
   - Native Metal runtime: Apple frameworks plus `metal-cpp` headers.
 
 MATLAB is not a GraphX build-time, runtime, or test-time dependency.
+Node.js is not required for the default C++ build and CTest suite. Boost and
+OpenSSL are required only when the legacy embedded dashboard is explicitly
+enabled. Some operator tools have additional documented dependencies. Install
+required packages on the host or use a project-provided container; do not
+construct an undocumented environment in a system temporary directory.
 
 GraphX now encodes a build-system invariant: CMake configuration and build
 logic must remain valid on both Linux and macOS. Presets apply
-`cmake/toolchains/graphx-host.cmake`, which selects host-appropriate compiler
-defaults and C++26 flags while preserving caller overrides.
+the appropriate toolchain under `cmake/toolchains/`, which selects compiler
+defaults and a supported C++26 flag while preserving caller overrides.
 
 ## Quick Start
 
-### Development container
-
-Open the repository in a Dev Container-compatible editor and choose **Reopen
-in Container**. The container provides GCC 14, CMake, Ninja, the C++ library
-dependencies, HDF5, and Python tooling. It configures the `ninja-debug` preset
-on first creation; build and test it with:
+The recommended validation starts from a fresh clone so the result does not
+depend on an old build tree or untracked generated files:
 
 ```bash
-cmake --build --preset build-debug
-ctest --preset test-libgraph-unit --output-on-failure
+git clone <GraphX-repository-URL> GraphX
+cd GraphX
 ```
 
-The container is Linux-based, so native Metal development and runtime tests
-still require a macOS host build. CUDA and SYCL toolchains are not installed by
-the default container.
-
-For first-principles FHSS dashboard operator qualification, use the dedicated
-container in `containers/dashboard-operator`. It builds a fresh clone with its
-declared C++26, Node/npm, Python-contract, and frontend dependencies and exposes
-the dashboard only on host loopback:
-
-```bash
-export GRAPHX_REVISION="$(git rev-parse HEAD)"
-mkdir -p .graphx-operator
-docker compose -f containers/dashboard-operator/compose.yaml build
-docker compose -f containers/dashboard-operator/compose.yaml up
-```
-
-Open `http://127.0.0.1:8080/`. See
-`containers/dashboard-operator/README.md` for the clean-clone prerequisite and
-shutdown procedure.
-
-Configure and build the default debug tree:
+On macOS, configure and build the default debug tree:
 
 ```bash
 cmake --preset ninja-debug
 cmake --build --preset build-debug
+ctest --test-dir build-ninja/ninja-debug --output-on-failure
 ```
 
-Configure and build a Linux-host debug tree (disables Metal-native and Metal graph-node requests):
+On Linux, use the host preset, which disables Metal and SYCL requests:
 
 ```bash
 cmake --preset ninja-debug-linux-host
 cmake --build --preset build-debug-linux-host
+ctest --test-dir build-ninja/ninja-debug-linux-host --output-on-failure
 ```
+
+CTest may report tests as **Disabled** when they require unavailable hardware,
+an external dataset, or an explicitly enabled local-only lane. A successful
+default run means every enabled test passed.
+
+### Development container
+
+Opening the repository in its Dev Container is optional. Inside the Linux
+container, configure with `ninja-debug-linux-host`; do not use the macOS-only
+`ninja-debug` preset. Ensure Catch2 is installed in the container before
+configuring the default test build. Native Metal development and tests still
+require a macOS host build.
+
+Docker is not required to build, test, run GraphX, or run the generic
+dashboard. The specialized material under `containers/dashboard-operator/`
+belongs to the legacy FHSS dashboard qualification workflow and is not the
+default GraphX dashboard path.
 
 Configure and build a Jetson CUDA debug tree for FHSS CUDA verification:
 
@@ -122,12 +125,14 @@ cmake --build --preset build-debug-metal-native
 Run the main libgraph test lane:
 
 ```bash
+cmake --build --preset build-libgraph-unit
 ctest --preset test-libgraph-unit --output-on-failure
 ```
 
 Run Linux-host-focused unit test lanes:
 
 ```bash
+cmake --build --preset build-debug-linux-host
 ctest --preset test-libgraph-unit-linux-host --output-on-failure
 ctest --preset test-libdsp-unit-linux-host --output-on-failure
 ```
@@ -159,15 +164,25 @@ Without presets:
 ```bash
 cmake -S . -B build -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/graphx-host.cmake \
-  -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTS=ON \
+  -DGRAPHX_BUILD_WEB_DASHBOARD=OFF
+cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
+
+`GRAPHX_BUILD_WEB_DASHBOARD=OFF` disables the legacy embedded FHSS dashboard.
+It does not disable the generic `graphx-dashboard` executable.
 
 If you intentionally need a non-Ninja generator:
 
 ```bash
-cmake -S . -B build -G "Unix Makefiles" -DGRAPHX_REQUIRE_NINJA=OFF
+cmake -S . -B build-make -G "Unix Makefiles" \
+  -DGRAPHX_REQUIRE_NINJA=OFF \
+  -DBUILD_TESTS=ON \
+  -DGRAPHX_BUILD_WEB_DASHBOARD=OFF
+cmake --build build-make --parallel 2
+ctest --test-dir build-make --output-on-failure
 ```
 
 ## CMake Options
@@ -179,7 +194,7 @@ Top-level options:
 | `GRAPHX_REQUIRE_NINJA` | `ON` | Fail configure if the generator is not Ninja. |
 | `BUILD_TESTS` | `ON` | Build test targets and enable CTest integration. |
 | `BUILD_DOCS` | `OFF` | Enable docs build targets where available. |
-| `GRAPHX_BUILD_WEB_DASHBOARD` | `OFF` | Build embedded web dashboard support for the FHSS demo executable. |
+| `GRAPHX_BUILD_WEB_DASHBOARD` | `OFF` | Build the legacy embedded FHSS dashboard. The generic dashboard is always built. |
 | `GRAPHX_BUILD_EXAMPLES_SAR` | `ON` | Build SAR examples. |
 | `GRAPHX_BUILD_EXAMPLES_DSP` | `ON` | Build DSP examples. |
 | `ENABLE_TSAN` | `OFF` | Add ThreadSanitizer flags on supported compilers. |
@@ -196,35 +211,86 @@ Useful cache variables:
 | Variable | Description |
 |---|---|
 | `GRAPHX_METAL_CPP_INCLUDE_DIR` | Optional path to the `metal-cpp` include root. |
-| `CMAKE_CXX_STANDARD` | Must remain `26`. |
+| `GRAPHX_CXX_STANDARD_FLAG` | C++26 compiler flag selected by the toolchain (normally do not override). |
 | `CMAKE_EXPORT_COMPILE_COMMANDS` | Enabled by default. |
+
+Do not set `CMAKE_CXX_STANDARD=26`: the top-level build intentionally supplies
+`-std=gnu++26` or `-std=c++2c` because the required CMake version does not
+provide a portable C++26 standard mapping.
 
 ## Core Test Commands
 
 ```bash
-# All tests known to a build directory.
+# List tests and their enabled/disabled state.
+ctest --test-dir build-ninja/ninja-debug -N
+
+# Run every enabled test in the default build.
 ctest --test-dir build-ninja/ninja-debug --output-on-failure
 
-# Main graph runtime unit lane.
+# Build and run focused library lanes.
+cmake --build --preset build-libgraph-unit
 ctest --preset test-libgraph-unit --output-on-failure
 
-# GPU/Metal runtime lane.
-ctest --preset test-libgpu-metal-runtime --output-on-failure
+cmake --build --preset build-libdsp-unit
+ctest --preset test-libdsp-unit --output-on-failure
 
 # Build a summary target in test-enabled builds.
 cmake --build build-ninja/ninja-debug --target test-summary
+
+# Verify that a patch has no whitespace errors.
+git diff --check
 ```
 
-Focused binaries:
+Focused binaries in the default build:
 
 ```bash
-./build-ninja/ninja-debug-metal-native/libgraph/test/test_libgraph_unit
-./build-ninja/ninja-debug-metal-native/libdsp/test/test_libdsp_unit
-./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_crsd_io
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_runtime_integration
-./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_local_only
+./build-ninja/ninja-debug/libgraph/test/test_libgraph_unit
+./build-ninja/ninja-debug/libdsp/test/test_libdsp_unit
+./build-ninja/ninja-debug/examples/DSP/test/test_dsp_example_unit
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_crsd_io
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_nodes
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_runtime_integration
+./build-ninja/ninja-debug/examples/SAR/test/test_sar_local_only
+```
+
+The last binary contains local-only tests; use CTest for the normal regression
+suite because it preserves the repository's disabled-test policy.
+
+## Generic Graph Dashboard And CLI
+
+The generic dashboard is read-only with respect to graph structure. It supports
+inspection and in-memory parameter editing, while execution endpoints are
+disabled unless `--enable-execution` is supplied. The server binds only to
+`127.0.0.1`.
+
+Run the dashboard directly from the default build tree:
+
+```bash
+./build-ninja/ninja-debug/graphx-dashboard \
+  --graph libgraph/test/config/topologies/minimal_graph.json \
+  --port 8080
+```
+
+Open `http://127.0.0.1:8080/` and press Ctrl-C in the terminal to stop the
+server. Do not add `--enable-execution` for inspection-only use. Execution mode
+is opt-in and additionally requires a runnable graph plus a directory
+containing its dynamically loaded node plugins; run
+`graphx-dashboard --help` for the accepted flags.
+
+Inspect the same graph without a browser:
+
+```bash
+./build-ninja/ninja-debug/graph-cli \
+  --graph libgraph/test/config/topologies/minimal_graph.json \
+  show --format table
+```
+
+An optional repository-local installation preserves host installation state:
+
+```bash
+cmake --install build-ninja/ninja-debug \
+  --prefix "$PWD/.graphx-install"
+"$PWD/.graphx-install/bin/graphx-dashboard" --help
 ```
 
 ## GraphX Runtime And Plugin Notes
@@ -267,17 +333,19 @@ cmake --build build-ninja/ninja-debug-metal-native --target dsp_spectrum_demo
 Write a deterministic summary:
 
 ```bash
-tmpdir="$(mktemp -d)"
+output_dir="$PWD/.graphx-output/spectrum"
+mkdir -p "$output_dir"
 ./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
   libdsp/config/dsp_sine_fft_spectrum_256.json \
   build-ninja/ninja-debug-metal-native/plugins \
-  --summary-json "$tmpdir/spectrum_summary.json"
+  --summary-json "$output_dir/spectrum_summary.json"
 ```
 
 Run the informational CPU-vs-Metal direct DFT comparison:
 
 ```bash
-tmpdir="$(mktemp -d)"
+output_dir="$PWD/.graphx-output/spectrum"
+mkdir -p "$output_dir"
 ./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-spectrum-demo \
   --compare-cpu-metal \
   --cpu-config libdsp/config/dsp_sine_fft_spectrum_256.json \
@@ -286,7 +354,7 @@ tmpdir="$(mktemp -d)"
   --warmup-iterations 1 \
   --measured-iterations 3 \
   --executor-timeout-s 8 \
-  --report-json "$tmpdir/dsp_cpu_vs_metal_report.json"
+  --report-json "$output_dir/dsp_cpu_vs_metal_report.json"
 ```
 
 Truth-in-labeling:
@@ -357,63 +425,24 @@ cmake --build build-ninja/ninja-debug-metal-native --target dsp_fhss_demo
   --executor-timeout-s 12
 ```
 
-Run the FHSS Dashboard (no graph execution; dashboard inspection/edit mode):
-
-```bash
-cmake -S . -B build-dashboard -G Ninja \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DGRAPHX_BUILD_WEB_DASHBOARD=ON \
-  -DGRAPHX_BUILD_EXAMPLES_DSP=ON
-
-cmake --build build-dashboard --target dsp_fhss_demo
-
-./build-dashboard/examples/DSP/graphx-dsp-fhss-demo \
-  --graph-config libdsp/config/fhss_cpsm_channelized_fixture_500msps.json \
-  --plugin-dir build-dashboard/plugins \
-  --dashboard \
-  --dashboard-port 8080 \
-  --dashboard-no-run
-```
-
-Then open http://127.0.0.1:8080/ in your browser.
-
-Notes:
-
-- `--dashboard-no-run` keeps runtime stopped so you can inspect/edit first.
-- Omit `--dashboard-no-run` to enable receiver lifecycle routes. The dashboard
-  still starts in `not_built`; use Rebuild and Start to execute the receiver.
-- `--dashboard-port 0` requests an ephemeral test port.
-- `--dashboard-assets PATH` overrides the default `examples/DSP/dashboard` asset directory.
-
-Run the Phase 4 synthetic observation workflow and verify its hashed evidence:
-
-```bash
-test -x "$PWD/.venv-dashboard-contracts/bin/python"
-mkdir -p "$PWD/.graphx-operator"
-"$PWD/.venv-dashboard-contracts/bin/python" \
-  examples/DSP/dashboard/operator/fhss_dashboard_operator.py exercise \
-  --phase 4 --build-dir build-ninja/ninja-debug \
-  --output-dir "$PWD/.graphx-operator/graphx-dashboard-phase4"
-"$PWD/.venv-dashboard-contracts/bin/python" \
-  examples/DSP/dashboard/operator/fhss_dashboard_operator.py verify \
-  --phase 4 --output-dir "$PWD/.graphx-operator/graphx-dashboard-phase4"
-```
-
-The Phase 4 dashboard keeps [expected truth, receiver observations, and
-evaluator comparison](docs/graphx_dashboard.md) separate. The complete clean,
-impaired, negative, malformed-IQ, installed-tree, screenshot, and cleanup
-procedure is the [FHSS dashboard Phase 4 manual operator
-test](docs/dsp/fhss_dashboard_phase4_manual_operator_test.md).
+To inspect this graph in the dashboard without executing it, use
+`graphx-dashboard` as described in
+[Generic Graph Dashboard And CLI](#generic-graph-dashboard-and-cli), replacing
+the example `--graph` value with
+`libdsp/config/fhss_cpsm_channelized_fixture_500msps.json`. The historical
+FHSS-embedded dashboard and its phase-qualified operator workflow are retained
+only as legacy material; they are not the current dashboard architecture.
 
 Run with an external message schedule and write investigation artifacts:
 
 ```bash
-tmpdir="$(mktemp -d)"
+output_dir="$PWD/.graphx-output/fhss"
+mkdir -p "$output_dir"
 ./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
   --message-json examples/DSP/fixtures/fhss_demo_messages.json \
   --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
-  --summary-json "$tmpdir/fhss_summary.json" \
-  --effective-config-json "$tmpdir/fhss_effective_graph.json" \
+  --summary-json "$output_dir/fhss_summary.json" \
+  --effective-config-json "$output_dir/fhss_effective_graph.json" \
   --decoded-pulse-limit 8 \
   --executor-timeout-s 12
 ```
@@ -421,8 +450,9 @@ tmpdir="$(mktemp -d)"
 Create a validated message schedule instead of editing JSON by hand:
 
 ```bash
+mkdir -p "$PWD/.graphx-output/fhss"
 python3 examples/DSP/tools/fhss_message_tool.py create \
-  /tmp/fhss_messages.json \
+  "$PWD/.graphx-output/fhss/messages.json" \
   --message-id 100 \
   --transmit-start-sample 0 \
   --active-frequencies 24,28,32,36 \
@@ -431,7 +461,7 @@ python3 examples/DSP/tools/fhss_message_tool.py create \
   --body 24:0x12345678
 
 python3 examples/DSP/tools/fhss_message_tool.py validate \
-  /tmp/fhss_messages.json
+  "$PWD/.graphx-output/fhss/messages.json"
 ```
 
 Append another non-overlapping message with `add-message`. The active
@@ -441,13 +471,14 @@ frequencies and preamble words are explicit, and each `--body` argument is
 Capture selected `FHSSFixtureFrequencyChannelizerNode` outputs for spectrum analysis:
 
 ```bash
-tmpdir="$(mktemp -d)"
+output_dir="$PWD/.graphx-output/fhss"
+mkdir -p "$output_dir"
 ./build-ninja/ninja-debug-metal-native/examples/DSP/graphx-dsp-fhss-demo \
-  --message-json /tmp/fhss_messages.json \
+  --message-json "$output_dir/messages.json" \
   --plugin-dir build-ninja/ninja-debug-metal-native/plugins \
-  --channel-iq-dir "$tmpdir/channel-iq" \
+  --channel-iq-dir "$output_dir/channel-iq" \
   --channel-iq-indices active \
-  --summary-json "$tmpdir/fhss_summary.json" \
+  --summary-json "$output_dir/fhss_summary.json" \
   --executor-timeout-s 12
 ```
 
@@ -473,7 +504,7 @@ The same behavior can be configured directly through `FHSSFixtureFrequencyChanne
 {
   "iq_capture": {
     "enabled": true,
-    "output_directory": "/tmp/fhss-channel-iq",
+    "output_directory": ".graphx-output/fhss/channel-iq",
     "frequency_indices": [24, 28, 32, 36],
     "overwrite": true
   }
@@ -732,7 +763,7 @@ Convert a local GOTCHA directory to CRSD products:
 ```bash
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
   /path/to/gotcha_or_synthetic_mat_dir \
-  /tmp/gotcha_crsd_out
+  "$PWD/.graphx-output/gotcha-crsd"
 ```
 
 The helper script verifies input structure and builds the converter when
@@ -756,7 +787,7 @@ Manual converter invocation:
 ```bash
 ./build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd \
   --input /path/to/input.mat \
-  --output-dir /tmp/gotcha_crsd_out
+  --output-dir "$PWD/.graphx-output/gotcha-crsd"
 ```
 
 GOTCHA input manifests use schema `graphx.gotcha.input_manifest.v1`.
@@ -789,21 +820,22 @@ Example local scaffold:
 ```bash
 python3 examples/SAR/tools/sar_local_runner.py \
   --scenario examples/SAR/scenarios/scenario_001.json \
-  --output-dir /tmp/graphx_sar_scenario_001
+  --output-dir "$PWD/.graphx-output/sar-scenario-001"
 ```
 
 PR14 local-only baseline runner (SarPy selected baseline):
 
 ```bash
+mkdir -p "$PWD/.graphx-output"
 python3 examples/SAR/tools/sar_local_baseline_runner.py \
   probe-environment \
-  --output-json /tmp/graphx_sar_local_baseline_probe.json
+  --output-json "$PWD/.graphx-output/sar-local-baseline-probe.json"
 
 GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1 \
 GRAPHX_SARPY_CRSD_FILE=/path/to/local/product.crsd \
 python3 examples/SAR/tools/sar_local_baseline_runner.py \
   run-local-smoke \
-  --output-json /tmp/graphx_sar_local_baseline_smoke.json
+  --output-json "$PWD/.graphx-output/sar-local-baseline-smoke.json"
 ```
 
 Truth-in-labeling: this runner is local-only, opt-in, and not a GraphX runtime dependency.
@@ -811,10 +843,11 @@ Truth-in-labeling: this runner is local-only, opt-in, and not a GraphX runtime d
 PR15 GraphX-vs-baseline SAR comparison harness:
 
 ```bash
+mkdir -p "$PWD/.graphx-output"
 python3 examples/SAR/tools/sar_graphx_vs_baseline_harness.py \
   run-ci-tiny-fixture \
-  --output-dir /tmp/graphx_vs_baseline_tiny \
-  --output-json /tmp/graphx_vs_baseline_tiny_result.json \
+  --output-dir "$PWD/.graphx-output/graphx-vs-baseline-tiny" \
+  --output-json "$PWD/.graphx-output/graphx-vs-baseline-tiny-result.json" \
   --strict
 
 GRAPHX_SAR_BASELINE_RUNNER_ENABLE=1 \
@@ -822,7 +855,7 @@ python3 examples/SAR/tools/sar_graphx_vs_baseline_harness.py \
   run-local-comparison \
   --graphx-contract /path/to/graphx_contract.json \
   --reference-contract /path/to/reference_contract.json \
-  --output-json /tmp/graphx_vs_baseline_local_result.json \
+  --output-json "$PWD/.graphx-output/graphx-vs-baseline-local-result.json" \
   --strict
 ```
 
@@ -831,12 +864,13 @@ Comparison metrics are validation aids and are not production SAR claims.
 PR16 local-only stage substitution experiment:
 
 ```bash
+mkdir -p "$PWD/.graphx-output"
 GRAPHX_SAR_BASELINE_SUBSTITUTION_ENABLE=1 \
 python3 examples/SAR/tools/sar_baseline_substitution_experiment.py \
   run-local-substitution \
   --graphx-stage-contract /path/to/graphx_contract.json \
   --baseline-reference-contract /path/to/sarpy_contract.json \
-  --output-json /tmp/graphx_sar_substitution_result.json \
+  --output-json "$PWD/.graphx-output/graphx-sar-substitution-result.json" \
   --strict
 ```
 
@@ -852,7 +886,7 @@ Real GOTCHA validation is opt-in/local-only.
 export GRAPHX_SAR_GOTCHA_DATASET=/path/to/local/gotcha_mat_directory
 bash scripts/convert_gotcha_subdata_to_crsd.sh \
   "$GRAPHX_SAR_GOTCHA_DATASET" \
-  /tmp/gotcha_crsd_out
+  "$PWD/.graphx-output/gotcha-crsd"
 ```
 
 The disabled CTest lane can be enabled manually when local data exists:

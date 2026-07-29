@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <atomic>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -10,8 +11,12 @@ namespace fs = std::filesystem;
 class GraphCliTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create temporary test data directory
-        test_dir_ = "/tmp/graphx_cli_test_" + std::to_string(std::time(nullptr));
+        static std::atomic<unsigned int> next_directory{0};
+        test_dir_ =
+            (fs::current_path() /
+             ("graphx_cli_test_" +
+              std::to_string(next_directory.fetch_add(1))))
+                .string();
         fs::create_directories(test_dir_);
     }
     
@@ -139,6 +144,7 @@ TEST_F(GraphCliTest, UpdateNodeConfiguration) {
     new_config["gain"] = 0.75;
     
     EXPECT_TRUE(cli_.UpdateNode("node_1", new_config));
+    EXPECT_TRUE(cli_.HasUnsavedChanges());
     
     // Verify the update persisted
     std::string result = cli_.GetNode("node_1", "json");
@@ -187,6 +193,7 @@ TEST_F(GraphCliTest, SaveGraphPersistsEdits) {
     EXPECT_TRUE(cli_.UpdateNode("node_1", new_config));
     
     EXPECT_TRUE(cli_.SaveGraph(save_path));
+    EXPECT_FALSE(cli_.HasUnsavedChanges());
     
     // Reload and verify edit persisted
     graph::GraphCli cli2;
@@ -197,3 +204,18 @@ TEST_F(GraphCliTest, SaveGraphPersistsEdits) {
     EXPECT_EQ(node["node_config"]["frequency"], 5000);
 }
 
+TEST_F(GraphCliTest, ExecutionCommandsFailTruthfullyWithoutInit) {
+    EXPECT_EQ(cli_.GetState(), "NOT_INITIALIZED");
+    EXPECT_FALSE(cli_.Start());
+    EXPECT_FALSE(cli_.Run());
+    EXPECT_FALSE(cli_.Stop());
+    EXPECT_FALSE(cli_.Join());
+}
+
+TEST_F(GraphCliTest, InitRejectsUnsavedChanges) {
+    const auto path = CreateTestGraphFile("dirty_graph.json");
+    ASSERT_TRUE(cli_.LoadGraph(path));
+    ASSERT_TRUE(cli_.UpdateNode("node_1", nlohmann::json{{"frequency", 42}}));
+    EXPECT_FALSE(cli_.Init());
+    EXPECT_EQ(cli_.GetState(), "NOT_INITIALIZED");
+}

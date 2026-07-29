@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.23)
 project(libgraph VERSION 1.0.0 LANGUAGES CXX)
 
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -28,6 +32,10 @@ target_compile_definitions(graph PUBLIC
     GRAPHX_GPU_STUB_BACKENDS=1
 )
 target_compile_definitions(graph PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
+target_compile_definitions(graph PRIVATE
+    GRAPHX_GENERIC_DASHBOARD_SOURCE_INDEX="${CMAKE_CURRENT_SOURCE_DIR}/resources/web/index.html"
+    GRAPHX_GENERIC_DASHBOARD_INSTALL_INDEX="${CMAKE_INSTALL_FULL_DATADIR}/graphx/dashboard/index.html"
+)
 target_include_directories(graph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -57,7 +65,7 @@ endif()
 if(MSVC)
     target_compile_options(graph PRIVATE /W4)
 else()
-    target_compile_options(graph PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(graph PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 if(ENABLE_TSAN)
@@ -73,6 +81,8 @@ install(TARGETS graph EXPORT graphTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+install(FILES resources/web/index.html
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/dashboard)
 if(GRAPHX_BUILD_WEB_DASHBOARD)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         PATTERN ".DS_Store" EXCLUDE)

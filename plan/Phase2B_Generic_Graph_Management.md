@@ -1,6 +1,6 @@
 # Phase 2B: Generic Graph Management Layer
 
-**Status:** Design specification - completely generic (no FHSS specifics)  
+**Status:** Normative implementation specification - completely generic
 **Baseline Commit:** 12fb9690f84ae16d148d941e8e317b51caa97aff  
 **Created:** 2026-07-25  
 **Scope Clarification:** View nodes and edit parameters only. No add/remove/change-type operations.
@@ -156,12 +156,24 @@ private:
 - **View Details**: Click node to see full node_config JSON
 - **Edit Parameters**: Form/editor to modify node_config (JSON in/out)
 - **Search/Filter**: By node ID or type
-- **Execution Control**:
+- **Execution Control** (when the launcher is started with an executor):
   - Start/Stop buttons
   - Pause/Resume (if supported by executor)
   - Step execution (manual stepping mode)
   - Status display (RUNNING, STOPPED, PAUSED, ERROR, etc.)
-- **Metrics Display**: Show execution metrics (if available)
+- **Metrics Display**: Reserved for a later phase; no Phase 2B metrics API exists
+
+### Generic launcher
+
+```bash
+graphx-dashboard --graph path/to/graph.json [--port 8080]
+graphx-dashboard --graph path/to/graph.json --enable-execution \
+  [--plugins ./plugins]
+```
+
+The default mode supplies no executor, so graph inspection and in-memory
+parameter editing remain available while execution endpoints truthfully return
+`501`. The launcher binds to `127.0.0.1` and contains no domain-specific code.
 
 ### REST API
 
@@ -363,8 +375,9 @@ graph-cli help [COMMAND]
 ```
 
 **Design:**
-- Stateful within a CLI session (load → edit → save workflow)
-- Not a daemon - runs command and exits
+- Stateful in interactive mode (load → edit → save workflow)
+- One-shot `--graph PATH COMMAND` mode for read-only scripting
+- Not a daemon
 - Works with any graph.json structure
 - Output formats: JSON for scripting, table for humans
 - Only `update-node` modifies state (in-memory)
@@ -544,4 +557,3 @@ executor.Execute();  // runs with new parameters
 **Compiler:** C++26, -Wall -Wextra -Werror
 **Zero warnings:** Yes
 **Generic:** Yes - works with any graph.json
-

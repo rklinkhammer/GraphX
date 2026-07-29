@@ -374,4 +374,6 @@ add_test(
 )
 set_tests_properties(fhss_phase5_qualification PROPERTIES
     LABELS "dsp;fhss;phase5;qualification;ci-safe;host-any"
+    ENVIRONMENT
+        "GRAPHX_TEST_BUILD_DIR=${CMAKE_BINARY_DIR};GRAPHX_TEST_WORK_DIR=${CMAKE_BINARY_DIR}"
     TIMEOUT 30)
