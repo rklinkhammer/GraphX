@@ -295,7 +295,6 @@ if(GRAPHX_BUILD_WEB_DASHBOARD)
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_manual_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_security_support.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase8_architecture_recommendation.md
-        ${CMAKE_SOURCE_DIR}/docs/dsp/fhss-dashboard-v2.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase1_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase2_operator_test.md
         ${CMAKE_SOURCE_DIR}/docs/dsp/fhss_dashboard_phase3_operator_test.md

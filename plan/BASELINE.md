@@ -26,6 +26,21 @@ Cleanup implementer/verifier prompts:
 
 - `plan/agents/GRAPHX_AGENT_ROLES.md`
 
+## Active Dashboard Planning
+
+The generic Graph Management service is the only dashboard management
+architecture. Current dashboard authority is limited to:
+
+- `plan/Phase2B_Generic_Graph_Management.md`
+- `plan/Phase2B_Corrected_Implementation_Specification.md`
+- `plan/GRAPHX_GENERIC_GRAPHICAL_DASHBOARD_PLAN.md`
+- `docs/graphx_dashboard.md`
+
+The retired FHSS-first dashboard plans, orchestration prompts, phase reports,
+and planning snapshots are preserved under
+`plan/archive/2026-07-dashboard-consolidation/` and
+`docs/archive/2026-07-dashboard-consolidation/`.
+
 ## Current Architecture
 
 ### Core GraphX Runtime

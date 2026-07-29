@@ -12,6 +12,14 @@ The Phase 2B normative specifications are:
 - [`Phase2B_Generic_Graph_Management.md`](../plan/Phase2B_Generic_Graph_Management.md)
 - [`Phase2B_Corrected_Implementation_Specification.md`](../plan/Phase2B_Corrected_Implementation_Specification.md)
 
+The proposed graphical extension is:
+
+- [`GRAPHX_GENERIC_GRAPHICAL_DASHBOARD_PLAN.md`](../plan/GRAPHX_GENERIC_GRAPHICAL_DASHBOARD_PLAN.md)
+
+It adds a presentation layer to this architecture. It does not authorize a
+second coordinator, server, runtime owner, API namespace, executable, or
+FHSS-specific management product.
+
 Older FHSS dashboard documents describe historical prototype work. They do not
 authorize restoration of `ReceiverGraphCoordinator`,
 `ReceiverGraphHttpServer`, or another FHSS-specific management layer.

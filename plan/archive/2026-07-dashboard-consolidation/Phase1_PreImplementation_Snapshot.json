@@ -1,0 +1,276 @@
+{
+  "archive_notice": "Historical dashboard-planning record; not current authority.",
+  "phase": 1,
+  "orchestrator": "GitHub Copilot",
+  "orchestration_date": "2026-07-24T20:00:00Z",
+  "title": "FHSS Dashboard V2 — Phase 1 Secure Walking Skeleton",
+  
+  "repository_state": {
+    "platform": "macOS",
+    "arch": "arm64",
+    "compiler": "AppleClang 21.0.0",
+    "cmake_version": "4.4.0",
+    "ninja_version": "1.13.2",
+    "commit": "12fb9690f84ae16d148d941e8e317b51caa97aff",
+    "branch": "main",
+    "status": "clean",
+    "working_tree": "no uncommitted changes"
+  },
+  
+  "baseline_artifacts": {
+    "created_date": "2026-07-24",
+    "architecture_review": "docs/fhss_dashboard_report_v2.md",
+    "orchestration_prompt": "plan/prompts/FHSS_Dashboard_V2_Phase1_Implementation.md",
+    "build_plan": "plan/Phase1_CleanBuild_Plan.md",
+    "quick_start": "plan/Phase1_PreBuild_QuickStart.md",
+    "clean_build_script": "scripts/clean-build-and-verify.sh",
+    "acceptance_checklist": "plan/Phase1_Acceptance_Checklist.md",
+    "pre_impl_snapshot": "plan/Phase1_PreImplementation_Snapshot.json"
+  },
+  
+  "phase_1_objective": {
+    "summary": "Deliver trustworthy, externally testable FHSS dashboard baseline",
+    "components": [
+      "Safe HTTP infrastructure (RFC 9110/9112 via Boost.Beast)",
+      "Loopback-only security (IPv4/IPv6 local binding)",
+      "Request/response bounds (DoS prevention)",
+      "Production-facing tests (ASan/UBSan)",
+      "Machine-readable contracts (OpenAPI 3.1.2 + JSON Schema)",
+      "Operator acceptance workflow (Python tool)",
+      "Installed-tree qualification (separate install)"
+    ],
+    "duration_estimate_days": 7,
+    "workflow": "Orchestrator → Implementer → Verifier → Approval"
+  },
+  
+  "scope_analysis": {
+    "files_to_modify_or_create": 27,
+    "acceptance_criteria": 24,
+    "standards_mapped": 12,
+    "test_categories": 8,
+    "operator_commands": 6
+  },
+  
+  "files_affected": {
+    "new_files": [
+      "libdsp/include/DashboardHttpServer.hpp",
+      "libdsp/src/DashboardHttpServer.cpp",
+      "libdsp/include/AssetResolver.hpp",
+      "libdsp/src/AssetResolver.cpp",
+      "libdsp/include/SecurityHeaders.hpp",
+      "libdsp/include/ProblemDetails.hpp",
+      "libdsp/src/ProblemDetails.cpp",
+      "libdsp/test/unit/test_asset_containment.cpp",
+      "libdsp/test/unit/test_security_headers.cpp",
+      "libdsp/test/unit/test_problem_details.cpp",
+      "libdsp/test/unit/test_dashboard_http_server.cpp",
+      "libdsp/test/unit/test_dashboard_parser.cpp",
+      "libdsp/test/integration/test_dashboard_api_contract.cpp",
+      "libdsp/test/integration/test_dashboard_installed_tree.cpp",
+      "docs/api/fhss-dashboard-v1.openapi.yaml",
+      "docs/api/schemas/healthz-response.schema.json",
+      "docs/api/schemas/assets-error.schema.json",
+      "docs/api/schemas/problem-details.schema.json",
+      "examples/DSP/dashboard/operator/fhss_dashboard_operator.py",
+      "examples/DSP/dashboard/operator/README.md",
+      "examples/DSP/dashboard/operator/requirements.txt"
+    ],
+    "modified_files": [
+      "libdsp/CMakeLists.txt",
+      "CMakeLists.txt",
+      "examples/DSP/dashboard/CMakeLists.txt"
+    ]
+  },
+  
+  "dependencies_analysis": {
+    "boost_beast": {
+      "status": "available",
+      "version_minimum": "1.81.0",
+      "c_plus_plus_standard": "C++26",
+      "compilers": ["AppleClang 21+", "GCC 14+", "Clang 18+"]
+    },
+    "existing_conflicts": "none",
+    "build_system_circular_deps": "none verified"
+  },
+  
+  "standards_compliance": {
+    "http_protocol": {
+      "standard": "RFC 9110/9112",
+      "coverage": "Request/response, status codes, headers, Keep-Alive"
+    },
+    "error_format": {
+      "standard": "RFC 9457 (Problem Details)",
+      "coverage": "All error responses"
+    },
+    "api_contract": {
+      "standard": "OpenAPI 3.1.2",
+      "coverage": "All endpoints documented"
+    },
+    "schema_validation": {
+      "standard": "JSON Schema 2020-12",
+      "coverage": "Healthz, assets, errors"
+    },
+    "security_headers": {
+      "standard": "OWASP ASVS 5.0",
+      "coverage": "CSP, X-Content-Type-Options, X-Frame-Options, etc."
+    },
+    "path_containment": {
+      "standard": "OWASP ASVS 5.0",
+      "coverage": "Traversal prevention, symlink safety"
+    },
+    "loopback_binding": {
+      "standard": "NIST SP 800-218",
+      "coverage": "Source control, deployment isolation"
+    },
+    "build_security": {
+      "standard": "NIST SP 800-218",
+      "coverage": "ASan/UBSan, compiler security"
+    }
+  },
+  
+  "testing_requirements": {
+    "unit_tests": {
+      "categories": [
+        "HTTP parser (ASan/UBSan enabled)",
+        "Loopback binding validation",
+        "Path containment/traversal",
+        "Security header generation",
+        "RFC 9457 error format",
+        "Request/response limits",
+        "Graceful shutdown"
+      ],
+      "count_estimated": 40
+    },
+    "integration_tests": {
+      "categories": [
+        "API contract validation",
+        "Installed-tree workflow",
+        "Operator acceptance",
+        "End-to-end health check",
+        "Dashboard asset serving"
+      ],
+      "count_estimated": 15
+    },
+    "security_tests": {
+      "categories": [
+        "Path traversal vectors",
+        "Header injection prevention",
+        "Request body limits",
+        "Connection concurrency limits",
+        "Memory safety (ASan)",
+        "Undefined behavior (UBSan)"
+      ],
+      "count_estimated": 12
+    }
+  },
+  
+  "operator_acceptance": {
+    "commands": [
+      "prepare — Stage dashboard artifacts",
+      "launch — Start HTTP server",
+      "test — Run acceptance tests",
+      "health — Check server health",
+      "report — Generate baseline report",
+      "teardown — Stop server and cleanup"
+    ],
+    "language": "Python 3.8+",
+    "documentation": "README.md with examples",
+    "validation": "Receiver never gets generator truth"
+  },
+  
+  "blocking_rules": {
+    "rule_1": "Operator tool cannot run from README as-is; documentation must show working path",
+    "rule_2": "Receiver graph never receives generator truth (data isolation)",
+    "rule_3": "Tests cannot be skipped or marked as unwired",
+    "rule_4": "Loopback binding validation must be enforced (no bypass)",
+    "rule_5": "CSP headers must be present in all responses"
+  },
+  
+  "constraints_phase_1_only": {
+    "out_of_scope": [
+      "Configuration derivation policy (Phase 2)",
+      "Real runtime execution (Phase 3)",
+      "Receiver observations/metrics (Phase 4)",
+      "WebSocket streaming (Phase 6)"
+    ],
+    "implementer_responsibility": "Changes must enable Phase 1 only without lock-in to future phases"
+  },
+  
+  "agent_assignments": {
+    "orchestrator": {
+      "role": "Audit, prepare, assign, coordinate, gate approval",
+      "duration": "30 minutes",
+      "model": "Claude 3.5 Sonnet (Copilot)",
+      "status": "COMPLETE (this snapshot)"
+    },
+    "implementer": {
+      "role": "Execute Phase 1 scope only, add tests, create operator bundle",
+      "duration": "1 week",
+      "model": "Claude 3.5 Sonnet (Copilot)",
+      "status": "AWAITING ASSIGNMENT",
+      "constraints": "Must implement scope only, preserve truth isolation, add production tests"
+    },
+    "verifier": {
+      "role": "Independent verification, cannot edit implementation",
+      "duration": "2-3 days",
+      "model": "Claude 3.5 Sonnet (Copilot) — FRESH INSTANCE",
+      "status": "AWAITING IMPLEMENTER COMPLETION",
+      "constraints": "Must be different agent instance, verify with direct evidence"
+    }
+  },
+  
+  "deliverables_expected": {
+    "from_implementer": [
+      "plan/deliverables/Phase1_IMPLEMENTATION_REPORT.md",
+      "plan/deliverables/changed_files_list.txt",
+      "plan/deliverables/test_results.json",
+      "plan/deliverables/build_log.txt",
+      "plan/deliverables/operator_workflow_evidence/"
+    ],
+    "from_verifier": [
+      "plan/deliverables/Phase1_VERIFICATION_REPORT.md"
+    ]
+  },
+  
+  "success_criteria": {
+    "phase_1_pass": [
+      "All 24+ acceptance criteria met",
+      "All tests passing (0 failures)",
+      "No compiler warnings",
+      "ASan/UBSan clean",
+      "Operator workflow end-to-end",
+      "Installed-tree qualified",
+      "Standards compliance validated",
+      "Verifier independent approval"
+    ]
+  },
+  
+  "gates": {
+    "orchestrator_gate": "✅ PASS — All preparation steps complete, ready for implementer",
+    "implementer_gate": "⏳ PENDING — Awaiting implementation and pre-verification",
+    "verifier_gate": "⏳ PENDING — Awaiting implementer completion",
+    "orchestrator_final_gate": "⏳ PENDING — Awaiting verifier report for Phase 2 approval"
+  },
+  
+  "next_steps": [
+    "1. Assign Implementer Agent (Claude 3.5 Sonnet via runSubagent)",
+    "2. Provide implementer with: acceptance checklist, technical requirements, operator specs",
+    "3. Monitor implementation progress (1 week)",
+    "4. Implementer submits IMPLEMENTATION_REPORT and built artifacts",
+    "5. Assign Verifier Agent (FRESH INSTANCE, Claude 3.5 Sonnet via runSubagent)",
+    "6. Verifier independently validates against acceptance checklist (2-3 days)",
+    "7. Route verifier findings to orchestrator",
+    "8. Orchestrator gates: PASS → approve Phase 2, or CONDITIONAL/FAIL → iterate"
+  ],
+  
+  "metadata": {
+    "version": "1.0",
+    "created_by": "GitHub Copilot (Orchestrator)",
+    "created_date": "2026-07-24",
+    "repository": "/Users/rklinkhammer/workspace/GraphX",
+    "commit_at_preparation": "12fb9690f84ae16d148d941e8e317b51caa97aff",
+    "phase": 1,
+    "workflow_stage": "Post-orchestrator preparation, pre-implementer assignment",
+    "ready_for_implementation": true
+  }
+}

@@ -1,40 +1,28 @@
-# GraphX FHSS dashboard operator container
+# Legacy FHSS dashboard operator container
 
-This image provides the canonical Linux environment for first-principles FHSS
-dashboard operator qualification. The host prerequisite is Docker with Compose.
-If Docker is missing, stop and install it on the host; the operator workflow
-does not provision Docker, Node.js, npm, Python packages, or C++ packages into
-temporary host directories.
+This directory is retained for historical FHSS dashboard qualification
+traceability. It does **not** package or launch the current generic
+`graphx-dashboard`, and its image is not a supported build or operator path.
+Do not use this Compose service to validate the dashboard documented in the
+repository root `README.md`.
 
-Start from a newly downloaded clone:
+The former `docker compose build` and `docker compose up` instructions were
+removed because they implied a supported generic-dashboard container. The
+legacy image builds a different FHSS-embedded application and is not kept
+compatible with the current generic dashboard or every supported host
+toolchain.
 
-```sh
-git clone https://github.com/rklinkhammer/GraphX.git graphx-dashboard-operator
-cd graphx-dashboard-operator
-test -z "$(git status --short)"
-export GRAPHX_REVISION="$(git rev-parse HEAD)"
-mkdir -p .graphx-operator
-docker compose -f containers/dashboard-operator/compose.yaml build
-docker compose -f containers/dashboard-operator/compose.yaml up
-```
+Use the host-native **Generic Graph Dashboard And CLI** instructions in the
+repository root `README.md`. A supported generic-dashboard Docker image and
+Compose service may be added in a future, explicitly scoped change; none exists
+at this revision.
 
-The image build installs its versioned Linux, Node/npm, Python-contract, and
-frontend dependencies inside the image and builds GraphX in C++26 mode from the
-clean clone. No repository build tree, `node_modules`, CMake cache, or install
-prefix is reused.
+If this legacy service was started previously and still owns host port 8080,
+stop and remove it from the repository root:
 
-Open <http://127.0.0.1:8080/> on the Docker host. Docker publishes only on host
-loopback. Inside the container the GraphX server still binds to container
-loopback; `socat` bridges it to the Docker port without weakening the
-application's loopback-only bind policy.
-
-Synthetic IQ, separate truth, and SigMF metadata are written beneath
-`.graphx-operator/captures` in the clone. Stop with Ctrl-C:
-
-```sh
+```bash
 docker compose -f containers/dashboard-operator/compose.yaml down
 ```
 
-This Linux container does not qualify macOS Metal behavior, HWIL, conducted RF,
-OTA, live RF, or production RF.
-
+This historical container does not qualify the generic dashboard, macOS Metal
+behavior, HWIL, conducted RF, OTA, live RF, or production RF.

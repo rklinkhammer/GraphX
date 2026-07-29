@@ -61,7 +61,7 @@ The recommended validation starts from a fresh clone so the result does not
 depend on an old build tree or untracked generated files:
 
 ```bash
-git clone <GraphX-repository-URL> GraphX
+git clone https://github.com/rklinkhammer/GraphX.git GraphX
 cd GraphX
 ```
 
@@ -96,7 +96,13 @@ require a macOS host build.
 Docker is not required to build, test, run GraphX, or run the generic
 dashboard. The specialized material under `containers/dashboard-operator/`
 belongs to the legacy FHSS dashboard qualification workflow and is not the
-default GraphX dashboard path.
+default GraphX dashboard path. It must not be used as a container for the
+generic dashboard: it builds and launches a different, legacy FHSS application.
+There is currently no supported generic-dashboard Docker image or Compose
+service in this repository. Use the host commands in
+[Generic Graph Dashboard And CLI](#generic-graph-dashboard-and-cli). The
+legacy operator image is retained as historical qualification material and is
+not part of the supported quick start.
 
 Configure and build a Jetson CUDA debug tree for FHSS CUDA verification:
 
@@ -198,6 +204,7 @@ Top-level options:
 | `GRAPHX_BUILD_EXAMPLES_DSP` | `ON` | Build DSP examples. |
 | `ENABLE_TSAN` | `OFF` | Add ThreadSanitizer flags on supported compilers. |
 | `ENABLE_ASAN_UBSAN` | `OFF` | Add AddressSanitizer and UndefinedBehaviorSanitizer flags on supported compilers. |
+| `GRAPHX_ENABLE_EXTENDED_VALIDATION` | `OFF` | Register scheduled statistical, stress, and extended validation lanes. |
 | `ENABLE_CUDA_GRAPH_NODES` | `OFF` | Request CUDA graph node support. |
 | `ENABLE_METAL_GRAPH_NODES` | `ON` | Request Metal graph node support. |
 | `ENABLE_METAL_NATIVE_RUNTIME` | `ON` | Request native Metal runtime on Apple. |
@@ -262,24 +269,67 @@ inspection and in-memory parameter editing, while execution endpoints are
 disabled unless `--enable-execution` is supplied. The server binds only to
 `127.0.0.1`.
 
-Run the dashboard directly from the default build tree:
+First select the build tree created by the platform-specific quick start and
+build the dashboard and CLI targets:
 
 ```bash
-./build-ninja/ninja-debug/graphx-dashboard \
+dashboard_build=build-ninja/ninja-debug
+# On Linux, use:
+# dashboard_build=build-ninja/ninja-debug-linux-host
+
+cmake --build "$dashboard_build" \
+  --target graphx_graph_dashboard graphx_graph_cli
+```
+
+Run the dashboard from that build tree:
+
+```bash
+dashboard_build=build-ninja/ninja-debug
+# On Linux, use:
+# dashboard_build=build-ninja/ninja-debug-linux-host
+
+"$dashboard_build/graphx-dashboard" \
   --graph libgraph/test/config/topologies/minimal_graph.json \
   --port 8080
 ```
 
 Open `http://127.0.0.1:8080/` and press Ctrl-C in the terminal to stop the
-server. Do not add `--enable-execution` for inspection-only use. Execution mode
-is opt-in and additionally requires a runnable graph plus a directory
-containing its dynamically loaded node plugins; run
-`graphx-dashboard --help` for the accepted flags.
+server. The page should show **GraphX Management**, state **STOPPED**, and the
+`source_1` and `sink_1` nodes. Do not add `--enable-execution` for
+inspection-only use. Execution mode is opt-in and additionally requires a
+runnable graph plus a directory containing its dynamically loaded node
+plugins; run `"$dashboard_build/graphx-dashboard" --help` for the accepted
+flags.
+
+Confirm the server independently of browser state:
+
+```bash
+curl --fail --silent --show-error \
+  http://127.0.0.1:8080/api/v1/nodes
+```
+
+If the server reports that it cannot bind, another process owns port 8080;
+stop that process or choose another unprivileged port and use the same port in
+the URL. If the API command succeeds but a browser shows only a title or an old
+FHSS page, verify the URL and force-reload the page. The legacy
+`containers/dashboard-operator` service also publishes port 8080 and must be
+stopped before running the generic dashboard:
+
+```bash
+docker compose -f containers/dashboard-operator/compose.yaml down
+```
+
+That Compose command only stops and removes the legacy service. Do not run its
+`build` or `up` commands as part of the generic-dashboard workflow.
 
 Inspect the same graph without a browser:
 
 ```bash
-./build-ninja/ninja-debug/graph-cli \
+dashboard_build=build-ninja/ninja-debug
+# On Linux, use:
+# dashboard_build=build-ninja/ninja-debug-linux-host
+
+"$dashboard_build/graph-cli" \
   --graph libgraph/test/config/topologies/minimal_graph.json \
   show --format table
 ```
@@ -287,7 +337,11 @@ Inspect the same graph without a browser:
 An optional repository-local installation preserves host installation state:
 
 ```bash
-cmake --install build-ninja/ninja-debug \
+dashboard_build=build-ninja/ninja-debug
+# On Linux, use:
+# dashboard_build=build-ninja/ninja-debug-linux-host
+
+cmake --install "$dashboard_build" \
   --prefix "$PWD/.graphx-install"
 "$PWD/.graphx-install/bin/graphx-dashboard" --help
 ```
@@ -375,7 +429,7 @@ Focused tests:
 cmake --build build-ninja/ninja-debug-metal-native --target test_dsp_example_unit
 
 ./build-ninja/ninja-debug-metal-native/examples/DSP/test/test_dsp_example_unit \
-  --gtest_filter='DspSpectrumDemoExecutableTest.*:DspSpectrumDemoGuardrailTest.*:DspCpuVsMetalExecuteTimingTest.*'
+  --gtest_filter='DspSpectrumDemoExecutableTest.*:DspCpuVsMetalExecuteTimingTest.*'
 ```
 
 ## DSP FHSS Demo
@@ -675,15 +729,15 @@ Useful focused filters:
 ```bash
 # CI-safe correctness lane.
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_runtime_integration \
-  --gtest_filter='SarCiCorrectnessLaneTest.*:SarCiValidationLaneTest.*:SarCiTinyFixtureTest.*'
+  --gtest_filter='CiCorrectnessLaneTest.*:CiValidationLaneTest.*:CiTinyFixtureTest.*'
 
 # CRSD input and focused-image path.
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes \
-  --gtest_filter='CrsdInputSourceNodeTest.*:CrsdApertureAssemblyAdapterNodeTest.*:CrsdFocusedImageTransformNodeTest.*:CrsdFocusedImageSinkTest.*'
+  --gtest_filter='OrderedCrsdSetInputSourceNodeTest.*:CrsdApertureAssemblyAdapterNodeTest.*:CrsdFocusedImageTransformNodeTest.*:CrsdFocusedImageSinkNodeTest.*'
 
 # Metal SAR truth-in-labeling and focused-image transform.
 ./build-ninja/ninja-debug-metal-native/examples/SAR/test/test_sar_nodes \
-  --gtest_filter='MetalTruthInLabelingGuardrailTest.*:CrsdFocusedImageMetalTest.*'
+  --gtest_filter='CrsdFocusedImageMetalTest.*'
 ```
 
 Registered CTest lanes include:
@@ -695,7 +749,7 @@ Registered CTest lanes include:
 | `sar_runtime_integration` | JSON, executor, scenario, and CI fixture integration tests. |
 | `sar_local_only` | Local-only/gated external baseline and dataset tooling tests. |
 | `sar_example_ci_lane` | CI-safe SAR validation lane. |
-| `sar_example_main_executable` | `examples/SAR/main.cpp` executable coverage. |
+| `sar_example_main_executable` | `examples/SAR/src/main.cpp` executable coverage. |
 | `sar_example_sarpy_probe_lane` | Local-only/gated SarPy probe checks. |
 | `sar_example_sarpy_integration_lane` | Local-only/gated SarPy integration checks. |
 | `sar_real_gotcha_local_validation` | Disabled local-only real-data GOTCHA validation. |
@@ -784,8 +838,14 @@ Manual converter invocation:
 
 ```bash
 ./build-ninja/ninja-debug-metal-native/examples/SAR/graphx-gotcha-to-crsd \
-  --input /path/to/input.mat \
-  --output-dir "$PWD/.graphx-output/gotcha-crsd"
+  --input-dir /path/to/gotcha_mat_directory \
+  --output-dir "$PWD/.graphx-output/gotcha-crsd" \
+  --collection-id gotcha-local \
+  --max-output-size-mb 0 \
+  --sort lexical \
+  --mode crsd \
+  --validate \
+  --emit-index
 ```
 
 GOTCHA input manifests use schema `graphx.gotcha.input_manifest.v1`.
