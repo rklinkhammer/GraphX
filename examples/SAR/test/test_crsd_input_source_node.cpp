@@ -394,6 +394,9 @@ TEST(OrderedCrsdSetInputSourceNodeTest, JsonTopologySmokeRunsForBinaryPathsDirec
                             .Build();
 
         ASSERT_NE(executor, nullptr) << "mode=" << mode;
+        const auto initialized = executor->Init();
+        ASSERT_TRUE(initialized.success)
+            << "mode=" << mode << " " << initialized.message;
         ASSERT_NE(executor->GetGraphManager(), nullptr) << "mode=" << mode;
 
         const auto run_result = executor->Execute();

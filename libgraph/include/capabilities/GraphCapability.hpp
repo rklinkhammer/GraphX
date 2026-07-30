@@ -33,6 +33,8 @@
 #include <functional>
 #include <mutex>
 #include <atomic>
+#include <optional>
+#include <nlohmann/json.hpp>
 #include "graph/CapabilityBus.hpp"
 #include "graph/GraphConfig.hpp"
 #include "graph/GraphManagerCore.hpp"
@@ -134,6 +136,21 @@ public:
         json_config_path = path;
     }
 
+    /// Set the immutable document consumed by GraphBuilder during Init.
+    void SetGraphDocument(nlohmann::json document) {
+        graph_document_ = std::move(document);
+    }
+
+    [[nodiscard]] const std::optional<nlohmann::json>& GetGraphDocument() const {
+        return graph_document_;
+    }
+
+    /// Reset execution signals before initializing a new graph generation.
+    void ResetExecutionSignals() const {
+        is_stopped.store(false, std::memory_order_release);
+        completion_signaled.store(false, std::memory_order_release);
+    }
+
     /// @brief Check if stop has been requested
     /// @return true if stop requested, false otherwise
     bool IsStopped() const
@@ -205,6 +222,7 @@ public:
 private:
 
     std::string json_config_path;
+    std::optional<nlohmann::json> graph_document_;
     //graph::GraphConfig graph_impl;
     // Primary node creation/query contract used by graph orchestration.
     std::shared_ptr<graph::INodeProvider> node_provider {nullptr};

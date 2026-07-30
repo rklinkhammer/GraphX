@@ -29,6 +29,7 @@
 
 #include "ui/BuiltinCommands.hpp"
 #include "ui/CommandRegistry.hpp"
+#include "capabilities/CommandCapability.hpp"
 #include "capabilities/CommandRegistryCapability.hpp"
 #include <sstream>
 #include <iomanip>
@@ -116,8 +117,16 @@ void RegisterBuiltinCommands(
                 return CommandResult(false, "Graph capability unavailable");
             }
 
-            graph_capability->SetStopped();
-            return CommandResult(true, "Graph execution stopped");
+            auto commands =
+                graph_capability->GetCapabilityBus()
+                    .Get<capabilities::CommandCapability>();
+            if (!commands) {
+                return CommandResult(
+                    false, "Command capability unavailable");
+            }
+            const auto stopped = commands->Submit(
+                {.name = capabilities::CommandName::Stop});
+            return CommandResult(stopped.success, stopped.message);
         });
 
     // =========================================================================

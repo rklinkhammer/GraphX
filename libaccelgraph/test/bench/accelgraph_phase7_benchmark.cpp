@@ -282,6 +282,11 @@ RunMetrics RunLocalBenchmark(const BenchmarkConfig& cfg,
         if (!executor) {
             throw std::runtime_error("failed to build GraphExecutor for " + cfg.name);
         }
+        const auto initialized = executor->Init();
+        if (!initialized.success) {
+            throw std::runtime_error("failed to initialize GraphExecutor for " +
+                                     cfg.name + ": " + initialized.message);
+        }
 
         auto graph_manager = executor->GetGraphManager();
         if (!graph_manager) {

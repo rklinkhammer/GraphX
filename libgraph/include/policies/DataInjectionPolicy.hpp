@@ -176,7 +176,9 @@ public:
          * @return Method-specific result, status, or produced value when the signature provides one.
          */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy OnStop called");
-        // Stop data injection and cleanup here
+        if (data_injection_capability_) {
+            data_injection_capability_->DisableAllInjectionQueues();
+        }
     }
 
     /**
@@ -198,7 +200,9 @@ public:
          * @return Method-specific result, status, or produced value when the signature provides one.
          */
         LOG4CXX_TRACE(data_injection_logger_, "DataInjectionPolicy OnJoin called");
-        // Finalize data injection reporting here
+        if (data_injection_capability_) {
+            data_injection_capability_->DisableAllInjectionQueues();
+        }
     }   
 private:
     std::shared_ptr<capabilities::DataInjectionCapability> data_injection_capability_;

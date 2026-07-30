@@ -181,6 +181,8 @@ TEST(DspGpuSpectrumGraphRuntimeTest, JsonTopologyRunsThroughExecutorAndSinkRecei
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
     EXPECT_EQ(graph_manager->GetNodes().size(), 5u);

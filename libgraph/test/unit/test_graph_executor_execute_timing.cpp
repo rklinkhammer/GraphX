@@ -95,7 +95,7 @@ TEST(GraphExecutorTimingContractTest, StandaloneLifecycleResultsRemainStandalone
 
     const auto stop_result = executor->Stop();
     ASSERT_TRUE(stop_result.success) << stop_result.message;
-    EXPECT_EQ(stop_result.current_state, graph::ExecutionState::STOPPED);
+    EXPECT_EQ(stop_result.current_state, graph::ExecutionState::STOPPING);
     EXPECT_EQ(stop_result.init_elapsed_time_ms, 0u);
     EXPECT_EQ(stop_result.start_elapsed_time_ms, 0u);
     EXPECT_EQ(stop_result.run_elapsed_time_ms, 0u);

@@ -96,13 +96,15 @@ GraphBuilder::GraphBuilder(const std::shared_ptr<capabilities::GraphCapability>&
         throw std::invalid_argument("GraphCapability NodeProvider cannot be null");
     }
     
-    if (capability->GetJsonConfigPath().empty()) {
-        LOG4CXX_ERROR(logger_, "GraphCapability has empty JSON config path");
-        throw std::invalid_argument("JSON config path cannot be empty");
+    if (capability->GetJsonConfigPath().empty() &&
+        !capability->GetGraphDocument().has_value()) {
+        LOG4CXX_ERROR(logger_, "GraphCapability has no graph configuration");
+        throw std::invalid_argument("Graph configuration cannot be empty");
     }
     
     LOG4CXX_TRACE(logger_, "GraphBuilder constructed successfully");
-    LOG4CXX_TRACE(logger_, "JSON config path: " << capability->GetJsonConfigPath());
+    LOG4CXX_TRACE(logger_, "Graph configuration source: "
+                     << (capability->GetGraphDocument() ? "snapshot" : "file"));
 }
 
 // ============================================================================
@@ -116,23 +118,12 @@ bool GraphBuilder::Validate() {
     LOG4CXX_TRACE(logger_, "Starting validation");
     last_error_.clear();
     
-    // Check JSON file exists
-    const auto& json_path = capability_->GetJsonConfigPath();
-    if (!fs::exists(json_path)) {
-        last_error_ = "JSON configuration file does not exist: " + json_path;
-        LOG4CXX_WARN(logger_, last_error_);
-        return false;
-    }
-    
-    if (!fs::is_regular_file(json_path)) {
-        last_error_ = "JSON configuration path is not a regular file: " + json_path;
-        LOG4CXX_WARN(logger_, last_error_);
-        return false;
-    }
-    
-    LOG4CXX_TRACE(logger_, "JSON config file exists: " << json_path);
-    
-    auto parsed_config = graph::config::GraphConfigParser::ParseFileSafe(json_path);
+    std::expected<graph::GraphConfig, app::error::ConfigError>
+        parsed_config = capability_->GetGraphDocument()
+                            ? graph::config::GraphConfigParser::ParseSafe(
+                                  capability_->GetGraphDocument()->dump())
+                            : graph::config::GraphConfigParser::ParseFileSafe(
+                                  capability_->GetJsonConfigPath());
     if (!parsed_config) {
         last_error_ = "Failed to parse graph configuration";
         LOG4CXX_WARN(logger_, last_error_ << " (error=" << static_cast<int>(parsed_config.error()) << ")");
@@ -190,8 +181,12 @@ BuildResult GraphBuilder::Build() {
         
         // Step 2: Load graph configuration
         LOG4CXX_TRACE(logger_, "Step 2: Loading graph configuration");
-        const auto& json_path = capability_->GetJsonConfigPath();
-        auto parsed_config_for_resolver = graph::config::GraphConfigParser::ParseFileSafe(json_path);
+        auto parsed_config_for_resolver =
+            capability_->GetGraphDocument()
+                ? graph::config::GraphConfigParser::ParseSafe(
+                      capability_->GetGraphDocument()->dump())
+                : graph::config::GraphConfigParser::ParseFileSafe(
+                      capability_->GetJsonConfigPath());
         if (!parsed_config_for_resolver) {
             BuildResult result;
             result.success = false;
@@ -209,9 +204,9 @@ BuildResult GraphBuilder::Build() {
             capability_->GetNodeProvider(),
             parsed_config_for_resolver->resolver,
             std::move(resolution_registry));
-        auto graph_config = graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
-            json_path,
-            resolving_provider);
+        auto graph_config =
+            graph::config::JsonDynamicGraphLoader::LoadGraphSafe(
+                parsed_config_for_resolver.value(), resolving_provider);
         if (!graph_config) {
             BuildResult result;
             result.success = false;

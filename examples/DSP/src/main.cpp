@@ -432,7 +432,14 @@ std::shared_ptr<graph::GraphExecutor> BuildExecutor(
     for (const auto& path : options.additional_plugin_directories) {
         builder.WithAdditionalPluginDirectory(path.string());
     }
-    return builder.Build();
+    auto executor = builder.Build();
+    const auto initialized = executor->Init();
+    if (!initialized.success) {
+        throw std::runtime_error(
+            "failed to initialize executor for " + config_path.string() +
+            ": " + initialized.message);
+    }
+    return executor;
 }
 
 IterationRecord RunIteration(
@@ -966,6 +973,12 @@ int main(int argc, char** argv) {
         auto executor = builder.Build();
         if (!executor) {
             std::cerr << "Failed to build DSP graph executor\n";
+            return 1;
+        }
+        const auto initialized = executor->Init();
+        if (!initialized.success) {
+            std::cerr << "Failed to initialize DSP graph executor: "
+                      << initialized.message << '\n';
             return 1;
         }
 

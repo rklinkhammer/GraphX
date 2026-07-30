@@ -38,23 +38,23 @@ namespace graph {
     /**
  * @brief Enumeration of execution states for the interactive CLI
  *
- * Represents the complete state machine for graph execution in interactive mode:
+ * Represents the public GraphExecutor lifecycle:
+ * - CONFIGURED: Immutable configuration recorded; no graph constructed
  * - INITIALIZED: ExecutionController ready, graph prepared
- * - PAUSED: Running state, but temporarily paused by user
  * - RUNNING: Active execution (graph nodes processing)
- * - STEPPING: Stepping mode (one CSV row per step command)
  * - STOPPING: Graceful shutdown in progress
- * - STOPPED: Execution complete, waiting for termination
+ * - STOPPED: Execution stopped and joined; reconfiguration is allowed
  * - ERROR: Fatal error occurred
  *
+ * PAUSED and STEPPING remain compatibility enum values but are not Phase 0
+ * command transitions.
+ *
  * State Transitions:
+ *   CONFIGURED → INITIALIZED (Init after ConfigureGraph)
  *   INITIALIZED → RUNNING (Start with continuous execution)
- *   INITIALIZED → STEPPING (Start with manual stepping)
- *   RUNNING → PAUSED (User pause() command)
- *   PAUSED → RUNNING (User resume() command)
- *   PAUSED → STEPPING (User step command while paused)
- *   RUNNING/PAUSED/STEPPING → STOPPING (User stop() command)
+ *   INITIALIZED/RUNNING → STOPPING (Stop or worker-owned teardown)
  *   STOPPING → STOPPED (Graph shutdown complete)
+ *   STOPPED → CONFIGURED (ConfigureGraph after joined teardown)
  *   Any → ERROR (Fatal error detected)
  *
  * Thread-Safety: ExecutionState is queried via thread-safe getter but not
@@ -67,13 +67,14 @@ namespace graph {
  * @details Enumerates stable options or status values used by the libgraph API. Keep additions explicit so configuration, diagnostics, and generated documentation remain readable.
  */
 enum class ExecutionState : uint8_t {
-  INITIALIZED = 0,  ///< Ready to start, graph initialized
-  PAUSED = 1,       ///< Running but temporarily paused
-  RUNNING = 2,      ///< Active execution (continuous mode)
-  STEPPING = 3,     ///< Stepping mode (manual row injection)
-  STOPPING = 4,     ///< Graceful shutdown in progress
-  STOPPED = 5,      ///< Execution stopped, nodes joined
-  ERROR = 6,        ///< Fatal error occurred
+  CONFIGURED = 0,   ///< Immutable configuration recorded; no graph constructed
+  INITIALIZED = 1,  ///< Ready to start, graph initialized
+  PAUSED = 2,       ///< Running but temporarily paused
+  RUNNING = 3,      ///< Active execution (continuous mode)
+  STEPPING = 4,     ///< Stepping mode (manual row injection)
+  STOPPING = 5,     ///< Graceful shutdown in progress
+  STOPPED = 6,      ///< Execution stopped, nodes joined
+  ERROR = 7,        ///< Fatal error occurred
   ANY = 99        ///< Wildcard for any state
 };
 

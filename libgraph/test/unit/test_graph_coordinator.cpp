@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+#include <atomic>
 #include <thread>
 #include <vector>
 
@@ -277,14 +278,65 @@ TEST_F(GraphCoordinatorTest, UpdateNodeConfigNotFound) {
     EXPECT_FALSE(result);
 }
 
-TEST_F(GraphCoordinatorTest, UpdateNodeConfigModifiesReferencedGraph) {
+TEST_F(GraphCoordinatorTest, UpdateNodeConfigDoesNotMutateConstructorArgument) {
     graph::GraphCoordinator coordinator(graph_);
 
     json new_config = json::object({{"new_param", 555}});
     coordinator.UpdateNodeConfig("node_2", new_config);
 
-    // Check that underlying graph was modified
-    EXPECT_EQ(graph_["nodes"][1]["node_config"]["new_param"], 555);
+    EXPECT_FALSE(graph_["nodes"][1]["node_config"].contains("new_param"));
+    EXPECT_EQ(coordinator.GetNodeConfig("node_2")["new_param"], 555);
+}
+
+TEST_F(GraphCoordinatorTest, SnapshotIsStableAndRevisioned) {
+    graph::GraphCoordinator coordinator(graph_);
+    const auto initial = coordinator.Snapshot();
+    const auto repeated = coordinator.Snapshot();
+    EXPECT_EQ(initial.Revision(), 0);
+    EXPECT_EQ(repeated.Revision(), 0);
+    EXPECT_EQ(initial.ContentIdentity(), repeated.ContentIdentity());
+
+    ASSERT_TRUE(coordinator.UpdateNodeConfig(
+        "node_1", json::object({{"param1", 77}})));
+    const auto changed = coordinator.Snapshot();
+    EXPECT_EQ(changed.Revision(), 1);
+    EXPECT_NE(changed.ContentIdentity(), initial.ContentIdentity());
+    EXPECT_EQ(initial.Document()["nodes"][0]["node_config"]["param1"], 10);
+}
+
+TEST_F(GraphCoordinatorTest, NoOpAndFailedUpdatesDoNotAdvanceRevision) {
+    graph::GraphCoordinator coordinator(graph_);
+    const auto initial = coordinator.Snapshot();
+    ASSERT_TRUE(coordinator.UpdateNodeConfig(
+        "node_1", coordinator.GetNodeConfig("node_1")));
+    EXPECT_EQ(coordinator.Snapshot().Revision(), initial.Revision());
+    EXPECT_FALSE(coordinator.UpdateNodeConfig(
+        "missing", json::object({{"value", 1}})));
+    EXPECT_EQ(coordinator.Snapshot().Revision(), initial.Revision());
+}
+
+TEST_F(GraphCoordinatorTest, ConcurrentSnapshotsNeverMixRevisionAndDocument) {
+    graph::GraphCoordinator coordinator(graph_);
+    std::atomic<bool> done{false};
+    std::thread writer([&] {
+        for (int value = 1; value <= 100; ++value) {
+            coordinator.UpdateNodeConfig(
+                "node_1", json::object({{"revision_value", value}}));
+        }
+        done.store(true, std::memory_order_release);
+    });
+
+    while (!done.load(std::memory_order_acquire)) {
+        const auto snapshot = coordinator.Snapshot();
+        if (snapshot.Revision() != 0) {
+            EXPECT_EQ(
+                snapshot.Document()["nodes"][0]["node_config"]
+                                   ["revision_value"],
+                snapshot.Revision());
+        }
+    }
+    writer.join();
+    EXPECT_EQ(coordinator.Snapshot().Revision(), 100);
 }
 
 TEST_F(GraphCoordinatorTest, UpdateNodeConfigPreservesOtherNodes) {

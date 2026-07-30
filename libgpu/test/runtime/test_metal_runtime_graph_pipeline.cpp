@@ -376,6 +376,8 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
     EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 7U);
     EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 6U);
@@ -421,9 +423,6 @@ TEST(MetalNativeRuntimeGraphPipelineTest,
     const auto reduce_function_name = reduce_kernel_desc_obj->TryGetString("function_name");
     ASSERT_TRUE(reduce_function_name.has_value());
     EXPECT_EQ(reduce_function_name.value(), "graphx_reduce_health_metrics_u8");
-
-    const auto init_result = executor->Init();
-    ASSERT_TRUE(init_result.success) << init_result.message << " " << init_result.error_details;
 
     auto context = executor->GetCapability<graph::gpu::metal::capabilities::IMetalContextCapability>();
     ASSERT_NE(context, nullptr);

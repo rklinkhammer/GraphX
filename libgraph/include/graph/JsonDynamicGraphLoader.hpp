@@ -173,6 +173,16 @@ public:
         std::shared_ptr<INodeProvider> node_provider,
         const INodeMetadataService* metadata_service = nullptr) noexcept;
 
+    /// Build nodes and edge descriptions from an already parsed immutable
+    /// configuration, avoiding any second file read during executor Init.
+    [[nodiscard]] static std::expected<
+        std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>, std::vector<EdgeConfig>>,
+        app::error::ConfigError>
+    LoadGraphSafe(
+        const GraphConfig& config,
+        std::shared_ptr<INodeProvider> node_provider,
+        const INodeMetadataService* metadata_service = nullptr) noexcept;
+
 private:
     /**
      * Parse JSON file safely with expected<> error handling (Phase 5c)

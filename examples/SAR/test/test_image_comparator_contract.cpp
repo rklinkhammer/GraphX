@@ -226,6 +226,10 @@ GraphxRunCapture RunScenario001Graphx(const std::filesystem::path& output_dir) {
     if (!executor) {
         throw std::invalid_argument("unable to construct graph executor");
     }
+    const auto initialized = executor->Init();
+    if (!initialized.success) {
+        throw std::invalid_argument(initialized.message);
+    }
     if (!executor->GetGraphManager()) {
         throw std::invalid_argument("graph executor missing graph manager");
     }

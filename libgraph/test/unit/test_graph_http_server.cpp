@@ -1,10 +1,15 @@
-/**
- * @file test_graph_http_server.cpp
- * @brief Unit tests for GraphHttpServer - REST API and web UI.
- */
+// SPDX-License-Identifier: MIT
 
 #include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
+
+#include "capabilities/CommandCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
+#include "graph/GraphCoordinator.hpp"
+#include "graph/GraphExecutor.hpp"
+#include "graph/GraphExecutorBuilder.hpp"
+#include "graph/GraphHttpServer.hpp"
+#include "graph/IExecutionPolicy.hpp"
+#include "test/TestGraphTopologies.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -13,15 +18,16 @@
 
 #include <array>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <fstream>
+#include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <thread>
 
-#include "graph/GraphHttpServer.hpp"
-#include "graph/GraphCoordinator.hpp"
-#include "graph/GraphExecutor.hpp"
-#include "graph/ExecutionState.hpp"
+#include <nlohmann/json.hpp>
 
 namespace {
 
@@ -98,613 +104,539 @@ std::string ResponseBody(const std::string& response) {
                                           : response.substr(separator + 4U);
 }
 
-/**
- * @brief Simple executor mock for testing GraphCoordinator integration.
- */
-class SimpleExecutorMock {
+json LoadMinimalGraph() {
+    std::ifstream input(
+        std::string{GRAPHX_SOURCE_ROOT} +
+        "/libgraph/test/config/topologies/minimal_graph.json");
+    json document;
+    input >> document;
+    return document;
+}
+
+struct HttpBlockingJoinState {
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool entered = false;
+    bool released = false;
+};
+
+class HttpBlockingJoinPolicy final : public graph::IExecutionPolicy {
 public:
-    SimpleExecutorMock() : state_(graph::ExecutionState::STOPPED), stop_count_(0) {}
+    explicit HttpBlockingJoinPolicy(
+        std::shared_ptr<HttpBlockingJoinState> state)
+        : state_(std::move(state)) {}
 
-    graph::InitializationResult Init() {
-        state_ = graph::ExecutionState::INITIALIZED;
-        graph::InitializationResult result{};
-        result.success = true;
-        result.message = "";
-        result.nodes_initialized = 0;
-        result.nodes_failed = 0;
-        result.elapsed_time_ms = 0;
-        result.error_details = "";
-        return result;
+    bool OnInit(capabilities::GraphCapability&) override {
+        return true;
     }
 
-    graph::ExecutionResult Start() {
-        if (state_ != graph::ExecutionState::INITIALIZED) {
-            graph::ExecutionResult result{};
-            result.success = false;
-            result.message = "Not initialized";
-            result.current_state = state_;
-            result.elapsed_time_ms = 0;
-            result.init_elapsed_time_ms = 0;
-            result.start_elapsed_time_ms = 0;
-            result.run_elapsed_time_ms = 0;
-            result.stop_elapsed_time_ms = 0;
-            result.join_elapsed_time_ms = 0;
-            result.error_details = "";
-            return result;
-        }
-        state_ = graph::ExecutionState::RUNNING;
-        graph::ExecutionResult result{};
-        result.success = true;
-        result.message = "";
-        result.current_state = state_;
-        result.elapsed_time_ms = 0;
-        result.init_elapsed_time_ms = 0;
-        result.start_elapsed_time_ms = 0;
-        result.run_elapsed_time_ms = 0;
-        result.stop_elapsed_time_ms = 0;
-        result.join_elapsed_time_ms = 0;
-        result.error_details = "";
-        return result;
+    bool OnStart(capabilities::GraphCapability&) override {
+        return true;
     }
 
-    graph::ExecutionResult Run() {
-        if (state_ != graph::ExecutionState::RUNNING) {
-            graph::ExecutionResult result{};
-            result.success = false;
-            result.message = "Not running";
-            result.current_state = state_;
-            result.elapsed_time_ms = 0;
-            result.init_elapsed_time_ms = 0;
-            result.start_elapsed_time_ms = 0;
-            result.run_elapsed_time_ms = 0;
-            result.stop_elapsed_time_ms = 0;
-            result.join_elapsed_time_ms = 0;
-            result.error_details = "";
-            return result;
-        }
-        state_ = graph::ExecutionState::STOPPED;
-        graph::ExecutionResult result;
-        result.success = true;
-        result.message = "";
-        result.current_state = state_;
-        result.elapsed_time_ms = 0;
-        result.init_elapsed_time_ms = 0;
-        result.start_elapsed_time_ms = 0;
-        result.run_elapsed_time_ms = 0;
-        result.stop_elapsed_time_ms = 0;
-        result.join_elapsed_time_ms = 0;
-        result.error_details = "";
-        return result;
+    bool OnRun(capabilities::GraphCapability& context) override {
+        context.SetStopped();
+        return true;
     }
 
-    graph::ExecutionResult Stop() {
-        state_ = graph::ExecutionState::STOPPED;
-        graph::ExecutionResult result{};
-        result.success = true;
-        result.message = "";
-        result.current_state = state_;
-        result.elapsed_time_ms = 0;
-        result.init_elapsed_time_ms = 0;
-        result.start_elapsed_time_ms = 0;
-        result.run_elapsed_time_ms = 0;
-        result.stop_elapsed_time_ms = 0;
-        result.join_elapsed_time_ms = 0;
-        result.error_details = "";
-        return result;
-    }
-
-    void RequestStop() noexcept {
-        state_ = graph::ExecutionState::STOPPED;
-    }
-
-    graph::ExecutionResult Join() {
-        state_ = graph::ExecutionState::STOPPED;
-        graph::ExecutionResult result{};
-        result.success = true;
-        result.message = "";
-        result.current_state = state_;
-        result.elapsed_time_ms = 0;
-        result.init_elapsed_time_ms = 0;
-        result.start_elapsed_time_ms = 0;
-        result.run_elapsed_time_ms = 0;
-        result.stop_elapsed_time_ms = 0;
-        result.join_elapsed_time_ms = 0;
-        result.error_details = "";
-        return result;
-    }
-
-    bool IsRunning() const {
-        return state_ == graph::ExecutionState::RUNNING;
-    }
-
-    graph::ExecutionState GetExecutionState() const {
-        return state_;
-    }
-
-    std::uint64_t GetStopSequenceCount() const noexcept {
-        return stop_count_;
+    void OnJoin(capabilities::GraphCapability&) override {
+        std::unique_lock lock(state_->mutex);
+        state_->entered = true;
+        state_->condition.notify_all();
+        state_->condition.wait(lock, [this] { return state_->released; });
     }
 
 private:
-    graph::ExecutionState state_;
-    std::uint64_t stop_count_;
+    std::shared_ptr<HttpBlockingJoinState> state_;
 };
 
-/**
- * @brief Test fixture for GraphHttpServer tests.
- */
-class GraphHttpServerTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // Create a valid test graph
-        graph_ = json::object();
-        graph_["name"] = "test_graph";
-        graph_["nodes"] = json::array();
-
-        // Add test nodes
-        json node1 = json::object();
-        node1["id"] = "node_1";
-        node1["type"] = "SourceNode";
-        node1["node_config"] = json::object({{"param1", 10}, {"param2", "test"}});
-        graph_["nodes"].push_back(node1);
-
-        json node2 = json::object();
-        node2["id"] = "node_2";
-        node2["type"] = "ProcessNode";
-        node2["node_config"] = json::object({{"frequency", 2000}, {"gain", 1.5}});
-        graph_["nodes"].push_back(node2);
-
-        json node3 = json::object();
-        node3["id"] = "node_3";
-        node3["type"] = "SourceNode";
-        node3["node_config"] = json::object({{"rate", 44100}});
-        graph_["nodes"].push_back(node3);
+class HttpStopAwareRunPolicy final : public graph::IExecutionPolicy {
+public:
+    bool OnInit(capabilities::GraphCapability&) override {
+        return true;
     }
 
-    json graph_;
+    bool OnStart(capabilities::GraphCapability&) override {
+        return true;
+    }
+
+    bool OnRun(capabilities::GraphCapability& context) override {
+        while (!context.IsStopped()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return true;
+    }
 };
 
-// ========== API Endpoint Tests ==========
-
-TEST_F(GraphHttpServerTest, GraphHttpServerCreationSucceeds) {
-    // Create server without executor (executor can be nullptr)
-    auto server = std::make_unique<graph::GraphHttpServer>(graph_, nullptr, 9999);
-    EXPECT_TRUE(server != nullptr);
-}
-
-TEST_F(GraphHttpServerTest, GraphHttpServerStartSucceeds) {
-    auto server = std::make_unique<graph::GraphHttpServer>(graph_, nullptr, 9997);
-    
-    // Note: Server Start() may fail if port is in use, but should at least not crash
-    server->Start();
-    server->Stop();
-    EXPECT_FALSE(server->IsRunning());
-}
-
-TEST_F(GraphHttpServerTest, GraphHttpServerStopWhenNotRunningSucceeds) {
-    auto server = std::make_unique<graph::GraphHttpServer>(graph_, nullptr, 9996);
-    
-    // Stop without starting - should not crash
-    EXPECT_TRUE(server->Stop());
-    EXPECT_FALSE(server->IsRunning());
-}
-
-TEST_F(GraphHttpServerTest, InvalidPortsFailWithoutBinding) {
-    graph::GraphHttpServer zero_port(graph_, nullptr, 0);
-    graph::GraphHttpServer oversized_port(graph_, nullptr, 65536);
-    EXPECT_FALSE(zero_port.Start());
-    EXPECT_FALSE(oversized_port.Start());
-    EXPECT_FALSE(zero_port.IsRunning());
-    EXPECT_FALSE(oversized_port.IsRunning());
-}
-
-TEST_F(GraphHttpServerTest, RestGetGraphReturnsGraph) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response = SendHttpRequest(port, "GET", "/api/v1/graph");
-    EXPECT_EQ(ResponseStatus(response), 200);
-    const auto document = json::parse(ResponseBody(response));
-    EXPECT_TRUE(document["success"]);
-    EXPECT_EQ(document["data"]["nodes"].size(), 3);
-}
-
-TEST_F(GraphHttpServerTest, RestGetNodeUsesSpecifiedRoute) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response =
-        SendHttpRequest(port, "GET", "/api/v1/nodes/node_2");
-    EXPECT_EQ(ResponseStatus(response), 200);
-    EXPECT_EQ(json::parse(ResponseBody(response))["data"]["id"], "node_2");
-}
-
-TEST_F(GraphHttpServerTest, RestGetNodeReturns404) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response =
-        SendHttpRequest(port, "GET", "/api/v1/nodes/missing");
-    EXPECT_EQ(ResponseStatus(response), 404);
-}
-
-TEST_F(GraphHttpServerTest, RestGetNodesByTypeUsesSpecifiedRoute) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response =
-        SendHttpRequest(port, "GET", "/api/v1/nodes/type/SourceNode");
-    EXPECT_EQ(ResponseStatus(response), 200);
-    EXPECT_EQ(json::parse(ResponseBody(response))["data"].size(), 2);
-}
-
-TEST_F(GraphHttpServerTest, RestPatchUpdatesOnlyNodeConfig) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response = SendHttpRequest(
-        port, "PATCH", "/api/v1/nodes/node_1",
-        R"({"node_config":{"param1":77,"replacement":true}})");
-    EXPECT_EQ(ResponseStatus(response), 200);
-    EXPECT_EQ(graph_["nodes"][0]["id"], "node_1");
-    EXPECT_EQ(graph_["nodes"][0]["type"], "SourceNode");
-    EXPECT_EQ(graph_["nodes"][0]["node_config"]["param1"], 77);
-    EXPECT_TRUE(graph_["nodes"][0]["node_config"]["replacement"]);
-}
-
-TEST_F(GraphHttpServerTest, RestPatchRejectsMalformedJson) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response = SendHttpRequest(
-        port, "PATCH", "/api/v1/nodes/node_1", R"({"node_config":)");
-    EXPECT_EQ(ResponseStatus(response), 400);
-}
-
-TEST_F(GraphHttpServerTest, RestExecutionWithoutExecutorReturns501) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    EXPECT_EQ(ResponseStatus(SendHttpRequest(
-                  port, "GET", "/api/v1/execution/state")),
-              501);
-    EXPECT_EQ(ResponseStatus(SendHttpRequest(
-                  port, "POST", "/api/v1/execution/init")),
-              501);
-}
-
-TEST_F(GraphHttpServerTest, RestUnknownEndpointReturns404) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    EXPECT_EQ(ResponseStatus(
-                  SendHttpRequest(port, "GET", "/api/v1/missing")),
-              404);
-}
-
-TEST_F(GraphHttpServerTest, GenericIndexIsTheCheckedInInteractiveUi) {
-    const auto port = ReserveLoopbackPort();
-    graph::GraphHttpServer server(graph_, nullptr, port);
-    ASSERT_TRUE(server.Start());
-    const auto response = SendHttpRequest(port, "GET", "/");
-    EXPECT_EQ(ResponseStatus(response), 200);
-    const auto body = ResponseBody(response);
-    EXPECT_NE(body.find("saveNodeConfig"), std::string::npos);
-    EXPECT_NE(body.find("filterTable"), std::string::npos);
-    EXPECT_NE(body.find("/execution/"), std::string::npos);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorIntegrationWithGetGraph) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto retrieved_graph = coordinator.GetGraphJson();
-    
-    EXPECT_TRUE(retrieved_graph.contains("nodes"));
-    EXPECT_EQ(retrieved_graph["nodes"].size(), 3);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeById) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto node = coordinator.GetNode("node_1");
-    
-    EXPECT_FALSE(node.is_null());
-    EXPECT_EQ(node["id"], "node_1");
-    EXPECT_EQ(node["type"], "SourceNode");
-    EXPECT_EQ(node["node_config"]["param1"], 10);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeNotFound) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto node = coordinator.GetNode("nonexistent");
-    
-    EXPECT_TRUE(node.is_null());
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodesByType) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto nodes = coordinator.GetNodesByType("SourceNode");
-    
-    EXPECT_EQ(nodes.size(), 2);
-    EXPECT_EQ(nodes[0]["id"], "node_1");
-    EXPECT_EQ(nodes[1]["id"], "node_3");
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeIds) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto ids = coordinator.GetNodeIds();
-    
-    EXPECT_EQ(ids.size(), 3);
-    EXPECT_TRUE(std::find(ids.begin(), ids.end(), "node_1") != ids.end());
-    EXPECT_TRUE(std::find(ids.begin(), ids.end(), "node_2") != ids.end());
-    EXPECT_TRUE(std::find(ids.begin(), ids.end(), "node_3") != ids.end());
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeCount) {
-    graph::GraphCoordinator coordinator(graph_);
-    EXPECT_EQ(coordinator.GetNodeCount(), 3);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorHasNode) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    EXPECT_TRUE(coordinator.HasNode("node_1"));
-    EXPECT_TRUE(coordinator.HasNode("node_2"));
-    EXPECT_FALSE(coordinator.HasNode("nonexistent"));
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorUpdateNodeConfig) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    json new_config;
-    new_config["param1"] = 100;
-    new_config["param2"] = "modified";
-    
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", new_config));
-    
-    auto node = coordinator.GetNode("node_1");
-    EXPECT_EQ(node["node_config"]["param1"], 100);
-    EXPECT_EQ(node["node_config"]["param2"], "modified");
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorUpdateNodeConfigNotFound) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    json new_config;
-    new_config["param1"] = 100;
-    
-    EXPECT_FALSE(coordinator.UpdateNodeConfig("nonexistent", new_config));
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeConfig) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto config = coordinator.GetNodeConfig("node_2");
-    
-    EXPECT_FALSE(config.is_null());
-    EXPECT_EQ(config["frequency"], 2000);
-    EXPECT_EQ(config["gain"], 1.5);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetNodeConfigNotFound) {
-    graph::GraphCoordinator coordinator(graph_);
-    auto config = coordinator.GetNodeConfig("nonexistent");
-    
-    EXPECT_TRUE(config.is_null());
-}
-
-TEST_F(GraphHttpServerTest, MockExecutorStateTransitions) {
-    SimpleExecutorMock executor;
-    
-    // Initial state
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::STOPPED);
-    EXPECT_FALSE(executor.IsRunning());
-    
-    // Init
-    auto init_result = executor.Init();
-    EXPECT_TRUE(init_result.success);
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::INITIALIZED);
-    
-    // Start
-    auto exec_result = executor.Start();
-    EXPECT_TRUE(exec_result.success);
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::RUNNING);
-    EXPECT_TRUE(executor.IsRunning());
-    
-    // Run
-    exec_result = executor.Run();
-    EXPECT_TRUE(exec_result.success);
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::STOPPED);
-    EXPECT_FALSE(executor.IsRunning());
-}
-
-TEST_F(GraphHttpServerTest, MockExecutorStop) {
-    SimpleExecutorMock executor;
-    
-    auto init_result = executor.Init();
-    EXPECT_TRUE(init_result.success);
-    
-    auto exec_result = executor.Start();
-    EXPECT_TRUE(exec_result.success);
-    EXPECT_TRUE(executor.IsRunning());
-    
-    exec_result = executor.Stop();
-    EXPECT_TRUE(exec_result.success);
-    EXPECT_FALSE(executor.IsRunning());
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorPreservesAllNodeFields) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    // Verify all fields preserved after update
-    auto node = coordinator.GetNode("node_2");
-    EXPECT_EQ(node["id"], "node_2");
-    EXPECT_EQ(node["type"], "ProcessNode");
-    
-    json new_config;
-    new_config["frequency"] = 5000;
-    new_config["gain"] = 2.0;
-    
-    coordinator.UpdateNodeConfig("node_2", new_config);
-    
-    auto updated = coordinator.GetNode("node_2");
-    EXPECT_EQ(updated["id"], "node_2");
-    EXPECT_EQ(updated["type"], "ProcessNode");
-    EXPECT_EQ(updated["node_config"]["frequency"], 5000);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorMultipleUpdates) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    // First update
-    json config1;
-    config1["value"] = 1;
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", config1));
-    
-    // Second update
-    json config2;
-    config2["value"] = 2;
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", config2));
-    
-    // Verify second update took effect
-    auto node = coordinator.GetNode("node_1");
-    EXPECT_EQ(node["node_config"]["value"], 2);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorEmptyNodeConfig) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    json empty_config = json::object();
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", empty_config));
-    
-    auto node = coordinator.GetNode("node_1");
-    EXPECT_EQ(node["node_config"].size(), 0);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorComplexNodeConfig) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    json complex_config;
-    complex_config["nested"]["value"] = 42;
-    complex_config["array"] = json::array({1, 2, 3});
-    complex_config["string"] = "test";
-    
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", complex_config));
-    
-    auto node = coordinator.GetNode("node_1");
-    EXPECT_EQ(node["node_config"]["nested"]["value"], 42);
-    EXPECT_EQ(node["node_config"]["array"].size(), 3);
-    EXPECT_EQ(node["node_config"]["string"], "test");
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorDoesNotOwnGraph) {
-    {
-        graph::GraphCoordinator coordinator(graph_);
-        // Coordinator goes out of scope but graph_ should remain valid
+class HttpFailingRunPolicy final : public graph::IExecutionPolicy {
+public:
+    bool OnInit(capabilities::GraphCapability&) override {
+        return true;
     }
-    
-    // Verify graph_ is still accessible
-    EXPECT_EQ(graph_["nodes"].size(), 3);
-}
 
-TEST_F(GraphHttpServerTest, GraphCoordinatorNonCopyable) {
-    graph::GraphCoordinator coordinator1(graph_);
-    
-    // These should not compile:
-    // graph::GraphCoordinator coordinator2 = coordinator1;
-    // graph::GraphCoordinator coordinator3(coordinator1);
-    
-    // Verify we can still use the original
-    EXPECT_EQ(coordinator1.GetNodeCount(), 3);
-}
-
-TEST_F(GraphHttpServerTest, GraphCoordinatorThreadSafetySimple) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    std::vector<std::thread> threads;
-    
-    // Create multiple reader threads
-    for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([&coordinator]() {
-            for (int j = 0; j < 10; ++j) {
-                auto count = coordinator.GetNodeCount();
-                (void)count;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-        });
+    bool OnStart(capabilities::GraphCapability&) override {
+        return true;
     }
-    
-    // Wait for all threads
-    for (auto& t : threads) {
-        t.join();
+
+    bool OnRun(capabilities::GraphCapability&) override {
+        return false;
     }
-    
-    // Verify data integrity
-    EXPECT_EQ(coordinator.GetNodeCount(), 3);
+};
+
+struct PolicyExecutorBundle {
+    std::shared_ptr<graph::GraphExecutor> executor;
+    std::shared_ptr<capabilities::CommandCapability> commands;
+    std::shared_ptr<capabilities::MetricsCapability> metrics;
+};
+
+PolicyExecutorBundle BuildPolicyExecutor(
+    std::unique_ptr<graph::IExecutionPolicy> policy) {
+    auto graph_manager = test::TopologyBuilder::BuildTopology(
+        test::TopologyType::MinimalGraph);
+    auto graph_capability =
+        std::make_shared<capabilities::GraphCapability>();
+    graph_capability->SetGraphManager(graph_manager);
+    auto metrics =
+        std::make_shared<capabilities::MetricsCapability>();
+    auto commands =
+        std::make_shared<capabilities::CommandCapability>(metrics);
+    graph_capability->GetCapabilityBus()
+        .Register<capabilities::MetricsCapability>(metrics);
+    graph_capability->GetCapabilityBus()
+        .Register<capabilities::CommandCapability>(commands);
+    auto policies = std::make_unique<graph::ExecutionPolicyChain>(
+        std::move(policy), nullptr);
+    auto executor = std::make_shared<graph::GraphExecutor>(
+        std::move(policies), graph_capability);
+    commands->BindExecutor(executor);
+    return {.executor = std::move(executor),
+            .commands = std::move(commands),
+            .metrics = std::move(metrics)};
 }
 
-TEST_F(GraphHttpServerTest, GraphCoordinatorGetGraphJsonIsIndependent) {
-    graph::GraphCoordinator coordinator(graph_);
-    
-    auto graph1 = coordinator.GetGraphJson();
-    auto graph2 = coordinator.GetGraphJson();
-    
-    // Both should be equal
-    EXPECT_EQ(graph1, graph2);
-    
-    // Modifications to graph1 should not affect coordinator
-    graph1["nodes"][0]["node_config"]["param1"] = 9999;
-    
-    auto node = coordinator.GetNode("node_1");
-    EXPECT_EQ(node["node_config"]["param1"], 10);  // Original value
-}
+struct HttpHarness {
+    explicit HttpHarness(const int requested_port = ReserveLoopbackPort())
+        : port(static_cast<std::uint16_t>(requested_port)),
+          coordinator(std::make_shared<graph::GraphCoordinator>(
+              LoadMinimalGraph())),
+          executor(graph::GraphExecutorBuilder()
+                       .WithGraphSnapshot(coordinator->Snapshot())
+                       .WithPluginDirectory(PLUGIN_OUTPUT_DIRECTORY)
+                       .Build()),
+          commands(executor->GetCapability<
+                   capabilities::CommandCapability>()),
+          metrics(executor->GetCapability<
+                  capabilities::MetricsCapability>()),
+          server(coordinator, commands, metrics, requested_port) {}
 
-// ========== Integration Tests ==========
+    std::uint16_t port;
+    std::shared_ptr<graph::GraphCoordinator> coordinator;
+    std::shared_ptr<graph::GraphExecutor> executor;
+    std::shared_ptr<capabilities::CommandCapability> commands;
+    std::shared_ptr<capabilities::MetricsCapability> metrics;
+    graph::GraphHttpServer server;
+};
 
-TEST_F(GraphHttpServerTest, ExecutorAndCoordinatorIntegration) {
-    SimpleExecutorMock executor;
-    graph::GraphCoordinator coordinator(graph_);
-    
-    // Simulate workflow
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::STOPPED);
-    EXPECT_EQ(coordinator.GetNodeCount(), 3);
-    
-    // Update parameters before execution
-    json new_config;
-    new_config["param1"] = 20;
-    new_config["param2"] = "updated";
-    EXPECT_TRUE(coordinator.UpdateNodeConfig("node_1", new_config));
-    
-    // Initialize and start executor
-    auto init_result = executor.Init();
-    EXPECT_TRUE(init_result.success);
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::INITIALIZED);
-    
-    auto exec_result = executor.Start();
-    EXPECT_TRUE(exec_result.success);
-    EXPECT_EQ(executor.GetExecutionState(), graph::ExecutionState::RUNNING);
-}
-
-TEST_F(GraphHttpServerTest, ExecutorStopSequenceCount) {
-    SimpleExecutorMock executor;
-    EXPECT_EQ(executor.GetStopSequenceCount(), 0);
-    
-    executor.Init();
-    executor.Start();
-    executor.Stop();
-    
-    // Stop sequence count should be tracked (at least 0, implementation-dependent)
-    auto count = executor.GetStopSequenceCount();
-    EXPECT_GE(count, 0);
-}
-
-TEST_F(GraphHttpServerTest, GraphHttpServerNonCopyable) {
-    // Executor is not needed for this test
-
-    auto server1 = std::make_unique<graph::GraphHttpServer>(graph_, nullptr);
-    
-    // These should not compile:
-    // auto server2 = server1;
-    // graph::GraphHttpServer server3(*server1);
-    
-    EXPECT_TRUE(server1 != nullptr);
+json RequestJson(const HttpHarness& harness, const std::string& method,
+                 const std::string& path, const std::string& body = {}) {
+    return json::parse(ResponseBody(
+        SendHttpRequest(harness.port, method, path, body)));
 }
 
 }  // namespace
+
+TEST(GraphHttpServerPhase0Test, InvalidPortsFailWithoutBinding) {
+    HttpHarness zero(0);
+    HttpHarness oversized(65536);
+    EXPECT_FALSE(zero.server.Start());
+    EXPECT_FALSE(oversized.server.Start());
+}
+
+TEST(GraphHttpServerPhase0Test, PageAndGraphLoadWithoutInitialization) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    const auto page = SendHttpRequest(harness.port, "GET", "/");
+    EXPECT_EQ(ResponseStatus(page), 200);
+    EXPECT_NE(ResponseBody(page).find("GraphX Management Dashboard"),
+              std::string::npos);
+
+    const auto response =
+        SendHttpRequest(harness.port, "GET", "/api/v1/graph");
+    EXPECT_EQ(ResponseStatus(response), 200);
+    EXPECT_EQ(json::parse(ResponseBody(response))["data"]["nodes"].size(), 2);
+    EXPECT_EQ(harness.executor->GetExecutionState(),
+              graph::ExecutionState::CONFIGURED);
+    EXPECT_EQ(harness.executor->GetGraphManager(), nullptr);
+}
+
+TEST(GraphHttpServerPhase0Test, CommandDiscoveryAndUnknownResources) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    const auto discovery =
+        SendHttpRequest(harness.port, "GET",
+                        "/api/v1/execution/commands");
+    ASSERT_EQ(ResponseStatus(discovery), 200);
+    const auto commands = json::parse(ResponseBody(discovery))["data"];
+    ASSERT_EQ(commands.size(), 6);
+    EXPECT_EQ(commands[0]["name"], "configure");
+    EXPECT_TRUE(commands[3]["asynchronous"]);
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST",
+                  "/api/v1/execution/commands/unknown")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET",
+                  "/api/v1/execution/operations/op-missing")),
+              404);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     KnownRoutesRejectWrongMethodsAndUnknownRoutesRemainNotFound) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    const std::array<std::pair<std::string, std::string>, 6>
+        wrong_method_requests{{
+            {"POST", "/api/v1/graph"},
+            {"GET", "/api/v1/execution/init"},
+            {"ET", "/api/v1/graph"},
+            {"OST", "/api/v1/execution/init"},
+            {"DELETE", "/api/v1/nodes/source_1"},
+            {"POST", "/api/v1/execution/operations/op-missing"},
+        }};
+    for (const auto& [method, path] : wrong_method_requests) {
+        EXPECT_EQ(ResponseStatus(
+                      SendHttpRequest(harness.port, method, path)),
+                  405)
+            << method << " " << path;
+    }
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/api/v1/not-a-resource")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST",
+                  "/api/v1/execution/not-a-command")),
+              404);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     ExpiredExecutorIsUnavailableWhileDiscoveryRemainsAvailable) {
+    HttpHarness harness;
+    harness.executor.reset();
+    ASSERT_TRUE(harness.server.Start());
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET",
+                  "/api/v1/execution/commands")),
+              200);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/api/v1/execution/state")),
+              503);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/init")),
+              503);
+}
+
+TEST(GraphHttpServerPhase0Test, StateReportsAllConfigurationIdentities) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    const auto state =
+        RequestJson(harness, "GET", "/api/v1/execution/state")["data"];
+    EXPECT_EQ(state["state"], "CONFIGURED");
+    EXPECT_EQ(state["coordinator_revision"], 0);
+    EXPECT_EQ(state["configured_revision"], 0);
+    EXPECT_TRUE(state["active_revision"].is_null());
+    EXPECT_EQ(state["graph_generation"], 1);
+    EXPECT_FALSE(state["configuration_dirty"]);
+}
+
+TEST(GraphHttpServerPhase0Test, InvalidTransitionReturnsConflict) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/start")),
+              409);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     PatchBeforeConfigureBecomesTheInitializedRevision) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "PATCH", "/api/v1/nodes/source_1",
+                  R"({"node_config":{"message_count":3}})")),
+              200);
+    auto dirty =
+        RequestJson(harness, "GET", "/api/v1/execution/state")["data"];
+    EXPECT_EQ(dirty["coordinator_revision"], 1);
+    EXPECT_EQ(dirty["configured_revision"], 0);
+    EXPECT_TRUE(dirty["configuration_dirty"]);
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/configure")),
+              200);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/init")),
+              200);
+
+    const auto state =
+        RequestJson(harness, "GET", "/api/v1/execution/state")["data"];
+    EXPECT_EQ(state["configured_revision"], 1);
+    EXPECT_EQ(state["active_revision"], 1);
+    EXPECT_EQ(state["graph_generation"], 2);
+    EXPECT_FALSE(state["configuration_dirty"]);
+    EXPECT_NE(harness.executor->GetGraphManager(), nullptr);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     PatchAfterInitMarksDirtyWithoutMutatingActiveGraph) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/init")),
+              200);
+    const auto active_manager = harness.executor->GetGraphManager();
+
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "PATCH", "/api/v1/nodes/source_1",
+                  R"({"node_config":{"message_count":100}})")),
+              200);
+    const auto state =
+        RequestJson(harness, "GET", "/api/v1/execution/state")["data"];
+    EXPECT_TRUE(state["configuration_dirty"]);
+    EXPECT_EQ(state["active_revision"], 0);
+    EXPECT_EQ(harness.executor->GetGraphManager(), active_manager);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/start")),
+              409);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     AsyncRunReturnsLocationAndCompletesSingleTeardown) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/init")),
+              200);
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/start")),
+              200);
+
+    const auto accepted =
+        SendHttpRequest(harness.port, "POST", "/api/v1/execution/run");
+    ASSERT_EQ(ResponseStatus(accepted), 202);
+    EXPECT_NE(accepted.find("\r\nLocation: /api/v1/execution/operations/"),
+              std::string::npos);
+    const auto operation_id =
+        json::parse(ResponseBody(accepted))["data"]["operation_id"]
+            .get<std::string>();
+
+    json operation;
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    do {
+        operation = RequestJson(
+            harness, "GET",
+            "/api/v1/execution/operations/" + operation_id)["data"];
+        if (operation["status"] == "completed" ||
+            operation["status"] == "failed" ||
+            operation["status"] == "cancelled") {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < deadline);
+
+    EXPECT_EQ(operation["status"], "completed");
+    EXPECT_EQ(operation["state"], "STOPPED");
+    EXPECT_EQ(harness.executor->GetStopSequenceCount(), 1);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/execution/join")),
+              200);
+}
+
+TEST(GraphHttpServerPhase0Test,
+     KnownCancelledAndFailedOperationsRemainQueryable) {
+    {
+        const auto port = ReserveLoopbackPort();
+        auto coordinator = std::make_shared<graph::GraphCoordinator>(
+            LoadMinimalGraph());
+        auto bundle = BuildPolicyExecutor(
+            std::make_unique<HttpStopAwareRunPolicy>());
+        graph::GraphHttpServer server(
+            coordinator, bundle.commands, bundle.metrics, port);
+        ASSERT_TRUE(server.Start());
+        ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                      port, "POST", "/api/v1/execution/init")),
+                  200);
+        ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                      port, "POST", "/api/v1/execution/start")),
+                  200);
+        const auto run_response = SendHttpRequest(
+            port, "POST", "/api/v1/execution/run");
+        ASSERT_EQ(ResponseStatus(run_response), 202);
+        const auto run_operation_id =
+            json::parse(ResponseBody(run_response))["data"]["operation_id"]
+                .get<std::string>();
+        ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                      port, "POST", "/api/v1/execution/stop")),
+                  202);
+
+        std::string lookup;
+        json operation;
+        const auto deadline =
+            std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        do {
+            lookup = SendHttpRequest(
+                port, "GET",
+                "/api/v1/execution/operations/" +
+                    run_operation_id);
+            ASSERT_EQ(ResponseStatus(lookup), 200);
+            operation = json::parse(ResponseBody(lookup));
+            if (operation["data"]["status"] == "cancelled") {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+        EXPECT_EQ(operation["data"]["status"], "cancelled");
+        EXPECT_TRUE(operation["success"]);
+    }
+
+    {
+        const auto port = ReserveLoopbackPort();
+        auto coordinator = std::make_shared<graph::GraphCoordinator>(
+            LoadMinimalGraph());
+        auto bundle = BuildPolicyExecutor(
+            std::make_unique<HttpFailingRunPolicy>());
+        graph::GraphHttpServer server(
+            coordinator, bundle.commands, bundle.metrics, port);
+        ASSERT_TRUE(server.Start());
+        ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                      port, "POST", "/api/v1/execution/init")),
+                  200);
+        ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                      port, "POST", "/api/v1/execution/start")),
+                  200);
+        const auto run_response = SendHttpRequest(
+            port, "POST", "/api/v1/execution/run");
+        ASSERT_EQ(ResponseStatus(run_response), 202);
+        const auto run_operation_id =
+            json::parse(ResponseBody(run_response))["data"]["operation_id"]
+                .get<std::string>();
+
+        std::string lookup;
+        json operation;
+        const auto deadline =
+            std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        do {
+            lookup = SendHttpRequest(
+                port, "GET",
+                "/api/v1/execution/operations/" +
+                    run_operation_id);
+            ASSERT_EQ(ResponseStatus(lookup), 200);
+            operation = json::parse(ResponseBody(lookup));
+            if (operation["data"]["status"] == "failed") {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+        EXPECT_EQ(operation["data"]["status"], "failed");
+        EXPECT_FALSE(operation["success"]);
+        EXPECT_FALSE(operation["message"].get<std::string>().empty());
+    }
+}
+
+TEST(GraphHttpServerPhase0Test,
+     NaturalRunStoppingAcceptsJoinObserverWithAcceptedHttpStatus) {
+    const auto port = ReserveLoopbackPort();
+    auto coordinator = std::make_shared<graph::GraphCoordinator>(
+        LoadMinimalGraph());
+    auto graph_manager = test::TopologyBuilder::BuildTopology(
+        test::TopologyType::MinimalGraph);
+    auto graph_capability =
+        std::make_shared<capabilities::GraphCapability>();
+    graph_capability->SetGraphManager(graph_manager);
+    auto metrics =
+        std::make_shared<capabilities::MetricsCapability>();
+    auto commands =
+        std::make_shared<capabilities::CommandCapability>(metrics);
+    graph_capability->GetCapabilityBus()
+        .Register<capabilities::MetricsCapability>(metrics);
+    graph_capability->GetCapabilityBus()
+        .Register<capabilities::CommandCapability>(commands);
+    auto blocking_state = std::make_shared<HttpBlockingJoinState>();
+    auto policies = std::make_unique<graph::ExecutionPolicyChain>(
+        std::make_unique<HttpBlockingJoinPolicy>(blocking_state), nullptr);
+    auto executor = std::make_shared<graph::GraphExecutor>(
+        std::move(policies), graph_capability);
+    commands->BindExecutor(executor);
+    graph::GraphHttpServer server(coordinator, commands, metrics, port);
+    ASSERT_TRUE(server.Start());
+
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "POST", "/api/v1/execution/init")),
+              200);
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "POST", "/api/v1/execution/start")),
+              200);
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "POST", "/api/v1/execution/run")),
+              202);
+    {
+        std::unique_lock lock(blocking_state->mutex);
+        ASSERT_TRUE(blocking_state->condition.wait_for(
+            lock, std::chrono::seconds(5),
+            [&] { return blocking_state->entered; }));
+    }
+    ASSERT_EQ(executor->GetExecutionState(),
+              graph::ExecutionState::STOPPING);
+
+    const auto join_response = SendHttpRequest(
+        port, "POST", "/api/v1/execution/join");
+    ASSERT_EQ(ResponseStatus(join_response), 202);
+    const auto join_data =
+        json::parse(ResponseBody(join_response))["data"];
+    EXPECT_EQ(join_data["status"], "accepted");
+    EXPECT_EQ(join_data["state"], "STOPPING");
+    const auto join_operation_id =
+        join_data["operation_id"].get<std::string>();
+
+    {
+        std::scoped_lock lock(blocking_state->mutex);
+        blocking_state->released = true;
+    }
+    blocking_state->condition.notify_all();
+
+    json operation;
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    do {
+        operation = json::parse(ResponseBody(SendHttpRequest(
+            port, "GET",
+            "/api/v1/execution/operations/" +
+                join_operation_id)))["data"];
+        if (operation["status"] == "completed" ||
+            operation["status"] == "failed") {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < deadline);
+    EXPECT_EQ(operation["status"], "completed");
+    EXPECT_EQ(operation["state"], "STOPPED");
+}
+
+TEST(GraphHttpServerPhase0Test, MalformedPatchAndCommandBodiesAreRejected) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "PATCH", "/api/v1/nodes/source_1",
+                  R"({"node_config":)")),
+              400);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST",
+                  "/api/v1/execution/commands/init", "[]")),
+              400);
+}

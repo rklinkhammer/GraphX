@@ -263,6 +263,8 @@ TEST(FhssDashboardObservationTest,
                       .WithPluginDirectory(DSP_PLUGIN_OUTPUT_DIRECTORY)
                       .Build();
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   auto runtime = std::make_shared<graph::dashboard::GraphRuntimeSession>();
   runtime->SetActiveGraphManager(executor->GetGraphManager());
   const auto observation =

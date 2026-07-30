@@ -5,9 +5,10 @@
 
 #include "graph/GraphHttpServer.hpp"
 
+#include "capabilities/CommandCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
 #include "graph/ExecutionState.hpp"
 #include "graph/GraphCoordinator.hpp"
-#include "graph/GraphExecutor.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -58,6 +59,8 @@ std::string ReasonPhrase(const int status) {
   switch (status) {
   case 200:
     return "OK";
+  case 202:
+    return "Accepted";
   case 204:
     return "No Content";
   case 400:
@@ -412,38 +415,25 @@ private:
   std::vector<std::thread> worker_threads_;
 };
 
-std::string ExecutionStateName(const graph::ExecutionState state) {
-  switch (state) {
-  case graph::ExecutionState::INITIALIZED:
-    return "INITIALIZED";
-  case graph::ExecutionState::PAUSED:
-    return "PAUSED";
-  case graph::ExecutionState::RUNNING:
-    return "RUNNING";
-  case graph::ExecutionState::STEPPING:
-    return "STEPPING";
-  case graph::ExecutionState::STOPPING:
-    return "STOPPING";
-  case graph::ExecutionState::STOPPED:
-    return "STOPPED";
-  case graph::ExecutionState::ERROR:
-    return "ERROR";
-  case graph::ExecutionState::ANY:
-    return "ANY";
-  }
-  return "UNKNOWN";
-}
-
 } // namespace
 
 namespace graph {
 
 class GraphHttpServer::Impl {
 public:
-  Impl(nlohmann::json &graph, GraphExecutor *executor, const int port,
-       std::string index_path)
-      : executor_(executor), coordinator_(graph), server_(port),
-        index_path_(std::move(index_path)) {}
+  Impl(std::shared_ptr<GraphCoordinator> coordinator,
+       std::shared_ptr<capabilities::CommandCapability> commands,
+       std::shared_ptr<capabilities::MetricsCapability> metrics,
+       const int port, std::string index_path)
+      : coordinator_(std::move(coordinator)),
+        commands_(std::move(commands)), metrics_(std::move(metrics)),
+        server_(port),
+        index_path_(std::move(index_path)) {
+    if (!coordinator_ || !commands_ || !metrics_) {
+      throw std::invalid_argument(
+          "GraphHttpServer requires coordinator, command, and metrics capabilities");
+    }
+  }
 
   bool Start() {
     return server_.Start(
@@ -464,15 +454,27 @@ private:
       return HttpResponse{.status = 204,
                           .headers = {{"Allow", AllowedMethods(path)}}};
     }
+    const auto allowed_methods = AllowedMethods(path);
+    if (allowed_methods != "OPTIONS" &&
+        !IsMethodAllowed(allowed_methods, method)) {
+      return HttpResponse{
+          .status = 405,
+          .content_type = "application/json",
+          .body = ErrorResponse(
+                      405, "method_not_allowed",
+                      "method not allowed for requested resource")
+                      .body,
+          .headers = {{"Allow", allowed_methods}}};
+    }
     if ((path == "/" || path == "/index.html") && method == "GET") {
       return HandleGetIndexHtml();
     }
     if (path == "/api/v1/graph" && method == "GET") {
       return JsonResponse(
-          200, {{"success", true}, {"data", coordinator_.GetGraphJson()}});
+          200, {{"success", true}, {"data", coordinator_->GetGraphJson()}});
     }
     if (path == "/api/v1/nodes" && method == "GET") {
-      auto graph = coordinator_.GetGraphJson();
+      auto graph = coordinator_->GetGraphJson();
       auto nodes = nlohmann::json::array();
       if (graph.contains("nodes") && graph["nodes"].is_array()) {
         nodes = graph["nodes"];
@@ -488,7 +490,7 @@ private:
       }
       return JsonResponse(
           200, {{"success", true},
-                {"data", coordinator_.GetNodesByType(type)}});
+                {"data", coordinator_->GetNodesByType(type)}});
     }
 
     constexpr std::string_view node_prefix = "/api/v1/nodes/";
@@ -498,7 +500,7 @@ private:
         return ErrorResponse(400, "bad_request", "node ID is required");
       }
       if (method == "GET") {
-        const auto node = coordinator_.GetNode(id);
+        const auto node = coordinator_->GetNode(id);
         if (node.is_null()) {
           return ErrorResponse(404, "not_found", "Node not found: " + id);
         }
@@ -517,20 +519,47 @@ private:
     }
 
     if (path == "/api/v1/execution/state" && method == "GET") {
-      if (!executor_) {
-        return ErrorResponse(501, "not_available",
-                             "no GraphExecutor is attached");
-      }
-      return JsonResponse(
-          200, {{"success", true},
-                {"data",
-                 {{"state",
-                   ExecutionStateName(executor_->GetExecutionState())}}}});
+      const auto snapshot = coordinator_->Snapshot();
+      return CommandOperationResultResponse(
+          commands_->GetState(snapshot.Revision()), false);
     }
-    if (path.starts_with("/api/v1/execution/") && method == "POST") {
-      return HandleExecution(path.substr(std::string_view{
-                                            "/api/v1/execution/"}
-                                            .size()));
+    if (path == "/api/v1/execution/commands" && method == "GET") {
+      auto commands = nlohmann::json::array();
+      for (const auto& descriptor : commands_->DiscoverCommands()) {
+        commands.push_back(
+          {{"name", std::string{capabilities::ToString(descriptor.name)}},
+             {"asynchronous", descriptor.asynchronous},
+             {"arguments", descriptor.arguments},
+             {"description", descriptor.description}});
+      }
+      return JsonResponse(200, {{"success", true}, {"data", commands}});
+    }
+
+    constexpr std::string_view command_prefix =
+        "/api/v1/execution/commands/";
+    if (path.starts_with(command_prefix) && method == "POST") {
+      return HandleExecution(
+          path.substr(command_prefix.size()), body);
+    }
+
+    constexpr std::string_view operation_prefix =
+        "/api/v1/execution/operations/";
+    if (path.starts_with(operation_prefix) && method == "GET") {
+      const auto operation_id = path.substr(operation_prefix.size());
+      if (operation_id.empty()) {
+        return ErrorResponse(404, "not_found", "operation ID not found");
+      }
+      const auto result = commands_->GetOperation(operation_id);
+      if (!result) {
+        return ErrorResponse(404, "not_found",
+                             "operation ID not found: " + operation_id);
+      }
+      return CommandOperationResultResponse(*result, false);
+    }
+
+    constexpr std::string_view execution_prefix = "/api/v1/execution/";
+    if (path.starts_with(execution_prefix) && method == "POST") {
+      return HandleExecution(path.substr(execution_prefix.size()), body);
     }
 
     if (path.starts_with("/api/")) {
@@ -549,82 +578,150 @@ private:
             400, "bad_request",
             "request must contain an object-valued 'node_config' field");
       }
-      if (!coordinator_.UpdateNodeConfig(id, request["node_config"])) {
+      if (!coordinator_->UpdateNodeConfig(id, request["node_config"])) {
         return ErrorResponse(404, "not_found", "Node not found: " + id);
       }
       return JsonResponse(
           200,
-          {{"success", true}, {"data", coordinator_.GetNode(id)}});
+          {{"success", true}, {"data", coordinator_->GetNode(id)}});
     } catch (const nlohmann::json::parse_error &error) {
       return ErrorResponse(400, "bad_request",
                            std::string{"invalid JSON: "} + error.what());
     }
   }
 
-  HttpResponse HandleExecution(const std::string &operation) {
-    if (!executor_) {
-      return ErrorResponse(501, "not_available",
-                           "no GraphExecutor is attached");
-    }
-    std::scoped_lock lock(executor_mutex_);
+  HttpResponse HandleExecution(const std::string &operation,
+                               const std::string& body) {
     if (operation == "pause" || operation == "resume" ||
         operation == "step") {
       return ErrorResponse(501, "not_implemented",
                            operation + " is not supported by GraphExecutor");
     }
 
-    if (operation == "init") {
-      const auto result = executor_->Init();
-      return ExecutionResultResponse(result.success, "init", result.message);
+    const auto command = capabilities::ParseCommandName(operation);
+    if (!command) {
+      return ErrorResponse(404, "not_found", "execution command not found");
     }
-    if (operation == "start") {
-      const auto result = executor_->Start();
-      return ExecutionResultResponse(result.success, "start", result.message);
+    capabilities::CommandRequest request{.name = *command};
+    const auto snapshot = coordinator_->Snapshot();
+    request.coordinator_revision = snapshot.Revision();
+    if (*command == capabilities::CommandName::Configure) {
+      request.configuration = snapshot;
     }
-    if (operation == "run") {
-      const auto result = executor_->Run();
-      return ExecutionResultResponse(result.success, "run", result.message);
+    if (!body.empty()) {
+      try {
+        request.arguments = nlohmann::json::parse(body);
+        if (!request.arguments.is_object()) {
+          return ErrorResponse(400, "bad_request",
+                               "command arguments must be a JSON object");
+        }
+      } catch (const nlohmann::json::parse_error& error) {
+        return ErrorResponse(
+            400, "bad_request",
+            std::string{"invalid JSON: "} + error.what());
+      }
     }
-    if (operation == "stop") {
-      const auto result = executor_->Stop();
-      return ExecutionResultResponse(result.success, "stop", result.message);
-    }
-    if (operation == "join") {
-      const auto result = executor_->Join();
-      return ExecutionResultResponse(result.success, "join", result.message);
-    }
-    return ErrorResponse(404, "not_found", "execution operation not found");
+    return CommandOperationResultResponse(commands_->Submit(request), true);
   }
 
-  HttpResponse ExecutionResultResponse(const bool success,
-                                       const std::string &operation,
-                                       const std::string &message) const {
-    if (!success) {
-      return ErrorResponse(409, operation + "_failed",
-                           message.empty() ? operation + " failed" : message);
+  static nlohmann::json OptionalRevision(
+      const std::optional<std::uint64_t> revision) {
+    return revision ? nlohmann::json(*revision) : nlohmann::json(nullptr);
+  }
+
+  HttpResponse CommandOperationResultResponse(
+      const capabilities::CommandOperationResult& result,
+      const bool command_submission) const {
+    if (!result.executor_available) {
+      return ErrorResponse(503, "executor_unavailable",
+                           "GraphExecutor is unavailable");
     }
-    return JsonResponse(
-        200,
-        {{"success", true},
+    if (!result.success && command_submission) {
+      return ErrorResponse(
+          409, std::string{capabilities::ToString(result.command)} + "_failed",
+          result.message);
+    }
+    const bool accepted =
+        result.status == capabilities::OperationStatus::Accepted ||
+        result.status == capabilities::OperationStatus::Running;
+    auto response = JsonResponse(
+        accepted && command_submission ? 202 : 200,
+        {{"success", result.success},
          {"data",
-          {{"state", ExecutionStateName(executor_->GetExecutionState())}}},
-         {"message", message}});
+          {{"command", std::string{capabilities::ToString(result.command)}},
+           {"operation_id", result.operation_id},
+           {"status", std::string{capabilities::ToString(result.status)}},
+           {"state", GetExecutionStateName(result.executor_state)},
+           {"coordinator_revision", result.coordinator_revision},
+           {"configured_revision",
+            OptionalRevision(result.configured_revision)},
+           {"active_revision", OptionalRevision(result.active_revision)},
+           {"graph_generation", result.graph_generation},
+           {"executor_available", result.executor_available},
+           {"configuration_dirty", result.configuration_dirty}}},
+         {"message", result.message}});
+    if (accepted && command_submission) {
+      response.headers.push_back(
+          {"Location", "/api/v1/execution/operations/" +
+                           result.operation_id});
+    }
+    return response;
   }
 
   static std::string AllowedMethods(const std::string &path) {
     if (path == "/" || path == "/index.html" ||
         path == "/api/v1/graph" || path == "/api/v1/nodes" ||
         path == "/api/v1/execution/state" ||
+        path == "/api/v1/execution/commands" ||
+        path.starts_with("/api/v1/execution/operations/") ||
         path.starts_with("/api/v1/nodes/type/")) {
       return "GET, OPTIONS";
     }
     if (path.starts_with("/api/v1/nodes/")) {
       return "GET, PATCH, OPTIONS";
     }
-    if (path.starts_with("/api/v1/execution/")) {
-      return "POST, OPTIONS";
+    constexpr std::string_view command_prefix =
+        "/api/v1/execution/commands/";
+    if (path.starts_with(command_prefix)) {
+      const auto command = path.substr(command_prefix.size());
+      if (capabilities::ParseCommandName(command) ||
+          command == "pause" || command == "resume" ||
+          command == "step") {
+        return "POST, OPTIONS";
+      }
+      return "OPTIONS";
+    }
+    constexpr std::string_view operation_prefix =
+        "/api/v1/execution/operations/";
+    if (path.starts_with(operation_prefix)) {
+      return "GET, OPTIONS";
+    }
+    constexpr std::string_view execution_prefix =
+        "/api/v1/execution/";
+    if (path.starts_with(execution_prefix)) {
+      const auto command = path.substr(execution_prefix.size());
+      if (capabilities::ParseCommandName(command) ||
+          command == "pause" || command == "resume" ||
+          command == "step") {
+        return "POST, OPTIONS";
+      }
     }
     return "OPTIONS";
+  }
+
+  static bool IsMethodAllowed(const std::string_view allowed_methods,
+                              const std::string_view method) {
+    if (method == "GET") {
+      return allowed_methods == "GET, OPTIONS" ||
+             allowed_methods == "GET, PATCH, OPTIONS";
+    }
+    if (method == "PATCH") {
+      return allowed_methods == "GET, PATCH, OPTIONS";
+    }
+    if (method == "POST") {
+      return allowed_methods == "POST, OPTIONS";
+    }
+    return false;
   }
 
   HttpResponse HandleGetIndexHtml() const {
@@ -651,18 +748,21 @@ private:
                          "generic dashboard index.html is unavailable");
   }
 
-  GraphExecutor *executor_;
-  GraphCoordinator coordinator_;
+  std::shared_ptr<GraphCoordinator> coordinator_;
+  std::shared_ptr<capabilities::CommandCapability> commands_;
+  std::shared_ptr<capabilities::MetricsCapability> metrics_;
   SimpleHttpServer server_;
   std::string index_path_;
-  std::mutex executor_mutex_;
 };
 
-GraphHttpServer::GraphHttpServer(nlohmann::json &graph,
-                                 GraphExecutor *executor, const int port,
-                                 std::string index_path)
-    : impl_(std::make_unique<Impl>(graph, executor, port,
-                                   std::move(index_path))) {}
+GraphHttpServer::GraphHttpServer(
+    std::shared_ptr<GraphCoordinator> coordinator,
+    std::shared_ptr<capabilities::CommandCapability> commands,
+    std::shared_ptr<capabilities::MetricsCapability> metrics,
+    const int port, std::string index_path)
+    : impl_(std::make_unique<Impl>(
+          std::move(coordinator), std::move(commands), std::move(metrics),
+          port, std::move(index_path))) {}
 
 GraphHttpServer::~GraphHttpServer() noexcept = default;
 bool GraphHttpServer::Start() { return impl_->Start(); }

@@ -508,6 +508,30 @@ JsonDynamicGraphLoader::LoadGraphSafe(
     }
 }
 
+std::expected<std::pair<std::vector<std::shared_ptr<NodeFacadeAdapter>>,
+                        std::vector<EdgeConfig>>,
+              app::error::ConfigError>
+JsonDynamicGraphLoader::LoadGraphSafe(
+    const GraphConfig& config,
+    std::shared_ptr<INodeProvider> node_provider,
+    const INodeMetadataService* metadata_service) noexcept {
+    try {
+        auto validation = ValidateConfigSafe(config);
+        if (!validation) {
+            return std::unexpected(validation.error());
+        }
+
+        auto nodes = BuildNodeAdaptersFromConfig(
+            config, std::move(node_provider), metadata_service);
+        if (!nodes) {
+            return std::unexpected(nodes.error());
+        }
+        return std::make_pair(std::move(nodes).value(), config.edges);
+    } catch (...) {
+        return std::unexpected(app::error::ConfigError::Unknown);
+    }
+}
+
 std::expected<GraphConfig, app::error::ConfigError>
 JsonDynamicGraphLoader::ParseConfigFileSafe(
     const std::string& filepath) noexcept {

@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "capabilities/CommandOutputCapability.hpp"
+#include "capabilities/CommandCapability.hpp"
 #include "capabilities/CommandProcessorCapability.hpp"
 #include "capabilities/CommandRegistryCapability.hpp"
 #include "capabilities/DashboardCapability.hpp"
@@ -23,9 +24,11 @@
 #include "metrics/IMetricsCallback.hpp"
 #include "policies/CSVInjectionPolicy.hpp"
 #include "policies/MetricsPolicy.hpp"
+#include "test/TestMetricsSubscriber.hpp"
 #include "test/TestGraphTopologies.hpp"
 
 #include <chrono>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -50,9 +53,21 @@ std::shared_ptr<graph::GraphExecutor> BuildExecutor(
     std::chrono::seconds timeout = std::chrono::seconds(30)) {
     return graph::GraphExecutorBuilder()
         .WithGraphManager(std::move(graph))
+        .WithPluginDirectory(PLUGIN_OUTPUT_DIRECTORY)
         .WithCliMode(cli_mode)
         .WithExecutorTimeout(timeout)
         .Build();
+}
+
+graph::GraphConfigurationSnapshot MinimalSnapshot(
+    const std::uint64_t revision) {
+    std::ifstream input(
+        std::string{GRAPHX_SOURCE_ROOT} +
+        "/libgraph/test/config/topologies/minimal_graph.json");
+    nlohmann::json document;
+    input >> document;
+    return graph::GraphConfigurationSnapshot(
+        std::move(document), revision);
 }
 
 /**
@@ -209,13 +224,14 @@ private:
 }  // namespace
 
 TEST(GraphExecutorBuilderPoliciesTest,
-     BuilderRegistersOnlyGraphCapabilityBeforeInit) {
+     BuilderRegistersStableControlCapabilitiesBeforeInit) {
     auto graph = BuildTopology(test::TopologyType::MinimalGraph);
     auto executor = BuildExecutor(graph);
     ASSERT_NE(executor, nullptr);
 
     ExpectCapabilityPresent<capabilities::GraphCapability>(*executor);
-    ExpectCapabilityMissing<capabilities::MetricsCapability>(*executor);
+    ExpectCapabilityPresent<capabilities::MetricsCapability>(*executor);
+    ExpectCapabilityPresent<capabilities::CommandCapability>(*executor);
     ExpectCapabilityMissing<capabilities::DataInjectionCapability>(*executor);
     ExpectCapabilityMissing<capabilities::DashboardCapability>(*executor);
     ExpectCapabilityMissing<capabilities::CommandRegistryCapability>(*executor);
@@ -231,8 +247,9 @@ TEST(GraphExecutorBuilderPoliciesTest,
 
     auto start_result = executor->Start();
     EXPECT_FALSE(start_result.success);
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
-    ExpectCapabilityMissing<capabilities::MetricsCapability>(*executor);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
+    ExpectCapabilityPresent<capabilities::MetricsCapability>(*executor);
+    ExpectCapabilityPresent<capabilities::CommandCapability>(*executor);
     ExpectCapabilityMissing<capabilities::DataInjectionCapability>(*executor);
     ExpectCapabilityMissing<capabilities::DashboardCapability>(*executor);
 }
@@ -243,10 +260,18 @@ TEST(GraphExecutorBuilderPoliciesTest,
     auto executor = BuildExecutor(graph);
     ASSERT_NE(executor, nullptr);
 
+    const auto metrics_before =
+        executor->GetCapability<capabilities::MetricsCapability>();
+    const auto commands_before =
+        executor->GetCapability<capabilities::CommandCapability>();
     AssertInitializationSuccess(executor->Init());
 
     ExpectCapabilityPresent<capabilities::GraphCapability>(*executor);
     ExpectCapabilityPresent<capabilities::MetricsCapability>(*executor);
+    EXPECT_EQ(executor->GetCapability<capabilities::MetricsCapability>(),
+              metrics_before);
+    EXPECT_EQ(executor->GetCapability<capabilities::CommandCapability>(),
+              commands_before);
     ExpectCapabilityPresent<capabilities::DataInjectionCapability>(*executor);
     ExpectCapabilityPresent<capabilities::DashboardCapability>(*executor);
     ExpectCapabilityMissing<capabilities::CommandRegistryCapability>(*executor);
@@ -318,6 +343,16 @@ TEST(GraphExecutorBuilderPoliciesTest,
     auto stop_result = processor->ProcessCommand("stop");
     EXPECT_TRUE(stop_result.success) << stop_result.message;
     EXPECT_TRUE(graph_capability->IsStopped());
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (executor->GetExecutionState() !=
+               graph::ExecutionState::STOPPED &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_EQ(executor->GetExecutionState(),
+              graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetStopSequenceCount(), 1);
 
     auto status_result = processor->ProcessCommand("status");
     EXPECT_TRUE(status_result.success) << status_result.message;
@@ -376,12 +411,19 @@ TEST(GraphExecutorBuilderPoliciesTest,
 
     EXPECT_TRUE(fake_dashboard.SendCommand("stop"));
     EXPECT_TRUE(fake_dashboard.WaitForLogContaining(
-        "[OK] Graph execution stopped"));
+        "[OK] Stop accepted"));
     EXPECT_TRUE(graph_capability->IsStopped());
-
-    AssertExecutionSuccess(executor->Stop(), "Stop");
+    const auto stopped_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (executor->GetExecutionState() !=
+               graph::ExecutionState::STOPPED &&
+           std::chrono::steady_clock::now() < stopped_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_EQ(executor->GetExecutionState(),
+              graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetStopSequenceCount(), 1);
     EXPECT_FALSE(fake_dashboard.SendCommand("status"));
-    AssertExecutionSuccess(executor->Join(), "Join");
 }
 
 TEST(GraphExecutorBuilderPoliciesTest,
@@ -400,7 +442,7 @@ TEST(GraphExecutorBuilderPoliciesTest,
     EXPECT_TRUE(dashboard->EnqueueCommand("status"));
 
     AssertExecutionSuccess(executor->Stop(), "Stop");
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPING);
     auto graph_capability =
         executor->GetCapability<capabilities::GraphCapability>();
     ASSERT_NE(graph_capability, nullptr);
@@ -456,6 +498,58 @@ TEST(GraphExecutorBuilderPoliciesTest,
 
     EXPECT_TRUE(saw_produced);
     EXPECT_TRUE(saw_consumed);
+}
+
+TEST(GraphExecutorBuilderPoliciesTest,
+     MetricsCapabilityAndSubscriberRemainStableAcrossTwoGenerations) {
+    auto graph = BuildTopology(test::TopologyType::MinimalGraph);
+    auto executor = BuildExecutor(graph);
+    ASSERT_NE(executor, nullptr);
+    auto metrics =
+        executor->GetCapability<capabilities::MetricsCapability>();
+    auto commands =
+        executor->GetCapability<capabilities::CommandCapability>();
+    ASSERT_NE(metrics, nullptr);
+    ASSERT_NE(commands, nullptr);
+    test::TestMetricsSubscriber subscriber;
+    metrics->RegisterMetricsCallback(&subscriber);
+
+    AssertInitializationSuccess(executor->Init());
+    const auto first_schemas = metrics->GetNodeMetricsSchemas();
+    ASSERT_FALSE(first_schemas.empty());
+    AssertExecutionSuccess(executor->Start(), "first Start");
+    AssertExecutionSuccess(executor->Run(), "first Run");
+    AssertExecutionSuccess(executor->Stop(), "first Stop");
+    AssertExecutionSuccess(executor->Join(), "first Join");
+    const auto first_events = subscriber.GetCapturedEvents().size();
+    ASSERT_GT(first_events, 0u);
+
+    const auto configured = commands->Submit(
+        {.name = capabilities::CommandName::Configure,
+         .configuration = MinimalSnapshot(1)});
+    ASSERT_TRUE(configured.success) << configured.message;
+    EXPECT_EQ(executor->GetExecutionState(),
+              graph::ExecutionState::CONFIGURED);
+    EXPECT_EQ(executor->GetConfiguredRevision(), 1u);
+    EXPECT_FALSE(executor->GetActiveRevision());
+    EXPECT_TRUE(metrics->GetNodeMetricsSchemas().empty());
+    EXPECT_EQ(executor->GetCapability<capabilities::MetricsCapability>(),
+              metrics);
+
+    AssertInitializationSuccess(executor->Init());
+    const auto second_schemas = metrics->GetNodeMetricsSchemas();
+    ASSERT_FALSE(second_schemas.empty());
+    EXPECT_EQ(second_schemas.size(), first_schemas.size());
+    EXPECT_EQ(executor->GetActiveRevision(), 1u);
+    AssertExecutionSuccess(executor->Start(), "second Start");
+    AssertExecutionSuccess(executor->Run(), "second Run");
+    AssertExecutionSuccess(executor->Stop(), "second Stop");
+    AssertExecutionSuccess(executor->Join(), "second Join");
+
+    EXPECT_EQ(executor->GetCapability<capabilities::MetricsCapability>(),
+              metrics);
+    EXPECT_EQ(metrics->GetCallbackCount(), 1u);
+    EXPECT_GT(subscriber.GetCapturedEvents().size(), first_events);
 }
 
 TEST(GraphExecutorBuilderPoliciesTest, BuilderRejectsInvalidOptions) {

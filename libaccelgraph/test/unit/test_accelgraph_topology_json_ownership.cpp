@@ -100,11 +100,16 @@ std::filesystem::path PluginDirectoryPath() {
 }
 
 std::shared_ptr<graph::GraphExecutor> BuildExecutor(const std::filesystem::path& config_path) {
-    return graph::GraphExecutorBuilder()
+    auto executor = graph::GraphExecutorBuilder()
         .WithJsonConfig(config_path.string())
         .WithPluginDirectory(PluginDirectoryPath().string())
         .WithExecutorTimeout(std::chrono::seconds(15))
         .Build();
+    const auto initialized = executor->Init();
+    if (!initialized.success) {
+        throw std::runtime_error(initialized.message);
+    }
+    return executor;
 }
 
 nlohmann::json LoadJson(const std::filesystem::path& path) {

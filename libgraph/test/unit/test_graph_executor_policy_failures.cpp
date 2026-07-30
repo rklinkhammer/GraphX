@@ -89,6 +89,31 @@ public:
     }
 };
 
+class ThrowOnceOnStopPolicy : public graph::IExecutionPolicy {
+public:
+    bool OnInit(capabilities::GraphCapability&) override {
+        return true;
+    }
+
+    bool OnStart(capabilities::GraphCapability&) override {
+        return true;
+    }
+
+    bool OnRun(capabilities::GraphCapability&) override {
+        return true;
+    }
+
+    void OnStop(capabilities::GraphCapability&) override {
+        if (!thrown_) {
+            thrown_ = true;
+            throw std::runtime_error("cleanup failed by exception");
+        }
+    }
+
+private:
+    bool thrown_ = false;
+};
+
 std::unique_ptr<graph::ExecutionPolicyChain> MakePolicyChain(
     std::shared_ptr<RecordingState> state,
     bool first_init = true,
@@ -149,20 +174,16 @@ TEST(GraphManagerExpectedTest, InitExpectedRejectsDoubleInit) {
 }
 
 TEST(GraphExecutorPolicyFailuresTest,
-     InitFailureStopsAtFailingPolicyAndLeavesStateStopped) {
+     InitFailureStopsAtFailingPolicyAndRollsBackToConfigured) {
     auto state = std::make_shared<RecordingState>();
     auto executor = MakeExecutor(MakePolicyChain(state, false));
 
     auto result = executor->Init();
 
     EXPECT_FALSE(result.success);
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
     EXPECT_EQ(state->calls, std::vector<std::string>({"first.init"}));
 
-    EXPECT_NO_THROW({
-        executor->Stop();
-        executor->Join();
-    });
 }
 
 TEST(GraphExecutorPolicyFailuresTest,
@@ -175,21 +196,22 @@ TEST(GraphExecutorPolicyFailuresTest,
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, app::error::GraphExecutionError::PolicyFailed);
     EXPECT_EQ(result.error().message, "ExecutionPolicyChain::OnInit() failed");
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
     EXPECT_EQ(state->calls, std::vector<std::string>({"first.init"}));
 }
 
 TEST(GraphExecutorPolicyFailuresTest,
-     InitFailureInSecondPolicyDoesNotCallLaterInit) {
+     InitFailureInSecondPolicyRollsBackInitializedPolicies) {
     auto state = std::make_shared<RecordingState>();
     auto executor = MakeExecutor(MakePolicyChain(state, true, false));
 
     auto result = executor->Init();
 
     EXPECT_FALSE(result.success);
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
     EXPECT_EQ(state->calls,
-              std::vector<std::string>({"first.init", "second.init"}));
+              std::vector<std::string>({"first.init", "second.init",
+                                        "first.stop", "first.join"}));
 }
 
 TEST(GraphExecutorPolicyFailuresTest,
@@ -203,7 +225,7 @@ TEST(GraphExecutorPolicyFailuresTest,
     EXPECT_EQ(result.error().code, app::error::GraphExecutionError::InvalidState);
     EXPECT_EQ(result.error().message,
               "GraphExecutor::Start() requires INITIALIZED state");
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
     EXPECT_TRUE(state->calls.empty());
 }
 
@@ -280,11 +302,11 @@ TEST(GraphExecutorPolicyFailuresTest,
     EXPECT_EQ(result.error().code, app::error::GraphExecutionError::Unknown);
     EXPECT_NE(result.error().message.find("GraphExecutor::Init() threw"),
               std::string::npos);
-    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::STOPPED);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
 }
 
 TEST(GraphExecutorPolicyFailuresTest,
-     StopAndJoinVisitAllPoliciesAfterPartialInitFailure) {
+     StopAndJoinRemainInvalidAfterInitRollback) {
     auto state = std::make_shared<RecordingState>();
     auto executor = MakeExecutor(MakePolicyChain(state, false));
 
@@ -295,9 +317,21 @@ TEST(GraphExecutorPolicyFailuresTest,
     auto stop_result = executor->Stop();
     auto join_result = executor->Join();
 
-    EXPECT_TRUE(stop_result.success);
-    EXPECT_TRUE(join_result.success);
-    EXPECT_EQ(state->calls,
-              std::vector<std::string>({"first.stop", "second.stop",
-                                        "first.join", "second.join"}));
+    EXPECT_FALSE(stop_result.success);
+    EXPECT_FALSE(join_result.success);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::CONFIGURED);
+    EXPECT_TRUE(state->calls.empty());
+}
+
+TEST(GraphExecutorPolicyFailuresTest,
+     CleanupExceptionEntersTerminalErrorState) {
+    auto policy_chain = std::make_unique<graph::ExecutionPolicyChain>(
+        std::make_unique<ThrowOnceOnStopPolicy>(), nullptr);
+    auto executor = MakeExecutor(std::move(policy_chain));
+    ASSERT_TRUE(executor->Init().success);
+
+    const auto stop = executor->Stop();
+
+    EXPECT_FALSE(stop.success);
+    EXPECT_EQ(executor->GetExecutionState(), graph::ExecutionState::ERROR);
 }

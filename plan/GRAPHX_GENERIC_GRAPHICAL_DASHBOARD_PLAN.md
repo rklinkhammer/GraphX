@@ -1,6 +1,6 @@
 # GraphX Generic Graphical Dashboard Plan
 
-**Status:** Proposed replacement plan  
+**Status:** Normative staged implementation plan
 **Scope:** Extend the existing generic Graph Management dashboard with a
 read-only graphical topology display  
 **Supersedes:** The graphical-frontend portions of
@@ -16,6 +16,20 @@ GraphX will have one graph-management implementation and one dashboard:
 - `graph::GraphCoordinator` remains the in-memory graph inspection and
   parameter-editing boundary.
 - `graph::GraphHttpServer` remains the HTTP adapter.
+- Phase 0 gives `graph::GraphHttpServer` the stable metrics capability handle;
+  the designated graphical-dashboard metrics phase makes it a direct
+  `app::metrics::IMetricsSubscriber`.
+- Executor commands and metric subscription capabilities are available before
+  `GraphExecutor::Init()`.
+- `GraphExecutor` is always present in `graphx-dashboard`; initialization and
+  execution remain operator-controlled.
+- `GraphExecutorBuilder` creates a configured executor shell without loading
+  plugins, instantiating nodes, or building a `GraphManager`.
+- `GraphCoordinator` supplies immutable, revisioned configuration snapshots
+  but does not construct or execute graphs.
+- The interactive command surface lives in the existing dashboard page.
+- `graph-cli` and `graph::GraphCli` are deprecated migration surfaces and are
+  removed only after web and REST automation parity is verified.
 - `graphx-dashboard` remains the generic launcher.
 - `libgraph/resources/web/index.html` remains the single dashboard entry point.
 - `GET /api/v1/graph` remains the authoritative topology input.
@@ -76,7 +90,9 @@ flowchart LR
   Server["GraphHttpServer"]
   Coordinator["GraphCoordinator"]
   Document["Authoritative graph JSON"]
-  Executor["Optional GraphExecutor"]
+  Executor["Configured GraphExecutor"]
+  Commands["Pre-Init CommandCapability"]
+  Metrics["Pre-Init MetricsCapability"]
   Entry["Existing index.html"]
   Adapter["Generic display adapter"]
   Layout["Generic layout engine"]
@@ -88,7 +104,10 @@ flowchart LR
   Launcher --> Server
   Server --> Coordinator
   Coordinator --> Document
-  Server -. "existing opt-in" .-> Executor
+  Server -. "typed lifecycle command" .-> Commands
+  Commands -. "serialized control" .-> Executor
+  Executor --> Metrics
+  Metrics -. "IMetricsSubscriber events" .-> Server
   Server --> Entry
   Entry --> Adapter
   Adapter --> Layout
@@ -105,8 +124,122 @@ collapse are presentation operations only.
 
 Node configuration edits continue to use
 `PATCH /api/v1/nodes/{id}`. Execution controls continue to use the existing
-generic execution routes. The canvas never talks directly to `GraphManager`,
-node objects, queues, DSP services, or an FHSS application.
+generic execution routes. Internally, those routes use the same typed command
+capability as other operator adapters; `GraphHttpServer` does not invoke
+executor lifecycle methods directly. The canvas never talks directly to
+`GraphManager`, node objects, queues, DSP services, or an FHSS application.
+
+`GraphExecutorBuilder` installs `CommandCapability` and `MetricsCapability`
+before returning the executor. It creates an executor shell in `CONFIGURED`
+state from a `GraphConfigurationSnapshot`; it does not load plugins,
+instantiate nodes, or construct a `GraphManager`. `CommandPolicy` and
+`MetricsPolicy` bind to those existing services during executor initialization
+rather than creating them there. This removes the circular requirement that
+the command path must already have executed `Init` before it can accept
+`configure` or `init`.
+
+`GraphCoordinator` owns its graph document so no external alias can bypass its
+lock or revision accounting. `Snapshot()` returns an immutable document,
+monotonically increasing revision, and deterministic content identity. A
+successful content-changing `UpdateNodeConfig` increments the revision; a
+failed or no-op update does not. The coordinator remains a configuration
+authority only: it does not load plugins, own executor threads, or instantiate
+graph nodes.
+
+The executor lifecycle is:
+
+```text
+ConfigureGraph → Init → Start → Run → Stop → Join
+```
+
+`ConfigureGraph` validates and records a snapshot atomically but performs no
+plugin, node, graph-manager, thread, or node-lifecycle work. `Init` loads
+providers, constructs the `GraphManager`, discovers node capabilities, and
+initializes nodes. Reconfiguration is allowed only before initialization or
+after stop and join have completed. `Join` leaves the executor stopped.
+Coordinator edits never mutate an instantiated graph; differing coordinator
+and active revisions are reported as `configuration_dirty`.
+
+The command transition contract is fixed:
+
+| Command | Allowed state | Completion and next state |
+|---|---|---|
+| `configure` | `CONFIGURED`, or `STOPPED` after joined teardown | Synchronous `200`; atomically records the latest coordinator snapshot, advances generation, clears prior generation telemetry/operations, remains/enters `CONFIGURED` |
+| `init` | `CONFIGURED` with no newer coordinator revision | Synchronous `200`; builds and initializes the exact configured snapshot, records `active_revision`, enters `INITIALIZED` |
+| `start` | `INITIALIZED` and not dirty | Synchronous `200`; enters `RUNNING` |
+| `run` | `RUNNING` and not dirty, with no active run worker | Asynchronous `202`; the joinable worker runs the graph and then performs the sole `Stop` and `Join` teardown, ending in `STOPPED` |
+| `stop` | `INITIALIZED` or `RUNNING` | Calls `RequestStop()` immediately and returns `202`; the existing run worker, or a newly created teardown worker when no run worker exists, performs the sole `Stop` and `Join` sequence |
+| `join` | `STOPPING` | Returns `202` for an operation that completes with the active teardown worker; in already joined `STOPPED` it is an idempotent synchronous `200` |
+
+All other command/state combinations return `409`. A natural run completion
+and a requested stop use the same worker teardown path. A stop operation
+completes when teardown finishes; the associated run operation completes as
+`completed` after natural completion or `cancelled` after a stop request.
+`join` never starts a second teardown. Configure and init failures leave the
+previous configured snapshot usable when rollback succeeds; failed cleanup
+enters terminal `ERROR`. In `ERROR`, state inspection and process shutdown are
+the only permitted operations; recovery requires constructing a new executor
+or restarting the dashboard.
+
+A coordinator edit after configure makes the runtime dirty. `init`, `start`,
+and `run` reject dirty state. An already-running generation may finish or be
+stopped against its recorded active revision, but it never consumes the newer
+document.
+
+There is one owning configuration path:
+
+```cpp
+auto coordinator =
+    std::make_shared<graph::GraphCoordinator>(std::move(graph_document));
+auto executor = graph::GraphExecutorBuilder()
+                    .WithGraphSnapshot(coordinator->Snapshot())
+                    .WithPluginDirectory(plugin_directory)
+                    .Build();
+graph::GraphHttpServer server(coordinator,
+                              executor->GetCapability<CommandCapability>(),
+                              executor->GetCapability<MetricsCapability>(),
+                              port, index_path);
+```
+
+`WithGraphSnapshot` is the dashboard builder input. `WithJsonConfig` remains a
+non-dashboard compatibility convenience that loads exactly one initial
+snapshot. `GraphHttpServer` receives shared ownership of the one coordinator
+and shared capability handles; it receives no raw executor pointer and creates
+no second graph document. Its `configure` handler takes exactly one atomic
+snapshot from that coordinator and submits it as a typed command.
+
+The command capability accepts typed operations, not UI command lines. It
+serializes state transitions, assigns operation identities, exposes
+accepted/completed/failed results, and owns a joinable execution worker for
+blocking `Run`. A concurrent stop request uses
+`GraphExecutor::RequestStop()`; the execution worker performs the sole graph
+teardown sequence. It keeps a weak executor binding so registration does not
+create an executor → capability → executor ownership cycle.
+
+`CommandProcessorCapability` remains an optional parser for terminal command
+text, and `DashboardCapability` remains an optional UI queue. Both adapt to
+the typed `CommandCapability`; neither owns lifecycle state. HTTP uses typed
+requests directly, while CLI parsing remains an adapter responsibility.
+
+The page provides a generic command palette/console backed by structured HTTP
+requests. It discovers supported operations and argument metadata, renders
+forms and completion state, and retains only bounded presentation history.
+It is not a shell and cannot execute host commands. Existing execution buttons
+and the console are two views of the same typed operations.
+
+The deprecated CLI is not a permanent second adapter. During migration it
+emits a warning and receives compatibility fixes only. No new examples,
+features, or integrations may depend on it. Loading and plugin selection move
+to launcher options; inspection and editing use existing HTTP resources;
+server-side `save` becomes an explicit browser export/download; and headless
+automation uses documented REST requests.
+
+In the designated metrics phase, `GraphHttpServer` registers itself as an
+`IMetricsSubscriber` before execution starts. Phase 0 establishes only the
+stable capability handle and ownership boundary. The later callback performs
+only a bounded copy into server-owned snapshot state; HTTP response generation
+reads that snapshot outside the callback, and the server unregisters before
+its storage or the executor can be destroyed.
 
 ## 4. Non-Negotiable Guardrails
 
@@ -337,9 +470,10 @@ in the next phase.
 Each phase uses one orchestrator, one implementer, and one independent verifier.
 Stop after each phase for authorization.
 
-### Phase 0 — Architecture lock and baseline
+### Phase 0 — Runtime authority, architecture lock, and baseline
 
-**Goal:** Prevent recurrence of the parallel FHSS architecture.
+**Goal:** Establish one configured runtime authority before graphical work and
+prevent recurrence of the parallel FHSS architecture.
 
 Implementation:
 
@@ -351,6 +485,54 @@ Implementation:
 - Decide React Flow/ELK versus a durable no-framework renderer using a small
   spike against both `minimal_graph.json` and the 75-node/137-edge FHSS graph.
 - Define canonical generic edge and port identities.
+- Lock the pre-`Init` command and metrics capability contracts, including
+  ownership, registration, unregistration, state transitions, asynchronous
+  run completion, and stop behavior.
+- Add `GraphConfigurationSnapshot` with immutable graph JSON, monotonic
+  revision, and deterministic content identity.
+- Make `GraphCoordinator` own its document, produce atomic snapshots, and
+  increment its revision only after successful content-changing mutation.
+  Failed and no-op mutations do not advance the revision.
+- Add `GraphExecutor::ConfigureGraph(snapshot)` and a distinct `CONFIGURED`
+  state before `INITIALIZED`. Define valid transitions, failure atomicity,
+  reconfiguration rules, and graph-generation reset behavior.
+- Refactor `GraphExecutorBuilder` to return a configured executor shell without
+  loading plugins, instantiating nodes, or constructing `GraphManager`.
+  Preserve non-dashboard `Build()` plus `Execute()` behavior by configuring
+  the initial snapshot before returning the shell.
+- Move provider loading, graph construction, capability discovery, and node
+  initialization into the executor `Init` sequence in a documented order.
+- Register typed `CommandCapability` and `MetricsCapability` before the
+  executor is returned. Policies consume those exact instances rather than
+  replacing them during `Init`.
+- Define typed command request/result/discovery contracts, operation identity,
+  HTTP status mapping, bounded result retention, and asynchronous completion
+  lookup under the existing `/api/v1/execution/*` namespace.
+- Route `GraphHttpServer` lifecycle requests through `CommandCapability` and
+  remove every direct call from the server to executor lifecycle methods.
+- Run blocking execution on a joinable command worker. Do not hold transition
+  serialization across `Run`; `stop` uses `RequestStop()` as an independent
+  fast path and teardown occurs exactly once on the execution thread.
+- Make `graphx-dashboard` always construct the executor and remove
+  `--enable-execution`. Loading the page performs no initialization or
+  execution; a later `init` failure does not prevent topology inspection.
+- Add `configure` to the typed command and existing `/api/v1/execution/*`
+  lifecycle surface. The server supplies the latest coordinator snapshot.
+- Track coordinator revision, configured revision, active revision, graph
+  generation, and `configuration_dirty`; never mutate an initialized graph
+  implicitly. Successful configure advances generation and atomically clears
+  stale metric schemas, metric values, and operation results. `start` and
+  `run` reject dirty configuration until a permitted reconfigure succeeds.
+- Define these generic command resources:
+  `GET /api/v1/execution/commands`,
+  `POST /api/v1/execution/commands/{name}`, and
+  `GET /api/v1/execution/operations/{operation_id}`. Typed JSON arguments
+  replace terminal strings. Synchronous success returns `200`; accepted
+  asynchronous work returns `202` plus `Location`; invalid transitions return
+  `409`; unknown commands or operation IDs return `404`.
+- Record the `graph-cli` deprecation and a command-by-command migration matrix.
+- Remove the current direct `GraphHttpServer` → `GraphExecutor` lifecycle path;
+  do not create a second runtime session to hide it.
 - Define frontend source, generated asset, lockfile, and install locations.
 - Capture current node-table/editor and execution-control behavior as
   regression requirements.
@@ -362,9 +544,32 @@ Acceptance:
 
 - One architecture diagram maps every planned UI action to the existing
   management component and route.
+- The architecture diagram shows HTTP and CLI using one typed command
+  capability during migration, the web console as the supported interactive
+  surface, and `GraphHttpServer` subscribing to `MetricsCapability`.
+- `graphx-dashboard` has one configured executor without requiring
+  `--enable-execution`, while loading the page performs no node initialization
+  or execution.
+- `ConfigureGraph` performs no plugin loading, node construction, thread
+  creation, or node lifecycle calls and rolls back atomically on failure.
+- `Init` consumes exactly the configured immutable snapshot and reports its
+  active revision and graph generation.
+- Editing configuration after `Init` reports `configuration_dirty`; execution
+  cannot silently consume the newer coordinator document.
+- Reconfiguration is rejected until stop and join complete.
+- Command and metrics capability object identity is preserved before, during,
+  and after `Init`.
+- Command discovery, submission, asynchronous completion, and state responses
+  have documented schemas, bounded storage, and include command/operation ID,
+  status, executor state, configured and active revisions, graph generation,
+  and diagnostic message.
+- No `GraphHttpServer` code directly calls executor lifecycle methods.
+- A blocking run does not block HTTP handling or prevent cooperative stop, and
+  each execution attempt enters graph teardown exactly once.
+- Existing non-dashboard executor call sites and full regression tests pass
+  after migration to the configured lifecycle.
 - The chosen renderer displays exact numeric and named ports in the spike.
 - The decision includes build/install behavior without a deployed Node runtime.
-- No production API, runtime, or UI behavior changes in this phase.
 - Focused generic dashboard tests and `git diff --check` pass.
 
 Operator example:
@@ -492,12 +697,26 @@ stops for a generic identity-contract decision.
 
 Implementation:
 
-- Continue using the existing execution-state endpoint and optional
-  `GraphExecutor`.
+- Continue using the existing execution-state endpoint and configured
+  `GraphExecutor` established in Phase 0.
+- Make `GraphHttpServer` implement `IMetricsSubscriber`; register it with the
+  mandatory executor capability and unregister it deterministically before
+  teardown.
+- Route CLI lifecycle operations through the same capability. Terminal string
+  parsing may adapt to typed requests but is not the capability contract.
+- Add the command palette/console to the existing `index.html`; use structured
+  operations and argument forms rather than host-shell or terminal semantics.
+- Add bounded command history, asynchronous operation status, keyboard access,
+  and non-color success/failure output.
+- Add explicit browser graph export/download from the authoritative
+  coordinator snapshot. It performs no implicit server-side filesystem write.
 - Add only the smallest additive generic metric snapshot route needed, under
   `/api/v1`, on `GraphHttpServer`.
+- Populate the route from the server's bounded subscriber snapshot and the
+  schemas supplied by `MetricsCapability`.
 - Source metrics from existing GraphX metric facilities; do not depend on the
-  legacy embedded dashboard publisher or FHSS event schemas.
+  legacy embedded dashboard publisher, `GraphRuntimeSession`, or FHSS event
+  schemas.
 - Define units, monotonic/reset behavior, sample interval, availability, and
   graph-generation identity before displaying a value.
 - Overlay node state, queue depth, backpressure, and aggregated edge activity
@@ -508,12 +727,31 @@ Implementation:
 
 Acceptance:
 
+- `CommandCapability` accepts `init` before executor initialization.
+- HTTP and CLI lifecycle requests produce equivalent typed command results.
+- Buttons and the web command console produce equivalent typed command
+  requests and results.
+- The console cannot invoke arbitrary host commands or bypass supported
+  command discovery.
+- Browser export preserves the authoritative graph document and revision and
+  is verified in source-tree and installed-tree browser tests.
+- No `GraphHttpServer` code directly calls `GraphExecutor` lifecycle methods.
+- A blocking run does not block HTTP handling or prevent a cooperative stop.
+- Concurrent or duplicate lifecycle commands are serialized and rejected or
+  completed according to one documented executor state machine.
+- `GraphHttpServer` is registered as an `IMetricsSubscriber` exactly while its
+  event storage is alive.
+- Metric callbacks perform no socket I/O, JSON serialization, layout work, or
+  calls back into `MetricsCapability`.
+- Subscriber removal, executor shutdown, and an in-flight metric publication
+  are race-safe.
 - Missing or uncorrelated metrics display as unavailable, never as zero.
 - Metrics cannot affect GraphX scheduling, queueing, or execution.
 - No per-message browser event stream is introduced.
 - Collapsed groups aggregate only enumerated authoritative member metrics.
 - Stale generations and counter resets cannot produce false rates.
-- Inspection-only launch remains fully functional without an executor.
+- Inspection without initialization or execution remains fully functional with
+  the executor in `CONFIGURED` state.
 
 This phase does not add FHSS observations, expected truth, spectrum, jobs, or
 investigation controls. Domain applications may provide those outside the
@@ -536,6 +774,9 @@ Implementation:
 - Document supported graph-size budgets and graceful degradation.
 - Add a comprehensive generic dashboard operator manual with an FHSS example
   subsection.
+- Document REST automation, graph export, and every `graph-cli` migration.
+- After all deprecation gates pass, remove the `graph-cli` target,
+  `graph::GraphCli`, its install rule, and CLI-specific tests in one change.
 - Run proportional browser, accessibility, regression, and shutdown tests.
 
 Acceptance:
@@ -546,6 +787,8 @@ Acceptance:
 - The operator can build from a fresh clone, launch the installed dashboard,
   inspect minimal/SAR/FHSS graphs, and reproduce the report.
 - Native GraphX build and dashboard operation remain available without Docker.
+- No supported example, test workflow, or operator procedure requires
+  `graph-cli`; the web page and REST examples cover its supported use cases.
 - `git diff --check` and the affected/full regression suites pass.
 
 ## 8. Agent Workflow
@@ -572,7 +815,7 @@ The implementer must:
 - extend the existing generic components in place;
 - avoid legacy embedded-dashboard dependencies;
 - implement only the authorized phase;
-- preserve node editing and optional execution behavior;
+- preserve node editing and operator-controlled execution behavior;
 - add deterministic frontend, C++, install, and operator tests appropriate to
   the phase; and
 - report changed files, commands, results, and limitations.
@@ -624,7 +867,7 @@ The plan is complete only when:
 - FHSS and SAR are examples, not management-layer special cases;
 - no parallel dashboard server, coordinator, runtime owner, configuration
   service, API namespace, executable, or asset tree is introduced;
-- the existing table/editor and optional execution controls continue to work;
+- the existing table/editor and execution controls continue to work;
 - source and installed dashboards use the same generic assets;
 - native non-Docker operation remains supported; and
 - affected and full regression tests plus `git diff --check` pass.

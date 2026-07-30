@@ -89,6 +89,12 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to build SAR graph executor" << '\n';
             return 1;
         }
+        const auto initialized = executor->Init();
+        if (!initialized.success) {
+            std::cerr << "Failed to initialize SAR graph executor: "
+                      << initialized.message << '\n';
+            return 1;
+        }
 
         const auto graph_manager = executor->GetGraphManager();
         if (!graph_manager) {

@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <optional>
 #include <utility>
 
 namespace graph {
@@ -44,13 +45,14 @@ namespace graph {
  * @class GraphExecutorBuilder
  * @brief Builder for configuring and creating graph executors
  *
- * Single-use builder that orchestrates graph construction:
- * 1. Validate required configuration (JSON path)
- * 2. Load JSON via ConfigManager
- * 3. Create provider + plugin loader bundle via NodeProviderBootstrap
- * 4. Load plugins from specified directory
- * 5. Build graph via GraphBuilder
- * 6. Return appropriate executor type (with/without CSV support)
+ * Single-use builder that creates a lightweight CONFIGURED executor shell:
+ * 1. Validate builder inputs and record the immutable configuration snapshot
+ * 2. Record plugin directories and runtime policy options
+ * 3. Register stable control capabilities
+ * 4. Return the executor without loading providers/plugins or building nodes
+ *
+ * Provider loading, plugin loading, node creation, and GraphManager
+ * construction are deferred to GraphExecutor::Init().
  *
  * Thread Safety: Not thread-safe. Each thread should use its own builder instance.
  */
@@ -79,7 +81,7 @@ public:
     ~GraphExecutorBuilder();
 
     /**
-     * @brief Set JSON configuration file path (REQUIRED)
+     * @brief Set the JSON source for the initial configuration snapshot
      *
      * @param path Path to JSON graph configuration file
      * @return Reference to this builder (fluent API)
@@ -92,11 +94,16 @@ public:
  */
     GraphExecutorBuilder& WithJsonConfig(const std::string& path);
 
+    /// Configure the executor shell from an already atomic coordinator value.
+    GraphExecutorBuilder& WithGraphSnapshot(
+        const GraphConfigurationSnapshot& snapshot);
+
     /**
      * @brief Set shared GraphManager instance (optional)
      *
-     * Allows injecting a pre-constructed GraphManager.
-     * If not set, a new GraphManager will be created internally.
+     * Allows injecting a pre-constructed GraphManager for compatibility and
+     * tests. If omitted, no manager is constructed by Build(); Init() creates
+     * it lazily from the configured snapshot.
      *
      * @param graph_manager Shared pointer to GraphManager
      * @return Reference to this builder (fluent API)   
@@ -261,23 +268,15 @@ public:
     /**
      * @brief Build and return configured executor
      *
-     * Performs complete graph construction:
-     * 1. Validates required configuration (WithJsonConfig must be called)
-     * 2. Loads JSON configuration
-    * 3. Creates node provider + plugin loader bundle via NodeProviderBootstrap
-     * 4. Loads plugins from plugin directory
-     * 5. Builds graph using GraphBuilder
-     * 6. Creates appropriate executor type
+     * Validates builder options, records the initial immutable snapshot and
+     * lazy runtime inputs, installs stable control capabilities, and returns a
+     * CONFIGURED GraphExecutor shell. Provider/plugin loading, GraphBuilder,
+     * node creation, and GraphManager construction occur only during Init().
      *
-     * Return type is determined by CSV configuration:
-     * - If csv_inputs is empty: returns GraphExecutor
-     * - If csv_inputs has entries: returns CSVGraphExecutor
-     *
-     * Both returned as shared_ptr<GraphExecutor> (polymorphic).
-     *
-     * @return Configured executor ready for execution
-     * @throws std::invalid_argument if required configuration missing
-     * @throws std::runtime_error if JSON loading fails, plugins not found, graph building fails
+     * @return Configured executor ready for Init()
+     * @throws std::invalid_argument if builder options are invalid
+     * @throws std::runtime_error if an explicitly supplied JSON snapshot
+     *         cannot be read
      * @throws std::logic_error if Build() called more than once
      */
 /**
@@ -307,6 +306,7 @@ public:
 private:
     // Configuration state
     std::string json_config_;
+    std::optional<GraphConfigurationSnapshot> graph_snapshot_;
     std::shared_ptr<graph::GraphManager> graph_manager_;
     std::string plugin_directory_;
     std::vector<std::string> plugin_directories_;

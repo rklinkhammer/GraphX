@@ -7,13 +7,39 @@
 
 ---
 
+## Normative lifecycle amendment
+
+The lifecycle and launcher clauses below describe the original Phase 2B
+implementation and are superseded by
+`plan/GRAPHX_GENERIC_GRAPHICAL_DASHBOARD_PLAN.md`:
+
+- `graphx-dashboard` always has one configured `GraphExecutor`; execution, not
+  executor existence, is optional.
+- `GraphCoordinator` supplies atomic, revisioned
+  `GraphConfigurationSnapshot` values.
+- The lifecycle is
+  `ConfigureGraph → Init → Start → Run → Stop → Join`.
+- `GraphExecutorBuilder` creates a lazy configured shell; provider loading,
+  node construction, and `GraphManager` construction occur during `Init`.
+- Typed command and metrics capabilities exist before `Init` and retain object
+  identity across initialization.
+- HTTP lifecycle control uses the typed command capability. Phase 0 passes the
+  stable metrics capability handle to `GraphHttpServer`; the later graphical
+  metrics phase implements the subscriber bridge.
+- `--enable-execution` is removed.
+- `GraphCli` is deprecated and is removed only after verified web command,
+  graph-export, and REST automation parity.
+
+Where any later example or acceptance bullet conflicts with this amendment,
+the amendment prevails.
+
 ## Executive Summary
 
 Phase 2B implements a **generic graph viewer and parameter editor** that provides:
 
 1. **GraphCoordinator** - In-memory object for viewing and editing node parameters
 2. **GraphHttpServer** - Web UI + REST API for viewing and editing parameters
-3. **GraphCli** - Command-line tool for viewing and editing node parameters
+3. **GraphCli** - Deprecated compatibility tool pending web/REST parity
 
 **Key Principle:** This layer is a **read + limited-write interface**. It can:
 - View all nodes
@@ -299,6 +325,12 @@ POST   /api/v1/execution/step
 ---
 
 ## Component 3: GraphCli
+
+> **Deprecated compatibility component.** Do not add new commands or
+> integrations here. The supported interactive replacement is the command
+> surface inside the existing `graphx-dashboard` page; headless replacement is
+> the documented REST interface. See
+> `plan/GRAPHX_GENERIC_GRAPHICAL_DASHBOARD_PLAN.md` for removal gates.
 
 **Purpose:** Command-line tool for viewing and editing node parameters
 

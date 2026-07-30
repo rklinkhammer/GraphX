@@ -181,6 +181,8 @@ TEST(SarJsonRuntimeTest, JsonTopologyRunsWithProviderBootstrapPath) {
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
     EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 8U);
     EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 7U);
@@ -297,6 +299,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetSignalsCompletionInGraphExecutorPath) {
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
 
     const auto run_result = executor->Execute();
@@ -354,6 +358,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetStrictMetalSelectionUsesSarAccelTokenMa
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
 
     const auto run_result = executor->Execute();
@@ -536,6 +542,8 @@ TEST(SarJsonRuntimeTest, DefinitivePresetPreservesEndToEndSidecarIdentity) {
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
 
     const auto run_result = executor->Execute();
@@ -618,6 +626,8 @@ TEST(SarJsonRuntimeTest, ResolverSelectedDeviceStagesPreserveSidecarIdentityAndO
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr);
 

@@ -76,6 +76,16 @@
             background: #ff6b6b;
             color: white;
         }
+
+        .state-configured {
+            background: #4c6ef5;
+            color: white;
+        }
+
+        .state-initialized {
+            background: #15aabf;
+            color: white;
+        }
         
         .state-running {
             background: #51cf66;
@@ -442,7 +452,7 @@
             <!-- Execution Control Panel -->
             <div class="control-panel">
                 <h2>⚙️ Execution Control</h2>
-                <div id="stateIndicator" class="state-indicator state-stopped">State: STOPPED</div>
+                <div id="stateIndicator" class="state-indicator state-configured">State: CONFIGURED</div>
                 <div class="buttons-group">
                     <button class="btn-init" onclick="handleInit()">Init</button>
                     <button class="btn-start" onclick="handleStart()">Start</button>
@@ -517,6 +527,7 @@
         // Load nodes on page load
         window.addEventListener('load', function() {
             loadNodes();
+            updateStateDisplay();
             startStatePolling();
         });
         

@@ -904,6 +904,11 @@ int main(int argc, char **argv) {
     if (!executor) {
       throw std::runtime_error("failed to build FHSS graph executor");
     }
+    const auto initialized = executor->Init();
+    if (!initialized.success) {
+      throw std::runtime_error("failed to initialize FHSS graph executor: " +
+                               initialized.message);
+    }
 
     auto manager = executor->GetGraphManager();
     if (!manager) {

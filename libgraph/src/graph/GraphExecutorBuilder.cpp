@@ -37,13 +37,13 @@
 #include "policies/CommandPolicy.hpp"
 #include "policies/GpuPolicy.hpp"
 #include "capabilities/GraphCapability.hpp"
-#include "graph/NodeProviderBootstrap.hpp"
-#include "graph/GraphBuilder.hpp"
-#include "capabilities/GraphCapability.hpp"
+#include "capabilities/CommandCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
 #include <log4cxx/logger.h>
 #include <expected>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <stdexcept>
 
 namespace graph {
@@ -52,6 +52,7 @@ static log4cxx::LoggerPtr g_logger = log4cxx::Logger::getLogger("graph.GraphExec
 
 GraphExecutorBuilder::GraphExecutorBuilder()
     : json_config_(""),
+      graph_snapshot_(std::nullopt),
       graph_manager_(nullptr),
       plugin_directory_(""),
       plugin_directories_(),
@@ -78,7 +79,15 @@ GraphExecutorBuilder& GraphExecutorBuilder::WithJsonConfig(const std::string& pa
         throw std::invalid_argument("GraphExecutorBuilder: JSON config path cannot be empty");
     }
     json_config_ = path;
+    graph_snapshot_.reset();
     LOG4CXX_TRACE(g_logger, "Set JSON config path: " << path);
+    return *this;
+}
+
+GraphExecutorBuilder& GraphExecutorBuilder::WithGraphSnapshot(
+    const GraphConfigurationSnapshot& snapshot) {
+    graph_snapshot_ = snapshot;
+    json_config_.clear();
     return *this;
 }
 
@@ -281,37 +290,20 @@ void GraphExecutorBuilder::ValidateConfiguration() {
         }
     };
 
-    if(graph_manager_ && csv_inputs_.empty()) {
+    if (graph_manager_) {
         ensure_plugin_directories();
-        LOG4CXX_TRACE(g_logger, "Using provided GraphManager without CSV inputs");
         return;
     }
-    // Check required: JSON config
-    if (json_config_.empty()) {
+    if (!graph_snapshot_ && json_config_.empty()) {
         throw std::invalid_argument(
-            "GraphExecutorBuilder: WithJsonConfig() is required - no JSON config path set");
+            "GraphExecutorBuilder: WithGraphSnapshot() or WithJsonConfig() is required");
     }
 
-    // Check JSON config file exists
-    if (!std::filesystem::exists(json_config_)) {
+    if (!json_config_.empty() && !std::filesystem::exists(json_config_)) {
         throw std::runtime_error(
             "GraphExecutorBuilder: JSON config file not found: " + json_config_);
     }
-
-    // If plugin directory not set, use default
     ensure_plugin_directories();
-
-    for (const auto& plugin_directory : plugin_directories_) {
-        if (!std::filesystem::exists(plugin_directory)) {
-            throw std::runtime_error(
-                "GraphExecutorBuilder: Plugin directory not found: " + plugin_directory +
-                ". Set explicitly with WithPluginDirectory() or WithAdditionalPluginDirectory()");
-        }
-        if (!std::filesystem::is_directory(plugin_directory)) {
-            throw std::runtime_error(
-                "GraphExecutorBuilder: Plugin path is not a directory: " + plugin_directory);
-        }
-    }
 
     LOG4CXX_TRACE(g_logger, "Configuration validation passed");
 }
@@ -345,59 +337,26 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
     LOG4CXX_TRACE(g_logger, "  verbose_logging: " << (verbose_logging_ ? "enabled" : "disabled"));
 
     try {
-        // Step 2: Create NodeProviderBootstrap and load plugins
-        LOG4CXX_TRACE(g_logger, "Step 2: Bootstrapping node provider and loading plugins");
-        auto provider_bootstrap = app::NodeProviderBootstrap::CreateProviderExpected(plugin_directories_);
-        if (!provider_bootstrap) {
-            throw std::runtime_error("Failed to bootstrap node provider and load plugins");
+        std::optional<GraphConfigurationSnapshot> initial_snapshot =
+            graph_snapshot_;
+        if (!initial_snapshot && !json_config_.empty()) {
+            std::ifstream input(json_config_);
+            if (!input) {
+                throw std::runtime_error(
+                    "GraphExecutorBuilder: could not read JSON config: " +
+                    json_config_);
+            }
+            nlohmann::json document;
+            input >> document;
+            initial_snapshot.emplace(std::move(document), 0);
         }
-        auto node_provider = provider_bootstrap->provider;
-        LOG4CXX_TRACE(g_logger, "Node provider bootstrapped and plugins loaded from: "
-                     << provider_bootstrap->diagnostics.plugin_directory);
-        LOG4CXX_TRACE(g_logger, "Provider bootstrap diagnostics: discovered="
-                     << provider_bootstrap->diagnostics.discovered_count
-                     << ", loaded=" << provider_bootstrap->diagnostics.loaded_count
-                     << ", failed=" << provider_bootstrap->diagnostics.failed_count
-                     << ", scan_ms=" << provider_bootstrap->diagnostics.scan_duration.count()
-                     << ", init_ms=" << provider_bootstrap->diagnostics.init_duration.count());
 
-        // Step 3: Create AppContext with loaded configuration
-        LOG4CXX_TRACE(g_logger, "Step 3: Creating AppContext");
         std::shared_ptr<capabilities::GraphCapability> graph_cap =
             std::make_shared<capabilities::GraphCapability>();
-
-        graph_cap->SetNodeProvider(node_provider);
-        graph_cap->SetJsonConfigPath(json_config_);
         graph_cap->SetCliMode(cli_mode_);
-
-        LOG4CXX_TRACE(g_logger, "AppContext created");
-
         if (graph_manager_) {
-            // Step 4a: Build graph via GraphBuilder
             graph_cap->SetGraphManager(graph_manager_);
-            LOG4CXX_TRACE(g_logger, "Using provided shared GraphManager instance");
-        } else {
-            // Step 4b: Build graph via GraphBuilder
-            LOG4CXX_TRACE(g_logger, "Step 4: Building graph");
-            auto graph_builder = std::make_shared<app::GraphBuilder>(graph_cap);
-            auto build_result = graph_builder->Build();
-    
-            if (!build_result.success) {
-                throw std::runtime_error(
-                    "GraphExecutorBuilder: Graph building failed: " + build_result.error_message);
-            }
-            LOG4CXX_TRACE(g_logger, "GraphManager built successfully with "
-                         << build_result.node_count << " nodes and "
-                         << build_result.edge_count << " edges");
-            graph_cap->SetNodeNames(build_result.node_names);
-            graph_cap->SetEdgeDescriptions(build_result.edge_descriptions);
-            graph_cap->SetGraphManager(build_result.graph);
-
-            LOG4CXX_TRACE(g_logger, "Graph built successfully");
         }
-
-        // Step 5: Return appropriate executor type based on CSV configuration
-        LOG4CXX_TRACE(g_logger, "Step 5: Creating executor");
 
         auto completion_policy = std::make_unique<policies::CompletionPolicy>();
         completion_policy->SetMaxDuration(executor_timeout_);
@@ -434,7 +393,27 @@ std::shared_ptr<GraphExecutor> GraphExecutorBuilder::Build() {
             chain->AppendNext(std::make_unique<graph::ExecutionPolicyChain>(std::move(command_policy), 
                 nullptr));
         }
+
+        auto metrics =
+            std::make_shared<capabilities::MetricsCapability>();
+        auto commands =
+            std::make_shared<capabilities::CommandCapability>(metrics);
+        graph_cap->GetCapabilityBus().Register<capabilities::MetricsCapability>(
+            metrics);
+        graph_cap->GetCapabilityBus().Register<capabilities::CommandCapability>(
+            commands);
+
         auto executor = std::make_shared<GraphExecutor>(std::move(chain), graph_cap);
+        executor->SetPluginDirectories(plugin_directories_);
+        commands->BindExecutor(executor);
+        if (initial_snapshot) {
+            const auto configured = executor->ConfigureGraph(*initial_snapshot);
+            if (!configured.success) {
+                throw std::runtime_error(
+                    "GraphExecutorBuilder: initial configuration failed: " +
+                    configured.message);
+            }
+        }
         already_built_ = true;
         return executor;
 

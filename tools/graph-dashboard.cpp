@@ -1,3 +1,6 @@
+#include "capabilities/CommandCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
+#include "graph/GraphCoordinator.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphHttpServer.hpp"
@@ -28,10 +31,10 @@ void PrintHelp() {
       << "GraphX generic graph dashboard\n\n"
       << "Usage:\n"
       << "  graphx-dashboard --graph PATH [--port PORT]\n"
-      << "                   [--enable-execution] [--plugins DIRECTORY]\n\n"
-      << "The default provides graph inspection and in-memory parameter editing "
-         "while\n"
-      << "execution endpoints are disabled. The server binds to 127.0.0.1.\n"
+      << "                   [--plugins DIRECTORY]\n\n"
+      << "The dashboard creates a configured executor; graph initialization "
+         "and execution\n"
+      << "occur only after explicit commands. The server binds to 127.0.0.1.\n"
       << "Press Ctrl-C to stop it.\n";
 }
 
@@ -52,6 +55,24 @@ bool HasFlag(const int argc, char **argv, const std::string_view flag) {
     }
   }
   return false;
+}
+
+std::optional<std::string> UnknownArgument(const int argc, char **argv) {
+  for (int index = 1; index < argc; ++index) {
+    const std::string_view argument{argv[index]};
+    if (argument == "--help" || argument == "-h") {
+      continue;
+    }
+    if (argument == "--graph" || argument == "--port" ||
+        argument == "--plugins") {
+      if (index + 1 < argc) {
+        ++index;
+      }
+      continue;
+    }
+    return std::string{argument};
+  }
+  return std::nullopt;
 }
 
 std::optional<int> ParsePort(const std::optional<std::string> &value) {
@@ -104,6 +125,10 @@ int main(const int argc, char **argv) {
     PrintHelp();
     return 0;
   }
+  if (const auto unknown = UnknownArgument(argc, argv)) {
+    std::cerr << "Error: unknown argument '" << *unknown << "'\n";
+    return 2;
+  }
 
   const auto graph_path = ValueAfter(argc, argv, "--graph");
   const auto port = ParsePort(ValueAfter(argc, argv, "--port"));
@@ -131,26 +156,31 @@ int main(const int argc, char **argv) {
     return 1;
   }
 
+  auto coordinator =
+      std::make_shared<graph::GraphCoordinator>(std::move(graph_document));
+  const auto initial_snapshot = coordinator->Snapshot();
   std::shared_ptr<graph::GraphExecutor> executor;
-  if (HasFlag(argc, argv, "--enable-execution")) {
-    try {
-      const auto plugin_directory =
-          ValueAfter(argc, argv, "--plugins").value_or("./plugins");
-      executor = graph::GraphExecutorBuilder()
-                     .WithJsonConfig(*graph_path)
-                     .WithPluginDirectory(plugin_directory)
-                     .Build();
-    } catch (const std::exception &error) {
-      std::cerr << "Error: could not build executor: " << error.what() << '\n';
-      return 1;
-    }
+  try {
+    const auto plugin_directory =
+        ValueAfter(argc, argv, "--plugins").value_or("./plugins");
+    executor = graph::GraphExecutorBuilder()
+                   .WithGraphSnapshot(initial_snapshot)
+                   .WithPluginDirectory(plugin_directory)
+                   .Build();
+  } catch (const std::exception &error) {
+    std::cerr << "Error: could not build executor: " << error.what() << '\n';
+    return 1;
   }
 
   const auto executable = ResolveExecutable(argv[0]);
   const auto index_path =
       executable.parent_path().parent_path() / "share" / "graphx" /
       "dashboard" / "index.html";
-  graph::GraphHttpServer server(graph_document, executor.get(), *port,
+  auto commands =
+      executor->GetCapability<capabilities::CommandCapability>();
+  auto metrics =
+      executor->GetCapability<capabilities::MetricsCapability>();
+  graph::GraphHttpServer server(coordinator, commands, metrics, *port,
                                 index_path.string());
   if (!server.Start()) {
     std::cerr << "Error: could not bind dashboard to 127.0.0.1:" << *port

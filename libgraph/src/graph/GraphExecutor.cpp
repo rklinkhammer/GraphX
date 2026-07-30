@@ -29,6 +29,12 @@
 
 #include "graph/GraphManagerCore.hpp"
 #include "graph/GraphExecutor.hpp"
+#include "graph/GraphBuilder.hpp"
+#include "graph/GraphConfigParser.hpp"
+#include "graph/NodeProviderBootstrap.hpp"
+#include "capabilities/CommandCapability.hpp"
+#include "capabilities/DataInjectionCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
 
 #include <chrono>
 #include <exception>
@@ -81,24 +87,183 @@ GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain
     if(!graph_capability_) {
         throw std::invalid_argument("GraphExecutor requires a valid GraphCapability");
     }
-    if(!graph_capability_->GetGraphManager()) {
-        throw std::invalid_argument("GraphCapability must have a valid GraphManager");
-    }
     graph_manager_ = graph_capability_->GetGraphManager();
     graph_capability_->GetCapabilityBus().Register<capabilities::GraphCapability>(graph_capability_);
+    if (graph_manager_) {
+        coordinator_revision_.store(0, std::memory_order_release);
+        graph_generation_.store(1, std::memory_order_release);
+    }
 }
 
 GraphExecutor::~GraphExecutor() noexcept {
+    if (graph_capability_) {
+        if (auto commands =
+                graph_capability_->GetCapabilityBus()
+                    .Get<capabilities::CommandCapability>()) {
+            commands->Shutdown(this);
+        }
+    }
     try {
-        if (graph_manager_) {
+        const auto state = GetExecutionState();
+        if (state == ExecutionState::RUNNING) {
+            RequestStop();
+        }
+        if (graph_manager_ &&
+            (state == ExecutionState::INITIALIZED ||
+             state == ExecutionState::RUNNING)) {
             (void)StopExpected();
             (void)JoinExpected();
+        } else if (graph_manager_ && state == ExecutionState::STOPPING) {
+            (void)JoinExpected();
+        } else if (graph_manager_ && state == ExecutionState::ERROR) {
+            graph_manager_->Stop();
+            if (policy_chain_) {
+                policy_chain_->OnStop(*graph_capability_);
+            }
+            graph_manager_->Join();
+            if (policy_chain_) {
+                policy_chain_->OnJoin(*graph_capability_);
+            }
         }
     } catch (const std::exception& e) {
         LOG4CXX_WARN(logger_, "Exception during GraphExecutor cleanup: " << e.what());
     } catch (...) {
         LOG4CXX_WARN(logger_, "Unknown exception during GraphExecutor cleanup");
     }
+    if (graph_capability_) {
+        graph_capability_->GetCapabilityBus().Clear();
+    }
+}
+
+void GraphExecutor::SetPluginDirectories(
+    std::vector<std::string> directories) {
+    std::scoped_lock lock(configuration_mutex_);
+    plugin_directories_ = std::move(directories);
+}
+
+ExecutionResult GraphExecutor::ConfigureGraph(
+    const GraphConfigurationSnapshot& snapshot) {
+    ExecutionResult result;
+    const auto state = GetExecutionState();
+    if (state != ExecutionState::CONFIGURED &&
+        !(state == ExecutionState::STOPPED &&
+          joined_.load(std::memory_order_acquire))) {
+        result.success = false;
+        result.current_state = state;
+        result.message =
+            "GraphExecutor::ConfigureGraph() requires CONFIGURED or joined STOPPED state";
+        result.error_details = result.message;
+        return result;
+    }
+
+    const auto parsed =
+        graph::config::GraphConfigParser::ParseSafe(snapshot.Document().dump());
+    if (!parsed) {
+        result.success = false;
+        result.current_state = state;
+        result.message = "Graph configuration could not be parsed";
+        result.error_details = result.message;
+        return result;
+    }
+    const auto validation =
+        graph::config::GraphConfigParser::Validate(parsed.value());
+    if (!validation.valid) {
+        result.success = false;
+        result.current_state = state;
+        result.message = "Graph configuration validation failed";
+        if (!validation.errors.empty()) {
+            result.message += ": " + validation.errors.front();
+        }
+        result.error_details = result.message;
+        return result;
+    }
+
+    {
+        std::scoped_lock lock(configuration_mutex_);
+        if (auto injection =
+                graph_capability_->GetCapabilityBus()
+                    .Get<capabilities::DataInjectionCapability>()) {
+            injection->DisableAllInjectionQueues();
+        }
+        graph_capability_->GetCapabilityBus()
+            .Unregister<capabilities::DataInjectionCapability>();
+        configured_snapshot_ = snapshot;
+        active_revision_.reset();
+        graph_manager_.reset();
+        graph_capability_->SetGraphManager(nullptr);
+        graph_capability_->SetNodeProvider(nullptr);
+        graph_capability_->SetNodeNames({});
+        graph_capability_->SetEdgeDescriptions({});
+        graph_capability_->SetGraphDocument(snapshot.Document());
+        graph_capability_->ResetExecutionSignals();
+        coordinator_revision_.store(snapshot.Revision(),
+                                    std::memory_order_release);
+        graph_generation_.fetch_add(1, std::memory_order_acq_rel);
+        joined_.store(false, std::memory_order_release);
+        SetExecutionState(ExecutionState::CONFIGURED);
+    }
+    if (auto metrics =
+            GetCapability<capabilities::MetricsCapability>()) {
+        metrics->ResetGeneration();
+    }
+
+    result.success = true;
+    result.current_state = ExecutionState::CONFIGURED;
+    result.message = "Graph configuration recorded";
+    return result;
+}
+
+std::optional<std::uint64_t>
+GraphExecutor::GetConfiguredRevision() const {
+    std::scoped_lock lock(configuration_mutex_);
+    if (!configured_snapshot_) {
+        return std::nullopt;
+    }
+    return configured_snapshot_->Revision();
+}
+
+std::optional<std::uint64_t>
+GraphExecutor::GetActiveRevision() const {
+    std::scoped_lock lock(configuration_mutex_);
+    return active_revision_;
+}
+
+bool GraphExecutor::IsConfigurationDirty() const noexcept {
+    const auto configured = GetConfiguredRevision();
+    return configured &&
+           coordinator_revision_.load(std::memory_order_acquire) != *configured;
+}
+
+bool GraphExecutor::RollbackInitializationAttempt(
+    const bool graph_initialization_started) noexcept {
+    try {
+        if (graph_initialization_started && graph_manager_) {
+            graph_manager_->Stop();
+        }
+        if (policy_chain_) {
+            policy_chain_->OnInitializationRollbackStop(*graph_capability_);
+        }
+        if (graph_initialization_started && graph_manager_) {
+            graph_manager_->Join();
+        }
+        if (policy_chain_) {
+            policy_chain_->OnInitializationRollbackJoin(*graph_capability_);
+        }
+        graph_manager_.reset();
+        graph_capability_->SetGraphManager(nullptr);
+        graph_capability_->SetNodeProvider(nullptr);
+        graph_capability_->SetNodeNames({});
+        graph_capability_->SetEdgeDescriptions({});
+        graph_capability_->ResetExecutionSignals();
+        SetExecutionState(ExecutionState::CONFIGURED);
+        return true;
+    } catch (const std::exception& e) {
+        LOG4CXX_ERROR(logger_, "Initialization rollback failed: " << e.what());
+    } catch (...) {
+        LOG4CXX_ERROR(logger_, "Initialization rollback failed with an unknown exception");
+    }
+    SetExecutionState(ExecutionState::ERROR);
+    return false;
 }
 
 /**
@@ -121,29 +286,126 @@ std::expected<InitializationResult, app::error::GraphExecutionFailure>
 GraphExecutor::InitExpected() noexcept {
     return CaptureLifecycleFailure<InitializationResult>("Init", [&]()
         -> std::expected<InitializationResult, app::error::GraphExecutionFailure> {
+        bool initialization_attempt_started = false;
+        bool graph_initialization_started = false;
+        try {
         auto start_time = std::chrono::high_resolution_clock::now();
 
         LOG4CXX_TRACE(logger_, "GraphExecutor::Init() called");
         InitializationResult init_result;
+        if (GetExecutionState() != ExecutionState::CONFIGURED) {
+            init_result.message =
+                "GraphExecutor::Init() requires CONFIGURED state";
+            init_result.error_details = init_result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                init_result.message));
+        }
+        if (IsConfigurationDirty()) {
+            init_result.message =
+                "GraphExecutor::Init() rejected dirty configuration";
+            init_result.error_details = init_result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                init_result.message));
+        }
+        initialization_attempt_started = true;
+
+        if (!graph_manager_) {
+            std::optional<GraphConfigurationSnapshot> snapshot;
+            std::vector<std::string> plugin_directories;
+            {
+                std::scoped_lock lock(configuration_mutex_);
+                snapshot = configured_snapshot_;
+                plugin_directories = plugin_directories_;
+            }
+            if (!snapshot) {
+                init_result.message =
+                    "GraphExecutor::Init() has no configured graph snapshot";
+                init_result.error_details = init_result.message;
+                return std::unexpected(app::error::MakeGraphExecutionFailure(
+                    app::error::GraphExecutionError::ConfigurationInvalid,
+                    init_result.message));
+            }
+
+            auto provider_bootstrap =
+                app::NodeProviderBootstrap::CreateProviderExpected(
+                    plugin_directories);
+            if (!provider_bootstrap) {
+                init_result.message =
+                    "Failed to bootstrap node provider and load plugins";
+                init_result.error_details = init_result.message;
+                return std::unexpected(app::error::MakeGraphExecutionFailure(
+                    app::error::GraphExecutionError::BuilderFailed,
+                    init_result.message));
+            }
+            graph_capability_->SetNodeProvider(provider_bootstrap->provider);
+            graph_capability_->SetGraphDocument(snapshot->Document());
+            auto graph_builder =
+                std::make_shared<app::GraphBuilder>(graph_capability_);
+            auto build_result = graph_builder->Build();
+            if (!build_result.success || !build_result.graph) {
+                static_cast<void>(
+                    RollbackInitializationAttempt(false));
+                init_result.message =
+                    "Graph construction failed: " + build_result.error_message;
+                init_result.error_details = init_result.message;
+                return std::unexpected(app::error::MakeGraphExecutionFailure(
+                    app::error::GraphExecutionError::BuilderFailed,
+                    init_result.message));
+            }
+            graph_manager_ = build_result.graph;
+            graph_capability_->SetNodeNames(build_result.node_names);
+            graph_capability_->SetEdgeDescriptions(
+                build_result.edge_descriptions);
+            graph_capability_->SetGraphManager(graph_manager_);
+        }
+
         bool policy_result = policy_chain_ ? policy_chain_->OnInit(*graph_capability_) : true;
         if(!policy_result) {
             init_result.success = false;
             init_result.message = "ExecutionPolicyChain::OnInit() failed";
             init_result.error_details = init_result.message;
+            if (!RollbackInitializationAttempt(false)) {
+                init_result.message =
+                    "ExecutionPolicyChain::OnInit() failed and cleanup failed";
+                init_result.error_details = init_result.message;
+                return std::unexpected(
+                    app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::Unknown,
+                        init_result.message));
+            }
             return std::unexpected(app::error::MakeGraphExecutionFailure(
                 app::error::GraphExecutionError::PolicyFailed, init_result.message));
         }
         // Initialize the graph
+        graph_initialization_started = true;
         auto graph_init = graph_manager_->InitExpected();
         if (!graph_init) {
             init_result.success = false;
             init_result.message = graph_init.error().message;
             init_result.error_details = init_result.message;
+            if (!RollbackInitializationAttempt(true)) {
+                init_result.message =
+                    graph_init.error().message + "; initialization cleanup failed";
+                init_result.error_details = init_result.message;
+                return std::unexpected(
+                    app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::Unknown,
+                        init_result.message));
+            }
             return std::unexpected(graph_init.error());
         }
         init_result.nodes_initialized = CountNodesinLifecycleState(graph::LifecycleState::Initialized);
         init_result.nodes_failed = CountNodesinLifecycleState(graph::LifecycleState::Invalid) +
                                    CountNodesinLifecycleState(graph::LifecycleState::Uninitialized);
+        {
+            std::scoped_lock lock(configuration_mutex_);
+            active_revision_ = configured_snapshot_
+                                   ? std::optional<std::uint64_t>{
+                                         configured_snapshot_->Revision()}
+                                   : std::optional<std::uint64_t>{0};
+        }
         SetExecutionState(ExecutionState::INITIALIZED);
         init_result.success = true;
         init_result.message = "GraphExecutor initialized successfully";
@@ -152,6 +414,17 @@ GraphExecutor::InitExpected() noexcept {
         auto end_time = std::chrono::high_resolution_clock::now();
         init_result.elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         return init_result;
+        } catch (...) {
+            if (initialization_attempt_started &&
+                !RollbackInitializationAttempt(
+                    graph_initialization_started)) {
+                return std::unexpected(
+                    app::error::MakeGraphExecutionFailure(
+                        app::error::GraphExecutionError::Unknown,
+                        "GraphExecutor::Init() threw and initialization cleanup failed"));
+            }
+            throw;
+        }
     });
 }
 
@@ -188,8 +461,24 @@ GraphExecutor::StartExpected() noexcept {
             return std::unexpected(app::error::MakeGraphExecutionFailure(
                 app::error::GraphExecutionError::InvalidState, result.message));
         }
+        if (IsConfigurationDirty()) {
+            result.message =
+                "GraphExecutor::Start() rejected dirty configuration";
+            result.error_details = result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                result.message));
+        }
 
-        bool policy_result = policy_chain_ ? policy_chain_->OnStart(*graph_capability_) : true;
+        bool policy_result = false;
+        try {
+            policy_result =
+                policy_chain_ ? policy_chain_->OnStart(*graph_capability_)
+                              : true;
+        } catch (...) {
+            SetExecutionState(ExecutionState::ERROR);
+            throw;
+        }
         if(!policy_result) {
             result.success = false;
             result.message = "ExecutionPolicyChain::OnStart() failed";
@@ -258,8 +547,24 @@ GraphExecutor::RunExpected() noexcept {
             return std::unexpected(app::error::MakeGraphExecutionFailure(
                 app::error::GraphExecutionError::InvalidState, result.message));
         }
+        if (IsConfigurationDirty()) {
+            result.message =
+                "GraphExecutor::Run() rejected dirty configuration";
+            result.error_details = result.message;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                result.message));
+        }
 
-        bool policy_result =  policy_chain_ ? policy_chain_->OnRun(*graph_capability_) : false;
+        bool policy_result = false;
+        try {
+            policy_result =
+                policy_chain_ ? policy_chain_->OnRun(*graph_capability_)
+                              : false;
+        } catch (...) {
+            SetExecutionState(ExecutionState::ERROR);
+            throw;
+        }
         if(!policy_result) {
             result.success = false;
             result.message = "ExecutionPolicyChain::OnRun() failed";
@@ -276,7 +581,6 @@ GraphExecutor::RunExpected() noexcept {
         }
         
         LOG4CXX_TRACE(logger_, "GraphExecutor::Run() completed, success=" << result.success);
-        SetExecutionState(ExecutionState::STOPPED);
         result.success = true;
         result.message = "GraphExecutor run completed successfully";    
         result.current_state = GetExecutionState();
@@ -316,18 +620,32 @@ GraphExecutor::StopExpected() noexcept {
         auto start_time = std::chrono::high_resolution_clock::now();
 
         LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() called");
-        stop_sequence_count_.fetch_add(1, std::memory_order_acq_rel);
         ExecutionResult result;
+        const auto state = GetExecutionState();
+        if (state != ExecutionState::INITIALIZED &&
+            state != ExecutionState::RUNNING) {
+            result.message =
+                "GraphExecutor::Stop() requires INITIALIZED or RUNNING state";
+            result.error_details = result.message;
+            result.current_state = state;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                result.message));
+        }
+        stop_sequence_count_.fetch_add(1, std::memory_order_acq_rel);
         SetExecutionState(ExecutionState::STOPPING);
         graph_capability_->SetStopped();
         // Stop the graph
-        graph_manager_->Stop();
-        if (policy_chain_) {
-            policy_chain_->OnStop(*graph_capability_);
+        try {
+            graph_manager_->Stop();
+            if (policy_chain_) {
+                policy_chain_->OnStop(*graph_capability_);
+            }
+        } catch (...) {
+            SetExecutionState(ExecutionState::ERROR);
+            throw;
         }
         LOG4CXX_TRACE(logger_, "GraphExecutor::Stop() completed");
-        SetExecutionState(ExecutionState::STOPPED);
-
         result.success = true;
         result.message = "GraphExecutor stopped successfully";
         result.current_state = GetExecutionState();
@@ -362,12 +680,36 @@ GraphExecutor::JoinExpected() noexcept {
 
         LOG4CXX_TRACE(logger_, "GraphExecutor::Join() called");
         ExecutionResult result;
+        const auto state = GetExecutionState();
+        if (state == ExecutionState::STOPPED &&
+            joined_.load(std::memory_order_acquire)) {
+            result.success = true;
+            result.message = "GraphExecutor already joined";
+            result.current_state = state;
+            return result;
+        }
+        if (state != ExecutionState::STOPPING) {
+            result.message =
+                "GraphExecutor::Join() requires STOPPING state";
+            result.error_details = result.message;
+            result.current_state = state;
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                result.message));
+        }
 
         // Join all threads
-        graph_manager_->Join();
-        if (policy_chain_) {
-            policy_chain_->OnJoin(*graph_capability_);
+        try {
+            graph_manager_->Join();
+            if (policy_chain_) {
+                policy_chain_->OnJoin(*graph_capability_);
+            }
+        } catch (...) {
+            SetExecutionState(ExecutionState::ERROR);
+            throw;
         }
+        joined_.store(true, std::memory_order_release);
+        SetExecutionState(ExecutionState::STOPPED);
         LOG4CXX_TRACE(logger_, "GraphExecutor::Join() completed");
 
         result.success = true;
@@ -411,13 +753,19 @@ GraphExecutor::ExecuteExpected() noexcept {
         auto execute_start_time = std::chrono::high_resolution_clock::now();
         ExecutionResult result;
 
-        auto init_result = InitExpected();
-        if (!init_result) {
-            LOG4CXX_ERROR(logger_, "Execute failed during Init(): "
-                                     << init_result.error().message);
-            return std::unexpected(init_result.error());
+        if (GetExecutionState() == ExecutionState::CONFIGURED) {
+            auto init_result = InitExpected();
+            if (!init_result) {
+                LOG4CXX_ERROR(logger_, "Execute failed during Init(): "
+                                         << init_result.error().message);
+                return std::unexpected(init_result.error());
+            }
+            result.init_elapsed_time_ms = init_result->elapsed_time_ms;
+        } else if (GetExecutionState() != ExecutionState::INITIALIZED) {
+            return std::unexpected(app::error::MakeGraphExecutionFailure(
+                app::error::GraphExecutionError::InvalidState,
+                "GraphExecutor::Execute() requires CONFIGURED or INITIALIZED state"));
         }
-        result.init_elapsed_time_ms = init_result->elapsed_time_ms;
 
         auto start_result = StartExpected();
         if (!start_result) {

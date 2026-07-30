@@ -66,6 +66,8 @@ def wait_until_ready(base_url: str, process: subprocess.Popen[str]) -> str:
 
 def verify_cli(cli: Path, graph: Path, work_dir: Path) -> None:
     count = run(str(cli), "--graph", str(graph), "node-count")
+    if "DEPRECATED: graph-cli" not in count.stderr:
+        raise AssertionError("graph-cli did not emit its deprecation warning")
     if count.stdout.strip() != "2":
         raise AssertionError(f"unexpected node count: {count.stdout!r}")
 
@@ -82,6 +84,16 @@ def verify_cli(cli: Path, graph: Path, work_dir: Path) -> None:
 
 
 def verify_dashboard(dashboard: Path, graph: Path) -> None:
+    help_result = run(str(dashboard), "--help")
+    if "--enable-execution" in help_result.stdout:
+        raise AssertionError("dashboard help still advertises --enable-execution")
+    run(
+        str(dashboard),
+        "--graph",
+        str(graph),
+        "--enable-execution",
+        expected=2,
+    )
     run(str(dashboard), "--graph", str(graph), "--port", "0", expected=2)
     run(str(dashboard), "--graph", str(graph), "--port", "65536", expected=2)
     run(str(dashboard), "--graph", str(graph) + ".missing", expected=1)
@@ -103,21 +115,96 @@ def verify_dashboard(dashboard: Path, graph: Path) -> None:
         if status != 200 or len(json.loads(graph_body)["data"]["nodes"]) != 2:
             raise AssertionError("dashboard graph API did not return both nodes")
 
+        status, state_body = request(f"{base_url}/api/v1/execution/state")
+        state = json.loads(state_body)["data"]
+        if (
+            status != 200
+            or state["state"] != "CONFIGURED"
+            or state["coordinator_revision"] != 0
+            or state["configured_revision"] != 0
+            or state["active_revision"] is not None
+            or state["graph_generation"] != 1
+            or state["configuration_dirty"]
+        ):
+            raise AssertionError(
+                f"dashboard did not start as a clean lazy executor: {state_body}"
+            )
+
+        status, commands_body = request(
+            f"{base_url}/api/v1/execution/commands"
+        )
+        command_names = {
+            item["name"] for item in json.loads(commands_body)["data"]
+        }
+        if status != 200 or command_names != {
+            "configure",
+            "init",
+            "start",
+            "run",
+            "stop",
+            "join",
+        }:
+            raise AssertionError(
+                f"typed command discovery was incomplete: {commands_body}"
+            )
+
         status, _ = request(
             f"{base_url}/api/v1/nodes/source_1",
             method="PATCH",
-            body={"node_config": {"rate_hz": 25}},
+            body={"node_config": {"message_count": 25}},
         )
         if status != 200:
             raise AssertionError(f"node parameter update returned HTTP {status}")
 
+        status, state_body = request(f"{base_url}/api/v1/execution/state")
+        state = json.loads(state_body)["data"]
+        if (
+            status != 200
+            or state["coordinator_revision"] != 1
+            or state["configured_revision"] != 0
+            or not state["configuration_dirty"]
+        ):
+            raise AssertionError(
+                f"coordinator edit did not dirty the executor: {state_body}"
+            )
+
         status, _ = request(
             f"{base_url}/api/v1/execution/init", method="POST"
         )
-        if status != 501:
+        if status != 409:
             raise AssertionError(
-                "inspection-only dashboard unexpectedly enabled execution"
+                "dirty executor unexpectedly accepted init"
             )
+
+        status, configure_body = request(
+            f"{base_url}/api/v1/execution/commands/configure",
+            method="POST",
+        )
+        configured = json.loads(configure_body)["data"]
+        if (
+            status != 200
+            or configured["state"] != "CONFIGURED"
+            or configured["configured_revision"] != 1
+            or configured["active_revision"] is not None
+            or configured["graph_generation"] != 2
+            or configured["configuration_dirty"]
+        ):
+            raise AssertionError(
+                f"configure did not atomically adopt the edit: {configure_body}"
+            )
+
+        status, _ = request(
+            f"{base_url}/api/v1/execution/commands/unknown",
+            method="POST",
+        )
+        if status != 404:
+            raise AssertionError("unknown typed command did not return 404")
+
+        status, _ = request(
+            f"{base_url}/api/v1/execution/operations/not-an-operation"
+        )
+        if status != 404:
+            raise AssertionError("unknown operation did not return 404")
     finally:
         if process.poll() is None:
             process.send_signal(signal.SIGTERM)
@@ -131,6 +218,45 @@ def verify_dashboard(dashboard: Path, graph: Path) -> None:
         raise AssertionError(f"dashboard shutdown returned {process.returncode}")
 
 
+def verify_dashboard_architecture(source_root: Path) -> None:
+    generic_sources = [
+        source_root / "tools" / "graph-dashboard.cpp",
+        source_root / "libgraph" / "include" / "graph" / "GraphHttpServer.hpp",
+        source_root / "libgraph" / "src" / "graph" / "GraphHttpServer.cpp",
+        source_root / "libgraph" / "resources" / "web" / "index.html",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in generic_sources)
+    for forbidden in (
+        "/api/v1/fhss",
+        "EmbeddedDashboardServer",
+        "GraphRuntimeSession",
+        "examples/DSP/dashboard",
+    ):
+        if forbidden in combined:
+            raise AssertionError(
+                f"generic dashboard architecture contains forbidden dependency: "
+                f"{forbidden}"
+            )
+
+    server_header = generic_sources[1].read_text(encoding="utf-8")
+    server_source = generic_sources[2].read_text(encoding="utf-8")
+    if (
+        '"graph/GraphExecutor.hpp"' in server_header
+        or "class GraphExecutor;" in server_header
+        or "GraphExecutor *" in server_header
+        or "executor_->" in server_source
+    ):
+        raise AssertionError(
+            "GraphHttpServer regained direct GraphExecutor lifecycle access"
+        )
+
+    cmake = (source_root / "CMakeLists.txt").read_text(encoding="utf-8")
+    if cmake.count("add_executable(graphx_graph_dashboard ") != 1:
+        raise AssertionError(
+            "source tree must define exactly one generic dashboard executable"
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dashboard", type=Path, required=True)
@@ -142,6 +268,7 @@ def main() -> int:
     args.work_dir.mkdir(parents=True, exist_ok=True)
     verify_cli(args.cli.resolve(), args.graph.resolve(), args.work_dir.resolve())
     verify_dashboard(args.dashboard.resolve(), args.graph.resolve())
+    verify_dashboard_architecture(Path(__file__).resolve().parents[2])
     return 0
 
 

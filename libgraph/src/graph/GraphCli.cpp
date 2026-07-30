@@ -1,4 +1,5 @@
 #include "graph/GraphCli.hpp"
+#include "capabilities/CommandCapability.hpp"
 #include "graph/ExecutionState.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
@@ -8,6 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <utility>
+#include <thread>
 
 namespace graph {
 
@@ -32,6 +34,7 @@ bool GraphCli::LoadGraph(const std::string& filepath) {
         // Create coordinator for the loaded graph
         coordinator_ = std::make_unique<GraphCoordinator>(graph_);
         executor_.reset();
+        commands_.reset();
         graph_path_ = filepath;
         dirty_ = false;
         return true;
@@ -63,6 +66,7 @@ bool GraphCli::SaveGraph(const std::string& filepath) {
             return false;
         }
         
+        graph_ = coordinator_->GetGraphJson();
         file << std::setw(2) << graph_ << std::endl;
         file.close();
         graph_path_ = filepath;
@@ -75,9 +79,10 @@ bool GraphCli::SaveGraph(const std::string& filepath) {
 }
 
 std::string GraphCli::ShowGraph(const std::string& format) {
-    if (graph_.empty()) {
+    if (!coordinator_) {
         return "Error: No graph loaded";
     }
+    graph_ = coordinator_->GetGraphJson();
     
     if (format == "json") {
         return graph_.dump(2);
@@ -209,7 +214,9 @@ bool GraphCli::UpdateNode(const std::string& id, const nlohmann::json& config) {
             std::cerr << "Error: Node '" << id << "' not found\n";
         } else {
             dirty_ = true;
+            graph_ = coordinator_->GetGraphJson();
             executor_.reset();
+            commands_.reset();
         }
         return success;
     } catch (const std::exception& e) {
@@ -229,14 +236,18 @@ bool GraphCli::Init() {
     }
     try {
         executor_ = GraphExecutorBuilder()
-                        .WithJsonConfig(graph_path_)
+                        .WithGraphSnapshot(coordinator_->Snapshot())
                         .WithPluginDirectory(plugin_directory_)
                         .Build();
         if (!executor_) {
             std::cerr << "Error: Could not build GraphExecutor\n";
             return false;
         }
-        const auto result = executor_->Init();
+        commands_ =
+            executor_->GetCapability<capabilities::CommandCapability>();
+        const auto result = commands_->Submit(
+            {.name = capabilities::CommandName::Init,
+             .coordinator_revision = coordinator_->Snapshot().Revision()});
         if (!result.success) {
             std::cerr << "Error: " << result.message << "\n";
         }
@@ -249,11 +260,13 @@ bool GraphCli::Init() {
 }
 
 bool GraphCli::Start() {
-    if (!executor_) {
+    if (!commands_) {
         std::cerr << "Error: Executor is not initialized\n";
         return false;
     }
-    const auto result = executor_->Start();
+    const auto result = commands_->Submit(
+        {.name = capabilities::CommandName::Start,
+         .coordinator_revision = coordinator_->Snapshot().Revision()});
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -261,11 +274,25 @@ bool GraphCli::Start() {
 }
 
 bool GraphCli::Run() {
-    if (!executor_) {
+    if (!commands_) {
         std::cerr << "Error: Executor is not initialized\n";
         return false;
     }
-    const auto result = executor_->Run();
+    auto result = commands_->Submit(
+        {.name = capabilities::CommandName::Run,
+         .coordinator_revision = coordinator_->Snapshot().Revision()});
+    while (result.success &&
+           (result.status == capabilities::OperationStatus::Accepted ||
+            result.status == capabilities::OperationStatus::Running)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        const auto current = commands_->GetOperation(result.operation_id);
+        if (!current) {
+            result.success = false;
+            result.message = "Run operation result expired";
+            break;
+        }
+        result = *current;
+    }
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -273,11 +300,13 @@ bool GraphCli::Run() {
 }
 
 bool GraphCli::Stop() {
-    if (!executor_) {
+    if (!commands_) {
         std::cerr << "Error: Executor is not initialized\n";
         return false;
     }
-    const auto result = executor_->Stop();
+    const auto result = commands_->Submit(
+        {.name = capabilities::CommandName::Stop,
+         .coordinator_revision = coordinator_->Snapshot().Revision()});
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -285,11 +314,25 @@ bool GraphCli::Stop() {
 }
 
 bool GraphCli::Join() {
-    if (!executor_) {
+    if (!commands_) {
         std::cerr << "Error: Executor is not initialized\n";
         return false;
     }
-    const auto result = executor_->Join();
+    auto result = commands_->Submit(
+        {.name = capabilities::CommandName::Join,
+         .coordinator_revision = coordinator_->Snapshot().Revision()});
+    while (result.success &&
+           (result.status == capabilities::OperationStatus::Accepted ||
+            result.status == capabilities::OperationStatus::Running)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        const auto current = commands_->GetOperation(result.operation_id);
+        if (!current) {
+            result.success = false;
+            result.message = "Join operation result expired";
+            break;
+        }
+        result = *current;
+    }
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -301,6 +344,8 @@ std::string GraphCli::GetState() {
         return "NOT_INITIALIZED";
     }
     switch (executor_->GetExecutionState()) {
+    case ExecutionState::CONFIGURED:
+        return "CONFIGURED";
     case ExecutionState::INITIALIZED:
         return "INITIALIZED";
     case ExecutionState::PAUSED:
@@ -325,6 +370,7 @@ void GraphCli::SetPluginDirectory(std::string directory) {
     if (!directory.empty()) {
         plugin_directory_ = std::move(directory);
         executor_.reset();
+        commands_.reset();
     }
 }
 

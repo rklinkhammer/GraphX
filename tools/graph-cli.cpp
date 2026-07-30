@@ -13,9 +13,14 @@
 
 namespace {
 
+constexpr std::string_view kDeprecationWarning =
+    "DEPRECATED: graph-cli will be removed after the graphx-dashboard web "
+    "command surface and REST automation workflow reach feature parity. "
+    "Use graphx-dashboard for new operator workflows.\n";
+
 void PrintHelp() {
   std::cout
-      << "GraphX generic graph CLI\n\n"
+      << "GraphX generic graph CLI (deprecated)\n\n"
       << "Usage:\n"
       << "  graph-cli                         Start an interactive session\n"
       << "  graph-cli load <path>             Validate and load one graph\n"
@@ -241,6 +246,7 @@ int Interactive(graph::GraphCli &cli) {
 } // namespace
 
 int main(const int argc, char **argv) {
+  std::cerr << kDeprecationWarning;
   graph::GraphCli cli;
   std::vector<std::string> arguments(argv + 1, argv + argc);
   if (arguments.empty()) {

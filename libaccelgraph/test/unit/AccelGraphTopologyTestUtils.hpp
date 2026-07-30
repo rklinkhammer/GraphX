@@ -27,11 +27,16 @@ inline std::filesystem::path PluginDirectoryPath() {
 inline std::shared_ptr<graph::GraphExecutor> BuildExecutor(
     const std::filesystem::path& config_path,
     std::chrono::seconds timeout) {
-    return graph::GraphExecutorBuilder()
+    auto executor = graph::GraphExecutorBuilder()
         .WithJsonConfig(config_path.string())
         .WithPluginDirectory(PluginDirectoryPath().string())
         .WithExecutorTimeout(timeout)
         .Build();
+    const auto initialized = executor->Init();
+    if (!initialized.success) {
+        throw std::runtime_error(initialized.message);
+    }
+    return executor;
 }
 
 template <typename NodeT>
@@ -72,7 +77,10 @@ inline bool IsExpectedCudaDiagnostic(const std::string& message) {
 }
 
 inline bool IsGraphBuildFailureDiagnostic(const std::string& message) {
-    return message.find("Graph building failed") != std::string::npos;
+    return message.find("Graph building failed") != std::string::npos ||
+           message.find("Graph construction failed") != std::string::npos ||
+           message.find("Failed to load graph configuration") !=
+               std::string::npos;
 }
 
 inline bool IsMetalRuntimeAvailableForTests() {

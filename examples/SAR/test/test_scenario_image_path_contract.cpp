@@ -139,6 +139,8 @@ TEST(ScenarioImagePathContractTest, ScenarioDrivenConfigCapturesMaterializedImag
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
 
     const auto run_result = executor->Execute();

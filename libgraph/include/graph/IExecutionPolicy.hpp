@@ -84,7 +84,9 @@ public:
      * @return Method-specific result, status, or produced value when the signature provides one.
      */
     bool OnInit(capabilities::GraphCapability& ctx) override {
+        initialized_ = false;
         if (!policy_->OnInit(ctx)) return false;
+        initialized_ = true;
         return next_ ? next_->OnInit(ctx) : true;
     }
 
@@ -133,7 +135,35 @@ public:
      */
     void OnJoin(capabilities::GraphCapability& ctx) override {
         policy_->OnJoin(ctx);
+        initialized_ = false;
         if (next_) next_->OnJoin(ctx);
+    }
+
+    /**
+     * Stop only policies whose initialization hook completed successfully.
+     * Used by GraphExecutor to roll back a partial initialization attempt.
+     */
+    void OnInitializationRollbackStop(capabilities::GraphCapability& ctx) {
+        if (initialized_) {
+            policy_->OnStop(ctx);
+        }
+        if (next_) {
+            next_->OnInitializationRollbackStop(ctx);
+        }
+    }
+
+    /**
+     * Join only policies whose initialization hook completed successfully and
+     * clear their per-attempt initialization state.
+     */
+    void OnInitializationRollbackJoin(capabilities::GraphCapability& ctx) {
+        if (initialized_) {
+            policy_->OnJoin(ctx);
+            initialized_ = false;
+        }
+        if (next_) {
+            next_->OnInitializationRollbackJoin(ctx);
+        }
     }
 
     /// @brief Append a policy to the end of the chain
@@ -159,5 +189,6 @@ public:
 private:
     std::unique_ptr<IExecutionPolicy> policy_;
     std::unique_ptr<ExecutionPolicyChain> next_;
+    bool initialized_ = false;
 };
 }  // namespace graph

@@ -43,6 +43,8 @@ namespace graph {
  */
 std::string GetExecutionStateName(graph::ExecutionState state) {
   switch (state) {
+    case graph::ExecutionState::CONFIGURED:
+      return "CONFIGURED";
     case graph::ExecutionState::INITIALIZED:
       return "INITIALIZED";
     case graph::ExecutionState::PAUSED:
@@ -62,4 +64,4 @@ std::string GetExecutionStateName(graph::ExecutionState state) {
   }
 }
 
-}  // namespace graph`
+}  // namespace graph

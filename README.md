@@ -265,8 +265,9 @@ suite because it preserves the repository's disabled-test policy.
 ## Generic Graph Dashboard And CLI
 
 The generic dashboard is read-only with respect to graph structure. It supports
-inspection and in-memory parameter editing, while execution endpoints are
-disabled unless `--enable-execution` is supplied. The server binds only to
+inspection, in-memory parameter editing, and explicit lifecycle commands. The
+launcher always creates a lightweight `CONFIGURED` executor; graph/plugin
+construction remains deferred until `Init`. The server binds only to
 `127.0.0.1`.
 
 First select the build tree created by the platform-specific quick start and
@@ -294,12 +295,11 @@ dashboard_build=build-ninja/ninja-debug
 ```
 
 Open `http://127.0.0.1:8080/` and press Ctrl-C in the terminal to stop the
-server. The page should show **GraphX Management**, state **STOPPED**, and the
-`source_1` and `sink_1` nodes. Do not add `--enable-execution` for
-inspection-only use. Execution mode is opt-in and additionally requires a
-runnable graph plus a directory containing its dynamically loaded node
-plugins; run `"$dashboard_build/graphx-dashboard" --help` for the accepted
-flags.
+server. The page should show **GraphX Management**, state **CONFIGURED**, and
+the `source_1` and `sink_1` nodes. Use the
+explicit `Init`, `Start`, `Run`, `Stop`, and `Join` controls when the graph's
+dynamically loaded node plugins are available; run
+`"$dashboard_build/graphx-dashboard" --help` for the accepted flags.
 
 Confirm the server independently of browser state:
 
@@ -322,7 +322,9 @@ docker compose -f containers/dashboard-operator/compose.yaml down
 That Compose command only stops and removes the legacy service. Do not run its
 `build` or `up` commands as part of the generic-dashboard workflow.
 
-Inspect the same graph without a browser:
+The standalone `graph-cli` is deprecated. It remains temporarily available
+while the dashboard command surface and REST automation workflow reach feature
+parity:
 
 ```bash
 dashboard_build=build-ninja/ninja-debug
@@ -333,6 +335,10 @@ dashboard_build=build-ninja/ninja-debug
   --graph libgraph/test/config/topologies/minimal_graph.json \
   show --format table
 ```
+
+New operator workflows should use `graphx-dashboard`. Do not add new
+dependencies on `graph-cli`; its removal is gated on browser command,
+graph-export, and documented REST automation coverage.
 
 An optional repository-local installation preserves host installation state:
 

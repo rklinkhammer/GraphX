@@ -209,6 +209,13 @@ public:
         std::lock_guard<std::mutex> lock(callbacks_lock_);
         return schemas_;
     }
+
+    /// Clear schemas and generation-specific values while preserving this
+    /// capability object and its subscribers.
+    virtual void ResetGeneration() {
+        std::lock_guard<std::mutex> lock(callbacks_lock_);
+        schemas_.clear();
+    }
     
     /**
      * @brief Invoke all registered subscribers with a metrics event

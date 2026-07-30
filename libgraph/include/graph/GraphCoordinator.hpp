@@ -18,16 +18,19 @@
  * - No validation of node_config contents
  *
  * @details All read operations return copies (never references) to prevent
- * post-unlock mutations. Write operations (UpdateNodeConfig) modify the
- * referenced graph object directly.
+ * post-unlock mutations. The coordinator owns the document so no mutable alias
+ * can bypass locking or revision accounting.
  */
 
 #pragma once
 
+#include "graph/GraphConfigurationSnapshot.hpp"
+
+#include <cstdint>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-#include <mutex>
 
 namespace graph {
 
@@ -60,14 +63,12 @@ public:
     /**
      * @brief Construct a GraphCoordinator for the given graph.
      *
-     * @param graph Reference to nlohmann::json graph object to manage.
+     * @param graph nlohmann::json graph object to own.
      *              The graph must contain a "nodes" array with node objects.
      *              Each node must have "id" and "type" fields.
      *
-     * @note GraphCoordinator does NOT own the graph object. The caller
-     *       must ensure the graph remains valid for the coordinator's lifetime.
      */
-    explicit GraphCoordinator(nlohmann::json& graph);
+    explicit GraphCoordinator(nlohmann::json graph);
 
     ~GraphCoordinator() = default;
 
@@ -80,6 +81,12 @@ public:
      *         Returns empty object if graph_ is invalid or missing "nodes" array.
      */
     nlohmann::json GetGraphJson() const;
+
+    /**
+     * Return the complete document, revision, and deterministic content
+     * identity from one critical section.
+     */
+    [[nodiscard]] GraphConfigurationSnapshot Snapshot() const;
 
     /**
      * @brief Get a copy of a single node by ID.
@@ -160,7 +167,8 @@ public:
 
 private:
     mutable std::mutex graph_lock_;  ///< Protects access to graph_
-    nlohmann::json& graph_;           ///< Reference to graph (not owned)
+    nlohmann::json graph_;            ///< Authoritative owned graph document
+    std::uint64_t revision_{0};
 };
 
 }  // namespace graph

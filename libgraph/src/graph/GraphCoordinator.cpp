@@ -8,13 +8,17 @@
 
 namespace graph {
 
-GraphCoordinator::GraphCoordinator(nlohmann::json& graph)
-    : graph_(graph) {
-}
+GraphCoordinator::GraphCoordinator(nlohmann::json graph)
+    : graph_(std::move(graph)) {}
 
 nlohmann::json GraphCoordinator::GetGraphJson() const {
     std::lock_guard<std::mutex> lock(graph_lock_);
     return graph_;
+}
+
+GraphConfigurationSnapshot GraphCoordinator::Snapshot() const {
+    std::lock_guard<std::mutex> lock(graph_lock_);
+    return GraphConfigurationSnapshot(graph_, revision_);
 }
 
 nlohmann::json GraphCoordinator::GetNode(const std::string& id) const {
@@ -136,7 +140,14 @@ bool GraphCoordinator::UpdateNodeConfig(const std::string& id,
     for (auto& node : nodes) {
         if (node.contains("id") && node["id"].is_string() &&
             node["id"].get<std::string>() == id) {
+            const auto current = node.contains("node_config")
+                                     ? node["node_config"]
+                                     : nlohmann::json{};
+            if (current == node_config) {
+                return true;
+            }
             node["node_config"] = node_config;
+            ++revision_;
             return true;
         }
     }

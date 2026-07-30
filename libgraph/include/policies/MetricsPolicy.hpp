@@ -206,9 +206,20 @@ public:
          * @param metrics_logger Input or configuration value consumed by the method.
          * @return Method-specific result, status, or produced value when the signature provides one.
          */
-        LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnInit() - creating MetricsCapability");
-        metrics_capability_ = std::make_shared<capabilities::MetricsCapability>();
-        context.GetCapabilityBus().Register<capabilities::MetricsCapability>(metrics_capability_);
+        LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnInit() - binding MetricsCapability");
+        metrics_capability_ =
+            context.GetCapabilityBus().Get<capabilities::MetricsCapability>();
+        if (!metrics_capability_) {
+            metrics_capability_ =
+                std::make_shared<capabilities::MetricsCapability>();
+            context.GetCapabilityBus().Register<capabilities::MetricsCapability>(
+                metrics_capability_);
+        }
+        metrics_event_queue_.Clear();
+        metrics_event_queue_.Enable();
+        metrics_node_callbacks_.clear();
+        node_metrics_schemas_.clear();
+        metrics_capability_->ResetGeneration();
         /**
          * @brief Performs the Init Metrics Sources lifecycle step.
          *
@@ -256,6 +267,7 @@ public:
                          "MetricsPolicy::OnStart() failed - no MetricsCapability registered");
             return false;
         }
+        metrics_event_queue_.Enable();
         
         // CRITICAL FIX: Don't capture context by reference (it's a stack parameter)
         // Instead, we rely on metrics_event_queue_.Dequeue() blocking behavior

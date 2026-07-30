@@ -10,6 +10,13 @@
 namespace graph {
 
 class GraphExecutor;
+}
+
+namespace capabilities {
+class CommandCapability;
+}
+
+namespace graph {
 
 /// GraphCli: Command-line interface for graph management
 /// Provides file I/O, querying, and editing operations on graphs
@@ -54,6 +61,7 @@ private:
     nlohmann::json graph_;
     std::unique_ptr<GraphCoordinator> coordinator_;  // Created after graph loaded
     std::shared_ptr<GraphExecutor> executor_;
+    std::shared_ptr<capabilities::CommandCapability> commands_;
     std::string graph_path_;
     std::string plugin_directory_ = "./plugins";
     bool dirty_ = false;

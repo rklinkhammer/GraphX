@@ -87,6 +87,11 @@ public:
         return capabilities_.find(std::type_index(typeid(CapabilityT))) != capabilities_.end();
     }
 
+    template<typename CapabilityT>
+    void Unregister() {
+        capabilities_.erase(std::type_index(typeid(CapabilityT)));
+    }
+
     /**
      * @brief Executes the Clear operation.
      *

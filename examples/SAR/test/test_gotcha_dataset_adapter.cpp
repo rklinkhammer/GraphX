@@ -292,6 +292,8 @@ TEST(GotchaDatasetAdapterTest, PluginLoadedGotchaReplayPipelineRunsEndToEnd) {
                         .Build();
 
     ASSERT_NE(executor, nullptr);
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success) << initialized.message;
     ASSERT_NE(executor->GetGraphManager(), nullptr);
     EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 8u);
     EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 7u);

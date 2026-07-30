@@ -37,9 +37,13 @@
 #include "capabilities/GraphCapability.hpp"
 #include "config/Errors.hpp"
 #include "graph/ExecutionState.hpp"
+#include "graph/GraphConfigurationSnapshot.hpp"
 #include <expected>
+#include <atomic>
 #include <memory>
 #include <chrono>
+#include <optional>
+#include <string>
 #include <vector>
 #include <condition_variable>
 #include <mutex>
@@ -56,18 +60,20 @@ namespace graph {
  * capabilities (MetricsCapability, GraphCapability).
  *
  * Execution States:
- * - **STOPPED**: Not executing, ready to start
- * - **INITIALIZING**: Running Init() to prepare nodes
+ * - **CONFIGURED**: Immutable configuration recorded; graph not constructed
+ * - **INITIALIZED**: Graph constructed and initialized, ready to start
  * - **RUNNING**: Active execution of graph nodes
- * - **PAUSED**: Suspended execution (nodes retain state)
  * - **STOPPING**: Graceful shutdown in progress
+ * - **STOPPED**: Graph stopped and joined; may be configured again
+ * - **ERROR**: A lifecycle operation failed terminally
  *
  * Execution Flow:
- * 1. Init() → Initialize graph and nodes
- * 2. Start() → Begin execution
- * 3. Run() → Execute nodes (blocking)
- * 4. Stop() → Request graceful shutdown
- * 5. Join() → Wait for completion
+ * 1. ConfigureGraph() → Atomically record an immutable snapshot
+ * 2. Init() → Lazily build and initialize the graph
+ * 3. Start() → Begin execution
+ * 4. Run() → Block until natural completion or a stop request
+ * 5. Stop() → Perform graceful shutdown
+ * 6. Join() → Wait for teardown and publish STOPPED
  *
  * Policies:
  * The executor uses an ExecutionPolicyChain to customize behavior:
@@ -120,7 +126,7 @@ public:
      * Postconditions:
      * - Executor holds the policy chain
      * - Ready to call Init()
-     * - State is STOPPED
+     * - State is CONFIGURED
      *
      * @throws std::invalid_argument if policy_chain is nullptr
      */
@@ -137,6 +143,17 @@ public:
  * @brief Graph executor.
  */
     virtual ~GraphExecutor() noexcept;
+
+    /**
+     * Validate and atomically record an immutable graph configuration.
+     * This method performs no provider loading, node construction, graph
+     * manager construction, policy initialization, or thread creation.
+     */
+    ExecutionResult ConfigureGraph(
+        const GraphConfigurationSnapshot& snapshot);
+
+    /// Builder-only runtime inputs consumed lazily by Init().
+    void SetPluginDirectories(std::vector<std::string> directories);
     
     /**
      * @brief Initialize the executor and all graph nodes
@@ -145,12 +162,12 @@ public:
      * 1. Calls Init() on all policies in chain
      * 2. Initializes all nodes in the graph
      * 3. Validates graph structure and connections
-     * 4. Transitions to INITIALIZED or STOPPED state
+     * 4. Transitions to INITIALIZED, or rolls back to CONFIGURED on failure
      *
      * @return InitializationResult with status and error message if failed
      *
-     * @pre State must be STOPPED
-     * @post State is INITIALIZED or STOPPED (on error)
+     * @pre State must be CONFIGURED
+     * @post State is INITIALIZED or CONFIGURED (on rollback)
      */
 /**
  * @brief Init.
@@ -203,7 +220,8 @@ public:
      * @return ExecutionResult with final state and any error
      *
      * @pre State must be RUNNING
-     * @post State is STOPPED or other terminal state
+     * @post State remains RUNNING on normal return; the lifecycle owner then
+     *       performs Stop() and Join(). Failures may publish ERROR.
      */
 /**
  * @brief Run.
@@ -419,6 +437,19 @@ public:
         return current_state_.load(std::memory_order_acquire);
     }   
 
+    [[nodiscard]] std::optional<std::uint64_t> GetConfiguredRevision() const;
+    [[nodiscard]] std::optional<std::uint64_t> GetActiveRevision() const;
+    [[nodiscard]] std::uint64_t GetGraphGeneration() const noexcept {
+        return graph_generation_.load(std::memory_order_acquire);
+    }
+    void ObserveCoordinatorRevision(std::uint64_t revision) noexcept {
+        coordinator_revision_.store(revision, std::memory_order_release);
+    }
+    [[nodiscard]] std::uint64_t GetCoordinatorRevision() const noexcept {
+        return coordinator_revision_.load(std::memory_order_acquire);
+    }
+    [[nodiscard]] bool IsConfigurationDirty() const noexcept;
+
     /// @brief Check if completion has been signaled
     /// @return true if completion signaled, false otherwise
     bool IsCompletionSignaled() const
@@ -453,11 +484,20 @@ private:
  * @return Result of the operation.
  */
     int CountNodesinLifecycleState(graph::LifecycleState state) const;
+    [[nodiscard]] bool
+    RollbackInitializationAttempt(bool graph_initialization_started) noexcept;
 
     std::unique_ptr<ExecutionPolicyChain> policy_chain_;
     std::shared_ptr<graph::GraphManager> graph_manager_;
     std::shared_ptr<capabilities::GraphCapability>  graph_capability_;
-    std::atomic<ExecutionState> current_state_{graph::ExecutionState::STOPPED};
+    std::atomic<ExecutionState> current_state_{graph::ExecutionState::CONFIGURED};
+    mutable std::mutex configuration_mutex_;
+    std::optional<GraphConfigurationSnapshot> configured_snapshot_;
+    std::optional<std::uint64_t> active_revision_;
+    std::vector<std::string> plugin_directories_;
+    std::atomic<std::uint64_t> coordinator_revision_{0};
+    std::atomic<std::uint64_t> graph_generation_{0};
+    std::atomic<bool> joined_{false};
     std::atomic<std::uint64_t> execution_attempt_{0};
     std::atomic<std::uint64_t> startup_complete_attempt_{0};
     std::atomic<std::uint64_t> stop_sequence_count_{0};

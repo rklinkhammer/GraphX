@@ -524,8 +524,6 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
         throw std::runtime_error("Failed to build graph executor in benchmark");
     }
 
-    auto backprojection = ResolveBackprojectionNode(executor->GetGraphManager());
-
     out.build_ms = std::chrono::duration<double, std::milli>(build_end - build_start).count();
 
     const auto lifecycle_start = Clock::now();
@@ -537,6 +535,8 @@ GraphRunResult RunGraphOnce(const std::filesystem::path& config_path,
         throw std::runtime_error("Graph init failed in benchmark: " + init.message + " " + init.error_details);
     }
     out.init_ms = std::chrono::duration<double, std::milli>(init_end - init_start).count();
+    auto backprojection =
+        ResolveBackprojectionNode(executor->GetGraphManager());
 
     const auto start_start = Clock::now();
     const auto start = executor->Start();

@@ -697,6 +697,8 @@ TEST(DspFhssIqGeneratorExecutableTest,
                       .WithExecutorTimeout(std::chrono::seconds(20))
                       .Build();
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   ASSERT_NE(executor->GetGraphManager(), nullptr);
   auto sink = ResolveSink(executor->GetGraphManager());
   ASSERT_NE(sink, nullptr);

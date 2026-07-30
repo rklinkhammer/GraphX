@@ -107,6 +107,8 @@ TEST(FHSSGraphXExecutorTest,
                       .Build();
 
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   ASSERT_NE(executor->GetGraphManager(), nullptr);
   EXPECT_EQ(executor->GetGraphManager()->GetNodes().size(), 75u);
   EXPECT_EQ(executor->GetGraphManager()->GetEdges().size(), 137u);
@@ -137,6 +139,8 @@ TEST(FHSSGraphXExecutorTest,
                       .WithExecutorTimeout(std::chrono::seconds(12))
                       .Build();
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   const auto manager = executor->GetGraphManager();
   ASSERT_NE(manager, nullptr);
   EXPECT_EQ(manager->GetNodes().size(), 75u);
@@ -325,6 +329,8 @@ TEST(FHSSGraphXExecutorTest,
                       .WithExecutorTimeout(std::chrono::seconds(12))
                       .Build();
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   const auto manager = executor->GetGraphManager();
   ASSERT_NE(manager, nullptr);
   const auto result = executor->Execute();
@@ -478,6 +484,8 @@ TEST(FHSSGraphXExecutorTest,
                       .Build();
 
   ASSERT_NE(executor, nullptr);
+  const auto initialized = executor->Init();
+  ASSERT_TRUE(initialized.success) << initialized.message;
   auto graph_manager = executor->GetGraphManager();
   ASSERT_NE(graph_manager, nullptr);
   EXPECT_EQ(graph_manager->GetNodes().size(), 75u);
@@ -611,6 +619,9 @@ TEST(FHSSGraphXExecutorTest,
                         .Build();
 
     ASSERT_NE(executor, nullptr) << "canonical run " << run;
+    const auto initialized = executor->Init();
+    ASSERT_TRUE(initialized.success)
+        << "canonical run " << run << ": " << initialized.message;
     auto graph_manager = executor->GetGraphManager();
     ASSERT_NE(graph_manager, nullptr) << "canonical run " << run;
 
