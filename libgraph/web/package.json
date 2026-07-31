@@ -1,0 +1,33 @@
+{
+  "name": "@graphx/generic-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "npm run typecheck && npm test && npm run check:assets",
+    "check:assets": "node scripts/verify-assets.mjs",
+    "test": "vitest run",
+    "test:browser": "node test/browser-dashboard.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.11.2",
+    "elkjs": "0.12.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "jsdom": "30.0.1",
+    "puppeteer-core": "25.4.0",
+    "typescript": "7.0.2",
+    "vite": "8.2.0",
+    "vitest": "4.1.10"
+  }
+}

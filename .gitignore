@@ -31,6 +31,9 @@ compile_commands.json
 Testing/
 .graphx-operator/
 
+# Frontend dependencies
+libgraph/web/node_modules/
+
 # Install directory
 install/
 graphlib.log.*

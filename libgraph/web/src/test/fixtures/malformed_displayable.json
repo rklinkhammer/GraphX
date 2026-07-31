@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    { "id": "source", "type": "FixtureSource", "node_config": {} },
+    { "id": "sink", "type": "FixtureSink", "node_config": {} }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "source_port_name": "ambiguous",
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

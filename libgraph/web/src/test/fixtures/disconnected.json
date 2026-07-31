@@ -1,0 +1,8 @@
+{
+  "nodes": [
+    { "id": "island-a", "type": "FixtureNode", "node_config": {} },
+    { "id": "island-b", "type": "FixtureNode", "node_config": {} },
+    { "id": "island-c", "type": "FixtureNode", "node_config": {} }
+  ],
+  "edges": []
+}

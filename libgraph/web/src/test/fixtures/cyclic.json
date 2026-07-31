@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    { "id": "cycle-a", "type": "FixtureNode", "node_config": {} },
+    { "id": "cycle-b", "type": "FixtureNode", "node_config": {} }
+  ],
+  "edges": [
+    {
+      "source_node_id": "cycle-a",
+      "source_port": 0,
+      "target_node_id": "cycle-b",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "cycle-b",
+      "source_port": 0,
+      "target_node_id": "cycle-a",
+      "target_port": 0
+    }
+  ]
+}

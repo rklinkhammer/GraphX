@@ -17,15 +17,22 @@
 #include <unistd.h>
 
 #include <array>
+#include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -50,18 +57,42 @@ std::uint16_t ReserveLoopbackPort() {
     return port;
 }
 
-std::string SendHttpRequest(const std::uint16_t port,
-                            const std::string& method,
-                            const std::string& path,
-                            const std::string& body = {}) {
+int ConnectLoopbackClient(const std::uint16_t port) {
     const int socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     EXPECT_GE(socket_fd, 0);
+    if (socket_fd < 0) {
+        return -1;
+    }
+#ifdef SO_NOSIGPIPE
+    int no_sigpipe = 1;
+    EXPECT_EQ(::setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &no_sigpipe,
+                           static_cast<socklen_t>(sizeof(no_sigpipe))),
+              0);
+#endif
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     EXPECT_EQ(::connect(socket_fd, reinterpret_cast<sockaddr*>(&address),
-                        sizeof(address)), 0);
+                        sizeof(address)),
+              0);
+    return socket_fd;
+}
+
+ssize_t SendWithoutSigpipe(const int socket_fd, const std::string_view bytes) {
+    int flags = 0;
+#ifdef MSG_NOSIGNAL
+    flags |= MSG_NOSIGNAL;
+#endif
+    return ::send(socket_fd, bytes.data(), bytes.size(), flags);
+}
+
+std::string SendHttpRequest(const std::uint16_t port,
+                            const std::string& method,
+                            const std::string& path,
+                            const std::string& body = {}) {
+    const int socket_fd = ConnectLoopbackClient(port);
+    EXPECT_GE(socket_fd, 0);
 
     std::ostringstream request;
     request << method << ' ' << path << " HTTP/1.1\r\n"
@@ -73,7 +104,7 @@ std::string SendHttpRequest(const std::uint16_t port,
     }
     request << "\r\n" << body;
     const auto encoded = request.str();
-    EXPECT_EQ(::send(socket_fd, encoded.data(), encoded.size(), 0),
+    EXPECT_EQ(SendWithoutSigpipe(socket_fd, encoded),
               static_cast<ssize_t>(encoded.size()));
 
     std::string response;
@@ -102,6 +133,18 @@ std::string ResponseBody(const std::string& response) {
     const auto separator = response.find("\r\n\r\n");
     return separator == std::string::npos ? std::string{}
                                           : response.substr(separator + 4U);
+}
+
+std::string ResponseHeader(const std::string& response,
+                           const std::string& name) {
+    const auto marker = "\r\n" + name + ": ";
+    const auto begin = response.find(marker);
+    if (begin == std::string::npos) {
+        return {};
+    }
+    const auto value_begin = begin + marker.size();
+    const auto end = response.find("\r\n", value_begin);
+    return response.substr(value_begin, end - value_begin);
 }
 
 json LoadMinimalGraph() {
@@ -215,7 +258,9 @@ PolicyExecutorBundle BuildPolicyExecutor(
 }
 
 struct HttpHarness {
-    explicit HttpHarness(const int requested_port = ReserveLoopbackPort())
+    explicit HttpHarness(
+        const int requested_port = ReserveLoopbackPort(),
+        std::string index_path = {})
         : port(static_cast<std::uint16_t>(requested_port)),
           coordinator(std::make_shared<graph::GraphCoordinator>(
               LoadMinimalGraph())),
@@ -227,7 +272,8 @@ struct HttpHarness {
                    capabilities::CommandCapability>()),
           metrics(executor->GetCapability<
                   capabilities::MetricsCapability>()),
-          server(coordinator, commands, metrics, requested_port) {}
+          server(coordinator, commands, metrics, requested_port,
+                 std::move(index_path)) {}
 
     std::uint16_t port;
     std::shared_ptr<graph::GraphCoordinator> coordinator;
@@ -268,6 +314,335 @@ TEST(GraphHttpServerPhase0Test, PageAndGraphLoadWithoutInitialization) {
     EXPECT_EQ(harness.executor->GetExecutionState(),
               graph::ExecutionState::CONFIGURED);
     EXPECT_EQ(harness.executor->GetGraphManager(), nullptr);
+}
+
+TEST(GraphHttpServerPhase1Test,
+     ServesContainedStaticInventoryWithExactMimeAndMethodBehavior) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    const auto script = SendHttpRequest(
+        harness.port, "GET", "/assets/graphx-dashboard.js");
+    EXPECT_EQ(ResponseStatus(script), 200);
+    EXPECT_EQ(ResponseHeader(script, "Content-Type"),
+              "application/javascript; charset=utf-8");
+    EXPECT_FALSE(ResponseBody(script).empty());
+
+    const auto stylesheet = SendHttpRequest(
+        harness.port, "GET", "/assets/graphx-dashboard.css");
+    EXPECT_EQ(ResponseStatus(stylesheet), 200);
+    EXPECT_EQ(ResponseHeader(stylesheet, "Content-Type"),
+              "text/css; charset=utf-8");
+    EXPECT_FALSE(ResponseBody(stylesheet).empty());
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/assets/missing.js")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/assets/graphx-dashboard.js")),
+              405);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/assets/%2e%2e/index.html")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/../CMakeLists.txt")),
+              404);
+}
+
+TEST(GraphHttpServerPhase1Test,
+     ExplicitResourceRootNeverFallsBackPerMissingAsset) {
+    const auto port = ReserveLoopbackPort();
+    const auto resource_root =
+        std::filesystem::path{GRAPHX_SOURCE_ROOT} / "build-ninja" /
+        "ninja-debug" / "test-output" /
+        ("isolated-dashboard-root-" + std::to_string(port));
+    std::error_code error;
+    std::filesystem::create_directories(resource_root, error);
+    ASSERT_FALSE(error);
+    {
+        std::ofstream index(resource_root / "index.html");
+        ASSERT_TRUE(index);
+        index << "<!doctype html><title>isolated root</title>";
+    }
+
+    HttpHarness harness(
+        port, (resource_root / "index.html").string());
+    ASSERT_TRUE(harness.server.Start());
+    const auto page = SendHttpRequest(port, "GET", "/");
+    EXPECT_EQ(ResponseStatus(page), 200);
+    EXPECT_NE(ResponseBody(page).find("isolated root"), std::string::npos);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  port, "GET", "/assets/graphx-dashboard.js")),
+              404);
+    EXPECT_TRUE(harness.server.Stop());
+
+    std::filesystem::remove_all(resource_root, error);
+    EXPECT_FALSE(error);
+}
+
+TEST(GraphHttpServerPhase1Test,
+     ResetDuringLargeAssetResponseDoesNotTerminateServer) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    const int socket_fd = ConnectLoopbackClient(harness.port);
+    ASSERT_GE(socket_fd, 0);
+    int receive_buffer_bytes = 1024;
+    ASSERT_EQ(::setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF,
+                           &receive_buffer_bytes,
+                           static_cast<socklen_t>(
+                               sizeof(receive_buffer_bytes))),
+              0);
+    constexpr std::string_view request =
+        "GET /assets/graphx-dashboard.js HTTP/1.1\r\n"
+        "Host: 127.0.0.1\r\nConnection: close\r\n\r\n";
+    ASSERT_EQ(SendWithoutSigpipe(socket_fd, request),
+              static_cast<ssize_t>(request.size()));
+
+    const auto active_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness.server.ActiveRequestCount() == 0U &&
+           std::chrono::steady_clock::now() < active_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_EQ(harness.server.ActiveRequestCount(), 1U);
+
+    linger reset_on_close{.l_onoff = 1, .l_linger = 0};
+    ASSERT_EQ(::setsockopt(socket_fd, SOL_SOCKET, SO_LINGER,
+                           &reset_on_close,
+                           static_cast<socklen_t>(sizeof(reset_on_close))),
+              0);
+    ASSERT_EQ(::close(socket_fd), 0);
+
+    const auto completed_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness.server.ActiveRequestCount() != 0U &&
+           std::chrono::steady_clock::now() < completed_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(harness.server.ActiveRequestCount(), 0U);
+    EXPECT_TRUE(harness.server.IsRunning());
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/api/v1/graph")),
+              200);
+}
+
+TEST(GraphHttpServerPhase1Test,
+     DestructorJoinsActiveLargeStaticResponseBeforeHandlerStateDies) {
+    auto harness = std::make_unique<HttpHarness>();
+    ASSERT_TRUE(harness->server.Start());
+
+    const int socket_fd = ConnectLoopbackClient(harness->port);
+    ASSERT_GE(socket_fd, 0);
+    int receive_buffer_bytes = 1024;
+    ASSERT_EQ(::setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF,
+                           &receive_buffer_bytes,
+                           static_cast<socklen_t>(
+                               sizeof(receive_buffer_bytes))),
+              0);
+    constexpr std::string_view request =
+        "GET /assets/graphx-dashboard.js HTTP/1.1\r\n"
+        "Host: 127.0.0.1\r\nConnection: close\r\n\r\n";
+    ASSERT_EQ(SendWithoutSigpipe(socket_fd, request),
+              static_cast<ssize_t>(request.size()));
+
+    const auto active_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness->server.ActiveRequestCount() == 0U &&
+           std::chrono::steady_clock::now() < active_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_EQ(harness->server.ActiveRequestCount(), 1U);
+
+    auto destroyed = std::async(
+        std::launch::async,
+        [owned_harness = std::move(harness)]() mutable {
+            owned_harness.reset();
+        });
+    ASSERT_EQ(destroyed.wait_for(std::chrono::seconds(2)),
+              std::future_status::ready);
+    destroyed.get();
+
+    timeval receive_timeout{.tv_sec = 0, .tv_usec = 100000};
+    ASSERT_EQ(::setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO,
+                           &receive_timeout,
+                           static_cast<socklen_t>(sizeof(receive_timeout))),
+              0);
+    std::array<char, 4096> buffer{};
+    bool connection_closed = false;
+    const auto close_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < close_deadline) {
+        const auto received =
+            ::recv(socket_fd, buffer.data(), buffer.size(), 0);
+        if (received == 0) {
+            connection_closed = true;
+            break;
+        }
+        if (received < 0 && errno != EINTR && errno != EAGAIN &&
+            errno != EWOULDBLOCK) {
+            connection_closed = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(connection_closed);
+    EXPECT_EQ(::close(socket_fd), 0);
+}
+
+TEST(GraphHttpServerPhase1Test,
+     SequentialAndOverlappingRequestsKeepWorkerBookkeepingBounded) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    ASSERT_EQ(harness.server.RetainedRequestWorkerCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    constexpr std::size_t sequential_requests =
+        graph::GraphHttpServer::RequestWorkerLimit() * 20U;
+    for (std::size_t index = 0; index < sequential_requests; ++index) {
+        const auto response = SendHttpRequest(
+            harness.port, "GET", "/api/v1/graph");
+        ASSERT_EQ(ResponseStatus(response), 200) << index;
+    }
+    EXPECT_LE(harness.server.RetainedRequestWorkerCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    constexpr std::size_t overlapping_requests =
+        graph::GraphHttpServer::RequestWorkerLimit() * 8U;
+    std::vector<std::future<int>> requests;
+    requests.reserve(overlapping_requests);
+    for (std::size_t index = 0; index < overlapping_requests; ++index) {
+        requests.push_back(std::async(std::launch::async, [&harness] {
+            return ResponseStatus(SendHttpRequest(
+                harness.port, "GET", "/api/v1/graph"));
+        }));
+    }
+    for (auto& request : requests) {
+        EXPECT_EQ(request.get(), 200);
+    }
+    EXPECT_LE(harness.server.RetainedRequestWorkerCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+    EXPECT_LE(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+}
+
+TEST(GraphHttpServerPhase1Test,
+     AdmissionQueueRejectsOverloadAndShutdownRemainsPrompt) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    std::vector<int> admitted_clients;
+    constexpr std::string_view partial_request =
+        "GET /api/v1/graph HTTP/1.1\r\nHost: 127.0.0.1\r\n";
+    const auto admitted_count =
+        graph::GraphHttpServer::RequestWorkerLimit() +
+        graph::GraphHttpServer::PendingRequestLimit();
+    admitted_clients.reserve(admitted_count);
+    for (std::size_t index = 0; index < admitted_count; ++index) {
+        const int socket_fd = ConnectLoopbackClient(harness.port);
+        ASSERT_GE(socket_fd, 0);
+        ASSERT_EQ(SendWithoutSigpipe(socket_fd, partial_request),
+                  static_cast<ssize_t>(partial_request.size()));
+        admitted_clients.push_back(socket_fd);
+    }
+
+    const auto saturated_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while ((harness.server.ActiveRequestCount() !=
+                graph::GraphHttpServer::RequestWorkerLimit() ||
+            harness.server.PendingRequestCount() !=
+                graph::GraphHttpServer::PendingRequestLimit()) &&
+           std::chrono::steady_clock::now() < saturated_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_EQ(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+    ASSERT_EQ(harness.server.PendingRequestCount(),
+              graph::GraphHttpServer::PendingRequestLimit());
+
+    constexpr std::size_t overload_count = 64U;
+    std::vector<int> rejected_clients;
+    rejected_clients.reserve(overload_count);
+    for (std::size_t index = 0; index < overload_count; ++index) {
+        const int socket_fd = ConnectLoopbackClient(harness.port);
+        ASSERT_GE(socket_fd, 0);
+        rejected_clients.push_back(socket_fd);
+    }
+    const auto rejected_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness.server.RejectedRequestCount() < overload_count &&
+           std::chrono::steady_clock::now() < rejected_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(harness.server.RejectedRequestCount(), overload_count);
+    EXPECT_EQ(harness.server.PendingRequestCount(),
+              graph::GraphHttpServer::PendingRequestLimit());
+    EXPECT_EQ(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    const auto stop_started = std::chrono::steady_clock::now();
+    EXPECT_TRUE(harness.server.Stop());
+    const auto stop_elapsed =
+        std::chrono::steady_clock::now() - stop_started;
+    EXPECT_LT(stop_elapsed, std::chrono::seconds(2));
+    EXPECT_EQ(harness.server.PendingRequestCount(), 0U);
+    EXPECT_EQ(harness.server.ActiveRequestCount(), 0U);
+    EXPECT_EQ(harness.server.RetainedRequestWorkerCount(), 0U);
+
+    for (const int client : admitted_clients) {
+        ::close(client);
+    }
+    for (const int client : rejected_clients) {
+        ::close(client);
+    }
+}
+
+TEST(GraphHttpServerPhase1Test, StopInterruptsAndJoinsEveryActiveRequestWorker) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    std::vector<int> clients;
+    constexpr std::size_t request_count =
+        graph::GraphHttpServer::RequestWorkerLimit() * 2U;
+    clients.reserve(request_count);
+    for (std::size_t index = 0; index < request_count; ++index) {
+        const int socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_GE(socket_fd, 0);
+        sockaddr_in address{};
+        address.sin_family = AF_INET;
+        address.sin_port = htons(harness.port);
+        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        ASSERT_EQ(::connect(socket_fd, reinterpret_cast<sockaddr*>(&address),
+                            sizeof(address)), 0);
+        constexpr std::string_view partial_request =
+            "GET /api/v1/graph HTTP/1.1\r\nHost: 127.0.0.1\r\n";
+        ASSERT_EQ(::send(socket_fd, partial_request.data(),
+                         partial_request.size(), 0),
+                  static_cast<ssize_t>(partial_request.size()));
+        clients.push_back(socket_fd);
+    }
+
+    const auto active_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness.server.ActiveRequestCount() <
+               graph::GraphHttpServer::RequestWorkerLimit() &&
+           std::chrono::steady_clock::now() < active_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    auto stopped = std::async(std::launch::async,
+                              [&harness] { return harness.server.Stop(); });
+    ASSERT_EQ(stopped.wait_for(std::chrono::seconds(2)),
+              std::future_status::ready);
+    EXPECT_TRUE(stopped.get());
+    EXPECT_EQ(harness.server.RetainedRequestWorkerCount(), 0U);
+    EXPECT_EQ(harness.server.ActiveRequestCount(), 0U);
+    EXPECT_TRUE(harness.server.Stop());
+    EXPECT_EQ(harness.server.PendingRequestCount(), 0U);
+    EXPECT_EQ(harness.server.RetainedRequestWorkerCount(), 0U);
+    for (const int client : clients) {
+        ::close(client);
+    }
 }
 
 TEST(GraphHttpServerPhase0Test, CommandDiscoveryAndUnknownResources) {

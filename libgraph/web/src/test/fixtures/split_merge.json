@@ -1,0 +1,48 @@
+{
+  "nodes": [
+    { "id": "source", "type": "FixtureSource", "node_config": {} },
+    { "id": "split", "type": "FixtureSplit", "node_config": {} },
+    { "id": "left", "type": "FixtureStage", "node_config": {} },
+    { "id": "right", "type": "FixtureStage", "node_config": {} },
+    { "id": "merge", "type": "FixtureMerge", "node_config": {} },
+    { "id": "sink", "type": "FixtureSink", "node_config": {} }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port_name": "out",
+      "target_node_id": "split",
+      "target_port_name": "in"
+    },
+    {
+      "source_node_id": "split",
+      "source_port_name": "left",
+      "target_node_id": "left",
+      "target_port_name": "in"
+    },
+    {
+      "source_node_id": "split",
+      "source_port_name": "right",
+      "target_node_id": "right",
+      "target_port_name": "in"
+    },
+    {
+      "source_node_id": "left",
+      "source_port_name": "out",
+      "target_node_id": "merge",
+      "target_port_name": "left"
+    },
+    {
+      "source_node_id": "right",
+      "source_port_name": "out",
+      "target_node_id": "merge",
+      "target_port_name": "right"
+    },
+    {
+      "source_node_id": "merge",
+      "source_port_name": "out",
+      "target_node_id": "sink",
+      "target_port_name": "in"
+    }
+  ]
+}

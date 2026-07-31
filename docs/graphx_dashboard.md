@@ -30,7 +30,7 @@ authorize restoration of `ReceiverGraphCoordinator`,
 flowchart LR
   Operator["Operator browser"] --> HTTP["graphx-dashboard"]
   HTTP --> Server["GraphHttpServer"]
-  Server --> UI["Checked-in index.html"]
+  Server --> UI["Checked-in index.html entry + contained assets"]
   Server --> Coordinator["GraphCoordinator"]
   Coordinator --> Document["In-memory graph JSON"]
   Server -. "typed commands" .-> Commands["CommandCapability"]
@@ -72,8 +72,11 @@ locking or revision accounting. It does not load plugins, construct a
 ### GraphHttpServer
 
 `GraphHttpServer` is a loopback-only HTTP/1.1 adapter around
-`GraphCoordinator` and executor capabilities. It serves the single
-checked-in resource at `libgraph/resources/web/index.html`.
+`GraphCoordinator` and executor capabilities. It serves one checked-in
+dashboard resource root: `libgraph/resources/web/index.html` is the sole entry
+point, with its self-hosted JavaScript and CSS served from the contained
+`libgraph/resources/web/assets/` inventory. A server instance selects one
+resource root and never mixes source-tree and installed assets.
 
 The staged runtime integration has two explicit contracts:
 

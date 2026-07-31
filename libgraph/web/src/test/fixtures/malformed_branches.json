@@ -1,0 +1,73 @@
+{
+  "name": "IndependentlyAuthoredMalformedBranches",
+  "nodes": [
+    {
+      "id": "a",
+      "type": "Source"
+    },
+    {
+      "id": "b",
+      "type": "Sink"
+    },
+    null,
+    {
+      "id": "",
+      "type": "MissingIdentity"
+    },
+    {
+      "id": "missing-type",
+      "type": ""
+    }
+  ],
+  "edges": [
+    "not-an-edge",
+    {
+      "source_node_id": "",
+      "source_port": 0,
+      "target_node_id": "b",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "a",
+      "source_port": 1,
+      "target_node_id": "ghost",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "a",
+      "source_port": 0,
+      "target_node_id": "b",
+      "target_port": 2
+    },
+    {
+      "source_node_id": "a",
+      "source_port": 0,
+      "target_node_id": "b",
+      "target_port": 2
+    },
+    {
+      "source_node_id": "a",
+      "source_port": 3,
+      "source_port_name": "both",
+      "target_node_id": "b",
+      "target_port": 3
+    },
+    {
+      "source_node_id": "a",
+      "target_node_id": "b",
+      "target_port": 4
+    },
+    {
+      "source_node_id": "a",
+      "source_port": -1,
+      "target_node_id": "b",
+      "target_port": 5
+    },
+    {
+      "source_node_id": "a",
+      "source_port_name": "named",
+      "target_node_id": "b",
+      "target_port_name": ""
+    }
+  ]
+}

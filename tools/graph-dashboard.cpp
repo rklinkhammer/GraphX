@@ -173,9 +173,13 @@ int main(const int argc, char **argv) {
   }
 
   const auto executable = ResolveExecutable(argv[0]);
-  const auto index_path =
+  auto index_path =
       executable.parent_path().parent_path() / "share" / "graphx" /
       "dashboard" / "index.html";
+  std::error_code resource_error;
+  if (!std::filesystem::is_regular_file(index_path, resource_error)) {
+    index_path.clear();
+  }
   auto commands =
       executor->GetCapability<capabilities::CommandCapability>();
   auto metrics =

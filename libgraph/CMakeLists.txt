@@ -32,8 +32,8 @@ target_compile_definitions(graph PUBLIC
 )
 target_compile_definitions(graph PRIVATE BUILD_DIR="${CMAKE_BINARY_DIR}")
 target_compile_definitions(graph PRIVATE
-    GRAPHX_GENERIC_DASHBOARD_SOURCE_INDEX="${CMAKE_CURRENT_SOURCE_DIR}/resources/web/index.html"
-    GRAPHX_GENERIC_DASHBOARD_INSTALL_INDEX="${CMAKE_INSTALL_FULL_DATADIR}/graphx/dashboard/index.html"
+    GRAPHX_GENERIC_DASHBOARD_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/resources/web"
+    GRAPHX_GENERIC_DASHBOARD_INSTALL_ROOT="${CMAKE_INSTALL_FULL_DATADIR}/graphx/dashboard"
 )
 target_include_directories(graph PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -80,7 +80,7 @@ install(TARGETS graph EXPORT graphTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-install(FILES resources/web/index.html
+install(DIRECTORY resources/web/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/graphx/dashboard)
 if(GRAPHX_BUILD_WEB_DASHBOARD)
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

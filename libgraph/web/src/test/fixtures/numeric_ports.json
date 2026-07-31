@@ -1,0 +1,14 @@
+{
+  "nodes": [
+    { "id": "numeric-source", "type": "FixtureSource", "node_config": {} },
+    { "id": "numeric-sink", "type": "FixtureSink", "node_config": {} }
+  ],
+  "edges": [
+    {
+      "source_node_id": "numeric-source",
+      "source_port": 0,
+      "target_node_id": "numeric-sink",
+      "target_port": 2
+    }
+  ]
+}

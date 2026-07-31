@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    { "id": "valid", "type": "FixtureNode", "node_config": {} },
+    { "id": "valid", "type": "DuplicateFixtureNode", "node_config": {} },
+    { "id": "", "type": "FixtureNode", "node_config": {} },
+    { "id": "missing-type", "node_config": {} }
+  ],
+  "edges": [
+    {
+      "source_node_id": "valid",
+      "source_port": -1,
+      "target_node_id": "missing",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "valid",
+      "source_port": 0,
+      "source_port_name": "ambiguous",
+      "target_node_id": "valid",
+      "target_port": 0
+    }
+  ]
+}
